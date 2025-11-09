@@ -1,0 +1,120 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { useAppStore } from '../store/appStore';
+
+interface CreateComponentDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
+  isOpen,
+  onClose,
+}) => {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const createComponent = useAppStore((state) => state.createComponent);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (isOpen) {
+      dialog.showModal();
+    } else {
+      dialog.close();
+    }
+  }, [isOpen]);
+
+  const handleClose = () => {
+    setName('');
+    setDescription('');
+    setError(null);
+    onClose();
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!name.trim()) {
+      setError('Component name is required');
+      return;
+    }
+
+    setIsCreating(true);
+
+    try {
+      await createComponent(name.trim(), description.trim() || undefined);
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create component');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  return (
+    <dialog ref={dialogRef} className="dialog" onClose={handleClose}>
+      <div className="dialog-content">
+        <h2 className="dialog-title">Create Component</h2>
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="component-name" className="form-label">
+              Name <span className="required">*</span>
+            </label>
+            <input
+              id="component-name"
+              type="text"
+              className="form-input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter component name"
+              autoFocus
+              disabled={isCreating}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="component-description" className="form-label">
+              Description
+            </label>
+            <textarea
+              id="component-description"
+              className="form-textarea"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Enter component description (optional)"
+              rows={3}
+              disabled={isCreating}
+            />
+          </div>
+
+          {error && <div className="error-message">{error}</div>}
+
+          <div className="dialog-actions">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleClose}
+              disabled={isCreating}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={isCreating || !name.trim()}
+            >
+              {isCreating ? 'Creating...' : 'Create Component'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+  );
+};
