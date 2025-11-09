@@ -1,0 +1,75 @@
+package api
+
+import (
+	"database/sql"
+
+	"github.com/easi/backend/internal/architecturemodeling/application/handlers"
+	"github.com/easi/backend/internal/architecturemodeling/application/projectors"
+	"github.com/easi/backend/internal/architecturemodeling/application/readmodels"
+	"github.com/easi/backend/internal/architecturemodeling/infrastructure/repositories"
+	"github.com/easi/backend/internal/infrastructure/eventstore"
+	sharedAPI "github.com/easi/backend/internal/shared/api"
+	"github.com/easi/backend/internal/shared/cqrs"
+	"github.com/go-chi/chi/v5"
+)
+
+// SetupArchitectureModelingRoutes initializes and registers architecture modeling routes
+func SetupArchitectureModelingRoutes(
+	r chi.Router,
+	commandBus *cqrs.InMemoryCommandBus,
+	eventStore eventstore.EventStore,
+	db *sql.DB,
+	hateoas *sharedAPI.HATEOASLinks,
+) error {
+	// Initialize repositories
+	componentRepo := repositories.NewApplicationComponentRepository(eventStore)
+	relationRepo := repositories.NewComponentRelationRepository(eventStore)
+
+	// Initialize read models
+	componentReadModel := readmodels.NewApplicationComponentReadModel(db)
+	if err := componentReadModel.InitializeSchema(); err != nil {
+		return err
+	}
+
+	relationReadModel := readmodels.NewComponentRelationReadModel(db)
+	if err := relationReadModel.InitializeSchema(); err != nil {
+		return err
+	}
+
+	// Initialize projectors
+	componentProjector := projectors.NewApplicationComponentProjector(componentReadModel)
+	_ = componentProjector // TODO: Wire up event projection
+
+	relationProjector := projectors.NewComponentRelationProjector(relationReadModel)
+	_ = relationProjector // TODO: Wire up event projection
+
+	// Initialize command handlers
+	createComponentHandler := handlers.NewCreateApplicationComponentHandler(componentRepo)
+	createRelationHandler := handlers.NewCreateComponentRelationHandler(relationRepo)
+
+	// Register command handlers
+	commandBus.Register("CreateApplicationComponent", createComponentHandler)
+	commandBus.Register("CreateComponentRelation", createRelationHandler)
+
+	// Initialize HTTP handlers
+	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, hateoas)
+	relationHandlers := NewRelationHandlers(commandBus, relationReadModel, hateoas)
+
+	// Register component routes
+	r.Route("/components", func(r chi.Router) {
+		r.Post("/", componentHandlers.CreateApplicationComponent)
+		r.Get("/", componentHandlers.GetAllComponents)
+		r.Get("/{id}", componentHandlers.GetComponentByID)
+	})
+
+	// Register relation routes
+	r.Route("/relations", func(r chi.Router) {
+		r.Post("/", relationHandlers.CreateComponentRelation)
+		r.Get("/", relationHandlers.GetAllRelations)
+		r.Get("/{id}", relationHandlers.GetRelationByID)
+		r.Get("/from/{componentId}", relationHandlers.GetRelationsFromComponent)
+		r.Get("/to/{componentId}", relationHandlers.GetRelationsToComponent)
+	})
+
+	return nil
+}

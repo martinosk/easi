@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(tree:*)",
+      "Bash(go mod tidy:*)",
+      "Bash(go build:*)",
+      "Bash(go test:*)",
+      "Bash(podman compose:*)",
+      "Bash(curl:*)",
+      "Bash(./test_integration.sh:*)",
+      "Bash(~/go/bin/swag init:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
