@@ -279,3 +279,18 @@ _UpgradeReport_Files/
 Backup*/
 *.sln.ide
 _NCrunch_*
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# Swagger/OpenAPI auto-generated files
+backend/docs/swagger.json
+backend/docs/swagger.yaml
+backend/docs/docs.go

@@ -42,6 +42,9 @@ func NewRouter(eventStore eventstore.EventStore, db *sql.DB) http.Handler {
 	})
 
 	// Swagger documentation
+	r.Get("/docs/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./docs/swagger.json")
+	})
 	r.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL("/docs/swagger.json"),
 	))

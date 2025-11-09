@@ -20,7 +20,7 @@ Run the following command to regenerate the API documentation:
 
 ```bash
 cd backend
-swag init -g cmd/api/main.go -o docs
+~/go/bin/swag init -g cmd/api/main.go -o docs --parseDependency --parseInternal
 ```
 
 ## Accessing the Spec
