@@ -10,6 +10,7 @@ import (
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/events"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -18,6 +19,7 @@ func SetupArchitectureViewsRoutes(
 	r chi.Router,
 	commandBus *cqrs.InMemoryCommandBus,
 	eventStore eventstore.EventStore,
+	eventBus events.EventBus,
 	db *sql.DB,
 	hateoas *sharedAPI.HATEOASLinks,
 ) error {
@@ -32,7 +34,11 @@ func SetupArchitectureViewsRoutes(
 
 	// Initialize projector
 	viewProjector := projectors.NewArchitectureViewProjector(viewReadModel)
-	_ = viewProjector // TODO: Wire up event projection
+
+	// Wire up projector to event bus
+	eventBus.Subscribe("ViewCreated", viewProjector)
+	eventBus.Subscribe("ComponentAddedToView", viewProjector)
+	eventBus.Subscribe("ComponentPositionUpdated", viewProjector)
 
 	// Initialize command handlers
 	createViewHandler := handlers.NewCreateViewHandler(viewRepo)

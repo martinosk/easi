@@ -60,8 +60,8 @@ type UpdatePositionRequest struct {
 // @Produce json
 // @Param view body CreateViewRequest true "View data"
 // @Success 201 {object} readmodels.ArchitectureViewDTO
-// @Failure 400 {object} api.ErrorResponse
-// @Failure 500 {object} api.ErrorResponse
+// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /views [post]
 func (h *ViewHandlers) CreateView(w http.ResponseWriter, r *http.Request) {
 	var req CreateViewRequest
@@ -121,7 +121,7 @@ func (h *ViewHandlers) CreateView(w http.ResponseWriter, r *http.Request) {
 // @Tags views
 // @Produce json
 // @Success 200 {array} readmodels.ArchitectureViewDTO
-// @Failure 500 {object} api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /views [get]
 func (h *ViewHandlers) GetAllViews(w http.ResponseWriter, r *http.Request) {
 	views, err := h.readModel.GetAll(r.Context())
@@ -145,8 +145,8 @@ func (h *ViewHandlers) GetAllViews(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "View ID"
 // @Success 200 {object} readmodels.ArchitectureViewDTO
-// @Failure 404 {object} api.ErrorResponse
-// @Failure 500 {object} api.ErrorResponse
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /views/{id} [get]
 func (h *ViewHandlers) GetViewByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -176,10 +176,10 @@ func (h *ViewHandlers) GetViewByID(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "View ID"
 // @Param component body AddComponentRequest true "Component data"
-// @Success 200 {object} api.SuccessResponse
-// @Failure 400 {object} api.ErrorResponse
-// @Failure 404 {object} api.ErrorResponse
-// @Failure 500 {object} api.ErrorResponse
+// @Success 200 {object} easi_backend_internal_shared_api.SuccessResponse
+// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /views/{id}/components [post]
 func (h *ViewHandlers) AddComponentToView(w http.ResponseWriter, r *http.Request) {
 	viewID := chi.URLParam(r, "id")
@@ -216,10 +216,10 @@ func (h *ViewHandlers) AddComponentToView(w http.ResponseWriter, r *http.Request
 // @Param id path string true "View ID"
 // @Param componentId path string true "Component ID"
 // @Param position body UpdatePositionRequest true "Position data"
-// @Success 200 {object} api.SuccessResponse
-// @Failure 400 {object} api.ErrorResponse
-// @Failure 404 {object} api.ErrorResponse
-// @Failure 500 {object} api.ErrorResponse
+// @Success 200 {object} easi_backend_internal_shared_api.SuccessResponse
+// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /views/{id}/components/{componentId}/position [patch]
 func (h *ViewHandlers) UpdateComponentPosition(w http.ResponseWriter, r *http.Request) {
 	viewID := chi.URLParam(r, "id")

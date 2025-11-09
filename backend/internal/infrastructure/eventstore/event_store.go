@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/events"
 )
 
 // EventStore defines the interface for event storage
@@ -24,12 +25,21 @@ type EventStore interface {
 
 // PostgresEventStore implements EventStore using PostgreSQL
 type PostgresEventStore struct {
-	db *sql.DB
+	db       *sql.DB
+	eventBus events.EventBus
 }
 
 // NewPostgresEventStore creates a new PostgreSQL event store
 func NewPostgresEventStore(db *sql.DB) *PostgresEventStore {
-	return &PostgresEventStore{db: db}
+	return &PostgresEventStore{
+		db:       db,
+		eventBus: nil, // Will be set via SetEventBus
+	}
+}
+
+// SetEventBus sets the event bus for publishing events after they're saved
+func (s *PostgresEventStore) SetEventBus(eventBus events.EventBus) {
+	s.eventBus = eventBus
 }
 
 // StoredEvent represents an event as stored in the database
@@ -134,6 +144,15 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// Publish events to event bus after successful commit
+	if s.eventBus != nil {
+		if err := s.eventBus.Publish(ctx, events); err != nil {
+			// Log the error but don't fail the operation since events are already persisted
+			// In a production system, you might want to implement retry logic or dead letter queue
+			fmt.Printf("Warning: failed to publish events to event bus: %v\n", err)
+		}
 	}
 
 	return nil

@@ -7,6 +7,7 @@ import (
 
 	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/architectureviews/domain/events"
+	"easi/backend/internal/shared/domain"
 )
 
 // ArchitectureViewProjector projects events to read models
@@ -19,6 +20,16 @@ func NewArchitectureViewProjector(readModel *readmodels.ArchitectureViewReadMode
 	return &ArchitectureViewProjector{
 		readModel: readModel,
 	}
+}
+
+// Handle implements the EventHandler interface for the event bus
+func (p *ArchitectureViewProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
+	eventData, err := json.Marshal(event.EventData())
+	if err != nil {
+		log.Printf("Failed to marshal event data: %v", err)
+		return err
+	}
+	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
 
 // ProjectEvent projects a domain event to the read model

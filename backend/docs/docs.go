@@ -53,13 +53,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.PaginatedResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.PaginatedResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -83,7 +83,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.CreateApplicationComponentRequest"
+                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.CreateApplicationComponentRequest"
                         }
                     }
                 ],
@@ -91,19 +91,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/readmodels.ApplicationComponentDTO"
+                            "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.ApplicationComponentDTO"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -132,19 +132,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/readmodels.ApplicationComponentDTO"
+                            "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.ApplicationComponentDTO"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -179,13 +179,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.PaginatedResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.PaginatedResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -209,7 +209,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.CreateComponentRelationRequest"
+                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.CreateComponentRelationRequest"
                         }
                     }
                 ],
@@ -217,19 +217,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/readmodels.ComponentRelationDTO"
+                            "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.ComponentRelationDTO"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -260,14 +260,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/readmodels.ComponentRelationDTO"
+                                "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.ComponentRelationDTO"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -298,14 +298,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/readmodels.ComponentRelationDTO"
+                                "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.ComponentRelationDTO"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -334,19 +334,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/readmodels.ComponentRelationDTO"
+                            "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.ComponentRelationDTO"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -368,14 +368,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/readmodels.ArchitectureViewDTO"
+                                "$ref": "#/definitions/easi_backend_internal_architectureviews_application_readmodels.ArchitectureViewDTO"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -399,7 +399,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.CreateViewRequest"
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.CreateViewRequest"
                         }
                     }
                 ],
@@ -407,19 +407,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/readmodels.ArchitectureViewDTO"
+                            "$ref": "#/definitions/easi_backend_internal_architectureviews_application_readmodels.ArchitectureViewDTO"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -448,19 +448,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/readmodels.ArchitectureViewDTO"
+                            "$ref": "#/definitions/easi_backend_internal_architectureviews_application_readmodels.ArchitectureViewDTO"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -493,7 +493,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.AddComponentRequest"
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.AddComponentRequest"
                         }
                     }
                 ],
@@ -501,25 +501,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.SuccessResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.SuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -559,7 +559,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.UpdatePositionRequest"
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.UpdatePositionRequest"
                         }
                     }
                 ],
@@ -567,25 +567,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.SuccessResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.SuccessResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -593,24 +593,22 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "api.AddComponentRequest": {
+        "easi_backend_internal_architecturemodeling_application_readmodels.ApplicationComponentDTO": {
             "type": "object",
             "properties": {
-                "componentId": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "createdAt": {
                     "type": "string"
                 },
-                "x": {
-                    "type": "number"
-                },
-                "y": {
-                    "type": "number"
-                }
-            }
-        },
-        "api.CreateApplicationComponentRequest": {
-            "type": "object",
-            "properties": {
                 "description": {
+                    "type": "string"
+                },
+                "id": {
                     "type": "string"
                 },
                 "name": {
@@ -618,10 +616,22 @@ const docTemplate = `{
                 }
             }
         },
-        "api.CreateComponentRelationRequest": {
+        "easi_backend_internal_architecturemodeling_application_readmodels.ComponentRelationDTO": {
             "type": "object",
             "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
                 "description": {
+                    "type": "string"
+                },
+                "id": {
                     "type": "string"
                 },
                 "name": {
@@ -638,10 +648,28 @@ const docTemplate = `{
                 }
             }
         },
-        "api.CreateViewRequest": {
+        "easi_backend_internal_architectureviews_application_readmodels.ArchitectureViewDTO": {
             "type": "object",
             "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "components": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architectureviews_application_readmodels.ComponentPositionDTO"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
                 "description": {
+                    "type": "string"
+                },
+                "id": {
                     "type": "string"
                 },
                 "name": {
@@ -649,7 +677,21 @@ const docTemplate = `{
                 }
             }
         },
-        "api.ErrorResponse": {
+        "easi_backend_internal_architectureviews_application_readmodels.ComponentPositionDTO": {
+            "type": "object",
+            "properties": {
+                "componentId": {
+                    "type": "string"
+                },
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
+        "easi_backend_internal_shared_api.ErrorResponse": {
             "type": "object",
             "properties": {
                 "details": {
@@ -666,7 +708,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.PaginatedResponse": {
+        "easi_backend_internal_shared_api.PaginatedResponse": {
             "type": "object",
             "properties": {
                 "_links": {
@@ -677,11 +719,11 @@ const docTemplate = `{
                 },
                 "data": {},
                 "pagination": {
-                    "$ref": "#/definitions/api.PaginationInfo"
+                    "$ref": "#/definitions/easi_backend_internal_shared_api.PaginationInfo"
                 }
             }
         },
-        "api.PaginationInfo": {
+        "easi_backend_internal_shared_api.PaginationInfo": {
             "type": "object",
             "properties": {
                 "cursor": {
@@ -696,7 +738,7 @@ const docTemplate = `{
                 }
             }
         },
-        "api.SuccessResponse": {
+        "easi_backend_internal_shared_api.SuccessResponse": {
             "type": "object",
             "properties": {
                 "_links": {
@@ -708,33 +750,10 @@ const docTemplate = `{
                 "data": {}
             }
         },
-        "api.UpdatePositionRequest": {
+        "internal_architecturemodeling_infrastructure_api.CreateApplicationComponentRequest": {
             "type": "object",
             "properties": {
-                "x": {
-                    "type": "number"
-                },
-                "y": {
-                    "type": "number"
-                }
-            }
-        },
-        "readmodels.ApplicationComponentDTO": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "createdAt": {
-                    "type": "string"
-                },
                 "description": {
-                    "type": "string"
-                },
-                "id": {
                     "type": "string"
                 },
                 "name": {
@@ -742,65 +761,10 @@ const docTemplate = `{
                 }
             }
         },
-        "readmodels.ArchitectureViewDTO": {
+        "internal_architecturemodeling_infrastructure_api.CreateComponentRelationRequest": {
             "type": "object",
             "properties": {
-                "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "components": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/readmodels.ComponentPositionDTO"
-                    }
-                },
-                "createdAt": {
-                    "type": "string"
-                },
                 "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "readmodels.ComponentPositionDTO": {
-            "type": "object",
-            "properties": {
-                "componentId": {
-                    "type": "string"
-                },
-                "x": {
-                    "type": "number"
-                },
-                "y": {
-                    "type": "number"
-                }
-            }
-        },
-        "readmodels.ComponentRelationDTO": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
                     "type": "string"
                 },
                 "name": {
@@ -814,6 +778,42 @@ const docTemplate = `{
                 },
                 "targetComponentId": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_architectureviews_infrastructure_api.AddComponentRequest": {
+            "type": "object",
+            "properties": {
+                "componentId": {
+                    "type": "string"
+                },
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
+        "internal_architectureviews_infrastructure_api.CreateViewRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_architectureviews_infrastructure_api.UpdatePositionRequest": {
+            "type": "object",
+            "properties": {
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
                 }
             }
         }

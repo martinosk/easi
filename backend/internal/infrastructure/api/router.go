@@ -10,6 +10,7 @@ import (
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/events"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -45,19 +46,25 @@ func NewRouter(eventStore eventstore.EventStore, db *sql.DB) http.Handler {
 		httpSwagger.URL("/docs/swagger.json"),
 	))
 
-	// Initialize CQRS buses
+	// Initialize CQRS buses and event bus
 	commandBus := cqrs.NewInMemoryCommandBus()
+	eventBus := events.NewInMemoryEventBus()
 	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
+
+	// Wire event store to event bus
+	if pgStore, ok := eventStore.(*eventstore.PostgresEventStore); ok {
+		pgStore.SetEventBus(eventBus)
+	}
 
 	// API routes
 	r.Route("/api/v1", func(r chi.Router) {
 		// Architecture Modeling Context
-		if err := architectureAPI.SetupArchitectureModelingRoutes(r, commandBus, eventStore, db, hateoas); err != nil {
+		if err := architectureAPI.SetupArchitectureModelingRoutes(r, commandBus, eventStore, eventBus, db, hateoas); err != nil {
 			log.Fatalf("Failed to setup architecture modeling routes: %v", err)
 		}
 
 		// Architecture Views Context
-		if err := viewsAPI.SetupArchitectureViewsRoutes(r, commandBus, eventStore, db, hateoas); err != nil {
+		if err := viewsAPI.SetupArchitectureViewsRoutes(r, commandBus, eventStore, eventBus, db, hateoas); err != nil {
 			log.Fatalf("Failed to setup architecture views routes: %v", err)
 		}
 	})
