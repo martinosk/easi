@@ -3,11 +3,11 @@ package handlers
 import (
 	"context"
 
-	"github.com/easi/backend/internal/architecturemodeling/application/commands"
-	"github.com/easi/backend/internal/architecturemodeling/domain/aggregates"
-	"github.com/easi/backend/internal/architecturemodeling/domain/valueobjects"
-	"github.com/easi/backend/internal/architecturemodeling/infrastructure/repositories"
-	"github.com/easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/architecturemodeling/application/commands"
+	"easi/backend/internal/architecturemodeling/domain/aggregates"
+	"easi/backend/internal/architecturemodeling/domain/valueobjects"
+	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
+	"easi/backend/internal/shared/cqrs"
 )
 
 // CreateApplicationComponentHandler handles CreateApplicationComponent commands

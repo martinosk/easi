@@ -1,4 +1,4 @@
-module github.com/easi/backend
+module easi/backend
 
 go 1.21
 

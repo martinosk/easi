@@ -3,9 +3,9 @@ package repositories
 import (
 	"context"
 
-	"github.com/easi/backend/internal/architectureviews/domain/aggregates"
-	"github.com/easi/backend/internal/infrastructure/eventstore"
-	"github.com/easi/backend/internal/shared/domain"
+	"easi/backend/internal/architectureviews/domain/aggregates"
+	"easi/backend/internal/infrastructure/eventstore"
+	"easi/backend/internal/shared/domain"
 )
 
 // ArchitectureViewRepository manages persistence of architecture views

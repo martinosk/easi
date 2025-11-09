@@ -3,7 +3,7 @@ package events
 import (
 	"time"
 
-	"github.com/easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/domain"
 )
 
 // ComponentAddedToView is raised when a component is added to a view

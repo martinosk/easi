@@ -3,13 +3,13 @@ package api
 import (
 	"database/sql"
 
-	"github.com/easi/backend/internal/architecturemodeling/application/handlers"
-	"github.com/easi/backend/internal/architecturemodeling/application/projectors"
-	"github.com/easi/backend/internal/architecturemodeling/application/readmodels"
-	"github.com/easi/backend/internal/architecturemodeling/infrastructure/repositories"
-	"github.com/easi/backend/internal/infrastructure/eventstore"
-	sharedAPI "github.com/easi/backend/internal/shared/api"
-	"github.com/easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/architecturemodeling/application/handlers"
+	"easi/backend/internal/architecturemodeling/application/projectors"
+	"easi/backend/internal/architecturemodeling/application/readmodels"
+	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
+	"easi/backend/internal/infrastructure/eventstore"
+	sharedAPI "easi/backend/internal/shared/api"
+	"easi/backend/internal/shared/cqrs"
 	"github.com/go-chi/chi/v5"
 )
 

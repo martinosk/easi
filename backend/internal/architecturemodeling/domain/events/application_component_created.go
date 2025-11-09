@@ -3,7 +3,7 @@ package events
 import (
 	"time"
 
-	"github.com/easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/domain"
 )
 
 // ApplicationComponentCreated is raised when a new application component is created

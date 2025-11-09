@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/domain"
 )
 
 // EventStore defines the interface for event storage

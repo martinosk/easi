@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/easi/backend/internal/infrastructure/api"
-	"github.com/easi/backend/internal/infrastructure/eventstore"
+	"easi/backend/internal/infrastructure/api"
+	"easi/backend/internal/infrastructure/eventstore"
 	_ "github.com/lib/pq"
 )
 

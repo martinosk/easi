@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/domain"
 )
 
 // ErrorResponse represents an API error response

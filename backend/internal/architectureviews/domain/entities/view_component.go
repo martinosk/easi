@@ -1,7 +1,7 @@
 package entities
 
 import (
-	"github.com/easi/backend/internal/architectureviews/domain/valueobjects"
+	"easi/backend/internal/architectureviews/domain/valueobjects"
 )
 
 // ViewComponent represents a component placed on a view with its position

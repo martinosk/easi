@@ -3,7 +3,7 @@ package events
 import (
 	"time"
 
-	"github.com/easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/domain"
 )
 
 // ComponentPositionUpdated is raised when a component's position is updated on a view

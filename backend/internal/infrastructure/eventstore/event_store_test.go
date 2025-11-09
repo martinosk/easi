@@ -3,7 +3,7 @@ package eventstore
 import (
 	"testing"
 
-	"github.com/easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/domain"
 )
 
 // MockEvent implements DomainEvent for testing

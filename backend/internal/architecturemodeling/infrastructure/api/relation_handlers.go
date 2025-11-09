@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/easi/backend/internal/architecturemodeling/application/commands"
-	"github.com/easi/backend/internal/architecturemodeling/application/readmodels"
-	"github.com/easi/backend/internal/architecturemodeling/domain/valueobjects"
-	sharedAPI "github.com/easi/backend/internal/shared/api"
-	"github.com/easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/architecturemodeling/application/commands"
+	"easi/backend/internal/architecturemodeling/application/readmodels"
+	"easi/backend/internal/architecturemodeling/domain/valueobjects"
+	sharedAPI "easi/backend/internal/shared/api"
+	"easi/backend/internal/shared/cqrs"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -50,8 +50,8 @@ type CreateComponentRelationRequest struct {
 // @Produce json
 // @Param relation body CreateComponentRelationRequest true "Relation data"
 // @Success 201 {object} readmodels.ComponentRelationDTO
-// @Failure 400 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Failure 400 {object} api.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
 // @Router /relations [post]
 func (h *RelationHandlers) CreateComponentRelation(w http.ResponseWriter, r *http.Request) {
 	var req CreateComponentRelationRequest
@@ -127,8 +127,8 @@ func (h *RelationHandlers) CreateComponentRelation(w http.ResponseWriter, r *htt
 // @Produce json
 // @Param limit query int false "Number of items per page (max 100)" default(50)
 // @Param after query string false "Cursor for pagination (opaque token)"
-// @Success 200 {object} sharedAPI.PaginatedResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Success 200 {object} api.PaginatedResponse
+// @Failure 500 {object} api.ErrorResponse
 // @Router /relations [get]
 func (h *RelationHandlers) GetAllRelations(w http.ResponseWriter, r *http.Request) {
 	// Parse pagination parameters
@@ -185,8 +185,8 @@ func (h *RelationHandlers) GetAllRelations(w http.ResponseWriter, r *http.Reques
 // @Produce json
 // @Param id path string true "Relation ID"
 // @Success 200 {object} readmodels.ComponentRelationDTO
-// @Failure 404 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} api.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
 // @Router /relations/{id} [get]
 func (h *RelationHandlers) GetRelationByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -215,7 +215,7 @@ func (h *RelationHandlers) GetRelationByID(w http.ResponseWriter, r *http.Reques
 // @Produce json
 // @Param componentId path string true "Component ID"
 // @Success 200 {array} readmodels.ComponentRelationDTO
-// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
 // @Router /relations/from/{componentId} [get]
 func (h *RelationHandlers) GetRelationsFromComponent(w http.ResponseWriter, r *http.Request) {
 	componentID := chi.URLParam(r, "componentId")
@@ -241,7 +241,7 @@ func (h *RelationHandlers) GetRelationsFromComponent(w http.ResponseWriter, r *h
 // @Produce json
 // @Param componentId path string true "Component ID"
 // @Success 200 {array} readmodels.ComponentRelationDTO
-// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
 // @Router /relations/to/{componentId} [get]
 func (h *RelationHandlers) GetRelationsToComponent(w http.ResponseWriter, r *http.Request) {
 	componentID := chi.URLParam(r, "componentId")

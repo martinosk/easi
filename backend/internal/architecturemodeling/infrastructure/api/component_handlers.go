@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/easi/backend/internal/architecturemodeling/application/commands"
-	"github.com/easi/backend/internal/architecturemodeling/application/readmodels"
-	"github.com/easi/backend/internal/architecturemodeling/domain/valueobjects"
-	sharedAPI "github.com/easi/backend/internal/shared/api"
-	"github.com/easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/architecturemodeling/application/commands"
+	"easi/backend/internal/architecturemodeling/application/readmodels"
+	"easi/backend/internal/architecturemodeling/domain/valueobjects"
+	sharedAPI "easi/backend/internal/shared/api"
+	"easi/backend/internal/shared/cqrs"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -47,8 +47,8 @@ type CreateApplicationComponentRequest struct {
 // @Produce json
 // @Param component body CreateApplicationComponentRequest true "Component data"
 // @Success 201 {object} readmodels.ApplicationComponentDTO
-// @Failure 400 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Failure 400 {object} api.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
 // @Router /components [post]
 func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r *http.Request) {
 	var req CreateApplicationComponentRequest
@@ -110,8 +110,8 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 // @Produce json
 // @Param limit query int false "Number of items per page (max 100)" default(50)
 // @Param after query string false "Cursor for pagination (opaque token)"
-// @Success 200 {object} sharedAPI.PaginatedResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Success 200 {object} api.PaginatedResponse
+// @Failure 500 {object} api.ErrorResponse
 // @Router /components [get]
 func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Request) {
 	// Parse pagination parameters
@@ -168,8 +168,8 @@ func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Requ
 // @Produce json
 // @Param id path string true "Component ID"
 // @Success 200 {object} readmodels.ApplicationComponentDTO
-// @Failure 404 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} api.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
 // @Router /components/{id} [get]
 func (h *ComponentHandlers) GetComponentByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")

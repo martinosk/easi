@@ -3,7 +3,7 @@ package aggregates
 import (
 	"testing"
 
-	"github.com/easi/backend/internal/architecturemodeling/domain/valueobjects"
+	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

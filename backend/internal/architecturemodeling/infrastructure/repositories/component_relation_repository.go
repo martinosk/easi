@@ -3,9 +3,9 @@ package repositories
 import (
 	"context"
 
-	"github.com/easi/backend/internal/architecturemodeling/domain/aggregates"
-	"github.com/easi/backend/internal/infrastructure/eventstore"
-	"github.com/easi/backend/internal/shared/domain"
+	"easi/backend/internal/architecturemodeling/domain/aggregates"
+	"easi/backend/internal/infrastructure/eventstore"
+	"easi/backend/internal/shared/domain"
 )
 
 // ComponentRelationRepository manages persistence of component relations

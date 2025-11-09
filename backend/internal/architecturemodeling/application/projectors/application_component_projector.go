@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/easi/backend/internal/architecturemodeling/application/readmodels"
-	"github.com/easi/backend/internal/architecturemodeling/domain/events"
+	"easi/backend/internal/architecturemodeling/application/readmodels"
+	"easi/backend/internal/architecturemodeling/domain/events"
 )
 
 // ApplicationComponentProjector projects events to read models

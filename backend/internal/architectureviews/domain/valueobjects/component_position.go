@@ -1,6 +1,6 @@
 package valueobjects
 
-import "github.com/easi/backend/internal/shared/domain"
+import "easi/backend/internal/shared/domain"
 
 // ComponentPosition represents the X, Y coordinates of a component on a view
 type ComponentPosition struct {

@@ -3,7 +3,7 @@ package valueobjects
 import (
 	"errors"
 
-	"github.com/easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/domain"
 )
 
 var (

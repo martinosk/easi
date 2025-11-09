@@ -3,7 +3,7 @@ package events
 import (
 	"time"
 
-	"github.com/easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/domain"
 )
 
 // ViewCreated is raised when a new architecture view is created

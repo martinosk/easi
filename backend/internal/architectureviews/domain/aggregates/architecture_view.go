@@ -4,10 +4,10 @@ import (
 	"errors"
 	"time"
 
-	"github.com/easi/backend/internal/architectureviews/domain/entities"
-	"github.com/easi/backend/internal/architectureviews/domain/events"
-	"github.com/easi/backend/internal/architectureviews/domain/valueobjects"
-	"github.com/easi/backend/internal/shared/domain"
+	"easi/backend/internal/architectureviews/domain/entities"
+	"easi/backend/internal/architectureviews/domain/events"
+	"easi/backend/internal/architectureviews/domain/valueobjects"
+	"easi/backend/internal/shared/domain"
 )
 
 var (
