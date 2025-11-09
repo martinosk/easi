@@ -14,11 +14,13 @@ import (
 	"time"
 
 	"easi/backend/internal/architectureviews/application/handlers"
+	"easi/backend/internal/architectureviews/application/projectors"
 	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/events"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
@@ -99,9 +101,19 @@ func (ctx *viewTestContext) addTestComponentToView(t *testing.T, viewID, compone
 }
 
 func setupViewHandlers(db *sql.DB) (*ViewHandlers, *readmodels.ArchitectureViewReadModel) {
+	// Setup event infrastructure
 	eventStore := eventstore.NewPostgresEventStore(db)
 	commandBus := cqrs.NewInMemoryCommandBus()
 	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
+
+	// Setup read model and projector
+	readModel := readmodels.NewArchitectureViewReadModel(db)
+	projector := projectors.NewArchitectureViewProjector(readModel)
+
+	// Setup event bus and connect it to the event store
+	eventBus := events.NewInMemoryEventBus()
+	eventBus.SubscribeAll(projector)
+	eventStore.SetEventBus(eventBus)
 
 	// Setup repository and handlers
 	viewRepo := repositories.NewArchitectureViewRepository(eventStore)
@@ -112,9 +124,6 @@ func setupViewHandlers(db *sql.DB) (*ViewHandlers, *readmodels.ArchitectureViewR
 	commandBus.Register("CreateView", createHandler)
 	commandBus.Register("AddComponentToView", addComponentHandler)
 	commandBus.Register("UpdateComponentPosition", updatePositionHandler)
-
-	// Setup read model
-	readModel := readmodels.NewArchitectureViewReadModel(db)
 
 	// Setup HTTP handlers
 	viewHandlers := NewViewHandlers(commandBus, readModel, hateoas)
@@ -147,7 +156,7 @@ func TestCreateView_Integration(t *testing.T) {
 	// Get the created aggregate ID from the event store
 	var aggregateID string
 	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ArchitectureViewCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM events WHERE event_type = 'ViewCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&aggregateID)
 	require.NoError(t, err)
 	testCtx.trackID(aggregateID)
@@ -155,21 +164,14 @@ func TestCreateView_Integration(t *testing.T) {
 	// Verify event data contains expected values
 	var eventData string
 	err = testCtx.db.QueryRow(
-		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'ArchitectureViewCreated'",
+		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'ViewCreated'",
 		aggregateID,
 	).Scan(&eventData)
 	require.NoError(t, err)
 	assert.Contains(t, eventData, "System Architecture")
 	assert.Contains(t, eventData, "Overall system architecture view")
 
-	// Manually insert into read model for testing (simulating event projection)
-	_, err = testCtx.db.Exec(
-		"INSERT INTO architecture_views (id, name, description, created_at) VALUES ($1, $2, $3, NOW())",
-		aggregateID, "System Architecture", "Overall system architecture view",
-	)
-	require.NoError(t, err)
-
-	// Verify read model contains the view
+	// Verify read model contains the view (should be populated by projector)
 	view, err := readModel.GetByID(context.Background(), aggregateID)
 	require.NoError(t, err)
 	assert.NotNil(t, view)
@@ -199,13 +201,13 @@ func TestCreateView_ValidationError_Integration(t *testing.T) {
 	// Assert validation error
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	// Verify no ArchitectureViewCreated event was created
+	// Verify no ViewCreated event was created
 	var count int
 	err := testCtx.db.QueryRow(
-		"SELECT COUNT(*) FROM events WHERE event_type = 'ArchitectureViewCreated' AND created_at > NOW() - INTERVAL '2 seconds'",
+		"SELECT COUNT(*) FROM events WHERE event_type = 'ViewCreated' AND created_at > NOW() - INTERVAL '2 seconds'",
 	).Scan(&count)
 	require.NoError(t, err)
-	assert.Equal(t, 0, count, "No ArchitectureViewCreated events should be created for invalid request")
+	assert.Equal(t, 0, count, "No ViewCreated events should be created for invalid request")
 }
 
 func TestGetAllViews_Integration(t *testing.T) {
@@ -329,7 +331,7 @@ func TestAddComponentToView_Integration(t *testing.T) {
 	// Get the view ID from event store
 	var viewID string
 	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ArchitectureViewCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM events WHERE event_type = 'ViewCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&viewID)
 	require.NoError(t, err)
 	testCtx.trackID(viewID)
@@ -354,8 +356,11 @@ func TestAddComponentToView_Integration(t *testing.T) {
 
 	viewHandlers.AddComponentToView(w, req)
 
-	// Assert HTTP response
-	assert.Equal(t, http.StatusOK, w.Code)
+	// Assert HTTP response (should be 201 Created)
+	if w.Code != http.StatusCreated {
+		t.Logf("Response body: %s", w.Body.String())
+	}
+	assert.Equal(t, http.StatusCreated, w.Code)
 
 	// Verify event was created
 	var count int
@@ -388,7 +393,7 @@ func TestUpdateComponentPosition_Integration(t *testing.T) {
 	// Get the view ID
 	var viewID string
 	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ArchitectureViewCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM events WHERE event_type = 'ViewCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&viewID)
 	require.NoError(t, err)
 	testCtx.trackID(viewID)
@@ -408,7 +413,7 @@ func TestUpdateComponentPosition_Integration(t *testing.T) {
 	rctxAdd.URLParams.Add("id", viewID)
 	addReq = addReq.WithContext(context.WithValue(addReq.Context(), chi.RouteCtxKey, rctxAdd))
 	viewHandlers.AddComponentToView(addW, addReq)
-	require.Equal(t, http.StatusOK, addW.Code)
+	require.Equal(t, http.StatusCreated, addW.Code)
 
 	// Now update the component position
 	updateReqBody := UpdatePositionRequest{

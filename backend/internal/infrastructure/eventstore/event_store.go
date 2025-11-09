@@ -182,7 +182,19 @@ func (s *PostgresEventStore) GetEvents(ctx context.Context, aggregateID string) 
 		return nil, fmt.Errorf("error iterating events: %w", err)
 	}
 
-	// Note: Actual deserialization to domain events would require event type registry
-	// For now, we return nil as this will be implemented with specific aggregate repositories
-	return nil, nil
+	// Convert stored events to domain events
+	var domainEvents []domain.DomainEvent
+	for _, se := range storedEvents {
+		// Create a base domain event with the stored data
+		// The event data is already in JSON format, we'll pass it as a generic event
+		domainEvent := domain.NewGenericDomainEvent(
+			se.AggregateID,
+			se.EventType,
+			[]byte(se.EventData),
+			se.OccurredAt,
+		)
+		domainEvents = append(domainEvents, domainEvent)
+	}
+
+	return domainEvents, nil
 }

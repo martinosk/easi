@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -41,4 +42,48 @@ func (e BaseEvent) AggregateID() string {
 // OccurredAt returns when the event occurred
 func (e BaseEvent) OccurredAt() time.Time {
 	return e.occurredAt
+}
+
+// GenericDomainEvent is a generic event implementation for deserialization
+type GenericDomainEvent struct {
+	aggregateID string
+	eventType   string
+	eventData   map[string]interface{}
+	occurredAt  time.Time
+}
+
+// NewGenericDomainEvent creates a new generic domain event from stored data
+func NewGenericDomainEvent(aggregateID, eventType string, jsonData []byte, occurredAt time.Time) DomainEvent {
+	var data map[string]interface{}
+	if err := json.Unmarshal(jsonData, &data); err != nil {
+		// If unmarshal fails, return empty data
+		data = make(map[string]interface{})
+	}
+
+	return &GenericDomainEvent{
+		aggregateID: aggregateID,
+		eventType:   eventType,
+		eventData:   data,
+		occurredAt:  occurredAt,
+	}
+}
+
+// AggregateID returns the aggregate ID
+func (e *GenericDomainEvent) AggregateID() string {
+	return e.aggregateID
+}
+
+// EventType returns the event type
+func (e *GenericDomainEvent) EventType() string {
+	return e.eventType
+}
+
+// OccurredAt returns when the event occurred
+func (e *GenericDomainEvent) OccurredAt() time.Time {
+	return e.occurredAt
+}
+
+// EventData returns the event payload
+func (e *GenericDomainEvent) EventData() map[string]interface{} {
+	return e.eventData
 }

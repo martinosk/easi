@@ -9,7 +9,9 @@
       "Bash(podman compose:*)",
       "Bash(curl:*)",
       "Bash(./test_integration.sh:*)",
-      "Bash(~/go/bin/swag init:*)"
+      "Bash(~/go/bin/swag init:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

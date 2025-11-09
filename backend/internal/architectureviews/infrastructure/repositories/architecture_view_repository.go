@@ -2,10 +2,18 @@ package repositories
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 
 	"easi/backend/internal/architectureviews/domain/aggregates"
+	"easi/backend/internal/architectureviews/domain/events"
 	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/shared/domain"
+)
+
+var (
+	// ErrViewNotFound is returned when a view is not found
+	ErrViewNotFound = errors.New("view not found")
 )
 
 // ArchitectureViewRepository manages persistence of architecture views
@@ -27,7 +35,11 @@ func (r *ArchitectureViewRepository) Save(ctx context.Context, view *aggregates.
 		return nil
 	}
 
-	err := r.eventStore.SaveEvents(ctx, view.ID(), uncommittedEvents, view.Version()-len(uncommittedEvents))
+	// Calculate the expected version: current version minus the number of uncommitted events
+	// This represents the version before the new events were applied
+	expectedVersion := view.Version() - len(uncommittedEvents)
+
+	err := r.eventStore.SaveEvents(ctx, view.ID(), uncommittedEvents, expectedVersion)
 	if err != nil {
 		return err
 	}
@@ -41,6 +53,11 @@ func (r *ArchitectureViewRepository) GetByID(ctx context.Context, id string) (*a
 	storedEvents, err := r.eventStore.GetEvents(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+
+	// If no events found, the aggregate doesn't exist
+	if len(storedEvents) == 0 {
+		return nil, ErrViewNotFound
 	}
 
 	// Deserialize events (simplified)
@@ -57,7 +74,66 @@ func (r *ArchitectureViewRepository) deserializeEvents(storedEvents []domain.Dom
 	var domainEvents []domain.DomainEvent
 
 	for _, event := range storedEvents {
-		domainEvents = append(domainEvents, event)
+		// Get the event data as a map
+		eventData := event.EventData()
+
+		switch event.EventType() {
+		case "ViewCreated":
+			// Manually reconstruct the event from the map
+			id, _ := eventData["id"].(string)
+			name, _ := eventData["name"].(string)
+			description, _ := eventData["description"].(string)
+
+			specificEvent := events.ViewCreated{
+				BaseEvent:   domain.NewBaseEvent(id),
+				ID:          id,
+				Name:        name,
+				Description: description,
+			}
+			// Parse CreatedAt if present
+			if createdAtStr, ok := eventData["createdAt"].(string); ok {
+				if createdAt, err := json.Marshal(createdAtStr); err == nil {
+					json.Unmarshal(createdAt, &specificEvent.CreatedAt)
+				}
+			}
+			domainEvents = append(domainEvents, specificEvent)
+
+		case "ComponentAddedToView":
+			// Manually reconstruct the event from the map
+			viewID, _ := eventData["viewId"].(string)
+			componentID, _ := eventData["componentId"].(string)
+			x, _ := eventData["x"].(float64)
+			y, _ := eventData["y"].(float64)
+
+			specificEvent := events.ComponentAddedToView{
+				BaseEvent:   domain.NewBaseEvent(viewID),
+				ViewID:      viewID,
+				ComponentID: componentID,
+				X:           x,
+				Y:           y,
+			}
+			domainEvents = append(domainEvents, specificEvent)
+
+		case "ComponentPositionUpdated":
+			// Manually reconstruct the event from the map
+			viewID, _ := eventData["viewId"].(string)
+			componentID, _ := eventData["componentId"].(string)
+			x, _ := eventData["x"].(float64)
+			y, _ := eventData["y"].(float64)
+
+			specificEvent := events.ComponentPositionUpdated{
+				BaseEvent:   domain.NewBaseEvent(viewID),
+				ViewID:      viewID,
+				ComponentID: componentID,
+				X:           x,
+				Y:           y,
+			}
+			domainEvents = append(domainEvents, specificEvent)
+
+		default:
+			// Unknown event type, skip it
+			continue
+		}
 	}
 
 	return domainEvents, nil

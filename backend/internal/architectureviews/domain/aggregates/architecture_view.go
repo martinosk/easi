@@ -104,6 +104,7 @@ func LoadArchitectureViewFromHistory(events []domain.DomainEvent) (*Architecture
 }
 
 // apply applies an event to the aggregate
+// Note: This method should NOT increment the version - that's handled by LoadFromHistory or RaiseEvent
 func (v *ArchitectureView) apply(event domain.DomainEvent) {
 	switch e := event.(type) {
 	case events.ViewCreated:
@@ -111,20 +112,17 @@ func (v *ArchitectureView) apply(event domain.DomainEvent) {
 		v.name, _ = valueobjects.NewViewName(e.Name)
 		v.description = e.Description
 		v.createdAt = e.CreatedAt
-		v.IncrementVersion()
 
 	case events.ComponentAddedToView:
 		position := valueobjects.NewComponentPosition(e.X, e.Y)
 		viewComponent := entities.NewViewComponent(e.ComponentID, position)
 		v.components[e.ComponentID] = viewComponent
-		v.IncrementVersion()
 
 	case events.ComponentPositionUpdated:
 		if viewComponent, exists := v.components[e.ComponentID]; exists {
 			newPosition := valueobjects.NewComponentPosition(e.X, e.Y)
 			v.components[e.ComponentID] = viewComponent.UpdatePosition(newPosition)
 		}
-		v.IncrementVersion()
 	}
 }
 

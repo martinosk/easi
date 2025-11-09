@@ -2,10 +2,16 @@ package repositories
 
 import (
 	"context"
+	"errors"
 
 	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/shared/domain"
+)
+
+var (
+	// ErrComponentNotFound is returned when a component is not found
+	ErrComponentNotFound = errors.New("component not found")
 )
 
 // ApplicationComponentRepository manages persistence of application components
@@ -41,6 +47,11 @@ func (r *ApplicationComponentRepository) GetByID(ctx context.Context, id string)
 	storedEvents, err := r.eventStore.GetEvents(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+
+	// If no events found, the aggregate doesn't exist
+	if len(storedEvents) == 0 {
+		return nil, ErrComponentNotFound
 	}
 
 	// Deserialize events (simplified - would use event registry in production)

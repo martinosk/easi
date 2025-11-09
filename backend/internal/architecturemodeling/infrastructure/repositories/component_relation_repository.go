@@ -2,10 +2,16 @@ package repositories
 
 import (
 	"context"
+	"errors"
 
 	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/shared/domain"
+)
+
+var (
+	// ErrRelationNotFound is returned when a relation is not found
+	ErrRelationNotFound = errors.New("relation not found")
 )
 
 // ComponentRelationRepository manages persistence of component relations
@@ -41,6 +47,11 @@ func (r *ComponentRelationRepository) GetByID(ctx context.Context, id string) (*
 	storedEvents, err := r.eventStore.GetEvents(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+
+	// If no events found, the aggregate doesn't exist
+	if len(storedEvents) == 0 {
+		return nil, ErrRelationNotFound
 	}
 
 	// Deserialize events (simplified)

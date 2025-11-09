@@ -70,6 +70,7 @@ func LoadComponentRelationFromHistory(events []domain.DomainEvent) (*ComponentRe
 }
 
 // apply applies an event to the aggregate
+// Note: This method should NOT increment the version - that's handled by LoadFromHistory or RaiseEvent
 func (c *ComponentRelation) apply(event domain.DomainEvent) {
 	switch e := event.(type) {
 	case events.ComponentRelationCreated:
@@ -80,7 +81,6 @@ func (c *ComponentRelation) apply(event domain.DomainEvent) {
 		c.name = valueobjects.NewDescription(e.Name)
 		c.description = valueobjects.NewDescription(e.Description)
 		c.createdAt = e.CreatedAt
-		c.IncrementVersion()
 	}
 }
 

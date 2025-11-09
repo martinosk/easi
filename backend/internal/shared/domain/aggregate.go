@@ -57,9 +57,10 @@ func (a *AggregateRoot) LoadFromHistory(events []DomainEvent, applyFunc func(Dom
 	}
 }
 
-// RaiseEvent records a new domain event
+// RaiseEvent records a new domain event and increments the version
 func (a *AggregateRoot) RaiseEvent(event DomainEvent) {
 	a.changes = append(a.changes, event)
+	a.version++
 }
 
 // IncrementVersion increments the aggregate version
