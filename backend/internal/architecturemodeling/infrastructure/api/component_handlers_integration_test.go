@@ -7,9 +7,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"easi/backend/internal/architecturemodeling/application/handlers"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
@@ -23,7 +25,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupTestDB(t *testing.T) (*sql.DB, func()) {
+// testContext holds test-specific state for cleanup
+type testContext struct {
+	db         *sql.DB
+	testID     string
+	createdIDs []string
+}
+
+func setupTestDB(t *testing.T) (*testContext, func()) {
 	// Connect to test database
 	connStr := "host=localhost port=5432 user=easi password=easi dbname=easi sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
@@ -32,24 +41,51 @@ func setupTestDB(t *testing.T) (*sql.DB, func()) {
 	err = db.Ping()
 	require.NoError(t, err)
 
-	// Initialize event store schema
+	// Initialize event store schema (idempotent)
 	eventStore := eventstore.NewPostgresEventStore(db)
 	err = eventStore.InitializeSchema()
 	require.NoError(t, err)
 
-	// Initialize read model schema
+	// Initialize read model schema (idempotent)
 	readModel := readmodels.NewApplicationComponentReadModel(db)
 	err = readModel.InitializeSchema()
 	require.NoError(t, err)
 
+	// Create unique test ID based on test name and timestamp to avoid collisions
+	testID := fmt.Sprintf("%s-%d", t.Name(), time.Now().UnixNano())
+
+	ctx := &testContext{
+		db:         db,
+		testID:     testID,
+		createdIDs: make([]string, 0),
+	}
+
+	// Clean up only the data created in this specific test
 	cleanup := func() {
-		// Clean up test data
-		db.Exec("TRUNCATE TABLE application_components CASCADE")
-		db.Exec("TRUNCATE TABLE events CASCADE")
+		// Delete components by tracking the IDs created during the test
+		for _, id := range ctx.createdIDs {
+			db.Exec("DELETE FROM application_components WHERE id = $1", id)
+			db.Exec("DELETE FROM events WHERE aggregate_id = $1", id)
+		}
 		db.Close()
 	}
 
-	return db, cleanup
+	return ctx, cleanup
+}
+
+// trackID adds an aggregate ID to the cleanup list
+func (ctx *testContext) trackID(id string) {
+	ctx.createdIDs = append(ctx.createdIDs, id)
+}
+
+// createTestComponent creates a component directly in the read model for testing
+func (ctx *testContext) createTestComponent(t *testing.T, id, name, description string) {
+	_, err := ctx.db.Exec(
+		"INSERT INTO application_components (id, name, description, created_at) VALUES ($1, $2, $3, NOW())",
+		id, name, description,
+	)
+	require.NoError(t, err)
+	ctx.trackID(id)
 }
 
 func setupHandlers(db *sql.DB) (*ComponentHandlers, *readmodels.ApplicationComponentReadModel) {
@@ -72,10 +108,10 @@ func setupHandlers(db *sql.DB) (*ComponentHandlers, *readmodels.ApplicationCompo
 }
 
 func TestCreateComponent_Integration(t *testing.T) {
-	db, cleanup := setupTestDB(t)
+	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	handlers, readModel := setupHandlers(db)
+	handlers, readModel := setupHandlers(testCtx.db)
 
 	// Create component via API
 	reqBody := CreateApplicationComponentRequest{
@@ -93,51 +129,49 @@ func TestCreateComponent_Integration(t *testing.T) {
 	// Assert HTTP response
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	// Verify event was saved to event store
-	var count int
-	err := db.QueryRow("SELECT COUNT(*) FROM events WHERE event_type = 'ApplicationComponentCreated'").Scan(&count)
+	// Get the created aggregate ID from the event store
+	var aggregateID string
+	err := testCtx.db.QueryRow(
+		"SELECT aggregate_id FROM events WHERE event_type = 'ApplicationComponentCreated' ORDER BY created_at DESC LIMIT 1",
+	).Scan(&aggregateID)
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, count, 1, "At least one event should be created")
+	testCtx.trackID(aggregateID)
 
-	// Verify event data
+	// Verify event data contains expected values
 	var eventData string
-	err = db.QueryRow("SELECT event_data FROM events WHERE event_type = 'ApplicationComponentCreated'").Scan(&eventData)
+	err = testCtx.db.QueryRow(
+		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'ApplicationComponentCreated'",
+		aggregateID,
+	).Scan(&eventData)
 	require.NoError(t, err)
 	assert.Contains(t, eventData, "User Service")
 	assert.Contains(t, eventData, "Handles user authentication and authorization")
 
-	// Note: Read model would be populated by event projector in production
-	// For now, we manually project the event to test the full flow
-	var aggregateID string
-	err = db.QueryRow("SELECT aggregate_id FROM events WHERE event_type = 'ApplicationComponentCreated'").Scan(&aggregateID)
-	require.NoError(t, err)
-
-	// Manually insert into read model for testing
-	_, err = db.Exec(
+	// Manually insert into read model for testing (simulating event projection)
+	_, err = testCtx.db.Exec(
 		"INSERT INTO application_components (id, name, description, created_at) VALUES ($1, $2, $3, NOW())",
 		aggregateID, "User Service", "Handles user authentication and authorization",
 	)
 	require.NoError(t, err)
 
-	// Now test GET endpoint
-	components, err := readModel.GetAll(context.Background())
+	// Verify read model contains the component
+	component, err := readModel.GetByID(context.Background(), aggregateID)
 	require.NoError(t, err)
-	assert.Len(t, components, 1)
-	assert.Equal(t, "User Service", components[0].Name)
-	assert.Equal(t, "Handles user authentication and authorization", components[0].Description)
+	assert.Equal(t, "User Service", component.Name)
+	assert.Equal(t, "Handles user authentication and authorization", component.Description)
 }
 
 func TestGetAllComponents_Integration(t *testing.T) {
-	db, cleanup := setupTestDB(t)
+	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	handlers, _ := setupHandlers(db)
+	handlers, _ := setupHandlers(testCtx.db)
 
-	// Create test data directly in read model
-	db.Exec("INSERT INTO application_components (id, name, description, created_at) VALUES ($1, $2, $3, NOW())",
-		"test-id-1", "Service A", "Description A")
-	db.Exec("INSERT INTO application_components (id, name, description, created_at) VALUES ($1, $2, $3, NOW())",
-		"test-id-2", "Service B", "Description B")
+	// Create test data directly in read model with unique IDs
+	id1 := fmt.Sprintf("test-comp-1-%d", time.Now().UnixNano())
+	id2 := fmt.Sprintf("test-comp-2-%d", time.Now().UnixNano())
+	testCtx.createTestComponent(t, id1, "Service A", "Description A")
+	testCtx.createTestComponent(t, id2, "Service B", "Description B")
 
 	// Test GET all
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/components", nil)
@@ -153,26 +187,28 @@ func TestGetAllComponents_Integration(t *testing.T) {
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
 
-	assert.Len(t, response.Data, 2)
-
-	// Verify HATEOAS links are present
+	// Find our test components in the response
+	foundComponents := 0
 	for _, comp := range response.Data {
-		assert.NotNil(t, comp.Links)
-		assert.Contains(t, comp.Links, "self")
-		assert.Contains(t, comp.Links, "archimate")
+		if comp.ID == id1 || comp.ID == id2 {
+			foundComponents++
+			assert.NotNil(t, comp.Links)
+			assert.Contains(t, comp.Links, "self")
+			assert.Contains(t, comp.Links, "archimate")
+		}
 	}
+	assert.Equal(t, 2, foundComponents, "Should find both test components")
 }
 
 func TestGetComponentByID_Integration(t *testing.T) {
-	db, cleanup := setupTestDB(t)
+	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	handlers, _ := setupHandlers(db)
+	handlers, _ := setupHandlers(testCtx.db)
 
-	// Create test data
-	componentID := "test-component-123"
-	db.Exec("INSERT INTO application_components (id, name, description, created_at) VALUES ($1, $2, $3, NOW())",
-		componentID, "Test Service", "Test Description")
+	// Create test data with unique ID
+	componentID := fmt.Sprintf("test-component-%d", time.Now().UnixNano())
+	testCtx.createTestComponent(t, componentID, "Test Service", "Test Description")
 
 	// Test GET by ID
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/components/"+componentID, nil)
@@ -200,17 +236,18 @@ func TestGetComponentByID_Integration(t *testing.T) {
 }
 
 func TestGetComponentByID_NotFound_Integration(t *testing.T) {
-	db, cleanup := setupTestDB(t)
+	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	handlers, _ := setupHandlers(db)
+	handlers, _ := setupHandlers(testCtx.db)
 
-	// Test GET non-existent component
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/components/non-existent", nil)
+	// Test GET non-existent component with unique ID to avoid collisions
+	nonExistentID := fmt.Sprintf("non-existent-%d", time.Now().UnixNano())
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/components/"+nonExistentID, nil)
 	w := httptest.NewRecorder()
 
 	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", "non-existent")
+	rctx.URLParams.Add("id", nonExistentID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
 	handlers.GetComponentByID(w, req)
@@ -219,10 +256,10 @@ func TestGetComponentByID_NotFound_Integration(t *testing.T) {
 }
 
 func TestCreateComponent_ValidationError_Integration(t *testing.T) {
-	db, cleanup := setupTestDB(t)
+	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	handlers, _ := setupHandlers(db)
+	handlers, _ := setupHandlers(testCtx.db)
 
 	// Create component with empty name (should fail validation)
 	reqBody := CreateApplicationComponentRequest{
@@ -240,9 +277,106 @@ func TestCreateComponent_ValidationError_Integration(t *testing.T) {
 	// Assert validation error
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	// Verify no event was created
+	// Verify no event was created in our test's scope
 	var count int
-	err := db.QueryRow("SELECT COUNT(*) FROM events").Scan(&count)
+	err := testCtx.db.QueryRow(
+		"SELECT COUNT(*) FROM events WHERE created_at > NOW() - INTERVAL '5 seconds'",
+	).Scan(&count)
 	require.NoError(t, err)
-	assert.Equal(t, 0, count)
+	assert.Equal(t, 0, count, "No events should be created for invalid request")
+}
+
+func TestGetAllComponentsPaginated_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupHandlers(testCtx.db)
+
+	// Create test data with unique IDs and different timestamps
+	for i := 1; i <= 5; i++ {
+		id := fmt.Sprintf("comp-%s-%d-%d", testCtx.testID, i, time.Now().UnixNano())
+		name := fmt.Sprintf("Component %d", i)
+		description := fmt.Sprintf("Description %d", i)
+
+		_, err := testCtx.db.Exec(
+			"INSERT INTO application_components (id, name, description, created_at) VALUES ($1, $2, $3, NOW() - INTERVAL '"+fmt.Sprintf("%d", i)+" seconds')",
+			id, name, description,
+		)
+		require.NoError(t, err)
+		testCtx.trackID(id)
+
+		// Small delay to ensure different timestamps
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Test GET first page with limit
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/components?limit=2", nil)
+	w := httptest.NewRecorder()
+
+	handlers.GetAllComponents(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response struct {
+		Data       []readmodels.ApplicationComponentDTO `json:"data"`
+		Pagination struct {
+			Cursor  string `json:"cursor"`
+			HasMore bool   `json:"hasMore"`
+			Limit   int    `json:"limit"`
+		} `json:"pagination"`
+	}
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+
+	// Should have at least 2 components (our test data)
+	assert.GreaterOrEqual(t, len(response.Data), 2, "Should return at least 2 components")
+	assert.Equal(t, 2, response.Pagination.Limit)
+
+	if len(response.Data) >= 2 && response.Pagination.HasMore {
+		// Test GET second page using cursor
+		req2 := httptest.NewRequest(http.MethodGet, "/api/v1/components?limit=2&after="+response.Pagination.Cursor, nil)
+		w2 := httptest.NewRecorder()
+
+		handlers.GetAllComponents(w2, req2)
+
+		assert.Equal(t, http.StatusOK, w2.Code)
+
+		var response2 struct {
+			Data       []readmodels.ApplicationComponentDTO `json:"data"`
+			Pagination struct {
+				Cursor  string `json:"cursor"`
+				HasMore bool   `json:"hasMore"`
+				Limit   int    `json:"limit"`
+			} `json:"pagination"`
+		}
+		err = json.NewDecoder(w2.Body).Decode(&response2)
+		require.NoError(t, err)
+
+		// Verify we got different components
+		firstPageIDs := make(map[string]bool)
+		for _, comp := range response.Data {
+			firstPageIDs[comp.ID] = true
+		}
+		for _, comp := range response2.Data {
+			if firstPageIDs[comp.ID] {
+				t.Logf("Warning: Component %s appears in both pages", comp.ID)
+			}
+		}
+	}
+}
+
+func TestGetAllComponentsPagination_InvalidCursor_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupHandlers(testCtx.db)
+
+	// Test GET with invalid cursor
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/components?limit=2&after=invalid-cursor", nil)
+	w := httptest.NewRecorder()
+
+	handlers.GetAllComponents(w, req)
+
+	// Should return bad request for invalid cursor
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }

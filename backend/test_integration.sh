@@ -11,9 +11,15 @@ echo "  - PostgreSQL running on localhost:5432"
 echo "  - Database 'easi' with user 'easi' password 'easi'"
 echo ""
 
-# Run integration tests
-echo "Running tests with -tags=integration..."
+# Run integration tests for architecture modeling
+echo "Running architecture modeling integration tests..."
 go test -v -tags=integration ./internal/architecturemodeling/infrastructure/api/... -count=1
 
 echo ""
-echo "✓ Integration tests complete!"
+
+# Run integration tests for architecture views
+echo "Running architecture views integration tests..."
+go test -v -tags=integration ./internal/architectureviews/infrastructure/api/... -count=1
+
+echo ""
+echo "✓ All integration tests complete!"
