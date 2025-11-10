@@ -18,50 +18,36 @@ This follows the same mental model as tabs in a browser, views in a CAD tool, or
 ## Functional Requirements
 
 ### View Creation
-- [ ] Button/action to create a new view
-- [ ] Prompt for view name (required, 1-100 characters)
-- [ ] New view starts empty (no components)
+- [x] Add "+" button in Views section header of navigation tree to create a new view
+- [x] Prompt for view name (required, 1-100 characters)
+- [x] New view starts empty (no components)
 
 ### View Management
-- [ ] Rename existing view (add as functionality to the tree menu from spec 007)
-- [ ] Delete view (with confirmation). Add as functionality to the tree menu from spec 007.
-- [ ] Active view clearly indicated in treeview
+- [x] Rename existing view inline in the tree menu (double-click or F2 to edit)
+- [x] Delete view via context menu (right-click) with confirmation dialog
+- [x] Set view as default via context menu (right-click)
+- [x] Active view clearly indicated in treeview
+- [x] Default view shows star indicator (⭐)
 
 ### View Switching
-- [ ] Switch between views via:
-  - [ ] Navigation tree (Spec 007)
+- [x] Switch between views via:
+  - [x] Navigation tree (Spec 007)
   - [ ] View selector tabs in main UI
 - [ ] Switching saves current canvas state (pan, zoom)
-- [ ] Canvas updates to show components in selected view
+- [x] Canvas updates to show components in selected view
 - [ ] View state persists across sessions
 
 ### Component-View Association
-- [ ] Components can exist in zero, one, or multiple views
-- [ ] When adding new component, user chooses which view(s) to add it to. It's always added to the view marked "default".
-- [ ] Existing components can be added to additional views
-- [ ] Components can be removed from a view without deleting the component
-- [ ] Deleting a component removes it from all views
+- [x] Components can exist in zero, one, or multiple views
+- [x] When adding new component, it's automatically added to the current active view
+- [x] Canvas only displays components that are in the current view
+- [x] Components not in the current view can be dragged from the navigation tree onto the canvas to add them to the view
+- [x] Existing components can be added to additional views via drag-and-drop from tree to canvas
+- [x] Components can be removed from a view without deleting the component (via context menu or delete key while selected)
+- [x] Deleting a component removes it from all views
 
 ### Default View Behavior
 - [ ] One view marked as "default" (initially the first created)
-
-## Technical Requirements
-#### Commands
-- [ ] **CreateView**: ViewName
-- [ ] **RenameView**: ViewId, NewName
-- [ ] **DeleteView**: ViewId
-- [ ] **AddComponentToView**: ViewId, ComponentId
-- [ ] **RemoveComponentFromView**: ViewId, ComponentId
-- [ ] **SetDefaultView**: ViewId
-
-#### Events
-- [ ] **ViewCreated**: ViewId, ViewName, IsDefault, Timestamp
-- [ ] **ViewRenamed**: ViewId, OldName, NewName, Timestamp
-- [ ] **ViewDeleted**: ViewId, Timestamp
-- [ ] **ComponentAddedToView**: ViewId, ComponentId, Timestamp
-- [ ] **ComponentRemovedFromView**: ViewId, ComponentId, Timestamp
-- [ ] **DefaultViewChanged**: ViewId, Timestamp
-
 
 
 ### Data Flow

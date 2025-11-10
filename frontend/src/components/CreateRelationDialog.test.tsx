@@ -36,16 +36,16 @@ describe('CreateRelationDialog', () => {
     render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} />);
 
     expect(screen.getByRole('heading', { name: 'Create Relation', hidden: true })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Source Component/, { hidden: true })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Target Component/, { hidden: true })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Relation Type/, { hidden: true })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Source Component/, {})).toBeInTheDocument();
+    expect(screen.getByLabelText(/Target Component/, {})).toBeInTheDocument();
+    expect(screen.getByLabelText(/Relation Type/, {})).toBeInTheDocument();
   });
 
   it('should display all components in dropdowns', () => {
     render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} />);
 
-    const sourceSelect = screen.getByLabelText(/Source Component/, { hidden: true }) as HTMLSelectElement;
-    const targetSelect = screen.getByLabelText(/Target Component/, { hidden: true }) as HTMLSelectElement;
+    const sourceSelect = screen.getByLabelText(/Source Component/, {}) as HTMLSelectElement;
+    const targetSelect = screen.getByLabelText(/Target Component/, {}) as HTMLSelectElement;
 
     expect(sourceSelect.options).toHaveLength(4); // 3 components + 1 placeholder
     expect(targetSelect.options).toHaveLength(4);
@@ -58,7 +58,7 @@ describe('CreateRelationDialog', () => {
     fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(screen.getByText('Both source and target components are required', { hidden: true })).toBeInTheDocument();
+      expect(screen.getByText('Both source and target components are required', {})).toBeInTheDocument();
     });
 
     expect(mockCreateRelation).not.toHaveBeenCalled();
@@ -67,9 +67,9 @@ describe('CreateRelationDialog', () => {
   it('should display error when source and target are the same', async () => {
     render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} />);
 
-    const sourceSelect = screen.getByLabelText(/Source Component/, { hidden: true });
-    const targetSelect = screen.getByLabelText(/Target Component/, { hidden: true });
-    const buttons = screen.getAllByRole('button', { hidden: true });
+    const sourceSelect = screen.getByLabelText(/Source Component/, {});
+    const targetSelect = screen.getByLabelText(/Target Component/, {});
+    const buttons = screen.getAllByRole('button', {});
     const submitButton = buttons.find(btn => btn.textContent === 'Create Relation');
 
     fireEvent.change(sourceSelect, { target: { value: '1' } });
@@ -77,7 +77,7 @@ describe('CreateRelationDialog', () => {
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(screen.getByText('Source and target components must be different', { hidden: true })).toBeInTheDocument();
+      expect(screen.getByText('Source and target components must be different', {})).toBeInTheDocument();
     });
 
     expect(mockCreateRelation).not.toHaveBeenCalled();
@@ -93,11 +93,11 @@ describe('CreateRelationDialog', () => {
 
     render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} />);
 
-    const sourceSelect = screen.getByLabelText(/Source Component/, { hidden: true });
-    const targetSelect = screen.getByLabelText(/Target Component/, { hidden: true });
-    const typeSelect = screen.getByLabelText(/Relation Type/, { hidden: true });
-    const nameInput = screen.getByLabelText(/Name/, { hidden: true });
-    const buttons = screen.getAllByRole('button', { hidden: true });
+    const sourceSelect = screen.getByLabelText(/Source Component/, {});
+    const targetSelect = screen.getByLabelText(/Target Component/, {});
+    const typeSelect = screen.getByLabelText(/Relation Type/, {});
+    const nameInput = screen.getByLabelText(/Name/, {});
+    const buttons = screen.getAllByRole('button', {});
     const submitButton = buttons.find(btn => btn.textContent === 'Create Relation');
 
     fireEvent.change(sourceSelect, { target: { value: '1' } });
@@ -123,10 +123,10 @@ describe('CreateRelationDialog', () => {
 
     render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} />);
 
-    const sourceSelect = screen.getByLabelText(/Source Component/, { hidden: true });
-    const targetSelect = screen.getByLabelText(/Target Component/, { hidden: true });
-    const typeSelect = screen.getByLabelText(/Relation Type/, { hidden: true });
-    const buttons = screen.getAllByRole('button', { hidden: true });
+    const sourceSelect = screen.getByLabelText(/Source Component/, {});
+    const targetSelect = screen.getByLabelText(/Target Component/, {});
+    const typeSelect = screen.getByLabelText(/Relation Type/, {});
+    const buttons = screen.getAllByRole('button', {});
     const submitButton = buttons.find(btn => btn.textContent === 'Create Relation');
 
     fireEvent.change(sourceSelect, { target: { value: '1' } });
@@ -149,8 +149,8 @@ describe('CreateRelationDialog', () => {
       />
     );
 
-    const sourceSelect = screen.getByLabelText(/Source Component/, { hidden: true }) as HTMLSelectElement;
-    const targetSelect = screen.getByLabelText(/Target Component/, { hidden: true }) as HTMLSelectElement;
+    const sourceSelect = screen.getByLabelText(/Source Component/, {}) as HTMLSelectElement;
+    const targetSelect = screen.getByLabelText(/Target Component/, {}) as HTMLSelectElement;
 
     expect(sourceSelect.value).toBe('1');
     expect(targetSelect.value).toBe('2');
@@ -166,8 +166,8 @@ describe('CreateRelationDialog', () => {
       />
     );
 
-    const sourceSelect = screen.getByLabelText(/Source Component/, { hidden: true }) as HTMLSelectElement;
-    const targetSelect = screen.getByLabelText(/Target Component/, { hidden: true }) as HTMLSelectElement;
+    const sourceSelect = screen.getByLabelText(/Source Component/, {}) as HTMLSelectElement;
+    const targetSelect = screen.getByLabelText(/Target Component/, {}) as HTMLSelectElement;
 
     expect(sourceSelect.disabled).toBe(true);
     expect(targetSelect.disabled).toBe(true);
@@ -178,9 +178,9 @@ describe('CreateRelationDialog', () => {
 
     render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} />);
 
-    const sourceSelect = screen.getByLabelText(/Source Component/, { hidden: true });
-    const targetSelect = screen.getByLabelText(/Target Component/, { hidden: true });
-    const buttons = screen.getAllByRole('button', { hidden: true });
+    const sourceSelect = screen.getByLabelText(/Source Component/, {});
+    const targetSelect = screen.getByLabelText(/Target Component/, {});
+    const buttons = screen.getAllByRole('button', {});
     const submitButton = buttons.find(btn => btn.textContent === 'Create Relation');
 
     fireEvent.change(sourceSelect, { target: { value: '1' } });
@@ -188,7 +188,7 @@ describe('CreateRelationDialog', () => {
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(screen.getByText('Creation failed', { hidden: true })).toBeInTheDocument();
+      expect(screen.getByText('Creation failed', {})).toBeInTheDocument();
     });
 
     expect(mockOnClose).not.toHaveBeenCalled();
@@ -197,7 +197,7 @@ describe('CreateRelationDialog', () => {
   it('should disable submit button when required fields are empty', () => {
     render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} />);
 
-    const buttons = screen.getAllByRole('button', { hidden: true });
+    const buttons = screen.getAllByRole('button', {});
     const submitButton = buttons.find(btn => btn.textContent === 'Create Relation') as HTMLButtonElement;
 
     expect(submitButton!.disabled).toBe(true);

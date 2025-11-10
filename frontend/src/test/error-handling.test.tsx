@@ -311,6 +311,7 @@ describe('Error Handling Tests', () => {
       store.currentView = {
         id: 'view-1',
         name: 'Test View',
+        isDefault: false,
         components: [{ componentId: 'comp-1', x: 100, y: 100 }],
         createdAt: new Date().toISOString(),
         _links: { self: { href: '/api/views/view-1' } },

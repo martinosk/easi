@@ -205,6 +205,7 @@ describe('End-to-End Tests', () => {
       const mockView: View = {
         id: 'view-1',
         name: 'Default View',
+        isDefault: false,
         components: [],
         createdAt: new Date().toISOString(),
         _links: { self: { href: '/api/views/view-1' } },
@@ -250,6 +251,7 @@ describe('End-to-End Tests', () => {
       const mockView: View = {
         id: 'view-1',
         name: 'Default View',
+        isDefault: false,
         components: [
           { componentId: 'comp-1', x: 400, y: 300 },
         ],
@@ -345,6 +347,7 @@ describe('End-to-End Tests', () => {
       const mockFullView: View = {
         id: 'view-1',
         name: 'Default View',
+        isDefault: false,
         components: [
           { componentId: 'comp-1', x: 100, y: 100 },
           { componentId: 'comp-2', x: 200, y: 200 },
@@ -381,6 +384,7 @@ describe('End-to-End Tests', () => {
 
       const mockFullView: View = {
         ...mockCreatedView,
+        isDefault: false,
         components: [],
         createdAt: new Date().toISOString(),
         _links: { self: { href: '/api/views/view-1' } },

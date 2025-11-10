@@ -69,6 +69,42 @@ func (p *ArchitectureViewProjector) ProjectEvent(ctx context.Context, eventType 
 		}
 
 		return p.readModel.UpdateComponentPosition(ctx, event.ViewID, event.ComponentID, event.X, event.Y)
+
+	case "ComponentRemovedFromView":
+		var event events.ComponentRemovedFromView
+		if err := json.Unmarshal(eventData, &event); err != nil {
+			log.Printf("Failed to unmarshal ComponentRemovedFromView event: %v", err)
+			return err
+		}
+
+		return p.readModel.RemoveComponent(ctx, event.ViewID, event.ComponentID)
+
+	case "ViewRenamed":
+		var event events.ViewRenamed
+		if err := json.Unmarshal(eventData, &event); err != nil {
+			log.Printf("Failed to unmarshal ViewRenamed event: %v", err)
+			return err
+		}
+
+		return p.readModel.UpdateViewName(ctx, event.ViewID, event.NewName)
+
+	case "ViewDeleted":
+		var event events.ViewDeleted
+		if err := json.Unmarshal(eventData, &event); err != nil {
+			log.Printf("Failed to unmarshal ViewDeleted event: %v", err)
+			return err
+		}
+
+		return p.readModel.MarkViewAsDeleted(ctx, event.ViewID)
+
+	case "DefaultViewChanged":
+		var event events.DefaultViewChanged
+		if err := json.Unmarshal(eventData, &event); err != nil {
+			log.Printf("Failed to unmarshal DefaultViewChanged event: %v", err)
+			return err
+		}
+
+		return p.readModel.SetViewAsDefault(ctx, event.ViewID, event.IsDefault)
 	}
 
 	return nil

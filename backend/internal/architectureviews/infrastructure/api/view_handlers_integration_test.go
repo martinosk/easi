@@ -117,13 +117,21 @@ func setupViewHandlers(db *sql.DB) (*ViewHandlers, *readmodels.ArchitectureViewR
 
 	// Setup repository and handlers
 	viewRepo := repositories.NewArchitectureViewRepository(eventStore)
-	createHandler := handlers.NewCreateViewHandler(viewRepo)
+	createHandler := handlers.NewCreateViewHandler(viewRepo, readModel)
 	addComponentHandler := handlers.NewAddComponentToViewHandler(viewRepo)
 	updatePositionHandler := handlers.NewUpdateComponentPositionHandler(viewRepo)
+	renameHandler := handlers.NewRenameViewHandler(viewRepo)
+	deleteHandler := handlers.NewDeleteViewHandler(viewRepo)
+	removeComponentHandler := handlers.NewRemoveComponentFromViewHandler(viewRepo)
+	setDefaultHandler := handlers.NewSetDefaultViewHandler(viewRepo, readModel)
 
 	commandBus.Register("CreateView", createHandler)
 	commandBus.Register("AddComponentToView", addComponentHandler)
 	commandBus.Register("UpdateComponentPosition", updatePositionHandler)
+	commandBus.Register("RenameView", renameHandler)
+	commandBus.Register("DeleteView", deleteHandler)
+	commandBus.Register("RemoveComponentFromView", removeComponentHandler)
+	commandBus.Register("SetDefaultView", setDefaultHandler)
 
 	// Setup HTTP handlers
 	viewHandlers := NewViewHandlers(commandBus, readModel, hateoas)

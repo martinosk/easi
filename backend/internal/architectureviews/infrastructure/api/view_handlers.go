@@ -52,6 +52,11 @@ type UpdatePositionRequest struct {
 	Y float64 `json:"y"`
 }
 
+// RenameViewRequest represents the request body for renaming a view
+type RenameViewRequest struct {
+	Name string `json:"name"`
+}
+
 // CreateView godoc
 // @Summary Create a new architecture view
 // @Description Creates a new architecture view for organizing components
@@ -261,4 +266,145 @@ func (h *ViewHandlers) UpdateComponentPosition(w http.ResponseWriter, r *http.Re
 
 	sharedAPI.RespondSuccess(w, http.StatusOK,
 		map[string]string{"message": "Component position updated successfully"}, links)
+}
+
+// RenameView godoc
+// @Summary Rename an architecture view
+// @Description Renames an architecture view
+// @Tags views
+// @Accept json
+// @Produce json
+// @Param id path string true "View ID"
+// @Param view body RenameViewRequest true "New view name"
+// @Success 200 {object} sharedAPI.SuccessResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/name [patch]
+func (h *ViewHandlers) RenameView(w http.ResponseWriter, r *http.Request) {
+	viewID := chi.URLParam(r, "id")
+
+	var req RenameViewRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+
+	// Validate using domain value objects
+	_, err := valueobjects.NewViewName(req.Name)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	// Create command
+	cmd := &commands.RenameView{
+		ViewID:  viewID,
+		NewName: req.Name,
+	}
+
+	// Dispatch command
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	// Add HATEOAS links
+	links := map[string]string{
+		"self": fmt.Sprintf("/api/v1/views/%s", viewID),
+	}
+
+	sharedAPI.RespondSuccess(w, http.StatusOK,
+		map[string]string{"message": "View renamed successfully"}, links)
+}
+
+// DeleteView godoc
+// @Summary Delete an architecture view
+// @Description Deletes an architecture view (cannot delete default view)
+// @Tags views
+// @Produce json
+// @Param id path string true "View ID"
+// @Success 204
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 409 {object} sharedAPI.ErrorResponse "Cannot delete default view"
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id} [delete]
+func (h *ViewHandlers) DeleteView(w http.ResponseWriter, r *http.Request) {
+	viewID := chi.URLParam(r, "id")
+
+	// Create command
+	cmd := &commands.DeleteView{
+		ViewID: viewID,
+	}
+
+	// Dispatch command
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, http.StatusConflict, err, "")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// RemoveComponentFromView godoc
+// @Summary Remove a component from a view
+// @Description Removes a component from an architecture view without deleting the component
+// @Tags views
+// @Produce json
+// @Param id path string true "View ID"
+// @Param componentId path string true "Component ID"
+// @Success 204
+// @Failure 404 {object} sharedAPI.ErrorResponse "View or component not found"
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/components/{componentId} [delete]
+func (h *ViewHandlers) RemoveComponentFromView(w http.ResponseWriter, r *http.Request) {
+	viewID := chi.URLParam(r, "id")
+	componentID := chi.URLParam(r, "componentId")
+
+	// Create command
+	cmd := &commands.RemoveComponentFromView{
+		ViewID:      viewID,
+		ComponentID: componentID,
+	}
+
+	// Dispatch command
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// SetDefaultView godoc
+// @Summary Set a view as the default view
+// @Description Sets an architecture view as the default view
+// @Tags views
+// @Produce json
+// @Param id path string true "View ID"
+// @Success 200 {object} sharedAPI.SuccessResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/default [put]
+func (h *ViewHandlers) SetDefaultView(w http.ResponseWriter, r *http.Request) {
+	viewID := chi.URLParam(r, "id")
+
+	// Create command
+	cmd := &commands.SetDefaultView{
+		ViewID: viewID,
+	}
+
+	// Dispatch command
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	// Add HATEOAS links
+	links := map[string]string{
+		"self": fmt.Sprintf("/api/v1/views/%s", viewID),
+	}
+
+	sharedAPI.RespondSuccess(w, http.StatusOK,
+		map[string]string{"message": "Default view set successfully"}, links)
 }

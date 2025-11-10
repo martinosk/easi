@@ -30,8 +30,8 @@ describe('CreateComponentDialog', () => {
 
     // Check for the heading element (use hidden option because dialog is not accessible by default in JSDOM)
     expect(screen.getByRole('heading', { level: 2, hidden: true })).toHaveTextContent('Create Component');
-    expect(screen.getByLabelText(/Name/, { hidden: true })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Description/, { hidden: true })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Name/, {})).toBeInTheDocument();
+    expect(screen.getByLabelText(/Description/, {})).toBeInTheDocument();
   });
 
   it('should not show modal when isOpen is false', () => {
@@ -49,7 +49,7 @@ describe('CreateComponentDialog', () => {
   it('should disable submit button when name is empty', () => {
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
-    const buttons = screen.getAllByRole('button', { hidden: true });
+    const buttons = screen.getAllByRole('button', {});
     const submitButton = buttons.find(btn => btn.textContent === 'Create Component') as HTMLButtonElement;
 
     // Button should be disabled when name is empty
@@ -62,9 +62,9 @@ describe('CreateComponentDialog', () => {
 
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
-    const nameInput = screen.getByLabelText(/Name/, { hidden: true });
-    const descriptionInput = screen.getByLabelText(/Description/, { hidden: true });
-    const buttons = screen.getAllByRole('button', { hidden: true });
+    const nameInput = screen.getByLabelText(/Name/, {});
+    const descriptionInput = screen.getByLabelText(/Description/, {});
+    const buttons = screen.getAllByRole('button', {});
     const submitButton = buttons.find(btn => btn.textContent === 'Create Component');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
@@ -83,8 +83,8 @@ describe('CreateComponentDialog', () => {
 
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
-    const nameInput = screen.getByLabelText(/Name/, { hidden: true });
-    const buttons = screen.getAllByRole('button', { hidden: true });
+    const nameInput = screen.getByLabelText(/Name/, {});
+    const buttons = screen.getAllByRole('button', {});
     const submitButton = buttons.find(btn => btn.textContent === 'Create Component');
 
     fireEvent.change(nameInput, { target: { value: '  Test Component  ' } });
@@ -100,15 +100,15 @@ describe('CreateComponentDialog', () => {
 
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
-    const nameInput = screen.getByLabelText(/Name/, { hidden: true });
-    const buttons = screen.getAllByRole('button', { hidden: true });
+    const nameInput = screen.getByLabelText(/Name/, {});
+    const buttons = screen.getAllByRole('button', {});
     const submitButton = buttons.find(btn => btn.textContent === 'Create Component');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(screen.getByText('Creation failed', { hidden: true })).toBeInTheDocument();
+      expect(screen.getByText('Creation failed', {})).toBeInTheDocument();
     });
 
     expect(mockOnClose).not.toHaveBeenCalled();
@@ -121,15 +121,15 @@ describe('CreateComponentDialog', () => {
 
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
-    const nameInput = screen.getByLabelText(/Name/, { hidden: true }) as HTMLInputElement;
-    const buttons = screen.getAllByRole('button', { hidden: true });
+    const nameInput = screen.getByLabelText(/Name/, {}) as HTMLInputElement;
+    const buttons = screen.getAllByRole('button', {});
     const submitButton = buttons.find(btn => btn.textContent === 'Create Component');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(screen.getByText('Creating...', { hidden: true })).toBeInTheDocument();
+      expect(screen.getByText('Creating...', {})).toBeInTheDocument();
     });
 
     expect(nameInput.disabled).toBe(true);

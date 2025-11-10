@@ -3,11 +3,13 @@ import { useAppStore } from '../store/appStore';
 
 interface ComponentDetailsProps {
   onEdit: () => void;
+  onRemoveFromView?: () => void;
 }
 
-export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit }) => {
+export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRemoveFromView }) => {
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const components = useAppStore((state) => state.components);
+  const currentView = useAppStore((state) => state.currentView);
   const clearSelection = useAppStore((state) => state.clearSelection);
 
   if (!selectedNodeId) {
@@ -19,6 +21,10 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit }) =>
   if (!component) {
     return null;
   }
+
+  const isInCurrentView = currentView?.components.some(
+    (vc) => vc.componentId === selectedNodeId
+  );
 
   const archimateLink = component._links.archimate?.href;
   const formattedDate = new Date(component.createdAt).toLocaleString();
@@ -41,6 +47,11 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit }) =>
           <button className="btn btn-secondary btn-small" onClick={onEdit}>
             Edit
           </button>
+          {isInCurrentView && onRemoveFromView && (
+            <button className="btn btn-danger btn-small" onClick={onRemoveFromView}>
+              Remove from View
+            </button>
+          )}
         </div>
 
         <div className="detail-field">

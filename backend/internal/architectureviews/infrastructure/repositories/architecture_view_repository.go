@@ -130,6 +130,54 @@ func (r *ArchitectureViewRepository) deserializeEvents(storedEvents []domain.Dom
 			}
 			domainEvents = append(domainEvents, specificEvent)
 
+		case "ComponentRemovedFromView":
+			// Manually reconstruct the event from the map
+			viewID, _ := eventData["viewId"].(string)
+			componentID, _ := eventData["componentId"].(string)
+
+			specificEvent := events.ComponentRemovedFromView{
+				BaseEvent:   domain.NewBaseEvent(viewID),
+				ViewID:      viewID,
+				ComponentID: componentID,
+			}
+			domainEvents = append(domainEvents, specificEvent)
+
+		case "ViewRenamed":
+			// Manually reconstruct the event from the map
+			viewID, _ := eventData["viewId"].(string)
+			oldName, _ := eventData["oldName"].(string)
+			newName, _ := eventData["newName"].(string)
+
+			specificEvent := events.ViewRenamed{
+				BaseEvent: domain.NewBaseEvent(viewID),
+				ViewID:    viewID,
+				OldName:   oldName,
+				NewName:   newName,
+			}
+			domainEvents = append(domainEvents, specificEvent)
+
+		case "ViewDeleted":
+			// Manually reconstruct the event from the map
+			viewID, _ := eventData["viewId"].(string)
+
+			specificEvent := events.ViewDeleted{
+				BaseEvent: domain.NewBaseEvent(viewID),
+				ViewID:    viewID,
+			}
+			domainEvents = append(domainEvents, specificEvent)
+
+		case "DefaultViewChanged":
+			// Manually reconstruct the event from the map
+			viewID, _ := eventData["viewId"].(string)
+			isDefault, _ := eventData["isDefault"].(bool)
+
+			specificEvent := events.DefaultViewChanged{
+				BaseEvent: domain.NewBaseEvent(viewID),
+				ViewID:    viewID,
+				IsDefault: isDefault,
+			}
+			domainEvents = append(domainEvents, specificEvent)
+
 		default:
 			// Unknown event type, skip it
 			continue

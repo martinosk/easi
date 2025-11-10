@@ -16,6 +16,12 @@ var (
 
 	// ErrComponentAlreadyInView is returned when trying to add a component that's already in the view
 	ErrComponentAlreadyInView = errors.New("component already exists in view")
+
+	// ErrCannotDeleteDefaultView is returned when trying to delete the default view
+	ErrCannotDeleteDefaultView = errors.New("cannot delete the default view")
+
+	// ErrViewAlreadyDeleted is returned when trying to perform operations on a deleted view
+	ErrViewAlreadyDeleted = errors.New("view has been deleted")
 )
 
 // ArchitectureView represents an architecture view aggregate
@@ -24,31 +30,45 @@ type ArchitectureView struct {
 	name        valueobjects.ViewName
 	description string
 	components  map[string]entities.ViewComponent // componentID -> ViewComponent
+	isDefault   bool
+	isDeleted   bool
 	createdAt   time.Time
 }
 
 // NewArchitectureView creates a new architecture view
-func NewArchitectureView(name valueobjects.ViewName, description string) (*ArchitectureView, error) {
+func NewArchitectureView(name valueobjects.ViewName, description string, isDefault bool) (*ArchitectureView, error) {
 	aggregate := &ArchitectureView{
 		AggregateRoot: domain.NewAggregateRoot(),
 		components:    make(map[string]entities.ViewComponent),
 	}
 
 	// Raise creation event
-	event := events.NewViewCreated(
+	viewCreatedEvent := events.NewViewCreated(
 		aggregate.ID(),
 		name.Value(),
 		description,
 	)
 
-	aggregate.apply(event)
-	aggregate.RaiseEvent(event)
+	aggregate.apply(viewCreatedEvent)
+	aggregate.RaiseEvent(viewCreatedEvent)
+
+	// If this is the default view, raise the default view changed event
+	if isDefault {
+		defaultEvent := events.NewDefaultViewChanged(aggregate.ID(), true)
+		aggregate.apply(defaultEvent)
+		aggregate.RaiseEvent(defaultEvent)
+	}
 
 	return aggregate, nil
 }
 
 // AddComponent adds a component to the view at a specific position
 func (v *ArchitectureView) AddComponent(componentID string, position valueobjects.ComponentPosition) error {
+	// Check if view is deleted
+	if v.isDeleted {
+		return ErrViewAlreadyDeleted
+	}
+
 	// Check if component already exists
 	if _, exists := v.components[componentID]; exists {
 		return ErrComponentAlreadyInView
@@ -70,6 +90,11 @@ func (v *ArchitectureView) AddComponent(componentID string, position valueobject
 
 // UpdateComponentPosition updates the position of a component in the view
 func (v *ArchitectureView) UpdateComponentPosition(componentID string, newPosition valueobjects.ComponentPosition) error {
+	// Check if view is deleted
+	if v.isDeleted {
+		return ErrViewAlreadyDeleted
+	}
+
 	// Check if component exists
 	if _, exists := v.components[componentID]; !exists {
 		return ErrComponentNotFound
@@ -82,6 +107,118 @@ func (v *ArchitectureView) UpdateComponentPosition(componentID string, newPositi
 		newPosition.X(),
 		newPosition.Y(),
 	)
+
+	v.apply(event)
+	v.RaiseEvent(event)
+
+	return nil
+}
+
+// RemoveComponent removes a component from the view
+func (v *ArchitectureView) RemoveComponent(componentID string) error {
+	// Check if view is deleted
+	if v.isDeleted {
+		return ErrViewAlreadyDeleted
+	}
+
+	// Check if component exists
+	if _, exists := v.components[componentID]; !exists {
+		return ErrComponentNotFound
+	}
+
+	// Raise event
+	event := events.NewComponentRemovedFromView(
+		v.ID(),
+		componentID,
+	)
+
+	v.apply(event)
+	v.RaiseEvent(event)
+
+	return nil
+}
+
+// Rename renames the view
+func (v *ArchitectureView) Rename(newName valueobjects.ViewName) error {
+	// Check if view is deleted
+	if v.isDeleted {
+		return ErrViewAlreadyDeleted
+	}
+
+	// Check if name is different
+	if v.name.Value() == newName.Value() {
+		return nil // No-op if name is the same
+	}
+
+	// Raise event
+	event := events.NewViewRenamed(
+		v.ID(),
+		v.name.Value(),
+		newName.Value(),
+	)
+
+	v.apply(event)
+	v.RaiseEvent(event)
+
+	return nil
+}
+
+// Delete marks the view as deleted
+func (v *ArchitectureView) Delete() error {
+	// Check if view is already deleted
+	if v.isDeleted {
+		return ErrViewAlreadyDeleted
+	}
+
+	// Cannot delete default view
+	if v.isDefault {
+		return ErrCannotDeleteDefaultView
+	}
+
+	// Raise event
+	event := events.NewViewDeleted(v.ID())
+
+	v.apply(event)
+	v.RaiseEvent(event)
+
+	return nil
+}
+
+// SetAsDefault sets this view as the default view
+func (v *ArchitectureView) SetAsDefault() error {
+	// Check if view is deleted
+	if v.isDeleted {
+		return ErrViewAlreadyDeleted
+	}
+
+	// If already default, no-op
+	if v.isDefault {
+		return nil
+	}
+
+	// Raise event
+	event := events.NewDefaultViewChanged(v.ID(), true)
+
+	v.apply(event)
+	v.RaiseEvent(event)
+
+	return nil
+}
+
+// UnsetAsDefault unsets this view as the default view
+func (v *ArchitectureView) UnsetAsDefault() error {
+	// Check if view is deleted
+	if v.isDeleted {
+		return ErrViewAlreadyDeleted
+	}
+
+	// If not default, no-op
+	if !v.isDefault {
+		return nil
+	}
+
+	// Raise event
+	event := events.NewDefaultViewChanged(v.ID(), false)
 
 	v.apply(event)
 	v.RaiseEvent(event)
@@ -123,6 +260,18 @@ func (v *ArchitectureView) apply(event domain.DomainEvent) {
 			newPosition := valueobjects.NewComponentPosition(e.X, e.Y)
 			v.components[e.ComponentID] = viewComponent.UpdatePosition(newPosition)
 		}
+
+	case events.ComponentRemovedFromView:
+		delete(v.components, e.ComponentID)
+
+	case events.ViewRenamed:
+		v.name, _ = valueobjects.NewViewName(e.NewName)
+
+	case events.ViewDeleted:
+		v.isDeleted = true
+
+	case events.DefaultViewChanged:
+		v.isDefault = e.IsDefault
 	}
 }
 
@@ -149,4 +298,14 @@ func (v *ArchitectureView) Components() map[string]entities.ViewComponent {
 // CreatedAt returns when the view was created
 func (v *ArchitectureView) CreatedAt() time.Time {
 	return v.createdAt
+}
+
+// IsDefault returns whether this is the default view
+func (v *ArchitectureView) IsDefault() bool {
+	return v.isDefault
+}
+
+// IsDeleted returns whether this view has been deleted
+func (v *ArchitectureView) IsDeleted() bool {
+	return v.isDeleted
 }

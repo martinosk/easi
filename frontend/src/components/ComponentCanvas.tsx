@@ -24,6 +24,7 @@ import { useAppStore } from '../store/appStore';
 
 interface ComponentCanvasProps {
   onConnect: (source: string, target: string) => void;
+  onComponentDrop?: (componentId: string, x: number, y: number) => void;
 }
 
 export interface ComponentCanvasRef {
@@ -109,7 +110,7 @@ const nodeTypes: NodeTypes = {
 };
 
 const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps>(
-  ({ onConnect }, ref) => {
+  ({ onConnect, onComponentDrop }, ref) => {
   const reactFlowInstance = useReactFlow();
   const components = useAppStore((state) => state.components);
   const relations = useAppStore((state) => state.relations);
@@ -128,26 +129,33 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
   React.useEffect(() => {
     if (!currentView) return;
 
-    const newNodes: Node[] = components.map((component) => {
-      const viewComponent = currentView.components.find(
-        (vc) => vc.componentId === component.id
-      );
+    // Only show components that are in the current view
+    const newNodes: Node[] = components
+      .filter((component) => {
+        return currentView.components.some(
+          (vc) => vc.componentId === component.id
+        );
+      })
+      .map((component) => {
+        const viewComponent = currentView.components.find(
+          (vc) => vc.componentId === component.id
+        );
 
-      const position = viewComponent
-        ? { x: viewComponent.x, y: viewComponent.y }
-        : { x: 400, y: 300 }; // Default center position
+        const position = viewComponent
+          ? { x: viewComponent.x, y: viewComponent.y }
+          : { x: 400, y: 300 }; // Default center position (shouldn't happen after filter)
 
-      return {
-        id: component.id,
-        type: 'component',
-        position,
-        data: {
-          label: component.name,
-          description: component.description,
-          isSelected: selectedNodeId === component.id,
-        },
-      };
-    });
+        return {
+          id: component.id,
+          type: 'component',
+          position,
+          data: {
+            label: component.name,
+            description: component.description,
+            isSelected: selectedNodeId === component.id,
+          },
+        };
+      });
 
     setNodes(newNodes);
   }, [components, currentView, selectedNodeId]);
@@ -236,6 +244,30 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     [onConnect]
   );
 
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  }, []);
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+
+      const componentId = event.dataTransfer.getData('componentId');
+      if (!componentId || !onComponentDrop || !reactFlowInstance) return;
+
+      // Get the position where the drop occurred
+      const bounds = (event.target as HTMLElement).getBoundingClientRect();
+      const position = reactFlowInstance.screenToFlowPosition({
+        x: event.clientX - bounds.left,
+        y: event.clientY - bounds.top,
+      });
+
+      onComponentDrop(componentId, position.x, position.y);
+    },
+    [onComponentDrop, reactFlowInstance]
+  );
+
   // Expose method to center on a node
   useImperativeHandle(ref, () => ({
     centerOnNode: (nodeId: string) => {
@@ -250,7 +282,11 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
   }));
 
   return (
-    <div className="canvas-container">
+    <div
+      className="canvas-container"
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}

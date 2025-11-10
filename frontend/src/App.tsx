@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { useAppStore } from './store/appStore';
 import { Toolbar } from './components/Toolbar';
@@ -34,6 +34,39 @@ function App() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const handleRemoveFromView = useCallback(async () => {
+    if (!currentView || !selectedNodeId) return;
+
+    try {
+      await apiClient.removeComponentFromView(currentView.id, selectedNodeId);
+      // Reload the view to get updated component list
+      const updatedView = await apiClient.getViewById(currentView.id);
+      useAppStore.setState({ currentView: updatedView });
+      // Clear selection since component is no longer in view
+      useAppStore.getState().clearSelection();
+    } catch (error) {
+      console.error('Failed to remove component from view:', error);
+    }
+  }, [currentView, selectedNodeId]);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Delete key to remove component from view
+      if (event.key === 'Delete' && selectedNodeId && currentView) {
+        const isInCurrentView = currentView.components.some(
+          (vc) => vc.componentId === selectedNodeId
+        );
+        if (isInCurrentView) {
+          handleRemoveFromView();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedNodeId, currentView, handleRemoveFromView]);
 
   const handleAddComponent = () => {
     setIsComponentDialogOpen(true);
@@ -87,6 +120,23 @@ function App() {
     }
   };
 
+  const handleComponentDrop = async (componentId: string, x: number, y: number) => {
+    if (!currentView) return;
+
+    try {
+      await apiClient.addComponentToView(currentView.id, {
+        componentId,
+        x,
+        y,
+      });
+      // Reload the view to get updated component list
+      const updatedView = await apiClient.getViewById(currentView.id);
+      useAppStore.setState({ currentView: updatedView });
+    } catch (error) {
+      console.error('Failed to add component to view:', error);
+    }
+  };
+
   const selectedComponent = components.find((c) => c.id === selectedNodeId);
   const selectedRelation = relations.find((r) => r.id === selectedEdgeId);
 
@@ -128,12 +178,12 @@ function App() {
         />
 
         <div className="canvas-section">
-          <ComponentCanvas ref={canvasRef} onConnect={handleConnect} />
+          <ComponentCanvas ref={canvasRef} onConnect={handleConnect} onComponentDrop={handleComponentDrop} />
         </div>
 
         {(selectedNodeId || selectedEdgeId) && (
           <div className="detail-section">
-            {selectedNodeId && <ComponentDetails onEdit={handleEditComponent} />}
+            {selectedNodeId && <ComponentDetails onEdit={handleEditComponent} onRemoveFromView={handleRemoveFromView} />}
             {selectedEdgeId && <RelationDetails onEdit={handleEditRelation} />}
           </div>
         )}

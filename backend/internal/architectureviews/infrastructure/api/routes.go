@@ -39,16 +39,28 @@ func SetupArchitectureViewsRoutes(
 	eventBus.Subscribe("ViewCreated", viewProjector)
 	eventBus.Subscribe("ComponentAddedToView", viewProjector)
 	eventBus.Subscribe("ComponentPositionUpdated", viewProjector)
+	eventBus.Subscribe("ComponentRemovedFromView", viewProjector)
+	eventBus.Subscribe("ViewRenamed", viewProjector)
+	eventBus.Subscribe("ViewDeleted", viewProjector)
+	eventBus.Subscribe("DefaultViewChanged", viewProjector)
 
 	// Initialize command handlers
-	createViewHandler := handlers.NewCreateViewHandler(viewRepo)
+	createViewHandler := handlers.NewCreateViewHandler(viewRepo, viewReadModel)
 	addComponentHandler := handlers.NewAddComponentToViewHandler(viewRepo)
 	updatePositionHandler := handlers.NewUpdateComponentPositionHandler(viewRepo)
+	renameViewHandler := handlers.NewRenameViewHandler(viewRepo)
+	deleteViewHandler := handlers.NewDeleteViewHandler(viewRepo)
+	removeComponentHandler := handlers.NewRemoveComponentFromViewHandler(viewRepo)
+	setDefaultViewHandler := handlers.NewSetDefaultViewHandler(viewRepo, viewReadModel)
 
 	// Register command handlers
 	commandBus.Register("CreateView", createViewHandler)
 	commandBus.Register("AddComponentToView", addComponentHandler)
 	commandBus.Register("UpdateComponentPosition", updatePositionHandler)
+	commandBus.Register("RenameView", renameViewHandler)
+	commandBus.Register("DeleteView", deleteViewHandler)
+	commandBus.Register("RemoveComponentFromView", removeComponentHandler)
+	commandBus.Register("SetDefaultView", setDefaultViewHandler)
 
 	// Initialize HTTP handlers
 	viewHandlers := NewViewHandlers(commandBus, viewReadModel, hateoas)
@@ -58,7 +70,11 @@ func SetupArchitectureViewsRoutes(
 		r.Post("/", viewHandlers.CreateView)
 		r.Get("/", viewHandlers.GetAllViews)
 		r.Get("/{id}", viewHandlers.GetViewByID)
+		r.Delete("/{id}", viewHandlers.DeleteView)
+		r.Patch("/{id}/name", viewHandlers.RenameView)
+		r.Put("/{id}/default", viewHandlers.SetDefaultView)
 		r.Post("/{id}/components", viewHandlers.AddComponentToView)
+		r.Delete("/{id}/components/{componentId}", viewHandlers.RemoveComponentFromView)
 		r.Patch("/{id}/components/{componentId}/position", viewHandlers.UpdateComponentPosition)
 	})
 

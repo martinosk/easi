@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"easi/backend/internal/architectureviews/application/commands"
+	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/architectureviews/domain/aggregates"
 	"easi/backend/internal/architectureviews/domain/valueobjects"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
@@ -13,12 +14,14 @@ import (
 // CreateViewHandler handles CreateView commands
 type CreateViewHandler struct {
 	repository *repositories.ArchitectureViewRepository
+	readModel  *readmodels.ArchitectureViewReadModel
 }
 
 // NewCreateViewHandler creates a new handler
-func NewCreateViewHandler(repository *repositories.ArchitectureViewRepository) *CreateViewHandler {
+func NewCreateViewHandler(repository *repositories.ArchitectureViewRepository, readModel *readmodels.ArchitectureViewReadModel) *CreateViewHandler {
 	return &CreateViewHandler{
 		repository: repository,
+		readModel:  readModel,
 	}
 }
 
@@ -35,8 +38,15 @@ func (h *CreateViewHandler) Handle(ctx context.Context, cmd cqrs.Command) error 
 		return err
 	}
 
+	// Check if this is the first view (should be default)
+	existingViews, err := h.readModel.GetAll(ctx)
+	if err != nil {
+		return err
+	}
+	isDefault := len(existingViews) == 0
+
 	// Create aggregate
-	view, err := aggregates.NewArchitectureView(name, command.Description)
+	view, err := aggregates.NewArchitectureView(name, command.Description, isDefault)
 	if err != nil {
 		return err
 	}

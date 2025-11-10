@@ -18,6 +18,7 @@ type ArchitectureViewDTO struct {
 	ID          string                  `json:"id"`
 	Name        string                  `json:"name"`
 	Description string                  `json:"description,omitempty"`
+	IsDefault   bool                    `json:"isDefault"`
 	Components  []ComponentPositionDTO  `json:"components"`
 	CreatedAt   time.Time               `json:"createdAt"`
 	Links       map[string]string       `json:"_links,omitempty"`
@@ -61,14 +62,26 @@ func (rm *ArchitectureViewReadModel) InitializeSchema() error {
 	`
 
 	_, err := rm.db.Exec(schema)
+	if err != nil {
+		return err
+	}
+
+	// Add new columns if they don't exist (migration for existing databases)
+	migrations := `
+		ALTER TABLE architecture_views ADD COLUMN IF NOT EXISTS is_default BOOLEAN NOT NULL DEFAULT false;
+		ALTER TABLE architecture_views ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT false;
+		CREATE INDEX IF NOT EXISTS idx_architecture_views_is_default ON architecture_views(is_default);
+	`
+
+	_, err = rm.db.Exec(migrations)
 	return err
 }
 
 // InsertView adds a new view to the read model
 func (rm *ArchitectureViewReadModel) InsertView(ctx context.Context, dto ArchitectureViewDTO) error {
 	_, err := rm.db.ExecContext(ctx,
-		"INSERT INTO architecture_views (id, name, description, created_at) VALUES ($1, $2, $3, $4)",
-		dto.ID, dto.Name, dto.Description, dto.CreatedAt,
+		"INSERT INTO architecture_views (id, name, description, is_default, created_at) VALUES ($1, $2, $3, $4, $5)",
+		dto.ID, dto.Name, dto.Description, dto.IsDefault, dto.CreatedAt,
 	)
 	return err
 }
@@ -91,13 +104,69 @@ func (rm *ArchitectureViewReadModel) UpdateComponentPosition(ctx context.Context
 	return err
 }
 
+// RemoveComponent removes a component from a view
+func (rm *ArchitectureViewReadModel) RemoveComponent(ctx context.Context, viewID, componentID string) error {
+	_, err := rm.db.ExecContext(ctx,
+		"DELETE FROM view_component_positions WHERE view_id = $1 AND component_id = $2",
+		viewID, componentID,
+	)
+	return err
+}
+
+// UpdateViewName updates a view's name
+func (rm *ArchitectureViewReadModel) UpdateViewName(ctx context.Context, viewID, newName string) error {
+	_, err := rm.db.ExecContext(ctx,
+		"UPDATE architecture_views SET name = $1, updated_at = $2 WHERE id = $3",
+		newName, time.Now().UTC(), viewID,
+	)
+	return err
+}
+
+// MarkViewAsDeleted marks a view as deleted
+func (rm *ArchitectureViewReadModel) MarkViewAsDeleted(ctx context.Context, viewID string) error {
+	_, err := rm.db.ExecContext(ctx,
+		"UPDATE architecture_views SET is_deleted = true, updated_at = $1 WHERE id = $2",
+		time.Now().UTC(), viewID,
+	)
+	return err
+}
+
+// SetViewAsDefault sets a view as the default
+func (rm *ArchitectureViewReadModel) SetViewAsDefault(ctx context.Context, viewID string, isDefault bool) error {
+	_, err := rm.db.ExecContext(ctx,
+		"UPDATE architecture_views SET is_default = $1, updated_at = $2 WHERE id = $3",
+		isDefault, time.Now().UTC(), viewID,
+	)
+	return err
+}
+
+// GetDefaultView retrieves the default view
+func (rm *ArchitectureViewReadModel) GetDefaultView(ctx context.Context) (*ArchitectureViewDTO, error) {
+	var dto ArchitectureViewDTO
+	err := rm.db.QueryRowContext(ctx,
+		"SELECT id, name, description, is_default, created_at FROM architecture_views WHERE is_default = true AND is_deleted = false LIMIT 1",
+	).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// Get component positions
+	dto.Components, _ = rm.getComponentsForView(ctx, dto.ID)
+
+	return &dto, nil
+}
+
 // GetByID retrieves a view by ID with all component positions
 func (rm *ArchitectureViewReadModel) GetByID(ctx context.Context, id string) (*ArchitectureViewDTO, error) {
 	var dto ArchitectureViewDTO
 	err := rm.db.QueryRowContext(ctx,
-		"SELECT id, name, description, created_at FROM architecture_views WHERE id = $1",
+		"SELECT id, name, description, is_default, created_at FROM architecture_views WHERE id = $1 AND is_deleted = false",
 		id,
-	).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt)
+	).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -128,10 +197,10 @@ func (rm *ArchitectureViewReadModel) GetByID(ctx context.Context, id string) (*A
 	return &dto, rows.Err()
 }
 
-// GetAll retrieves all views
+// GetAll retrieves all views (excluding deleted ones)
 func (rm *ArchitectureViewReadModel) GetAll(ctx context.Context) ([]ArchitectureViewDTO, error) {
 	rows, err := rm.db.QueryContext(ctx,
-		"SELECT id, name, description, created_at FROM architecture_views ORDER BY created_at DESC",
+		"SELECT id, name, description, is_default, created_at FROM architecture_views WHERE is_deleted = false ORDER BY is_default DESC, created_at DESC",
 	)
 	if err != nil {
 		return nil, err
@@ -141,7 +210,7 @@ func (rm *ArchitectureViewReadModel) GetAll(ctx context.Context) ([]Architecture
 	var views []ArchitectureViewDTO
 	for rows.Next() {
 		var dto ArchitectureViewDTO
-		if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
+		if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt); err != nil {
 			return nil, err
 		}
 

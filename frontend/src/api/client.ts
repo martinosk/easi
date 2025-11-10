@@ -9,6 +9,7 @@ import type {
   CreateViewRequest,
   AddComponentToViewRequest,
   UpdatePositionRequest,
+  RenameViewRequest,
 } from './types';
 import { ApiError } from './types';
 
@@ -125,6 +126,22 @@ class ApiClient {
       `/api/v1/views/${viewId}/components/${componentId}/position`,
       request
     );
+  }
+
+  async renameView(viewId: string, request: RenameViewRequest): Promise<void> {
+    await this.client.patch(`/api/v1/views/${viewId}/name`, request);
+  }
+
+  async deleteView(viewId: string): Promise<void> {
+    await this.client.delete(`/api/v1/views/${viewId}`);
+  }
+
+  async removeComponentFromView(viewId: string, componentId: string): Promise<void> {
+    await this.client.delete(`/api/v1/views/${viewId}/components/${componentId}`);
+  }
+
+  async setDefaultView(viewId: string): Promise<void> {
+    await this.client.put(`/api/v1/views/${viewId}/default`);
   }
 }
 

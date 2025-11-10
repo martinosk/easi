@@ -43,6 +43,7 @@ export interface View {
   id: string;
   name: string;
   description?: string;
+  isDefault: boolean;
   components: ViewComponent[];
   createdAt: string;
   _links: HATEOASLinks;
@@ -75,6 +76,10 @@ export interface AddComponentToViewRequest {
 export interface UpdatePositionRequest {
   x: number;
   y: number;
+}
+
+export interface RenameViewRequest {
+  name: string;
 }
 
 export class ApiError extends Error {
