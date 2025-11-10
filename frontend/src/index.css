@@ -587,3 +587,208 @@ body {
     border-radius: 0;
   }
 }
+
+/* Navigation Tree */
+.navigation-tree {
+  width: 280px;
+  background: white;
+  border-right: 1px solid var(--color-gray-200);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease, margin-left 0.3s ease;
+  position: relative;
+  z-index: 10;
+}
+
+.navigation-tree.closed {
+  width: 0;
+  overflow: hidden;
+  border-right: none;
+}
+
+.navigation-tree-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.navigation-tree-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.navigation-tree-header h3 {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-gray-700);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.tree-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  color: var(--color-gray-600);
+  font-size: var(--font-size-xl);
+  line-height: 1;
+  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tree-toggle-btn:hover {
+  color: var(--color-primary);
+}
+
+.tree-toggle-btn-collapsed {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: white;
+  border: 1px solid var(--color-gray-200);
+  border-left: none;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  cursor: pointer;
+  padding: var(--spacing-md) var(--spacing-xs);
+  color: var(--color-gray-600);
+  font-size: var(--font-size-xl);
+  line-height: 1;
+  transition: all 0.2s ease;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+  z-index: 100;
+}
+
+.tree-toggle-btn-collapsed:hover {
+  color: var(--color-primary);
+  background: var(--color-gray-50);
+}
+
+.tree-category {
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.category-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-gray-700);
+  transition: background-color 0.2s ease;
+  text-align: left;
+}
+
+.category-header:hover {
+  background: var(--color-gray-50);
+}
+
+.category-icon {
+  font-size: 0.625rem;
+  color: var(--color-gray-500);
+  transition: transform 0.2s ease;
+}
+
+.category-label {
+  flex: 1;
+}
+
+.category-count {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-500);
+  background: var(--color-gray-100);
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-full);
+  font-weight: 500;
+}
+
+.tree-items {
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.tree-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-sm) calc(var(--spacing-lg) + var(--spacing-md));
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-700);
+  transition: all 0.2s ease;
+  text-align: left;
+  border-left: 2px solid transparent;
+}
+
+.tree-item:hover {
+  background: var(--color-gray-50);
+  color: var(--color-gray-900);
+}
+
+.tree-item.selected {
+  background: var(--color-primary-light);
+  background: linear-gradient(to right, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+  color: var(--color-primary);
+  border-left-color: var(--color-primary);
+  font-weight: 600;
+}
+
+.tree-item.not-in-view {
+  opacity: 0.5;
+  font-style: italic;
+}
+
+.tree-item.not-in-view:hover {
+  opacity: 0.7;
+}
+
+.tree-item-icon {
+  font-size: var(--font-size-sm);
+  line-height: 1;
+}
+
+.tree-item-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-item-empty {
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-md) calc(var(--spacing-lg) + var(--spacing-md));
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-400);
+  font-style: italic;
+}
+
+/* Responsive adjustments for navigation tree */
+@media (max-width: 768px) {
+  .navigation-tree {
+    position: absolute;
+    height: 100%;
+    z-index: 1000;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .tree-toggle-btn-collapsed {
+    z-index: 999;
+  }
+}

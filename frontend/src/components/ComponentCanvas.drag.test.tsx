@@ -63,7 +63,8 @@ describe('ComponentCanvas - Dragging', () => {
       ],
     };
 
-    vi.mocked(useAppStore).mockReturnValue({
+    vi.mocked(useAppStore).mockImplementation((selector: any) =>
+      selector({
       components: mockComponents,
       relations: [],
       currentView: mockView,
@@ -73,7 +74,8 @@ describe('ComponentCanvas - Dragging', () => {
       selectEdge: vi.fn(),
       clearSelection: vi.fn(),
       updatePosition: mockUpdatePosition,
-    } as any);
+      })
+    );
 
     const { getByTestId } = render(<ComponentCanvas onConnect={mockOnConnect} />);
 
@@ -99,7 +101,8 @@ describe('ComponentCanvas - Dragging', () => {
       ],
     };
 
-    vi.mocked(useAppStore).mockReturnValue({
+    vi.mocked(useAppStore).mockImplementation((selector: any) =>
+      selector({
       components: mockComponents,
       relations: [],
       currentView: mockView,
@@ -109,7 +112,8 @@ describe('ComponentCanvas - Dragging', () => {
       selectEdge: vi.fn(),
       clearSelection: vi.fn(),
       updatePosition: mockUpdatePosition,
-    } as any);
+      })
+    );
 
     render(<ComponentCanvas onConnect={mockOnConnect} />);
 

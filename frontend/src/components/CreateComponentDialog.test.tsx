@@ -14,9 +14,11 @@ describe('CreateComponentDialog', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useAppStore).mockReturnValue({
-      createComponent: mockCreateComponent,
-    } as any);
+
+    // Mock useAppStore to return the appropriate value based on the selector
+    vi.mocked(useAppStore).mockImplementation((selector: any) =>
+      selector({ createComponent: mockCreateComponent })
+    );
 
     // Mock HTMLDialogElement methods
     HTMLDialogElement.prototype.showModal = vi.fn();
@@ -26,9 +28,10 @@ describe('CreateComponentDialog', () => {
   it('should render dialog when open', () => {
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
-    expect(screen.getByRole('heading', { name: 'Create Component' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Name/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Description/)).toBeInTheDocument();
+    // Check for the heading element (use hidden option because dialog is not accessible by default in JSDOM)
+    expect(screen.getByRole('heading', { level: 2, hidden: true })).toHaveTextContent('Create Component');
+    expect(screen.getByLabelText(/Name/, { hidden: true })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Description/, { hidden: true })).toBeInTheDocument();
   });
 
   it('should not show modal when isOpen is false', () => {
@@ -43,16 +46,14 @@ describe('CreateComponentDialog', () => {
     expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
   });
 
-  it('should display error when name is empty', async () => {
+  it('should disable submit button when name is empty', () => {
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
-    const submitButton = screen.getByText('Create Component');
-    fireEvent.click(submitButton);
+    const buttons = screen.getAllByRole('button', { hidden: true });
+    const submitButton = buttons.find(btn => btn.textContent === 'Create Component') as HTMLButtonElement;
 
-    await waitFor(() => {
-      expect(screen.getByText('Component name is required')).toBeInTheDocument();
-    });
-
+    // Button should be disabled when name is empty
+    expect(submitButton.disabled).toBe(true);
     expect(mockCreateComponent).not.toHaveBeenCalled();
   });
 
@@ -61,13 +62,14 @@ describe('CreateComponentDialog', () => {
 
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
-    const nameInput = screen.getByLabelText(/Name/);
-    const descriptionInput = screen.getByLabelText(/Description/);
-    const submitButton = screen.getByText('Create Component');
+    const nameInput = screen.getByLabelText(/Name/, { hidden: true });
+    const descriptionInput = screen.getByLabelText(/Description/, { hidden: true });
+    const buttons = screen.getAllByRole('button', { hidden: true });
+    const submitButton = buttons.find(btn => btn.textContent === 'Create Component');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
     fireEvent.change(descriptionInput, { target: { value: 'Test Description' } });
-    fireEvent.click(submitButton);
+    fireEvent.click(submitButton!);
 
     await waitFor(() => {
       expect(mockCreateComponent).toHaveBeenCalledWith('Test Component', 'Test Description');
@@ -81,11 +83,12 @@ describe('CreateComponentDialog', () => {
 
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
-    const nameInput = screen.getByLabelText(/Name/);
-    const submitButton = screen.getByText('Create Component');
+    const nameInput = screen.getByLabelText(/Name/, { hidden: true });
+    const buttons = screen.getAllByRole('button', { hidden: true });
+    const submitButton = buttons.find(btn => btn.textContent === 'Create Component');
 
     fireEvent.change(nameInput, { target: { value: '  Test Component  ' } });
-    fireEvent.click(submitButton);
+    fireEvent.click(submitButton!);
 
     await waitFor(() => {
       expect(mockCreateComponent).toHaveBeenCalledWith('Test Component', undefined);
@@ -97,14 +100,15 @@ describe('CreateComponentDialog', () => {
 
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
-    const nameInput = screen.getByLabelText(/Name/);
-    const submitButton = screen.getByText('Create Component');
+    const nameInput = screen.getByLabelText(/Name/, { hidden: true });
+    const buttons = screen.getAllByRole('button', { hidden: true });
+    const submitButton = buttons.find(btn => btn.textContent === 'Create Component');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
-    fireEvent.click(submitButton);
+    fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(screen.getByText('Creation failed')).toBeInTheDocument();
+      expect(screen.getByText('Creation failed', { hidden: true })).toBeInTheDocument();
     });
 
     expect(mockOnClose).not.toHaveBeenCalled();
@@ -117,14 +121,15 @@ describe('CreateComponentDialog', () => {
 
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
-    const nameInput = screen.getByLabelText(/Name/) as HTMLInputElement;
-    const submitButton = screen.getByText('Create Component');
+    const nameInput = screen.getByLabelText(/Name/, { hidden: true }) as HTMLInputElement;
+    const buttons = screen.getAllByRole('button', { hidden: true });
+    const submitButton = buttons.find(btn => btn.textContent === 'Create Component');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
-    fireEvent.click(submitButton);
+    fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(screen.getByText('Creating...')).toBeInTheDocument();
+      expect(screen.getByText('Creating...', { hidden: true })).toBeInTheDocument();
     });
 
     expect(nameInput.disabled).toBe(true);

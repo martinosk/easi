@@ -1,6 +1,7 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useImperativeHandle, forwardRef } from 'react';
 import {
   ReactFlow,
+  ReactFlowProvider,
   type Node,
   type Edge,
   Background,
@@ -16,12 +17,17 @@ import {
   MarkerType,
   Handle,
   Position,
+  useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useAppStore } from '../store/appStore';
 
 interface ComponentCanvasProps {
   onConnect: (source: string, target: string) => void;
+}
+
+export interface ComponentCanvasRef {
+  centerOnNode: (nodeId: string) => void;
 }
 
 interface ComponentNodeData {
@@ -102,9 +108,9 @@ const nodeTypes: NodeTypes = {
   component: ComponentNode,
 };
 
-export const ComponentCanvas: React.FC<ComponentCanvasProps> = ({
-  onConnect,
-}) => {
+const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps>(
+  ({ onConnect }, ref) => {
+  const reactFlowInstance = useReactFlow();
   const components = useAppStore((state) => state.components);
   const relations = useAppStore((state) => state.relations);
   const currentView = useAppStore((state) => state.currentView);
@@ -230,6 +236,19 @@ export const ComponentCanvas: React.FC<ComponentCanvasProps> = ({
     [onConnect]
   );
 
+  // Expose method to center on a node
+  useImperativeHandle(ref, () => ({
+    centerOnNode: (nodeId: string) => {
+      const node = nodes.find(n => n.id === nodeId);
+      if (node && reactFlowInstance) {
+        reactFlowInstance.setCenter(node.position.x + 75, node.position.y + 50, {
+          zoom: 1,
+          duration: 800,
+        });
+      }
+    },
+  }));
+
   return (
     <div className="canvas-container">
       <ReactFlow
@@ -262,4 +281,18 @@ export const ComponentCanvas: React.FC<ComponentCanvasProps> = ({
       </ReactFlow>
     </div>
   );
-};
+});
+
+ComponentCanvasInner.displayName = 'ComponentCanvasInner';
+
+export const ComponentCanvas = forwardRef<ComponentCanvasRef, ComponentCanvasProps>(
+  (props, ref) => {
+    return (
+      <ReactFlowProvider>
+        <ComponentCanvasInner {...props} ref={ref} />
+      </ReactFlowProvider>
+    );
+  }
+);
+
+ComponentCanvas.displayName = 'ComponentCanvas';

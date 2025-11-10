@@ -24,6 +24,11 @@ vi.mock('@xyflow/react', () => ({
       ))}
     </div>
   ),
+  ReactFlowProvider: ({ children }: any) => <div>{children}</div>,
+  useReactFlow: () => ({
+    setCenter: vi.fn(),
+    fitView: vi.fn(),
+  }),
   Background: () => <div data-testid="background" />,
   Controls: () => <div data-testid="controls" />,
   MiniMap: () => <div data-testid="minimap" />,
@@ -31,6 +36,8 @@ vi.mock('@xyflow/react', () => ({
   applyEdgeChanges: vi.fn((_changes, edges) => edges),
   BackgroundVariant: { Dots: 'dots' },
   MarkerType: { ArrowClosed: 'arrowclosed' },
+  Handle: () => <div data-testid="handle" />,
+  Position: { Top: 'top', Right: 'right', Bottom: 'bottom', Left: 'left' },
 }));
 
 describe('ComponentCanvas', () => {
@@ -55,17 +62,19 @@ describe('ComponentCanvas', () => {
       ],
     };
 
-    vi.mocked(useAppStore).mockReturnValue({
-      components: mockComponents,
-      relations: [],
-      currentView: mockView,
-      selectedNodeId: null,
-      selectedEdgeId: null,
-      selectNode: vi.fn(),
-      selectEdge: vi.fn(),
-      clearSelection: vi.fn(),
-      updatePosition: vi.fn(),
-    } as any);
+    vi.mocked(useAppStore).mockImplementation((selector: any) =>
+      selector({
+        components: mockComponents,
+        relations: [],
+        currentView: mockView,
+        selectedNodeId: null,
+        selectedEdgeId: null,
+        selectNode: vi.fn(),
+        selectEdge: vi.fn(),
+        clearSelection: vi.fn(),
+        updatePosition: vi.fn(),
+      })
+    );
 
     render(<ComponentCanvas onConnect={mockOnConnect} />);
 
@@ -99,17 +108,19 @@ describe('ComponentCanvas', () => {
       ],
     };
 
-    vi.mocked(useAppStore).mockReturnValue({
-      components: mockComponents,
-      relations: mockRelations,
-      currentView: mockView,
-      selectedNodeId: null,
-      selectedEdgeId: null,
-      selectNode: vi.fn(),
-      selectEdge: vi.fn(),
-      clearSelection: vi.fn(),
-      updatePosition: vi.fn(),
-    } as any);
+    vi.mocked(useAppStore).mockImplementation((selector: any) =>
+      selector({
+        components: mockComponents,
+        relations: mockRelations,
+        currentView: mockView,
+        selectedNodeId: null,
+        selectedEdgeId: null,
+        selectNode: vi.fn(),
+        selectEdge: vi.fn(),
+        clearSelection: vi.fn(),
+        updatePosition: vi.fn(),
+      })
+    );
 
     render(<ComponentCanvas onConnect={mockOnConnect} />);
 
@@ -131,17 +142,19 @@ describe('ComponentCanvas', () => {
       ],
     };
 
-    vi.mocked(useAppStore).mockReturnValue({
-      components: mockComponents,
-      relations: [],
-      currentView: mockView,
-      selectedNodeId: '1',
-      selectedEdgeId: null,
-      selectNode: vi.fn(),
-      selectEdge: vi.fn(),
-      clearSelection: vi.fn(),
-      updatePosition: vi.fn(),
-    } as any);
+    vi.mocked(useAppStore).mockImplementation((selector: any) =>
+      selector({
+        components: mockComponents,
+        relations: [],
+        currentView: mockView,
+        selectedNodeId: '1',
+        selectedEdgeId: null,
+        selectNode: vi.fn(),
+        selectEdge: vi.fn(),
+        clearSelection: vi.fn(),
+        updatePosition: vi.fn(),
+      })
+    );
 
     render(<ComponentCanvas onConnect={mockOnConnect} />);
 
@@ -156,17 +169,19 @@ describe('ComponentCanvas', () => {
       components: [],
     };
 
-    vi.mocked(useAppStore).mockReturnValue({
-      components: [],
-      relations: [],
-      currentView: mockView,
-      selectedNodeId: null,
-      selectedEdgeId: null,
-      selectNode: vi.fn(),
-      selectEdge: vi.fn(),
-      clearSelection: vi.fn(),
-      updatePosition: vi.fn(),
-    } as any);
+    vi.mocked(useAppStore).mockImplementation((selector: any) =>
+      selector({
+        components: [],
+        relations: [],
+        currentView: mockView,
+        selectedNodeId: null,
+        selectedEdgeId: null,
+        selectNode: vi.fn(),
+        selectEdge: vi.fn(),
+        clearSelection: vi.fn(),
+        updatePosition: vi.fn(),
+      })
+    );
 
     render(<ComponentCanvas onConnect={mockOnConnect} />);
 

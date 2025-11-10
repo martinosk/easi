@@ -97,9 +97,7 @@ func setupHandlers(db *sql.DB) (*ComponentHandlers, *readmodels.ApplicationCompo
 
 	// Setup event bus and wire to event store
 	eventBus := events.NewInMemoryEventBus()
-	if pgStore, ok := eventStore.(*eventstore.PostgresEventStore); ok {
-		pgStore.SetEventBus(eventBus)
-	}
+	eventStore.SetEventBus(eventBus)
 
 	// Setup read model
 	readModel := readmodels.NewApplicationComponentReadModel(db)
@@ -162,14 +160,10 @@ func TestCreateComponent_Integration(t *testing.T) {
 	assert.Contains(t, eventData, "User Service")
 	assert.Contains(t, eventData, "Handles user authentication and authorization")
 
-	// Manually insert into read model for testing (simulating event projection)
-	_, err = testCtx.db.Exec(
-		"INSERT INTO application_components (id, name, description, created_at) VALUES ($1, $2, $3, NOW())",
-		aggregateID, "User Service", "Handles user authentication and authorization",
-	)
-	require.NoError(t, err)
+	// Wait a moment for the projector to update the read model
+	time.Sleep(100 * time.Millisecond)
 
-	// Verify read model contains the component
+	// Verify read model contains the component (should be projected automatically)
 	component, err := readModel.GetByID(context.Background(), aggregateID)
 	require.NoError(t, err)
 	assert.Equal(t, "User Service", component.Name)

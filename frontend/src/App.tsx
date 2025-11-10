@@ -1,16 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { useAppStore } from './store/appStore';
 import { Toolbar } from './components/Toolbar';
-import { ComponentCanvas } from './components/ComponentCanvas';
+import { ComponentCanvas, type ComponentCanvasRef } from './components/ComponentCanvas';
 import { CreateComponentDialog } from './components/CreateComponentDialog';
 import { CreateRelationDialog } from './components/CreateRelationDialog';
 import { EditComponentDialog } from './components/EditComponentDialog';
 import { EditRelationDialog } from './components/EditRelationDialog';
 import { ComponentDetails } from './components/ComponentDetails';
 import { RelationDetails } from './components/RelationDetails';
+import { NavigationTree } from './components/NavigationTree';
+import apiClient from './api/client';
 
 function App() {
+  const canvasRef = useRef<ComponentCanvasRef>(null);
   const [isComponentDialogOpen, setIsComponentDialogOpen] = useState(false);
   const [isEditComponentDialogOpen, setIsEditComponentDialogOpen] = useState(false);
   const [isRelationDialogOpen, setIsRelationDialogOpen] = useState(false);
@@ -23,8 +26,10 @@ function App() {
   const error = useAppStore((state) => state.error);
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
+  const selectNode = useAppStore((state) => state.selectNode);
   const components = useAppStore((state) => state.components);
   const relations = useAppStore((state) => state.relations);
+  const currentView = useAppStore((state) => state.currentView);
 
   useEffect(() => {
     loadData();
@@ -58,6 +63,28 @@ function App() {
 
   const handleEditRelation = () => {
     setIsEditRelationDialogOpen(true);
+  };
+
+  const handleComponentSelect = (componentId: string) => {
+    // Check if component is in current view
+    const isInCurrentView = currentView?.components.some(
+      vc => vc.componentId === componentId
+    );
+
+    if (isInCurrentView) {
+      selectNode(componentId);
+      // Pan canvas to show component
+      canvasRef.current?.centerOnNode(componentId);
+    }
+  };
+
+  const handleViewSelect = async (viewId: string) => {
+    try {
+      const fullView = await apiClient.getViewById(viewId);
+      useAppStore.setState({ currentView: fullView });
+    } catch (error) {
+      console.error('Failed to switch view:', error);
+    }
   };
 
   const selectedComponent = components.find((c) => c.id === selectedNodeId);
@@ -95,8 +122,13 @@ function App() {
       <Toolbar onAddComponent={handleAddComponent} onFitView={handleFitView} />
 
       <div className="main-content">
+        <NavigationTree
+          onComponentSelect={handleComponentSelect}
+          onViewSelect={handleViewSelect}
+        />
+
         <div className="canvas-section">
-          <ComponentCanvas onConnect={handleConnect} />
+          <ComponentCanvas ref={canvasRef} onConnect={handleConnect} />
         </div>
 
         {(selectedNodeId || selectedEdgeId) && (
