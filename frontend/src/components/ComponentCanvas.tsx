@@ -35,17 +35,30 @@ const ComponentNode: React.FC<{ data: ComponentNodeData }> = ({ data }) => {
     <div
       className={`component-node ${data.isSelected ? 'component-node-selected' : ''}`}
     >
-      {/* Connection handles for creating relations */}
+      {/* Connection handles for creating relations - all handles are both source and target */}
       <Handle
-        type="target"
+        type="source"
         position={Position.Top}
-        id="top"
+        id="top-source"
         className="component-handle component-handle-top"
       />
       <Handle
         type="target"
+        position={Position.Top}
+        id="top-target"
+        className="component-handle component-handle-top"
+      />
+
+      <Handle
+        type="source"
         position={Position.Left}
-        id="left"
+        id="left-source"
+        className="component-handle component-handle-left"
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="left-target"
         className="component-handle component-handle-left"
       />
 
@@ -59,13 +72,26 @@ const ComponentNode: React.FC<{ data: ComponentNodeData }> = ({ data }) => {
       <Handle
         type="source"
         position={Position.Right}
-        id="right"
+        id="right-source"
         className="component-handle component-handle-right"
       />
       <Handle
+        type="target"
+        position={Position.Right}
+        id="right-target"
+        className="component-handle component-handle-right"
+      />
+
+      <Handle
         type="source"
         position={Position.Bottom}
-        id="bottom"
+        id="bottom-source"
+        className="component-handle component-handle-bottom"
+      />
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="bottom-target"
         className="component-handle component-handle-bottom"
       />
     </div>
@@ -196,7 +222,9 @@ export const ComponentCanvas: React.FC<ComponentCanvasProps> = ({
   const onConnectHandler = useCallback(
     (connection: Connection) => {
       if (connection.source && connection.target) {
-        onConnect(connection.source, connection.target);
+        // Swap source and target because React Flow's connection.source/target
+        // are inverted from our domain model (connection.target is where you start dragging)
+        onConnect(connection.target, connection.source);
       }
     },
     [onConnect]
