@@ -18,8 +18,26 @@ services:
     networks:
       - easi-network
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: easi-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@easi.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    volumes:
+      - easi_pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    networks:
+      - easi-network
+    depends_on:
+      - postgres
+
 volumes:
   easi_postgres_data:
+  easi_pgadmin_data:
 
 networks:
   easi-network:

@@ -53,6 +53,15 @@ func (rm *ApplicationComponentReadModel) Insert(ctx context.Context, dto Applica
 	return err
 }
 
+// Update updates an existing component in the read model
+func (rm *ApplicationComponentReadModel) Update(ctx context.Context, id, name, description string) error {
+	_, err := rm.db.ExecContext(ctx,
+		"UPDATE application_components SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3",
+		name, description, id,
+	)
+	return err
+}
+
 // GetByID retrieves a component by ID
 func (rm *ApplicationComponentReadModel) GetByID(ctx context.Context, id string) (*ApplicationComponentDTO, error) {
 	var dto ApplicationComponentDTO

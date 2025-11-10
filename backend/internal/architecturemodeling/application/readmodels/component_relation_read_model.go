@@ -61,6 +61,15 @@ func (rm *ComponentRelationReadModel) Insert(ctx context.Context, dto ComponentR
 	return err
 }
 
+// Update updates an existing relation in the read model
+func (rm *ComponentRelationReadModel) Update(ctx context.Context, id, name, description string) error {
+	_, err := rm.db.ExecContext(ctx,
+		"UPDATE component_relations SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3",
+		name, description, id,
+	)
+	return err
+}
+
 // GetByID retrieves a relation by ID
 func (rm *ComponentRelationReadModel) GetByID(ctx context.Context, id string) (*ComponentRelationDTO, error) {
 	var dto ComponentRelationDTO

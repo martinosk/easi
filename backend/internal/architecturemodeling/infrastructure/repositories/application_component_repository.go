@@ -3,8 +3,10 @@ package repositories
 import (
 	"context"
 	"errors"
+	"time"
 
 	"easi/backend/internal/architecturemodeling/domain/aggregates"
+	"easi/backend/internal/architecturemodeling/domain/events"
 	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/shared/domain"
 )
@@ -65,14 +67,40 @@ func (r *ApplicationComponentRepository) GetByID(ctx context.Context, id string)
 
 // deserializeEvents converts stored events to domain events
 func (r *ApplicationComponentRepository) deserializeEvents(storedEvents []domain.DomainEvent) ([]domain.DomainEvent, error) {
-	// This is a simplified implementation
-	// In production, you would use an event type registry
+	// Convert generic events back to concrete event types
 	var domainEvents []domain.DomainEvent
 
 	for _, event := range storedEvents {
-		// For now, we'll just return the events as-is
-		// In a full implementation, you would deserialize based on event type
-		domainEvents = append(domainEvents, event)
+		eventData := event.EventData()
+
+		switch event.EventType() {
+		case "ApplicationComponentCreated":
+			// Extract fields from event data
+			id, _ := eventData["id"].(string)
+			name, _ := eventData["name"].(string)
+			description, _ := eventData["description"].(string)
+			createdAtStr, _ := eventData["createdAt"].(string)
+			createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
+
+			// Create concrete event
+			concreteEvent := events.NewApplicationComponentCreated(id, name, description)
+			concreteEvent.CreatedAt = createdAt
+			domainEvents = append(domainEvents, concreteEvent)
+
+		case "ApplicationComponentUpdated":
+			// Extract fields from event data
+			id, _ := eventData["id"].(string)
+			name, _ := eventData["name"].(string)
+			description, _ := eventData["description"].(string)
+
+			// Create concrete event
+			concreteEvent := events.NewApplicationComponentUpdated(id, name, description)
+			domainEvents = append(domainEvents, concreteEvent)
+
+		default:
+			// Unknown event type, skip it
+			continue
+		}
 	}
 
 	return domainEvents, nil

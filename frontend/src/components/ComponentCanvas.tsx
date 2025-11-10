@@ -14,6 +14,8 @@ import {
   type NodeTypes,
   BackgroundVariant,
   MarkerType,
+  Handle,
+  Position,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useAppStore } from '../store/appStore';
@@ -33,10 +35,39 @@ const ComponentNode: React.FC<{ data: ComponentNodeData }> = ({ data }) => {
     <div
       className={`component-node ${data.isSelected ? 'component-node-selected' : ''}`}
     >
-      <div className="component-node-header">{data.label}</div>
-      {data.description && (
-        <div className="component-node-description">{data.description}</div>
-      )}
+      {/* Connection handles for creating relations */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="top"
+        className="component-handle component-handle-top"
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="left"
+        className="component-handle component-handle-left"
+      />
+
+      <div className="component-node-content">
+        <div className="component-node-header">{data.label}</div>
+        {data.description && (
+          <div className="component-node-description">{data.description}</div>
+        )}
+      </div>
+
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right"
+        className="component-handle component-handle-right"
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="bottom"
+        className="component-handle component-handle-bottom"
+      />
     </div>
   );
 };

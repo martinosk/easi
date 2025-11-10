@@ -5,12 +5,16 @@ import { Toolbar } from './components/Toolbar';
 import { ComponentCanvas } from './components/ComponentCanvas';
 import { CreateComponentDialog } from './components/CreateComponentDialog';
 import { CreateRelationDialog } from './components/CreateRelationDialog';
+import { EditComponentDialog } from './components/EditComponentDialog';
+import { EditRelationDialog } from './components/EditRelationDialog';
 import { ComponentDetails } from './components/ComponentDetails';
 import { RelationDetails } from './components/RelationDetails';
 
 function App() {
   const [isComponentDialogOpen, setIsComponentDialogOpen] = useState(false);
+  const [isEditComponentDialogOpen, setIsEditComponentDialogOpen] = useState(false);
   const [isRelationDialogOpen, setIsRelationDialogOpen] = useState(false);
+  const [isEditRelationDialogOpen, setIsEditRelationDialogOpen] = useState(false);
   const [relationSource, setRelationSource] = useState<string | undefined>();
   const [relationTarget, setRelationTarget] = useState<string | undefined>();
 
@@ -19,6 +23,8 @@ function App() {
   const error = useAppStore((state) => state.error);
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
+  const components = useAppStore((state) => state.components);
+  const relations = useAppStore((state) => state.relations);
 
   useEffect(() => {
     loadData();
@@ -45,6 +51,17 @@ function App() {
     setRelationSource(undefined);
     setRelationTarget(undefined);
   };
+
+  const handleEditComponent = () => {
+    setIsEditComponentDialogOpen(true);
+  };
+
+  const handleEditRelation = () => {
+    setIsEditRelationDialogOpen(true);
+  };
+
+  const selectedComponent = components.find((c) => c.id === selectedNodeId);
+  const selectedRelation = relations.find((r) => r.id === selectedEdgeId);
 
   if (isLoading && !useAppStore.getState().components.length) {
     return (
@@ -84,8 +101,8 @@ function App() {
 
         {(selectedNodeId || selectedEdgeId) && (
           <div className="detail-section">
-            {selectedNodeId && <ComponentDetails />}
-            {selectedEdgeId && <RelationDetails />}
+            {selectedNodeId && <ComponentDetails onEdit={handleEditComponent} />}
+            {selectedEdgeId && <RelationDetails onEdit={handleEditRelation} />}
           </div>
         )}
       </div>
@@ -100,6 +117,18 @@ function App() {
         onClose={handleCloseRelationDialog}
         sourceComponentId={relationSource}
         targetComponentId={relationTarget}
+      />
+
+      <EditComponentDialog
+        isOpen={isEditComponentDialogOpen}
+        onClose={() => setIsEditComponentDialogOpen(false)}
+        component={selectedComponent || null}
+      />
+
+      <EditRelationDialog
+        isOpen={isEditRelationDialogOpen}
+        onClose={() => setIsEditRelationDialogOpen(false)}
+        relation={selectedRelation || null}
       />
 
       <Toaster

@@ -1,7 +1,11 @@
 import React from 'react';
 import { useAppStore } from '../store/appStore';
 
-export const RelationDetails: React.FC = () => {
+interface RelationDetailsProps {
+  onEdit: () => void;
+}
+
+export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
   const relations = useAppStore((state) => state.relations);
   const components = useAppStore((state) => state.components);
@@ -41,6 +45,12 @@ export const RelationDetails: React.FC = () => {
       </div>
 
       <div className="detail-content">
+        <div className="detail-actions">
+          <button className="btn btn-secondary btn-small" onClick={onEdit}>
+            Edit
+          </button>
+        </div>
+
         {relation.name && (
           <div className="detail-field">
             <label className="detail-label">Name</label>

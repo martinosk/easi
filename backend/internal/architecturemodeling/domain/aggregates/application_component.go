@@ -48,6 +48,21 @@ func LoadApplicationComponentFromHistory(events []domain.DomainEvent) (*Applicat
 	return aggregate, nil
 }
 
+// Update updates the component's name and description
+func (a *ApplicationComponent) Update(name valueobjects.ComponentName, description valueobjects.Description) error {
+	// Raise update event
+	event := events.NewApplicationComponentUpdated(
+		a.ID(),
+		name.Value(),
+		description.Value(),
+	)
+
+	a.apply(event)
+	a.RaiseEvent(event)
+
+	return nil
+}
+
 // apply applies an event to the aggregate
 // Note: This method should NOT increment the version - that's handled by LoadFromHistory or RaiseEvent
 func (a *ApplicationComponent) apply(event domain.DomainEvent) {
@@ -57,6 +72,9 @@ func (a *ApplicationComponent) apply(event domain.DomainEvent) {
 		a.name, _ = valueobjects.NewComponentName(e.Name)
 		a.description = valueobjects.NewDescription(e.Description)
 		a.createdAt = e.CreatedAt
+	case events.ApplicationComponentUpdated:
+		a.name, _ = valueobjects.NewComponentName(e.Name)
+		a.description = valueobjects.NewDescription(e.Description)
 	}
 }
 

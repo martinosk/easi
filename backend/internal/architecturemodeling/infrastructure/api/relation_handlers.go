@@ -42,6 +42,12 @@ type CreateComponentRelationRequest struct {
 	Description       string `json:"description,omitempty"`
 }
 
+// UpdateComponentRelationRequest represents the request body for updating a relation
+type UpdateComponentRelationRequest struct {
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
 // CreateComponentRelation godoc
 // @Summary Create a new component relation
 // @Description Creates a new relation between two application components
@@ -259,3 +265,57 @@ func (h *RelationHandlers) GetRelationsToComponent(w http.ResponseWriter, r *htt
 
 	sharedAPI.RespondSuccess(w, http.StatusOK, relations, nil)
 }
+
+// UpdateComponentRelation godoc
+// @Summary Update a component relation
+// @Description Updates an existing component relation's name and description
+// @Tags relations
+// @Accept json
+// @Produce json
+// @Param id path string true "Relation ID"
+// @Param relation body UpdateComponentRelationRequest true "Updated relation data"
+// @Success 200 {object} readmodels.ComponentRelationDTO
+// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Router /relations/{id} [put]
+func (h *RelationHandlers) UpdateComponentRelation(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	var req UpdateComponentRelationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+
+	// Create command
+	cmd := &commands.UpdateComponentRelation{
+		ID:          id,
+		Name:        req.Name,
+		Description: req.Description,
+	}
+
+	// Dispatch command
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update relation")
+		return
+	}
+
+	// Retrieve the updated relation from read model
+	relation, err := h.readModel.GetByID(r.Context(), id)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve updated relation")
+		return
+	}
+
+	if relation == nil {
+		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Relation not found")
+		return
+	}
+
+	// Add HATEOAS links
+	relation.Links = h.hateoas.RelationLinks(relation.ID)
+
+	sharedAPI.RespondSuccess(w, http.StatusOK, relation, nil)
+}
+

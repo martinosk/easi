@@ -44,15 +44,21 @@ func SetupArchitectureModelingRoutes(
 
 	// Wire up projectors to event bus
 	eventBus.Subscribe("ApplicationComponentCreated", componentProjector)
+	eventBus.Subscribe("ApplicationComponentUpdated", componentProjector)
 	eventBus.Subscribe("ComponentRelationCreated", relationProjector)
+	eventBus.Subscribe("ComponentRelationUpdated", relationProjector)
 
 	// Initialize command handlers
 	createComponentHandler := handlers.NewCreateApplicationComponentHandler(componentRepo)
+	updateComponentHandler := handlers.NewUpdateApplicationComponentHandler(componentRepo)
 	createRelationHandler := handlers.NewCreateComponentRelationHandler(relationRepo)
+	updateRelationHandler := handlers.NewUpdateComponentRelationHandler(relationRepo)
 
 	// Register command handlers
 	commandBus.Register("CreateApplicationComponent", createComponentHandler)
+	commandBus.Register("UpdateApplicationComponent", updateComponentHandler)
 	commandBus.Register("CreateComponentRelation", createRelationHandler)
+	commandBus.Register("UpdateComponentRelation", updateRelationHandler)
 
 	// Initialize HTTP handlers
 	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, hateoas)
@@ -63,6 +69,7 @@ func SetupArchitectureModelingRoutes(
 		r.Post("/", componentHandlers.CreateApplicationComponent)
 		r.Get("/", componentHandlers.GetAllComponents)
 		r.Get("/{id}", componentHandlers.GetComponentByID)
+		r.Put("/{id}", componentHandlers.UpdateApplicationComponent)
 	})
 
 	// Register relation routes
@@ -70,6 +77,7 @@ func SetupArchitectureModelingRoutes(
 		r.Post("/", relationHandlers.CreateComponentRelation)
 		r.Get("/", relationHandlers.GetAllRelations)
 		r.Get("/{id}", relationHandlers.GetRelationByID)
+		r.Put("/{id}", relationHandlers.UpdateComponentRelation)
 		r.Get("/from/{componentId}", relationHandlers.GetRelationsFromComponent)
 		r.Get("/to/{componentId}", relationHandlers.GetRelationsToComponent)
 	})

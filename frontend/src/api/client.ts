@@ -60,6 +60,11 @@ class ApiClient {
     return response.data.data;
   }
 
+  async updateComponent(id: string, request: CreateComponentRequest): Promise<Component> {
+    const response = await this.client.put<{ data: Component }>(`/api/v1/components/${id}`, request);
+    return response.data.data;
+  }
+
   // Relations API
   async getRelations(): Promise<Relation[]> {
     const response = await this.client.get<{ data: Relation[] | null }>('/api/v1/relations');
@@ -73,6 +78,11 @@ class ApiClient {
 
   async createRelation(request: CreateRelationRequest): Promise<Relation> {
     const response = await this.client.post<{ data: Relation }>('/api/v1/relations', request);
+    return response.data.data;
+  }
+
+  async updateRelation(id: string, request: Partial<CreateRelationRequest>): Promise<Relation> {
+    const response = await this.client.put<{ data: Relation }>(`/api/v1/relations/${id}`, request);
     return response.data.data;
   }
 

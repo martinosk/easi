@@ -50,6 +50,14 @@ func (p *ApplicationComponentProjector) ProjectEvent(ctx context.Context, eventT
 		}
 
 		return p.readModel.Insert(ctx, dto)
+	case "ApplicationComponentUpdated":
+		var event events.ApplicationComponentUpdated
+		if err := json.Unmarshal(eventData, &event); err != nil {
+			log.Printf("Failed to unmarshal ApplicationComponentUpdated event: %v", err)
+			return err
+		}
+
+		return p.readModel.Update(ctx, event.ID, event.Name, event.Description)
 	}
 
 	return nil

@@ -19,6 +19,7 @@ interface AppStore {
   // Actions
   loadData: () => Promise<void>;
   createComponent: (name: string, description?: string) => Promise<Component>;
+  updateComponent: (id: string, name: string, description?: string) => Promise<Component>;
   createRelation: (
     sourceComponentId: string,
     targetComponentId: string,
@@ -26,6 +27,7 @@ interface AppStore {
     name?: string,
     description?: string
   ) => Promise<Relation>;
+  updateRelation: (id: string, name?: string, description?: string) => Promise<Relation>;
   updatePosition: (componentId: string, x: number, y: number) => Promise<void>;
   selectNode: (id: string | null) => void;
   selectEdge: (id: string | null) => void;
@@ -127,6 +129,31 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
   },
 
+  // Update a component
+  updateComponent: async (id: string, name: string, description?: string) => {
+    const { components } = get();
+
+    try {
+      const updatedComponent = await apiClient.updateComponent(id, { name, description });
+
+      set({
+        components: components.map((c) =>
+          c.id === id ? updatedComponent : c
+        ),
+      });
+
+      toast.success(`Component "${name}" updated`);
+      return updatedComponent;
+    } catch (error) {
+      const errorMessage = error instanceof ApiError
+        ? error.message
+        : 'Failed to update component';
+
+      toast.error(errorMessage);
+      throw error;
+    }
+  },
+
   // Create a new relation
   createRelation: async (
     sourceComponentId: string,
@@ -153,6 +180,31 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const errorMessage = error instanceof ApiError
         ? error.message
         : 'Failed to create relation';
+
+      toast.error(errorMessage);
+      throw error;
+    }
+  },
+
+  // Update a relation
+  updateRelation: async (id: string, name?: string, description?: string) => {
+    const { relations } = get();
+
+    try {
+      const updatedRelation = await apiClient.updateRelation(id, { name, description });
+
+      set({
+        relations: relations.map((r) =>
+          r.id === id ? updatedRelation : r
+        ),
+      });
+
+      toast.success('Relation updated');
+      return updatedRelation;
+    } catch (error) {
+      const errorMessage = error instanceof ApiError
+        ? error.message
+        : 'Failed to update relation';
 
       toast.error(errorMessage);
       throw error;

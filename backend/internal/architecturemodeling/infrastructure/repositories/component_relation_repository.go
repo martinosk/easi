@@ -3,8 +3,10 @@ package repositories
 import (
 	"context"
 	"errors"
+	"time"
 
 	"easi/backend/internal/architecturemodeling/domain/aggregates"
+	"easi/backend/internal/architecturemodeling/domain/events"
 	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/shared/domain"
 )
@@ -65,10 +67,50 @@ func (r *ComponentRelationRepository) GetByID(ctx context.Context, id string) (*
 
 // deserializeEvents converts stored events to domain events
 func (r *ComponentRelationRepository) deserializeEvents(storedEvents []domain.DomainEvent) ([]domain.DomainEvent, error) {
+	// Convert generic events back to concrete event types
 	var domainEvents []domain.DomainEvent
 
 	for _, event := range storedEvents {
-		domainEvents = append(domainEvents, event)
+		eventData := event.EventData()
+
+		switch event.EventType() {
+		case "ComponentRelationCreated":
+			// Extract fields from event data
+			id, _ := eventData["id"].(string)
+			sourceComponentID, _ := eventData["sourceComponentId"].(string)
+			targetComponentID, _ := eventData["targetComponentId"].(string)
+			relationType, _ := eventData["relationType"].(string)
+			name, _ := eventData["name"].(string)
+			description, _ := eventData["description"].(string)
+			createdAtStr, _ := eventData["createdAt"].(string)
+			createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
+
+			// Create concrete event
+			concreteEvent := events.NewComponentRelationCreated(
+				id,
+				sourceComponentID,
+				targetComponentID,
+				relationType,
+				name,
+				description,
+			)
+			concreteEvent.CreatedAt = createdAt
+			domainEvents = append(domainEvents, concreteEvent)
+
+		case "ComponentRelationUpdated":
+			// Extract fields from event data
+			id, _ := eventData["id"].(string)
+			name, _ := eventData["name"].(string)
+			description, _ := eventData["description"].(string)
+
+			// Create concrete event
+			concreteEvent := events.NewComponentRelationUpdated(id, name, description)
+			domainEvents = append(domainEvents, concreteEvent)
+
+		default:
+			// Unknown event type, skip it
+			continue
+		}
 	}
 
 	return domainEvents, nil

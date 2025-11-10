@@ -43,6 +43,12 @@ type CreateApplicationComponentRequest struct {
 	Description string `json:"description,omitempty"`
 }
 
+// UpdateApplicationComponentRequest represents the request body for updating a component
+type UpdateApplicationComponentRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
 // CreateApplicationComponent godoc
 // @Summary Create a new application component
 // @Description Creates a new application component in the system
@@ -194,3 +200,64 @@ func (h *ComponentHandlers) GetComponentByID(w http.ResponseWriter, r *http.Requ
 
 	sharedAPI.RespondSuccess(w, http.StatusOK, component, nil)
 }
+
+// UpdateApplicationComponent godoc
+// @Summary Update an application component
+// @Description Updates an existing application component's name and description
+// @Tags components
+// @Accept json
+// @Produce json
+// @Param id path string true "Component ID"
+// @Param component body UpdateApplicationComponentRequest true "Updated component data"
+// @Success 200 {object} readmodels.ApplicationComponentDTO
+// @Failure 400 {object} api.ErrorResponse
+// @Failure 404 {object} api.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
+// @Router /components/{id} [put]
+func (h *ComponentHandlers) UpdateApplicationComponent(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	var req UpdateApplicationComponentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+
+	// Validate using domain value objects
+	_, err := valueobjects.NewComponentName(req.Name)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	// Create command
+	cmd := &commands.UpdateApplicationComponent{
+		ID:          id,
+		Name:        req.Name,
+		Description: req.Description,
+	}
+
+	// Dispatch command
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update component")
+		return
+	}
+
+	// Retrieve the updated component from read model
+	component, err := h.readModel.GetByID(r.Context(), id)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve updated component")
+		return
+	}
+
+	if component == nil {
+		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Component not found")
+		return
+	}
+
+	// Add HATEOAS links
+	component.Links = h.hateoas.ComponentLinks(component.ID)
+
+	sharedAPI.RespondSuccess(w, http.StatusOK, component, nil)
+}
+

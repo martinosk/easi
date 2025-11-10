@@ -1,7 +1,11 @@
 import React from 'react';
 import { useAppStore } from '../store/appStore';
 
-export const ComponentDetails: React.FC = () => {
+interface ComponentDetailsProps {
+  onEdit: () => void;
+}
+
+export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit }) => {
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const components = useAppStore((state) => state.components);
   const clearSelection = useAppStore((state) => state.clearSelection);
@@ -33,6 +37,12 @@ export const ComponentDetails: React.FC = () => {
       </div>
 
       <div className="detail-content">
+        <div className="detail-actions">
+          <button className="btn btn-secondary btn-small" onClick={onEdit}>
+            Edit
+          </button>
+        </div>
+
         <div className="detail-field">
           <label className="detail-label">Name</label>
           <div className="detail-value">{component.name}</div>

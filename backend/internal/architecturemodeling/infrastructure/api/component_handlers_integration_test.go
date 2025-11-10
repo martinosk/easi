@@ -14,11 +14,13 @@ import (
 	"time"
 
 	"easi/backend/internal/architecturemodeling/application/handlers"
+	"easi/backend/internal/architecturemodeling/application/projectors"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/events"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
@@ -93,13 +95,26 @@ func setupHandlers(db *sql.DB) (*ComponentHandlers, *readmodels.ApplicationCompo
 	commandBus := cqrs.NewInMemoryCommandBus()
 	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
 
-	// Setup repository and handlers
-	componentRepo := repositories.NewApplicationComponentRepository(eventStore)
-	createHandler := handlers.NewCreateApplicationComponentHandler(componentRepo)
-	commandBus.Register("CreateApplicationComponent", createHandler)
+	// Setup event bus and wire to event store
+	eventBus := events.NewInMemoryEventBus()
+	if pgStore, ok := eventStore.(*eventstore.PostgresEventStore); ok {
+		pgStore.SetEventBus(eventBus)
+	}
 
 	// Setup read model
 	readModel := readmodels.NewApplicationComponentReadModel(db)
+
+	// Setup projector and wire to event bus
+	projector := projectors.NewApplicationComponentProjector(readModel)
+	eventBus.Subscribe("ApplicationComponentCreated", projector)
+	eventBus.Subscribe("ApplicationComponentUpdated", projector)
+
+	// Setup repository and handlers
+	componentRepo := repositories.NewApplicationComponentRepository(eventStore)
+	createHandler := handlers.NewCreateApplicationComponentHandler(componentRepo)
+	updateHandler := handlers.NewUpdateApplicationComponentHandler(componentRepo)
+	commandBus.Register("CreateApplicationComponent", createHandler)
+	commandBus.Register("UpdateApplicationComponent", updateHandler)
 
 	// Setup HTTP handlers
 	componentHandlers := NewComponentHandlers(commandBus, readModel, hateoas)
@@ -379,4 +394,81 @@ func TestGetAllComponentsPagination_InvalidCursor_Integration(t *testing.T) {
 
 	// Should return bad request for invalid cursor
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestUpdateComponent_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupHandlers(testCtx.db)
+
+	// First, create a component
+	createReqBody := CreateApplicationComponentRequest{
+		Name:        "Payment Service",
+		Description: "Handles payment processing",
+	}
+	createBody, _ := json.Marshal(createReqBody)
+
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/components", bytes.NewReader(createBody))
+	createReq.Header.Set("Content-Type", "application/json")
+	createW := httptest.NewRecorder()
+
+	handlers.CreateApplicationComponent(createW, createReq)
+	assert.Equal(t, http.StatusCreated, createW.Code)
+
+	// Get the created component ID
+	var componentID string
+	err := testCtx.db.QueryRow(
+		"SELECT aggregate_id FROM events WHERE event_type = 'ApplicationComponentCreated' ORDER BY created_at DESC LIMIT 1",
+	).Scan(&componentID)
+	require.NoError(t, err)
+	testCtx.trackID(componentID)
+
+	// Wait a moment for projections to update
+	time.Sleep(100 * time.Millisecond)
+
+	// Now update the component
+	updateReqBody := UpdateApplicationComponentRequest{
+		Name:        "Enhanced Payment Service",
+		Description: "Handles payment processing with fraud detection",
+	}
+	updateBody, _ := json.Marshal(updateReqBody)
+
+	updateReq := httptest.NewRequest(http.MethodPut, "/api/v1/components/"+componentID, bytes.NewReader(updateBody))
+	updateReq.Header.Set("Content-Type", "application/json")
+	updateReq = updateReq.WithContext(context.WithValue(updateReq.Context(), chi.RouteCtxKey, &chi.Context{
+		URLParams: chi.RouteParams{
+			Keys:   []string{"id"},
+			Values: []string{componentID},
+		},
+	}))
+	updateW := httptest.NewRecorder()
+
+	handlers.UpdateApplicationComponent(updateW, updateReq)
+
+	// Assert HTTP response
+	assert.Equal(t, http.StatusOK, updateW.Code)
+
+	// Verify the update event was created
+	var updateEventData string
+	err = testCtx.db.QueryRow(
+		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'ApplicationComponentUpdated'",
+		componentID,
+	).Scan(&updateEventData)
+	require.NoError(t, err)
+	assert.Contains(t, updateEventData, "Enhanced Payment Service")
+	assert.Contains(t, updateEventData, "fraud detection")
+
+	// Wait a moment for projections to update
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify the read model was updated
+	var name, description string
+	err = testCtx.db.QueryRow(
+		"SELECT name, description FROM application_components WHERE id = $1",
+		componentID,
+	).Scan(&name, &description)
+	require.NoError(t, err)
+	assert.Equal(t, "Enhanced Payment Service", name)
+	assert.Equal(t, "Handles payment processing with fraud detection", description)
 }

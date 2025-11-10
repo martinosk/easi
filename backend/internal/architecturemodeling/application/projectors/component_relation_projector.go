@@ -53,6 +53,14 @@ func (p *ComponentRelationProjector) ProjectEvent(ctx context.Context, eventType
 		}
 
 		return p.readModel.Insert(ctx, dto)
+	case "ComponentRelationUpdated":
+		var event events.ComponentRelationUpdated
+		if err := json.Unmarshal(eventData, &event); err != nil {
+			log.Printf("Failed to unmarshal ComponentRelationUpdated event: %v", err)
+			return err
+		}
+
+		return p.readModel.Update(ctx, event.ID, event.Name, event.Description)
 	}
 
 	return nil

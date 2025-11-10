@@ -69,6 +69,21 @@ func LoadComponentRelationFromHistory(events []domain.DomainEvent) (*ComponentRe
 	return aggregate, nil
 }
 
+// Update updates the relation's name and description
+func (c *ComponentRelation) Update(name, description valueobjects.Description) error {
+	// Raise update event
+	event := events.NewComponentRelationUpdated(
+		c.ID(),
+		name.Value(),
+		description.Value(),
+	)
+
+	c.apply(event)
+	c.RaiseEvent(event)
+
+	return nil
+}
+
 // apply applies an event to the aggregate
 // Note: This method should NOT increment the version - that's handled by LoadFromHistory or RaiseEvent
 func (c *ComponentRelation) apply(event domain.DomainEvent) {
@@ -81,6 +96,9 @@ func (c *ComponentRelation) apply(event domain.DomainEvent) {
 		c.name = valueobjects.NewDescription(e.Name)
 		c.description = valueobjects.NewDescription(e.Description)
 		c.createdAt = e.CreatedAt
+	case events.ComponentRelationUpdated:
+		c.name = valueobjects.NewDescription(e.Name)
+		c.description = valueobjects.NewDescription(e.Description)
 	}
 }
 
