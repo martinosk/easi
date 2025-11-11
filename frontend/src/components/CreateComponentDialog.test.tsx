@@ -49,7 +49,7 @@ describe('CreateComponentDialog', () => {
   it('should disable submit button when name is empty', () => {
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
-    const buttons = screen.getAllByRole('button', {});
+    const buttons = screen.getAllByRole('button', { hidden: true });
     const submitButton = buttons.find(btn => btn.textContent === 'Create Component') as HTMLButtonElement;
 
     // Button should be disabled when name is empty
@@ -64,7 +64,7 @@ describe('CreateComponentDialog', () => {
 
     const nameInput = screen.getByLabelText(/Name/, {});
     const descriptionInput = screen.getByLabelText(/Description/, {});
-    const buttons = screen.getAllByRole('button', {});
+    const buttons = screen.getAllByRole('button', { hidden: true });
     const submitButton = buttons.find(btn => btn.textContent === 'Create Component');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
@@ -84,7 +84,7 @@ describe('CreateComponentDialog', () => {
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
     const nameInput = screen.getByLabelText(/Name/, {});
-    const buttons = screen.getAllByRole('button', {});
+    const buttons = screen.getAllByRole('button', { hidden: true });
     const submitButton = buttons.find(btn => btn.textContent === 'Create Component');
 
     fireEvent.change(nameInput, { target: { value: '  Test Component  ' } });
@@ -101,7 +101,7 @@ describe('CreateComponentDialog', () => {
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
     const nameInput = screen.getByLabelText(/Name/, {});
-    const buttons = screen.getAllByRole('button', {});
+    const buttons = screen.getAllByRole('button', { hidden: true });
     const submitButton = buttons.find(btn => btn.textContent === 'Create Component');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
@@ -122,7 +122,7 @@ describe('CreateComponentDialog', () => {
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
     const nameInput = screen.getByLabelText(/Name/, {}) as HTMLInputElement;
-    const buttons = screen.getAllByRole('button', {});
+    const buttons = screen.getAllByRole('button', { hidden: true });
     const submitButton = buttons.find(btn => btn.textContent === 'Create Component');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });

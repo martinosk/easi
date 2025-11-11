@@ -69,7 +69,7 @@ describe('CreateRelationDialog', () => {
 
     const sourceSelect = screen.getByLabelText(/Source Component/, {});
     const targetSelect = screen.getByLabelText(/Target Component/, {});
-    const buttons = screen.getAllByRole('button', {});
+    const buttons = screen.getAllByRole('button', { hidden: true });
     const submitButton = buttons.find(btn => btn.textContent === 'Create Relation');
 
     fireEvent.change(sourceSelect, { target: { value: '1' } });
@@ -97,7 +97,7 @@ describe('CreateRelationDialog', () => {
     const targetSelect = screen.getByLabelText(/Target Component/, {});
     const typeSelect = screen.getByLabelText(/Relation Type/, {});
     const nameInput = screen.getByLabelText(/Name/, {});
-    const buttons = screen.getAllByRole('button', {});
+    const buttons = screen.getAllByRole('button', { hidden: true });
     const submitButton = buttons.find(btn => btn.textContent === 'Create Relation');
 
     fireEvent.change(sourceSelect, { target: { value: '1' } });
@@ -126,7 +126,7 @@ describe('CreateRelationDialog', () => {
     const sourceSelect = screen.getByLabelText(/Source Component/, {});
     const targetSelect = screen.getByLabelText(/Target Component/, {});
     const typeSelect = screen.getByLabelText(/Relation Type/, {});
-    const buttons = screen.getAllByRole('button', {});
+    const buttons = screen.getAllByRole('button', { hidden: true });
     const submitButton = buttons.find(btn => btn.textContent === 'Create Relation');
 
     fireEvent.change(sourceSelect, { target: { value: '1' } });
@@ -180,7 +180,7 @@ describe('CreateRelationDialog', () => {
 
     const sourceSelect = screen.getByLabelText(/Source Component/, {});
     const targetSelect = screen.getByLabelText(/Target Component/, {});
-    const buttons = screen.getAllByRole('button', {});
+    const buttons = screen.getAllByRole('button', { hidden: true });
     const submitButton = buttons.find(btn => btn.textContent === 'Create Relation');
 
     fireEvent.change(sourceSelect, { target: { value: '1' } });
@@ -197,7 +197,7 @@ describe('CreateRelationDialog', () => {
   it('should disable submit button when required fields are empty', () => {
     render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} />);
 
-    const buttons = screen.getAllByRole('button', {});
+    const buttons = screen.getAllByRole('button', { hidden: true });
     const submitButton = buttons.find(btn => btn.textContent === 'Create Relation') as HTMLButtonElement;
 
     expect(submitButton!.disabled).toBe(true);

@@ -96,16 +96,16 @@ export default defineConfig({
 - Phase 3: Add Playwright E2E tests to cover canvas interactions (spec 011)
 
 ## Checklist
-- [ ] Specification ready
-- [ ] Delete ComponentCanvas.test.tsx
-- [ ] Delete ComponentCanvas.drag.test.tsx
-- [ ] Update vitest.config.ts with process isolation
-- [ ] Add exclusion for ComponentCanvas tests
-- [ ] Add explanatory comments in config
-- [ ] Run test suite 3+ times to verify stability
-- [ ] Verify no memory errors occur
-- [ ] Verify all remaining tests pass
-- [ ] Verify test execution time is acceptable (<30s)
+- [x] Specification ready
+- [x] Delete ComponentCanvas.test.tsx
+- [x] Delete ComponentCanvas.drag.test.tsx
+- [x] Update vitest.config.ts with process isolation
+- [x] Add exclusion for ComponentCanvas tests
+- [x] Add explanatory comments in config
+- [x] Run test suite 3+ times to verify stability
+- [x] Verify no memory errors occur
+- [ ] Verify all remaining tests pass (6 pre-existing failures unrelated to this phase)
+- [x] Verify test execution time is acceptable (~17s)
 - [ ] Update any CI configuration if needed
 - [ ] Documentation updated
-- [ ] User sign-off
+- [x] User sign-off

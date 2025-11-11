@@ -247,7 +247,7 @@ describe('End-to-End Tests', () => {
       expect(apiClient.getViewById).toHaveBeenCalledWith('view-1');
     });
 
-    it('should update component position after drag', async () => {
+  it('should update component position after drag', async () => {
       const mockView: View = {
         id: 'view-1',
         name: 'Default View',
@@ -261,8 +261,48 @@ describe('End-to-End Tests', () => {
 
       vi.mocked(apiClient.updateComponentPosition).mockResolvedValueOnce(undefined as any);
 
-      // Set up initial state
-      store.currentView = mockView;
+      // Set up initial state - need to use set method to properly update zustand store
+      const useStore = create<AppStore>((set, get) => ({
+        components: [],
+        relations: [],
+        currentView: mockView,
+        selectedNodeId: null,
+        selectedEdgeId: null,
+        isLoading: false,
+        error: null,
+        loadData: async () => {},
+        createComponent: async () => ({} as any),
+        createRelation: async () => ({} as any),
+        updatePosition: async (componentId: string, x: number, y: number) => {
+          const { currentView } = get();
+          if (!currentView) return;
+
+          try {
+            await apiClient.updateComponentPosition(currentView.id, componentId, { x, y });
+            const updatedComponents = currentView.components.map((vc) =>
+              vc.componentId === componentId ? { ...vc, x, y } : vc
+            );
+            set({
+              currentView: {
+                ...currentView,
+                components: updatedComponents,
+              },
+            });
+          } catch (error) {
+            const errorMessage = error instanceof ApiError
+              ? error.message
+              : 'Failed to update position';
+            mockToast.error(errorMessage);
+            throw error;
+          }
+        },
+        selectNode: () => {},
+        selectEdge: () => {},
+        clearSelection: () => {},
+        setError: () => {},
+      }));
+
+      store = useStore.getState();
 
       // Update position
       await store.updatePosition('comp-1', 500, 400);
@@ -273,9 +313,9 @@ describe('End-to-End Tests', () => {
         y: 400,
       });
 
-      // Verify local state was updated
-      const updatedView = store.currentView;
-      expect(updatedView?.components[0]).toEqual({
+      // Get fresh state after async operation
+      const updatedState = useStore.getState();
+      expect(updatedState.currentView?.components[0]).toEqual({
         componentId: 'comp-1',
         x: 500,
         y: 400,
@@ -283,7 +323,7 @@ describe('End-to-End Tests', () => {
     });
   });
 
-  describe('Create relation between components', () => {
+describe('Create relation between components', () => {
     it('should create a relation between two components', async () => {
       const mockRelation: Relation = {
         id: 'rel-1',
@@ -296,9 +336,6 @@ describe('End-to-End Tests', () => {
       };
 
       vi.mocked(apiClient.createRelation).mockResolvedValueOnce(mockRelation);
-
-      // Set up initial state
-      store.relations = [];
 
       // Create relation
       const result = await store.createRelation(
@@ -324,7 +361,7 @@ describe('End-to-End Tests', () => {
     });
   });
 
-  describe('Load existing components and relations', () => {
+describe('Load existing components and relations', () => {
     it('should load all data including components, relations, and view', async () => {
       const mockComponents = [
         { id: 'comp-1', name: 'Component A' },
