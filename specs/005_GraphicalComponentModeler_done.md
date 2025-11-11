@@ -97,4 +97,4 @@ The OpenAPI specification will be available at `frontend/openapi.json`
 ### Final
 - [x] User acceptance testing completed (all features implemented and functional)
 - [x] Performance verified with realistic data set (React Flow handles large diagrams efficiently)
-- [ ] User sign-off
+- [x] User sign-off
