@@ -51,7 +51,9 @@ ReadModel → Screen: ReadModel(OUTBOUND) → Screen(INBOUND)
 
 # Spec Management
 - **NEVER modify a spec file with "done" status**
+- Never add "future" requirements in a spec. A spec always contain what is to be implemented NOW. Nothing less, nothing more.
 - If a done spec needs changes, it must be renamed to "reopened" status
+- Keep specs short, precise and descriptive. Avoid prescriptive code examples.
 - When reopening a spec:
   - Rename file from `XXX_SpecName_done.md` to `XXX_SpecName_reopened.md`
   - Keep all completed checkmarks for work already done
