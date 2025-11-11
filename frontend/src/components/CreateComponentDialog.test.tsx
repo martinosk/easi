@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CreateComponentDialog } from './CreateComponentDialog';
-import { useAppStore } from '../store/appStore';
+import { setupDialogTest } from '../test/helpers/dialogTestUtils';
 
 // Mock the store
 vi.mock('../store/appStore', () => ({
@@ -10,15 +10,13 @@ vi.mock('../store/appStore', () => ({
 
 describe('CreateComponentDialog', () => {
   const mockOnClose = vi.fn();
-  const mockCreateComponent = vi.fn();
+  let mocks: ReturnType<typeof setupDialogTest>;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Mock useAppStore to return the appropriate value based on the selector
-    vi.mocked(useAppStore).mockImplementation((selector: any) =>
-      selector({ createComponent: mockCreateComponent })
-    );
+    // Use shared dialog test setup
+    mocks = setupDialogTest();
 
     // Mock HTMLDialogElement methods
     HTMLDialogElement.prototype.showModal = vi.fn();
@@ -54,11 +52,11 @@ describe('CreateComponentDialog', () => {
 
     // Button should be disabled when name is empty
     expect(submitButton.disabled).toBe(true);
-    expect(mockCreateComponent).not.toHaveBeenCalled();
+    expect(mocks.mockCreateComponent).not.toHaveBeenCalled();
   });
 
   it('should call createComponent with valid data', async () => {
-    mockCreateComponent.mockResolvedValueOnce({ id: '1', name: 'Test Component' });
+    mocks.mockCreateComponent.mockResolvedValueOnce({ id: '1', name: 'Test Component' });
 
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
@@ -72,14 +70,14 @@ describe('CreateComponentDialog', () => {
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(mockCreateComponent).toHaveBeenCalledWith('Test Component', 'Test Description');
+      expect(mocks.mockCreateComponent).toHaveBeenCalledWith('Test Component', 'Test Description');
     });
 
     expect(mockOnClose).toHaveBeenCalled();
   });
 
   it('should trim whitespace from inputs', async () => {
-    mockCreateComponent.mockResolvedValueOnce({ id: '1', name: 'Test Component' });
+    mocks.mockCreateComponent.mockResolvedValueOnce({ id: '1', name: 'Test Component' });
 
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
@@ -91,12 +89,12 @@ describe('CreateComponentDialog', () => {
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(mockCreateComponent).toHaveBeenCalledWith('Test Component', undefined);
+      expect(mocks.mockCreateComponent).toHaveBeenCalledWith('Test Component', undefined);
     });
   });
 
   it('should handle create component error', async () => {
-    mockCreateComponent.mockRejectedValueOnce(new Error('Creation failed'));
+    mocks.mockCreateComponent.mockRejectedValueOnce(new Error('Creation failed'));
 
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
@@ -115,7 +113,7 @@ describe('CreateComponentDialog', () => {
   });
 
   it('should disable inputs while creating', async () => {
-    mockCreateComponent.mockImplementation(
+    mocks.mockCreateComponent.mockImplementation(
       () => new Promise((resolve) => setTimeout(resolve, 100))
     );
 

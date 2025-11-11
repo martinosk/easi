@@ -1,133 +1,115 @@
 # Phase 4: Expand Test Coverage
 
 ## Description
-Expand frontend test coverage to include untested or under-tested areas: API client edge cases, utility functions, complex workflows, and accessibility testing.
+Add tests for critical gaps identified in the current test suite: API client error handling, existing utility functions, and accessibility testing. 
 
 ## Problem Statement
-After Phases 1-3, gaps remain:
-- API client has minimal coverage (32 lines, basic happy path only)
-- No tests for utility functions, type guards, or helper modules
-- Limited integration tests for complex cross-component workflows
-- No accessibility testing
-- No documentation on testing approach
+After Phases 1-3, specific gaps remain:
+- API client has minimal error scenario coverage
+- Utility functions and helpers may lack tests
+- No accessibility testing for critical user flows
+- No testing documentation for future contributors
 
 ## Requirements
 
 ### 1. Expand API Client Tests
-**Goal:** Increase `src/api/client.test.ts` from 32 lines to comprehensive coverage
+**Goal:** Test error scenarios and edge cases for existing API methods
 
-Test areas to add:
-- **All HTTP methods:** GET, POST, PUT, DELETE for components, relations, views
-- **Error scenarios:** 400 validation, 404 not found, 409 conflict, 500 server error, network failures
-- **Edge cases:** Empty responses, malformed JSON, timeouts, CORS errors
-- **Headers:** Authorization tokens, custom headers
-- **Target coverage:** 90%+
+Add tests for:
+- **Error scenarios actually used in the app:** 400 validation, 404 not found, 409 conflict, 500 server error, network failures
+- **Edge cases that can actually occur:** Empty responses, malformed JSON, network timeouts
 
-### 2. Add Utility Function Tests
-- Scan for utility modules: `src/utils/**/*.ts`, `src/helpers/**/*.ts`, `src/lib/**/*.ts`
-- Create test files for:
-  - Type guards (e.g., `isComponent`, `isValidId`)
-  - Validation functions
-  - Data transformation utilities
-  - Formatters and parsers
-- **Target coverage:** 90%+ for utilities
+### 2. Test Existing Utility Functions
+- **Scan first:** Check `src/utils/**/*.ts`, `src/helpers/**/*.ts`, `src/lib/**/*.ts` for actual utility code
+- **Only test what exists:** If there are no utility modules, skip this section
+- **Focus on business logic:** Type guards, validation functions, data transformations that contain actual logic
 
-### 3. Add Integration Tests
-Create `src/test/integration/` directory with:
-- **`component-lifecycle.test.tsx`** - Full create → edit → delete workflow
-- **`error-recovery.test.tsx`** - Failed API calls, retry logic, error display
-- **`relation-creation.test.tsx`** - Create two components, link them, verify state
+Don't create tests for:
+- Trivial utility functions (e.g., simple getters)
+- Code that's already covered by integration tests
+- Third-party libraries or library wrappers with no custom logic
 
-Test cross-component interactions and complete user workflows (not single component behavior).
-**Target:** 15+ integration test cases
+### 3. Add Integration Tests for Critical Workflows
+Create `src/test/integration/` directory only if needed:
+- **Component lifecycle** - Create component → Add to view → Verify persistence
+- **Relation management** - Create two components → Link them → Verify state updates
+- **Error recovery** - API failure → Error display → Successful retry
 
-### 4. Add Accessibility Testing
+Focus: Test actual user workflows that span multiple store actions, not individual component behavior.
+Target: 5-10 meaningful integration tests (not an arbitrary number)
+
+### 4. Add Accessibility Testing (Playwright Phase 3 dependency)
+**Only after Phase 3 (Playwright) is complete:**
 - Install `@axe-core/playwright`
-- Create `e2e/accessibility.spec.ts` with:
-  - No violations on main page
-  - Accessible dialogs (ARIA labels, roles)
-  - Keyboard navigation support (Tab, Enter)
-  - Focus visibility
-- **Target:** 5+ accessibility test cases
+- Create `e2e/accessibility.spec.ts` with tests for:
+  - Main page has no critical violations
+  - Dialogs are keyboard accessible
+  - Focus management works correctly
 
-### 5. Add Code Coverage Configuration
-Update `vitest.config.ts`:
-- Add coverage provider (v8)
-- Configure reporters (text, html, lcov)
-- Set thresholds: 70% lines/functions/branches/statements
-- Exclude test files, setup files, type definitions
+Focus: Test critical accessibility issues, not achieve 100% compliance.
 
-Add scripts to `package.json`:
-- `test:coverage` - Run with coverage report
-- `test:coverage:ui` - Interactive coverage UI
-
-### 6. Create Testing Documentation
+### 5. Add Testing Documentation
 Create `frontend/docs/TESTING.md`:
 - Testing philosophy (behavior over implementation, minimal mocking)
 - When to write unit vs integration vs E2E tests
-- Test structure (Arrange-Act-Assert)
-- Running tests (commands, watch mode, debugging)
-- Coverage targets by module type
+- How to run tests (commands, watch mode, debugging)
+- Examples of good vs bad tests from this codebase
+- How to add new tests for new features
+
+Focus: Practical guide for developers, not comprehensive coverage targets.
+
+### 6. Optional: Add Coverage Reporting (Not a Goal)
+Only if useful for identifying gaps:
+- Add `test:coverage` script to package.json
+- Configure coverage reporters in vitest.config.ts
+- **No coverage thresholds** - coverage is a tool for finding gaps, not a metric to optimize
 
 ## Expected Outcomes
-- ✅ API client: 90%+ coverage
-- ✅ All utility functions tested
-- ✅ 15+ integration tests for complex workflows
-- ✅ 5+ accessibility tests catch WCAG violations
-- ✅ Testing documentation guides future development
-- ✅ Overall coverage: 70%+
-
-## Coverage Targets
-
-| Module | Target | Priority |
-|--------|--------|----------|
-| API Client | 90% | High |
-| Store | 80% | High |
-| Components | 60% | Medium |
-| Utilities | 90% | High |
+- ✅ API client error handling properly tested
+- ✅ Existing utility functions have tests (if any exist)
+- ✅ 5-10 integration tests for critical workflows
+- ✅ Basic accessibility testing in place (after Phase 3)
+- ✅ Testing documentation helps future contributors
+- ✅ Coverage reporting available (but not enforced)
 
 ## Files to Create
-- `frontend/src/test/integration/component-lifecycle.test.tsx`
-- `frontend/src/test/integration/error-recovery.test.tsx`
-- `frontend/src/test/integration/relation-creation.test.tsx`
-- `frontend/src/utils/*.test.ts` (for each utility module found)
-- `frontend/e2e/accessibility.spec.ts`
+- `frontend/src/test/integration/component-lifecycle.test.tsx` (if needed)
+- `frontend/src/test/integration/relation-management.test.tsx` (if needed)
+- `frontend/src/utils/*.test.ts` (only for utilities that exist)
+- `frontend/e2e/accessibility.spec.ts` (after Phase 3)
 - `frontend/docs/TESTING.md`
 
 ## Files to Modify
-- `frontend/src/api/client.test.ts` - EXPAND from 32 lines to 200+ lines
-- `frontend/vitest.config.ts` - ADD coverage configuration
-- `frontend/package.json` - ADD coverage scripts
+- `frontend/src/api/client.test.ts` - Add error scenario tests
+- `frontend/vitest.config.ts` - Add coverage configuration (optional)
+- `frontend/package.json` - Add coverage script (optional)
 
 ## Dependencies
 - Should complete Phase 1 (spec 009)
 - Should complete Phase 2 (spec 010)
-- Should complete Phase 3 (spec 011)
-- Install `@axe-core/playwright` for accessibility testing
+- Phase 3 (spec 011) required for accessibility testing
 
-## Success Metrics
-- [ ] Overall code coverage reaches 70%+
-- [ ] API client coverage reaches 90%+
-- [ ] Zero accessibility violations in main user flows
-- [ ] All utility modules have tests
-- [ ] At least 15 integration tests
-- [ ] TESTING.md documentation complete
+## Success Criteria
+- [ ] API client handles all error scenarios the app uses
+- [ ] Existing utility functions are tested
+- [ ] Critical user workflows have integration tests
+- [ ] Accessibility tests catch major violations (after Phase 3)
+- [ ] TESTING.md provides clear guidance for contributors
+- [ ] No artificial coverage targets met
 
 ## Checklist
 - [ ] Specification ready
-- [ ] Scan codebase for untested utility modules
-- [ ] Expand API client tests to 90%+ coverage (all methods, errors, edge cases)
-- [ ] Create tests for all utility functions and type guards
+- [ ] Scan codebase for existing utility modules
+- [ ] Add API client error scenario tests (validation, network, server errors)
+- [ ] Create tests for utility functions that exist
 - [ ] Create integration test directory
-- [ ] Write component lifecycle integration tests
-- [ ] Write error recovery integration tests
-- [ ] Write relation creation integration tests
-- [ ] Install @axe-core/playwright
-- [ ] Create accessibility test suite
-- [ ] Add coverage configuration to vitest.config.ts
-- [ ] Add coverage scripts to package.json
+- [ ] Write component lifecycle integration test
+- [ ] Write relation management integration test
+- [ ] Write error recovery integration test (if relevant)
+- [ ] Install @axe-core/playwright (after Phase 3)
+- [ ] Create accessibility test suite (after Phase 3)
+- [ ] Add optional coverage configuration
+- [ ] Add optional coverage scripts
 - [ ] Create TESTING.md documentation
-- [ ] Run coverage report and review gaps
-- [ ] Verify coverage thresholds met
-- [ ] Update CI to enforce coverage thresholds
+- [ ] Review tests for relevance (remove any testing non-existent features)
 - [ ] User sign-off

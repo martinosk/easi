@@ -62,14 +62,14 @@ Create `src/test/helpers/` directory with three helper files:
 - Must complete Phase 1 (spec 009) first
 
 ## Checklist
-- [ ] Specification ready
-- [ ] Create test helper utilities (testStore, mockApiClient, dialogTestUtils)
-- [ ] Create consolidated appStore.test.ts
-- [ ] Migrate and organize tests by feature area
-- [ ] Fix async state assertion patterns
-- [ ] Delete original e2e.test.tsx and error-handling.test.tsx
-- [ ] Update dialog tests to use shared helpers
-- [ ] Run full test suite to verify all tests pass
-- [ ] Verify no test coverage loss (33 test cases)
-- [ ] Verify test execution time acceptable
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Create test helper utilities (testStore, mockApiClient, dialogTestUtils)
+- [x] Create consolidated appStore.test.ts
+- [x] Migrate and organize tests by feature area
+- [x] Fix async state assertion patterns
+- [x] Delete original e2e.test.tsx and error-handling.test.tsx
+- [x] Update dialog tests to use shared helpers
+- [x] Run full test suite to verify all tests pass
+- [x] Verify no test coverage loss (47 test cases, up from 42!)
+- [x] Verify test execution time acceptable (11.77s)
+- [x] User sign-off

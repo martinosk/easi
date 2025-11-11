@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CreateRelationDialog } from './CreateRelationDialog';
 import { useAppStore } from '../store/appStore';
+import { setupDialogTest } from '../test/helpers/dialogTestUtils';
 
 // Mock the store
 vi.mock('../store/appStore', () => ({
@@ -10,7 +11,7 @@ vi.mock('../store/appStore', () => ({
 
 describe('CreateRelationDialog', () => {
   const mockOnClose = vi.fn();
-  const mockCreateRelation = vi.fn();
+  let mocks: ReturnType<typeof setupDialogTest>;
 
   const mockComponents = [
     { id: '1', name: 'Component A' },
@@ -20,10 +21,16 @@ describe('CreateRelationDialog', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Use shared dialog test setup
+    mocks = setupDialogTest();
+
+    // Override components in the mock
     vi.mocked(useAppStore).mockImplementation((selector: any) =>
       selector({
+        ...mocks,
         components: mockComponents,
-        createRelation: mockCreateRelation,
+        createRelation: mocks.mockCreateRelation,
       })
     );
 
@@ -61,7 +68,7 @@ describe('CreateRelationDialog', () => {
       expect(screen.getByText('Both source and target components are required', {})).toBeInTheDocument();
     });
 
-    expect(mockCreateRelation).not.toHaveBeenCalled();
+    expect(mocks.mockCreateRelation).not.toHaveBeenCalled();
   });
 
   it('should display error when source and target are the same', async () => {
@@ -80,11 +87,11 @@ describe('CreateRelationDialog', () => {
       expect(screen.getByText('Source and target components must be different', {})).toBeInTheDocument();
     });
 
-    expect(mockCreateRelation).not.toHaveBeenCalled();
+    expect(mocks.mockCreateRelation).not.toHaveBeenCalled();
   });
 
   it('should call createRelation with valid data', async () => {
-    mockCreateRelation.mockResolvedValueOnce({
+    mocks.mockCreateRelation.mockResolvedValueOnce({
       id: 'rel-1',
       sourceComponentId: '1',
       targetComponentId: '2',
@@ -107,14 +114,14 @@ describe('CreateRelationDialog', () => {
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(mockCreateRelation).toHaveBeenCalledWith('1', '2', 'Triggers', 'Test Relation', undefined);
+      expect(mocks.mockCreateRelation).toHaveBeenCalledWith('1', '2', 'Triggers', 'Test Relation', undefined);
     });
 
     expect(mockOnClose).toHaveBeenCalled();
   });
 
   it('should handle Serves relation type', async () => {
-    mockCreateRelation.mockResolvedValueOnce({
+    mocks.mockCreateRelation.mockResolvedValueOnce({
       id: 'rel-1',
       sourceComponentId: '1',
       targetComponentId: '2',
@@ -135,7 +142,7 @@ describe('CreateRelationDialog', () => {
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(mockCreateRelation).toHaveBeenCalledWith('1', '2', 'Serves', undefined, undefined);
+      expect(mocks.mockCreateRelation).toHaveBeenCalledWith('1', '2', 'Serves', undefined, undefined);
     });
   });
 
@@ -174,7 +181,7 @@ describe('CreateRelationDialog', () => {
   });
 
   it('should handle create relation error', async () => {
-    mockCreateRelation.mockRejectedValueOnce(new Error('Creation failed'));
+    mocks.mockCreateRelation.mockRejectedValueOnce(new Error('Creation failed'));
 
     render(<CreateRelationDialog isOpen={true} onClose={mockOnClose} />);
 
