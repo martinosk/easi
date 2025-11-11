@@ -138,8 +138,8 @@ Gets a specific application component by ID.
 - [x] API endpoint implemented
 - [x] OpenAPI specification documented
 - [x] Unit tests implemented and passing
-- [ ] Integration tests implemented
+- [x] Integration tests implemented (API endpoints covered)
 - [x] HATEOAS links implementation
 - [x] Read model updated with _links property
 - [x] API responses include navigation links
-- [ ] User sign-off for HATEOAS changes
+- [ ] User sign-off

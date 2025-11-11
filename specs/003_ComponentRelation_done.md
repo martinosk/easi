@@ -258,6 +258,6 @@ Gets a specific component relation by ID.
 - [x] Read models created
 - [x] API endpoints implemented
 - [x] OpenAPI specification documented
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented (API endpoints covered)
 - [ ] User sign-off

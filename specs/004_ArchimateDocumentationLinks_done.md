@@ -103,11 +103,11 @@ This implementation achieves REST Level 3 (Hypermedia Controls) by:
 - Supporting discoverability of related resources
 
 ## Checklist
-- [ ] Specification ready
-- [ ] Read models extended with _links property
-- [ ] Projections updated to include links
-- [ ] API endpoints return responses with HATEOAS links
-- [ ] OpenAPI specification updated
-- [ ] Unit tests for link generation
-- [ ] Integration tests verify links in responses
+- [x] Specification ready
+- [x] Read models extended with _links property
+- [x] Projections updated to include links
+- [x] API endpoints return responses with HATEOAS links
+- [x] OpenAPI specification updated
+- [ ] Unit tests for link generation (covered implicitly in integration tests)
+- [x] Integration tests verify links in responses
 - [ ] User sign-off

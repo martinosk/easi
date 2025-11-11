@@ -1,7 +1,10 @@
 # Spec 007: Hidable Tree Structure Menu
 
 ## Status
-ongoing
+reopened
+
+## Reason for Reopening
+All functional requirements were implemented and approved, but automated tests were not created. This spec was incorrectly marked as done without proper test coverage.
 
 ## Overview
 Add a collapsible/hidable tree structure menu to the left side of the UI that displays:
@@ -87,13 +90,14 @@ ReadModel: View List (from Spec 008)
 - [x] Responsive: hide menu automatically on mobile/small screens
 
 ## Test Plan
-- [x] Test menu toggle functionality
-- [x] Test category expand/collapse
-- [x] Test component selection highlights on canvas
-- [x] Test state persistence after page refresh
-- [x] Test with empty Models list
-- [x] Test with empty Views list
-- [x] Test on mobile viewport
+- [ ] Test menu toggle functionality
+- [ ] Test category expand/collapse
+- [ ] Test component selection highlights on canvas
+- [ ] Test state persistence after page refresh
+- [ ] Test with empty Models list
+- [ ] Test with empty Views list
+- [ ] Test on mobile viewport
+- [ ] Create NavigationTree.test.tsx with comprehensive test coverage
 
 ## Implementation Notes
 - Created `NavigationTree.tsx` component with full feature set
@@ -103,5 +107,7 @@ ReadModel: View List (from Spec 008)
 - Components not in current view are shown with reduced opacity and italic style
 
 ## Sign-off
-- [x] Developer: Implementation complete
-- [x] User: Approved for completion
+- [x] Developer: Functional implementation complete
+- [x] User: Functional implementation approved
+- [ ] Developer: Tests implemented and passing
+- [ ] User: Final sign-off after tests complete
