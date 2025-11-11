@@ -58,7 +58,7 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
   };
 
   return (
-    <dialog ref={dialogRef} className="dialog" onClose={handleClose}>
+    <dialog ref={dialogRef} className="dialog" onClose={handleClose} data-testid="create-component-dialog">
       <div className="dialog-content">
         <h2 className="dialog-title">Create Component</h2>
 
@@ -76,6 +76,7 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
               placeholder="Enter component name"
               autoFocus
               disabled={isCreating}
+              data-testid="component-name-input"
             />
           </div>
 
@@ -91,10 +92,11 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
               placeholder="Enter component description (optional)"
               rows={3}
               disabled={isCreating}
+              data-testid="component-description-input"
             />
           </div>
 
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="error-message" data-testid="create-component-error">{error}</div>}
 
           <div className="dialog-actions">
             <button
@@ -102,6 +104,7 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
               className="btn btn-secondary"
               onClick={handleClose}
               disabled={isCreating}
+              data-testid="create-component-cancel"
             >
               Cancel
             </button>
@@ -109,6 +112,7 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
               type="submit"
               className="btn btn-primary"
               disabled={isCreating || !name.trim()}
+              data-testid="create-component-submit"
             >
               {isCreating ? 'Creating...' : 'Create Component'}
             </button>

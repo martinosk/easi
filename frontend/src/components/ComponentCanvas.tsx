@@ -37,10 +37,11 @@ interface ComponentNodeData {
   isSelected: boolean;
 }
 
-const ComponentNode: React.FC<{ data: ComponentNodeData }> = ({ data }) => {
+const ComponentNode: React.FC<{ data: ComponentNodeData; id: string }> = ({ data, id }) => {
   return (
     <div
       className={`component-node ${data.isSelected ? 'component-node-selected' : ''}`}
+      data-component-id={id}
     >
       {/* Connection handles for creating relations - all handles are both source and target */}
       <Handle
@@ -286,6 +287,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
       className="canvas-container"
       onDragOver={onDragOver}
       onDrop={onDrop}
+      data-testid="canvas-loaded"
     >
       <ReactFlow
         nodes={nodes}

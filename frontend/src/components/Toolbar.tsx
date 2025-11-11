@@ -15,7 +15,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onAddComponent, onFitView }) =
         <button className="btn btn-secondary" onClick={onFitView}>
           Fit View
         </button>
-        <button className="btn btn-primary" onClick={onAddComponent}>
+        <button className="btn btn-primary" onClick={onAddComponent} data-testid="create-component-button">
           + Add Component
         </button>
       </div>

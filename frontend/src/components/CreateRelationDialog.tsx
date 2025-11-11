@@ -85,7 +85,7 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
   };
 
   return (
-    <dialog ref={dialogRef} className="dialog" onClose={handleClose}>
+    <dialog ref={dialogRef} className="dialog" onClose={handleClose} data-testid="create-relation-dialog">
       <div className="dialog-content">
         <h2 className="dialog-title">Create Relation</h2>
 
@@ -100,6 +100,7 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
               value={sourceComponentId}
               onChange={(e) => setSourceComponentId(e.target.value)}
               disabled={isCreating || !!initialSource}
+              data-testid="relation-source-select"
             >
               <option value="">Select source component</option>
               {components.map((component) => (
@@ -120,6 +121,7 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
               value={targetComponentId}
               onChange={(e) => setTargetComponentId(e.target.value)}
               disabled={isCreating || !!initialTarget}
+              data-testid="relation-target-select"
             >
               <option value="">Select target component</option>
               {components.map((component) => (
@@ -140,6 +142,7 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
               value={relationType}
               onChange={(e) => setRelationType(e.target.value as 'Triggers' | 'Serves')}
               disabled={isCreating}
+              data-testid="relation-type-select"
             >
               <option value="Triggers">Triggers</option>
               <option value="Serves">Serves</option>
@@ -158,6 +161,7 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter relation name (optional)"
               disabled={isCreating}
+              data-testid="relation-name-input"
             />
           </div>
 
@@ -173,10 +177,11 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
               placeholder="Enter relation description (optional)"
               rows={3}
               disabled={isCreating}
+              data-testid="relation-description-input"
             />
           </div>
 
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="error-message" data-testid="create-relation-error">{error}</div>}
 
           <div className="dialog-actions">
             <button
@@ -184,6 +189,7 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
               className="btn btn-secondary"
               onClick={handleClose}
               disabled={isCreating}
+              data-testid="create-relation-cancel"
             >
               Cancel
             </button>
@@ -191,6 +197,7 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
               type="submit"
               className="btn btn-primary"
               disabled={isCreating || !sourceComponentId || !targetComponentId}
+              data-testid="create-relation-submit"
             >
               {isCreating ? 'Creating...' : 'Create Relation'}
             </button>

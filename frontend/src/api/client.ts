@@ -16,7 +16,7 @@ import { ApiError } from './types';
 class ApiClient {
   private client: AxiosInstance;
 
-  constructor(baseURL: string = 'http://localhost:8080') {
+  constructor(baseURL: string = import.meta.env.VITE_API_URL || 'http://localhost:8080') {
     this.client = axios.create({
       baseURL,
       headers: {
