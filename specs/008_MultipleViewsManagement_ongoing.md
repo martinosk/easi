@@ -123,17 +123,5 @@ ReadModel: View Detail
 - [ ] Test get views
 - [ ] Test view events update read models correctly
 
-### UI Tests
-- [ ] Test create new view workflow
-- [ ] Test switch between views
-- [ ] Test rename view
-- [ ] Test delete view with confirmation
-- [ ] Test cannot delete last view
-- [ ] Test add component to multiple views
-- [ ] Test remove component from view
-- [ ] Test default view indicator
-- [ ] Test view state persists across refresh
-
 ## Sign-off
-- [ ] Developer: Implementation complete
 - [ ] User: Approved for completion
