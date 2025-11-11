@@ -486,3 +486,124 @@ func TestAddComponentToView_ViewNotFound_Integration(t *testing.T) {
 	assert.True(t, w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound || w.Code == http.StatusInternalServerError,
 		"Expected 400, 404, or 500 but got %d", w.Code)
 }
+
+func TestSetDefaultView_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	viewHandlers, readModel := setupViewHandlers(testCtx.db)
+
+	// Create two views via API
+	view1ReqBody := CreateViewRequest{
+		Name:        "View 1",
+		Description: "First view",
+	}
+	body1, _ := json.Marshal(view1ReqBody)
+	req1 := httptest.NewRequest(http.MethodPost, "/api/v1/views", bytes.NewReader(body1))
+	req1.Header.Set("Content-Type", "application/json")
+	w1 := httptest.NewRecorder()
+	viewHandlers.CreateView(w1, req1)
+	require.Equal(t, http.StatusCreated, w1.Code)
+
+	// Get view1 ID
+	var view1ID string
+	err := testCtx.db.QueryRow(
+		"SELECT aggregate_id FROM events WHERE event_type = 'ViewCreated' ORDER BY created_at DESC LIMIT 1",
+	).Scan(&view1ID)
+	require.NoError(t, err)
+	testCtx.trackID(view1ID)
+
+	// Create second view
+	view2ReqBody := CreateViewRequest{
+		Name:        "View 2",
+		Description: "Second view",
+	}
+	body2, _ := json.Marshal(view2ReqBody)
+	req2 := httptest.NewRequest(http.MethodPost, "/api/v1/views", bytes.NewReader(body2))
+	req2.Header.Set("Content-Type", "application/json")
+	w2 := httptest.NewRecorder()
+	viewHandlers.CreateView(w2, req2)
+	require.Equal(t, http.StatusCreated, w2.Code)
+
+	// Get view2 ID
+	var view2ID string
+	err = testCtx.db.QueryRow(
+		"SELECT aggregate_id FROM events WHERE event_type = 'ViewCreated' AND aggregate_id != $1 ORDER BY created_at DESC LIMIT 1",
+		view1ID,
+	).Scan(&view2ID)
+	require.NoError(t, err)
+	testCtx.trackID(view2ID)
+
+	// Set view 1 as default explicitly to establish known state
+	setView1DefaultReq := httptest.NewRequest(http.MethodPut, "/api/v1/views/"+view1ID+"/default", nil)
+	setView1DefaultW := httptest.NewRecorder()
+	rctx1 := chi.NewRouteContext()
+	rctx1.URLParams.Add("id", view1ID)
+	setView1DefaultReq = setView1DefaultReq.WithContext(context.WithValue(setView1DefaultReq.Context(), chi.RouteCtxKey, rctx1))
+	viewHandlers.SetDefaultView(setView1DefaultW, setView1DefaultReq)
+	require.Equal(t, http.StatusOK, setView1DefaultW.Code)
+
+	// Verify view 1 is now default
+	defaultView, err := readModel.GetDefaultView(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, defaultView)
+	assert.Equal(t, view1ID, defaultView.ID)
+
+	// Set view 2 as default via API
+	setDefaultReq := httptest.NewRequest(http.MethodPut, "/api/v1/views/"+view2ID+"/default", nil)
+	setDefaultW := httptest.NewRecorder()
+
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", view2ID)
+	setDefaultReq = setDefaultReq.WithContext(context.WithValue(setDefaultReq.Context(), chi.RouteCtxKey, rctx))
+
+	viewHandlers.SetDefaultView(setDefaultW, setDefaultReq)
+
+	// Assert HTTP response
+	assert.Equal(t, http.StatusOK, setDefaultW.Code)
+
+	// Verify that view 2 is now the default
+	defaultView, err = readModel.GetDefaultView(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, defaultView)
+	assert.Equal(t, view2ID, defaultView.ID)
+
+	// Verify that view 1 is no longer default
+	view1, err := readModel.GetByID(context.Background(), view1ID)
+	require.NoError(t, err)
+	assert.False(t, view1.IsDefault)
+}
+
+func TestCreateView_NameTooLong_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	viewHandlers, _ := setupViewHandlers(testCtx.db)
+
+	// Create view with name exceeding 100 characters (should fail validation)
+	tooLongName := "This is a view name that is one hundred and one characters long and should fail the validation tests!"
+	require.Len(t, tooLongName, 101, "Test string should be exactly 101 characters")
+
+	reqBody := CreateViewRequest{
+		Name:        tooLongName,
+		Description: "Some description",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/views", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	viewHandlers.CreateView(w, req)
+
+	// Assert validation error (400 Bad Request)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	// Verify no ViewCreated event was created
+	var count int
+	err := testCtx.db.QueryRow(
+		"SELECT COUNT(*) FROM events WHERE event_type = 'ViewCreated' AND created_at > NOW() - INTERVAL '2 seconds'",
+	).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count, "No ViewCreated events should be created for invalid request")
+}

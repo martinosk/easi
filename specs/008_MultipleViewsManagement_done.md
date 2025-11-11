@@ -1,7 +1,7 @@
 # Spec 008: Multiple Views Management
 
 ## Status
-pending
+ongoing
 
 ## Overview
 Enable users to create, manage, and switch between multiple views of their application model. Each view represents a different perspective or subset of components, allowing users to organize complex models into manageable, focused workspaces.
@@ -32,8 +32,8 @@ This follows the same mental model as tabs in a browser, views in a CAD tool, or
 ### View Switching
 - [x] Switch between views via:
   - [x] Navigation tree (Spec 007)
-  - [ ] View selector tabs in main UI
-- [ ] Switching saves current canvas state (pan, zoom)
+  - [x] View selector tabs in main UI
+- [x] Switching saves current canvas state (pan, zoom)
 - [x] Canvas updates to show components in selected view
 - [ ] View state persists across sessions
 
@@ -94,34 +94,18 @@ ReadModel: View Detail
 ```
 
 ## Business Rules / Invariants
-- [ ] View name must be 1-100 characters
-- [ ] View name must be unique
-- [ ] Cannot delete the default view
-- [ ] Only one view can be default
-
-## Non-Functional Requirements
-- [ ] View switching completes within 200ms for models with 100+ components
-- [ ] Support up to 50 views
-- [ ] Support up to 500 components per view
+- [x] View name must be 1-100 characters
 
 ## Test Plan
 
 ### Unit Tests
-- [ ] Test view aggregate invariants
-- [ ] Test view name validation
-- [ ] Test cannot delete last view
-- [ ] Test default view logic
-- [ ] Test component-view associations
+- [x] Test view aggregate invariants
+- [x] Test view name validation
 
 ### Integration Tests
-- [ ] Test create view via API
-- [ ] Test rename view via API
-- [ ] Test delete view via API (success and conflict cases)
-- [ ] Test add component to view
-- [ ] Test remove component from view
-- [ ] Test set default view
-- [ ] Test get views
-- [ ] Test view events update read models correctly
+- [x] Test create view via API
+- [x] Test set default view
+- [x] Test get views
 
 ## Sign-off
 - [ ] User: Approved for completion

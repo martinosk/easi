@@ -10,6 +10,7 @@ import { EditRelationDialog } from './components/EditRelationDialog';
 import { ComponentDetails } from './components/ComponentDetails';
 import { RelationDetails } from './components/RelationDetails';
 import { NavigationTree } from './components/NavigationTree';
+import { ViewSelector } from './components/ViewSelector';
 import apiClient from './api/client';
 
 function App() {
@@ -111,10 +112,11 @@ function App() {
     }
   };
 
+  const switchView = useAppStore((state) => state.switchView);
+
   const handleViewSelect = async (viewId: string) => {
     try {
-      const fullView = await apiClient.getViewById(viewId);
-      useAppStore.setState({ currentView: fullView });
+      await switchView(viewId);
     } catch (error) {
       console.error('Failed to switch view:', error);
     }
@@ -178,6 +180,7 @@ function App() {
         />
 
         <div className="canvas-section">
+          <ViewSelector />
           <ComponentCanvas ref={canvasRef} onConnect={handleConnect} onComponentDrop={handleComponentDrop} />
         </div>
 

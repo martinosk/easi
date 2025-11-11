@@ -4,13 +4,23 @@ import type { Component, Relation, View } from '../api/types';
 import { ApiError } from '../api/types';
 import toast from 'react-hot-toast';
 
+export interface ViewportState {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
 interface AppStore {
   // Data
   components: Component[];
   relations: Relation[];
+  views: View[];
   currentView: View | null;
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
+
+  // Canvas state per view
+  viewportStates: Record<string, ViewportState>;
 
   // Loading states
   isLoading: boolean;
@@ -18,6 +28,10 @@ interface AppStore {
 
   // Actions
   loadData: () => Promise<void>;
+  loadViews: () => Promise<void>;
+  switchView: (viewId: string) => Promise<void>;
+  saveViewportState: (viewId: string, viewport: ViewportState) => void;
+  getViewportState: (viewId: string) => ViewportState | undefined;
   createComponent: (name: string, description?: string) => Promise<Component>;
   updateComponent: (id: string, name: string, description?: string) => Promise<Component>;
   createRelation: (
@@ -35,18 +49,48 @@ interface AppStore {
   setError: (error: string | null) => void;
 }
 
+// Flag to prevent concurrent loadData calls (prevents race condition in StrictMode)
+let isLoadingData = false;
+
+// Load viewport states from localStorage
+const loadViewportStatesFromStorage = (): Record<string, ViewportState> => {
+  try {
+    const stored = localStorage.getItem('viewportStates');
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+};
+
+// Save viewport states to localStorage
+const saveViewportStatesToStorage = (states: Record<string, ViewportState>) => {
+  try {
+    localStorage.setItem('viewportStates', JSON.stringify(states));
+  } catch (error) {
+    console.error('Failed to save viewport states:', error);
+  }
+};
+
 export const useAppStore = create<AppStore>((set, get) => ({
   // Initial state
   components: [],
   relations: [],
+  views: [],
   currentView: null,
   selectedNodeId: null,
   selectedEdgeId: null,
+  viewportStates: loadViewportStatesFromStorage(),
   isLoading: false,
   error: null,
 
   // Load all data
   loadData: async () => {
+    // Prevent concurrent calls (fixes StrictMode double-call issue)
+    if (isLoadingData) {
+      return;
+    }
+
+    isLoadingData = true;
     set({ isLoading: true, error: null });
 
     try {
@@ -68,15 +112,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
           name: 'Default View',
           description: 'Main application view',
         });
+        views.push(currentView);
         toast.success('Created default view');
       } else {
-        // Use first view
-        currentView = views[0];
+        // Use default view or first view
+        currentView = views.find(v => v.isDefault) || views[0];
       }
 
       // Load full view with components
       const fullView = await apiClient.getViewById(currentView.id);
-      set({ currentView: fullView, isLoading: false });
+      set({ currentView: fullView, views, isLoading: false });
 
       toast.success('Data loaded successfully');
     } catch (error) {
@@ -87,7 +132,53 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ error: errorMessage, isLoading: false });
       toast.error(errorMessage);
       throw error;
+    } finally {
+      isLoadingData = false;
     }
+  },
+
+  // Load views
+  loadViews: async () => {
+    try {
+      const views = await apiClient.getViews();
+      set({ views });
+    } catch (error) {
+      console.error('Failed to load views:', error);
+    }
+  },
+
+  // Switch to a different view
+  switchView: async (viewId: string) => {
+    const { currentView } = get();
+
+    // Don't switch if already on this view
+    if (currentView?.id === viewId) {
+      return;
+    }
+
+    try {
+      const fullView = await apiClient.getViewById(viewId);
+      set({ currentView: fullView });
+    } catch (error) {
+      const errorMessage = error instanceof ApiError
+        ? error.message
+        : 'Failed to switch view';
+      toast.error(errorMessage);
+      throw error;
+    }
+  },
+
+  // Save viewport state for a view
+  saveViewportState: (viewId: string, viewport: ViewportState) => {
+    const { viewportStates } = get();
+    const newStates = { ...viewportStates, [viewId]: viewport };
+    set({ viewportStates: newStates });
+    saveViewportStatesToStorage(newStates);
+  },
+
+  // Get viewport state for a view
+  getViewportState: (viewId: string) => {
+    return get().viewportStates[viewId];
   },
 
   // Create a new component

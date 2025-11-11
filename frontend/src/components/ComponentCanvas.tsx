@@ -122,9 +122,12 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
   const selectEdge = useAppStore((state) => state.selectEdge);
   const clearSelection = useAppStore((state) => state.clearSelection);
   const updatePosition = useAppStore((state) => state.updatePosition);
+  const saveViewportState = useAppStore((state) => state.saveViewportState);
+  const getViewportState = useAppStore((state) => state.getViewportState);
 
   const [nodes, setNodes] = React.useState<Node[]>([]);
   const [edges, setEdges] = React.useState<Edge[]>([]);
+  const [isFirstLoad, setIsFirstLoad] = React.useState(true);
 
   // Build nodes from components and view positions
   React.useEffect(() => {
@@ -269,6 +272,32 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     [onComponentDrop, reactFlowInstance]
   );
 
+  // Restore viewport state when view changes
+  React.useEffect(() => {
+    if (!currentView || !reactFlowInstance) return;
+
+    const savedViewport = getViewportState(currentView.id);
+    if (savedViewport) {
+      // Restore saved viewport
+      reactFlowInstance.setViewport(savedViewport, { duration: 300 });
+      setIsFirstLoad(false);
+    } else if (isFirstLoad && nodes.length > 0) {
+      // On first load with no saved state, fit view
+      setTimeout(() => {
+        reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
+        setIsFirstLoad(false);
+      }, 100);
+    }
+  }, [currentView?.id, reactFlowInstance, getViewportState, nodes.length, isFirstLoad]);
+
+  // Save viewport state when canvas is moved or zoomed
+  const onMoveEnd = useCallback(() => {
+    if (!currentView || !reactFlowInstance) return;
+
+    const viewport = reactFlowInstance.getViewport();
+    saveViewportState(currentView.id, viewport);
+  }, [currentView, reactFlowInstance, saveViewportState]);
+
   // Expose method to center on a node
   useImperativeHandle(ref, () => ({
     centerOnNode: (nodeId: string) => {
@@ -299,8 +328,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         onPaneClick={onPaneClick}
         onNodeDragStop={onNodeDragStop}
         onConnect={onConnectHandler}
+        onMoveEnd={onMoveEnd}
         nodeTypes={nodeTypes}
-        fitView
         minZoom={0.1}
         maxZoom={2}
         defaultEdgeOptions={{

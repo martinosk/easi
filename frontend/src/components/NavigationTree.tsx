@@ -44,7 +44,8 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
     return saved !== null ? JSON.parse(saved) : true;
   });
 
-  const [views, setViews] = useState<View[]>([]);
+  const views = useAppStore((state) => state.views);
+  const loadViews = useAppStore((state) => state.loadViews);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [editingView, setEditingView] = useState<EditingState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ viewId: string; viewName: string } | null>(null);
@@ -53,28 +54,10 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
 
-  // Load views
+  // Load views when component mounts or when currentView changes
   useEffect(() => {
-    const loadViews = async () => {
-      try {
-        const loadedViews = await apiClient.getViews();
-        setViews(loadedViews);
-      } catch (error) {
-        console.error('Failed to load views:', error);
-      }
-    };
     loadViews();
-  }, []);
-
-  // Reload views function
-  const reloadViews = async () => {
-    try {
-      const loadedViews = await apiClient.getViews();
-      setViews(loadedViews);
-    } catch (error) {
-      console.error('Failed to reload views:', error);
-    }
-  };
+  }, [loadViews, currentView?.id]);
 
   // Persist menu state
   useEffect(() => {
@@ -151,7 +134,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
     if (contextMenu) {
       try {
         await apiClient.setDefaultView(contextMenu.viewId);
-        await reloadViews();
+        await loadViews();
         setContextMenu(null);
       } catch (error) {
         console.error('Failed to set default view:', error);
@@ -168,7 +151,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
     try {
       await apiClient.renameView(viewId, { name: newName });
-      await reloadViews();
+      await loadViews();
       setEditingView(null);
     } catch (error) {
       console.error('Failed to rename view:', error);
@@ -182,7 +165,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
     try {
       await apiClient.createView({ name: createViewName, description: '' });
-      await reloadViews();
+      await loadViews();
       setShowCreateDialog(false);
       setCreateViewName('');
     } catch (error) {
@@ -196,7 +179,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
     try {
       await apiClient.deleteView(deleteTarget.viewId);
-      await reloadViews();
+      await loadViews();
       setDeleteTarget(null);
     } catch (error) {
       console.error('Failed to delete view:', error);
