@@ -6,10 +6,6 @@
 set -e
 
 echo "Running integration tests..."
-echo "Prerequisites:"
-echo "  - PostgreSQL running on localhost:5432"
-echo "  - Database 'easi' with user 'easi' password 'easi'"
-echo ""
 
 # Run integration tests for architecture modeling
 echo "Running architecture modeling integration tests..."
