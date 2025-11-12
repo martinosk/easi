@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -73,13 +72,6 @@ func setupTestDB(t *testing.T) (*testContext, func()) {
 	return ctx, cleanup
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
 // trackID adds an aggregate ID to the cleanup list
 func (ctx *testContext) trackID(id string) {
 	ctx.createdIDs = append(ctx.createdIDs, id)
@@ -88,8 +80,8 @@ func (ctx *testContext) trackID(id string) {
 // createTestComponent creates a component directly in the read model for testing
 func (ctx *testContext) createTestComponent(t *testing.T, id, name, description string) {
 	_, err := ctx.db.Exec(
-		"INSERT INTO application_components (id, name, description, created_at) VALUES ($1, $2, $3, NOW())",
-		id, name, description,
+		"INSERT INTO application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
+		id, name, description, testTenantID(),
 	)
 	require.NoError(t, err)
 	ctx.trackID(id)
@@ -140,6 +132,7 @@ func TestCreateComponent_Integration(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/components", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	handlers.CreateApplicationComponent(w, req)
@@ -169,7 +162,7 @@ func TestCreateComponent_Integration(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Verify read model contains the component (should be projected automatically)
-	component, err := readModel.GetByID(context.Background(), aggregateID)
+	component, err := readModel.GetByID(tenantContext(), aggregateID)
 	require.NoError(t, err)
 	assert.Equal(t, "User Service", component.Name)
 	assert.Equal(t, "Handles user authentication and authorization", component.Description)
@@ -189,6 +182,7 @@ func TestGetAllComponents_Integration(t *testing.T) {
 
 	// Test GET all
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/components", nil)
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	handlers.GetAllComponents(w, req)
@@ -226,6 +220,7 @@ func TestGetComponentByID_Integration(t *testing.T) {
 
 	// Test GET by ID
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/components/"+componentID, nil)
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	// Add URL param using chi context
@@ -258,6 +253,7 @@ func TestGetComponentByID_NotFound_Integration(t *testing.T) {
 	// Test GET non-existent component with unique ID to avoid collisions
 	nonExistentID := fmt.Sprintf("non-existent-%d", time.Now().UnixNano())
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/components/"+nonExistentID, nil)
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	rctx := chi.NewRouteContext()
@@ -284,6 +280,7 @@ func TestCreateComponent_ValidationError_Integration(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/components", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	handlers.CreateApplicationComponent(w, req)
@@ -313,8 +310,8 @@ func TestGetAllComponentsPaginated_Integration(t *testing.T) {
 		description := fmt.Sprintf("Description %d", i)
 
 		_, err := testCtx.db.Exec(
-			"INSERT INTO application_components (id, name, description, created_at) VALUES ($1, $2, $3, NOW() - INTERVAL '"+fmt.Sprintf("%d", i)+" seconds')",
-			id, name, description,
+			"INSERT INTO application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW() - INTERVAL '"+fmt.Sprintf("%d", i)+" seconds')",
+			id, name, description, testTenantID(),
 		)
 		require.NoError(t, err)
 		testCtx.trackID(id)
@@ -325,6 +322,7 @@ func TestGetAllComponentsPaginated_Integration(t *testing.T) {
 
 	// Test GET first page with limit
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/components?limit=2", nil)
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	handlers.GetAllComponents(w, req)
@@ -349,6 +347,7 @@ func TestGetAllComponentsPaginated_Integration(t *testing.T) {
 	if len(response.Data) >= 2 && response.Pagination.HasMore {
 		// Test GET second page using cursor
 		req2 := httptest.NewRequest(http.MethodGet, "/api/v1/components?limit=2&after="+response.Pagination.Cursor, nil)
+		req2 = withTestTenant(req2)
 		w2 := httptest.NewRecorder()
 
 		handlers.GetAllComponents(w2, req2)
@@ -387,6 +386,7 @@ func TestGetAllComponentsPagination_InvalidCursor_Integration(t *testing.T) {
 
 	// Test GET with invalid cursor
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/components?limit=2&after=invalid-cursor", nil)
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	handlers.GetAllComponents(w, req)
@@ -410,6 +410,7 @@ func TestUpdateComponent_Integration(t *testing.T) {
 
 	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/components", bytes.NewReader(createBody))
 	createReq.Header.Set("Content-Type", "application/json")
+	createReq = withTestTenant(createReq)
 	createW := httptest.NewRecorder()
 
 	handlers.CreateApplicationComponent(createW, createReq)
@@ -435,6 +436,7 @@ func TestUpdateComponent_Integration(t *testing.T) {
 
 	updateReq := httptest.NewRequest(http.MethodPut, "/api/v1/components/"+componentID, bytes.NewReader(updateBody))
 	updateReq.Header.Set("Content-Type", "application/json")
+	updateReq = withTestTenant(updateReq)
 	updateReq = updateReq.WithContext(context.WithValue(updateReq.Context(), chi.RouteCtxKey, &chi.Context{
 		URLParams: chi.RouteParams{
 			Keys:   []string{"id"},

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -73,13 +72,6 @@ func setupRelationTestDB(t *testing.T) (*relationTestContext, func()) {
 	return ctx, cleanup
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
 // trackID adds an aggregate ID to the cleanup list
 func (ctx *relationTestContext) trackID(id string) {
 	ctx.createdIDs = append(ctx.createdIDs, id)
@@ -88,8 +80,8 @@ func (ctx *relationTestContext) trackID(id string) {
 // createTestRelation creates a relation directly in the read model for testing
 func (ctx *relationTestContext) createTestRelation(t *testing.T, id, sourceID, targetID, relationType, name, description string) {
 	_, err := ctx.db.Exec(
-		"INSERT INTO component_relations (id, source_component_id, target_component_id, relation_type, name, description, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW())",
-		id, sourceID, targetID, relationType, name, description,
+		"INSERT INTO component_relations (id, source_component_id, target_component_id, relation_type, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		id, sourceID, targetID, relationType, name, description, testTenantID(),
 	)
 	require.NoError(t, err)
 	ctx.trackID(id)
@@ -135,6 +127,7 @@ func TestCreateRelation_Integration(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/relations", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	handlers.CreateComponentRelation(w, req)
@@ -166,13 +159,13 @@ func TestCreateRelation_Integration(t *testing.T) {
 
 	// Manually insert into read model for testing (simulating event projection)
 	_, err = testCtx.db.Exec(
-		"INSERT INTO component_relations (id, source_component_id, target_component_id, relation_type, name, description, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW())",
-		aggregateID, sourceID, targetID, "Triggers", "Triggers API", "Frontend triggers backend API",
+		"INSERT INTO component_relations (id, source_component_id, target_component_id, relation_type, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		aggregateID, sourceID, targetID, "Triggers", "Triggers API", "Frontend triggers backend API", testTenantID(),
 	)
 	require.NoError(t, err)
 
 	// Verify read model contains the relation
-	relation, err := readModel.GetByID(context.Background(), aggregateID)
+	relation, err := readModel.GetByID(tenantContext(), aggregateID)
 	require.NoError(t, err)
 	assert.NotNil(t, relation)
 	assert.Equal(t, sourceID, relation.SourceComponentID)
@@ -196,6 +189,7 @@ func TestCreateRelation_ValidationError_Integration(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/relations", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	handlers.CreateComponentRelation(w, req)
@@ -230,6 +224,7 @@ func TestGetAllRelations_Integration(t *testing.T) {
 
 	// Test GET all
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/relations", nil)
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	handlers.GetAllRelations(w, req)
@@ -269,6 +264,7 @@ func TestGetRelationByID_Integration(t *testing.T) {
 
 	// Test GET by ID
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/relations/"+relationID, nil)
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	// Add URL param using chi context
@@ -302,6 +298,7 @@ func TestGetRelationByID_NotFound_Integration(t *testing.T) {
 	// Test GET non-existent relation with unique UUID
 	nonExistentID := uuid.New().String()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/relations/"+nonExistentID, nil)
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	rctx := chi.NewRouteContext()
@@ -337,6 +334,7 @@ func TestGetRelationsFromComponent_Integration(t *testing.T) {
 
 	// Test GET relations from component
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/relations/from/"+componentID, nil)
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	rctx := chi.NewRouteContext()
@@ -390,6 +388,7 @@ func TestGetRelationsToComponent_Integration(t *testing.T) {
 
 	// Test GET relations to component
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/relations/to/"+componentID, nil)
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	rctx := chi.NewRouteContext()
@@ -438,8 +437,8 @@ func TestGetAllRelationsPaginated_Integration(t *testing.T) {
 			relType = "Serves"
 		}
 		_, err := testCtx.db.Exec(
-			"INSERT INTO component_relations (id, source_component_id, target_component_id, relation_type, name, description, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW() - INTERVAL '"+fmt.Sprintf("%d", i)+" seconds')",
-			id, comp1, comp2, relType, name, "Description",
+			"INSERT INTO component_relations (id, source_component_id, target_component_id, relation_type, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW() - INTERVAL '"+fmt.Sprintf("%d", i)+" seconds')",
+			id, comp1, comp2, relType, name, "Description", testTenantID(),
 		)
 		require.NoError(t, err)
 		testCtx.trackID(id)
@@ -450,6 +449,7 @@ func TestGetAllRelationsPaginated_Integration(t *testing.T) {
 
 	// Test GET first page with limit
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/relations?limit=2", nil)
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	handlers.GetAllRelations(w, req)

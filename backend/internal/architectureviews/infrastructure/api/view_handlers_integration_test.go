@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -74,13 +73,6 @@ func setupViewTestDB(t *testing.T) (*viewTestContext, func()) {
 	return ctx, cleanup
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
 // trackID adds an aggregate ID to the cleanup list
 func (ctx *viewTestContext) trackID(id string) {
 	ctx.createdIDs = append(ctx.createdIDs, id)
@@ -89,8 +81,8 @@ func (ctx *viewTestContext) trackID(id string) {
 // createTestView creates a view directly in the read model for testing
 func (ctx *viewTestContext) createTestView(t *testing.T, id, name, description string) {
 	_, err := ctx.db.Exec(
-		"INSERT INTO architecture_views (id, name, description, created_at) VALUES ($1, $2, $3, NOW())",
-		id, name, description,
+		"INSERT INTO architecture_views (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
+		id, name, description, testTenantID(),
 	)
 	require.NoError(t, err)
 	ctx.trackID(id)
@@ -99,8 +91,8 @@ func (ctx *viewTestContext) createTestView(t *testing.T, id, name, description s
 // addTestComponentToView adds a component to a view in the read model for testing
 func (ctx *viewTestContext) addTestComponentToView(t *testing.T, viewID, componentID string, x, y float64) {
 	_, err := ctx.db.Exec(
-		"INSERT INTO view_component_positions (view_id, component_id, x, y, created_at) VALUES ($1, $2, $3, $4, NOW())",
-		viewID, componentID, x, y,
+		"INSERT INTO view_component_positions (view_id, component_id, x, y, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, NOW())",
+		viewID, componentID, x, y, testTenantID(),
 	)
 	require.NoError(t, err)
 }
@@ -159,6 +151,7 @@ func TestCreateView_Integration(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/views", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	handlers.CreateView(w, req)
@@ -185,7 +178,7 @@ func TestCreateView_Integration(t *testing.T) {
 	assert.Contains(t, eventData, "Overall system architecture view")
 
 	// Verify read model contains the view (should be populated by projector)
-	view, err := readModel.GetByID(context.Background(), aggregateID)
+	view, err := readModel.GetByID(tenantContext(), aggregateID)
 	require.NoError(t, err)
 	assert.NotNil(t, view)
 	assert.Equal(t, "System Architecture", view.Name)
@@ -207,6 +200,7 @@ func TestCreateView_ValidationError_Integration(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/views", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	handlers.CreateView(w, req)
@@ -237,6 +231,7 @@ func TestGetAllViews_Integration(t *testing.T) {
 
 	// Test GET all
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/views", nil)
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	handlers.GetAllViews(w, req)
@@ -279,6 +274,7 @@ func TestGetViewByID_Integration(t *testing.T) {
 
 	// Test GET by ID
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/views/"+viewID, nil)
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	// Add URL param using chi context
@@ -312,6 +308,7 @@ func TestGetViewByID_NotFound_Integration(t *testing.T) {
 	// Test GET non-existent view with unique ID
 	nonExistentID := fmt.Sprintf("non-existent-%d", time.Now().UnixNano())
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/views/"+nonExistentID, nil)
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	rctx := chi.NewRouteContext()
@@ -337,6 +334,7 @@ func TestAddComponentToView_Integration(t *testing.T) {
 	createBody, _ := json.Marshal(createReqBody)
 	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/views", bytes.NewReader(createBody))
 	createReq.Header.Set("Content-Type", "application/json")
+	createReq = withTestTenant(createReq)
 	createW := httptest.NewRecorder()
 	viewHandlers.CreateView(createW, createReq)
 	require.Equal(t, http.StatusCreated, createW.Code)
@@ -360,6 +358,7 @@ func TestAddComponentToView_Integration(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/views/"+viewID+"/components", bytes.NewReader(addBody))
 	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	// Add URL param using chi context
@@ -399,6 +398,7 @@ func TestUpdateComponentPosition_Integration(t *testing.T) {
 	createBody, _ := json.Marshal(createReqBody)
 	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/views", bytes.NewReader(createBody))
 	createReq.Header.Set("Content-Type", "application/json")
+	createReq = withTestTenant(createReq)
 	createW := httptest.NewRecorder()
 	viewHandlers.CreateView(createW, createReq)
 	require.Equal(t, http.StatusCreated, createW.Code)
@@ -421,6 +421,7 @@ func TestUpdateComponentPosition_Integration(t *testing.T) {
 	addBody, _ := json.Marshal(addReqBody)
 	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/views/"+viewID+"/components", bytes.NewReader(addBody))
 	addReq.Header.Set("Content-Type", "application/json")
+	addReq = withTestTenant(addReq)
 	addW := httptest.NewRecorder()
 	rctxAdd := chi.NewRouteContext()
 	rctxAdd.URLParams.Add("id", viewID)
@@ -437,6 +438,7 @@ func TestUpdateComponentPosition_Integration(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/components/"+componentID+"/position", bytes.NewReader(updateBody))
 	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	// Add URL params using chi context
@@ -479,6 +481,7 @@ func TestAddComponentToView_ViewNotFound_Integration(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/views/"+nonExistentViewID+"/components", bytes.NewReader(addBody))
 	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	rctx := chi.NewRouteContext()
@@ -506,6 +509,7 @@ func TestSetDefaultView_Integration(t *testing.T) {
 	body1, _ := json.Marshal(view1ReqBody)
 	req1 := httptest.NewRequest(http.MethodPost, "/api/v1/views", bytes.NewReader(body1))
 	req1.Header.Set("Content-Type", "application/json")
+	req1 = withTestTenant(req1)
 	w1 := httptest.NewRecorder()
 	viewHandlers.CreateView(w1, req1)
 	require.Equal(t, http.StatusCreated, w1.Code)
@@ -526,6 +530,7 @@ func TestSetDefaultView_Integration(t *testing.T) {
 	body2, _ := json.Marshal(view2ReqBody)
 	req2 := httptest.NewRequest(http.MethodPost, "/api/v1/views", bytes.NewReader(body2))
 	req2.Header.Set("Content-Type", "application/json")
+	req2 = withTestTenant(req2)
 	w2 := httptest.NewRecorder()
 	viewHandlers.CreateView(w2, req2)
 	require.Equal(t, http.StatusCreated, w2.Code)
@@ -541,6 +546,7 @@ func TestSetDefaultView_Integration(t *testing.T) {
 
 	// Set view 1 as default explicitly to establish known state
 	setView1DefaultReq := httptest.NewRequest(http.MethodPut, "/api/v1/views/"+view1ID+"/default", nil)
+	setView1DefaultReq = withTestTenant(setView1DefaultReq)
 	setView1DefaultW := httptest.NewRecorder()
 	rctx1 := chi.NewRouteContext()
 	rctx1.URLParams.Add("id", view1ID)
@@ -549,13 +555,14 @@ func TestSetDefaultView_Integration(t *testing.T) {
 	require.Equal(t, http.StatusOK, setView1DefaultW.Code)
 
 	// Verify view 1 is now default
-	defaultView, err := readModel.GetDefaultView(context.Background())
+	defaultView, err := readModel.GetDefaultView(tenantContext())
 	require.NoError(t, err)
 	assert.NotNil(t, defaultView)
 	assert.Equal(t, view1ID, defaultView.ID)
 
 	// Set view 2 as default via API
 	setDefaultReq := httptest.NewRequest(http.MethodPut, "/api/v1/views/"+view2ID+"/default", nil)
+	setDefaultReq = withTestTenant(setDefaultReq)
 	setDefaultW := httptest.NewRecorder()
 
 	rctx := chi.NewRouteContext()
@@ -568,13 +575,13 @@ func TestSetDefaultView_Integration(t *testing.T) {
 	assert.Equal(t, http.StatusOK, setDefaultW.Code)
 
 	// Verify that view 2 is now the default
-	defaultView, err = readModel.GetDefaultView(context.Background())
+	defaultView, err = readModel.GetDefaultView(tenantContext())
 	require.NoError(t, err)
 	assert.NotNil(t, defaultView)
 	assert.Equal(t, view2ID, defaultView.ID)
 
 	// Verify that view 1 is no longer default
-	view1, err := readModel.GetByID(context.Background(), view1ID)
+	view1, err := readModel.GetByID(tenantContext(), view1ID)
 	require.NoError(t, err)
 	assert.False(t, view1.IsDefault)
 }
@@ -597,6 +604,7 @@ func TestCreateView_NameTooLong_Integration(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/views", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
 	viewHandlers.CreateView(w, req)
