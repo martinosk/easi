@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -34,8 +35,15 @@ type relationTestContext struct {
 }
 
 func setupRelationTestDB(t *testing.T) (*relationTestContext, func()) {
-	// Connect to test database
-	connStr := "host=localhost port=5432 user=easi password=easi dbname=easi sslmode=disable"
+	dbHost := getEnv("INTEGRATION_TEST_DB_HOST", "localhost")
+	dbPort := getEnv("INTEGRATION_TEST_DB_PORT", "5432")
+	dbUser := getEnv("INTEGRATION_TEST_DB_USER", "easi")
+	dbPassword := getEnv("INTEGRATION_TEST_DB_PASSWORD", "easi")
+	dbName := getEnv("INTEGRATION_TEST_DB_NAME", "easi")
+	dbSSLMode := getEnv("INTEGRATION_TEST_DB_SSLMODE", "disable")
+
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		dbHost, dbPort, dbUser, dbPassword, dbName, dbSSLMode)
 	db, err := sql.Open("postgres", connStr)
 	require.NoError(t, err)
 
@@ -63,6 +71,13 @@ func setupRelationTestDB(t *testing.T) (*relationTestContext, func()) {
 	}
 
 	return ctx, cleanup
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 // trackID adds an aggregate ID to the cleanup list

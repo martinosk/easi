@@ -52,11 +52,18 @@ Core domain that allows the gathering and analysis of architecture knowledge. It
 - Docker or Podman
 
 ## Setup
-```bash
-# Start database
-docker compose up -d
 
+### First-Time Setup
+```bash
+# Set up environment variables
+./setup-local-env.sh
+
+# Start database and services
+docker compose up -d
 ```
+
+### Environment Configuration
+The project uses environment variables for configuration. On first setup, run `./setup-local-env.sh` to create a `.env` file with default development values.
 
 ## Database
 PostgreSQL 16
