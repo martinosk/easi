@@ -11,15 +11,12 @@ A complete graphical architecture modeling tool with:
 ### 1. Start the Backend
 
 ```bash
-# Terminal 1 - From the easi directory
-cd /home/devuser/repos/easi
-
-# Start PostgreSQL (if not already running)
+# SFrom the easi directory: Start PostgreSQL (if not already running)
 docker-compose up -d
 
 # Run the backend
 cd backend
-go run cmd/api/main.go
+make run
 ```
 
 You should see:
@@ -31,7 +28,7 @@ Starting server on :8080
 
 ```bash
 # Terminal 2 - From the easi directory
-cd /home/devuser/repos/easi/frontend
+cd frontend
 
 # Start the dev server
 npm run dev
@@ -94,54 +91,8 @@ Open your browser to: **http://localhost:5173**
 - **Minimap** (bottom right) - Overview of your diagram
 - **Controls** (bottom left) - Fit view, zoom controls
 
-## Example Scenario
-
-Let's create a simple microservices architecture:
-
-1. **Create Components**:
-   - "API Gateway"
-   - "User Service"
-   - "Order Service"
-   - "Database"
-
-2. **Arrange them** visually (drag to position)
-
-3. **Create Relations**:
-   - API Gateway **Triggers** → User Service
-   - API Gateway **Triggers** → Order Service
-   - User Service **Triggers** → Database
-   - Order Service **Triggers** → Database
-
-4. **View the result**: A visual architecture diagram with:
-   - Orange arrows showing trigger relationships
-   - Blue arrows showing serving relationships
-   - Clean, professional styling
-   - Positions saved automatically
-
-## API Endpoints
-
-The backend exposes these REST APIs:
-
-### Components
-- `GET /api/v1/components` - List all components
-- `POST /api/v1/components` - Create a component
-- `GET /api/v1/components/{id}` - Get component details
-
-### Relations
-- `GET /api/v1/relations` - List all relations
-- `POST /api/v1/relations` - Create a relation
-- `GET /api/v1/relations/{id}` - Get relation details
-
-### Views (Position Persistence)
-- `GET /api/v1/views` - List all views
-- `POST /api/v1/views` - Create a view
-- `GET /api/v1/views/{id}` - Get view with component positions
-- `POST /api/v1/views/{id}/components` - Add component to view
-- `PATCH /api/v1/views/{id}/components/{id}/position` - Update position
-
 ### Swagger Documentation
 - Open: http://localhost:8080/swagger/
-- Interactive API documentation
 
 ## Architecture
 
@@ -196,88 +147,3 @@ The backend exposes these REST APIs:
 │  └────────────────────────────────────────────────┘  │
 └───────────────────────────────────────────────────────┘
 ```
-
-## Tech Stack
-
-### Backend
-- **Language**: Go 1.21+
-- **Router**: Chi v5
-- **Database**: PostgreSQL 13+
-- **Patterns**: DDD, CQRS, Event Sourcing
-- **API Style**: REST Level 3 (HATEOAS)
-- **Documentation**: Swagger/OpenAPI
-
-### Frontend
-- **Framework**: React 19
-- **Language**: TypeScript 5.9
-- **Build Tool**: Vite 7
-- **Canvas**: React Flow 12
-- **State**: Zustand 5
-- **HTTP**: Axios
-- **Notifications**: react-hot-toast
-- **Testing**: Vitest
-
-## Troubleshooting
-
-### Backend won't start
-- Check PostgreSQL is running: `docker-compose ps`
-- Check port 8080 is free: `lsof -i :8080`
-- Check database connection in backend logs
-
-### Frontend won't start
-- Check Node.js version: `node --version` (need 18+)
-- Install dependencies: `npm install`
-- Check port 5173 is free
-
-### Components not appearing
-- Check browser console for errors (F12)
-- Verify backend is running at http://localhost:8080
-- Check network tab for API responses
-
-### Can't create relations
-- Ensure you have at least 2 components
-- Make sure to drag from one component to another
-- Check the dialog appears after connecting
-
-### Positions not saving
-- Check browser console for PATCH request errors
-- Verify backend views API is working: http://localhost:8080/api/v1/views
-- Check PostgreSQL is running
-
-## Next Steps
-
-1. **Explore the code**:
-   - Backend: `/home/devuser/repos/easi/backend/internal/`
-   - Frontend: `/home/devuser/repos/easi/frontend/src/`
-
-2. **Read the documentation**:
-   - Frontend README: `/home/devuser/repos/easi/frontend/README.md`
-   - Implementation summary: `/home/devuser/repos/easi/SPEC_005_IMPLEMENTATION.md`
-
-3. **Run tests**:
-   - Backend: `cd backend && go test ./...`
-   - Frontend: `cd frontend && npm test`
-
-4. **Build for production**:
-   - Backend: `cd backend && go build -o bin/api cmd/api/main.go`
-   - Frontend: `cd frontend && npm run build`
-
-## Learn More
-
-- **ArchiMate**: https://pubs.opengroup.org/architecture/archimate3-doc/
-- **React Flow**: https://reactflow.dev/
-- **DDD**: Domain-Driven Design by Eric Evans
-- **CQRS**: https://martinfowler.com/bliki/CQRS.html
-- **Event Sourcing**: https://martinfowler.com/eaaDev/EventSourcing.html
-
-## Support
-
-For issues or questions:
-1. Check the documentation in `/home/devuser/repos/easi/`
-2. Review the implementation summary: `SPEC_005_IMPLEMENTATION.md`
-3. Inspect browser console and backend logs
-4. Check the spec: `specs/005_GraphicalComponentModeler_ongoing.md`
-
----
-
-**Enjoy modeling your architecture! 🎨🏗️**
