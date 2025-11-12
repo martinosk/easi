@@ -1,4 +1,4 @@
-{
+clau{
   "permissions": {
     "allow": [
       "Bash(find:*)",

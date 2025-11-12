@@ -1,368 +1,117 @@
 # Multi-Tenancy Infrastructure
 
 ## Description
-Implements multi-tenancy support across the entire application, enabling complete data isolation between different tenants (organizations/customers). Each tenant operates in a logically isolated environment while sharing the same physical infrastructure. This is a foundational architectural change that enables synthetic transaction testing, SaaS deployment models, and enterprise customer isolation.
+Implement multi-tenancy across the application enabling complete data isolation between tenants. Tenant context is injected at the API boundary and flows through all layers as an infrastructure concern. Domain models remain tenant-unaware.
 
-Multi-tenancy is implemented as an **infrastructure concern**, not a domain concern. The domain layer remains pure and tenant-unaware. Tenant context is injected at the API boundary and automatically flows through all layers.
+## Core Requirements
 
-## Core Principles
-- **Tenant ID is a value object** - Immutable, validated, type-safe
-- **Domain purity** - Domain models don't contain tenant-aware business logic
-- **Automatic scoping** - All queries/commands automatically scoped to current tenant
-- **Infrastructure concern** - Tenant context managed in infrastructure layer
-- **Event sourcing compatible** - Tenant ID included in all events for filtering
-- **Zero cross-tenant leakage** - Impossible to accidentally access another tenant's data
-
-## Tenant Context Flow
-
-```
-HTTP Request (tenant-id header)
-  → API Middleware (extract & validate tenant)
-    → Command/Query Handler (tenant context injected)
-      → Aggregate Root (tenant ID as value object)
-        → Event Store (tenant ID in events)
-          → Read Model Projection (tenant-filtered)
-```
-
-## Domain Model Changes
-
-### TenantId Value Object
-
-**Properties:**
-- `Value` (string, required): The unique tenant identifier (e.g., "acme-corp", "synthetic-monitoring")
-
-**Validation Rules:**
-- Must not be empty or whitespace
-- Must match pattern: `^[a-z0-9-]{3,50}$` (lowercase alphanumeric with hyphens)
-- Reserved tenant IDs: "system", "admin", "root"
-
-**Special Tenants:**
-- `synthetic-monitoring` - Used for production health checks
-- `synthetic-load-test` - Used for load testing in production
-- `default` - Default tenant for single-tenant deployments
+### Tenant ID Value Object
+- String property matching pattern: `^[a-z0-9-]{3,50}$`
+- Reserved IDs: "system", "admin", "root"
+- Special tenants: "synthetic-monitoring", "synthetic-load-test", "default"
 
 ### Aggregate Changes
+All aggregates (ApplicationComponent, ComponentRelation, View) must include TenantId property. All events must include tenantId field for event store filtering.
 
-All existing aggregates must include TenantId:
+### API Tenant Context
 
-**ApplicationComponent Aggregate:**
-```
-- TenantId (TenantId, required)
-- ComponentId (ComponentId, required)
-- Name (ComponentName, required)
-- Description (ComponentDescription, optional)
-- CreatedAt (CreatedAt, required)
-```
+**Local Development Mode:**
+- Accept X-Tenant-ID header (no auth required)
+- Default to "default" tenant if header missing
+- Enable via LOCAL_DEV_MODE=true environment variable
 
-**ComponentRelation Aggregate:**
-```
-- TenantId (TenantId, required)
-- RelationId (ComponentRelationId, required)
-- SourceComponentId (ComponentId, required)
-- TargetComponentId (ComponentId, required)
-- RelationType (RelationType, required)
-- Name (RelationName, optional)
-- Description (RelationDescription, optional)
-- CreatedAt (CreatedAt, required)
-```
+**Production Mode:**
+- Tenant ID extracted from OAuth token claims (see Spec 015)
+- X-Tenant-ID header ignored in production
+- Middleware validates user has access to requested tenant
 
-**View Aggregate (if exists):**
-```
-- TenantId (TenantId, required)
-- ViewId (ViewId, required)
-- Name (ViewName, required)
-- [... other properties]
-```
+All existing endpoints are automatically tenant-scoped. Return 404 if resource belongs to different tenant.
 
-### Event Changes
+### Infrastructure Changes
 
-All events must include TenantId for proper event store filtering:
+**Event Store:**
+- Add tenant_id column (VARCHAR(50)) to events table
+- Add tenant_id column to snapshots table
+- Create composite indexes: (tenant_id, aggregate_id), (tenant_id, event_type)
+- Enable RLS on events and snapshots tables
 
-**ApplicationComponentCreated:**
-```json
-{
-  "tenantId": "string",
-  "componentId": "guid",
-  "name": "string",
-  "description": "string",
-  "createdAt": "datetime"
-}
-```
+**Read Models:**
+- Add tenant_id column (VARCHAR(50)) to all tables (default: 'default')
+- Create indexes on tenant_id columns
+- Add composite unique constraints including tenant_id
+- Enable RLS on all read model tables
 
-**ComponentRelationCreated:**
-```json
-{
-  "tenantId": "string",
-  "relationId": "guid",
-  "sourceComponentId": "guid",
-  "targetComponentId": "guid",
-  "relationType": "Triggers | Serves",
-  "name": "string",
-  "description": "string",
-  "createdAt": "datetime"
-}
-```
+**Migration:**
+- Backfill existing data to "default" tenant
+- Existing single-tenant deployments continue using "default" tenant
 
-## API Changes
+### PostgreSQL Row-Level Security (RLS)
 
-### Tenant Context Injection
+**Database-Level Tenant Isolation:**
+RLS provides defense-in-depth by enforcing tenant isolation at the database layer, independent of application code.
 
-All API requests must include tenant context via header:
+**Session Variable Approach:**
+- Set tenant context using PostgreSQL session variable: `SET app.current_tenant = 'tenant-id'`
+- Application sets this immediately after acquiring database connection
+- RLS policies use `current_setting('app.current_tenant')` to filter rows
 
-```
-X-Tenant-ID: acme-corp
-```
-
-**Authentication/Authorization (Future):**
-- In production, tenant ID derived from authenticated user's organization
-- For now, accept tenant ID from header (trusted environment)
-- Middleware validates tenant ID format and existence
-
-### Tenant Scoping Middleware
-
-```go
-func TenantScopingMiddleware(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        tenantIDStr := r.Header.Get("X-Tenant-ID")
-
-        // Default to "default" tenant if not specified
-        if tenantIDStr == "" {
-            tenantIDStr = "default"
-        }
-
-        tenantID, err := NewTenantID(tenantIDStr)
-        if err != nil {
-            http.Error(w, "Invalid tenant ID", http.StatusBadRequest)
-            return
-        }
-
-        // Inject tenant context into request context
-        ctx := context.WithValue(r.Context(), TenantContextKey, tenantID)
-        next.ServeHTTP(w, r.WithContext(ctx))
-    })
-}
-```
-
-### Updated API Endpoints
-
-All existing endpoints automatically tenant-scoped:
-
-**POST /api/application-component**
-- Request header: `X-Tenant-ID: acme-corp`
-- Creates component for specified tenant
-- Returns tenant ID in response
-
-**GET /api/application-component**
-- Returns only components for current tenant
-- Tenant ID from header
-
-**GET /api/application-component/{id}**
-- Returns 404 if component belongs to different tenant
-- Automatic tenant boundary enforcement
-
-### New Tenant Management Endpoints
-
-**GET /api/tenants**
-Gets all tenants (admin only - future).
-
-**Response:** 200 OK
-```json
-[
-  {
-    "id": "acme-corp",
-    "displayName": "Acme Corporation",
-    "createdAt": "datetime",
-    "_links": {
-      "self": {
-        "href": "/api/tenants/acme-corp"
-      },
-      "components": {
-        "href": "/api/application-component",
-        "title": "Tenant components"
-      }
-    }
-  }
-]
-```
-
-**POST /api/tenants**
-Creates a new tenant (admin only - future).
-
-**Request Body:**
-```json
-{
-  "id": "new-tenant",
-  "displayName": "New Tenant Organization"
-}
-```
-
-**Response:** 201 Created
-
-**DELETE /api/tenants/{tenantId}/data**
-Deletes all data for a tenant (synthetic tenant cleanup).
-
-**Validation:**
-- Only allowed for tenants with prefix `synthetic-`
-- Returns 403 Forbidden for regular tenants
-
-**Response:** 204 No Content
-
-## Infrastructure Changes
-
-### Event Store
-
-**Tenant Filtering in Event Queries:**
-```go
-func (s *EventStore) GetEventsForAggregate(
-    tenantID TenantID,
-    aggregateID string,
-) ([]Event, error) {
-    // Query events WHERE tenant_id = ? AND aggregate_id = ?
-}
-
-func (s *EventStore) GetEventsByType(
-    tenantID TenantID,
-    eventType string,
-) ([]Event, error) {
-    // Query events WHERE tenant_id = ? AND event_type = ?
-}
-```
-
-**Event Store Schema:**
+**RLS Policy Pattern:**
 ```sql
-CREATE TABLE events (
-    id BIGSERIAL PRIMARY KEY,
-    tenant_id VARCHAR(50) NOT NULL,
-    aggregate_id UUID NOT NULL,
-    aggregate_type VARCHAR(100) NOT NULL,
-    event_type VARCHAR(100) NOT NULL,
-    event_data JSONB NOT NULL,
-    version INTEGER NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+-- Enable RLS on table
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 
-    -- Composite index for tenant-scoped queries
-    INDEX idx_events_tenant_aggregate (tenant_id, aggregate_id),
-    INDEX idx_events_tenant_type (tenant_id, event_type)
-);
+-- Create policy for application user
+CREATE POLICY tenant_isolation_policy ON events
+  USING (tenant_id = current_setting('app.current_tenant', true));
+
+-- For operations requiring both read and write
+CREATE POLICY tenant_isolation_policy ON events
+  FOR ALL
+  USING (tenant_id = current_setting('app.current_tenant', true))
+  WITH CHECK (tenant_id = current_setting('app.current_tenant', true));
 ```
 
-### Read Models
+**Connection Management:**
+- Execute `SET app.current_tenant = $1` immediately after connection acquisition from pool
+- Use connection wrapper or middleware to ensure tenant context is set before any queries
+- Session variable persists for connection lifetime in pool
+- Re-establish on connection reset or error
 
-**Automatic Tenant Filtering:**
-```go
-func (r *ComponentRepository) GetAll(ctx context.Context) ([]Component, error) {
-    tenantID := GetTenantFromContext(ctx)
-    // SELECT * FROM components WHERE tenant_id = ?
-}
+**RLS for All Tenant Tables:**
+Apply RLS policies to: events, snapshots, application_components, component_relations, views, and all future tenant-scoped tables.
 
-func (r *ComponentRepository) GetByID(
-    ctx context.Context,
-    id ComponentID,
-) (*Component, error) {
-    tenantID := GetTenantFromContext(ctx)
-    // SELECT * FROM components WHERE tenant_id = ? AND id = ?
-    // Returns nil if component belongs to different tenant
-}
-```
+**Bypass for System Operations:**
+- Create dedicated database user for migrations and admin operations
+- Grant BYPASSRLS privilege only to admin user
+- Application user must NOT have BYPASSRLS privilege
 
-**Read Model Schema Updates:**
-```sql
--- Add tenant_id to all read model tables
-
-ALTER TABLE components
-ADD COLUMN tenant_id VARCHAR(50) NOT NULL DEFAULT 'default';
-
-ALTER TABLE component_relations
-ADD COLUMN tenant_id VARCHAR(50) NOT NULL DEFAULT 'default';
-
-ALTER TABLE views
-ADD COLUMN tenant_id VARCHAR(50) NOT NULL DEFAULT 'default';
-
--- Create indexes for tenant-scoped queries
-CREATE INDEX idx_components_tenant ON components(tenant_id);
-CREATE INDEX idx_relations_tenant ON component_relations(tenant_id);
-CREATE INDEX idx_views_tenant ON views(tenant_id);
-
--- Add composite unique constraints including tenant
-ALTER TABLE components
-ADD CONSTRAINT uq_components_tenant_name UNIQUE (tenant_id, name);
-```
-
-## Migration Strategy
-
-### Phase 1: Add TenantId Infrastructure
-- [ ] Create TenantId value object
-- [ ] Add tenant_id column to all tables (default: "default")
-- [ ] Implement tenant context middleware
-- [ ] Update event store to include tenant_id
-
-### Phase 2: Update Domain Models
-- [ ] Add TenantId property to all aggregates
-- [ ] Update all events to include tenant_id
-- [ ] Update command handlers to use tenant context
-
-### Phase 3: Update Repositories
-- [ ] Add tenant filtering to all read model queries
-- [ ] Update projections to include tenant_id
-- [ ] Test cross-tenant isolation
-
-### Phase 4: Update APIs
-- [ ] Add X-Tenant-ID header handling
-- [ ] Update all API responses to include tenant context
-- [ ] Add tenant management endpoints
-
-### Phase 5: Testing
-- [ ] Unit tests for TenantId value object
-- [ ] Integration tests with multiple tenants
-- [ ] E2E tests verifying tenant isolation
-- [ ] Security tests for cross-tenant access attempts
-
-## Backward Compatibility
-
-**Single-Tenant Mode:**
-- If `X-Tenant-ID` header not provided, use `"default"` tenant
-- Existing installations migrate to single "default" tenant
-- No breaking changes for current users
-
-**Migration Script:**
-```sql
--- Backfill existing data to "default" tenant
-UPDATE events SET tenant_id = 'default' WHERE tenant_id IS NULL;
-UPDATE components SET tenant_id = 'default' WHERE tenant_id IS NULL;
-UPDATE component_relations SET tenant_id = 'default' WHERE tenant_id IS NULL;
-```
-
-## Security Considerations
-
-- **Tenant ID validation** - Prevent injection attacks via tenant ID
-- **Access control** - Future: verify user has access to tenant
-- **No cross-tenant queries** - Impossible by design (tenant in WHERE clause)
-- **Audit logging** - Log tenant context with all operations
-- **Tenant isolation testing** - Automated tests verify no data leakage
-
-## Performance Considerations
-
-- **Indexes** - All tenant-scoped queries use composite indexes
-- **Query plans** - Verify query planner uses tenant_id indexes
-- **Connection pooling** - Shared pool across tenants (not per-tenant)
-- **Caching** - Cache keys must include tenant ID
+### Security
+- Defense in depth: ID validation, LOCAL_DEV_MODE flag, OAuth enforcement, RLS database isolation
+- RLS policies prevent cross-tenant access even if application logic fails
+- All queries automatically filtered by RLS (no explicit WHERE tenant_id needed, but recommended as second layer)
+- Log all tenant context operations
+- Test cross-tenant access prevention at both application and database levels
+- Verify RLS policies cannot be circumvented by malicious queries
+- Monitor for queries that fail due to missing tenant context
 
 ## Checklist
-- [ ] Specification ready
 - [ ] TenantId value object created
-- [ ] Database schema migration created
-- [ ] Event store updated for tenant filtering
-- [ ] All aggregates updated with TenantId
-- [ ] All events updated with tenant_id
+- [ ] Database schema migration with tenant_id columns
+- [ ] RLS enabled on all tenant-scoped tables
+- [ ] RLS policies created for all tenant tables
+- [ ] Database connection wrapper sets tenant context
+- [ ] Dedicated admin database user with BYPASSRLS privilege
+- [ ] Event store filtering by tenant
+- [ ] All aggregates updated with TenantId property
+- [ ] All events include tenantId field
 - [ ] Command handlers inject tenant context
-- [ ] Read model repositories filter by tenant
+- [ ] Read repositories filter by tenant
 - [ ] API middleware implements tenant scoping
-- [ ] Tenant management endpoints created
-- [ ] Migration script for existing data tested
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests with multiple tenants passing
-- [ ] E2E tests verify tenant isolation
-- [ ] Performance testing with tenant indexes
-- [ ] Security audit for cross-tenant access
-- [ ] Documentation updated
+- [ ] Migration script tested
+- [ ] Unit tests for TenantId value object
+- [ ] Integration tests with multiple tenants
+- [ ] Backend integration tests verify tenant isolation
+- [ ] Security tests prevent cross-tenant access at application layer
+- [ ] Security tests verify RLS policies enforce isolation at database layer
+- [ ] Test that missing tenant context fails safely
 - [ ] User sign-off
