@@ -52,10 +52,7 @@ func main() {
 	// Initialize event store
 	eventStore := eventstore.NewPostgresEventStore(db)
 
-	// Initialize event store schema
-	if err := eventStore.InitializeSchema(); err != nil {
-		log.Fatalf("Failed to initialize event store schema: %v", err)
-	}
+	log.Println("Database schema should be managed via migration scripts in /migrations")
 
 	// Create HTTP server
 	router := api.NewRouter(eventStore, db)

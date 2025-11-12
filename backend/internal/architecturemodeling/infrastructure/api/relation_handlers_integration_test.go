@@ -42,20 +42,6 @@ func setupRelationTestDB(t *testing.T) (*relationTestContext, func()) {
 	err = db.Ping()
 	require.NoError(t, err)
 
-	// Initialize event store schema (idempotent)
-	eventStore := eventstore.NewPostgresEventStore(db)
-	err = eventStore.InitializeSchema()
-	require.NoError(t, err)
-
-	// Initialize read model schemas (idempotent)
-	relationReadModel := readmodels.NewComponentRelationReadModel(db)
-	err = relationReadModel.InitializeSchema()
-	require.NoError(t, err)
-
-	componentReadModel := readmodels.NewApplicationComponentReadModel(db)
-	err = componentReadModel.InitializeSchema()
-	require.NoError(t, err)
-
 	// Create unique test ID based on test name and timestamp to avoid collisions
 	testID := fmt.Sprintf("%s-%d", t.Name(), time.Now().UnixNano())
 

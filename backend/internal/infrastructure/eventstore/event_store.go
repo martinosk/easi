@@ -9,6 +9,7 @@ import (
 
 	"easi/backend/internal/shared/domain"
 	"easi/backend/internal/shared/events"
+	sharedctx "easi/backend/internal/shared/context"
 )
 
 // EventStore defines the interface for event storage
@@ -18,9 +19,6 @@ type EventStore interface {
 
 	// GetEvents retrieves all events for an aggregate
 	GetEvents(ctx context.Context, aggregateID string) ([]domain.DomainEvent, error)
-
-	// InitializeSchema creates the necessary database tables
-	InitializeSchema() error
 }
 
 // PostgresEventStore implements EventStore using PostgreSQL
@@ -53,45 +51,16 @@ type StoredEvent struct {
 	CreatedAt     time.Time
 }
 
-// InitializeSchema creates the event store tables
-func (s *PostgresEventStore) InitializeSchema() error {
-	schema := `
-		CREATE TABLE IF NOT EXISTS events (
-			id BIGSERIAL PRIMARY KEY,
-			aggregate_id VARCHAR(255) NOT NULL,
-			event_type VARCHAR(255) NOT NULL,
-			event_data JSONB NOT NULL,
-			version INT NOT NULL,
-			occurred_at TIMESTAMP NOT NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(aggregate_id, version)
-		);
-
-		CREATE INDEX IF NOT EXISTS idx_events_aggregate_id ON events(aggregate_id);
-		CREATE INDEX IF NOT EXISTS idx_events_event_type ON events(event_type);
-		CREATE INDEX IF NOT EXISTS idx_events_occurred_at ON events(occurred_at);
-
-		CREATE TABLE IF NOT EXISTS snapshots (
-			id BIGSERIAL PRIMARY KEY,
-			aggregate_id VARCHAR(255) NOT NULL,
-			aggregate_type VARCHAR(255) NOT NULL,
-			version INT NOT NULL,
-			state JSONB NOT NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(aggregate_id, version)
-		);
-
-		CREATE INDEX IF NOT EXISTS idx_snapshots_aggregate_id ON snapshots(aggregate_id);
-	`
-
-	_, err := s.db.Exec(schema)
-	return err
-}
-
 // SaveEvents saves events to the event store
 func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string, events []domain.DomainEvent, expectedVersion int) error {
 	if len(events) == 0 {
 		return nil
+	}
+
+	// Extract tenant from context - this is infrastructure concern
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get tenant from context: %w", err)
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -100,10 +69,11 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 	}
 	defer tx.Rollback()
 
-	// Check current version
+	// Check current version - filtered by tenant
 	var currentVersion int
 	err = tx.QueryRowContext(ctx,
-		"SELECT COALESCE(MAX(version), 0) FROM events WHERE aggregate_id = $1",
+		"SELECT COALESCE(MAX(version), 0) FROM events WHERE tenant_id = $1 AND aggregate_id = $2",
+		tenantID.Value(),
 		aggregateID,
 	).Scan(&currentVersion)
 	if err != nil && err != sql.ErrNoRows {
@@ -114,9 +84,9 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 		return fmt.Errorf("concurrency conflict: expected version %d, got %d", expectedVersion, currentVersion)
 	}
 
-	// Insert events
+	// Insert events with tenant_id
 	stmt, err := tx.PrepareContext(ctx,
-		"INSERT INTO events (aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5)",
+		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5, $6)",
 	)
 	if err != nil {
 		return fmt.Errorf("failed to prepare statement: %w", err)
@@ -131,6 +101,7 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 
 		version := expectedVersion + i + 1
 		_, err = stmt.ExecContext(ctx,
+			tenantID.Value(), // Infrastructure adds tenant_id
 			event.AggregateID(),
 			event.EventType(),
 			eventData,
@@ -160,8 +131,15 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 
 // GetEvents retrieves all events for an aggregate
 func (s *PostgresEventStore) GetEvents(ctx context.Context, aggregateID string) ([]domain.DomainEvent, error) {
+	// Extract tenant from context - this is infrastructure concern
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tenant from context: %w", err)
+	}
+
 	rows, err := s.db.QueryContext(ctx,
-		"SELECT id, aggregate_id, event_type, event_data, version, occurred_at, created_at FROM events WHERE aggregate_id = $1 ORDER BY version ASC",
+		"SELECT id, aggregate_id, event_type, event_data, version, occurred_at, created_at FROM events WHERE tenant_id = $1 AND aggregate_id = $2 ORDER BY version ASC",
+		tenantID.Value(),
 		aggregateID,
 	)
 	if err != nil {

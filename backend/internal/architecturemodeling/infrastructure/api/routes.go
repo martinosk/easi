@@ -29,14 +29,7 @@ func SetupArchitectureModelingRoutes(
 
 	// Initialize read models
 	componentReadModel := readmodels.NewApplicationComponentReadModel(db)
-	if err := componentReadModel.InitializeSchema(); err != nil {
-		return err
-	}
-
 	relationReadModel := readmodels.NewComponentRelationReadModel(db)
-	if err := relationReadModel.InitializeSchema(); err != nil {
-		return err
-	}
 
 	// Initialize projectors
 	componentProjector := projectors.NewApplicationComponentProjector(componentReadModel)

@@ -10,8 +10,14 @@ Implement multi-tenancy across the application enabling complete data isolation 
 - Reserved IDs: "system", "admin", "root"
 - Special tenants: "synthetic-monitoring", "synthetic-load-test", "default"
 
-### Aggregate Changes
-All aggregates (ApplicationComponent, ComponentRelation, View) must include TenantId property. All events must include tenantId field for event store filtering.
+### Domain Layer - Tenant Unaware
+**Domain models (aggregates, entities, events, value objects) must remain completely tenant-unaware:**
+- Aggregates: No TenantID property
+- Events: No tenantId field
+- Domain logic focuses solely on business rules and invariants
+- Tenant isolation is handled exclusively in infrastructure layer
+
+This ensures domain models remain pure and focused on business concerns, following DDD principles.
 
 ### API Tenant Context
 
@@ -26,6 +32,33 @@ All aggregates (ApplicationComponent, ComponentRelation, View) must include Tena
 - Middleware validates user has access to requested tenant
 
 All existing endpoints are automatically tenant-scoped. Return 404 if resource belongs to different tenant.
+
+### Infrastructure Layer - Tenant Context Flow
+
+**Context Propagation:**
+- API middleware extracts tenant ID from header (dev mode) or OAuth token (production)
+- Tenant context stored in Go context.Context and flows through application layer
+- Infrastructure services (event store, repositories) extract tenant from context
+- Database connection wrapper sets PostgreSQL session variable from context
+
+**Event Store Implementation:**
+- SaveEvents: Extract tenant from context, add tenant_id when inserting to database
+- GetEvents: Extract tenant from context, filter by tenant_id in WHERE clause
+- Domain events remain unchanged - tenant is metadata managed by infrastructure
+
+**Repository Implementation:**
+- All queries include tenant_id filter extracted from context
+- Projectors extract tenant from event metadata when updating read models
+- Read model queries filtered by tenant from context
+
+**Context Keys:**
+```go
+type contextKey string
+const TenantContextKey contextKey = "tenant_id"
+
+// Middleware sets: ctx = context.WithValue(ctx, TenantContextKey, tenantID)
+// Infrastructure reads: tenantID := ctx.Value(TenantContextKey).(string)
+```
 
 ### Infrastructure Changes
 
@@ -95,20 +128,21 @@ Apply RLS policies to: events, snapshots, application_components, component_rela
 - Monitor for queries that fail due to missing tenant context
 
 ## Checklist
-- [ ] TenantId value object created
-- [ ] Database schema migration with tenant_id columns
-- [ ] RLS enabled on all tenant-scoped tables
-- [ ] RLS policies created for all tenant tables
-- [ ] Database connection wrapper sets tenant context
-- [ ] Dedicated admin database user with BYPASSRLS privilege
-- [ ] Event store filtering by tenant
-- [ ] All aggregates updated with TenantId property
-- [ ] All events include tenantId field
-- [ ] Command handlers inject tenant context
-- [ ] Read repositories filter by tenant
-- [ ] API middleware implements tenant scoping
+- [x] TenantId value object created (infrastructure layer)
+- [x] Context key constants defined for tenant propagation
+- [x] Database schema migration with tenant_id columns
+- [x] RLS enabled on all tenant-scoped tables
+- [x] RLS policies created for all tenant tables
+- [x] Database connection wrapper sets tenant context from Go context (TenantAwareDB)
+- [x] Dedicated admin database user with BYPASSRLS privilege
+- [x] Event store extracts tenant from context and filters by tenant_id
+- [x] Domain models verified to be tenant-unaware (no TenantID properties)
+- [x] Domain events verified to be tenant-unaware (no tenantId fields)
+- [x] Command handlers pass context through to infrastructure
+- [x] Read repositories filter by tenant from context (ApplicationComponent, ComponentRelation, ArchitectureView)
+- [x] API middleware extracts and injects tenant context (LOCAL_DEV_MODE support)
 - [ ] Migration script tested
-- [ ] Unit tests for TenantId value object
+- [x] Unit tests for TenantId value object
 - [ ] Integration tests with multiple tenants
 - [ ] Backend integration tests verify tenant isolation
 - [ ] Security tests prevent cross-tenant access at application layer

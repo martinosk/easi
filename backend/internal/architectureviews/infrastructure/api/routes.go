@@ -28,9 +28,6 @@ func SetupArchitectureViewsRoutes(
 
 	// Initialize read model
 	viewReadModel := readmodels.NewArchitectureViewReadModel(db)
-	if err := viewReadModel.InitializeSchema(); err != nil {
-		return err
-	}
 
 	// Initialize projector
 	viewProjector := projectors.NewArchitectureViewProjector(viewReadModel)

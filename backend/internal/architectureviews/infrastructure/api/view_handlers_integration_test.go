@@ -43,16 +43,6 @@ func setupViewTestDB(t *testing.T) (*viewTestContext, func()) {
 	err = db.Ping()
 	require.NoError(t, err)
 
-	// Initialize event store schema (idempotent)
-	eventStore := eventstore.NewPostgresEventStore(db)
-	err = eventStore.InitializeSchema()
-	require.NoError(t, err)
-
-	// Initialize read model schema (idempotent)
-	viewReadModel := readmodels.NewArchitectureViewReadModel(db)
-	err = viewReadModel.InitializeSchema()
-	require.NoError(t, err)
-
 	// Create unique test ID based on test name and timestamp to avoid collisions
 	testID := fmt.Sprintf("%s-%d", t.Name(), time.Now().UnixNano())
 

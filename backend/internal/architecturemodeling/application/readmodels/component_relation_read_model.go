@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	sharedctx "easi/backend/internal/shared/context"
 )
 
 // ComponentRelationDTO represents the read model for component relations
@@ -28,54 +30,49 @@ func NewComponentRelationReadModel(db *sql.DB) *ComponentRelationReadModel {
 	return &ComponentRelationReadModel{db: db}
 }
 
-// InitializeSchema creates the read model table
-func (rm *ComponentRelationReadModel) InitializeSchema() error {
-	schema := `
-		CREATE TABLE IF NOT EXISTS component_relations (
-			id VARCHAR(255) PRIMARY KEY,
-			source_component_id VARCHAR(255) NOT NULL,
-			target_component_id VARCHAR(255) NOT NULL,
-			relation_type VARCHAR(50) NOT NULL,
-			name VARCHAR(500),
-			description TEXT,
-			created_at TIMESTAMP NOT NULL,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		);
-
-		CREATE INDEX IF NOT EXISTS idx_component_relations_source ON component_relations(source_component_id);
-		CREATE INDEX IF NOT EXISTS idx_component_relations_target ON component_relations(target_component_id);
-		CREATE INDEX IF NOT EXISTS idx_component_relations_type ON component_relations(relation_type);
-		CREATE INDEX IF NOT EXISTS idx_component_relations_created_at ON component_relations(created_at);
-	`
-
-	_, err := rm.db.Exec(schema)
-	return err
-}
-
 // Insert adds a new relation to the read model
 func (rm *ComponentRelationReadModel) Insert(ctx context.Context, dto ComponentRelationDTO) error {
-	_, err := rm.db.ExecContext(ctx,
-		"INSERT INTO component_relations (id, source_component_id, target_component_id, relation_type, name, description, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-		dto.ID, dto.SourceComponentID, dto.TargetComponentID, dto.RelationType, dto.Name, dto.Description, dto.CreatedAt,
+	// Extract tenant from context - infrastructure concern
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"INSERT INTO component_relations (id, tenant_id, source_component_id, target_component_id, relation_type, name, description, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		dto.ID, tenantID.Value(), dto.SourceComponentID, dto.TargetComponentID, dto.RelationType, dto.Name, dto.Description, dto.CreatedAt,
 	)
 	return err
 }
 
 // Update updates an existing relation in the read model
+// RLS policies ensure we can only update our tenant's rows
 func (rm *ComponentRelationReadModel) Update(ctx context.Context, id, name, description string) error {
-	_, err := rm.db.ExecContext(ctx,
-		"UPDATE component_relations SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3",
-		name, description, id,
+	// Extract tenant for defense-in-depth filtering
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"UPDATE component_relations SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
+		name, description, tenantID.Value(), id,
 	)
 	return err
 }
 
 // GetByID retrieves a relation by ID
+// RLS policies automatically filter by tenant, but we add explicit filter for defense-in-depth
 func (rm *ComponentRelationReadModel) GetByID(ctx context.Context, id string) (*ComponentRelationDTO, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var dto ComponentRelationDTO
-	err := rm.db.QueryRowContext(ctx,
-		"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE id = $1",
-		id,
+	err = rm.db.QueryRowContext(ctx,
+		"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND id = $2",
+		tenantID.Value(), id,
 	).Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &dto.Name, &dto.Description, &dto.CreatedAt)
 
 	if err == sql.ErrNoRows {
@@ -88,10 +85,17 @@ func (rm *ComponentRelationReadModel) GetByID(ctx context.Context, id string) (*
 	return &dto, nil
 }
 
-// GetAll retrieves all relations
+// GetAll retrieves all relations for the current tenant
+// RLS policies automatically filter, but we add explicit filter for defense-in-depth
 func (rm *ComponentRelationReadModel) GetAll(ctx context.Context) ([]ComponentRelationDTO, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	rows, err := rm.db.QueryContext(ctx,
-		"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations ORDER BY created_at DESC",
+		"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 ORDER BY created_at DESC",
+		tenantID.Value(),
 	)
 	if err != nil {
 		return nil, err
@@ -110,22 +114,29 @@ func (rm *ComponentRelationReadModel) GetAll(ctx context.Context) ([]ComponentRe
 	return relations, rows.Err()
 }
 
-// GetAllPaginated retrieves relations with cursor-based pagination
+// GetAllPaginated retrieves relations with cursor-based pagination for the current tenant
 func (rm *ComponentRelationReadModel) GetAllPaginated(ctx context.Context, limit int, afterCursor string, afterTimestamp int64) ([]ComponentRelationDTO, bool, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+
+	// Query one extra to determine if there are more results
 	queryLimit := limit + 1
 
 	var rows *sql.Rows
-	var err error
 
 	if afterCursor == "" {
+		// No cursor, get first page
 		rows, err = rm.db.QueryContext(ctx,
-			"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations ORDER BY created_at DESC, id DESC LIMIT $1",
-			queryLimit,
+			"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 ORDER BY created_at DESC, id DESC LIMIT $2",
+			tenantID.Value(), queryLimit,
 		)
 	} else {
+		// Use cursor for pagination
 		rows, err = rm.db.QueryContext(ctx,
-			"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE created_at < to_timestamp($1) OR (created_at = to_timestamp($1) AND id < $2) ORDER BY created_at DESC, id DESC LIMIT $3",
-			afterTimestamp, afterCursor, queryLimit,
+			"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND (created_at < to_timestamp($2) OR (created_at = to_timestamp($2) AND id < $3)) ORDER BY created_at DESC, id DESC LIMIT $4",
+			tenantID.Value(), afterTimestamp, afterCursor, queryLimit,
 		)
 	}
 
@@ -147,19 +158,26 @@ func (rm *ComponentRelationReadModel) GetAllPaginated(ctx context.Context, limit
 		return nil, false, err
 	}
 
+	// Check if there are more results
 	hasMore := len(relations) > limit
 	if hasMore {
+		// Remove the extra item
 		relations = relations[:limit]
 	}
 
 	return relations, hasMore, nil
 }
 
-// GetBySourceID retrieves all relations where component is the source
+// GetBySourceID retrieves all relations where component is the source for the current tenant
 func (rm *ComponentRelationReadModel) GetBySourceID(ctx context.Context, componentID string) ([]ComponentRelationDTO, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	rows, err := rm.db.QueryContext(ctx,
-		"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE source_component_id = $1 ORDER BY created_at DESC",
-		componentID,
+		"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND source_component_id = $2 ORDER BY created_at DESC",
+		tenantID.Value(), componentID,
 	)
 	if err != nil {
 		return nil, err
@@ -178,11 +196,16 @@ func (rm *ComponentRelationReadModel) GetBySourceID(ctx context.Context, compone
 	return relations, rows.Err()
 }
 
-// GetByTargetID retrieves all relations where component is the target
+// GetByTargetID retrieves all relations where component is the target for the current tenant
 func (rm *ComponentRelationReadModel) GetByTargetID(ctx context.Context, componentID string) ([]ComponentRelationDTO, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	rows, err := rm.db.QueryContext(ctx,
-		"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE target_component_id = $1 ORDER BY created_at DESC",
-		componentID,
+		"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND target_component_id = $2 ORDER BY created_at DESC",
+		tenantID.Value(), componentID,
 	)
 	if err != nil {
 		return nil, err
