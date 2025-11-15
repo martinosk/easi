@@ -8,6 +8,7 @@ name: $(Build.BuildId)
 
 variables:
 - group: 'EA ECR-PUSH SHARED'
+- group: 'easi'
 - name: 'k8s-service-connection'
   value: 'enterprisearchitecture-pnpbj-k8s'
 - name: 'kubernetes-namespace'
