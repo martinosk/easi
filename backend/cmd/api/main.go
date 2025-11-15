@@ -52,8 +52,6 @@ func main() {
 	// Initialize event store
 	eventStore := eventstore.NewPostgresEventStore(db)
 
-	log.Println("Database schema should be managed via migration scripts in /migrations")
-
 	// Create HTTP server
 	router := api.NewRouter(eventStore, db)
 

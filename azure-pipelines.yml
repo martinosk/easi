@@ -15,6 +15,16 @@ variables:
 
 steps:
 - task: Docker@2
+  name: BuildMigrate
+  displayName: 'Build migrate docker image'
+  inputs:
+    command: 'build'
+    Dockerfile: 'backend/Dockerfile.migrate'
+    buildContext: 'backend'
+    arguments: '--tag easi-migrate:$(Build.BuildNumber)'
+    addPipelineData: false
+
+- task: Docker@2
   name: BuildBackend
   displayName: 'Build backend docker image'
   inputs:
@@ -33,6 +43,19 @@ steps:
     buildContext: 'frontend'
     arguments: '--tag easi-frontend:$(Build.BuildNumber)'
     addPipelineData: false
+
+- task: ECRPushImage@1
+  name: PushMigrate
+  displayName: 'Push migrate image to AWS'
+  condition: succeeded()
+  inputs:
+    awsCredentials: 'Shared-Prod ECR-Push'
+    regionName: 'eu-central-1'
+    imageSource: 'imagename'
+    sourceImageName: 'easi-migrate'
+    sourceImageTag: '$(Build.BuildNumber)'
+    repositoryName: 'architecture/easi-migrate'
+    pushTag: '$(Build.BuildNumber)'
 
 - task: ECRPushImage@1
   name: PushBackend
@@ -78,13 +101,37 @@ steps:
     enableTelemetry: false
     
 - task: Kubernetes@1
-  name: ApplyManifests
-  displayName: 'Apply manifests'
+  name: ApplyMigrateJob
+  displayName: 'Run database migrations'
   condition: succeeded()
   inputs:
     connectionType: Kubernetes Service Connection
     kubernetesServiceEndpoint: '$(k8s-service-connection)'
     namespace: '$(kubernetes-namespace)'
     command: apply
-    arguments: '-f $(Build.SourcesDirectory)/k8s/'
+    arguments: '-f $(Build.SourcesDirectory)/k8s/migrate-job.yaml'
+    versionSpec: 1.22.9
+
+- task: Kubernetes@1
+  name: WaitForMigration
+  displayName: 'Wait for migration to complete'
+  condition: succeeded()
+  inputs:
+    connectionType: Kubernetes Service Connection
+    kubernetesServiceEndpoint: '$(k8s-service-connection)'
+    namespace: '$(kubernetes-namespace)'
+    command: custom
+    arguments: 'wait --for=condition=complete --timeout=300s job/easi-migrate-$(Build.BuildNumber)'
+    versionSpec: 1.22.9
+
+- task: Kubernetes@1
+  name: ApplyManifests
+  displayName: 'Apply backend and frontend manifests'
+  condition: succeeded()
+  inputs:
+    connectionType: Kubernetes Service Connection
+    kubernetesServiceEndpoint: '$(k8s-service-connection)'
+    namespace: '$(kubernetes-namespace)'
+    command: apply
+    arguments: '-f $(Build.SourcesDirectory)/k8s/backend-deployment.yaml -f $(Build.SourcesDirectory)/k8s/backend-service.yaml -f $(Build.SourcesDirectory)/k8s/frontend-deployment.yaml -f $(Build.SourcesDirectory)/k8s/frontend-service.yaml -f $(Build.SourcesDirectory)/k8s/ingress.yaml'
     versionSpec: 1.22.9

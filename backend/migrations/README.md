@@ -11,14 +11,102 @@ This directory contains all database schema migrations for the EASI backend. All
   - **New Databases**: Can spin up a complete schema from empty database
   - **Existing Databases**: Can migrate existing databases by only applying changes
 
-## Migration Files
+## Running Migrations
 
-You can use:
-- [golang-migrate](https://github.com/golang-migrate/migrate)
+### Deploy-Time Migrations (Recommended)
 
-Example with golang-migrate:
+Migrations run as a **separate step before the backend application starts**. This provides better separation of concerns, privilege isolation, and avoids race conditions with multiple backend instances.
+
+#### Local Development (Docker Compose)
+
 ```bash
-migrate -path ./migrations -database "postgres://easi:easi@localhost:5432/easi?sslmode=disable" up
+# Starts postgres → runs migrations → starts backend
+docker-compose up
+
+# Or step by step:
+docker-compose up postgres          # Start database
+docker-compose up migrate           # Run migrations
+docker-compose up backend           # Start application
+```
+
+The docker-compose configuration:
+- **migrate service**: Runs migration binary with `easi_admin` credentials
+- **backend service**: Starts only after migrations complete successfully
+- Backend uses `easi_app` (restricted) credentials
+
+#### Manual Execution
+
+Build and run the migration binary directly:
+
+```bash
+# From backend directory
+cd backend
+
+# Build migrate binary
+go build -o migrate cmd/migrate/main.go
+
+# Run migrations with admin credentials
+DB_HOST=localhost \
+DB_PORT=5432 \
+DB_ADMIN_USER=easi_admin \
+DB_ADMIN_PASSWORD=change_me_in_production \
+DB_NAME=easi \
+MIGRATIONS_PATH=./migrations \
+./migrate
+```
+
+#### CI/CD Pipeline (Azure DevOps)
+
+Add a migration step before deploying the backend:
+
+```yaml
+- task: Bash@3
+  displayName: 'Run Database Migrations'
+  inputs:
+    targetType: 'inline'
+    script: |
+      cd backend
+      go build -o migrate cmd/migrate/main.go
+      ./migrate
+  env:
+    DB_HOST: $(DB_HOST)
+    DB_PORT: $(DB_PORT)
+    DB_ADMIN_USER: $(DB_ADMIN_USER)
+    DB_ADMIN_PASSWORD: $(DB_ADMIN_PASSWORD)
+    DB_NAME: $(DB_NAME)
+    MIGRATIONS_PATH: ./migrations
+
+- task: Deploy Backend
+  dependsOn: RunMigrations
+  ...
+```
+
+### Migration Tracking
+
+The system creates a `schema_migrations` table to track executed migrations:
+
+```sql
+CREATE TABLE schema_migrations (
+    id SERIAL PRIMARY KEY,
+    migration_name VARCHAR(255) NOT NULL UNIQUE,
+    executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+)
+```
+
+**How it works:**
+1. Database connection is verified
+2. `schema_migrations` table is created (if not exists)
+3. All `.sql` files in migrations directory are read in alphabetical order
+4. Already-executed migrations (found in tracking table) are skipped
+5. Pending migrations are executed in transactions
+6. Successfully executed migrations are recorded
+
+### Alternative: golang-migrate
+
+You can also use [golang-migrate](https://github.com/golang-migrate/migrate):
+
+```bash
+migrate -path ./migrations -database "postgres://easi_admin:password@localhost:5432/easi?sslmode=disable" up
 ```
 
 ## Database Users

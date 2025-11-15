@@ -18,6 +18,46 @@ services:
     networks:
       - easi-network
 
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.migrate
+    container_name: easi-migrate
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_ADMIN_USER: ${DB_ADMIN_USER:-easi}
+      DB_ADMIN_PASSWORD: ${DB_ADMIN_PASSWORD:-easi}
+      DB_NAME: ${POSTGRES_DB:-easi}
+      MIGRATIONS_PATH: /app/migrations
+    volumes:
+      - ./backend/migrations:/app/migrations:ro
+    networks:
+      - easi-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: easi-backend
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-easi_app}
+      DB_PASSWORD: ${DB_PASSWORD:-easi}
+      DB_NAME: ${POSTGRES_DB:-easi}
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    networks:
+      - easi-network
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: easi-pgadmin
