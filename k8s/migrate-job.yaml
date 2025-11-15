@@ -1,11 +1,10 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: easi-migrate-#{Build.BuildNumber}#
+  name: easi-migrate
   namespace: enterprisearchitecture-pnpbj
   labels:
     app: easi-migrate
-    version: "#{Build.BuildNumber}#"
 spec:
   # Don't automatically clean up completed jobs - keep for debugging
   ttlSecondsAfterFinished: 600
@@ -14,7 +13,6 @@ spec:
     metadata:
       labels:
         app: easi-migrate
-        version: "#{Build.BuildNumber}#"
     spec:
       restartPolicy: Never
       containers:
