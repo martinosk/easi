@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: easi-backend
+  namespace: enterprisearchitecture-pnpbj
+spec:
+  ports:
+  - port: 80
+    targetPort: internal
+    name: external
+  selector:
+    app: easi-backend

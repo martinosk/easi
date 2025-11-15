@@ -1,0 +1,36 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: easi-ingress
+  namespace: enterprisearchitecture-pnpbj
+spec:
+  entryPoints: []
+  routes:
+  - kind: Rule
+    match: Host(`internal.hellman.oxygen.dfds.cloud`) && PathPrefix(`/easi`)
+    middlewares:
+      - name: strip-prefix
+    services:
+    - kind: Service
+      name: easi-frontend
+      namespace: enterprisearchitecture-pnpbj
+      port: external
+  - kind: Rule
+    match: Host(`internal.hellman.oxygen.dfds.cloud`) && PathPrefix(`/easi-api`)
+    middlewares:
+      - name: strip-prefix
+    services:
+    - kind: Service
+      name: easi-backend
+      namespace: enterprisearchitecture-pnpbj
+      port: external
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix
+spec:
+  stripPrefix:
+    prefixes:
+    - /easi
+    - /easi-api

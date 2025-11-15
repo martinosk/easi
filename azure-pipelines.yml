@@ -1,19 +1,80 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
-- main
+  - main
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'ubuntu-latest'
+
+name: $(Build.BuildId)
+
+variables:
+- group: 'EA ECR-PUSH SHARED'
+- name: 'k8s-service-connection'
+  value: 'enterprisearchitecture-pnpbj-k8s'
+- name: 'kubernetes-namespace'
+  value: 'enterprisearchitecture-pnpbj'
 
 steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+- task: Docker@2
+  displayName: 'Build backend docker image'
+  inputs:
+    command: 'build'
+    Dockerfile: 'backend/Dockerfile'
+    buildContext: '**'
+    arguments: '--tag easi-backend:$(Build.BuildNumber)'
+    addPipelineData: false
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+- task: Docker@2
+  displayName: 'Build frontend docker image'
+  inputs:
+    command: 'build'
+    Dockerfile: 'frontend/Dockerfile'
+    buildContext: '**'
+    arguments: '--tag easi-frontend:$(Build.BuildNumber)'
+    addPipelineData: false
+
+- task: ECRPushImage@1
+  displayName: 'Push backend image to AWS'
+  inputs:
+    awsCredentials: 'Shared-Prod ECR-Push'
+    regionName: 'eu-central-1'
+    imageSource: 'imagename'
+    sourceImageName: 'easi-backend'
+    sourceImageTag: '$(Build.BuildNumber)'
+    repositoryName: 'architecture/easi-backend'
+    pushTag: '$(Build.BuildNumber)' 
+
+- task: ECRPushImage@1
+  displayName: 'Push frontend image to AWS'
+  inputs:
+    awsCredentials: 'Shared-Prod ECR-Push'
+    regionName: 'eu-central-1'
+    imageSource: 'imagename'
+    sourceImageName: 'easi-frontend'
+    sourceImageTag: '$(Build.BuildNumber)'
+    repositoryName: 'architecture/easi-frontend'
+    pushTag: '$(Build.BuildNumber)' 
+    
+- task: replacetokens@5
+  displayName: 'replace tokens in k8s manifests'
+  inputs:
+    targetFiles: '$(Build.SourcesDirectory)/k8s/*.yaml'
+    encoding: 'auto'
+    tokenPattern: 'azpipelines'
+    writeBOM: true
+    actionOnMissing: 'warn'
+    keepToken: false
+    actionOnNoFiles: 'fail'
+    enableTransforms: false
+    enableRecursion: false
+    useLegacyPattern: false
+    enableTelemetry: false
+    
+- task: Kubernetes@1
+  displayName: 'Apply manifests'
+  inputs:
+    connectionType: Kubernetes Service Connection
+    kubernetesServiceEndpoint: '$(k8s-service-connection)'
+    namespace: '$(kubernetes-namespace)'
+    command: apply
+    arguments: '-f $(Build.SourcesDirectory)/k8s/'
+    versionSpec: 1.22.9

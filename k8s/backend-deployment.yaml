@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: easi-backend
+  namespace: enterprisearchitecture-pnpbj
+  labels:
+    owner: maosk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: easi-backend
+  template:
+    metadata:
+      labels:
+        app: easi-backend
+    spec:
+      containers:
+      - name: easi-backend
+        image: 579478677147.dkr.ecr.eu-central-1.amazonaws.com/architecture/easi-backend:$(Build.BuildNumber)
+        ports:
+        - containerPort: 8080
+          name: internal
+        env:
+        - name: PORT
+          value: "8080"
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: orderreadmodel-production-postgres
+              key: PGHOST
+        - name: DB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: orderreadmodel-production-postgres
+              key: PGPORT
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: orderreadmodel-production-postgres
+              key: PGUSER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: orderreadmodel-production-postgres
+              key: PGPASSWORD
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: orderreadmodel-production-postgres
+              key: PGDATABASE
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3

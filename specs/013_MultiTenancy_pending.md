@@ -141,7 +141,7 @@ Apply RLS policies to: events, snapshots, application_components, component_rela
 - [x] Command handlers pass context through to infrastructure
 - [x] Read repositories filter by tenant from context (ApplicationComponent, ComponentRelation, ArchitectureView)
 - [x] API middleware extracts and injects tenant context (LOCAL_DEV_MODE support)
-- [ ] Migration script tested
+- [x] Migration script tested
 - [x] Unit tests for TenantId value object
 - [ ] Integration tests with multiple tenants
 - [ ] Backend integration tests verify tenant isolation

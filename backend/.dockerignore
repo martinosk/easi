@@ -1,0 +1,17 @@
+.git
+.gitignore
+*.md
+.env
+.env.*
+bin/
+.vscode/
+.idea/
+*.test
+coverage.txt
+*.log
+docker-compose*.yml
+Dockerfile*
+Makefile
+test_integration.sh
+TESTING.md
+.claude/
