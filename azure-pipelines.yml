@@ -15,25 +15,29 @@ variables:
 
 steps:
 - task: Docker@2
+  name: BuildBackend
   displayName: 'Build backend docker image'
   inputs:
     command: 'build'
     Dockerfile: 'backend/Dockerfile'
-    buildContext: '**'
+    buildContext: 'backend'
     arguments: '--tag easi-backend:$(Build.BuildNumber)'
     addPipelineData: false
 
 - task: Docker@2
+  name: BuildFrontend
   displayName: 'Build frontend docker image'
   inputs:
     command: 'build'
     Dockerfile: 'frontend/Dockerfile'
-    buildContext: '**'
+    buildContext: 'frontend'
     arguments: '--tag easi-frontend:$(Build.BuildNumber)'
     addPipelineData: false
 
 - task: ECRPushImage@1
+  name: PushBackend
   displayName: 'Push backend image to AWS'
+  condition: succeeded()
   inputs:
     awsCredentials: 'Shared-Prod ECR-Push'
     regionName: 'eu-central-1'
@@ -44,7 +48,9 @@ steps:
     pushTag: '$(Build.BuildNumber)' 
 
 - task: ECRPushImage@1
+  name: PushFrontend
   displayName: 'Push frontend image to AWS'
+  condition: succeeded()
   inputs:
     awsCredentials: 'Shared-Prod ECR-Push'
     regionName: 'eu-central-1'
@@ -55,7 +61,9 @@ steps:
     pushTag: '$(Build.BuildNumber)' 
     
 - task: replacetokens@5
+  name: ReplaceTokens
   displayName: 'replace tokens in k8s manifests'
+  condition: succeeded()
   inputs:
     targetFiles: '$(Build.SourcesDirectory)/k8s/*.yaml'
     encoding: 'auto'
@@ -70,7 +78,9 @@ steps:
     enableTelemetry: false
     
 - task: Kubernetes@1
+  name: ApplyManifests
   displayName: 'Apply manifests'
+  condition: succeeded()
   inputs:
     connectionType: Kubernetes Service Connection
     kubernetesServiceEndpoint: '$(k8s-service-connection)'

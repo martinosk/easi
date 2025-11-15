@@ -24,31 +24,11 @@ spec:
         env:
         - name: PORT
           value: "8080"
-        - name: DB_HOST
+        - name: DB_CONN_STRING
           valueFrom:
             secretKeyRef:
-              name: orderreadmodel-production-postgres
-              key: PGHOST
-        - name: DB_PORT
-          valueFrom:
-            secretKeyRef:
-              name: orderreadmodel-production-postgres
-              key: PGPORT
-        - name: DB_USER
-          valueFrom:
-            secretKeyRef:
-              name: orderreadmodel-production-postgres
-              key: PGUSER
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: orderreadmodel-production-postgres
-              key: PGPASSWORD
-        - name: DB_NAME
-          valueFrom:
-            secretKeyRef:
-              name: orderreadmodel-production-postgres
-              key: PGDATABASE
+              name: easi-prod-postgres
+              key: DB_CONN_STRING
         resources:
           requests:
             memory: "128Mi"
@@ -59,7 +39,7 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 8080
+            port: internal
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 3
@@ -67,7 +47,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /health
-            port: 8080
+            port: internal
           initialDelaySeconds: 10
           periodSeconds: 5
           timeoutSeconds: 3
