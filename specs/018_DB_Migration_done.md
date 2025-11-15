@@ -58,10 +58,18 @@ Migrations run as a separate step during deployment, before the backend applicat
 - Comprehensive error handling and logging
 
 ### Configuration
-- `DB_HOST`, `DB_PORT`, `DB_NAME` - Database connection
-- `DB_ADMIN_USER`, `DB_ADMIN_PASSWORD` - Admin credentials for migrations (easi_admin)
-- `DB_USER`, `DB_PASSWORD` - App credentials for backend (easi_app)
+
+**Connection Strings (Recommended):**
+- `DB_ADMIN_CONN_STRING` - Admin connection string for migrations (format: `host=<host> port=<port> user=<user> password=<password> dbname=<dbname> sslmode=<mode>`)
+- `DB_CONN_STRING` - Application connection string for backend runtime (format: `host=<host> port=<port> user=<user> password=<password> dbname=<dbname> sslmode=<mode>`)
 - `MIGRATIONS_PATH` - Migration scripts directory (defaults to `./migrations`)
+
+**Legacy Individual Parameters (Backward Compatible):**
+- `DB_HOST`, `DB_PORT`, `DB_NAME` - Database connection (used if connection string not provided)
+- `DB_ADMIN_USER`, `DB_ADMIN_PASSWORD` - Admin credentials for migrations (used if DB_ADMIN_CONN_STRING not provided)
+- `DB_USER`, `DB_PASSWORD` - App credentials for backend (used if DB_CONN_STRING not provided)
+
+**Note:** The implementation prefers connection strings but falls back to individual parameters for backward compatibility.
 
 ### Files Created/Modified
 
@@ -83,9 +91,27 @@ Migrations run as a separate step during deployment, before the backend applicat
 
 **Documentation & Configuration:**
 - Updated: `/backend/migrations/README.md` - Documented deploy-time approach with examples
-- Updated: `/.env.example` - Added DB_ADMIN_USER and DB_USER separation
+- Updated: `/.env.example` - Added DB_ADMIN_CONN_STRING and DB_CONN_STRING configuration
+
+### Changes in Reopened Version
+
+**Connection String Approach:**
+- Migrated from individual database connection parameters to connection strings
+- Migration runner (`cmd/migrate/main.go`) now uses `DB_ADMIN_CONN_STRING` with fallback to individual params
+- Backend API (`cmd/api/main.go`) now uses `DB_CONN_STRING` with fallback to individual params
+- Kubernetes manifests (`k8s/migrate-job.yaml`) use connection strings from secrets
+- Docker Compose (`docker-compose.yml`) uses connection strings with sensible defaults
+- Updated `.env.example` to document connection string format
+
+**Rationale:**
+- Simplifies secret management (one value instead of 5)
+- Aligns with PostgreSQL standard connection string format
+- Easier to integrate with cloud secret managers (AWS Secrets Manager, Azure Key Vault)
+- Reduces configuration complexity in Kubernetes/production environments
+- Maintains backward compatibility with individual parameters for gradual migration
 
 ## Checklist
 - [x] Specification ready
-- [x] Spec implemented
+- [x] Initial implementation (individual parameters)
+- [x] Refactored to connection strings with backward compatibility
 - [ ] User sign-off

@@ -45,12 +45,8 @@ cd backend
 # Build migrate binary
 go build -o migrate cmd/migrate/main.go
 
-# Run migrations with admin credentials
-DB_HOST=localhost \
-DB_PORT=5432 \
-DB_ADMIN_USER=easi_admin \
-DB_ADMIN_PASSWORD=change_me_in_production \
-DB_NAME=easi \
+# Run migrations with admin connection string
+DB_ADMIN_CONN_STRING="host=localhost port=5432 user=easi_admin password=change_me_in_production dbname=easi sslmode=disable" \
 MIGRATIONS_PATH=./migrations \
 ./migrate
 ```
@@ -69,17 +65,15 @@ Add a migration step before deploying the backend:
       go build -o migrate cmd/migrate/main.go
       ./migrate
   env:
-    DB_HOST: $(DB_HOST)
-    DB_PORT: $(DB_PORT)
-    DB_ADMIN_USER: $(DB_ADMIN_USER)
-    DB_ADMIN_PASSWORD: $(DB_ADMIN_PASSWORD)
-    DB_NAME: $(DB_NAME)
+    DB_ADMIN_CONN_STRING: $(DB_ADMIN_CONN_STRING)
     MIGRATIONS_PATH: ./migrations
 
 - task: Deploy Backend
   dependsOn: RunMigrations
   ...
 ```
+
+**Note:** Store `DB_ADMIN_CONN_STRING` in Azure DevOps variable groups or Azure Key Vault. Format: `host=<host> port=<port> user=easi_admin password=<password> dbname=<dbname> sslmode=require`
 
 ### Migration Tracking
 

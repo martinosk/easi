@@ -19,24 +19,13 @@ spec:
       restartPolicy: Never
       containers:
       - name: migrate
-        image: #{ECR_REGISTRY}#/architecture/easi-migrate:#{Build.BuildNumber}#
+        image: 579478677147.dkr.ecr.eu-central-1.amazonaws.com/architecture/easi-migrate:$(Build.BuildNumber)
         env:
-        - name: DB_HOST
-          value: "#{DB_HOST}#"
-        - name: DB_PORT
-          value: "#{DB_PORT}#"
-        - name: DB_NAME
-          value: "#{DB_NAME}#"
-        - name: DB_ADMIN_USER
+        - name: DB_ADMIN_CONN_STRING
           valueFrom:
             secretKeyRef:
               name: easi-db-credentials
-              key: admin-username
-        - name: DB_ADMIN_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: easi-db-credentials
-              key: admin-password
+              key: DB_ADMIN_CONN_STRING
         - name: MIGRATIONS_PATH
           value: "/app/migrations"
         volumeMounts:

@@ -120,7 +120,7 @@ DROP CONSTRAINT IF EXISTS events_aggregate_id_version_key;
 
 -- Add new unique constraint including tenant_id
 ALTER TABLE events
-ADD CONSTRAINT IF NOT EXISTS events_tenant_aggregate_version_key
+ADD CONSTRAINT events_tenant_aggregate_version_key
 UNIQUE (tenant_id, aggregate_id, version);
 
 -- Drop old unique constraint on snapshots if it exists
@@ -129,7 +129,7 @@ DROP CONSTRAINT IF EXISTS snapshots_aggregate_id_version_key;
 
 -- Add new unique constraint including tenant_id
 ALTER TABLE snapshots
-ADD CONSTRAINT IF NOT EXISTS snapshots_tenant_aggregate_version_key
+ADD CONSTRAINT snapshots_tenant_aggregate_version_key
 UNIQUE (tenant_id, aggregate_id, version);
 
 -- Drop old primary key on view_component_positions if needed and recreate with tenant

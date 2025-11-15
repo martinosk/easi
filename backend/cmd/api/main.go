@@ -27,15 +27,8 @@ import (
 // @host localhost:8080
 // @BasePath /api/v1
 func main() {
-	// Database connection
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbUser := getEnv("DB_USER", "easi")
-	dbPassword := getEnv("DB_PASSWORD", "easi")
-	dbName := getEnv("DB_NAME", "easi")
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
+	// Database connection using app credentials
+	connStr := getEnv("DB_CONN_STRING", "")
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {

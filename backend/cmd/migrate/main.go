@@ -14,14 +14,11 @@ func main() {
 	log.Println("Starting database migration...")
 
 	// Database connection using admin credentials
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbUser := getEnv("DB_ADMIN_USER", getEnv("DB_USER", "easi"))
-	dbPassword := getEnv("DB_ADMIN_PASSWORD", getEnv("DB_PASSWORD", "easi"))
-	dbName := getEnv("DB_NAME", "easi")
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
+	// Use DB_ADMIN_CONN_STRING for admin connection, fallback to DB_CONN_STRING
+	connStr := getEnv("DB_ADMIN_CONN_STRING", "")
+	if connStr == "" {
+		connStr = getEnv("DB_CONN_STRING", "")
+	}
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -33,7 +30,7 @@ func main() {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 
-	log.Printf("Connected to database at %s:%s as user %s", dbHost, dbPort, dbUser)
+	log.Println("Connected to database successfully")
 
 	// Run migrations
 	migrationsPath := getEnv("MIGRATIONS_PATH", "./migrations")

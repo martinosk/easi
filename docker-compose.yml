@@ -24,11 +24,7 @@ services:
       dockerfile: Dockerfile.migrate
     container_name: easi-migrate
     environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_ADMIN_USER: ${DB_ADMIN_USER:-easi}
-      DB_ADMIN_PASSWORD: ${DB_ADMIN_PASSWORD:-easi}
-      DB_NAME: ${POSTGRES_DB:-easi}
+      DB_ADMIN_CONN_STRING: ${DB_ADMIN_CONN_STRING:-host=postgres port=5432 user=easi password=easi dbname=easi sslmode=disable}
       MIGRATIONS_PATH: /app/migrations
     volumes:
       - ./backend/migrations:/app/migrations:ro
@@ -44,11 +40,8 @@ services:
       dockerfile: Dockerfile
     container_name: easi-backend
     environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: ${DB_USER:-easi_app}
-      DB_PASSWORD: ${DB_PASSWORD:-easi}
-      DB_NAME: ${POSTGRES_DB:-easi}
+      DB_CONN_STRING: ${DB_CONN_STRING:-host=postgres port=5432 user=easi_app password=change_me_in_production dbname=easi sslmode=disable}
+      LOCAL_DEV_MODE: ${LOCAL_DEV_MODE:-true} 
       PORT: 8080
     ports:
       - "8080:8080"
