@@ -50,7 +50,7 @@ steps:
   displayName: 'Push migrate image to AWS'
   condition: succeeded()
   inputs:
-    awsCredentials: 'Shared-Prod ECR-Push'
+    awsCredentials: 'EA ECR-PUSH SHARED'
     regionName: 'eu-central-1'
     imageSource: 'imagename'
     sourceImageName: 'easi-migrate'
@@ -63,7 +63,7 @@ steps:
   displayName: 'Push backend image to AWS'
   condition: succeeded()
   inputs:
-    awsCredentials: 'Shared-Prod ECR-Push'
+    awsCredentials: 'EA ECR-PUSH SHARED'
     regionName: 'eu-central-1'
     imageSource: 'imagename'
     sourceImageName: 'easi-backend'
@@ -76,7 +76,7 @@ steps:
   displayName: 'Push frontend image to AWS'
   condition: succeeded()
   inputs:
-    awsCredentials: 'Shared-Prod ECR-Push'
+    awsCredentials: 'EA ECR-PUSH SHARED'
     regionName: 'eu-central-1'
     imageSource: 'imagename'
     sourceImageName: 'easi-frontend'
