@@ -15,6 +15,28 @@ spec:
       labels:
         app: easi-backend
     spec:
+      initContainers:
+      - name: migrate
+        image: 579478677147.dkr.ecr.eu-central-1.amazonaws.com/architecture/easi-migrate:$(Build.BuildNumber)
+        env:
+        - name: DB_ADMIN_CONN_STRING
+          valueFrom:
+            secretKeyRef:
+              name: easi-db-credentials
+              key: DB_ADMIN_CONN_STRING
+        - name: MIGRATIONS_PATH
+          value: "/app/migrations"
+        volumeMounts:
+        - name: migrations
+          mountPath: /app/migrations
+          readOnly: true
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
       containers:
       - name: easi-backend
         image: 579478677147.dkr.ecr.eu-central-1.amazonaws.com/architecture/easi-backend:$(Build.BuildNumber)
@@ -52,3 +74,7 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
+      volumes:
+      - name: migrations
+        configMap:
+          name: easi-migrations

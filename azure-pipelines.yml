@@ -100,30 +100,6 @@ steps:
     enableRecursion: false
     useLegacyPattern: false
     enableTelemetry: false
-    
-- task: Kubernetes@1
-  name: ApplyMigrateJob
-  displayName: 'Run database migrations'
-  condition: succeeded()
-  inputs:
-    connectionType: Kubernetes Service Connection
-    kubernetesServiceEndpoint: '$(k8s-service-connection)'
-    namespace: '$(kubernetes-namespace)'
-    command: apply
-    arguments: '-f $(Build.SourcesDirectory)/k8s/migrate-job.yaml'
-    versionSpec: 1.22.9
-
-- task: Kubernetes@1
-  name: WaitForMigration
-  displayName: 'Wait for migration to complete'
-  condition: succeeded()
-  inputs:
-    connectionType: Kubernetes Service Connection
-    kubernetesServiceEndpoint: '$(k8s-service-connection)'
-    namespace: '$(kubernetes-namespace)'
-    command: custom
-    arguments: 'wait --for=condition=complete --timeout=300s job/easi-migrate-$(Build.BuildNumber)'
-    versionSpec: 1.22.9
 
 - task: Kubernetes@1
   name: ApplyManifests
