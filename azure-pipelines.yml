@@ -15,13 +15,6 @@ variables:
   value: 'enterprisearchitecture-pnpbj'
 
 steps:
-# Run unit tests first - pipeline fails if tests fail
-- task: GoTool@0
-  name: InstallGo
-  displayName: 'Install Go'
-  inputs:
-    version: '1.23'
-
 - task: Go@0
   name: BackendUnitTests
   displayName: 'Run backend unit tests'
