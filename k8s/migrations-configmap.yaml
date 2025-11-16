@@ -1,0 +1,415 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: easi-migrations
+  namespace: enterprisearchitecture-pnpbj
+  labels:
+    app: easi
+    owner: maosk
+data:
+  001_init_schema.sql: |
+    -- Migration: Initial Schema
+    -- Description: Creates base database schema for event sourcing and CQRS read models
+    -- This migration creates all tables needed for a fresh database installation
+
+    -- ============================================================================
+    -- Event Store Tables
+    -- ============================================================================
+
+    -- Events table - stores all domain events
+    CREATE TABLE IF NOT EXISTS events (
+        id BIGSERIAL PRIMARY KEY,
+        aggregate_id VARCHAR(255) NOT NULL,
+        event_type VARCHAR(255) NOT NULL,
+        event_data JSONB NOT NULL,
+        version INT NOT NULL,
+        occurred_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(aggregate_id, version)
+    );
+
+    -- Indexes for efficient event retrieval
+    CREATE INDEX IF NOT EXISTS idx_events_aggregate_id ON events(aggregate_id);
+    CREATE INDEX IF NOT EXISTS idx_events_event_type ON events(event_type);
+    CREATE INDEX IF NOT EXISTS idx_events_occurred_at ON events(occurred_at);
+
+    -- Snapshots table - stores aggregate snapshots for performance
+    CREATE TABLE IF NOT EXISTS snapshots (
+        id BIGSERIAL PRIMARY KEY,
+        aggregate_id VARCHAR(255) NOT NULL,
+        aggregate_type VARCHAR(255) NOT NULL,
+        version INT NOT NULL,
+        state JSONB NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(aggregate_id, version)
+    );
+
+    -- Indexes for efficient snapshot retrieval
+    CREATE INDEX IF NOT EXISTS idx_snapshots_aggregate_id ON snapshots(aggregate_id);
+
+    -- ============================================================================
+    -- Architecture Modeling Read Models
+    -- ============================================================================
+
+    -- Application Components read model
+    CREATE TABLE IF NOT EXISTS application_components (
+        id VARCHAR(255) PRIMARY KEY,
+        name VARCHAR(500) NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_application_components_name ON application_components(name);
+    CREATE INDEX IF NOT EXISTS idx_application_components_created_at ON application_components(created_at);
+
+    -- Component Relations read model
+    CREATE TABLE IF NOT EXISTS component_relations (
+        id VARCHAR(255) PRIMARY KEY,
+        source_component_id VARCHAR(255) NOT NULL,
+        target_component_id VARCHAR(255) NOT NULL,
+        relation_type VARCHAR(50) NOT NULL,
+        name VARCHAR(500),
+        description TEXT,
+        created_at TIMESTAMP NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_component_relations_source ON component_relations(source_component_id);
+    CREATE INDEX IF NOT EXISTS idx_component_relations_target ON component_relations(target_component_id);
+    CREATE INDEX IF NOT EXISTS idx_component_relations_type ON component_relations(relation_type);
+    CREATE INDEX IF NOT EXISTS idx_component_relations_created_at ON component_relations(created_at);
+
+    -- ============================================================================
+    -- Architecture Views Read Models
+    -- ============================================================================
+
+    -- Architecture Views read model
+    CREATE TABLE IF NOT EXISTS architecture_views (
+        id VARCHAR(255) PRIMARY KEY,
+        name VARCHAR(500) NOT NULL,
+        description TEXT,
+        is_default BOOLEAN NOT NULL DEFAULT false,
+        is_deleted BOOLEAN NOT NULL DEFAULT false,
+        created_at TIMESTAMP NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_architecture_views_name ON architecture_views(name);
+    CREATE INDEX IF NOT EXISTS idx_architecture_views_created_at ON architecture_views(created_at);
+    CREATE INDEX IF NOT EXISTS idx_architecture_views_is_default ON architecture_views(is_default);
+
+    -- View Component Positions junction table
+    CREATE TABLE IF NOT EXISTS view_component_positions (
+        view_id VARCHAR(255) NOT NULL,
+        component_id VARCHAR(255) NOT NULL,
+        x DOUBLE PRECISION NOT NULL,
+        y DOUBLE PRECISION NOT NULL,
+        created_at TIMESTAMP NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (view_id, component_id),
+        FOREIGN KEY (view_id) REFERENCES architecture_views(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_view_component_positions_view_id ON view_component_positions(view_id);
+
+    -- ============================================================================
+    -- Migration complete
+    -- ============================================================================
+
+  002_add_multi_tenancy.sql: |
+    -- Migration: Add Multi-Tenancy Support
+    -- Spec: 013_MultiTenancy_pending.md
+    -- Description: Adds tenant_id columns to all tables for tenant isolation
+    -- This migration modifies existing tables to add multi-tenancy support
+
+    -- ============================================================================
+    -- Phase 1: Add tenant_id columns to event store tables
+    -- ============================================================================
+
+    -- Add tenant_id to events table (if not exists for idempotency)
+    ALTER TABLE events
+    ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(50);
+
+    -- Add tenant_id to snapshots table (if not exists for idempotency)
+    ALTER TABLE snapshots
+    ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(50);
+
+    -- ============================================================================
+    -- Phase 2: Add tenant_id columns to read model tables
+    -- ============================================================================
+
+    -- Add tenant_id to application_components
+    ALTER TABLE application_components
+    ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(50);
+
+    -- Add tenant_id to component_relations
+    ALTER TABLE component_relations
+    ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(50);
+
+    -- Add tenant_id to architecture_views
+    ALTER TABLE architecture_views
+    ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(50);
+
+    -- Add tenant_id to view_component_positions
+    ALTER TABLE view_component_positions
+    ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(50);
+
+    -- ============================================================================
+    -- Phase 3: Backfill with default tenant
+    -- ============================================================================
+
+    -- Backfill events with default tenant
+    UPDATE events
+    SET tenant_id = 'default'
+    WHERE tenant_id IS NULL;
+
+    -- Backfill snapshots with default tenant
+    UPDATE snapshots
+    SET tenant_id = 'default'
+    WHERE tenant_id IS NULL;
+
+    -- Backfill application_components with default tenant
+    UPDATE application_components
+    SET tenant_id = 'default'
+    WHERE tenant_id IS NULL;
+
+    -- Backfill component_relations with default tenant
+    UPDATE component_relations
+    SET tenant_id = 'default'
+    WHERE tenant_id IS NULL;
+
+    -- Backfill architecture_views with default tenant
+    UPDATE architecture_views
+    SET tenant_id = 'default'
+    WHERE tenant_id IS NULL;
+
+    -- Backfill view_component_positions with default tenant
+    UPDATE view_component_positions
+    SET tenant_id = 'default'
+    WHERE tenant_id IS NULL;
+
+    -- ============================================================================
+    -- Phase 4: Add NOT NULL constraints
+    -- ============================================================================
+
+    ALTER TABLE events
+    ALTER COLUMN tenant_id SET NOT NULL;
+
+    ALTER TABLE snapshots
+    ALTER COLUMN tenant_id SET NOT NULL;
+
+    ALTER TABLE application_components
+    ALTER COLUMN tenant_id SET NOT NULL;
+
+    ALTER TABLE component_relations
+    ALTER COLUMN tenant_id SET NOT NULL;
+
+    ALTER TABLE architecture_views
+    ALTER COLUMN tenant_id SET NOT NULL;
+
+    ALTER TABLE view_component_positions
+    ALTER COLUMN tenant_id SET NOT NULL;
+
+    -- ============================================================================
+    -- Phase 5: Create indexes for tenant isolation
+    -- ============================================================================
+
+    -- Event store indexes
+    CREATE INDEX IF NOT EXISTS idx_events_tenant_id ON events(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_events_tenant_aggregate ON events(tenant_id, aggregate_id);
+    CREATE INDEX IF NOT EXISTS idx_events_tenant_type ON events(tenant_id, event_type);
+    CREATE INDEX IF NOT EXISTS idx_events_tenant_occurred ON events(tenant_id, occurred_at);
+
+    CREATE INDEX IF NOT EXISTS idx_snapshots_tenant_id ON snapshots(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_snapshots_tenant_aggregate ON snapshots(tenant_id, aggregate_id);
+
+    -- Read model indexes
+    CREATE INDEX IF NOT EXISTS idx_application_components_tenant ON application_components(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_component_relations_tenant ON component_relations(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_architecture_views_tenant ON architecture_views(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_view_component_positions_tenant ON view_component_positions(tenant_id);
+
+    -- ============================================================================
+    -- Phase 6: Update unique constraints to include tenant_id
+    -- ============================================================================
+
+    -- Drop old unique constraint on events if it exists
+    ALTER TABLE events
+    DROP CONSTRAINT IF EXISTS events_aggregate_id_version_key;
+
+    -- Add new unique constraint including tenant_id
+    ALTER TABLE events
+    ADD CONSTRAINT events_tenant_aggregate_version_key
+    UNIQUE (tenant_id, aggregate_id, version);
+
+    -- Drop old unique constraint on snapshots if it exists
+    ALTER TABLE snapshots
+    DROP CONSTRAINT IF EXISTS snapshots_aggregate_id_version_key;
+
+    -- Add new unique constraint including tenant_id
+    ALTER TABLE snapshots
+    ADD CONSTRAINT snapshots_tenant_aggregate_version_key
+    UNIQUE (tenant_id, aggregate_id, version);
+
+    -- Drop old primary key on view_component_positions if needed and recreate with tenant
+    -- Note: This is complex, so we'll just add a unique constraint for tenant isolation
+    ALTER TABLE view_component_positions
+    DROP CONSTRAINT IF EXISTS view_component_positions_pkey;
+
+    ALTER TABLE view_component_positions
+    ADD CONSTRAINT view_component_positions_pkey
+    PRIMARY KEY (tenant_id, view_id, component_id);
+
+    -- ============================================================================
+    -- Migration complete
+    -- ============================================================================
+
+  003_enable_row_level_security.sql: |
+    -- Migration: Enable Row-Level Security (RLS) for Tenant Isolation
+    -- Spec: 017_PostgreSQLRLSImplementation_pending.md
+    -- Description: Implements PostgreSQL RLS for database-level tenant isolation
+    -- This provides defense-in-depth security at the database layer
+
+    -- ============================================================================
+    -- Phase 1: Create database users
+    -- ============================================================================
+
+    -- Create application user (used by the application at runtime)
+    -- This user does NOT have BYPASSRLS privilege
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT FROM pg_catalog.pg_user WHERE usename = 'easi_app') THEN
+            CREATE USER easi_app WITH PASSWORD 'change_me_in_production';
+        END IF;
+    END
+    $$;
+
+    -- Create admin user (used for migrations and administrative tasks)
+    -- This user HAS BYPASSRLS privilege
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT FROM pg_catalog.pg_user WHERE usename = 'easi_admin') THEN
+            CREATE USER easi_admin WITH PASSWORD 'change_me_in_production' BYPASSRLS;
+        END IF;
+    END
+    $$;
+
+    -- Grant necessary permissions to application user
+    GRANT CONNECT ON DATABASE easi TO easi_app;
+    GRANT USAGE ON SCHEMA public TO easi_app;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO easi_app;
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO easi_app;
+
+    -- Grant all permissions to admin user
+    GRANT ALL PRIVILEGES ON DATABASE easi TO easi_admin;
+    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO easi_admin;
+    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO easi_admin;
+
+    -- Ensure future tables also have proper permissions
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO easi_app;
+
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public
+    GRANT USAGE, SELECT ON SEQUENCES TO easi_app;
+
+    -- ============================================================================
+    -- Phase 2: Enable RLS on all tenant-scoped tables
+    -- ============================================================================
+
+    ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE snapshots ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE application_components ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE component_relations ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE architecture_views ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE view_component_positions ENABLE ROW LEVEL SECURITY;
+
+    -- ============================================================================
+    -- Phase 3: Create RLS policies for tenant isolation
+    -- ============================================================================
+
+    -- Events table policies
+    DROP POLICY IF EXISTS tenant_isolation_policy ON events;
+    CREATE POLICY tenant_isolation_policy ON events
+        FOR ALL
+        TO easi_app
+        USING (tenant_id = current_setting('app.current_tenant', true))
+        WITH CHECK (tenant_id = current_setting('app.current_tenant', true));
+
+    -- Snapshots table policies
+    DROP POLICY IF EXISTS tenant_isolation_policy ON snapshots;
+    CREATE POLICY tenant_isolation_policy ON snapshots
+        FOR ALL
+        TO easi_app
+        USING (tenant_id = current_setting('app.current_tenant', true))
+        WITH CHECK (tenant_id = current_setting('app.current_tenant', true));
+
+    -- Application components table policies
+    DROP POLICY IF EXISTS tenant_isolation_policy ON application_components;
+    CREATE POLICY tenant_isolation_policy ON application_components
+        FOR ALL
+        TO easi_app
+        USING (tenant_id = current_setting('app.current_tenant', true))
+        WITH CHECK (tenant_id = current_setting('app.current_tenant', true));
+
+    -- Component relations table policies
+    DROP POLICY IF EXISTS tenant_isolation_policy ON component_relations;
+    CREATE POLICY tenant_isolation_policy ON component_relations
+        FOR ALL
+        TO easi_app
+        USING (tenant_id = current_setting('app.current_tenant', true))
+        WITH CHECK (tenant_id = current_setting('app.current_tenant', true));
+
+    -- Architecture views table policies
+    DROP POLICY IF EXISTS tenant_isolation_policy ON architecture_views;
+    CREATE POLICY tenant_isolation_policy ON architecture_views
+        FOR ALL
+        TO easi_app
+        USING (tenant_id = current_setting('app.current_tenant', true))
+        WITH CHECK (tenant_id = current_setting('app.current_tenant', true));
+
+    -- View component positions table policies
+    DROP POLICY IF EXISTS tenant_isolation_policy ON view_component_positions;
+    CREATE POLICY tenant_isolation_policy ON view_component_positions
+        FOR ALL
+        TO easi_app
+        USING (tenant_id = current_setting('app.current_tenant', true))
+        WITH CHECK (tenant_id = current_setting('app.current_tenant', true));
+
+    -- ============================================================================
+    -- Phase 4: Create helper functions for tenant context management
+    -- ============================================================================
+
+    -- Function to set tenant context
+    CREATE OR REPLACE FUNCTION set_tenant_context(p_tenant_id VARCHAR(50))
+    RETURNS VOID AS $$
+    BEGIN
+        -- Validate tenant ID format (basic validation)
+        IF p_tenant_id IS NULL OR LENGTH(p_tenant_id) < 3 OR LENGTH(p_tenant_id) > 50 THEN
+            RAISE EXCEPTION 'Invalid tenant ID: %', p_tenant_id;
+        END IF;
+
+        -- Set the session variable
+        PERFORM set_config('app.current_tenant', p_tenant_id, false);
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+    -- Function to get current tenant
+    CREATE OR REPLACE FUNCTION get_current_tenant()
+    RETURNS VARCHAR(50) AS $$
+    BEGIN
+        RETURN current_setting('app.current_tenant', true);
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+    -- Grant execute permissions to application user
+    GRANT EXECUTE ON FUNCTION set_tenant_context(VARCHAR) TO easi_app;
+    GRANT EXECUTE ON FUNCTION get_current_tenant() TO easi_app;
+
+    -- ============================================================================
+    -- Migration complete
+    -- ============================================================================
+
+    -- Note: After this migration, the application should use the easi_app user
+    -- and set the tenant context via: SELECT set_tenant_context('tenant-id');
+    -- or directly via: SET app.current_tenant = 'tenant-id';

@@ -102,6 +102,66 @@ steps:
     enableTelemetry: false
 
 - task: Kubernetes@1
+  name: DeleteDbCredentialsSecret
+  displayName: 'Delete easi-db-credentials secret if exists'
+  continueOnError: true
+  inputs:
+    connectionType: Kubernetes Service Connection
+    kubernetesServiceEndpoint: '$(k8s-service-connection)'
+    namespace: '$(kubernetes-namespace)'
+    command: delete
+    arguments: 'secret easi-db-credentials'
+    versionSpec: 1.22.9
+
+- task: Kubernetes@1
+  name: CreateDbCredentialsSecret
+  displayName: 'Create easi-db-credentials secret'
+  condition: succeeded()
+  inputs:
+    connectionType: Kubernetes Service Connection
+    kubernetesServiceEndpoint: '$(k8s-service-connection)'
+    namespace: '$(kubernetes-namespace)'
+    command: create
+    arguments: 'secret generic easi-db-credentials --from-literal=DB_ADMIN_CONN_STRING="$(DB_ADMIN_CONN_STRING)"'
+    versionSpec: 1.22.9
+
+- task: Kubernetes@1
+  name: DeleteAppDbSecret
+  displayName: 'Delete easi-prod-postgres secret if exists'
+  continueOnError: true
+  inputs:
+    connectionType: Kubernetes Service Connection
+    kubernetesServiceEndpoint: '$(k8s-service-connection)'
+    namespace: '$(kubernetes-namespace)'
+    command: delete
+    arguments: 'secret easi-prod-postgres'
+    versionSpec: 1.22.9
+
+- task: Kubernetes@1
+  name: CreateAppDbSecret
+  displayName: 'Create easi-prod-postgres secret'
+  condition: succeeded()
+  inputs:
+    connectionType: Kubernetes Service Connection
+    kubernetesServiceEndpoint: '$(k8s-service-connection)'
+    namespace: '$(kubernetes-namespace)'
+    command: create
+    arguments: 'secret generic easi-prod-postgres --from-literal=DB_CONN_STRING="$(DB_CONN_STRING)"'
+    versionSpec: 1.22.9
+
+- task: Kubernetes@1
+  name: ApplyConfigMap
+  displayName: 'Apply migrations ConfigMap'
+  condition: succeeded()
+  inputs:
+    connectionType: Kubernetes Service Connection
+    kubernetesServiceEndpoint: '$(k8s-service-connection)'
+    namespace: '$(kubernetes-namespace)'
+    command: apply
+    arguments: '-f $(Build.SourcesDirectory)/k8s/migrations-configmap.yaml'
+    versionSpec: 1.22.9
+
+- task: Kubernetes@1
   name: ApplyManifests
   displayName: 'Apply backend and frontend manifests'
   condition: succeeded()
