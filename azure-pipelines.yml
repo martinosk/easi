@@ -15,6 +15,53 @@ variables:
   value: 'enterprisearchitecture-pnpbj'
 
 steps:
+# Run unit tests first - pipeline fails if tests fail
+- task: GoTool@0
+  name: InstallGo
+  displayName: 'Install Go'
+  inputs:
+    version: '1.23'
+
+- task: Go@0
+  name: BackendUnitTests
+  displayName: 'Run backend unit tests'
+  inputs:
+    command: 'test'
+    arguments: '-v ./...'
+    workingDirectory: 'backend'
+
+- task: NodeTool@0
+  name: InstallNode
+  displayName: 'Install Node.js'
+  inputs:
+    versionSpec: '20.x'
+
+- task: Npm@1
+  name: FrontendInstall
+  displayName: 'Install frontend dependencies'
+  inputs:
+    command: 'ci'
+    workingDir: 'frontend'
+
+- script: |
+    cd frontend
+    CI=true npm run test -- --run
+  name: FrontendUnitTests
+  displayName: 'Run frontend unit tests'
+
+- task: PublishTestResults@2
+  name: PublishFrontendTestResults
+  displayName: 'Publish frontend test results'
+  condition: always()
+  inputs:
+    testResultsFormat: 'JUnit'
+    testResultsFiles: '**/junit.xml'
+    searchFolder: 'frontend/test-results'
+    mergeTestResults: true
+    failTaskOnFailedTests: true
+    testRunTitle: 'Frontend Unit Tests'
+
+# Build Docker images after tests pass
 - task: Docker@2
   name: BuildMigrate
   displayName: 'Build migrate docker image'

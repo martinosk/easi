@@ -30,5 +30,11 @@ export default defineConfig({
       '**/e2e/**',
       '**/ComponentCanvas*.test.tsx',  // Moved to E2E in Phase 3 (spec 011)
     ],
+
+    // Test reporters for CI/CD
+    reporters: process.env.CI ? ['default', 'junit'] : ['default'],
+    outputFile: {
+      junit: './test-results/junit.xml',
+    },
   },
 });
