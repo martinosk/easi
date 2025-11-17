@@ -1,0 +1,71 @@
+import React from 'react';
+import { Toolbar } from './Toolbar';
+import { NavigationTree } from './NavigationTree';
+import { ViewSelector } from './ViewSelector';
+import { ComponentCanvas, type ComponentCanvasRef } from './ComponentCanvas';
+import { ComponentDetails } from './ComponentDetails';
+import { RelationDetails } from './RelationDetails';
+
+interface MainLayoutProps {
+  canvasRef: React.RefObject<ComponentCanvasRef | null>;
+  selectedNodeId: string | null;
+  selectedEdgeId: string | null;
+  onAddComponent: () => void;
+  onFitView: () => void;
+  onConnect: (source: string, target: string) => void;
+  onComponentDrop: (componentId: string, x: number, y: number) => Promise<void>;
+  onComponentSelect: (componentId: string) => void;
+  onViewSelect: (viewId: string) => Promise<void>;
+  onEditComponent: () => void;
+  onEditRelation: () => void;
+  onRemoveFromView: () => void;
+}
+
+export const MainLayout: React.FC<MainLayoutProps> = ({
+  canvasRef,
+  selectedNodeId,
+  selectedEdgeId,
+  onAddComponent,
+  onFitView,
+  onConnect,
+  onComponentDrop,
+  onComponentSelect,
+  onViewSelect,
+  onEditComponent,
+  onEditRelation,
+  onRemoveFromView,
+}) => {
+  return (
+    <>
+      <Toolbar onAddComponent={onAddComponent} onFitView={onFitView} />
+
+      <div className="main-content">
+        <NavigationTree
+          onComponentSelect={onComponentSelect}
+          onViewSelect={onViewSelect}
+        />
+
+        <div className="canvas-section">
+          <ViewSelector />
+          <ComponentCanvas
+            ref={canvasRef}
+            onConnect={onConnect}
+            onComponentDrop={onComponentDrop}
+          />
+        </div>
+
+        {(selectedNodeId || selectedEdgeId) && (
+          <div className="detail-section">
+            {selectedNodeId && (
+              <ComponentDetails
+                onEdit={onEditComponent}
+                onRemoveFromView={onRemoveFromView}
+              />
+            )}
+            {selectedEdgeId && <RelationDetails onEdit={onEditRelation} />}
+          </div>
+        )}
+      </div>
+    </>
+  );
+};

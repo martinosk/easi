@@ -67,3 +67,20 @@ The project uses environment variables for configuration. On first setup, run `.
 
 ## Database
 PostgreSQL 16
+
+## Testing
+
+### Running E2E Tests
+```bash
+# Start the test environment
+docker compose -f docker-compose.e2e.yml up -d
+
+# Run the e2e tests
+cd frontend
+npm run test:e2e
+
+# Clean up
+docker compose -f docker-compose.e2e.yml down
+```
+
+**Note**: Some tests may fail if the database is not clean between runs. This will be addressed in a future update when tests run as isolated tenants.
