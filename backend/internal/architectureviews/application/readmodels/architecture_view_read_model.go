@@ -246,6 +246,7 @@ func (rm *ArchitectureViewReadModel) GetAll(ctx context.Context) ([]Architecture
 
 	var views []ArchitectureViewDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		// First, get all views
 		rows, err := tx.QueryContext(ctx,
 			"SELECT id, name, description, is_default, created_at FROM architecture_views WHERE tenant_id = $1 AND is_deleted = false ORDER BY is_default DESC, created_at DESC",
 			tenantID.Value(),
@@ -260,17 +261,23 @@ func (rm *ArchitectureViewReadModel) GetAll(ctx context.Context) ([]Architecture
 			if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt); err != nil {
 				return err
 			}
-
-			// Get component positions for this view within same transaction
-			components, err := rm.getComponentsForViewTx(ctx, tx, tenantID.Value(), dto.ID)
-			if err != nil {
-				return err
-			}
-			dto.Components = components
 			views = append(views, dto)
 		}
 
-		return rows.Err()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		// Now fetch components for each view (after first query is fully consumed)
+		for i := range views {
+			components, err := rm.getComponentsForViewTx(ctx, tx, tenantID.Value(), views[i].ID)
+			if err != nil {
+				return err
+			}
+			views[i].Components = components
+		}
+
+		return nil
 	})
 
 	return views, err
