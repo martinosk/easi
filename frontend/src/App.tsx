@@ -44,11 +44,6 @@ function App() {
     loadData();
   }, [loadData]);
 
-  // Event handlers
-  const handleFitView = () => {
-    console.log('Fit view requested');
-  };
-
   // Derived state
   const selectedComponent = components.find((c) => c.id === selectedNodeId);
   const selectedRelation = relations.find((r) => r.id === selectedEdgeId);
@@ -80,7 +75,6 @@ function App() {
         selectedNodeId={selectedNodeId}
         selectedEdgeId={selectedEdgeId}
         onAddComponent={componentDialog.open}
-        onFitView={handleFitView}
         onConnect={relationDialog.open}
         onComponentDrop={addComponentToView}
         onComponentSelect={navigateToComponent}

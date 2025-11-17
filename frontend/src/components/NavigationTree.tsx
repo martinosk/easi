@@ -6,6 +6,7 @@ import type { View } from '../api/types';
 interface NavigationTreeProps {
   onComponentSelect?: (componentId: string) => void;
   onViewSelect?: (viewId: string) => void;
+  onAddComponent?: () => void;
 }
 
 interface ContextMenuState {
@@ -24,6 +25,7 @@ interface EditingState {
 export const NavigationTree: React.FC<NavigationTreeProps> = ({
   onComponentSelect,
   onViewSelect,
+  onAddComponent,
 }) => {
   const components = useAppStore((state) => state.components);
   const currentView = useAppStore((state) => state.currentView);
@@ -205,14 +207,24 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
             {/* Models Section */}
             <div className="tree-category">
-              <button
-                className="category-header"
-                onClick={() => setIsModelsExpanded(!isModelsExpanded)}
-              >
-                <span className="category-icon">{isModelsExpanded ? '▼' : '▶'}</span>
-                <span className="category-label">Models</span>
-                <span className="category-count">{components.length}</span>
-              </button>
+              <div className="category-header-wrapper">
+                <button
+                  className="category-header"
+                  onClick={() => setIsModelsExpanded(!isModelsExpanded)}
+                >
+                  <span className="category-icon">{isModelsExpanded ? '▼' : '▶'}</span>
+                  <span className="category-label">Models</span>
+                  <span className="category-count">{components.length}</span>
+                </button>
+                <button
+                  className="add-view-btn"
+                  onClick={onAddComponent}
+                  title="Create new component"
+                  data-testid="create-component-button"
+                >
+                  +
+                </button>
+              </div>
 
               {isModelsExpanded && (
                 <div className="tree-items">
