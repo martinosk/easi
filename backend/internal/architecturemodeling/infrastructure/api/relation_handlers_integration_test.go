@@ -16,6 +16,7 @@ import (
 	"easi/backend/internal/architecturemodeling/application/handlers"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
+	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
@@ -33,11 +34,17 @@ type relationTestContext struct {
 	createdIDs []string
 }
 
+// setTenantContext sets the tenant context for RLS before running raw queries
+func (ctx *relationTestContext) setTenantContext(t *testing.T) {
+	_, err := ctx.db.Exec(fmt.Sprintf("SET app.current_tenant = '%s'", testTenantID()))
+	require.NoError(t, err)
+}
+
 func setupRelationTestDB(t *testing.T) (*relationTestContext, func()) {
 	dbHost := getEnv("INTEGRATION_TEST_DB_HOST", "localhost")
 	dbPort := getEnv("INTEGRATION_TEST_DB_PORT", "5432")
-	dbUser := getEnv("INTEGRATION_TEST_DB_USER", "easi")
-	dbPassword := getEnv("INTEGRATION_TEST_DB_PASSWORD", "easi")
+	dbUser := getEnv("INTEGRATION_TEST_DB_USER", "easi_app")
+	dbPassword := getEnv("INTEGRATION_TEST_DB_PASSWORD", "change_me_in_production")
 	dbName := getEnv("INTEGRATION_TEST_DB_NAME", "easi")
 	dbSSLMode := getEnv("INTEGRATION_TEST_DB_SSLMODE", "disable")
 
@@ -79,6 +86,7 @@ func (ctx *relationTestContext) trackID(id string) {
 
 // createTestRelation creates a relation directly in the read model for testing
 func (ctx *relationTestContext) createTestRelation(t *testing.T, id, sourceID, targetID, relationType, name, description string) {
+	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
 		"INSERT INTO component_relations (id, source_component_id, target_component_id, relation_type, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
 		id, sourceID, targetID, relationType, name, description, testTenantID(),
@@ -88,7 +96,10 @@ func (ctx *relationTestContext) createTestRelation(t *testing.T, id, sourceID, t
 }
 
 func setupRelationHandlers(db *sql.DB) (*RelationHandlers, *readmodels.ComponentRelationReadModel) {
-	eventStore := eventstore.NewPostgresEventStore(db)
+	// Wrap database connection with tenant-aware wrapper for RLS
+	tenantDB := database.NewTenantAwareDB(db)
+
+	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	commandBus := cqrs.NewInMemoryCommandBus()
 	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
 
@@ -98,7 +109,7 @@ func setupRelationHandlers(db *sql.DB) (*RelationHandlers, *readmodels.Component
 	commandBus.Register("CreateComponentRelation", createHandler)
 
 	// Setup read model
-	readModel := readmodels.NewComponentRelationReadModel(db)
+	readModel := readmodels.NewComponentRelationReadModel(tenantDB)
 
 	// Setup HTTP handlers
 	relationHandlers := NewRelationHandlers(commandBus, readModel, hateoas)
@@ -139,6 +150,7 @@ func TestCreateRelation_Integration(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, w.Code)
 
 	// Get the created aggregate ID from the event store
+	testCtx.setTenantContext(t)
 	var aggregateID string
 	err := testCtx.db.QueryRow(
 		"SELECT aggregate_id FROM events WHERE event_type = 'ComponentRelationCreated' ORDER BY created_at DESC LIMIT 1",
@@ -428,6 +440,7 @@ func TestGetAllRelationsPaginated_Integration(t *testing.T) {
 	comp1 := uuid.New().String()
 	comp2 := uuid.New().String()
 
+	testCtx.setTenantContext(t) // Set tenant context once for all inserts
 	for i := 1; i <= 5; i++ {
 		id := uuid.New().String()
 		name := fmt.Sprintf("Relation %d", i)

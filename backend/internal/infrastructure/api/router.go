@@ -1,13 +1,13 @@
 package api
 
 import (
-	"database/sql"
 	"log"
 	"net/http"
 
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
 	"easi/backend/internal/infrastructure/api/middleware"
+	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
@@ -19,7 +19,7 @@ import (
 )
 
 // NewRouter creates and configures the HTTP router
-func NewRouter(eventStore eventstore.EventStore, db *sql.DB) http.Handler {
+func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) http.Handler {
 	r := chi.NewRouter()
 
 	// Middleware

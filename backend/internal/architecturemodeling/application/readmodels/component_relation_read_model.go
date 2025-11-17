@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"time"
 
+	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 )
 
@@ -22,11 +23,11 @@ type ComponentRelationDTO struct {
 
 // ComponentRelationReadModel handles queries for component relations
 type ComponentRelationReadModel struct {
-	db *sql.DB
+	db *database.TenantAwareDB
 }
 
 // NewComponentRelationReadModel creates a new read model
-func NewComponentRelationReadModel(db *sql.DB) *ComponentRelationReadModel {
+func NewComponentRelationReadModel(db *database.TenantAwareDB) *ComponentRelationReadModel {
 	return &ComponentRelationReadModel{db: db}
 }
 
@@ -70,16 +71,26 @@ func (rm *ComponentRelationReadModel) GetByID(ctx context.Context, id string) (*
 	}
 
 	var dto ComponentRelationDTO
-	err = rm.db.QueryRowContext(ctx,
-		"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND id = $2",
-		tenantID.Value(), id,
-	).Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &dto.Name, &dto.Description, &dto.CreatedAt)
+	var notFound bool
 
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		err := tx.QueryRowContext(ctx,
+			"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND id = $2",
+			tenantID.Value(), id,
+		).Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &dto.Name, &dto.Description, &dto.CreatedAt)
+
+		if err == sql.ErrNoRows {
+			notFound = true
+			return nil
+		}
+		return err
+	})
+
 	if err != nil {
 		return nil, err
+	}
+	if notFound {
+		return nil, nil
 	}
 
 	return &dto, nil
@@ -93,25 +104,29 @@ func (rm *ComponentRelationReadModel) GetAll(ctx context.Context) ([]ComponentRe
 		return nil, err
 	}
 
-	rows, err := rm.db.QueryContext(ctx,
-		"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 ORDER BY created_at DESC",
-		tenantID.Value(),
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var relations []ComponentRelationDTO
-	for rows.Next() {
-		var dto ComponentRelationDTO
-		if err := rows.Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
-			return nil, err
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx,
+			"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 ORDER BY created_at DESC",
+			tenantID.Value(),
+		)
+		if err != nil {
+			return err
 		}
-		relations = append(relations, dto)
-	}
+		defer rows.Close()
 
-	return relations, rows.Err()
+		for rows.Next() {
+			var dto ComponentRelationDTO
+			if err := rows.Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
+				return err
+			}
+			relations = append(relations, dto)
+		}
+
+		return rows.Err()
+	})
+
+	return relations, err
 }
 
 // GetAllPaginated retrieves relations with cursor-based pagination for the current tenant
@@ -124,37 +139,42 @@ func (rm *ComponentRelationReadModel) GetAllPaginated(ctx context.Context, limit
 	// Query one extra to determine if there are more results
 	queryLimit := limit + 1
 
-	var rows *sql.Rows
+	var relations []ComponentRelationDTO
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		var rows *sql.Rows
+		var err error
 
-	if afterCursor == "" {
-		// No cursor, get first page
-		rows, err = rm.db.QueryContext(ctx,
-			"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 ORDER BY created_at DESC, id DESC LIMIT $2",
-			tenantID.Value(), queryLimit,
-		)
-	} else {
-		// Use cursor for pagination
-		rows, err = rm.db.QueryContext(ctx,
-			"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND (created_at < to_timestamp($2) OR (created_at = to_timestamp($2) AND id < $3)) ORDER BY created_at DESC, id DESC LIMIT $4",
-			tenantID.Value(), afterTimestamp, afterCursor, queryLimit,
-		)
-	}
+		if afterCursor == "" {
+			// No cursor, get first page
+			rows, err = tx.QueryContext(ctx,
+				"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 ORDER BY created_at DESC, id DESC LIMIT $2",
+				tenantID.Value(), queryLimit,
+			)
+		} else {
+			// Use cursor for pagination
+			rows, err = tx.QueryContext(ctx,
+				"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND (created_at < to_timestamp($2) OR (created_at = to_timestamp($2) AND id < $3)) ORDER BY created_at DESC, id DESC LIMIT $4",
+				tenantID.Value(), afterTimestamp, afterCursor, queryLimit,
+			)
+		}
+
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var dto ComponentRelationDTO
+			if err := rows.Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
+				return err
+			}
+			relations = append(relations, dto)
+		}
+
+		return rows.Err()
+	})
 
 	if err != nil {
-		return nil, false, err
-	}
-	defer rows.Close()
-
-	var relations []ComponentRelationDTO
-	for rows.Next() {
-		var dto ComponentRelationDTO
-		if err := rows.Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
-			return nil, false, err
-		}
-		relations = append(relations, dto)
-	}
-
-	if err := rows.Err(); err != nil {
 		return nil, false, err
 	}
 
@@ -175,25 +195,29 @@ func (rm *ComponentRelationReadModel) GetBySourceID(ctx context.Context, compone
 		return nil, err
 	}
 
-	rows, err := rm.db.QueryContext(ctx,
-		"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND source_component_id = $2 ORDER BY created_at DESC",
-		tenantID.Value(), componentID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var relations []ComponentRelationDTO
-	for rows.Next() {
-		var dto ComponentRelationDTO
-		if err := rows.Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
-			return nil, err
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx,
+			"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND source_component_id = $2 ORDER BY created_at DESC",
+			tenantID.Value(), componentID,
+		)
+		if err != nil {
+			return err
 		}
-		relations = append(relations, dto)
-	}
+		defer rows.Close()
 
-	return relations, rows.Err()
+		for rows.Next() {
+			var dto ComponentRelationDTO
+			if err := rows.Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
+				return err
+			}
+			relations = append(relations, dto)
+		}
+
+		return rows.Err()
+	})
+
+	return relations, err
 }
 
 // GetByTargetID retrieves all relations where component is the target for the current tenant
@@ -203,23 +227,27 @@ func (rm *ComponentRelationReadModel) GetByTargetID(ctx context.Context, compone
 		return nil, err
 	}
 
-	rows, err := rm.db.QueryContext(ctx,
-		"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND target_component_id = $2 ORDER BY created_at DESC",
-		tenantID.Value(), componentID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var relations []ComponentRelationDTO
-	for rows.Next() {
-		var dto ComponentRelationDTO
-		if err := rows.Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
-			return nil, err
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx,
+			"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND target_component_id = $2 ORDER BY created_at DESC",
+			tenantID.Value(), componentID,
+		)
+		if err != nil {
+			return err
 		}
-		relations = append(relations, dto)
-	}
+		defer rows.Close()
 
-	return relations, rows.Err()
+		for rows.Next() {
+			var dto ComponentRelationDTO
+			if err := rows.Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
+				return err
+			}
+			relations = append(relations, dto)
+		}
+
+		return rows.Err()
+	})
+
+	return relations, err
 }

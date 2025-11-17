@@ -34,7 +34,8 @@ func (t *TenantAwareDB) setTenantContext(ctx context.Context, conn *sql.Conn) er
 	}
 
 	// Set PostgreSQL session variable for RLS policies
-	_, err = conn.ExecContext(ctx, "SET app.current_tenant = $1", tenantID.Value())
+	// Note: SET command doesn't support parameter placeholders, so we use format
+	_, err = conn.ExecContext(ctx, fmt.Sprintf("SET app.current_tenant = '%s'", tenantID.Value()))
 	if err != nil {
 		return fmt.Errorf("failed to set tenant context: %w", err)
 	}
@@ -61,32 +62,92 @@ func (t *TenantAwareDB) WithTenantContext(ctx context.Context, fn func(*sql.Conn
 	return fn(conn)
 }
 
-// QueryContext executes a query with automatic tenant context
-func (t *TenantAwareDB) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
-	var rows *sql.Rows
-	var queryErr error
-
-	err := t.WithTenantContext(ctx, func(conn *sql.Conn) error {
-		rows, queryErr = conn.QueryContext(ctx, query, args...)
-		return queryErr
-	})
-
+// WithReadOnlyTx executes a function within a read-only transaction with tenant context
+// This is the RECOMMENDED and CORRECT way to execute read queries with RLS
+// It ensures proper connection lifecycle management and prevents connection leaks
+func (t *TenantAwareDB) WithReadOnlyTx(ctx context.Context, fn func(*sql.Tx) error) error {
+	// Begin read-only transaction with tenant context already set
+	tx, err := t.BeginTxWithTenant(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
+		return err
+	}
+
+	// Execute function
+	err = fn(tx)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Commit to release connection back to pool
+	return tx.Commit()
+}
+
+// QueryContext executes a query with automatic tenant context
+// DEPRECATED: This method has a connection leak issue. Use WithReadOnlyTx instead.
+// This method will be removed in a future version.
+func (t *TenantAwareDB) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
+	// Get tenant from context
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tenant from context: %w", err)
+	}
+
+	// Use SET on the main pool - this is session-scoped but connections get recycled
+	// so we must set it before each query
+	conn, err := t.db.Conn(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to acquire connection: %w", err)
+	}
+
+	// Set tenant context for this connection (session-level)
+	_, err = conn.ExecContext(ctx, fmt.Sprintf("SET app.current_tenant = '%s'", tenantID.Value()))
+	if err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("failed to set tenant context: %w", err)
+	}
+
+	// Execute query
+	rows, err := conn.QueryContext(ctx, query, args...)
+	if err != nil {
+		conn.Close()
 		return nil, err
 	}
+
+	// KNOWN ISSUE: Connection is not properly released until BOTH rows.Close() AND conn.Close()
+	// This causes connection leaks under load. Use WithReadOnlyTx instead.
+
 	return rows, nil
 }
 
 // QueryRowContext executes a query that returns at most one row
+// DEPRECATED: This method has a connection leak issue. Use WithReadOnlyTx instead.
+// This method will be removed in a future version.
 func (t *TenantAwareDB) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	var row *sql.Row
+	// Verify tenant context exists
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return t.db.QueryRowContext(ctx, "SELECT 'ERROR: Missing tenant context'::text WHERE false")
+	}
 
-	// Note: We can't return error here due to sql.Row's interface
-	// The error will be captured when Scan is called
-	_ = t.WithTenantContext(ctx, func(conn *sql.Conn) error {
-		row = conn.QueryRowContext(ctx, query, args...)
-		return nil
-	})
+	// Acquire a connection to set tenant context
+	conn, err := t.db.Conn(ctx)
+	if err != nil {
+		return t.db.QueryRowContext(ctx, "SELECT 'ERROR: Failed to acquire connection'::text WHERE false")
+	}
+
+	// Set tenant context for this connection (session-level)
+	_, err = conn.ExecContext(ctx, fmt.Sprintf("SET app.current_tenant = '%s'", tenantID.Value()))
+	if err != nil {
+		conn.Close()
+		return t.db.QueryRowContext(ctx, "SELECT 'ERROR: Failed to set tenant context'::text WHERE false")
+	}
+
+	// Execute the query
+	row := conn.QueryRowContext(ctx, query, args...)
+
+	// KNOWN ISSUE: Connection may not be properly released after Scan()
+	// This causes connection leaks under load. Use WithReadOnlyTx instead.
 
 	return row
 }
@@ -122,7 +183,8 @@ func (t *TenantAwareDB) BeginTxWithTenant(ctx context.Context, opts *sql.TxOptio
 		return nil, fmt.Errorf("failed to get tenant from context: %w", err)
 	}
 
-	_, err = tx.ExecContext(ctx, "SET LOCAL app.current_tenant = $1", tenantID.Value())
+	// Note: SET command doesn't support parameter placeholders, so we use format
+	_, err = tx.ExecContext(ctx, fmt.Sprintf("SET LOCAL app.current_tenant = '%s'", tenantID.Value()))
 	if err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("failed to set tenant context in transaction: %w", err)

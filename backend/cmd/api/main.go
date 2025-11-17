@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"easi/backend/internal/infrastructure/api"
+	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	_ "github.com/lib/pq"
 )
@@ -42,11 +43,14 @@ func main() {
 
 	log.Println("Connected to database successfully")
 
-	// Initialize event store
-	eventStore := eventstore.NewPostgresEventStore(db)
+	// Wrap database connection with tenant-aware wrapper for RLS
+	tenantDB := database.NewTenantAwareDB(db)
 
-	// Create HTTP server
-	router := api.NewRouter(eventStore, db)
+	// Initialize event store with tenant-aware DB
+	eventStore := eventstore.NewPostgresEventStore(tenantDB)
+
+	// Create HTTP server with tenant-aware DB
+	router := api.NewRouter(eventStore, tenantDB)
 
 	port := getEnv("PORT", "8080")
 	addr := fmt.Sprintf(":%s", port)

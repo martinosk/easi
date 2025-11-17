@@ -1,12 +1,11 @@
 package api
 
 import (
-	"database/sql"
-
 	"easi/backend/internal/architectureviews/application/handlers"
 	"easi/backend/internal/architectureviews/application/projectors"
 	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
+	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
@@ -20,7 +19,7 @@ func SetupArchitectureViewsRoutes(
 	commandBus *cqrs.InMemoryCommandBus,
 	eventStore eventstore.EventStore,
 	eventBus events.EventBus,
-	db *sql.DB,
+	db *database.TenantAwareDB,
 	hateoas *sharedAPI.HATEOASLinks,
 ) error {
 	// Initialize repository

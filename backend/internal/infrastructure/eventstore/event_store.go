@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/shared/domain"
 	"easi/backend/internal/shared/events"
 	sharedctx "easi/backend/internal/shared/context"
@@ -23,12 +24,12 @@ type EventStore interface {
 
 // PostgresEventStore implements EventStore using PostgreSQL
 type PostgresEventStore struct {
-	db       *sql.DB
+	db       *database.TenantAwareDB
 	eventBus events.EventBus
 }
 
 // NewPostgresEventStore creates a new PostgreSQL event store
-func NewPostgresEventStore(db *sql.DB) *PostgresEventStore {
+func NewPostgresEventStore(db *database.TenantAwareDB) *PostgresEventStore {
 	return &PostgresEventStore{
 		db:       db,
 		eventBus: nil, // Will be set via SetEventBus
@@ -63,7 +64,8 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 		return fmt.Errorf("failed to get tenant from context: %w", err)
 	}
 
-	tx, err := s.db.BeginTx(ctx, nil)
+	// Use tenant-aware transaction that sets app.current_tenant for RLS
+	tx, err := s.db.BeginTxWithTenant(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
@@ -137,6 +139,7 @@ func (s *PostgresEventStore) GetEvents(ctx context.Context, aggregateID string) 
 		return nil, fmt.Errorf("failed to get tenant from context: %w", err)
 	}
 
+	// Use tenant-aware query that sets app.current_tenant for RLS
 	rows, err := s.db.QueryContext(ctx,
 		"SELECT id, aggregate_id, event_type, event_data, version, occurred_at, created_at FROM events WHERE tenant_id = $1 AND aggregate_id = $2 ORDER BY version ASC",
 		tenantID.Value(),

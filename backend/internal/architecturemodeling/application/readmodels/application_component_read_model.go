@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"time"
 
+	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 )
 
@@ -19,11 +20,11 @@ type ApplicationComponentDTO struct {
 
 // ApplicationComponentReadModel handles queries for application components
 type ApplicationComponentReadModel struct {
-	db *sql.DB
+	db *database.TenantAwareDB
 }
 
 // NewApplicationComponentReadModel creates a new read model
-func NewApplicationComponentReadModel(db *sql.DB) *ApplicationComponentReadModel {
+func NewApplicationComponentReadModel(db *database.TenantAwareDB) *ApplicationComponentReadModel {
 	return &ApplicationComponentReadModel{db: db}
 }
 
@@ -67,16 +68,26 @@ func (rm *ApplicationComponentReadModel) GetByID(ctx context.Context, id string)
 	}
 
 	var dto ApplicationComponentDTO
-	err = rm.db.QueryRowContext(ctx,
-		"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND id = $2",
-		tenantID.Value(), id,
-	).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt)
+	var notFound bool
 
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		err := tx.QueryRowContext(ctx,
+			"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND id = $2",
+			tenantID.Value(), id,
+		).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt)
+
+		if err == sql.ErrNoRows {
+			notFound = true
+			return nil
+		}
+		return err
+	})
+
 	if err != nil {
 		return nil, err
+	}
+	if notFound {
+		return nil, nil
 	}
 
 	return &dto, nil
@@ -90,25 +101,29 @@ func (rm *ApplicationComponentReadModel) GetAll(ctx context.Context) ([]Applicat
 		return nil, err
 	}
 
-	rows, err := rm.db.QueryContext(ctx,
-		"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 ORDER BY created_at DESC",
-		tenantID.Value(),
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var components []ApplicationComponentDTO
-	for rows.Next() {
-		var dto ApplicationComponentDTO
-		if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
-			return nil, err
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx,
+			"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 ORDER BY created_at DESC",
+			tenantID.Value(),
+		)
+		if err != nil {
+			return err
 		}
-		components = append(components, dto)
-	}
+		defer rows.Close()
 
-	return components, rows.Err()
+		for rows.Next() {
+			var dto ApplicationComponentDTO
+			if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
+				return err
+			}
+			components = append(components, dto)
+		}
+
+		return rows.Err()
+	})
+
+	return components, err
 }
 
 // GetAllPaginated retrieves components with cursor-based pagination for the current tenant
@@ -121,37 +136,42 @@ func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, li
 	// Query one extra to determine if there are more results
 	queryLimit := limit + 1
 
-	var rows *sql.Rows
+	var components []ApplicationComponentDTO
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		var rows *sql.Rows
+		var err error
 
-	if afterCursor == "" {
-		// No cursor, get first page
-		rows, err = rm.db.QueryContext(ctx,
-			"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 ORDER BY created_at DESC, id DESC LIMIT $2",
-			tenantID.Value(), queryLimit,
-		)
-	} else {
-		// Use cursor for pagination
-		rows, err = rm.db.QueryContext(ctx,
-			"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND (created_at < to_timestamp($2) OR (created_at = to_timestamp($2) AND id < $3)) ORDER BY created_at DESC, id DESC LIMIT $4",
-			tenantID.Value(), afterTimestamp, afterCursor, queryLimit,
-		)
-	}
+		if afterCursor == "" {
+			// No cursor, get first page
+			rows, err = tx.QueryContext(ctx,
+				"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 ORDER BY created_at DESC, id DESC LIMIT $2",
+				tenantID.Value(), queryLimit,
+			)
+		} else {
+			// Use cursor for pagination
+			rows, err = tx.QueryContext(ctx,
+				"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND (created_at < to_timestamp($2) OR (created_at = to_timestamp($2) AND id < $3)) ORDER BY created_at DESC, id DESC LIMIT $4",
+				tenantID.Value(), afterTimestamp, afterCursor, queryLimit,
+			)
+		}
+
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var dto ApplicationComponentDTO
+			if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
+				return err
+			}
+			components = append(components, dto)
+		}
+
+		return rows.Err()
+	})
 
 	if err != nil {
-		return nil, false, err
-	}
-	defer rows.Close()
-
-	var components []ApplicationComponentDTO
-	for rows.Next() {
-		var dto ApplicationComponentDTO
-		if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
-			return nil, false, err
-		}
-		components = append(components, dto)
-	}
-
-	if err := rows.Err(); err != nil {
 		return nil, false, err
 	}
 

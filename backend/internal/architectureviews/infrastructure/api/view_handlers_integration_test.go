@@ -17,6 +17,7 @@ import (
 	"easi/backend/internal/architectureviews/application/projectors"
 	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
+	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
@@ -34,11 +35,17 @@ type viewTestContext struct {
 	createdIDs []string
 }
 
+// setTenantContext sets the tenant context for RLS before running raw queries
+func (ctx *viewTestContext) setTenantContext(t *testing.T) {
+	_, err := ctx.db.Exec(fmt.Sprintf("SET app.current_tenant = '%s'", testTenantID()))
+	require.NoError(t, err)
+}
+
 func setupViewTestDB(t *testing.T) (*viewTestContext, func()) {
 	dbHost := getEnv("INTEGRATION_TEST_DB_HOST", "localhost")
 	dbPort := getEnv("INTEGRATION_TEST_DB_PORT", "5432")
-	dbUser := getEnv("INTEGRATION_TEST_DB_USER", "easi")
-	dbPassword := getEnv("INTEGRATION_TEST_DB_PASSWORD", "easi")
+	dbUser := getEnv("INTEGRATION_TEST_DB_USER", "easi_app")
+	dbPassword := getEnv("INTEGRATION_TEST_DB_PASSWORD", "change_me_in_production")
 	dbName := getEnv("INTEGRATION_TEST_DB_NAME", "easi")
 	dbSSLMode := getEnv("INTEGRATION_TEST_DB_SSLMODE", "disable")
 
@@ -80,6 +87,7 @@ func (ctx *viewTestContext) trackID(id string) {
 
 // createTestView creates a view directly in the read model for testing
 func (ctx *viewTestContext) createTestView(t *testing.T, id, name, description string) {
+	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
 		"INSERT INTO architecture_views (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
 		id, name, description, testTenantID(),
@@ -90,6 +98,7 @@ func (ctx *viewTestContext) createTestView(t *testing.T, id, name, description s
 
 // addTestComponentToView adds a component to a view in the read model for testing
 func (ctx *viewTestContext) addTestComponentToView(t *testing.T, viewID, componentID string, x, y float64) {
+	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
 		"INSERT INTO view_component_positions (view_id, component_id, x, y, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, NOW())",
 		viewID, componentID, x, y, testTenantID(),
@@ -98,13 +107,16 @@ func (ctx *viewTestContext) addTestComponentToView(t *testing.T, viewID, compone
 }
 
 func setupViewHandlers(db *sql.DB) (*ViewHandlers, *readmodels.ArchitectureViewReadModel) {
+	// Wrap database connection with tenant-aware wrapper for RLS
+	tenantDB := database.NewTenantAwareDB(db)
+
 	// Setup event infrastructure
-	eventStore := eventstore.NewPostgresEventStore(db)
+	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	commandBus := cqrs.NewInMemoryCommandBus()
 	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
 
 	// Setup read model and projector
-	readModel := readmodels.NewArchitectureViewReadModel(db)
+	readModel := readmodels.NewArchitectureViewReadModel(tenantDB)
 	projector := projectors.NewArchitectureViewProjector(readModel)
 
 	// Setup event bus and connect it to the event store
@@ -160,6 +172,7 @@ func TestCreateView_Integration(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, w.Code)
 
 	// Get the created aggregate ID from the event store
+	testCtx.setTenantContext(t)
 	var aggregateID string
 	err := testCtx.db.QueryRow(
 		"SELECT aggregate_id FROM events WHERE event_type = 'ViewCreated' ORDER BY created_at DESC LIMIT 1",
@@ -340,6 +353,7 @@ func TestAddComponentToView_Integration(t *testing.T) {
 	require.Equal(t, http.StatusCreated, createW.Code)
 
 	// Get the view ID from event store
+	testCtx.setTenantContext(t)
 	var viewID string
 	err := testCtx.db.QueryRow(
 		"SELECT aggregate_id FROM events WHERE event_type = 'ViewCreated' ORDER BY created_at DESC LIMIT 1",
@@ -404,6 +418,7 @@ func TestUpdateComponentPosition_Integration(t *testing.T) {
 	require.Equal(t, http.StatusCreated, createW.Code)
 
 	// Get the view ID
+	testCtx.setTenantContext(t)
 	var viewID string
 	err := testCtx.db.QueryRow(
 		"SELECT aggregate_id FROM events WHERE event_type = 'ViewCreated' ORDER BY created_at DESC LIMIT 1",
@@ -515,6 +530,7 @@ func TestSetDefaultView_Integration(t *testing.T) {
 	require.Equal(t, http.StatusCreated, w1.Code)
 
 	// Get view1 ID
+	testCtx.setTenantContext(t)
 	var view1ID string
 	err := testCtx.db.QueryRow(
 		"SELECT aggregate_id FROM events WHERE event_type = 'ViewCreated' ORDER BY created_at DESC LIMIT 1",
@@ -536,6 +552,7 @@ func TestSetDefaultView_Integration(t *testing.T) {
 	require.Equal(t, http.StatusCreated, w2.Code)
 
 	// Get view2 ID
+	testCtx.setTenantContext(t)
 	var view2ID string
 	err = testCtx.db.QueryRow(
 		"SELECT aggregate_id FROM events WHERE event_type = 'ViewCreated' AND aggregate_id != $1 ORDER BY created_at DESC LIMIT 1",

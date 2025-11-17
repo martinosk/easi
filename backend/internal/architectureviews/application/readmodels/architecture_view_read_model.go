@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"time"
 
+	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 )
 
@@ -28,11 +29,11 @@ type ArchitectureViewDTO struct {
 
 // ArchitectureViewReadModel handles queries for architecture views
 type ArchitectureViewReadModel struct {
-	db *sql.DB
+	db *database.TenantAwareDB
 }
 
 // NewArchitectureViewReadModel creates a new read model
-func NewArchitectureViewReadModel(db *sql.DB) *ArchitectureViewReadModel {
+func NewArchitectureViewReadModel(db *database.TenantAwareDB) *ArchitectureViewReadModel {
 	return &ArchitectureViewReadModel{db: db}
 }
 
@@ -44,6 +45,7 @@ func (rm *ArchitectureViewReadModel) InsertView(ctx context.Context, dto Archite
 		return err
 	}
 
+	// Use tenant-aware exec that sets app.current_tenant for RLS
 	_, err = rm.db.ExecContext(ctx,
 		"INSERT INTO architecture_views (id, tenant_id, name, description, is_default, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
 		dto.ID, tenantID.Value(), dto.Name, dto.Description, dto.IsDefault, dto.CreatedAt,
@@ -143,20 +145,38 @@ func (rm *ArchitectureViewReadModel) GetDefaultView(ctx context.Context) (*Archi
 	}
 
 	var dto ArchitectureViewDTO
-	err = rm.db.QueryRowContext(ctx,
-		"SELECT id, name, description, is_default, created_at FROM architecture_views WHERE tenant_id = $1 AND is_default = true AND is_deleted = false LIMIT 1",
-		tenantID.Value(),
-	).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt)
+	var notFound bool
 
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		err := tx.QueryRowContext(ctx,
+			"SELECT id, name, description, is_default, created_at FROM architecture_views WHERE tenant_id = $1 AND is_default = true AND is_deleted = false LIMIT 1",
+			tenantID.Value(),
+		).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt)
+
+		if err == sql.ErrNoRows {
+			notFound = true
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		// Get component positions within same transaction
+		components, err := rm.getComponentsForViewTx(ctx, tx, tenantID.Value(), dto.ID)
+		if err != nil {
+			return err
+		}
+		dto.Components = components
+
+		return nil
+	})
+
 	if err != nil {
 		return nil, err
 	}
-
-	// Get component positions
-	dto.Components, _ = rm.getComponentsForView(ctx, dto.ID)
+	if notFound {
+		return nil, nil
+	}
 
 	return &dto, nil
 }
@@ -169,38 +189,52 @@ func (rm *ArchitectureViewReadModel) GetByID(ctx context.Context, id string) (*A
 	}
 
 	var dto ArchitectureViewDTO
-	err = rm.db.QueryRowContext(ctx,
-		"SELECT id, name, description, is_default, created_at FROM architecture_views WHERE tenant_id = $1 AND id = $2 AND is_deleted = false",
-		tenantID.Value(), id,
-	).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt)
+	var notFound bool
 
-	if err == sql.ErrNoRows {
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		err := tx.QueryRowContext(ctx,
+			"SELECT id, name, description, is_default, created_at FROM architecture_views WHERE tenant_id = $1 AND id = $2 AND is_deleted = false",
+			tenantID.Value(), id,
+		).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt)
+
+		if err == sql.ErrNoRows {
+			notFound = true
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		// Get component positions within same transaction
+		rows, err := tx.QueryContext(ctx,
+			"SELECT component_id, x, y FROM view_component_positions WHERE tenant_id = $1 AND view_id = $2",
+			tenantID.Value(), id,
+		)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		dto.Components = make([]ComponentPositionDTO, 0)
+		for rows.Next() {
+			var comp ComponentPositionDTO
+			if err := rows.Scan(&comp.ComponentID, &comp.X, &comp.Y); err != nil {
+				return err
+			}
+			dto.Components = append(dto.Components, comp)
+		}
+
+		return rows.Err()
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	if notFound {
 		return nil, nil
 	}
-	if err != nil {
-		return nil, err
-	}
 
-	// Get component positions
-	rows, err := rm.db.QueryContext(ctx,
-		"SELECT component_id, x, y FROM view_component_positions WHERE tenant_id = $1 AND view_id = $2",
-		tenantID.Value(), id,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	dto.Components = make([]ComponentPositionDTO, 0)
-	for rows.Next() {
-		var comp ComponentPositionDTO
-		if err := rows.Scan(&comp.ComponentID, &comp.X, &comp.Y); err != nil {
-			return nil, err
-		}
-		dto.Components = append(dto.Components, comp)
-	}
-
-	return &dto, rows.Err()
+	return &dto, nil
 }
 
 // GetAll retrieves all views (excluding deleted ones) for the current tenant
@@ -210,40 +244,43 @@ func (rm *ArchitectureViewReadModel) GetAll(ctx context.Context) ([]Architecture
 		return nil, err
 	}
 
-	rows, err := rm.db.QueryContext(ctx,
-		"SELECT id, name, description, is_default, created_at FROM architecture_views WHERE tenant_id = $1 AND is_deleted = false ORDER BY is_default DESC, created_at DESC",
-		tenantID.Value(),
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var views []ArchitectureViewDTO
-	for rows.Next() {
-		var dto ArchitectureViewDTO
-		if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt); err != nil {
-			return nil, err
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx,
+			"SELECT id, name, description, is_default, created_at FROM architecture_views WHERE tenant_id = $1 AND is_deleted = false ORDER BY is_default DESC, created_at DESC",
+			tenantID.Value(),
+		)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var dto ArchitectureViewDTO
+			if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt); err != nil {
+				return err
+			}
+
+			// Get component positions for this view within same transaction
+			components, err := rm.getComponentsForViewTx(ctx, tx, tenantID.Value(), dto.ID)
+			if err != nil {
+				return err
+			}
+			dto.Components = components
+			views = append(views, dto)
 		}
 
-		// Get component positions for this view
-		dto.Components, _ = rm.getComponentsForView(ctx, dto.ID)
-		views = append(views, dto)
-	}
+		return rows.Err()
+	})
 
-	return views, rows.Err()
+	return views, err
 }
 
-// getComponentsForView is a helper to fetch components for a view
-func (rm *ArchitectureViewReadModel) getComponentsForView(ctx context.Context, viewID string) ([]ComponentPositionDTO, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	rows, err := rm.db.QueryContext(ctx,
+// getComponentsForViewTx is a helper to fetch components for a view within a transaction
+func (rm *ArchitectureViewReadModel) getComponentsForViewTx(ctx context.Context, tx *sql.Tx, tenantID, viewID string) ([]ComponentPositionDTO, error) {
+	rows, err := tx.QueryContext(ctx,
 		"SELECT component_id, x, y FROM view_component_positions WHERE tenant_id = $1 AND view_id = $2",
-		tenantID.Value(), viewID,
+		tenantID, viewID,
 	)
 	if err != nil {
 		return nil, err

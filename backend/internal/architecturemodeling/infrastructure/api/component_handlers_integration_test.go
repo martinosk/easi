@@ -17,6 +17,7 @@ import (
 	"easi/backend/internal/architecturemodeling/application/projectors"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
+	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
@@ -34,11 +35,17 @@ type testContext struct {
 	createdIDs []string
 }
 
+// setTenantContext sets the tenant context for RLS before running raw queries
+func (ctx *testContext) setTenantContext(t *testing.T) {
+	_, err := ctx.db.Exec(fmt.Sprintf("SET app.current_tenant = '%s'", testTenantID()))
+	require.NoError(t, err)
+}
+
 func setupTestDB(t *testing.T) (*testContext, func()) {
 	dbHost := getEnv("INTEGRATION_TEST_DB_HOST", "localhost")
 	dbPort := getEnv("INTEGRATION_TEST_DB_PORT", "5432")
-	dbUser := getEnv("INTEGRATION_TEST_DB_USER", "easi")
-	dbPassword := getEnv("INTEGRATION_TEST_DB_PASSWORD", "easi")
+	dbUser := getEnv("INTEGRATION_TEST_DB_USER", "easi_app")
+	dbPassword := getEnv("INTEGRATION_TEST_DB_PASSWORD", "change_me_in_production")
 	dbName := getEnv("INTEGRATION_TEST_DB_NAME", "easi")
 	dbSSLMode := getEnv("INTEGRATION_TEST_DB_SSLMODE", "disable")
 
@@ -79,6 +86,7 @@ func (ctx *testContext) trackID(id string) {
 
 // createTestComponent creates a component directly in the read model for testing
 func (ctx *testContext) createTestComponent(t *testing.T, id, name, description string) {
+	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
 		"INSERT INTO application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
 		id, name, description, testTenantID(),
@@ -88,7 +96,10 @@ func (ctx *testContext) createTestComponent(t *testing.T, id, name, description 
 }
 
 func setupHandlers(db *sql.DB) (*ComponentHandlers, *readmodels.ApplicationComponentReadModel) {
-	eventStore := eventstore.NewPostgresEventStore(db)
+	// Wrap database connection with tenant-aware wrapper for RLS
+	tenantDB := database.NewTenantAwareDB(db)
+
+	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	commandBus := cqrs.NewInMemoryCommandBus()
 	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
 
@@ -97,7 +108,7 @@ func setupHandlers(db *sql.DB) (*ComponentHandlers, *readmodels.ApplicationCompo
 	eventStore.SetEventBus(eventBus)
 
 	// Setup read model
-	readModel := readmodels.NewApplicationComponentReadModel(db)
+	readModel := readmodels.NewApplicationComponentReadModel(tenantDB)
 
 	// Setup projector and wire to event bus
 	projector := projectors.NewApplicationComponentProjector(readModel)
@@ -141,6 +152,7 @@ func TestCreateComponent_Integration(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, w.Code)
 
 	// Get the created aggregate ID from the event store
+	testCtx.setTenantContext(t)
 	var aggregateID string
 	err := testCtx.db.QueryRow(
 		"SELECT aggregate_id FROM events WHERE event_type = 'ApplicationComponentCreated' ORDER BY created_at DESC LIMIT 1",
@@ -304,6 +316,7 @@ func TestGetAllComponentsPaginated_Integration(t *testing.T) {
 	handlers, _ := setupHandlers(testCtx.db)
 
 	// Create test data with unique IDs and different timestamps
+	testCtx.setTenantContext(t) // Set tenant context once for all inserts
 	for i := 1; i <= 5; i++ {
 		id := fmt.Sprintf("comp-%s-%d-%d", testCtx.testID, i, time.Now().UnixNano())
 		name := fmt.Sprintf("Component %d", i)
@@ -417,6 +430,7 @@ func TestUpdateComponent_Integration(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, createW.Code)
 
 	// Get the created component ID
+	testCtx.setTenantContext(t)
 	var componentID string
 	err := testCtx.db.QueryRow(
 		"SELECT aggregate_id FROM events WHERE event_type = 'ApplicationComponentCreated' ORDER BY created_at DESC LIMIT 1",
@@ -451,6 +465,7 @@ func TestUpdateComponent_Integration(t *testing.T) {
 	assert.Equal(t, http.StatusOK, updateW.Code)
 
 	// Verify the update event was created
+	testCtx.setTenantContext(t)
 	var updateEventData string
 	err = testCtx.db.QueryRow(
 		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'ApplicationComponentUpdated'",
