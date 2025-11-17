@@ -72,7 +72,7 @@ module "db_instance" {
   #     Provide a list of VPC subnet IDs.
   #     Valid Values: .
   #     Notes: IDs of the subnets must be in the same VPC as the RDS instance. Example: ["subnet-aaaaaaaaaaa", "subnet-bbbbbbbbbbb", "subnet-cccccccccc"]
-  subnet_ids = ["subnet-08f10b6cb27fad938", "subnet-0b4e07915c8a91427", "subnet-08ab2e2ff52cf8ad0"]
+  subnet_ids = ["subnet-09b86b641165b4be0", "subnet-0ee52d2c44aa014a6", "subnet-0d2181fc9109bbe0b"]
 
   #     Specify Username for the master DB user.
   #     Valid Values: .
@@ -82,7 +82,7 @@ module "db_instance" {
   #     Specify the VPC ID.
   #     Valid Values: .
   #     Notes: .
-  vpc_id = "vpc-02d14cf9eae0f7280"
+  vpc_id = "vpc-0d92929a043ac2dc1"
 }
 
 output "iam_instance_profile_for_ec2" {
