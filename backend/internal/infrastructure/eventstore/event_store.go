@@ -139,28 +139,32 @@ func (s *PostgresEventStore) GetEvents(ctx context.Context, aggregateID string) 
 		return nil, fmt.Errorf("failed to get tenant from context: %w", err)
 	}
 
-	// Use tenant-aware query that sets app.current_tenant for RLS
-	rows, err := s.db.QueryContext(ctx,
-		"SELECT id, aggregate_id, event_type, event_data, version, occurred_at, created_at FROM events WHERE tenant_id = $1 AND aggregate_id = $2 ORDER BY version ASC",
-		tenantID.Value(),
-		aggregateID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query events: %w", err)
-	}
-	defer rows.Close()
-
+	// Use tenant-aware read-only transaction that sets app.current_tenant for RLS
 	var storedEvents []StoredEvent
-	for rows.Next() {
-		var se StoredEvent
-		if err := rows.Scan(&se.ID, &se.AggregateID, &se.EventType, &se.EventData, &se.Version, &se.OccurredAt, &se.CreatedAt); err != nil {
-			return nil, fmt.Errorf("failed to scan event: %w", err)
+	err = s.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx,
+			"SELECT id, aggregate_id, event_type, event_data, version, occurred_at, created_at FROM events WHERE tenant_id = $1 AND aggregate_id = $2 ORDER BY version ASC",
+			tenantID.Value(),
+			aggregateID,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to query events: %w", err)
 		}
-		storedEvents = append(storedEvents, se)
-	}
+		defer rows.Close()
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating events: %w", err)
+		for rows.Next() {
+			var se StoredEvent
+			if err := rows.Scan(&se.ID, &se.AggregateID, &se.EventType, &se.EventData, &se.Version, &se.OccurredAt, &se.CreatedAt); err != nil {
+				return fmt.Errorf("failed to scan event: %w", err)
+			}
+			storedEvents = append(storedEvents, se)
+		}
+
+		return rows.Err()
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving events: %w", err)
 	}
 
 	// Convert stored events to domain events
