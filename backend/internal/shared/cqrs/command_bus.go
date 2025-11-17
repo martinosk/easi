@@ -12,21 +12,18 @@ type InMemoryCommandBus struct {
 	mu       sync.RWMutex
 }
 
-// NewInMemoryCommandBus creates a new in-memory command bus
 func NewInMemoryCommandBus() *InMemoryCommandBus {
 	return &InMemoryCommandBus{
 		handlers: make(map[string]CommandHandler),
 	}
 }
 
-// Register registers a handler for a command type
 func (b *InMemoryCommandBus) Register(commandName string, handler CommandHandler) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.handlers[commandName] = handler
 }
 
-// Dispatch dispatches a command to its handler
 func (b *InMemoryCommandBus) Dispatch(ctx context.Context, cmd Command) error {
 	b.mu.RLock()
 	handler, exists := b.handlers[cmd.CommandName()]

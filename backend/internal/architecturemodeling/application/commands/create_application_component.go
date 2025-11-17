@@ -1,6 +1,5 @@
 package commands
 
-// CreateApplicationComponent command
 type CreateApplicationComponent struct {
 	Name        string
 	Description string
@@ -8,7 +7,6 @@ type CreateApplicationComponent struct {
 	ID string
 }
 
-// CommandName returns the command name
 func (c CreateApplicationComponent) CommandName() string {
 	return "CreateApplicationComponent"
 }

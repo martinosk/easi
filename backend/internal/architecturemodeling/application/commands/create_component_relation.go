@@ -1,6 +1,5 @@
 package commands
 
-// CreateComponentRelation command
 type CreateComponentRelation struct {
 	SourceComponentID string
 	TargetComponentID string
@@ -11,7 +10,6 @@ type CreateComponentRelation struct {
 	ID string
 }
 
-// CommandName returns the command name
 func (c CreateComponentRelation) CommandName() string {
 	return "CreateComponentRelation"
 }

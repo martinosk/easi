@@ -1,3 +1,6 @@
+# Code style
+Never add comments to code unless specifically instructed to do so by the user.
+
 # Architecture style
 - Using the principles of strategic DDD, structure the code by bounded contexts. 
 - Bounded contexts must have meaning to the business domain.
