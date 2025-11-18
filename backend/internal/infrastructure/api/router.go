@@ -6,6 +6,7 @@ import (
 
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
+	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
 	"easi/backend/internal/infrastructure/api/middleware"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -72,6 +73,11 @@ func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) htt
 		// Architecture Views Context
 		if err := viewsAPI.SetupArchitectureViewsRoutes(r, commandBus, eventStore, eventBus, db, hateoas); err != nil {
 			log.Fatalf("Failed to setup architecture views routes: %v", err)
+		}
+
+		// Capability Mapping Context
+		if err := capabilityAPI.SetupCapabilityMappingRoutes(r, commandBus, eventStore, eventBus, db, hateoas); err != nil {
+			log.Fatalf("Failed to setup capability mapping routes: %v", err)
 		}
 	})
 

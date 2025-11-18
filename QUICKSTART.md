@@ -87,59 +87,23 @@ Open your browser to: **http://localhost:5173**
 - **Minimap** (bottom right) - Overview of your diagram
 - **Controls** (bottom left) - Fit view, zoom controls
 
+### API Features
+
+The backend provides two main bounded contexts:
+
+#### Architecture Modeling
+- **Components** - `POST/GET/PUT/DELETE /api/components`
+- **Relations** - `POST/GET/DELETE /api/relations`
+- **Views** - `POST/GET/DELETE /api/views`
+
+#### Capability Mapping
+- **Capabilities** - `POST/GET/PUT /api/capabilities`
+  - Hierarchical business capabilities (L1-L4)
+  - Metadata (strategy pillars, maturity, ownership)
+  - Experts and tags
+- **Dependencies** - `POST/GET/DELETE /api/capability-dependencies`
+  - Model capability relationships (Requires, Enables, Supports)
+
 ### Swagger Documentation
 - Open: http://localhost:8080/swagger/
 
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                      Browser                            │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │         React Frontend (Port 5173)              │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐     │   │
-│  │  │ Canvas   │  │ Dialogs  │  │ Details  │     │   │
-│  │  │ (React   │  │ (Create) │  │ (View)   │     │   │
-│  │  │  Flow)   │  └──────────┘  └──────────┘     │   │
-│  │  └────┬─────┘                                  │   │
-│  │       │ API Client (Axios)                     │   │
-│  └───────┼────────────────────────────────────────┘   │
-│          │                                             │
-└──────────┼─────────────────────────────────────────────┘
-           │ HTTP/JSON
-           │
-┌──────────▼─────────────────────────────────────────────┐
-│              Go Backend (Port 8080)                    │
-│  ┌─────────────────────────────────────────────────┐  │
-│  │            RESTful API Layer                    │  │
-│  │  (Chi Router, CORS, Middleware)                 │  │
-│  └────────┬────────────────────────────────────────┘  │
-│           │                                            │
-│  ┌────────▼────────────────────────────────────────┐  │
-│  │         CQRS Command/Query Buses                │  │
-│  └────────┬────────────────────────────────────────┘  │
-│           │                                            │
-│  ┌────────▼────────────────────────────────────────┐  │
-│  │        Bounded Contexts (DDD)                   │  │
-│  │  ┌──────────────┐   ┌──────────────┐           │  │
-│  │  │Architecture  │   │Architecture  │           │  │
-│  │  │Modeling      │   │Views         │           │  │
-│  │  │(Components,  │   │(Positions)   │           │  │
-│  │  │ Relations)   │   │              │           │  │
-│  │  └──────┬───────┘   └──────┬───────┘           │  │
-│  └─────────┼──────────────────┼───────────────────┘  │
-│            │                  │                       │
-│  ┌─────────▼──────────────────▼───────────────────┐  │
-│  │         Event Store (PostgreSQL)               │  │
-│  │  - All events (audit trail)                    │  │
-│  │  - Event sourcing                              │  │
-│  └────────────────────────────────────────────────┘  │
-│                                                       │
-│  ┌────────────────────────────────────────────────┐  │
-│  │         Read Models (PostgreSQL)               │  │
-│  │  - Components                                  │  │
-│  │  - Relations                                   │  │
-│  │  - Views + Positions                           │  │
-│  └────────────────────────────────────────────────┘  │
-└───────────────────────────────────────────────────────┘
-```

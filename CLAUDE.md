@@ -63,3 +63,15 @@ ReadModel → Screen: ReadModel(OUTBOUND) → Screen(INBOUND)
   - Add new uncompleted checkmarks explaining what additional work is needed
   - Require new user sign-off after changes are complete
 - Spec status workflow: `pending` → `ongoing` → `done` (or `done` → `reopened` → `done`)
+
+# Database Migration Management
+- **NEVER modify a migration file that has been committed to version control**
+- Migrations are immutable once committed - treat them as historical records
+- Database structure can be 100% inferred from sequential migration scripts
+- Each migration must be a single atomic transaction - no partial application
+- If a migration fails midway, the database must roll back to its previous state
+- Migration files must be numbered sequentially (001, 002, 003, etc.)
+- To fix issues in committed migrations, create a new migration that makes the correction
+- Do not add conditional logic checking current schema state - migrations run in order
+- Foreign key constraints should not be used in event-sourced read models:
+  - Referential integrity is maintained by the domain model and event handlers

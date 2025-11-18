@@ -28,12 +28,20 @@ Supporting domains can use CRUD or whatever other architecture makes sense for t
 ### Current Architecture Summary
 The system uses event sourcing for core aggregates, REST Level 3 APIs with HATEOAS, and a clean separation between domain models and infrastructure.
 
-**Implemented:**
-- ApplicationComponent aggregate (name, description, relations)
-- ComponentRelation aggregate (source, target, type)
-- ArchitectureViews for graphical visualization
+**Implemented Aggregates:**
+- **ApplicationComponent** - Architecture components with relations
+- **ComponentRelation** - Component relationships (Triggers, Serves)
+- **ArchitectureView** - Graphical view layouts with positions
+- **Capability** - Business capabilities with hierarchical structure (L1-L4)
+- **CapabilityDependency** - Dependencies between capabilities (Requires, Enables, Supports)
+
+**Features:**
 - Event-sourced domain models with read model projections
-- Multi-tenant data isolation (in progress)
+- Multi-tenant data isolation
+- REST Level 3 APIs with HATEOAS links
+- Capability hierarchy modeling (4 levels)
+- Capability metadata (strategy alignment, maturity, ownership, experts, tags)
+- Capability dependency tracking
 
 ### Bounded contexts
 #### ArchitectureModeling
@@ -46,7 +54,27 @@ A key trait of Easi is that views are separate from the model.
 It is considered supporting, because the API and event first approach of Easi allows for complete freedom of creating views using other tools (COTS reporting solutions, OSS libraries etc)
 
 #### CapabilityMapping
-Core domain for enterprise capability modeling (specs 023-029). Enables modeling business capabilities with hierarchy, dependencies, metadata (strategy alignment, maturity, ownership), system realization links, custom perspectives, and versioning. Uses CQRS with event sourcing. Integrates with ArchitectureModeling via capability-to-component realization links.
+Core domain for enterprise capability modeling. Uses CQRS with event sourcing.
+
+**Implemented (Specs 023-025):**
+- **Capability Hierarchy** - 4-level capability model (L1: Domain, L2: Area, L3: Capability, L4: Sub-capability)
+- **Capability Metadata** - Strategy pillars, maturity levels, ownership model, experts, tags
+- **Capability Dependencies** - Model relationships between capabilities (Requires, Enables, Supports)
+
+**API Endpoints:**
+- `POST/GET/PUT /api/capabilities` - Manage capabilities
+- `GET /api/capabilities/{id}/children` - Get child capabilities
+- `PUT /api/capabilities/{id}/metadata` - Update metadata
+- `POST /api/capabilities/{id}/experts` - Add experts
+- `POST /api/capabilities/{id}/tags` - Add tags
+- `POST/GET/DELETE /api/capability-dependencies` - Manage dependencies
+- `GET /api/capabilities/{id}/dependencies/outgoing` - Dependencies this capability has
+- `GET /api/capabilities/{id}/dependencies/incoming` - Dependencies on this capability
+
+**Planned (Specs 026-029):**
+- System realization links to architecture components
+- Custom perspectives and viewpoints
+- Capability versioning
 
 ### ArchitectureAnalysis
 Core domain that allows the gathering and analysis of architecture knowledge. It supports the architecture modelling process.
@@ -79,12 +107,18 @@ Core domain that allows the gathering and analysis of architecture knowledge. It
 │           │                                            │
 │  ┌────────▼────────────────────────────────────────┐  │
 │  │        Bounded Contexts (DDD)                   │  │
-│  │  ┌──────────────┐   ┌──────────────┐           │  │
-│  │  │Architecture  │   │Architecture  │           │  │
-│  │  │Modeling      │   │Views         │           │  │
-│  │  │(Components,  │   │(Positions)   │           │  │
-│  │  │ Relations)   │   │              │           │  │
-│  │  └──────┬───────┘   └──────┬───────┘           │  │
+│  │  ┌──────────────┐  ┌──────────────┐            │  │
+│  │  │Architecture  │  │Architecture  │            │  │
+│  │  │Modeling      │  │Views         │            │  │
+│  │  │(Components,  │  │(Positions)   │            │  │
+│  │  │ Relations)   │  │              │            │  │
+│  │  └──────┬───────┘  └──────┬───────┘            │  │
+│  │                                                 │  │
+│  │  ┌──────────────────────────────────┐          │  │
+│  │  │CapabilityMapping                 │          │  │
+│  │  │(Capabilities, Dependencies,      │          │  │
+│  │  │ Metadata, Experts, Tags)         │          │  │
+│  │  └──────┬───────────────────────────┘          │  │
 │  └─────────┼──────────────────┼───────────────────┘  │
 │            │                  │                       │
 │  ┌─────────▼──────────────────▼───────────────────┐  │
@@ -95,9 +129,10 @@ Core domain that allows the gathering and analysis of architecture knowledge. It
 │                                                       │
 │  ┌────────────────────────────────────────────────┐  │
 │  │         Read Models (PostgreSQL)               │  │
-│  │  - Components                                  │  │
-│  │  - Relations                                   │  │
-│  │  - Views + Positions                           │  │
+│  │  - Components, Relations                       │  │
+│  │  - Views, Positions                            │  │
+│  │  - Capabilities, Dependencies                  │  │
+│  │  - Capability Metadata, Experts, Tags          │  │
 │  └────────────────────────────────────────────────┘  │
 └───────────────────────────────────────────────────────┘
 
