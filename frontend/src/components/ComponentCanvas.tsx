@@ -251,6 +251,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
 
   const onPaneClick = useCallback(() => {
     clearSelection();
+    setNodeContextMenu(null);
+    setEdgeContextMenu(null);
   }, [clearSelection]);
 
   const onNodeContextMenu = useCallback(
