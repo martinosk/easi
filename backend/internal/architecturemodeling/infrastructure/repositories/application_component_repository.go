@@ -97,6 +97,15 @@ func (r *ApplicationComponentRepository) deserializeEvents(storedEvents []domain
 			concreteEvent := events.NewApplicationComponentUpdated(id, name, description)
 			domainEvents = append(domainEvents, concreteEvent)
 
+		case "ApplicationComponentDeleted":
+			// Extract fields from event data
+			id, _ := eventData["id"].(string)
+			name, _ := eventData["name"].(string)
+
+			// Create concrete event
+			concreteEvent := events.NewApplicationComponentDeleted(id, name)
+			domainEvents = append(domainEvents, concreteEvent)
+
 		default:
 			// Unknown event type, skip it
 			continue

@@ -2,12 +2,14 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
+	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"github.com/go-chi/chi/v5"
@@ -269,7 +271,7 @@ func (h *ComponentHandlers) DeleteApplicationComponent(w http.ResponseWriter, r 
 	}
 
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		if err.Error() == "component not found" {
+		if errors.Is(err, repositories.ErrComponentNotFound) {
 			sharedAPI.RespondError(w, http.StatusNotFound, err, "Component not found")
 			return
 		}

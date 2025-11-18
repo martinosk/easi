@@ -87,14 +87,19 @@ func (rm *ComponentRelationReadModel) GetByID(ctx context.Context, id string) (*
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		var name, description sql.NullString
 		err := tx.QueryRowContext(ctx,
 			"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
 			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &dto.Name, &dto.Description, &dto.CreatedAt)
+		).Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &name, &description, &dto.CreatedAt)
 
 		if err == sql.ErrNoRows {
 			notFound = true
 			return nil
+		}
+		if err == nil {
+			dto.Name = name.String
+			dto.Description = description.String
 		}
 		return err
 	})
@@ -130,9 +135,12 @@ func (rm *ComponentRelationReadModel) GetAll(ctx context.Context) ([]ComponentRe
 
 		for rows.Next() {
 			var dto ComponentRelationDTO
-			if err := rows.Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
+			var name, description sql.NullString
+			if err := rows.Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &name, &description, &dto.CreatedAt); err != nil {
 				return err
 			}
+			dto.Name = name.String
+			dto.Description = description.String
 			relations = append(relations, dto)
 		}
 
@@ -178,9 +186,12 @@ func (rm *ComponentRelationReadModel) GetAllPaginated(ctx context.Context, limit
 
 		for rows.Next() {
 			var dto ComponentRelationDTO
-			if err := rows.Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
+			var name, description sql.NullString
+			if err := rows.Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &name, &description, &dto.CreatedAt); err != nil {
 				return err
 			}
+			dto.Name = name.String
+			dto.Description = description.String
 			relations = append(relations, dto)
 		}
 
@@ -221,9 +232,12 @@ func (rm *ComponentRelationReadModel) GetBySourceID(ctx context.Context, compone
 
 		for rows.Next() {
 			var dto ComponentRelationDTO
-			if err := rows.Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
+			var name, description sql.NullString
+			if err := rows.Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &name, &description, &dto.CreatedAt); err != nil {
 				return err
 			}
+			dto.Name = name.String
+			dto.Description = description.String
 			relations = append(relations, dto)
 		}
 
@@ -253,9 +267,12 @@ func (rm *ComponentRelationReadModel) GetByTargetID(ctx context.Context, compone
 
 		for rows.Next() {
 			var dto ComponentRelationDTO
-			if err := rows.Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
+			var name, description sql.NullString
+			if err := rows.Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &name, &description, &dto.CreatedAt); err != nil {
 				return err
 			}
+			dto.Name = name.String
+			dto.Description = description.String
 			relations = append(relations, dto)
 		}
 

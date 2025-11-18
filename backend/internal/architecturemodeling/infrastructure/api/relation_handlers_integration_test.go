@@ -14,12 +14,14 @@ import (
 	"time"
 
 	"easi/backend/internal/architecturemodeling/application/handlers"
+	"easi/backend/internal/architecturemodeling/application/projectors"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/events"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -106,7 +108,9 @@ func setupRelationHandlers(db *sql.DB) (*RelationHandlers, *readmodels.Component
 	// Setup repository and handlers
 	relationRepo := repositories.NewComponentRelationRepository(eventStore)
 	createHandler := handlers.NewCreateComponentRelationHandler(relationRepo)
+	deleteHandler := handlers.NewDeleteComponentRelationHandler(relationRepo)
 	commandBus.Register("CreateComponentRelation", createHandler)
+	commandBus.Register("DeleteComponentRelation", deleteHandler)
 
 	// Setup read model
 	readModel := readmodels.NewComponentRelationReadModel(tenantDB)
@@ -483,4 +487,175 @@ func TestGetAllRelationsPaginated_Integration(t *testing.T) {
 	// Should have at least 2 relations (our test data)
 	assert.GreaterOrEqual(t, len(response.Data), 2, "Should return at least 2 relations")
 	assert.Equal(t, 2, response.Pagination.Limit)
+}
+
+func TestDeleteRelation_Integration(t *testing.T) {
+	testCtx, cleanup := setupRelationTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupRelationHandlers(testCtx.db)
+
+	sourceID := uuid.New().String()
+	targetID := uuid.New().String()
+
+	reqBody := CreateComponentRelationRequest{
+		SourceComponentID: sourceID,
+		TargetComponentID: targetID,
+		RelationType:      "Triggers",
+		Name:              "Test Relation",
+		Description:       "This will be deleted",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/relations", bytes.NewReader(body))
+	createReq.Header.Set("Content-Type", "application/json")
+	createReq = withTestTenant(createReq)
+	createW := httptest.NewRecorder()
+
+	handlers.CreateComponentRelation(createW, createReq)
+	assert.Equal(t, http.StatusCreated, createW.Code)
+
+	testCtx.setTenantContext(t)
+	var relationID string
+	err := testCtx.db.QueryRow(
+		"SELECT aggregate_id FROM events WHERE event_type = 'ComponentRelationCreated' ORDER BY created_at DESC LIMIT 1",
+	).Scan(&relationID)
+	require.NoError(t, err)
+	testCtx.trackID(relationID)
+
+	time.Sleep(100 * time.Millisecond)
+
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/relations/"+relationID, nil)
+	deleteReq = withTestTenant(deleteReq)
+	deleteReq = deleteReq.WithContext(context.WithValue(deleteReq.Context(), chi.RouteCtxKey, &chi.Context{
+		URLParams: chi.RouteParams{
+			Keys:   []string{"id"},
+			Values: []string{relationID},
+		},
+	}))
+	deleteW := httptest.NewRecorder()
+
+	handlers.DeleteComponentRelation(deleteW, deleteReq)
+
+	assert.Equal(t, http.StatusNoContent, deleteW.Code)
+
+	var deleteEventData string
+	err = testCtx.db.QueryRow(
+		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'ComponentRelationDeleted'",
+		relationID,
+	).Scan(&deleteEventData)
+	require.NoError(t, err)
+	assert.NotEmpty(t, deleteEventData)
+}
+
+func TestCascadeDeleteRelations_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	tenantDB := database.NewTenantAwareDB(testCtx.db)
+	eventStore := eventstore.NewPostgresEventStore(tenantDB)
+	commandBus := cqrs.NewInMemoryCommandBus()
+	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
+	eventBus := events.NewInMemoryEventBus()
+	eventStore.SetEventBus(eventBus)
+
+	componentReadModel := readmodels.NewApplicationComponentReadModel(tenantDB)
+	relationReadModel := readmodels.NewComponentRelationReadModel(tenantDB)
+
+	componentProjector := projectors.NewApplicationComponentProjector(componentReadModel)
+	relationProjector := projectors.NewComponentRelationProjector(relationReadModel)
+	eventBus.Subscribe("ApplicationComponentCreated", componentProjector)
+	eventBus.Subscribe("ApplicationComponentDeleted", componentProjector)
+	eventBus.Subscribe("ComponentRelationCreated", relationProjector)
+	eventBus.Subscribe("ComponentRelationDeleted", relationProjector)
+
+	componentRepo := repositories.NewApplicationComponentRepository(eventStore)
+	relationRepo := repositories.NewComponentRelationRepository(eventStore)
+
+	createComponentHandler := handlers.NewCreateApplicationComponentHandler(componentRepo)
+	deleteComponentHandler := handlers.NewDeleteApplicationComponentHandler(componentRepo, relationReadModel, commandBus)
+	createRelationHandler := handlers.NewCreateComponentRelationHandler(relationRepo)
+	deleteRelationHandler := handlers.NewDeleteComponentRelationHandler(relationRepo)
+
+	commandBus.Register("CreateApplicationComponent", createComponentHandler)
+	commandBus.Register("DeleteApplicationComponent", deleteComponentHandler)
+	commandBus.Register("CreateComponentRelation", createRelationHandler)
+	commandBus.Register("DeleteComponentRelation", deleteRelationHandler)
+
+	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, hateoas)
+	relationHandlers := NewRelationHandlers(commandBus, relationReadModel, hateoas)
+
+	createCompReq := CreateApplicationComponentRequest{
+		Name:        "Component With Relations",
+		Description: "This component has relations that should be deleted",
+	}
+	body, _ := json.Marshal(createCompReq)
+
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/components", bytes.NewReader(body))
+	createReq.Header.Set("Content-Type", "application/json")
+	createReq = withTestTenant(createReq)
+	createW := httptest.NewRecorder()
+
+	componentHandlers.CreateApplicationComponent(createW, createReq)
+	assert.Equal(t, http.StatusCreated, createW.Code)
+
+	testCtx.setTenantContext(t)
+	var componentID string
+	err := testCtx.db.QueryRow(
+		"SELECT aggregate_id FROM events WHERE event_type = 'ApplicationComponentCreated' ORDER BY created_at DESC LIMIT 1",
+	).Scan(&componentID)
+	require.NoError(t, err)
+	testCtx.trackID(componentID)
+
+	time.Sleep(100 * time.Millisecond)
+
+	targetComponentID := uuid.New().String()
+
+	createRelReq := CreateComponentRelationRequest{
+		SourceComponentID: componentID,
+		TargetComponentID: targetComponentID,
+		RelationType:      "Triggers",
+		Name:              "Test Relation",
+	}
+	relBody, _ := json.Marshal(createRelReq)
+
+	createRelReqHTTP := httptest.NewRequest(http.MethodPost, "/api/v1/relations", bytes.NewReader(relBody))
+	createRelReqHTTP.Header.Set("Content-Type", "application/json")
+	createRelReqHTTP = withTestTenant(createRelReqHTTP)
+	createRelW := httptest.NewRecorder()
+
+	relationHandlers.CreateComponentRelation(createRelW, createRelReqHTTP)
+	assert.Equal(t, http.StatusCreated, createRelW.Code)
+
+	var relationID string
+	err = testCtx.db.QueryRow(
+		"SELECT aggregate_id FROM events WHERE event_type = 'ComponentRelationCreated' ORDER BY created_at DESC LIMIT 1",
+	).Scan(&relationID)
+	require.NoError(t, err)
+	testCtx.trackID(relationID)
+
+	time.Sleep(100 * time.Millisecond)
+
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/components/"+componentID, nil)
+	deleteReq = withTestTenant(deleteReq)
+	deleteReq = deleteReq.WithContext(context.WithValue(deleteReq.Context(), chi.RouteCtxKey, &chi.Context{
+		URLParams: chi.RouteParams{
+			Keys:   []string{"id"},
+			Values: []string{componentID},
+		},
+	}))
+	deleteW := httptest.NewRecorder()
+
+	componentHandlers.DeleteApplicationComponent(deleteW, deleteReq)
+	assert.Equal(t, http.StatusNoContent, deleteW.Code)
+
+	time.Sleep(200 * time.Millisecond)
+
+	var relationDeleted bool
+	err = testCtx.db.QueryRow(
+		"SELECT is_deleted FROM component_relations WHERE id = $1",
+		relationID,
+	).Scan(&relationDeleted)
+	require.NoError(t, err)
+	assert.True(t, relationDeleted, "Relation should be marked as deleted when component is deleted")
 }
