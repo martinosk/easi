@@ -190,18 +190,6 @@ steps:
     versionSpec: 1.22.9
 
 - task: Kubernetes@1
-  name: ApplyConfigMap
-  displayName: 'Apply migrations ConfigMap'
-  condition: succeeded()
-  inputs:
-    connectionType: Kubernetes Service Connection
-    kubernetesServiceEndpoint: '$(k8s-service-connection)'
-    namespace: '$(kubernetes-namespace)'
-    command: apply
-    arguments: '-f $(Build.SourcesDirectory)/k8s/migrations-configmap.yaml'
-    versionSpec: 1.22.9
-
-- task: Kubernetes@1
   name: ApplyManifests
   displayName: 'Apply backend and frontend manifests'
   condition: succeeded()
