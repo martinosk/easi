@@ -61,6 +61,14 @@ func (p *ComponentRelationProjector) ProjectEvent(ctx context.Context, eventType
 		}
 
 		return p.readModel.Update(ctx, event.ID, event.Name, event.Description)
+	case "ComponentRelationDeleted":
+		var event events.ComponentRelationDeleted
+		if err := json.Unmarshal(eventData, &event); err != nil {
+			log.Printf("Failed to unmarshal ComponentRelationDeleted event: %v", err)
+			return err
+		}
+
+		return p.readModel.MarkAsDeleted(ctx, event.ID, event.DeletedAt)
 	}
 
 	return nil

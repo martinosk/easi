@@ -26,10 +26,6 @@ spec:
               key: DB_ADMIN_CONN_STRING
         - name: MIGRATIONS_PATH
           value: "/app/migrations"
-        volumeMounts:
-        - name: migrations
-          mountPath: /app/migrations
-          readOnly: true
         resources:
           requests:
             memory: "64Mi"
@@ -76,7 +72,3 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
-      volumes:
-      - name: migrations
-        configMap:
-          name: easi-migrations

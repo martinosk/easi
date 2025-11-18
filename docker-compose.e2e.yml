@@ -25,8 +25,6 @@ services:
     environment:
       DB_ADMIN_CONN_STRING: "host=postgres-e2e port=5432 user=${E2E_POSTGRES_USER:-easi_test} password=${E2E_POSTGRES_PASSWORD:-easi_test} dbname=${E2E_POSTGRES_DB:-easi_test} sslmode=disable"
       MIGRATIONS_PATH: /app/migrations
-    volumes:
-      - ./backend/migrations:/app/migrations:ro
     networks:
       - easi-e2e-network
     depends_on:

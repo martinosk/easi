@@ -14,6 +14,7 @@ type ApplicationComponent struct {
 	name        valueobjects.ComponentName
 	description valueobjects.Description
 	createdAt   time.Time
+	isDeleted   bool
 }
 
 func NewApplicationComponent(name valueobjects.ComponentName, description valueobjects.Description) (*ApplicationComponent, error) {
@@ -58,6 +59,18 @@ func (a *ApplicationComponent) Update(name valueobjects.ComponentName, descripti
 	return nil
 }
 
+func (a *ApplicationComponent) Delete() error {
+	event := events.NewApplicationComponentDeleted(
+		a.ID(),
+		a.name.Value(),
+	)
+
+	a.apply(event)
+	a.RaiseEvent(event)
+
+	return nil
+}
+
 // Note: This method should NOT increment the version - that's handled by LoadFromHistory or RaiseEvent
 func (a *ApplicationComponent) apply(event domain.DomainEvent) {
 	switch e := event.(type) {
@@ -69,6 +82,8 @@ func (a *ApplicationComponent) apply(event domain.DomainEvent) {
 	case events.ApplicationComponentUpdated:
 		a.name, _ = valueobjects.NewComponentName(e.Name)
 		a.description = valueobjects.NewDescription(e.Description)
+	case events.ApplicationComponentDeleted:
+		a.isDeleted = true
 	}
 }
 
@@ -82,4 +97,8 @@ func (a *ApplicationComponent) Description() valueobjects.Description {
 
 func (a *ApplicationComponent) CreatedAt() time.Time {
 	return a.createdAt
+}
+
+func (a *ApplicationComponent) IsDeleted() bool {
+	return a.isDeleted
 }

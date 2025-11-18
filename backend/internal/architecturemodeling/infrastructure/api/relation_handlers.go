@@ -319,3 +319,22 @@ func (h *RelationHandlers) UpdateComponentRelation(w http.ResponseWriter, r *htt
 	sharedAPI.RespondSuccess(w, http.StatusOK, relation, nil)
 }
 
+func (h *RelationHandlers) DeleteComponentRelation(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	cmd := &commands.DeleteComponentRelation{
+		ID: id,
+	}
+
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		if err.Error() == "relation not found" {
+			sharedAPI.RespondError(w, http.StatusNotFound, err, "Relation not found")
+			return
+		}
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to delete relation")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+

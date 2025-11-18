@@ -19,6 +19,7 @@ func NewHATEOASLinks(baseURL string) *HATEOASLinks {
 func (h *HATEOASLinks) ComponentLinks(componentID string) map[string]string {
 	return map[string]string{
 		"self":       fmt.Sprintf("%s/components/%s", h.baseURL, componentID),
+		"delete":     fmt.Sprintf("%s/components/%s", h.baseURL, componentID),
 		"archimate":  h.ArchimateDocLink("application-component"),
 		"collection": fmt.Sprintf("%s/components", h.baseURL),
 	}
@@ -28,6 +29,7 @@ func (h *HATEOASLinks) ComponentLinks(componentID string) map[string]string {
 func (h *HATEOASLinks) RelationLinks(relationID string) map[string]string {
 	return map[string]string{
 		"self":       fmt.Sprintf("%s/relations/%s", h.baseURL, relationID),
+		"delete":     fmt.Sprintf("%s/relations/%s", h.baseURL, relationID),
 		"archimate":  h.ArchimateDocLink("relationship"),
 		"collection": fmt.Sprintf("%s/relations", h.baseURL),
 	}

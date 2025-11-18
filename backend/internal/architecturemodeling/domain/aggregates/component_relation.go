@@ -23,6 +23,7 @@ type ComponentRelation struct {
 	name              valueobjects.Description
 	description       valueobjects.Description
 	createdAt         time.Time
+	isDeleted         bool
 }
 
 // NewComponentRelation creates a new component relation
@@ -84,6 +85,19 @@ func (c *ComponentRelation) Update(name, description valueobjects.Description) e
 	return nil
 }
 
+func (c *ComponentRelation) Delete() error {
+	event := events.NewComponentRelationDeleted(
+		c.ID(),
+		c.sourceComponentID.Value(),
+		c.targetComponentID.Value(),
+	)
+
+	c.apply(event)
+	c.RaiseEvent(event)
+
+	return nil
+}
+
 // apply applies an event to the aggregate
 // Note: This method should NOT increment the version - that's handled by LoadFromHistory or RaiseEvent
 func (c *ComponentRelation) apply(event domain.DomainEvent) {
@@ -99,6 +113,8 @@ func (c *ComponentRelation) apply(event domain.DomainEvent) {
 	case events.ComponentRelationUpdated:
 		c.name = valueobjects.NewDescription(e.Name)
 		c.description = valueobjects.NewDescription(e.Description)
+	case events.ComponentRelationDeleted:
+		c.isDeleted = true
 	}
 }
 
@@ -130,4 +146,8 @@ func (c *ComponentRelation) Description() valueobjects.Description {
 // CreatedAt returns when the relation was created
 func (c *ComponentRelation) CreatedAt() time.Time {
 	return c.createdAt
+}
+
+func (c *ComponentRelation) IsDeleted() bool {
+	return c.isDeleted
 }

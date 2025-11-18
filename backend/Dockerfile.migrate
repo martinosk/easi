@@ -21,8 +21,13 @@ WORKDIR /app
 # Copy the binary from builder
 COPY --from=builder /app/migrate .
 
+# Copy migration files directly into the image
+COPY --from=builder /app/migrations ./migrations
+
 # Create non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup && \
+    chown -R appuser:appgroup /app
+
 USER appuser
 
 CMD ["./migrate"]

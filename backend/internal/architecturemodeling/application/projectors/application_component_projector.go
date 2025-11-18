@@ -58,6 +58,14 @@ func (p *ApplicationComponentProjector) ProjectEvent(ctx context.Context, eventT
 		}
 
 		return p.readModel.Update(ctx, event.ID, event.Name, event.Description)
+	case "ApplicationComponentDeleted":
+		var event events.ApplicationComponentDeleted
+		if err := json.Unmarshal(eventData, &event); err != nil {
+			log.Printf("Failed to unmarshal ApplicationComponentDeleted event: %v", err)
+			return err
+		}
+
+		return p.readModel.MarkAsDeleted(ctx, event.ID, event.DeletedAt)
 	}
 
 	return nil

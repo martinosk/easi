@@ -261,3 +261,22 @@ func (h *ComponentHandlers) UpdateApplicationComponent(w http.ResponseWriter, r 
 	sharedAPI.RespondSuccess(w, http.StatusOK, component, nil)
 }
 
+func (h *ComponentHandlers) DeleteApplicationComponent(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	cmd := &commands.DeleteApplicationComponent{
+		ID: id,
+	}
+
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		if err.Error() == "component not found" {
+			sharedAPI.RespondError(w, http.StatusNotFound, err, "Component not found")
+			return
+		}
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to delete component")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+

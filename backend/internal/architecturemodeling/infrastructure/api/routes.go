@@ -37,20 +37,26 @@ func SetupArchitectureModelingRoutes(
 	// Wire up projectors to event bus
 	eventBus.Subscribe("ApplicationComponentCreated", componentProjector)
 	eventBus.Subscribe("ApplicationComponentUpdated", componentProjector)
+	eventBus.Subscribe("ApplicationComponentDeleted", componentProjector)
 	eventBus.Subscribe("ComponentRelationCreated", relationProjector)
 	eventBus.Subscribe("ComponentRelationUpdated", relationProjector)
+	eventBus.Subscribe("ComponentRelationDeleted", relationProjector)
 
 	// Initialize command handlers
 	createComponentHandler := handlers.NewCreateApplicationComponentHandler(componentRepo)
 	updateComponentHandler := handlers.NewUpdateApplicationComponentHandler(componentRepo)
+	deleteComponentHandler := handlers.NewDeleteApplicationComponentHandler(componentRepo)
 	createRelationHandler := handlers.NewCreateComponentRelationHandler(relationRepo)
 	updateRelationHandler := handlers.NewUpdateComponentRelationHandler(relationRepo)
+	deleteRelationHandler := handlers.NewDeleteComponentRelationHandler(relationRepo)
 
 	// Register command handlers
 	commandBus.Register("CreateApplicationComponent", createComponentHandler)
 	commandBus.Register("UpdateApplicationComponent", updateComponentHandler)
+	commandBus.Register("DeleteApplicationComponent", deleteComponentHandler)
 	commandBus.Register("CreateComponentRelation", createRelationHandler)
 	commandBus.Register("UpdateComponentRelation", updateRelationHandler)
+	commandBus.Register("DeleteComponentRelation", deleteRelationHandler)
 
 	// Initialize HTTP handlers
 	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, hateoas)
@@ -62,6 +68,7 @@ func SetupArchitectureModelingRoutes(
 		r.Get("/", componentHandlers.GetAllComponents)
 		r.Get("/{id}", componentHandlers.GetComponentByID)
 		r.Put("/{id}", componentHandlers.UpdateApplicationComponent)
+		r.Delete("/{id}", componentHandlers.DeleteApplicationComponent)
 	})
 
 	// Register relation routes
@@ -70,6 +77,7 @@ func SetupArchitectureModelingRoutes(
 		r.Get("/", relationHandlers.GetAllRelations)
 		r.Get("/{id}", relationHandlers.GetRelationByID)
 		r.Put("/{id}", relationHandlers.UpdateComponentRelation)
+		r.Delete("/{id}", relationHandlers.DeleteComponentRelation)
 		r.Get("/from/{componentId}", relationHandlers.GetRelationsFromComponent)
 		r.Get("/to/{componentId}", relationHandlers.GetRelationsToComponent)
 	})

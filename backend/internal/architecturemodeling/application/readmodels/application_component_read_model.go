@@ -59,6 +59,19 @@ func (rm *ApplicationComponentReadModel) Update(ctx context.Context, id, name, d
 	return err
 }
 
+func (rm *ApplicationComponentReadModel) MarkAsDeleted(ctx context.Context, id string, deletedAt time.Time) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"UPDATE application_components SET is_deleted = TRUE, deleted_at = $1 WHERE tenant_id = $2 AND id = $3",
+		deletedAt, tenantID.Value(), id,
+	)
+	return err
+}
+
 // GetByID retrieves a component by ID
 // RLS policies automatically filter by tenant, but we add explicit filter for defense-in-depth
 func (rm *ApplicationComponentReadModel) GetByID(ctx context.Context, id string) (*ApplicationComponentDTO, error) {
@@ -72,7 +85,7 @@ func (rm *ApplicationComponentReadModel) GetByID(ctx context.Context, id string)
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND id = $2",
+			"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
 			tenantID.Value(), id,
 		).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt)
 
@@ -104,7 +117,7 @@ func (rm *ApplicationComponentReadModel) GetAll(ctx context.Context) ([]Applicat
 	var components []ApplicationComponentDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 ORDER BY created_at DESC",
+			"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY created_at DESC",
 			tenantID.Value(),
 		)
 		if err != nil {
@@ -144,13 +157,13 @@ func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, li
 		if afterCursor == "" {
 			// No cursor, get first page
 			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 ORDER BY created_at DESC, id DESC LIMIT $2",
+				"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY created_at DESC, id DESC LIMIT $2",
 				tenantID.Value(), queryLimit,
 			)
 		} else {
 			// Use cursor for pagination
 			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND (created_at < to_timestamp($2) OR (created_at = to_timestamp($2) AND id < $3)) ORDER BY created_at DESC, id DESC LIMIT $4",
+				"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND is_deleted = FALSE AND (created_at < to_timestamp($2) OR (created_at = to_timestamp($2) AND id < $3)) ORDER BY created_at DESC, id DESC LIMIT $4",
 				tenantID.Value(), afterTimestamp, afterCursor, queryLimit,
 			)
 		}
