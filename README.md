@@ -25,6 +25,16 @@ Update spec checklist when contributing.
 Domain-Driven Design with CQRS and Event Sourcing for core domains.
 Supporting domains can use CRUD or whatever other architecture makes sense for their purpose.
 
+### Current Architecture Summary
+The system uses event sourcing for core aggregates, REST Level 3 APIs with HATEOAS, and a clean separation between domain models and infrastructure.
+
+**Implemented:**
+- ApplicationComponent aggregate (name, description, relations)
+- ComponentRelation aggregate (source, target, type)
+- ArchitectureViews for graphical visualization
+- Event-sourced domain models with read model projections
+- Multi-tenant data isolation (in progress)
+
 ### Bounded contexts
 #### ArchitectureModeling
 This is the core domain that supports and enforces best practices for architecture modelling and documentation.
@@ -35,8 +45,62 @@ This is a supporting domain that allows for visualisations of the architecture m
 A key trait of Easi is that views are separate from the model.
 It is considered supporting, because the API and event first approach of Easi allows for complete freedom of creating views using other tools (COTS reporting solutions, OSS libraries etc)
 
+#### CapabilityMapping
+Core domain for enterprise capability modeling (specs 023-029). Enables modeling business capabilities with hierarchy, dependencies, metadata (strategy alignment, maturity, ownership), system realization links, custom perspectives, and versioning. Uses CQRS with event sourcing. Integrates with ArchitectureModeling via capability-to-component realization links.
+
 ### ArchitectureAnalysis
 Core domain that allows the gathering and analysis of architecture knowledge. It supports the architecture modelling process.
+
+┌─────────────────────────────────────────────────────────┐
+│                      Browser                            │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │         React Frontend (Port 5173)              │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐     │   │
+│  │  │ Canvas   │  │ Dialogs  │  │ Details  │     │   │
+│  │  │ (React   │  │ (Create) │  │ (View)   │     │   │
+│  │  │  Flow)   │  └──────────┘  └──────────┘     │   │
+│  │  └────┬─────┘                                  │   │
+│  │       │ API Client (Axios)                     │   │
+│  └───────┼────────────────────────────────────────┘   │
+│          │                                             │
+└──────────┼─────────────────────────────────────────────┘
+           │ HTTP/JSON
+           │
+┌──────────▼─────────────────────────────────────────────┐
+│              Go Backend (Port 8080)                    │
+│  ┌─────────────────────────────────────────────────┐  │
+│  │            RESTful API Layer                    │  │
+│  │  (Chi Router, CORS, Middleware)                 │  │
+│  └────────┬────────────────────────────────────────┘  │
+│           │                                            │
+│  ┌────────▼────────────────────────────────────────┐  │
+│  │         CQRS Command/Query Buses                │  │
+│  └────────┬────────────────────────────────────────┘  │
+│           │                                            │
+│  ┌────────▼────────────────────────────────────────┐  │
+│  │        Bounded Contexts (DDD)                   │  │
+│  │  ┌──────────────┐   ┌──────────────┐           │  │
+│  │  │Architecture  │   │Architecture  │           │  │
+│  │  │Modeling      │   │Views         │           │  │
+│  │  │(Components,  │   │(Positions)   │           │  │
+│  │  │ Relations)   │   │              │           │  │
+│  │  └──────┬───────┘   └──────┬───────┘           │  │
+│  └─────────┼──────────────────┼───────────────────┘  │
+│            │                  │                       │
+│  ┌─────────▼──────────────────▼───────────────────┐  │
+│  │         Event Store (PostgreSQL)               │  │
+│  │  - All events (audit trail)                    │  │
+│  │  - Event sourcing                              │  │
+│  └────────────────────────────────────────────────┘  │
+│                                                       │
+│  ┌────────────────────────────────────────────────┐  │
+│  │         Read Models (PostgreSQL)               │  │
+│  │  - Components                                  │  │
+│  │  - Relations                                   │  │
+│  │  - Views + Positions                           │  │
+│  └────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────┘
+
 
 ### Structure
 - Bounded contexts organize the codebase
