@@ -1,4 +1,4 @@
-import React, { useCallback, useImperativeHandle, forwardRef } from 'react';
+import React, { useCallback, useImperativeHandle, forwardRef, useState } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -21,6 +21,8 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useAppStore } from '../store/appStore';
+import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { ConfirmationDialog } from './ConfirmationDialog';
 
 interface ComponentCanvasProps {
   onConnect: (source: string, target: string) => void;
@@ -122,12 +124,33 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
   const selectEdge = useAppStore((state) => state.selectEdge);
   const clearSelection = useAppStore((state) => state.clearSelection);
   const updatePosition = useAppStore((state) => state.updatePosition);
+  const deleteComponent = useAppStore((state) => state.deleteComponent);
+  const deleteRelation = useAppStore((state) => state.deleteRelation);
+  const removeComponentFromView = useAppStore((state) => state.removeComponentFromView);
   const saveViewportState = useAppStore((state) => state.saveViewportState);
   const getViewportState = useAppStore((state) => state.getViewportState);
 
   const [nodes, setNodes] = React.useState<Node[]>([]);
   const [edges, setEdges] = React.useState<Edge[]>([]);
   const [isFirstLoad, setIsFirstLoad] = React.useState(true);
+  const [nodeContextMenu, setNodeContextMenu] = useState<{
+    x: number;
+    y: number;
+    nodeId: string;
+    nodeName: string;
+  } | null>(null);
+  const [edgeContextMenu, setEdgeContextMenu] = useState<{
+    x: number;
+    y: number;
+    edgeId: string;
+    edgeName: string;
+  } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: 'component-from-view' | 'component-from-model' | 'relation-from-model';
+    id: string;
+    name: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Build nodes from components and view positions
   React.useEffect(() => {
@@ -230,6 +253,38 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     clearSelection();
   }, [clearSelection]);
 
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      event.preventDefault();
+      const component = components.find(c => c.id === node.id);
+      if (component) {
+        setNodeContextMenu({
+          x: event.clientX,
+          y: event.clientY,
+          nodeId: node.id,
+          nodeName: component.name,
+        });
+      }
+    },
+    [components]
+  );
+
+  const onEdgeContextMenu = useCallback(
+    (event: React.MouseEvent, edge: Edge) => {
+      event.preventDefault();
+      const relation = relations.find(r => r.id === edge.id);
+      if (relation) {
+        setEdgeContextMenu({
+          x: event.clientX,
+          y: event.clientY,
+          edgeId: edge.id,
+          edgeName: relation.name || relation.relationType,
+        });
+      }
+    },
+    [relations]
+  );
+
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       updatePosition(node.id, node.position.x, node.position.y);
@@ -298,6 +353,73 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     saveViewportState(currentView.id, viewport);
   }, [currentView, reactFlowInstance, saveViewportState]);
 
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+
+    setIsDeleting(true);
+    try {
+      if (deleteTarget.type === 'component-from-view') {
+        await removeComponentFromView(deleteTarget.id);
+      } else if (deleteTarget.type === 'component-from-model') {
+        await deleteComponent(deleteTarget.id);
+      } else if (deleteTarget.type === 'relation-from-model') {
+        await deleteRelation(deleteTarget.id);
+      }
+      setDeleteTarget(null);
+    } catch (error) {
+      console.error('Failed to delete:', error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const getNodeContextMenuItems = (): ContextMenuItem[] => {
+    if (!nodeContextMenu) return [];
+
+    return [
+      {
+        label: 'Delete from View',
+        onClick: () => {
+          removeComponentFromView(nodeContextMenu.nodeId);
+          setNodeContextMenu(null);
+        },
+      },
+      {
+        label: 'Delete from Model',
+        onClick: () => {
+          setDeleteTarget({
+            type: 'component-from-model',
+            id: nodeContextMenu.nodeId,
+            name: nodeContextMenu.nodeName,
+          });
+          setNodeContextMenu(null);
+        },
+        isDanger: true,
+        ariaLabel: 'Delete component from entire model',
+      },
+    ];
+  };
+
+  const getEdgeContextMenuItems = (): ContextMenuItem[] => {
+    if (!edgeContextMenu) return [];
+
+    return [
+      {
+        label: 'Delete from Model',
+        onClick: () => {
+          setDeleteTarget({
+            type: 'relation-from-model',
+            id: edgeContextMenu.edgeId,
+            name: edgeContextMenu.edgeName,
+          });
+          setEdgeContextMenu(null);
+        },
+        isDanger: true,
+        ariaLabel: 'Delete relation from entire model',
+      },
+    ];
+  };
+
   // Expose method to center on a node
   useImperativeHandle(ref, () => ({
     centerOnNode: (nodeId: string) => {
@@ -327,6 +449,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         onEdgeClick={onEdgeClick}
         onPaneClick={onPaneClick}
         onNodeDragStop={onNodeDragStop}
+        onNodeContextMenu={onNodeContextMenu}
+        onEdgeContextMenu={onEdgeContextMenu}
         onConnect={onConnectHandler}
         onMoveEnd={onMoveEnd}
         nodeTypes={nodeTypes}
@@ -346,6 +470,45 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
           maskColor="rgba(0, 0, 0, 0.1)"
         />
       </ReactFlow>
+
+      {nodeContextMenu && (
+        <ContextMenu
+          x={nodeContextMenu.x}
+          y={nodeContextMenu.y}
+          items={getNodeContextMenuItems()}
+          onClose={() => setNodeContextMenu(null)}
+        />
+      )}
+
+      {edgeContextMenu && (
+        <ContextMenu
+          x={edgeContextMenu.x}
+          y={edgeContextMenu.y}
+          items={getEdgeContextMenuItems()}
+          onClose={() => setEdgeContextMenu(null)}
+        />
+      )}
+
+      {deleteTarget && (
+        <ConfirmationDialog
+          title={
+            deleteTarget.type === 'component-from-model'
+              ? 'Delete Component from Model'
+              : 'Delete Relation from Model'
+          }
+          message={
+            deleteTarget.type === 'component-from-model'
+              ? 'This will delete the component from the entire model, remove it from ALL views, and delete ALL relations involving this component.'
+              : 'This will delete the relation from the entire model and remove it from ALL views.'
+          }
+          itemName={deleteTarget.name}
+          confirmText="Delete"
+          cancelText="Cancel"
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeleteTarget(null)}
+          isLoading={isDeleting}
+        />
+      )}
     </div>
   );
 });

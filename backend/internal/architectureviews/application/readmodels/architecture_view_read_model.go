@@ -305,3 +305,34 @@ func (rm *ArchitectureViewReadModel) getComponentsForViewTx(ctx context.Context,
 
 	return components, rows.Err()
 }
+
+func (rm *ArchitectureViewReadModel) GetViewsContainingComponent(ctx context.Context, componentID string) ([]string, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var viewIDs []string
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx,
+			"SELECT DISTINCT view_id FROM view_component_positions WHERE tenant_id = $1 AND component_id = $2",
+			tenantID.Value(), componentID,
+		)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var viewID string
+			if err := rows.Scan(&viewID); err != nil {
+				return err
+			}
+			viewIDs = append(viewIDs, viewID)
+		}
+
+		return rows.Err()
+	})
+
+	return viewIDs, err
+}

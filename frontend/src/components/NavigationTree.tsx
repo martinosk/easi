@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/appStore';
 import apiClient from '../api/client';
-import type { View } from '../api/types';
+import type { View, Component } from '../api/types';
+import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { ConfirmationDialog } from './ConfirmationDialog';
 
 interface NavigationTreeProps {
   onComponentSelect?: (componentId: string) => void;
@@ -9,7 +11,7 @@ interface NavigationTreeProps {
   onAddComponent?: () => void;
 }
 
-interface ContextMenuState {
+interface ViewContextMenuState {
   x: number;
   y: number;
   viewId: string;
@@ -17,9 +19,17 @@ interface ContextMenuState {
   isDefault: boolean;
 }
 
+interface ComponentContextMenuState {
+  x: number;
+  y: number;
+  componentId: string;
+  componentName: string;
+}
+
 interface EditingState {
-  viewId: string;
-  viewName: string;
+  viewId?: string;
+  componentId?: string;
+  name: string;
 }
 
 export const NavigationTree: React.FC<NavigationTreeProps> = ({
@@ -48,12 +58,20 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
   const views = useAppStore((state) => state.views);
   const loadViews = useAppStore((state) => state.loadViews);
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const [editingView, setEditingView] = useState<EditingState | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{ viewId: string; viewName: string } | null>(null);
+  const updateComponent = useAppStore((state) => state.updateComponent);
+  const deleteComponent = useAppStore((state) => state.deleteComponent);
+
+  const [viewContextMenu, setViewContextMenu] = useState<ViewContextMenuState | null>(null);
+  const [componentContextMenu, setComponentContextMenu] = useState<ComponentContextMenuState | null>(null);
+  const [editingState, setEditingState] = useState<EditingState | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: 'view' | 'component';
+    id: string;
+    name: string;
+  } | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createViewName, setCreateViewName] = useState('');
-  const contextMenuRef = useRef<HTMLDivElement>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
 
   // Load views when component mounts or when currentView changes
@@ -74,19 +92,6 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
     localStorage.setItem('navigationTreeViewsExpanded', JSON.stringify(isViewsExpanded));
   }, [isViewsExpanded]);
 
-  // Close context menu on click outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (contextMenuRef.current && !contextMenuRef.current.contains(event.target as Node)) {
-        setContextMenu(null);
-      }
-    };
-
-    if (contextMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [contextMenu]);
 
   const handleComponentClick = (componentId: string) => {
     if (onComponentSelect) {
@@ -103,7 +108,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   const handleViewContextMenu = (e: React.MouseEvent, view: View) => {
     e.preventDefault();
     e.stopPropagation();
-    setContextMenu({
+    setViewContextMenu({
       x: e.clientX,
       y: e.clientY,
       viewId: view.id,
@@ -112,53 +117,37 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
     });
   };
 
-  const handleRenameClick = () => {
-    if (contextMenu) {
-      setEditingView({
-        viewId: contextMenu.viewId,
-        viewName: contextMenu.viewName,
-      });
-      setContextMenu(null);
-    }
+  const handleComponentContextMenu = (e: React.MouseEvent, component: Component) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setComponentContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      componentId: component.id,
+      componentName: component.name,
+    });
   };
 
-  const handleDeleteClick = () => {
-    if (contextMenu) {
-      setDeleteTarget({
-        viewId: contextMenu.viewId,
-        viewName: contextMenu.viewName,
-      });
-      setContextMenu(null);
-    }
-  };
-
-  const handleSetDefaultClick = async () => {
-    if (contextMenu) {
-      try {
-        await apiClient.setDefaultView(contextMenu.viewId);
-        await loadViews();
-        setContextMenu(null);
-      } catch (error) {
-        console.error('Failed to set default view:', error);
-        alert('Failed to set default view');
-      }
-    }
-  };
-
-  const handleRenameSubmit = async (viewId: string, newName: string) => {
-    if (!newName.trim()) {
-      setEditingView(null);
+  const handleRenameSubmit = async () => {
+    if (!editingState || !editingState.name.trim()) {
+      setEditingState(null);
       return;
     }
 
     try {
-      await apiClient.renameView(viewId, { name: newName });
-      await loadViews();
-      setEditingView(null);
+      if (editingState.viewId) {
+        await apiClient.renameView(editingState.viewId, { name: editingState.name });
+        await loadViews();
+      } else if (editingState.componentId) {
+        const component = components.find(c => c.id === editingState.componentId);
+        if (component) {
+          await updateComponent(editingState.componentId, editingState.name, component.description);
+        }
+      }
+      setEditingState(null);
     } catch (error) {
-      console.error('Failed to rename view:', error);
-      alert('Failed to rename view');
-      setEditingView(null);
+      console.error('Failed to rename:', error);
+      setEditingState(null);
     }
   };
 
@@ -179,14 +168,88 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
 
+    setIsDeleting(true);
     try {
-      await apiClient.deleteView(deleteTarget.viewId);
-      await loadViews();
+      if (deleteTarget.type === 'view') {
+        await apiClient.deleteView(deleteTarget.id);
+        await loadViews();
+      } else if (deleteTarget.type === 'component') {
+        await deleteComponent(deleteTarget.id);
+      }
       setDeleteTarget(null);
     } catch (error) {
-      console.error('Failed to delete view:', error);
-      alert('Failed to delete view. Cannot delete the default view.');
+      console.error('Failed to delete:', error);
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const getViewContextMenuItems = (menu: ViewContextMenuState): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = [
+      {
+        label: 'Rename View',
+        onClick: () => {
+          setEditingState({
+            viewId: menu.viewId,
+            name: menu.viewName,
+          });
+        },
+      },
+    ];
+
+    if (!menu.isDefault) {
+      items.push({
+        label: 'Set as Default',
+        onClick: async () => {
+          try {
+            await apiClient.setDefaultView(menu.viewId);
+            await loadViews();
+          } catch (error) {
+            console.error('Failed to set default view:', error);
+          }
+        },
+      });
+
+      items.push({
+        label: 'Delete View',
+        onClick: () => {
+          setDeleteTarget({
+            type: 'view',
+            id: menu.viewId,
+            name: menu.viewName,
+          });
+        },
+        isDanger: true,
+      });
+    }
+
+    return items;
+  };
+
+  const getComponentContextMenuItems = (menu: ComponentContextMenuState): ContextMenuItem[] => {
+    return [
+      {
+        label: 'Rename',
+        onClick: () => {
+          setEditingState({
+            componentId: menu.componentId,
+            name: menu.componentName,
+          });
+        },
+      },
+      {
+        label: 'Delete from Model',
+        onClick: () => {
+          setDeleteTarget({
+            type: 'component',
+            id: menu.componentId,
+            name: menu.componentName,
+          });
+        },
+        isDanger: true,
+        ariaLabel: 'Delete component from entire model',
+      },
+    ];
   };
 
   return (
@@ -236,12 +299,38 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                         vc => vc.componentId === component.id
                       );
                       const isSelected = selectedNodeId === component.id;
+                      const isEditing = editingState?.componentId === component.id;
+
+                      if (isEditing) {
+                        return (
+                          <div key={component.id} className="tree-item-edit">
+                            <span className="tree-item-icon">📦</span>
+                            <input
+                              ref={editInputRef}
+                              type="text"
+                              className="tree-item-input"
+                              value={editingState.name}
+                              onChange={(e) => setEditingState({ ...editingState, name: e.target.value })}
+                              onBlur={handleRenameSubmit}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleRenameSubmit();
+                                } else if (e.key === 'Escape') {
+                                  setEditingState(null);
+                                }
+                              }}
+                              autoFocus
+                            />
+                          </div>
+                        );
+                      }
 
                       return (
                         <button
                           key={component.id}
                           className={`tree-item ${isSelected ? 'selected' : ''} ${!isInCurrentView ? 'not-in-view' : ''}`}
                           onClick={() => handleComponentClick(component.id)}
+                          onContextMenu={(e) => handleComponentContextMenu(e, component)}
                           title={isInCurrentView ? component.name : `${component.name} (not in current view)`}
                           draggable={!isInCurrentView}
                           onDragStart={(e) => {
@@ -288,7 +377,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                   ) : (
                     views.map((view) => {
                       const isActive = currentView?.id === view.id;
-                      const isEditing = editingView?.viewId === view.id;
+                      const isEditing = editingState?.viewId === view.id;
 
                       return (
                         <div
@@ -302,14 +391,14 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                                 ref={editInputRef}
                                 type="text"
                                 className="tree-item-input"
-                                value={editingView.viewName}
-                                onChange={(e) => setEditingView({ ...editingView, viewName: e.target.value })}
-                                onBlur={() => handleRenameSubmit(view.id, editingView.viewName)}
+                                value={editingState.name}
+                                onChange={(e) => setEditingState({ ...editingState, name: e.target.value })}
+                                onBlur={handleRenameSubmit}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
-                                    handleRenameSubmit(view.id, editingView.viewName);
+                                    handleRenameSubmit();
                                   } else if (e.key === 'Escape') {
-                                    setEditingView(null);
+                                    setEditingState(null);
                                   }
                                 }}
                                 autoFocus
@@ -319,7 +408,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                             <button
                               className={`tree-item ${isActive ? 'selected' : ''}`}
                               onClick={() => handleViewClick(view.id)}
-                              onDoubleClick={() => setEditingView({ viewId: view.id, viewName: view.name })}
+                              onDoubleClick={() => setEditingState({ viewId: view.id, name: view.name })}
                               onContextMenu={(e) => handleViewContextMenu(e, view)}
                               title={view.name}
                             >
@@ -351,27 +440,23 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
         </button>
       )}
 
-      {/* Context Menu */}
-      {contextMenu && (
-        <div
-          ref={contextMenuRef}
-          className="context-menu"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
-          <button className="context-menu-item" onClick={handleRenameClick}>
-            Rename View
-          </button>
-          {!contextMenu.isDefault && (
-            <button className="context-menu-item" onClick={handleSetDefaultClick}>
-              Set as Default
-            </button>
-          )}
-          {!contextMenu.isDefault && (
-            <button className="context-menu-item danger" onClick={handleDeleteClick}>
-              Delete View
-            </button>
-          )}
-        </div>
+      {/* Context Menus */}
+      {viewContextMenu && (
+        <ContextMenu
+          x={viewContextMenu.x}
+          y={viewContextMenu.y}
+          items={getViewContextMenuItems(viewContextMenu)}
+          onClose={() => setViewContextMenu(null)}
+        />
+      )}
+
+      {componentContextMenu && (
+        <ContextMenu
+          x={componentContextMenu.x}
+          y={componentContextMenu.y}
+          items={getComponentContextMenuItems(componentContextMenu)}
+          onClose={() => setComponentContextMenu(null)}
+        />
       )}
 
       {/* Create View Dialog */}
@@ -405,21 +490,20 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
       {/* Delete Confirmation Dialog */}
       {deleteTarget && (
-        <div className="dialog-overlay" onClick={() => setDeleteTarget(null)}>
-          <div className="dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>Delete View</h3>
-            <p>Are you sure you want to delete "{deleteTarget.viewName}"?</p>
-            <p className="dialog-warning">This action cannot be undone.</p>
-            <div className="dialog-actions">
-              <button onClick={() => setDeleteTarget(null)} className="btn-secondary">
-                Cancel
-              </button>
-              <button onClick={handleDeleteConfirm} className="btn-danger">
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmationDialog
+          title={deleteTarget.type === 'view' ? 'Delete View' : 'Delete Component'}
+          message={
+            deleteTarget.type === 'view'
+              ? `Are you sure you want to delete this view?`
+              : `This will delete the component from the entire model, remove it from ALL views, and delete ALL relations involving this component.`
+          }
+          itemName={deleteTarget.name}
+          confirmText="Delete"
+          cancelText="Cancel"
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeleteTarget(null)}
+          isLoading={isDeleting}
+        />
       )}
     </>
   );

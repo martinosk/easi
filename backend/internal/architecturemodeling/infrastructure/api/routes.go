@@ -45,7 +45,7 @@ func SetupArchitectureModelingRoutes(
 	// Initialize command handlers
 	createComponentHandler := handlers.NewCreateApplicationComponentHandler(componentRepo)
 	updateComponentHandler := handlers.NewUpdateApplicationComponentHandler(componentRepo)
-	deleteComponentHandler := handlers.NewDeleteApplicationComponentHandler(componentRepo)
+	deleteComponentHandler := handlers.NewDeleteApplicationComponentHandler(componentRepo, relationReadModel, commandBus)
 	createRelationHandler := handlers.NewCreateComponentRelationHandler(relationRepo)
 	updateRelationHandler := handlers.NewUpdateComponentRelationHandler(relationRepo)
 	deleteRelationHandler := handlers.NewDeleteComponentRelationHandler(relationRepo)

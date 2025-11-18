@@ -66,6 +66,10 @@ class ApiClient {
     return response.data.data;
   }
 
+  async deleteComponent(id: string): Promise<void> {
+    await this.client.delete(`/api/v1/components/${id}`);
+  }
+
   // Relations API
   async getRelations(): Promise<Relation[]> {
     const response = await this.client.get<{ data: Relation[] | null }>('/api/v1/relations');
@@ -85,6 +89,10 @@ class ApiClient {
   async updateRelation(id: string, request: Partial<CreateRelationRequest>): Promise<Relation> {
     const response = await this.client.put<{ data: Relation }>(`/api/v1/relations/${id}`, request);
     return response.data.data;
+  }
+
+  async deleteRelation(id: string): Promise<void> {
+    await this.client.delete(`/api/v1/relations/${id}`);
   }
 
   // Views API

@@ -40,6 +40,14 @@ func SetupArchitectureViewsRoutes(
 	eventBus.Subscribe("ViewDeleted", viewProjector)
 	eventBus.Subscribe("DefaultViewChanged", viewProjector)
 
+	// Initialize cross-context event handlers
+	componentDeletedHandler := handlers.NewApplicationComponentDeletedHandler(commandBus, viewReadModel)
+	relationDeletedHandler := handlers.NewComponentRelationDeletedHandler()
+
+	// Subscribe to events from ArchitectureModeling context
+	eventBus.Subscribe("ApplicationComponentDeleted", componentDeletedHandler)
+	eventBus.Subscribe("ComponentRelationDeleted", relationDeletedHandler)
+
 	// Initialize command handlers
 	createViewHandler := handlers.NewCreateViewHandler(viewRepo, viewReadModel)
 	addComponentHandler := handlers.NewAddComponentToViewHandler(viewRepo)

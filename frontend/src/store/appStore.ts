@@ -42,6 +42,9 @@ interface AppStore {
     description?: string
   ) => Promise<Relation>;
   updateRelation: (id: string, name?: string, description?: string) => Promise<Relation>;
+  deleteComponent: (id: string) => Promise<void>;
+  deleteRelation: (id: string) => Promise<void>;
+  removeComponentFromView: (componentId: string) => Promise<void>;
   updatePosition: (componentId: string, x: number, y: number) => Promise<void>;
   selectNode: (id: string | null) => void;
   selectEdge: (id: string | null) => void;
@@ -296,6 +299,91 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const errorMessage = error instanceof ApiError
         ? error.message
         : 'Failed to update relation';
+
+      toast.error(errorMessage);
+      throw error;
+    }
+  },
+
+  // Delete a component from the model
+  deleteComponent: async (id: string) => {
+    const { components, relations, currentView } = get();
+
+    try {
+      await apiClient.deleteComponent(id);
+
+      set({
+        components: components.filter((c) => c.id !== id),
+        relations: relations.filter(
+          (r) => r.sourceComponentId !== id && r.targetComponentId !== id
+        ),
+      });
+
+      if (currentView) {
+        const updatedView = await apiClient.getViewById(currentView.id);
+        set({ currentView: updatedView });
+      }
+
+      toast.success('Component deleted from model');
+    } catch (error) {
+      const errorMessage = error instanceof ApiError
+        ? error.message
+        : 'Failed to delete component';
+
+      toast.error(errorMessage);
+      throw error;
+    }
+  },
+
+  // Delete a relation from the model
+  deleteRelation: async (id: string) => {
+    const { relations } = get();
+
+    try {
+      await apiClient.deleteRelation(id);
+
+      set({
+        relations: relations.filter((r) => r.id !== id),
+      });
+
+      toast.success('Relation deleted from model');
+    } catch (error) {
+      const errorMessage = error instanceof ApiError
+        ? error.message
+        : 'Failed to delete relation';
+
+      toast.error(errorMessage);
+      throw error;
+    }
+  },
+
+  // Remove a component from the current view only
+  removeComponentFromView: async (componentId: string) => {
+    const { currentView } = get();
+
+    if (!currentView) {
+      return;
+    }
+
+    try {
+      await apiClient.removeComponentFromView(currentView.id, componentId);
+
+      const updatedComponents = currentView.components.filter(
+        (vc) => vc.componentId !== componentId
+      );
+
+      set({
+        currentView: {
+          ...currentView,
+          components: updatedComponents,
+        },
+      });
+
+      toast.success('Component removed from view');
+    } catch (error) {
+      const errorMessage = error instanceof ApiError
+        ? error.message
+        : 'Failed to remove component from view';
 
       toast.error(errorMessage);
       throw error;
