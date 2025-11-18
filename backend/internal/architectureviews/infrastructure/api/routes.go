@@ -22,8 +22,9 @@ func SetupArchitectureViewsRoutes(
 	db *database.TenantAwareDB,
 	hateoas *sharedAPI.HATEOASLinks,
 ) error {
-	// Initialize repository
+	// Initialize repositories
 	viewRepo := repositories.NewArchitectureViewRepository(eventStore)
+	layoutRepo := repositories.NewViewLayoutRepository(db)
 
 	// Initialize read model
 	viewReadModel := readmodels.NewArchitectureViewReadModel(db)
@@ -39,6 +40,8 @@ func SetupArchitectureViewsRoutes(
 	eventBus.Subscribe("ViewRenamed", viewProjector)
 	eventBus.Subscribe("ViewDeleted", viewProjector)
 	eventBus.Subscribe("DefaultViewChanged", viewProjector)
+	eventBus.Subscribe("ViewEdgeTypeUpdated", viewProjector)
+	eventBus.Subscribe("ViewLayoutDirectionUpdated", viewProjector)
 
 	// Initialize cross-context event handlers
 	componentDeletedHandler := handlers.NewApplicationComponentDeletedHandler(commandBus, viewReadModel)
@@ -50,21 +53,27 @@ func SetupArchitectureViewsRoutes(
 
 	// Initialize command handlers
 	createViewHandler := handlers.NewCreateViewHandler(viewRepo, viewReadModel)
-	addComponentHandler := handlers.NewAddComponentToViewHandler(viewRepo)
-	updatePositionHandler := handlers.NewUpdateComponentPositionHandler(viewRepo)
+	addComponentHandler := handlers.NewAddComponentToViewHandler(viewRepo, layoutRepo)
+	updatePositionHandler := handlers.NewUpdateComponentPositionHandler(layoutRepo)
+	updateMultiplePositionsHandler := handlers.NewUpdateMultiplePositionsHandler(layoutRepo)
 	renameViewHandler := handlers.NewRenameViewHandler(viewRepo)
 	deleteViewHandler := handlers.NewDeleteViewHandler(viewRepo)
 	removeComponentHandler := handlers.NewRemoveComponentFromViewHandler(viewRepo)
 	setDefaultViewHandler := handlers.NewSetDefaultViewHandler(viewRepo, viewReadModel)
+	updateEdgeTypeHandler := handlers.NewUpdateViewEdgeTypeHandler(layoutRepo)
+	updateLayoutDirectionHandler := handlers.NewUpdateViewLayoutDirectionHandler(layoutRepo)
 
 	// Register command handlers
 	commandBus.Register("CreateView", createViewHandler)
 	commandBus.Register("AddComponentToView", addComponentHandler)
 	commandBus.Register("UpdateComponentPosition", updatePositionHandler)
+	commandBus.Register("UpdateMultiplePositions", updateMultiplePositionsHandler)
 	commandBus.Register("RenameView", renameViewHandler)
 	commandBus.Register("DeleteView", deleteViewHandler)
 	commandBus.Register("RemoveComponentFromView", removeComponentHandler)
 	commandBus.Register("SetDefaultView", setDefaultViewHandler)
+	commandBus.Register("UpdateViewEdgeType", updateEdgeTypeHandler)
+	commandBus.Register("UpdateViewLayoutDirection", updateLayoutDirectionHandler)
 
 	// Initialize HTTP handlers
 	viewHandlers := NewViewHandlers(commandBus, viewReadModel, hateoas)
@@ -77,9 +86,12 @@ func SetupArchitectureViewsRoutes(
 		r.Delete("/{id}", viewHandlers.DeleteView)
 		r.Patch("/{id}/name", viewHandlers.RenameView)
 		r.Put("/{id}/default", viewHandlers.SetDefaultView)
+		r.Patch("/{id}/edge-type", viewHandlers.UpdateEdgeType)
+		r.Patch("/{id}/layout-direction", viewHandlers.UpdateLayoutDirection)
 		r.Post("/{id}/components", viewHandlers.AddComponentToView)
 		r.Delete("/{id}/components/{componentId}", viewHandlers.RemoveComponentFromView)
 		r.Patch("/{id}/components/{componentId}/position", viewHandlers.UpdateComponentPosition)
+		r.Patch("/{id}/layout", viewHandlers.UpdateMultiplePositions)
 	})
 
 	return nil

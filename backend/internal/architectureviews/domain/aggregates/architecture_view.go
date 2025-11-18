@@ -4,7 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"easi/backend/internal/architectureviews/domain/entities"
 	"easi/backend/internal/architectureviews/domain/events"
 	"easi/backend/internal/architectureviews/domain/valueobjects"
 	"easi/backend/internal/shared/domain"
@@ -27,19 +26,19 @@ var (
 // ArchitectureView represents an architecture view aggregate
 type ArchitectureView struct {
 	domain.AggregateRoot
-	name        valueobjects.ViewName
-	description string
-	components  map[string]entities.ViewComponent // componentID -> ViewComponent
-	isDefault   bool
-	isDeleted   bool
-	createdAt   time.Time
+	name            valueobjects.ViewName
+	description     string
+	components      map[string]bool // componentID -> exists (membership set)
+	isDefault       bool
+	isDeleted       bool
+	createdAt       time.Time
 }
 
 // NewArchitectureView creates a new architecture view
 func NewArchitectureView(name valueobjects.ViewName, description string, isDefault bool) (*ArchitectureView, error) {
 	aggregate := &ArchitectureView{
 		AggregateRoot: domain.NewAggregateRoot(),
-		components:    make(map[string]entities.ViewComponent),
+		components:    make(map[string]bool),
 	}
 
 	// Raise creation event
@@ -62,24 +61,24 @@ func NewArchitectureView(name valueobjects.ViewName, description string, isDefau
 	return aggregate, nil
 }
 
-// AddComponent adds a component to the view at a specific position
-func (v *ArchitectureView) AddComponent(componentID string, position valueobjects.ComponentPosition) error {
+// AddComponent adds a component to the view (membership only, no position)
+func (v *ArchitectureView) AddComponent(componentID string) error {
 	// Check if view is deleted
 	if v.isDeleted {
 		return ErrViewAlreadyDeleted
 	}
 
 	// Check if component already exists
-	if _, exists := v.components[componentID]; exists {
+	if v.components[componentID] {
 		return ErrComponentAlreadyInView
 	}
 
-	// Raise event
+	// Raise event (position handled separately via ViewLayoutRepository)
 	event := events.NewComponentAddedToView(
 		v.ID(),
 		componentID,
-		position.X(),
-		position.Y(),
+		0,
+		0,
 	)
 
 	v.apply(event)
@@ -88,31 +87,6 @@ func (v *ArchitectureView) AddComponent(componentID string, position valueobject
 	return nil
 }
 
-// UpdateComponentPosition updates the position of a component in the view
-func (v *ArchitectureView) UpdateComponentPosition(componentID string, newPosition valueobjects.ComponentPosition) error {
-	// Check if view is deleted
-	if v.isDeleted {
-		return ErrViewAlreadyDeleted
-	}
-
-	// Check if component exists
-	if _, exists := v.components[componentID]; !exists {
-		return ErrComponentNotFound
-	}
-
-	// Raise event
-	event := events.NewComponentPositionUpdated(
-		v.ID(),
-		componentID,
-		newPosition.X(),
-		newPosition.Y(),
-	)
-
-	v.apply(event)
-	v.RaiseEvent(event)
-
-	return nil
-}
 
 // RemoveComponent removes a component from the view
 func (v *ArchitectureView) RemoveComponent(componentID string) error {
@@ -122,7 +96,7 @@ func (v *ArchitectureView) RemoveComponent(componentID string) error {
 	}
 
 	// Check if component exists
-	if _, exists := v.components[componentID]; !exists {
+	if !v.components[componentID] {
 		return ErrComponentNotFound
 	}
 
@@ -226,11 +200,12 @@ func (v *ArchitectureView) UnsetAsDefault() error {
 	return nil
 }
 
+
 // LoadFromHistory reconstructs the aggregate from events
 func LoadArchitectureViewFromHistory(events []domain.DomainEvent) (*ArchitectureView, error) {
 	aggregate := &ArchitectureView{
 		AggregateRoot: domain.NewAggregateRoot(),
-		components:    make(map[string]entities.ViewComponent),
+		components:    make(map[string]bool),
 	}
 
 	aggregate.LoadFromHistory(events, func(event domain.DomainEvent) {
@@ -251,15 +226,9 @@ func (v *ArchitectureView) apply(event domain.DomainEvent) {
 		v.createdAt = e.CreatedAt
 
 	case events.ComponentAddedToView:
-		position := valueobjects.NewComponentPosition(e.X, e.Y)
-		viewComponent := entities.NewViewComponent(e.ComponentID, position)
-		v.components[e.ComponentID] = viewComponent
+		v.components[e.ComponentID] = true
 
 	case events.ComponentPositionUpdated:
-		if viewComponent, exists := v.components[e.ComponentID]; exists {
-			newPosition := valueobjects.NewComponentPosition(e.X, e.Y)
-			v.components[e.ComponentID] = viewComponent.UpdatePosition(newPosition)
-		}
 
 	case events.ComponentRemovedFromView:
 		delete(v.components, e.ComponentID)
@@ -272,6 +241,10 @@ func (v *ArchitectureView) apply(event domain.DomainEvent) {
 
 	case events.DefaultViewChanged:
 		v.isDefault = e.IsDefault
+
+	case events.ViewEdgeTypeUpdated:
+
+	case events.ViewLayoutDirectionUpdated:
 	}
 }
 
@@ -285,14 +258,18 @@ func (v *ArchitectureView) Description() string {
 	return v.description
 }
 
-// Components returns all components in the view
-func (v *ArchitectureView) Components() map[string]entities.ViewComponent {
-	// Return copy to maintain immutability
-	componentsCopy := make(map[string]entities.ViewComponent)
-	for k, v := range v.components {
-		componentsCopy[k] = v
+// Components returns all component IDs in the view (membership set)
+func (v *ArchitectureView) Components() []string {
+	componentIDs := make([]string, 0, len(v.components))
+	for componentID := range v.components {
+		componentIDs = append(componentIDs, componentID)
 	}
-	return componentsCopy
+	return componentIDs
+}
+
+// HasComponent checks if a component is in the view
+func (v *ArchitectureView) HasComponent(componentID string) bool {
+	return v.components[componentID]
 }
 
 // CreatedAt returns when the view was created

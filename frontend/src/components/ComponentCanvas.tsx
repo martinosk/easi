@@ -189,6 +189,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
 
   // Build edges from relations
   React.useEffect(() => {
+    const edgeType = currentView?.edgeType || 'default';
+
     const newEdges: Edge[] = relations.map((relation) => {
       const isSelected = selectedEdgeId === relation.id;
       const isTriggers = relation.relationType === 'Triggers';
@@ -198,7 +200,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         source: relation.sourceComponentId,
         target: relation.targetComponentId,
         label: relation.name || relation.relationType,
-        type: 'default',
+        type: edgeType,
         animated: isSelected,
         style: {
           stroke: isTriggers ? '#f97316' : '#3b82f6',
@@ -219,7 +221,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     });
 
     setEdges(newEdges);
-  }, [relations, selectedEdgeId]);
+  }, [relations, selectedEdgeId, currentView?.edgeType]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {

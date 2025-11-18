@@ -4,18 +4,17 @@ import (
 	"context"
 
 	"easi/backend/internal/architectureviews/application/commands"
-	"easi/backend/internal/architectureviews/domain/valueobjects"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
 type UpdateComponentPositionHandler struct {
-	repository *repositories.ArchitectureViewRepository
+	layoutRepository *repositories.ViewLayoutRepository
 }
 
-func NewUpdateComponentPositionHandler(repository *repositories.ArchitectureViewRepository) *UpdateComponentPositionHandler {
+func NewUpdateComponentPositionHandler(layoutRepository *repositories.ViewLayoutRepository) *UpdateComponentPositionHandler {
 	return &UpdateComponentPositionHandler{
-		repository: repository,
+		layoutRepository: layoutRepository,
 	}
 }
 
@@ -25,16 +24,5 @@ func (h *UpdateComponentPositionHandler) Handle(ctx context.Context, cmd cqrs.Co
 		return cqrs.ErrInvalidCommand
 	}
 
-	view, err := h.repository.GetByID(ctx, command.ViewID)
-	if err != nil {
-		return err
-	}
-
-	newPosition := valueobjects.NewComponentPosition(command.X, command.Y)
-
-	if err := view.UpdateComponentPosition(command.ComponentID, newPosition); err != nil {
-		return err
-	}
-
-	return h.repository.Save(ctx, view)
+	return h.layoutRepository.UpdateComponentPosition(ctx, command.ViewID, command.ComponentID, command.X, command.Y)
 }

@@ -18,13 +18,15 @@ type ComponentPositionDTO struct {
 
 // ArchitectureViewDTO represents the read model for architecture views
 type ArchitectureViewDTO struct {
-	ID          string                  `json:"id"`
-	Name        string                  `json:"name"`
-	Description string                  `json:"description,omitempty"`
-	IsDefault   bool                    `json:"isDefault"`
-	Components  []ComponentPositionDTO  `json:"components"`
-	CreatedAt   time.Time               `json:"createdAt"`
-	Links       map[string]string       `json:"_links,omitempty"`
+	ID              string                 `json:"id"`
+	Name            string                 `json:"name"`
+	Description     string                 `json:"description,omitempty"`
+	IsDefault       bool                   `json:"isDefault"`
+	Components      []ComponentPositionDTO `json:"components"`
+	CreatedAt       time.Time              `json:"createdAt"`
+	EdgeType        string                 `json:"edgeType,omitempty"`
+	LayoutDirection string                 `json:"layoutDirection,omitempty"`
+	Links           map[string]string      `json:"_links,omitempty"`
 }
 
 // ArchitectureViewReadModel handles queries for architecture views
@@ -137,6 +139,32 @@ func (rm *ArchitectureViewReadModel) SetViewAsDefault(ctx context.Context, viewI
 	return err
 }
 
+func (rm *ArchitectureViewReadModel) UpdateEdgeType(ctx context.Context, viewID, edgeType string) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"UPDATE architecture_views SET edge_type = $1, updated_at = $2 WHERE tenant_id = $3 AND id = $4",
+		edgeType, time.Now().UTC(), tenantID.Value(), viewID,
+	)
+	return err
+}
+
+func (rm *ArchitectureViewReadModel) UpdateLayoutDirection(ctx context.Context, viewID, layoutDirection string) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"UPDATE architecture_views SET layout_direction = $1, updated_at = $2 WHERE tenant_id = $3 AND id = $4",
+		layoutDirection, time.Now().UTC(), tenantID.Value(), viewID,
+	)
+	return err
+}
+
 // GetDefaultView retrieves the default view for the current tenant
 func (rm *ArchitectureViewReadModel) GetDefaultView(ctx context.Context) (*ArchitectureViewDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
@@ -148,10 +176,14 @@ func (rm *ArchitectureViewReadModel) GetDefaultView(ctx context.Context) (*Archi
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		var edgeType, layoutDirection sql.NullString
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, description, is_default, created_at FROM architecture_views WHERE tenant_id = $1 AND is_default = true AND is_deleted = false LIMIT 1",
+			`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction
+			FROM architecture_views av
+			LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
+			WHERE av.tenant_id = $1 AND av.is_default = true AND av.is_deleted = false LIMIT 1`,
 			tenantID.Value(),
-		).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt)
+		).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt, &edgeType, &layoutDirection)
 
 		if err == sql.ErrNoRows {
 			notFound = true
@@ -161,7 +193,13 @@ func (rm *ArchitectureViewReadModel) GetDefaultView(ctx context.Context) (*Archi
 			return err
 		}
 
-		// Get component positions within same transaction
+		if edgeType.Valid {
+			dto.EdgeType = edgeType.String
+		}
+		if layoutDirection.Valid {
+			dto.LayoutDirection = layoutDirection.String
+		}
+
 		components, err := rm.getComponentsForViewTx(ctx, tx, tenantID.Value(), dto.ID)
 		if err != nil {
 			return err
@@ -192,10 +230,14 @@ func (rm *ArchitectureViewReadModel) GetByID(ctx context.Context, id string) (*A
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		var edgeType, layoutDirection sql.NullString
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, description, is_default, created_at FROM architecture_views WHERE tenant_id = $1 AND id = $2 AND is_deleted = false",
+			`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction
+			FROM architecture_views av
+			LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
+			WHERE av.tenant_id = $1 AND av.id = $2 AND av.is_deleted = false`,
 			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt)
+		).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt, &edgeType, &layoutDirection)
 
 		if err == sql.ErrNoRows {
 			notFound = true
@@ -205,7 +247,13 @@ func (rm *ArchitectureViewReadModel) GetByID(ctx context.Context, id string) (*A
 			return err
 		}
 
-		// Get component positions within same transaction
+		if edgeType.Valid {
+			dto.EdgeType = edgeType.String
+		}
+		if layoutDirection.Valid {
+			dto.LayoutDirection = layoutDirection.String
+		}
+
 		rows, err := tx.QueryContext(ctx,
 			"SELECT component_id, x, y FROM view_component_positions WHERE tenant_id = $1 AND view_id = $2",
 			tenantID.Value(), id,
@@ -246,9 +294,11 @@ func (rm *ArchitectureViewReadModel) GetAll(ctx context.Context) ([]Architecture
 
 	var views []ArchitectureViewDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		// First, get all views
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, description, is_default, created_at FROM architecture_views WHERE tenant_id = $1 AND is_deleted = false ORDER BY is_default DESC, created_at DESC",
+			`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction
+			FROM architecture_views av
+			LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
+			WHERE av.tenant_id = $1 AND av.is_deleted = false ORDER BY av.is_default DESC, av.created_at DESC`,
 			tenantID.Value(),
 		)
 		if err != nil {
@@ -258,8 +308,15 @@ func (rm *ArchitectureViewReadModel) GetAll(ctx context.Context) ([]Architecture
 
 		for rows.Next() {
 			var dto ArchitectureViewDTO
-			if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt); err != nil {
+			var edgeType, layoutDirection sql.NullString
+			if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt, &edgeType, &layoutDirection); err != nil {
 				return err
+			}
+			if edgeType.Valid {
+				dto.EdgeType = edgeType.String
+			}
+			if layoutDirection.Valid {
+				dto.LayoutDirection = layoutDirection.String
 			}
 			views = append(views, dto)
 		}

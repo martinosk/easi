@@ -105,6 +105,24 @@ func (p *ArchitectureViewProjector) ProjectEvent(ctx context.Context, eventType 
 		}
 
 		return p.readModel.SetViewAsDefault(ctx, event.ViewID, event.IsDefault)
+
+	case "ViewEdgeTypeUpdated":
+		var event events.ViewEdgeTypeUpdated
+		if err := json.Unmarshal(eventData, &event); err != nil {
+			log.Printf("Failed to unmarshal ViewEdgeTypeUpdated event: %v", err)
+			return err
+		}
+
+		return p.readModel.UpdateEdgeType(ctx, event.ViewID, event.EdgeType)
+
+	case "ViewLayoutDirectionUpdated":
+		var event events.ViewLayoutDirectionUpdated
+		if err := json.Unmarshal(eventData, &event); err != nil {
+			log.Printf("Failed to unmarshal ViewLayoutDirectionUpdated event: %v", err)
+			return err
+		}
+
+		return p.readModel.UpdateLayoutDirection(ctx, event.ViewID, event.LayoutDirection)
 	}
 
 	return nil

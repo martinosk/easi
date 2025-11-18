@@ -52,9 +52,27 @@ type UpdatePositionRequest struct {
 	Y float64 `json:"y"`
 }
 
+type PositionUpdateItem struct {
+	ComponentID string  `json:"componentId"`
+	X           float64 `json:"x"`
+	Y           float64 `json:"y"`
+}
+
+type UpdateMultiplePositionsRequest struct {
+	Positions []PositionUpdateItem `json:"positions"`
+}
+
 // RenameViewRequest represents the request body for renaming a view
 type RenameViewRequest struct {
 	Name string `json:"name"`
+}
+
+type UpdateEdgeTypeRequest struct {
+	EdgeType string `json:"edgeType"`
+}
+
+type UpdateLayoutDirectionRequest struct {
+	LayoutDirection string `json:"layoutDirection"`
 }
 
 // CreateView godoc
@@ -268,6 +286,43 @@ func (h *ViewHandlers) UpdateComponentPosition(w http.ResponseWriter, r *http.Re
 		map[string]string{"message": "Component position updated successfully"}, links)
 }
 
+func (h *ViewHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Request) {
+	viewID := chi.URLParam(r, "id")
+
+	var req UpdateMultiplePositionsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+
+	positions := make([]commands.PositionUpdate, len(req.Positions))
+	for i, pos := range req.Positions {
+		positions[i] = commands.PositionUpdate{
+			ComponentID: pos.ComponentID,
+			X:           pos.X,
+			Y:           pos.Y,
+		}
+	}
+
+	cmd := commands.UpdateMultiplePositions{
+		ViewID:    viewID,
+		Positions: positions,
+	}
+
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	links := map[string]string{
+		"self": fmt.Sprintf("/api/v1/views/%s/layout", viewID),
+		"view": fmt.Sprintf("/api/v1/views/%s", viewID),
+	}
+
+	sharedAPI.RespondSuccess(w, http.StatusOK,
+		map[string]string{"message": "Component positions updated successfully"}, links)
+}
+
 // RenameView godoc
 // @Summary Rename an architecture view
 // @Description Renames an architecture view
@@ -407,4 +462,70 @@ func (h *ViewHandlers) SetDefaultView(w http.ResponseWriter, r *http.Request) {
 
 	sharedAPI.RespondSuccess(w, http.StatusOK,
 		map[string]string{"message": "Default view set successfully"}, links)
+}
+
+func (h *ViewHandlers) UpdateEdgeType(w http.ResponseWriter, r *http.Request) {
+	viewID := chi.URLParam(r, "id")
+
+	var req UpdateEdgeTypeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+
+	_, err := valueobjects.NewEdgeType(req.EdgeType)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	cmd := &commands.UpdateViewEdgeType{
+		ViewID:   viewID,
+		EdgeType: req.EdgeType,
+	}
+
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	links := map[string]string{
+		"self": fmt.Sprintf("/api/v1/views/%s", viewID),
+	}
+
+	sharedAPI.RespondSuccess(w, http.StatusOK,
+		map[string]string{"message": "Edge type updated successfully"}, links)
+}
+
+func (h *ViewHandlers) UpdateLayoutDirection(w http.ResponseWriter, r *http.Request) {
+	viewID := chi.URLParam(r, "id")
+
+	var req UpdateLayoutDirectionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+
+	_, err := valueobjects.NewLayoutDirection(req.LayoutDirection)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	cmd := &commands.UpdateViewLayoutDirection{
+		ViewID:          viewID,
+		LayoutDirection: req.LayoutDirection,
+	}
+
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	links := map[string]string{
+		"self": fmt.Sprintf("/api/v1/views/%s", viewID),
+	}
+
+	sharedAPI.RespondSuccess(w, http.StatusOK,
+		map[string]string{"message": "Layout direction updated successfully"}, links)
 }

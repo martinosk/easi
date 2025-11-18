@@ -45,6 +45,8 @@ export interface View {
   description?: string;
   isDefault: boolean;
   components: ViewComponent[];
+  edgeType?: string;
+  layoutDirection?: string;
   createdAt: string;
   _links: HATEOASLinks;
 }
@@ -78,8 +80,26 @@ export interface UpdatePositionRequest {
   y: number;
 }
 
+export interface PositionUpdate {
+  componentId: string;
+  x: number;
+  y: number;
+}
+
+export interface UpdateMultiplePositionsRequest {
+  positions: PositionUpdate[];
+}
+
 export interface RenameViewRequest {
   name: string;
+}
+
+export interface UpdateViewEdgeTypeRequest {
+  edgeType: string;
+}
+
+export interface UpdateViewLayoutDirectionRequest {
+  layoutDirection: string;
 }
 
 export class ApiError extends Error {

@@ -4,18 +4,22 @@ import (
 	"context"
 
 	"easi/backend/internal/architectureviews/application/commands"
-	"easi/backend/internal/architectureviews/domain/valueobjects"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
 type AddComponentToViewHandler struct {
-	repository *repositories.ArchitectureViewRepository
+	viewRepository   *repositories.ArchitectureViewRepository
+	layoutRepository *repositories.ViewLayoutRepository
 }
 
-func NewAddComponentToViewHandler(repository *repositories.ArchitectureViewRepository) *AddComponentToViewHandler {
+func NewAddComponentToViewHandler(
+	viewRepository *repositories.ArchitectureViewRepository,
+	layoutRepository *repositories.ViewLayoutRepository,
+) *AddComponentToViewHandler {
 	return &AddComponentToViewHandler{
-		repository: repository,
+		viewRepository:   viewRepository,
+		layoutRepository: layoutRepository,
 	}
 }
 
@@ -25,16 +29,18 @@ func (h *AddComponentToViewHandler) Handle(ctx context.Context, cmd cqrs.Command
 		return cqrs.ErrInvalidCommand
 	}
 
-	view, err := h.repository.GetByID(ctx, command.ViewID)
+	view, err := h.viewRepository.GetByID(ctx, command.ViewID)
 	if err != nil {
 		return err
 	}
 
-	position := valueobjects.NewComponentPosition(command.X, command.Y)
-
-	if err := view.AddComponent(command.ComponentID, position); err != nil {
+	if err := view.AddComponent(command.ComponentID); err != nil {
 		return err
 	}
 
-	return h.repository.Save(ctx, view)
+	if err := h.viewRepository.Save(ctx, view); err != nil {
+		return err
+	}
+
+	return h.layoutRepository.UpdateComponentPosition(ctx, command.ViewID, command.ComponentID, command.X, command.Y)
 }

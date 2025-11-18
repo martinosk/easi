@@ -46,6 +46,9 @@ interface AppStore {
   deleteRelation: (id: string) => Promise<void>;
   removeComponentFromView: (componentId: string) => Promise<void>;
   updatePosition: (componentId: string, x: number, y: number) => Promise<void>;
+  setEdgeType: (edgeType: string) => Promise<void>;
+  setLayoutDirection: (direction: string) => Promise<void>;
+  applyAutoLayout: () => Promise<void>;
   selectNode: (id: string | null) => void;
   selectEdge: (id: string | null) => void;
   clearSelection: () => void;
@@ -440,5 +443,153 @@ export const useAppStore = create<AppStore>((set, get) => ({
   // Set error
   setError: (error: string | null) => {
     set({ error });
+  },
+
+  setEdgeType: async (edgeType: string) => {
+    const { currentView } = get();
+
+    if (!currentView) {
+      return;
+    }
+
+    const previousEdgeType = currentView.edgeType;
+
+    set({
+      currentView: {
+        ...currentView,
+        edgeType,
+      },
+    });
+
+    try {
+      await apiClient.updateViewEdgeType(currentView.id, { edgeType });
+      toast.success('Edge type updated');
+    } catch (error) {
+      set({
+        currentView: {
+          ...currentView,
+          edgeType: previousEdgeType,
+        },
+      });
+
+      const errorMessage = error instanceof ApiError
+        ? error.message
+        : 'Failed to update edge type';
+
+      toast.error(errorMessage);
+      throw error;
+    }
+  },
+
+  setLayoutDirection: async (layoutDirection: string) => {
+    const { currentView } = get();
+
+    if (!currentView) {
+      return;
+    }
+
+    const previousLayoutDirection = currentView.layoutDirection;
+
+    set({
+      currentView: {
+        ...currentView,
+        layoutDirection,
+      },
+    });
+
+    try {
+      await apiClient.updateViewLayoutDirection(currentView.id, { layoutDirection });
+      toast.success('Layout direction updated');
+    } catch (error) {
+      set({
+        currentView: {
+          ...currentView,
+          layoutDirection: previousLayoutDirection,
+        },
+      });
+
+      const errorMessage = error instanceof ApiError
+        ? error.message
+        : 'Failed to update layout direction';
+
+      toast.error(errorMessage);
+      throw error;
+    }
+  },
+
+  applyAutoLayout: async () => {
+    const { currentView, components, relations } = get();
+
+    if (!currentView) {
+      return;
+    }
+
+    try {
+      const { calculateDagreLayout } = await import('../utils/layout');
+
+      const nodes = components
+        .filter((component) =>
+          currentView.components.some((vc) => vc.componentId === component.id)
+        )
+        .map((component) => {
+          const viewComponent = currentView.components.find(
+            (vc) => vc.componentId === component.id
+          );
+
+          const position = viewComponent
+            ? { x: viewComponent.x, y: viewComponent.y }
+            : { x: 400, y: 300 };
+
+          return {
+            id: component.id,
+            type: 'component',
+            position,
+            data: {
+              label: component.name,
+              description: component.description,
+            },
+          };
+        });
+
+      const edges = relations
+        .filter((relation) => {
+          const sourceInView = currentView.components.some(
+            (vc) => vc.componentId === relation.sourceComponentId
+          );
+          const targetInView = currentView.components.some(
+            (vc) => vc.componentId === relation.targetComponentId
+          );
+          return sourceInView && targetInView;
+        })
+        .map((relation) => ({
+          id: relation.id,
+          source: relation.sourceComponentId,
+          target: relation.targetComponentId,
+        }));
+
+      const layoutedNodes = calculateDagreLayout(nodes, edges, {
+        direction: (currentView.layoutDirection as 'TB' | 'LR' | 'BT' | 'RL') || 'TB',
+      });
+
+      const positions = layoutedNodes.map((node) => ({
+        componentId: node.id,
+        x: node.position.x,
+        y: node.position.y,
+      }));
+
+      await apiClient.updateMultiplePositions(currentView.id, { positions });
+
+      const updatedView = await apiClient.getViewById(currentView.id);
+      set({ currentView: updatedView });
+
+      toast.success('Layout applied');
+    } catch (error) {
+      const errorMessage = error instanceof ApiError
+        ? error.message
+        : 'Failed to apply layout';
+
+      toast.error(errorMessage);
+      throw error;
+    }
   },
 }));

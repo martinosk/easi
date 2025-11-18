@@ -17,8 +17,10 @@
     "test:ci": "npm run test -- --coverage && npm run test:e2e"
   },
   "dependencies": {
+    "@types/dagre": "^0.7.53",
     "@xyflow/react": "^12.9.2",
     "axios": "^1.13.2",
+    "dagre": "^0.8.5",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-hot-toast": "^2.6.0",

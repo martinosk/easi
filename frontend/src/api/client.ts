@@ -9,7 +9,10 @@ import type {
   CreateViewRequest,
   AddComponentToViewRequest,
   UpdatePositionRequest,
+  UpdateMultiplePositionsRequest,
   RenameViewRequest,
+  UpdateViewEdgeTypeRequest,
+  UpdateViewLayoutDirectionRequest,
 } from './types';
 import { ApiError } from './types';
 
@@ -136,6 +139,16 @@ class ApiClient {
     );
   }
 
+  async updateMultiplePositions(
+    viewId: string,
+    request: UpdateMultiplePositionsRequest
+  ): Promise<void> {
+    await this.client.patch(
+      `/api/v1/views/${viewId}/layout`,
+      request
+    );
+  }
+
   async renameView(viewId: string, request: RenameViewRequest): Promise<void> {
     await this.client.patch(`/api/v1/views/${viewId}/name`, request);
   }
@@ -150,6 +163,14 @@ class ApiClient {
 
   async setDefaultView(viewId: string): Promise<void> {
     await this.client.put(`/api/v1/views/${viewId}/default`);
+  }
+
+  async updateViewEdgeType(viewId: string, request: UpdateViewEdgeTypeRequest): Promise<void> {
+    await this.client.patch(`/api/v1/views/${viewId}/edge-type`, request);
+  }
+
+  async updateViewLayoutDirection(viewId: string, request: UpdateViewLayoutDirectionRequest): Promise<void> {
+    await this.client.patch(`/api/v1/views/${viewId}/layout-direction`, request);
   }
 }
 
