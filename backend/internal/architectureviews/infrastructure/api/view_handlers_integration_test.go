@@ -126,6 +126,7 @@ func setupViewHandlers(db *sql.DB) (*ViewHandlers, *readmodels.ArchitectureViewR
 
 	// Setup repository and handlers
 	viewRepo := repositories.NewArchitectureViewRepository(eventStore)
+	layoutRepo := repositories.NewViewLayoutRepository(tenantDB)
 	createHandler := handlers.NewCreateViewHandler(viewRepo, readModel)
 	addComponentHandler := handlers.NewAddComponentToViewHandler(viewRepo)
 	updatePositionHandler := handlers.NewUpdateComponentPositionHandler(viewRepo)
@@ -133,6 +134,8 @@ func setupViewHandlers(db *sql.DB) (*ViewHandlers, *readmodels.ArchitectureViewR
 	deleteHandler := handlers.NewDeleteViewHandler(viewRepo)
 	removeComponentHandler := handlers.NewRemoveComponentFromViewHandler(viewRepo)
 	setDefaultHandler := handlers.NewSetDefaultViewHandler(viewRepo, readModel)
+	updateEdgeTypeHandler := handlers.NewUpdateViewEdgeTypeHandler(layoutRepo)
+	updateLayoutDirectionHandler := handlers.NewUpdateViewLayoutDirectionHandler(layoutRepo)
 
 	commandBus.Register("CreateView", createHandler)
 	commandBus.Register("AddComponentToView", addComponentHandler)
@@ -141,6 +144,8 @@ func setupViewHandlers(db *sql.DB) (*ViewHandlers, *readmodels.ArchitectureViewR
 	commandBus.Register("DeleteView", deleteHandler)
 	commandBus.Register("RemoveComponentFromView", removeComponentHandler)
 	commandBus.Register("SetDefaultView", setDefaultHandler)
+	commandBus.Register("UpdateViewEdgeType", updateEdgeTypeHandler)
+	commandBus.Register("UpdateViewLayoutDirection", updateLayoutDirectionHandler)
 
 	// Setup HTTP handlers
 	viewHandlers := NewViewHandlers(commandBus, readModel, hateoas)
@@ -636,4 +641,168 @@ func TestCreateView_NameTooLong_Integration(t *testing.T) {
 	).Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count, "No ViewCreated events should be created for invalid request")
+}
+
+func TestUpdateEdgeType_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	viewHandlers, readModel := setupViewHandlers(testCtx.db)
+
+	viewID := "view-edge-test-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	reqBody := UpdateEdgeTypeRequest{
+		EdgeType: "step",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/edge-type", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	viewHandlers.UpdateEdgeType(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	view, err := readModel.GetByID(tenantContext(), viewID)
+	require.NoError(t, err)
+	assert.Equal(t, "step", view.EdgeType)
+}
+
+func TestUpdateEdgeType_InvalidValue_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	viewHandlers, _ := setupViewHandlers(testCtx.db)
+
+	viewID := "view-edge-invalid-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	reqBody := UpdateEdgeTypeRequest{
+		EdgeType: "invalid",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/edge-type", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	viewHandlers.UpdateEdgeType(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestUpdateLayoutDirection_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	viewHandlers, readModel := setupViewHandlers(testCtx.db)
+
+	viewID := "view-layout-test-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	reqBody := UpdateLayoutDirectionRequest{
+		LayoutDirection: "LR",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/layout-direction", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	viewHandlers.UpdateLayoutDirection(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	view, err := readModel.GetByID(tenantContext(), viewID)
+	require.NoError(t, err)
+	assert.Equal(t, "LR", view.LayoutDirection)
+}
+
+func TestUpdateLayoutDirection_InvalidValue_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	viewHandlers, _ := setupViewHandlers(testCtx.db)
+
+	viewID := "view-layout-invalid-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	reqBody := UpdateLayoutDirectionRequest{
+		LayoutDirection: "INVALID",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/layout-direction", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	viewHandlers.UpdateLayoutDirection(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestUpdateMultipleEdgeTypesAndDirections_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	viewHandlers, readModel := setupViewHandlers(testCtx.db)
+
+	viewID := "view-multiple-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	edgeTypes := []string{"default", "step", "smoothstep", "straight"}
+	for _, edgeType := range edgeTypes {
+		reqBody := UpdateEdgeTypeRequest{EdgeType: edgeType}
+		body, _ := json.Marshal(reqBody)
+		req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/edge-type", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req = withTestTenant(req)
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", viewID)
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+		w := httptest.NewRecorder()
+		viewHandlers.UpdateEdgeType(w, req)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+
+		view, err := readModel.GetByID(tenantContext(), viewID)
+		require.NoError(t, err)
+		assert.Equal(t, edgeType, view.EdgeType)
+	}
+
+	directions := []string{"TB", "LR", "BT", "RL"}
+	for _, direction := range directions {
+		reqBody := UpdateLayoutDirectionRequest{LayoutDirection: direction}
+		body, _ := json.Marshal(reqBody)
+		req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/layout-direction", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req = withTestTenant(req)
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", viewID)
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+		w := httptest.NewRecorder()
+		viewHandlers.UpdateLayoutDirection(w, req)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+
+		view, err := readModel.GetByID(tenantContext(), viewID)
+		require.NoError(t, err)
+		assert.Equal(t, direction, view.LayoutDirection)
+	}
 }
