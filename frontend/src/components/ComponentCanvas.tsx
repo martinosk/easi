@@ -18,6 +18,7 @@ import {
   Handle,
   Position,
   useReactFlow,
+  ConnectionMode,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useAppStore } from '../store/appStore';
@@ -45,30 +46,29 @@ const ComponentNode: React.FC<{ data: ComponentNodeData; id: string }> = ({ data
       className={`component-node ${data.isSelected ? 'component-node-selected' : ''}`}
       data-component-id={id}
     >
-      {/* Connection handles for creating relations - all handles are both source and target */}
       <Handle
         type="source"
         position={Position.Top}
-        id="top-source"
+        id="top"
         className="component-handle component-handle-top"
       />
       <Handle
         type="target"
         position={Position.Top}
-        id="top-target"
+        id="top"
         className="component-handle component-handle-top"
       />
 
       <Handle
         type="source"
         position={Position.Left}
-        id="left-source"
+        id="left"
         className="component-handle component-handle-left"
       />
       <Handle
         type="target"
         position={Position.Left}
-        id="left-target"
+        id="left"
         className="component-handle component-handle-left"
       />
 
@@ -82,26 +82,26 @@ const ComponentNode: React.FC<{ data: ComponentNodeData; id: string }> = ({ data
       <Handle
         type="source"
         position={Position.Right}
-        id="right-source"
+        id="right"
         className="component-handle component-handle-right"
       />
       <Handle
         type="target"
         position={Position.Right}
-        id="right-target"
+        id="right"
         className="component-handle component-handle-right"
       />
 
       <Handle
         type="source"
         position={Position.Bottom}
-        id="bottom-source"
+        id="bottom"
         className="component-handle component-handle-bottom"
       />
       <Handle
         type="target"
         position={Position.Bottom}
-        id="bottom-target"
+        id="bottom"
         className="component-handle component-handle-bottom"
       />
     </div>
@@ -110,6 +110,44 @@ const ComponentNode: React.FC<{ data: ComponentNodeData; id: string }> = ({ data
 
 const nodeTypes: NodeTypes = {
   component: ComponentNode,
+};
+
+const getBestHandles = (
+  sourceNode: Node | undefined,
+  targetNode: Node | undefined
+): { sourceHandle: string; targetHandle: string } => {
+  if (!sourceNode || !targetNode) {
+    return { sourceHandle: 'top', targetHandle: 'top' };
+  }
+
+  const sourceX = sourceNode.position.x + (sourceNode.width || 150) / 2;
+  const sourceY = sourceNode.position.y + (sourceNode.height || 100) / 2;
+  const targetX = targetNode.position.x + (targetNode.width || 150) / 2;
+  const targetY = targetNode.position.y + (targetNode.height || 100) / 2;
+
+  const dx = targetX - sourceX;
+  const dy = targetY - sourceY;
+
+  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+  let sourceHandle = 'right';
+  let targetHandle = 'left';
+
+  if (angle >= -45 && angle < 45) {
+    sourceHandle = 'right';
+    targetHandle = 'left';
+  } else if (angle >= 45 && angle < 135) {
+    sourceHandle = 'bottom';
+    targetHandle = 'top';
+  } else if (angle >= 135 || angle < -135) {
+    sourceHandle = 'left';
+    targetHandle = 'right';
+  } else {
+    sourceHandle = 'top';
+    targetHandle = 'bottom';
+  }
+
+  return { sourceHandle, targetHandle };
 };
 
 const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps>(
@@ -195,10 +233,16 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
       const isSelected = selectedEdgeId === relation.id;
       const isTriggers = relation.relationType === 'Triggers';
 
+      const sourceNode = nodes.find(n => n.id === relation.sourceComponentId);
+      const targetNode = nodes.find(n => n.id === relation.targetComponentId);
+      const { sourceHandle, targetHandle } = getBestHandles(sourceNode, targetNode);
+
       return {
         id: relation.id,
         source: relation.sourceComponentId,
         target: relation.targetComponentId,
+        sourceHandle,
+        targetHandle,
         label: relation.name || relation.relationType,
         type: edgeType,
         animated: isSelected,
@@ -221,7 +265,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     });
 
     setEdges(newEdges);
-  }, [relations, selectedEdgeId, currentView?.edgeType]);
+  }, [relations, selectedEdgeId, currentView?.edgeType, nodes]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -458,6 +502,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         onConnect={onConnectHandler}
         onMoveEnd={onMoveEnd}
         nodeTypes={nodeTypes}
+        connectionMode={ConnectionMode.Loose}
         minZoom={0.1}
         maxZoom={2}
         defaultEdgeOptions={{

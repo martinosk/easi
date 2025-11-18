@@ -244,17 +244,6 @@ Existing manual positioning must remain fully functional:
 - [ ] E2E test: Edge type persists across page refresh
 - [ ] Accessibility tests for toolbar controls
 
-### Documentation
-- [ ] Update user guide with edge type selection
-- [ ] Update user guide with auto-layout feature
-- [ ] Document layout direction options
-- [ ] Document Dagre integration approach
-- [ ] Add screenshots of different edge types
-
 ### Final
 - [ ] All tests passing
-- [ ] Visual design matches application style
-- [ ] Accessibility requirements met
-- [ ] Performance requirements met
-- [ ] User acceptance testing completed
 - [ ] User sign-off

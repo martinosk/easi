@@ -10,7 +10,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     <div className="app-container">
       {children}
       <Toaster
-        position="top-right"
+        position="bottom-right"
         toastOptions={{
           duration: 3000,
           style: {
