@@ -16,7 +16,7 @@ spec:
   - kind: Rule
     match: Host(`internal.hellman.oxygen.dfds.cloud`) && PathPrefix(`/easi-api`)
     middlewares:
-      - name: strip-prefix
+      - name: strip-easi-api-prefix
     services:
     - kind: Service
       name: easi-backend
@@ -36,7 +36,7 @@ spec:
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
-  name: strip-prefix
+  name: strip-easi-api-prefix
   namespace: enterprisearchitecture-pnpbj
 spec:
   stripPrefix:
