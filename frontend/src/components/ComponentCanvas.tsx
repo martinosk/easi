@@ -335,7 +335,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
 
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
-      updatePosition(node.id, node.position.x, node.position.y);
+      updatePosition(node.id, node.position);
     },
     [updatePosition]
   );

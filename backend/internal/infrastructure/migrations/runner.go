@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -26,6 +27,24 @@ func NewRunner(db *sql.DB, migrationsPath string) *Runner {
 		db:             db,
 		migrationsPath: migrationsPath,
 	}
+}
+
+func validateMigrationFilename(filename string) error {
+	if !strings.HasSuffix(filename, ".sql") {
+		return errors.New("migration filename must end with .sql")
+	}
+
+	for _, char := range filename {
+		if !(char >= 'a' && char <= 'z') &&
+			!(char >= 'A' && char <= 'Z') &&
+			!(char >= '0' && char <= '9') &&
+			char != '.' &&
+			char != '_' {
+			return errors.New("migration filename contains invalid characters (only alphanumeric, dot, and underscore allowed)")
+		}
+	}
+
+	return nil
 }
 
 // Run executes all pending migrations
@@ -127,7 +146,10 @@ func (r *Runner) getExecutedMigrations() (map[string]bool, error) {
 
 // executeMigration executes a single migration file
 func (r *Runner) executeMigration(filename string) error {
-	// Read migration file
+	if err := validateMigrationFilename(filename); err != nil {
+		return fmt.Errorf("invalid migration filename: %w", err)
+	}
+
 	filePath := filepath.Join(r.migrationsPath, filename)
 	content, err := os.ReadFile(filePath)
 	if err != nil {

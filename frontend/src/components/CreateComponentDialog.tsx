@@ -48,7 +48,10 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
     setIsCreating(true);
 
     try {
-      await createComponent(name.trim(), description.trim() || undefined);
+      await createComponent({
+        name: name.trim(),
+        description: description.trim() || undefined,
+      });
       handleClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create component');

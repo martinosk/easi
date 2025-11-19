@@ -63,7 +63,10 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
     setIsUpdating(true);
 
     try {
-      await updateComponent(component.id, name.trim(), description.trim() || undefined);
+      await updateComponent(component.id, {
+        name: name.trim(),
+        description: description.trim() || undefined,
+      });
       handleClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update component');

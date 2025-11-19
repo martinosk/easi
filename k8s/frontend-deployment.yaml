@@ -16,9 +16,20 @@ spec:
         app: easi-frontend
         owner: maosk
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
       containers:
       - image: 579478677147.dkr.ecr.eu-central-1.amazonaws.com/architecture/easi-frontend:$(Build.BuildNumber)
+        imagePullPolicy: Always
         name: easi-frontend
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
         ports:
         - name: internal
           containerPort: 8080

@@ -9,11 +9,26 @@ import (
 	sharedctx "easi/backend/internal/shared/context"
 )
 
-// ComponentPositionDTO represents a component's position on a view
+type ViewID string
+type ComponentID string
+
+type Position struct {
+	X float64
+	Y float64
+}
+
 type ComponentPositionDTO struct {
 	ComponentID string  `json:"componentId"`
 	X           float64 `json:"x"`
 	Y           float64 `json:"y"`
+}
+
+func NewComponentPosition(componentID ComponentID, pos Position) ComponentPositionDTO {
+	return ComponentPositionDTO{
+		ComponentID: string(componentID),
+		X:           pos.X,
+		Y:           pos.Y,
+	}
 }
 
 // ArchitectureViewDTO represents the read model for architecture views
@@ -55,8 +70,7 @@ func (rm *ArchitectureViewReadModel) InsertView(ctx context.Context, dto Archite
 	return err
 }
 
-// AddComponent adds a component position to a view
-func (rm *ArchitectureViewReadModel) AddComponent(ctx context.Context, viewID, componentID string, x, y float64) error {
+func (rm *ArchitectureViewReadModel) AddComponent(ctx context.Context, viewID ViewID, componentID ComponentID, pos Position) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -64,13 +78,12 @@ func (rm *ArchitectureViewReadModel) AddComponent(ctx context.Context, viewID, c
 
 	_, err = rm.db.ExecContext(ctx,
 		"INSERT INTO view_component_positions (view_id, tenant_id, component_id, x, y, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		viewID, tenantID.Value(), componentID, x, y, time.Now().UTC(),
+		viewID, tenantID.Value(), componentID, pos.X, pos.Y, time.Now().UTC(),
 	)
 	return err
 }
 
-// UpdateComponentPosition updates a component's position in a view
-func (rm *ArchitectureViewReadModel) UpdateComponentPosition(ctx context.Context, viewID, componentID string, x, y float64) error {
+func (rm *ArchitectureViewReadModel) UpdateComponentPosition(ctx context.Context, viewID ViewID, componentID ComponentID, pos Position) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -78,7 +91,7 @@ func (rm *ArchitectureViewReadModel) UpdateComponentPosition(ctx context.Context
 
 	_, err = rm.db.ExecContext(ctx,
 		"UPDATE view_component_positions SET x = $1, y = $2, updated_at = $3 WHERE tenant_id = $4 AND view_id = $5 AND component_id = $6",
-		x, y, time.Now().UTC(), tenantID.Value(), viewID, componentID,
+		pos.X, pos.Y, time.Now().UTC(), tenantID.Value(), viewID, componentID,
 	)
 	return err
 }
@@ -285,7 +298,6 @@ func (rm *ArchitectureViewReadModel) GetByID(ctx context.Context, id string) (*A
 	return &dto, nil
 }
 
-// GetAll retrieves all views (excluding deleted ones) for the current tenant
 func (rm *ArchitectureViewReadModel) GetAll(ctx context.Context) ([]ArchitectureViewDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
@@ -294,50 +306,70 @@ func (rm *ArchitectureViewReadModel) GetAll(ctx context.Context) ([]Architecture
 
 	var views []ArchitectureViewDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx,
-			`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction
-			FROM architecture_views av
-			LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
-			WHERE av.tenant_id = $1 AND av.is_deleted = false ORDER BY av.is_default DESC, av.created_at DESC`,
-			tenantID.Value(),
-		)
+		views, err = rm.queryViews(ctx, tx, tenantID.Value())
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
 
-		for rows.Next() {
-			var dto ArchitectureViewDTO
-			var edgeType, layoutDirection sql.NullString
-			if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt, &edgeType, &layoutDirection); err != nil {
-				return err
-			}
-			if edgeType.Valid {
-				dto.EdgeType = edgeType.String
-			}
-			if layoutDirection.Valid {
-				dto.LayoutDirection = layoutDirection.String
-			}
-			views = append(views, dto)
-		}
-
-		if err := rows.Err(); err != nil {
-			return err
-		}
-
-		// Now fetch components for each view (after first query is fully consumed)
-		for i := range views {
-			components, err := rm.getComponentsForViewTx(ctx, tx, tenantID.Value(), views[i].ID)
-			if err != nil {
-				return err
-			}
-			views[i].Components = components
-		}
-
-		return nil
+		return rm.populateViewComponents(ctx, tx, tenantID.Value(), views)
 	})
 
 	return views, err
+}
+
+func (rm *ArchitectureViewReadModel) queryViews(ctx context.Context, tx *sql.Tx, tenantID string) ([]ArchitectureViewDTO, error) {
+	rows, err := tx.QueryContext(ctx,
+		`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction
+		FROM architecture_views av
+		LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
+		WHERE av.tenant_id = $1 AND av.is_deleted = false ORDER BY av.is_default DESC, av.created_at DESC`,
+		tenantID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var views []ArchitectureViewDTO
+	for rows.Next() {
+		dto, err := rm.scanViewRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		views = append(views, dto)
+	}
+
+	return views, rows.Err()
+}
+
+func (rm *ArchitectureViewReadModel) scanViewRow(rows *sql.Rows) (ArchitectureViewDTO, error) {
+	var dto ArchitectureViewDTO
+	var edgeType, layoutDirection sql.NullString
+
+	err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt, &edgeType, &layoutDirection)
+	if err != nil {
+		return dto, err
+	}
+
+	if edgeType.Valid {
+		dto.EdgeType = edgeType.String
+	}
+	if layoutDirection.Valid {
+		dto.LayoutDirection = layoutDirection.String
+	}
+
+	return dto, nil
+}
+
+func (rm *ArchitectureViewReadModel) populateViewComponents(ctx context.Context, tx *sql.Tx, tenantID string, views []ArchitectureViewDTO) error {
+	for i := range views {
+		components, err := rm.getComponentsForViewTx(ctx, tx, tenantID, views[i].ID)
+		if err != nil {
+			return err
+		}
+		views[i].Components = components
+	}
+	return nil
 }
 
 // getComponentsForViewTx is a helper to fetch components for a view within a transaction

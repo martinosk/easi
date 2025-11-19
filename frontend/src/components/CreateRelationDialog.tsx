@@ -69,13 +69,13 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
     setIsCreating(true);
 
     try {
-      await createRelation(
+      await createRelation({
         sourceComponentId,
         targetComponentId,
         relationType,
-        name.trim() || undefined,
-        description.trim() || undefined
-      );
+        name: name.trim() || undefined,
+        description: description.trim() || undefined,
+      });
       handleClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create relation');

@@ -59,7 +59,8 @@ func (p *ArchitectureViewProjector) ProjectEvent(ctx context.Context, eventType 
 			return err
 		}
 
-		return p.readModel.AddComponent(ctx, event.ViewID, event.ComponentID, event.X, event.Y)
+		pos := readmodels.Position{X: event.X, Y: event.Y}
+		return p.readModel.AddComponent(ctx, readmodels.ViewID(event.ViewID), readmodels.ComponentID(event.ComponentID), pos)
 
 	case "ComponentPositionUpdated":
 		var event events.ComponentPositionUpdated
@@ -68,7 +69,8 @@ func (p *ArchitectureViewProjector) ProjectEvent(ctx context.Context, eventType 
 			return err
 		}
 
-		return p.readModel.UpdateComponentPosition(ctx, event.ViewID, event.ComponentID, event.X, event.Y)
+		pos := readmodels.Position{X: event.X, Y: event.Y}
+		return p.readModel.UpdateComponentPosition(ctx, readmodels.ViewID(event.ViewID), readmodels.ComponentID(event.ComponentID), pos)
 
 	case "ComponentRemovedFromView":
 		var event events.ComponentRemovedFromView

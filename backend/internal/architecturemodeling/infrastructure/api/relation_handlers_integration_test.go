@@ -86,15 +86,23 @@ func (ctx *relationTestContext) trackID(id string) {
 	ctx.createdIDs = append(ctx.createdIDs, id)
 }
 
-// createTestRelation creates a relation directly in the read model for testing
-func (ctx *relationTestContext) createTestRelation(t *testing.T, id, sourceID, targetID, relationType, name, description string) {
+type testRelationParams struct {
+	ID           string
+	SourceID     string
+	TargetID     string
+	RelationType string
+	Name         string
+	Description  string
+}
+
+func (ctx *relationTestContext) createTestRelation(t *testing.T, params testRelationParams) {
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
 		"INSERT INTO component_relations (id, source_component_id, target_component_id, relation_type, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
-		id, sourceID, targetID, relationType, name, description, testTenantID(),
+		params.ID, params.SourceID, params.TargetID, params.RelationType, params.Name, params.Description, testTenantID(),
 	)
 	require.NoError(t, err)
-	ctx.trackID(id)
+	ctx.trackID(params.ID)
 }
 
 func setupRelationHandlers(db *sql.DB) (*RelationHandlers, *readmodels.ComponentRelationReadModel) {
@@ -235,8 +243,8 @@ func TestGetAllRelations_Integration(t *testing.T) {
 	comp2 := uuid.New().String()
 	comp3 := uuid.New().String()
 
-	testCtx.createTestRelation(t, id1, comp1, comp2, "Triggers", "Triggers", "Description 1")
-	testCtx.createTestRelation(t, id2, comp2, comp3, "Serves", "Serves", "Description 2")
+	testCtx.createTestRelation(t, testRelationParams{ID: id1, SourceID: comp1, TargetID: comp2, RelationType: "Triggers", Name: "Triggers", Description: "Description 1"})
+	testCtx.createTestRelation(t, testRelationParams{ID: id2, SourceID: comp2, TargetID: comp3, RelationType: "Serves", Name: "Serves", Description: "Description 2"})
 
 	// Test GET all
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/relations", nil)
@@ -276,7 +284,7 @@ func TestGetRelationByID_Integration(t *testing.T) {
 	comp1 := uuid.New().String()
 	comp2 := uuid.New().String()
 
-	testCtx.createTestRelation(t, relationID, comp1, comp2, "Triggers", "Test Relation", "Test Description")
+	testCtx.createTestRelation(t, testRelationParams{ID: relationID, SourceID: comp1, TargetID: comp2, RelationType: "Triggers", Name: "Test Relation", Description: "Test Description"})
 
 	// Test GET by ID
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/relations/"+relationID, nil)
@@ -326,30 +334,30 @@ func TestGetRelationByID_NotFound_Integration(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
-func TestGetRelationsFromComponent_Integration(t *testing.T) {
-	testCtx, cleanup := setupRelationTestDB(t)
-	defer cleanup()
-
-	handlers, _ := setupRelationHandlers(testCtx.db)
-
-	// Create unique component IDs (UUIDs required)
+func testComponentRelations(t *testing.T, testCtx *relationTestContext, handlers *RelationHandlers, direction string) {
 	componentID := uuid.New().String()
-	target1 := uuid.New().String()
-	target2 := uuid.New().String()
+	other1 := uuid.New().String()
+	other2 := uuid.New().String()
 	otherComp := uuid.New().String()
 
-	// Create test data - relations from component
 	rel1 := uuid.New().String()
 	rel2 := uuid.New().String()
 	rel3 := uuid.New().String()
 
-	testCtx.createTestRelation(t, rel1, componentID, target1, "Triggers", "Relation 1", "Description 1")
-	testCtx.createTestRelation(t, rel2, componentID, target2, "Serves", "Relation 2", "Description 2")
-	// This one should not be included (different source)
-	testCtx.createTestRelation(t, rel3, otherComp, componentID, "Triggers", "Relation 3", "Description 3")
+	var sourceIDForMatch, targetIDForMatch string
+	if direction == "from" {
+		testCtx.createTestRelation(t, testRelationParams{ID: rel1, SourceID: componentID, TargetID: other1, RelationType: "Triggers", Name: "Relation 1", Description: "Description 1"})
+		testCtx.createTestRelation(t, testRelationParams{ID: rel2, SourceID: componentID, TargetID: other2, RelationType: "Serves", Name: "Relation 2", Description: "Description 2"})
+		testCtx.createTestRelation(t, testRelationParams{ID: rel3, SourceID: otherComp, TargetID: componentID, RelationType: "Triggers", Name: "Relation 3", Description: "Description 3"})
+		sourceIDForMatch = componentID
+	} else {
+		testCtx.createTestRelation(t, testRelationParams{ID: rel1, SourceID: other1, TargetID: componentID, RelationType: "Triggers", Name: "Relation 1", Description: "Description 1"})
+		testCtx.createTestRelation(t, testRelationParams{ID: rel2, SourceID: other2, TargetID: componentID, RelationType: "Serves", Name: "Relation 2", Description: "Description 2"})
+		testCtx.createTestRelation(t, testRelationParams{ID: rel3, SourceID: componentID, TargetID: otherComp, RelationType: "Triggers", Name: "Relation 3", Description: "Description 3"})
+		targetIDForMatch = componentID
+	}
 
-	// Test GET relations from component
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/relations/from/"+componentID, nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/relations/"+direction+"/"+componentID, nil)
 	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
@@ -357,7 +365,11 @@ func TestGetRelationsFromComponent_Integration(t *testing.T) {
 	rctx.URLParams.Add("componentId", componentID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
-	handlers.GetRelationsFromComponent(w, req)
+	if direction == "from" {
+		handlers.GetRelationsFromComponent(w, req)
+	} else {
+		handlers.GetRelationsToComponent(w, req)
+	}
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
@@ -367,17 +379,27 @@ func TestGetRelationsFromComponent_Integration(t *testing.T) {
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
 
-	// Find our test relations in the response (should only find relations FROM this component)
 	foundRelations := 0
 	for _, rel := range response.Data {
 		if rel.ID == rel1 || rel.ID == rel2 {
 			foundRelations++
-			assert.Equal(t, componentID, rel.SourceComponentID)
+			if direction == "from" {
+				assert.Equal(t, sourceIDForMatch, rel.SourceComponentID)
+			} else {
+				assert.Equal(t, targetIDForMatch, rel.TargetComponentID)
+			}
 		}
-		// Make sure rel3 is not in the results
-		assert.NotEqual(t, rel3, rel.ID, "Relation with different source should not be included")
+		assert.NotEqual(t, rel3, rel.ID, "Relation with different "+direction+" component should not be included")
 	}
-	assert.Equal(t, 2, foundRelations, "Should find exactly 2 relations from this component")
+	assert.Equal(t, 2, foundRelations, "Should find exactly 2 relations "+direction+" this component")
+}
+
+func TestGetRelationsFromComponent_Integration(t *testing.T) {
+	testCtx, cleanup := setupRelationTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupRelationHandlers(testCtx.db)
+	testComponentRelations(t, testCtx, handlers, "from")
 }
 
 func TestGetRelationsToComponent_Integration(t *testing.T) {
@@ -385,53 +407,7 @@ func TestGetRelationsToComponent_Integration(t *testing.T) {
 	defer cleanup()
 
 	handlers, _ := setupRelationHandlers(testCtx.db)
-
-	// Create unique component IDs (UUIDs required)
-	componentID := uuid.New().String()
-	source1 := uuid.New().String()
-	source2 := uuid.New().String()
-	otherComp := uuid.New().String()
-
-	// Create test data - relations to component
-	rel1 := uuid.New().String()
-	rel2 := uuid.New().String()
-	rel3 := uuid.New().String()
-
-	testCtx.createTestRelation(t, rel1, source1, componentID, "Triggers", "Relation 1", "Description 1")
-	testCtx.createTestRelation(t, rel2, source2, componentID, "Serves", "Relation 2", "Description 2")
-	// This one should not be included (different target)
-	testCtx.createTestRelation(t, rel3, componentID, otherComp, "Triggers", "Relation 3", "Description 3")
-
-	// Test GET relations to component
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/relations/to/"+componentID, nil)
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("componentId", componentID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-	handlers.GetRelationsToComponent(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var response struct {
-		Data []readmodels.ComponentRelationDTO `json:"data"`
-	}
-	err := json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
-
-	// Find our test relations in the response (should only find relations TO this component)
-	foundRelations := 0
-	for _, rel := range response.Data {
-		if rel.ID == rel1 || rel.ID == rel2 {
-			foundRelations++
-			assert.Equal(t, componentID, rel.TargetComponentID)
-		}
-		// Make sure rel3 is not in the results
-		assert.NotEqual(t, rel3, rel.ID, "Relation with different target should not be included")
-	}
-	assert.Equal(t, 2, foundRelations, "Should find exactly 2 relations to this component")
+	testComponentRelations(t, testCtx, handlers, "to")
 }
 
 func TestGetAllRelationsPaginated_Integration(t *testing.T) {
@@ -548,10 +524,13 @@ func TestDeleteRelation_Integration(t *testing.T) {
 	assert.NotEmpty(t, deleteEventData)
 }
 
-func TestCascadeDeleteRelations_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
-	defer cleanup()
+type cascadeTestDependencies struct {
+	componentHandlers *ComponentHandlers
+	relationHandlers  *RelationHandlers
+	db                *sql.DB
+}
 
+func setupCascadeTestDependencies(testCtx *testContext) *cascadeTestDependencies {
 	tenantDB := database.NewTenantAwareDB(testCtx.db)
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	commandBus := cqrs.NewInMemoryCommandBus()
@@ -585,18 +564,69 @@ func TestCascadeDeleteRelations_Integration(t *testing.T) {
 	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, hateoas)
 	relationHandlers := NewRelationHandlers(commandBus, relationReadModel, hateoas)
 
-	createCompReq := CreateApplicationComponentRequest{
-		Name:        "Component With Relations",
-		Description: "This component has relations that should be deleted",
+	return &cascadeTestDependencies{
+		componentHandlers: componentHandlers,
+		relationHandlers:  relationHandlers,
+		db:                testCtx.db,
 	}
-	body, _ := json.Marshal(createCompReq)
+}
 
-	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/components", bytes.NewReader(body))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq = withTestTenant(createReq)
-	createW := httptest.NewRecorder()
+func createComponentViaAPI(t *testing.T, handlers *ComponentHandlers, name, description string) *httptest.ResponseRecorder {
+	reqBody := CreateApplicationComponentRequest{
+		Name:        name,
+		Description: description,
+	}
+	body, _ := json.Marshal(reqBody)
 
-	componentHandlers.CreateApplicationComponent(createW, createReq)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/components", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
+	w := httptest.NewRecorder()
+
+	handlers.CreateApplicationComponent(w, req)
+	return w
+}
+
+func createRelationViaAPI(t *testing.T, handlers *RelationHandlers, sourceID, targetID, relationType, name string) *httptest.ResponseRecorder {
+	reqBody := CreateComponentRelationRequest{
+		SourceComponentID: sourceID,
+		TargetComponentID: targetID,
+		RelationType:      relationType,
+		Name:              name,
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/relations", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
+	w := httptest.NewRecorder()
+
+	handlers.CreateComponentRelation(w, req)
+	return w
+}
+
+func deleteComponentViaAPI(t *testing.T, handlers *ComponentHandlers, componentID string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/components/"+componentID, nil)
+	req = withTestTenant(req)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, &chi.Context{
+		URLParams: chi.RouteParams{
+			Keys:   []string{"id"},
+			Values: []string{componentID},
+		},
+	}))
+	w := httptest.NewRecorder()
+
+	handlers.DeleteApplicationComponent(w, req)
+	return w
+}
+
+func TestCascadeDeleteRelations_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	deps := setupCascadeTestDependencies(testCtx)
+
+	createW := createComponentViaAPI(t, deps.componentHandlers, "Component With Relations", "This component has relations that should be deleted")
 	assert.Equal(t, http.StatusCreated, createW.Code)
 
 	testCtx.setTenantContext(t)
@@ -610,21 +640,7 @@ func TestCascadeDeleteRelations_Integration(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	targetComponentID := uuid.New().String()
-
-	createRelReq := CreateComponentRelationRequest{
-		SourceComponentID: componentID,
-		TargetComponentID: targetComponentID,
-		RelationType:      "Triggers",
-		Name:              "Test Relation",
-	}
-	relBody, _ := json.Marshal(createRelReq)
-
-	createRelReqHTTP := httptest.NewRequest(http.MethodPost, "/api/v1/relations", bytes.NewReader(relBody))
-	createRelReqHTTP.Header.Set("Content-Type", "application/json")
-	createRelReqHTTP = withTestTenant(createRelReqHTTP)
-	createRelW := httptest.NewRecorder()
-
-	relationHandlers.CreateComponentRelation(createRelW, createRelReqHTTP)
+	createRelW := createRelationViaAPI(t, deps.relationHandlers, componentID, targetComponentID, "Triggers", "Test Relation")
 	assert.Equal(t, http.StatusCreated, createRelW.Code)
 
 	var relationID string
@@ -636,17 +652,7 @@ func TestCascadeDeleteRelations_Integration(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/components/"+componentID, nil)
-	deleteReq = withTestTenant(deleteReq)
-	deleteReq = deleteReq.WithContext(context.WithValue(deleteReq.Context(), chi.RouteCtxKey, &chi.Context{
-		URLParams: chi.RouteParams{
-			Keys:   []string{"id"},
-			Values: []string{componentID},
-		},
-	}))
-	deleteW := httptest.NewRecorder()
-
-	componentHandlers.DeleteApplicationComponent(deleteW, deleteReq)
+	deleteW := deleteComponentViaAPI(t, deps.componentHandlers, componentID)
 	assert.Equal(t, http.StatusNoContent, deleteW.Code)
 
 	time.Sleep(200 * time.Millisecond)

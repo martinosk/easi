@@ -58,11 +58,10 @@ export const EditRelationDialog: React.FC<EditRelationDialogProps> = ({
     setIsUpdating(true);
 
     try {
-      await updateRelation(
-        relation.id,
-        name.trim() || undefined,
-        description.trim() || undefined
-      );
+      await updateRelation(relation.id, {
+        name: name.trim() || undefined,
+        description: description.trim() || undefined,
+      });
       handleClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update relation');

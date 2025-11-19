@@ -141,7 +141,10 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
       } else if (editingState.componentId) {
         const component = components.find(c => c.id === editingState.componentId);
         if (component) {
-          await updateComponent(editingState.componentId, editingState.name, component.description);
+          await updateComponent(editingState.componentId, {
+            name: editingState.name,
+            description: component.description,
+          });
         }
       }
       setEditingState(null);

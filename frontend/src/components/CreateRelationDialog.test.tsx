@@ -114,7 +114,13 @@ describe('CreateRelationDialog', () => {
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(mocks.mockCreateRelation).toHaveBeenCalledWith('1', '2', 'Triggers', 'Test Relation', undefined);
+      expect(mocks.mockCreateRelation).toHaveBeenCalledWith({
+        sourceComponentId: '1',
+        targetComponentId: '2',
+        relationType: 'Triggers',
+        name: 'Test Relation',
+        description: undefined,
+      });
     });
 
     expect(mockOnClose).toHaveBeenCalled();
@@ -142,7 +148,13 @@ describe('CreateRelationDialog', () => {
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(mocks.mockCreateRelation).toHaveBeenCalledWith('1', '2', 'Serves', undefined, undefined);
+      expect(mocks.mockCreateRelation).toHaveBeenCalledWith({
+        sourceComponentId: '1',
+        targetComponentId: '2',
+        relationType: 'Serves',
+        name: undefined,
+        description: undefined,
+      });
     });
   });
 

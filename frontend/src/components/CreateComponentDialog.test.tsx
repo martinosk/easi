@@ -70,7 +70,10 @@ describe('CreateComponentDialog', () => {
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(mocks.mockCreateComponent).toHaveBeenCalledWith('Test Component', 'Test Description');
+      expect(mocks.mockCreateComponent).toHaveBeenCalledWith({
+        name: 'Test Component',
+        description: 'Test Description',
+      });
     });
 
     expect(mockOnClose).toHaveBeenCalled();
@@ -89,7 +92,10 @@ describe('CreateComponentDialog', () => {
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(mocks.mockCreateComponent).toHaveBeenCalledWith('Test Component', undefined);
+      expect(mocks.mockCreateComponent).toHaveBeenCalledWith({
+        name: 'Test Component',
+        description: undefined,
+      });
     });
   });
 

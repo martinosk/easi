@@ -61,142 +61,93 @@ func NewArchitectureView(name valueobjects.ViewName, description string, isDefau
 	return aggregate, nil
 }
 
-// AddComponent adds a component to the view (membership only, no position)
-func (v *ArchitectureView) AddComponent(componentID string) error {
-	// Check if view is deleted
+func (v *ArchitectureView) checkNotDeleted() error {
 	if v.isDeleted {
 		return ErrViewAlreadyDeleted
 	}
+	return nil
+}
 
-	// Check if component already exists
+func (v *ArchitectureView) applyAndRaise(event domain.DomainEvent) {
+	v.apply(event)
+	v.RaiseEvent(event)
+}
+
+func (v *ArchitectureView) AddComponent(componentID string) error {
+	if err := v.checkNotDeleted(); err != nil {
+		return err
+	}
+
 	if v.components[componentID] {
 		return ErrComponentAlreadyInView
 	}
 
-	// Raise event (position handled separately via ViewLayoutRepository)
-	event := events.NewComponentAddedToView(
-		v.ID(),
-		componentID,
-		0,
-		0,
-	)
-
-	v.apply(event)
-	v.RaiseEvent(event)
-
+	v.applyAndRaise(events.NewComponentAddedToView(v.ID(), componentID, 0, 0))
 	return nil
 }
 
-
-// RemoveComponent removes a component from the view
 func (v *ArchitectureView) RemoveComponent(componentID string) error {
-	// Check if view is deleted
-	if v.isDeleted {
-		return ErrViewAlreadyDeleted
+	if err := v.checkNotDeleted(); err != nil {
+		return err
 	}
 
-	// Check if component exists
 	if !v.components[componentID] {
 		return ErrComponentNotFound
 	}
 
-	// Raise event
-	event := events.NewComponentRemovedFromView(
-		v.ID(),
-		componentID,
-	)
-
-	v.apply(event)
-	v.RaiseEvent(event)
-
+	v.applyAndRaise(events.NewComponentRemovedFromView(v.ID(), componentID))
 	return nil
 }
 
-// Rename renames the view
 func (v *ArchitectureView) Rename(newName valueobjects.ViewName) error {
-	// Check if view is deleted
-	if v.isDeleted {
-		return ErrViewAlreadyDeleted
+	if err := v.checkNotDeleted(); err != nil {
+		return err
 	}
 
-	// Check if name is different
 	if v.name.Value() == newName.Value() {
-		return nil // No-op if name is the same
+		return nil
 	}
 
-	// Raise event
-	event := events.NewViewRenamed(
-		v.ID(),
-		v.name.Value(),
-		newName.Value(),
-	)
-
-	v.apply(event)
-	v.RaiseEvent(event)
-
+	v.applyAndRaise(events.NewViewRenamed(v.ID(), v.name.Value(), newName.Value()))
 	return nil
 }
 
-// Delete marks the view as deleted
 func (v *ArchitectureView) Delete() error {
-	// Check if view is already deleted
-	if v.isDeleted {
-		return ErrViewAlreadyDeleted
+	if err := v.checkNotDeleted(); err != nil {
+		return err
 	}
 
-	// Cannot delete default view
 	if v.isDefault {
 		return ErrCannotDeleteDefaultView
 	}
 
-	// Raise event
-	event := events.NewViewDeleted(v.ID())
-
-	v.apply(event)
-	v.RaiseEvent(event)
-
+	v.applyAndRaise(events.NewViewDeleted(v.ID()))
 	return nil
 }
 
-// SetAsDefault sets this view as the default view
 func (v *ArchitectureView) SetAsDefault() error {
-	// Check if view is deleted
-	if v.isDeleted {
-		return ErrViewAlreadyDeleted
+	if err := v.checkNotDeleted(); err != nil {
+		return err
 	}
 
-	// If already default, no-op
 	if v.isDefault {
 		return nil
 	}
 
-	// Raise event
-	event := events.NewDefaultViewChanged(v.ID(), true)
-
-	v.apply(event)
-	v.RaiseEvent(event)
-
+	v.applyAndRaise(events.NewDefaultViewChanged(v.ID(), true))
 	return nil
 }
 
-// UnsetAsDefault unsets this view as the default view
 func (v *ArchitectureView) UnsetAsDefault() error {
-	// Check if view is deleted
-	if v.isDeleted {
-		return ErrViewAlreadyDeleted
+	if err := v.checkNotDeleted(); err != nil {
+		return err
 	}
 
-	// If not default, no-op
 	if !v.isDefault {
 		return nil
 	}
 
-	// Raise event
-	event := events.NewDefaultViewChanged(v.ID(), false)
-
-	v.apply(event)
-	v.RaiseEvent(event)
-
+	v.applyAndRaise(events.NewDefaultViewChanged(v.ID(), false))
 	return nil
 }
 
@@ -215,37 +166,51 @@ func LoadArchitectureViewFromHistory(events []domain.DomainEvent) (*Architecture
 	return aggregate, nil
 }
 
-// apply applies an event to the aggregate
-// Note: This method should NOT increment the version - that's handled by LoadFromHistory or RaiseEvent
 func (v *ArchitectureView) apply(event domain.DomainEvent) {
 	switch e := event.(type) {
 	case events.ViewCreated:
-		v.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-		v.name, _ = valueobjects.NewViewName(e.Name)
-		v.description = e.Description
-		v.createdAt = e.CreatedAt
-
+		v.applyViewCreated(e)
 	case events.ComponentAddedToView:
-		v.components[e.ComponentID] = true
-
+		v.applyComponentAdded(e)
 	case events.ComponentPositionUpdated:
-
 	case events.ComponentRemovedFromView:
-		delete(v.components, e.ComponentID)
-
+		v.applyComponentRemoved(e)
 	case events.ViewRenamed:
-		v.name, _ = valueobjects.NewViewName(e.NewName)
-
+		v.applyViewRenamed(e)
 	case events.ViewDeleted:
-		v.isDeleted = true
-
+		v.applyViewDeleted()
 	case events.DefaultViewChanged:
-		v.isDefault = e.IsDefault
-
+		v.applyDefaultViewChanged(e)
 	case events.ViewEdgeTypeUpdated:
-
 	case events.ViewLayoutDirectionUpdated:
 	}
+}
+
+func (v *ArchitectureView) applyViewCreated(e events.ViewCreated) {
+	v.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
+	v.name, _ = valueobjects.NewViewName(e.Name)
+	v.description = e.Description
+	v.createdAt = e.CreatedAt
+}
+
+func (v *ArchitectureView) applyComponentAdded(e events.ComponentAddedToView) {
+	v.components[e.ComponentID] = true
+}
+
+func (v *ArchitectureView) applyComponentRemoved(e events.ComponentRemovedFromView) {
+	delete(v.components, e.ComponentID)
+}
+
+func (v *ArchitectureView) applyViewRenamed(e events.ViewRenamed) {
+	v.name, _ = valueobjects.NewViewName(e.NewName)
+}
+
+func (v *ArchitectureView) applyViewDeleted() {
+	v.isDeleted = true
+}
+
+func (v *ArchitectureView) applyDefaultViewChanged(e events.DefaultViewChanged) {
+	v.isDefault = e.IsDefault
 }
 
 // Name returns the view name

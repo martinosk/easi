@@ -15,9 +15,20 @@ spec:
       labels:
         app: easi-backend
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
       initContainers:
       - name: migrate
         image: 579478677147.dkr.ecr.eu-central-1.amazonaws.com/architecture/easi-migrate:$(Build.BuildNumber)
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
         env:
         - name: DB_ADMIN_CONN_STRING
           valueFrom:
@@ -36,6 +47,13 @@ spec:
       containers:
       - name: easi-backend
         image: 579478677147.dkr.ecr.eu-central-1.amazonaws.com/architecture/easi-backend:$(Build.BuildNumber)
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
         ports:
         - containerPort: 8080
           name: internal
