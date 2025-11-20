@@ -24,6 +24,801 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/capabilities": {
+            "get": {
+                "description": "Retrieves all business capabilities in the capability map",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Get all business capabilities",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a new business capability in the capability map",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Create a new business capability",
+                "parameters": [
+                    {
+                        "description": "Capability data",
+                        "name": "capability",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.CreateCapabilityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capabilities/{id}": {
+            "get": {
+                "description": "Retrieves a specific business capability by its ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Get a capability by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Updates the name and description of a business capability",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Update a capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated capability data",
+                        "name": "capability",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.UpdateCapabilityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capabilities/{id}/children": {
+            "get": {
+                "description": "Retrieves all child capabilities of a specific capability",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Get child capabilities",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capabilities/{id}/dependencies/incoming": {
+            "get": {
+                "description": "Retrieves all dependencies where the specified capability is the target",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Get incoming dependencies for a capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capabilities/{id}/dependencies/outgoing": {
+            "get": {
+                "description": "Retrieves all dependencies where the specified capability is the source",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Get outgoing dependencies for a capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capabilities/{id}/experts": {
+            "post": {
+                "description": "Associates a subject matter expert with a capability",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Add an expert to a capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Expert data",
+                        "name": "expert",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.AddCapabilityExpertRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capabilities/{id}/metadata": {
+            "put": {
+                "description": "Updates metadata fields like maturity level, ownership, and strategy alignment",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Update capability metadata",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Metadata",
+                        "name": "metadata",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.UpdateCapabilityMetadataRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capabilities/{id}/systems": {
+            "get": {
+                "description": "Retrieves all application components that realize a specific capability",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Get systems linked to a capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Associates an application component with a capability to indicate realization",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Link a system to a capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "System link data",
+                        "name": "system",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.LinkSystemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capabilities/{id}/tags": {
+            "post": {
+                "description": "Associates a tag with a capability for categorization",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Add a tag to a capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Tag data",
+                        "name": "tag",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.AddCapabilityTagRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capability-dependencies": {
+            "get": {
+                "description": "Retrieves all capability dependencies in the system",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-dependencies"
+                ],
+                "summary": "Get all capability dependencies",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a dependency relationship between two capabilities",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-dependencies"
+                ],
+                "summary": "Create a capability dependency",
+                "parameters": [
+                    {
+                        "description": "Dependency data",
+                        "name": "dependency",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.CreateDependencyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capability-dependencies/{id}": {
+            "delete": {
+                "description": "Deletes a capability dependency relationship",
+                "tags": [
+                    "capability-dependencies"
+                ],
+                "summary": "Delete a capability dependency",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Dependency ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capability-realizations/by-component/{componentId}": {
+            "get": {
+                "description": "Retrieves all capabilities that are realized by a specific application component",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-realizations"
+                ],
+                "summary": "Get capabilities realized by a component",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "componentId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capability-realizations/{id}": {
+            "put": {
+                "description": "Updates the realization level and notes for a system-capability link",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-realizations"
+                ],
+                "summary": "Update a system realization",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Realization ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated realization data",
+                        "name": "realization",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.UpdateRealizationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Removes the link between a system and a capability",
+                "tags": [
+                    "capability-realizations"
+                ],
+                "summary": "Delete a system realization",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Realization ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/components": {
             "get": {
                 "description": "Retrieves all application components with cursor-based pagination",
@@ -133,6 +928,63 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.ApplicationComponentDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Updates an existing application component's name and description",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "components"
+                ],
+                "summary": "Update an application component",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated component data",
+                        "name": "component",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.UpdateApplicationComponentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.ApplicationComponentDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.ErrorResponse"
                         }
                     },
                     "404": {
@@ -350,6 +1202,63 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "put": {
+                "description": "Updates an existing component relation's name and description",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "relations"
+                ],
+                "summary": "Update a component relation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Relation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated relation data",
+                        "name": "relation",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.UpdateComponentRelationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.ComponentRelationDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
             }
         },
         "/views": {
@@ -464,6 +1373,48 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "description": "Deletes an architecture view (cannot delete default view)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Delete an architecture view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Cannot delete default view",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
             }
         },
         "/views/{id}/components": {
@@ -498,8 +1449,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.SuccessResponse"
                         }
@@ -512,6 +1463,57 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Component already in view",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/views/{id}/components/{componentId}": {
+            "delete": {
+                "description": "Removes a component from an architecture view without deleting the component",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Remove a component from a view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "componentId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "View or component not found",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -560,6 +1562,106 @@ const docTemplate = `{
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/internal_architectureviews_infrastructure_api.UpdatePositionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "View or component not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/views/{id}/default": {
+            "put": {
+                "description": "Sets an architecture view as the default view",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Set a view as the default view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.SuccessResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/views/{id}/name": {
+            "patch": {
+                "description": "Renames an architecture view",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Rename an architecture view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New view name",
+                        "name": "view",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.RenameViewRequest"
                         }
                     }
                 ],
@@ -669,7 +1771,16 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "edgeType": {
+                    "type": "string"
+                },
                 "id": {
+                    "type": "string"
+                },
+                "isDefault": {
+                    "type": "boolean"
+                },
+                "layoutDirection": {
                     "type": "string"
                 },
                 "name": {
@@ -688,6 +1799,143 @@ const docTemplate = `{
                 },
                 "y": {
                     "type": "number"
+                }
+            }
+        },
+        "easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "eaOwner": {
+                    "type": "string"
+                },
+                "experts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.ExpertDTO"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "maturityLevel": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ownershipModel": {
+                    "type": "string"
+                },
+                "parentId": {
+                    "type": "string"
+                },
+                "pillarWeight": {
+                    "type": "integer"
+                },
+                "primaryOwner": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "strategyPillar": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "dependencyType": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "sourceCapabilityId": {
+                    "type": "string"
+                },
+                "targetCapabilityId": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_capabilitymapping_application_readmodels.ExpertDTO": {
+            "type": "object",
+            "properties": {
+                "addedAt": {
+                    "type": "string"
+                },
+                "contact": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "capabilityId": {
+                    "type": "string"
+                },
+                "componentId": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "linkedAt": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "realizationLevel": {
+                    "type": "string"
                 }
             }
         },
@@ -813,6 +2061,28 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architecturemodeling_infrastructure_api.UpdateApplicationComponentRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_architecturemodeling_infrastructure_api.UpdateComponentRelationRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_architectureviews_infrastructure_api.AddComponentRequest": {
             "type": "object",
             "properties": {
@@ -838,6 +2108,14 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architectureviews_infrastructure_api.RenameViewRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_architectureviews_infrastructure_api.UpdatePositionRequest": {
             "type": "object",
             "properties": {
@@ -846,6 +2124,141 @@ const docTemplate = `{
                 },
                 "y": {
                     "type": "number"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.AddCapabilityExpertRequest": {
+            "type": "object",
+            "properties": {
+                "contactInfo": {
+                    "type": "string"
+                },
+                "expertName": {
+                    "type": "string"
+                },
+                "expertRole": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.AddCapabilityTagRequest": {
+            "type": "object",
+            "properties": {
+                "tag": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.CreateCapabilityRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parentId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.CreateDependencyRequest": {
+            "type": "object",
+            "properties": {
+                "dependencyType": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "sourceCapabilityId": {
+                    "type": "string"
+                },
+                "targetCapabilityId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "details": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "error": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.LinkSystemRequest": {
+            "type": "object",
+            "properties": {
+                "componentId": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "realizationLevel": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.UpdateCapabilityMetadataRequest": {
+            "type": "object",
+            "properties": {
+                "eaOwner": {
+                    "type": "string"
+                },
+                "maturityLevel": {
+                    "type": "string"
+                },
+                "ownershipModel": {
+                    "type": "string"
+                },
+                "pillarWeight": {
+                    "type": "integer"
+                },
+                "primaryOwner": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "strategyPillar": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.UpdateCapabilityRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.UpdateRealizationRequest": {
+            "type": "object",
+            "properties": {
+                "notes": {
+                    "type": "string"
+                },
+                "realizationLevel": {
+                    "type": "string"
                 }
             }
         }

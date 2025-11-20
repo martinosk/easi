@@ -135,7 +135,8 @@ func (h *ViewHandlers) CreateView(w http.ResponseWriter, r *http.Request) {
 
 	// Return created resource with Location header
 	location := fmt.Sprintf("/api/v1/views/%s", view.ID)
-	sharedAPI.RespondCreated(w, location, view, nil)
+	w.Header().Set("Location", location)
+	sharedAPI.RespondJSON(w, http.StatusCreated, view)
 }
 
 // GetAllViews godoc
@@ -158,7 +159,7 @@ func (h *ViewHandlers) GetAllViews(w http.ResponseWriter, r *http.Request) {
 		views[i].Links = h.hateoas.ViewLinks(views[i].ID)
 	}
 
-	sharedAPI.RespondSuccess(w, http.StatusOK, views, nil)
+	sharedAPI.RespondJSON(w, http.StatusOK, views)
 }
 
 // GetViewByID godoc
@@ -188,7 +189,7 @@ func (h *ViewHandlers) GetViewByID(w http.ResponseWriter, r *http.Request) {
 	// Add HATEOAS links
 	view.Links = h.hateoas.ViewLinks(view.ID)
 
-	sharedAPI.RespondSuccess(w, http.StatusOK, view, nil)
+	sharedAPI.RespondJSON(w, http.StatusOK, view)
 }
 
 // AddComponentToView godoc
@@ -228,14 +229,10 @@ func (h *ViewHandlers) AddComponentToView(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Add HATEOAS links for the created resource
-	links := map[string]string{
-		"self": fmt.Sprintf("/api/v1/views/%s/components", viewID),
-		"view": fmt.Sprintf("/api/v1/views/%s", viewID),
-	}
-
-	sharedAPI.RespondCreated(w, fmt.Sprintf("/api/v1/views/%s/components", viewID),
-		map[string]string{"message": "Component added to view successfully"}, links)
+	// Return 201 with Location header
+	location := fmt.Sprintf("/api/v1/views/%s/components", viewID)
+	w.Header().Set("Location", location)
+	w.WriteHeader(http.StatusCreated)
 }
 
 // UpdateComponentPosition godoc
@@ -276,14 +273,7 @@ func (h *ViewHandlers) UpdateComponentPosition(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Add HATEOAS links
-	links := map[string]string{
-		"self": fmt.Sprintf("/api/v1/views/%s/components/%s/position", viewID, componentID),
-		"view": fmt.Sprintf("/api/v1/views/%s", viewID),
-	}
-
-	sharedAPI.RespondSuccess(w, http.StatusOK,
-		map[string]string{"message": "Component position updated successfully"}, links)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *ViewHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Request) {
@@ -314,13 +304,7 @@ func (h *ViewHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	links := map[string]string{
-		"self": fmt.Sprintf("/api/v1/views/%s/layout", viewID),
-		"view": fmt.Sprintf("/api/v1/views/%s", viewID),
-	}
-
-	sharedAPI.RespondSuccess(w, http.StatusOK,
-		map[string]string{"message": "Component positions updated successfully"}, links)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // RenameView godoc
@@ -364,13 +348,7 @@ func (h *ViewHandlers) RenameView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Add HATEOAS links
-	links := map[string]string{
-		"self": fmt.Sprintf("/api/v1/views/%s", viewID),
-	}
-
-	sharedAPI.RespondSuccess(w, http.StatusOK,
-		map[string]string{"message": "View renamed successfully"}, links)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // DeleteView godoc
@@ -455,13 +433,7 @@ func (h *ViewHandlers) SetDefaultView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Add HATEOAS links
-	links := map[string]string{
-		"self": fmt.Sprintf("/api/v1/views/%s", viewID),
-	}
-
-	sharedAPI.RespondSuccess(w, http.StatusOK,
-		map[string]string{"message": "Default view set successfully"}, links)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *ViewHandlers) UpdateEdgeType(w http.ResponseWriter, r *http.Request) {
@@ -489,12 +461,7 @@ func (h *ViewHandlers) UpdateEdgeType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	links := map[string]string{
-		"self": fmt.Sprintf("/api/v1/views/%s", viewID),
-	}
-
-	sharedAPI.RespondSuccess(w, http.StatusOK,
-		map[string]string{"message": "Edge type updated successfully"}, links)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *ViewHandlers) UpdateLayoutDirection(w http.ResponseWriter, r *http.Request) {
@@ -522,10 +489,5 @@ func (h *ViewHandlers) UpdateLayoutDirection(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	links := map[string]string{
-		"self": fmt.Sprintf("/api/v1/views/%s", viewID),
-	}
-
-	sharedAPI.RespondSuccess(w, http.StatusOK,
-		map[string]string{"message": "Layout direction updated successfully"}, links)
+	w.WriteHeader(http.StatusNoContent)
 }

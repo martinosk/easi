@@ -45,6 +45,17 @@ type UpdateCapabilityRequest struct {
 	Description string `json:"description,omitempty"`
 }
 
+// CreateCapability godoc
+// @Summary Create a new business capability
+// @Description Creates a new business capability in the capability map
+// @Tags capabilities
+// @Accept json
+// @Produce json
+// @Param capability body CreateCapabilityRequest true "Capability data"
+// @Success 201 {object} easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO
+// @Failure 400 {object} api.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
+// @Router /capabilities [post]
 func (h *CapabilityHandlers) CreateCapability(w http.ResponseWriter, r *http.Request) {
 	var req CreateCapabilityRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -103,9 +114,18 @@ func (h *CapabilityHandlers) CreateCapability(w http.ResponseWriter, r *http.Req
 	capability.Links = h.hateoas.CapabilityLinks(capability.ID, capability.ParentID)
 
 	location := fmt.Sprintf("/api/capabilities/%s", capability.ID)
-	sharedAPI.RespondCreated(w, location, capability, nil)
+	w.Header().Set("Location", location)
+	sharedAPI.RespondJSON(w, http.StatusCreated, capability)
 }
 
+// GetAllCapabilities godoc
+// @Summary Get all business capabilities
+// @Description Retrieves all business capabilities in the capability map
+// @Tags capabilities
+// @Produce json
+// @Success 200 {array} easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO
+// @Failure 500 {object} api.ErrorResponse
+// @Router /capabilities [get]
 func (h *CapabilityHandlers) GetAllCapabilities(w http.ResponseWriter, r *http.Request) {
 	capabilities, err := h.readModel.GetAll(r.Context())
 	if err != nil {
@@ -120,6 +140,16 @@ func (h *CapabilityHandlers) GetAllCapabilities(w http.ResponseWriter, r *http.R
 	sharedAPI.RespondJSON(w, http.StatusOK, capabilities)
 }
 
+// GetCapabilityByID godoc
+// @Summary Get a capability by ID
+// @Description Retrieves a specific business capability by its ID
+// @Tags capabilities
+// @Produce json
+// @Param id path string true "Capability ID"
+// @Success 200 {object} easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO
+// @Failure 404 {object} api.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
+// @Router /capabilities/{id} [get]
 func (h *CapabilityHandlers) GetCapabilityByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
@@ -139,6 +169,16 @@ func (h *CapabilityHandlers) GetCapabilityByID(w http.ResponseWriter, r *http.Re
 	sharedAPI.RespondJSON(w, http.StatusOK, capability)
 }
 
+// GetCapabilityChildren godoc
+// @Summary Get child capabilities
+// @Description Retrieves all child capabilities of a specific capability
+// @Tags capabilities
+// @Produce json
+// @Param id path string true "Capability ID"
+// @Success 200 {array} easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO
+// @Failure 404 {object} api.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
+// @Router /capabilities/{id}/children [get]
 func (h *CapabilityHandlers) GetCapabilityChildren(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
@@ -166,6 +206,19 @@ func (h *CapabilityHandlers) GetCapabilityChildren(w http.ResponseWriter, r *htt
 	sharedAPI.RespondJSON(w, http.StatusOK, children)
 }
 
+// UpdateCapability godoc
+// @Summary Update a capability
+// @Description Updates the name and description of a business capability
+// @Tags capabilities
+// @Accept json
+// @Produce json
+// @Param id path string true "Capability ID"
+// @Param capability body UpdateCapabilityRequest true "Updated capability data"
+// @Success 200 {object} easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO
+// @Failure 400 {object} api.ErrorResponse
+// @Failure 404 {object} api.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
+// @Router /capabilities/{id} [put]
 func (h *CapabilityHandlers) UpdateCapability(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 

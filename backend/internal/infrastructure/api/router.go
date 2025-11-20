@@ -46,11 +46,8 @@ func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) htt
 	})
 
 	// Swagger documentation
-	r.Get("/docs/swagger.json", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./docs/swagger.json")
-	})
 	r.Get("/swagger/*", httpSwagger.Handler(
-		httpSwagger.URL("/docs/swagger.json"),
+		httpSwagger.URL("doc.json"),
 	))
 
 	// Initialize CQRS buses and event bus

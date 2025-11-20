@@ -112,7 +112,8 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 
 	// Return created resource with Location header
 	location := fmt.Sprintf("/api/v1/components/%s", component.ID)
-	sharedAPI.RespondCreated(w, location, component, nil)
+	w.Header().Set("Location", location)
+	sharedAPI.RespondJSON(w, http.StatusCreated, component)
 }
 
 // GetAllComponents godoc
@@ -200,7 +201,7 @@ func (h *ComponentHandlers) GetComponentByID(w http.ResponseWriter, r *http.Requ
 	// Add HATEOAS links
 	component.Links = h.hateoas.ComponentLinks(component.ID)
 
-	sharedAPI.RespondSuccess(w, http.StatusOK, component, nil)
+	sharedAPI.RespondJSON(w, http.StatusOK, component)
 }
 
 // UpdateApplicationComponent godoc
@@ -260,7 +261,7 @@ func (h *ComponentHandlers) UpdateApplicationComponent(w http.ResponseWriter, r 
 	// Add HATEOAS links
 	component.Links = h.hateoas.ComponentLinks(component.ID)
 
-	sharedAPI.RespondSuccess(w, http.StatusOK, component, nil)
+	sharedAPI.RespondJSON(w, http.StatusOK, component)
 }
 
 func (h *ComponentHandlers) DeleteApplicationComponent(w http.ResponseWriter, r *http.Request) {

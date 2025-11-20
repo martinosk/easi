@@ -41,6 +41,17 @@ type CreateDependencyRequest struct {
 	Description        string `json:"description,omitempty"`
 }
 
+// CreateDependency godoc
+// @Summary Create a capability dependency
+// @Description Creates a dependency relationship between two capabilities
+// @Tags capability-dependencies
+// @Accept json
+// @Produce json
+// @Param dependency body CreateDependencyRequest true "Dependency data"
+// @Success 201 {object} easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO
+// @Failure 400 {object} api.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
+// @Router /capability-dependencies [post]
 func (h *DependencyHandlers) CreateDependency(w http.ResponseWriter, r *http.Request) {
 	var req CreateDependencyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -101,9 +112,18 @@ func (h *DependencyHandlers) CreateDependency(w http.ResponseWriter, r *http.Req
 	dependency.Links = h.hateoas.DependencyLinks(dependency.ID, dependency.SourceCapabilityID, dependency.TargetCapabilityID)
 
 	location := fmt.Sprintf("/api/capability-dependencies/%s", dependency.ID)
-	sharedAPI.RespondCreated(w, location, dependency, nil)
+	w.Header().Set("Location", location)
+	sharedAPI.RespondJSON(w, http.StatusCreated, dependency)
 }
 
+// GetAllDependencies godoc
+// @Summary Get all capability dependencies
+// @Description Retrieves all capability dependencies in the system
+// @Tags capability-dependencies
+// @Produce json
+// @Success 200 {array} easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO
+// @Failure 500 {object} api.ErrorResponse
+// @Router /capability-dependencies [get]
 func (h *DependencyHandlers) GetAllDependencies(w http.ResponseWriter, r *http.Request) {
 	dependencies, err := h.readModel.GetAll(r.Context())
 	if err != nil {
@@ -118,6 +138,15 @@ func (h *DependencyHandlers) GetAllDependencies(w http.ResponseWriter, r *http.R
 	sharedAPI.RespondJSON(w, http.StatusOK, dependencies)
 }
 
+// GetOutgoingDependencies godoc
+// @Summary Get outgoing dependencies for a capability
+// @Description Retrieves all dependencies where the specified capability is the source
+// @Tags capabilities
+// @Produce json
+// @Param id path string true "Capability ID"
+// @Success 200 {array} easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO
+// @Failure 500 {object} api.ErrorResponse
+// @Router /capabilities/{id}/dependencies/outgoing [get]
 func (h *DependencyHandlers) GetOutgoingDependencies(w http.ResponseWriter, r *http.Request) {
 	capabilityID := chi.URLParam(r, "id")
 
@@ -134,6 +163,15 @@ func (h *DependencyHandlers) GetOutgoingDependencies(w http.ResponseWriter, r *h
 	sharedAPI.RespondJSON(w, http.StatusOK, dependencies)
 }
 
+// GetIncomingDependencies godoc
+// @Summary Get incoming dependencies for a capability
+// @Description Retrieves all dependencies where the specified capability is the target
+// @Tags capabilities
+// @Produce json
+// @Param id path string true "Capability ID"
+// @Success 200 {array} easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO
+// @Failure 500 {object} api.ErrorResponse
+// @Router /capabilities/{id}/dependencies/incoming [get]
 func (h *DependencyHandlers) GetIncomingDependencies(w http.ResponseWriter, r *http.Request) {
 	capabilityID := chi.URLParam(r, "id")
 
@@ -150,6 +188,15 @@ func (h *DependencyHandlers) GetIncomingDependencies(w http.ResponseWriter, r *h
 	sharedAPI.RespondJSON(w, http.StatusOK, dependencies)
 }
 
+// DeleteDependency godoc
+// @Summary Delete a capability dependency
+// @Description Deletes a capability dependency relationship
+// @Tags capability-dependencies
+// @Param id path string true "Dependency ID"
+// @Success 204 "No Content"
+// @Failure 404 {object} api.ErrorResponse
+// @Failure 500 {object} api.ErrorResponse
+// @Router /capability-dependencies/{id} [delete]
 func (h *DependencyHandlers) DeleteDependency(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 

@@ -123,7 +123,8 @@ func (h *RelationHandlers) CreateComponentRelation(w http.ResponseWriter, r *htt
 
 	// Return created resource with Location header
 	location := fmt.Sprintf("/api/v1/relations/%s", relation.ID)
-	sharedAPI.RespondCreated(w, location, relation, nil)
+	w.Header().Set("Location", location)
+	sharedAPI.RespondJSON(w, http.StatusCreated, relation)
 }
 
 // GetAllRelations godoc
@@ -211,7 +212,7 @@ func (h *RelationHandlers) GetRelationByID(w http.ResponseWriter, r *http.Reques
 	// Add HATEOAS links
 	relation.Links = h.hateoas.RelationLinks(relation.ID)
 
-	sharedAPI.RespondSuccess(w, http.StatusOK, relation, nil)
+	sharedAPI.RespondJSON(w, http.StatusOK, relation)
 }
 
 // GetRelationsFromComponent godoc
@@ -237,7 +238,7 @@ func (h *RelationHandlers) GetRelationsFromComponent(w http.ResponseWriter, r *h
 		relations[i].Links = h.hateoas.RelationLinks(relations[i].ID)
 	}
 
-	sharedAPI.RespondSuccess(w, http.StatusOK, relations, nil)
+	sharedAPI.RespondJSON(w, http.StatusOK, relations)
 }
 
 // GetRelationsToComponent godoc
@@ -263,7 +264,7 @@ func (h *RelationHandlers) GetRelationsToComponent(w http.ResponseWriter, r *htt
 		relations[i].Links = h.hateoas.RelationLinks(relations[i].ID)
 	}
 
-	sharedAPI.RespondSuccess(w, http.StatusOK, relations, nil)
+	sharedAPI.RespondJSON(w, http.StatusOK, relations)
 }
 
 // UpdateComponentRelation godoc
@@ -316,7 +317,7 @@ func (h *RelationHandlers) UpdateComponentRelation(w http.ResponseWriter, r *htt
 	// Add HATEOAS links
 	relation.Links = h.hateoas.RelationLinks(relation.ID)
 
-	sharedAPI.RespondSuccess(w, http.StatusOK, relation, nil)
+	sharedAPI.RespondJSON(w, http.StatusOK, relation)
 }
 
 func (h *RelationHandlers) DeleteComponentRelation(w http.ResponseWriter, r *http.Request) {
