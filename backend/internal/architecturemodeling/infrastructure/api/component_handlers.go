@@ -157,7 +157,7 @@ func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Build self link
-	selfLink := fmt.Sprintf("/api/v1/components")
+	selfLink := "/api/v1/components"
 	if params.After != "" {
 		selfLink = fmt.Sprintf("/api/v1/components?after=%s&limit=%d", params.After, params.Limit)
 	}

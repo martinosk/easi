@@ -10,7 +10,6 @@ The API specification is **auto-generated** from Go code annotations using [swag
 
 - `docs.go` - Go package with embedded spec
 - `swagger.json` - OpenAPI 2.0 specification (JSON format)
-- ~~`swagger.yaml`~~ - Removed (redundant)
 
 These files are **not committed to git** and are generated during build.
 

@@ -4,6 +4,7 @@ export interface HATEOASLink {
 
 export interface HATEOASLinks {
   self?: HATEOASLink;
+  next?: HATEOASLink;
   archimate?: HATEOASLink;
   update?: HATEOASLink;
   delete?: HATEOASLink;
@@ -100,6 +101,33 @@ export interface UpdateViewEdgeTypeRequest {
 
 export interface UpdateViewLayoutDirectionRequest {
   layoutDirection: string;
+}
+
+export interface PaginationInfo {
+  hasMore: boolean;
+  limit: number;
+  cursor?: string;
+}
+
+export interface CollectionResponse<T> {
+  data: T[];
+  _links: HATEOASLinks;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: PaginationInfo;
+  _links: HATEOASLinks;
+}
+
+export interface ErrorDetails {
+  [key: string]: string;
+}
+
+export interface ErrorResponse {
+  error: string;
+  message: string;
+  details?: ErrorDetails;
 }
 
 export class ApiError extends Error {

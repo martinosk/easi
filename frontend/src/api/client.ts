@@ -13,6 +13,8 @@ import type {
   RenameViewRequest,
   UpdateViewEdgeTypeRequest,
   UpdateViewLayoutDirectionRequest,
+  PaginatedResponse,
+  CollectionResponse,
 } from './types';
 import { ApiError } from './types';
 
@@ -39,8 +41,20 @@ class ApiClient {
 
   private extractErrorMessage(error: AxiosError): string {
     if (error.response?.data) {
-      const data = error.response.data as { message?: string; error?: string };
-      return data.message || data.error || 'An error occurred';
+      const data = error.response.data as { message?: string; error?: string; details?: Record<string, string> };
+      if (data.message) {
+        return data.message;
+      }
+      if (data.error) {
+        return data.error;
+      }
+      if (data.details) {
+        const detailMessages = Object.values(data.details).filter(Boolean);
+        if (detailMessages.length > 0) {
+          return detailMessages.join(', ');
+        }
+      }
+      return 'An error occurred';
     }
     if (error.message) {
       return error.message;
@@ -48,74 +62,71 @@ class ApiClient {
     return 'An unknown error occurred';
   }
 
-  // Components API
   async getComponents(): Promise<Component[]> {
-    const response = await this.client.get<{ data: Component[] | null }>('/api/v1/components');
+    const response = await this.client.get<PaginatedResponse<Component>>('/api/v1/components');
     return response.data.data || [];
   }
 
   async getComponentById(id: string): Promise<Component> {
-    const response = await this.client.get<{ data: Component }>(`/api/v1/components/${id}`);
-    return response.data.data;
+    const response = await this.client.get<Component>(`/api/v1/components/${id}`);
+    return response.data;
   }
 
   async createComponent(request: CreateComponentRequest): Promise<Component> {
-    const response = await this.client.post<{ data: Component }>('/api/v1/components', request);
-    return response.data.data;
+    const response = await this.client.post<Component>('/api/v1/components', request);
+    return response.data;
   }
 
   async updateComponent(id: string, request: CreateComponentRequest): Promise<Component> {
-    const response = await this.client.put<{ data: Component }>(`/api/v1/components/${id}`, request);
-    return response.data.data;
+    const response = await this.client.put<Component>(`/api/v1/components/${id}`, request);
+    return response.data;
   }
 
   async deleteComponent(id: string): Promise<void> {
     await this.client.delete(`/api/v1/components/${id}`);
   }
 
-  // Relations API
   async getRelations(): Promise<Relation[]> {
-    const response = await this.client.get<{ data: Relation[] | null }>('/api/v1/relations');
+    const response = await this.client.get<PaginatedResponse<Relation>>('/api/v1/relations');
     return response.data.data || [];
   }
 
   async getRelationById(id: string): Promise<Relation> {
-    const response = await this.client.get<{ data: Relation }>(`/api/v1/relations/${id}`);
-    return response.data.data;
+    const response = await this.client.get<Relation>(`/api/v1/relations/${id}`);
+    return response.data;
   }
 
   async createRelation(request: CreateRelationRequest): Promise<Relation> {
-    const response = await this.client.post<{ data: Relation }>('/api/v1/relations', request);
-    return response.data.data;
+    const response = await this.client.post<Relation>('/api/v1/relations', request);
+    return response.data;
   }
 
   async updateRelation(id: string, request: Partial<CreateRelationRequest>): Promise<Relation> {
-    const response = await this.client.put<{ data: Relation }>(`/api/v1/relations/${id}`, request);
-    return response.data.data;
+    const response = await this.client.put<Relation>(`/api/v1/relations/${id}`, request);
+    return response.data;
   }
 
   async deleteRelation(id: string): Promise<void> {
     await this.client.delete(`/api/v1/relations/${id}`);
   }
 
-  // Views API
   async getViews(): Promise<View[]> {
-    const response = await this.client.get<{ data: View[] | null }>('/api/v1/views');
+    const response = await this.client.get<PaginatedResponse<View>>('/api/v1/views');
     return response.data.data || [];
   }
 
   async getViewById(id: string): Promise<View> {
-    const response = await this.client.get<{ data: View }>(`/api/v1/views/${id}`);
-    return response.data.data;
+    const response = await this.client.get<View>(`/api/v1/views/${id}`);
+    return response.data;
   }
 
   async createView(request: CreateViewRequest): Promise<View> {
-    const response = await this.client.post<{ data: View }>('/api/v1/views', request);
-    return response.data.data;
+    const response = await this.client.post<View>('/api/v1/views', request);
+    return response.data;
   }
 
   async getViewComponents(viewId: string): Promise<ViewComponent[]> {
-    const response = await this.client.get<{ data: ViewComponent[] | null }>(
+    const response = await this.client.get<CollectionResponse<ViewComponent>>(
       `/api/v1/views/${viewId}/components`
     );
     return response.data.data || [];
