@@ -49,8 +49,8 @@ type CreateDependencyRequest struct {
 // @Produce json
 // @Param dependency body CreateDependencyRequest true "Dependency data"
 // @Success 201 {object} easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO
-// @Failure 400 {object} api.ErrorResponse
-// @Failure 500 {object} api.ErrorResponse
+// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capability-dependencies [post]
 func (h *DependencyHandlers) CreateDependency(w http.ResponseWriter, r *http.Request) {
 	var req CreateDependencyRequest
@@ -121,8 +121,8 @@ func (h *DependencyHandlers) CreateDependency(w http.ResponseWriter, r *http.Req
 // @Description Retrieves all capability dependencies in the system
 // @Tags capability-dependencies
 // @Produce json
-// @Success 200 {array} easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO
-// @Failure 500 {object} api.ErrorResponse
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capability-dependencies [get]
 func (h *DependencyHandlers) GetAllDependencies(w http.ResponseWriter, r *http.Request) {
 	dependencies, err := h.readModel.GetAll(r.Context())
@@ -135,7 +135,11 @@ func (h *DependencyHandlers) GetAllDependencies(w http.ResponseWriter, r *http.R
 		dependencies[i].Links = h.hateoas.DependencyLinks(dependencies[i].ID, dependencies[i].SourceCapabilityID, dependencies[i].TargetCapabilityID)
 	}
 
-	sharedAPI.RespondJSON(w, http.StatusOK, dependencies)
+	links := map[string]string{
+		"self": "/api/v1/capability-dependencies",
+	}
+
+	sharedAPI.RespondCollection(w, http.StatusOK, dependencies, links)
 }
 
 // GetOutgoingDependencies godoc
@@ -144,8 +148,8 @@ func (h *DependencyHandlers) GetAllDependencies(w http.ResponseWriter, r *http.R
 // @Tags capabilities
 // @Produce json
 // @Param id path string true "Capability ID"
-// @Success 200 {array} easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO
-// @Failure 500 {object} api.ErrorResponse
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id}/dependencies/outgoing [get]
 func (h *DependencyHandlers) GetOutgoingDependencies(w http.ResponseWriter, r *http.Request) {
 	capabilityID := chi.URLParam(r, "id")
@@ -160,7 +164,12 @@ func (h *DependencyHandlers) GetOutgoingDependencies(w http.ResponseWriter, r *h
 		dependencies[i].Links = h.hateoas.DependencyLinks(dependencies[i].ID, dependencies[i].SourceCapabilityID, dependencies[i].TargetCapabilityID)
 	}
 
-	sharedAPI.RespondJSON(w, http.StatusOK, dependencies)
+	links := map[string]string{
+		"self":       "/api/v1/capabilities/" + capabilityID + "/dependencies/outgoing",
+		"capability": "/api/v1/capabilities/" + capabilityID,
+	}
+
+	sharedAPI.RespondCollection(w, http.StatusOK, dependencies, links)
 }
 
 // GetIncomingDependencies godoc
@@ -169,8 +178,8 @@ func (h *DependencyHandlers) GetOutgoingDependencies(w http.ResponseWriter, r *h
 // @Tags capabilities
 // @Produce json
 // @Param id path string true "Capability ID"
-// @Success 200 {array} easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO
-// @Failure 500 {object} api.ErrorResponse
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id}/dependencies/incoming [get]
 func (h *DependencyHandlers) GetIncomingDependencies(w http.ResponseWriter, r *http.Request) {
 	capabilityID := chi.URLParam(r, "id")
@@ -185,7 +194,12 @@ func (h *DependencyHandlers) GetIncomingDependencies(w http.ResponseWriter, r *h
 		dependencies[i].Links = h.hateoas.DependencyLinks(dependencies[i].ID, dependencies[i].SourceCapabilityID, dependencies[i].TargetCapabilityID)
 	}
 
-	sharedAPI.RespondJSON(w, http.StatusOK, dependencies)
+	links := map[string]string{
+		"self":       "/api/v1/capabilities/" + capabilityID + "/dependencies/incoming",
+		"capability": "/api/v1/capabilities/" + capabilityID,
+	}
+
+	sharedAPI.RespondCollection(w, http.StatusOK, dependencies, links)
 }
 
 // DeleteDependency godoc
@@ -194,8 +208,8 @@ func (h *DependencyHandlers) GetIncomingDependencies(w http.ResponseWriter, r *h
 // @Tags capability-dependencies
 // @Param id path string true "Dependency ID"
 // @Success 204 "No Content"
-// @Failure 404 {object} api.ErrorResponse
-// @Failure 500 {object} api.ErrorResponse
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capability-dependencies/{id} [delete]
 func (h *DependencyHandlers) DeleteDependency(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")

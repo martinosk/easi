@@ -40,7 +40,7 @@ ReadModel → Screen: ReadModel(OUTBOUND) → Screen(INBOUND)
 - Always use appropriate HTTP status codes:
   - 200 OK: Successful GET, PUT, PATCH requests
   - 201 Created: Successful POST requests that create resources
-  - 204 No Content: Successful DELETE requests
+  - 204 No Content: Successful DELETE requests, PATCH requests that modify without returning data
   - 400 Bad Request: Client-side validation errors, invalid input
   - 401 Unauthorized: Authentication required
   - 403 Forbidden: Authenticated but lacks permission
@@ -51,6 +51,95 @@ ReadModel → Screen: ReadModel(OUTBOUND) → Screen(INBOUND)
 - API endpoints should NOT duplicate validation logic - they only translate domain exceptions to HTTP status codes
 - Catch domain exceptions (ArgumentException, etc.) and map them to appropriate HTTP status codes (typically 400 Bad Request)
 - Never let unhandled exceptions return as 500 errors when they represent client errors
+
+## Response Wrapping Standards
+REST Level 3 APIs must follow consistent response structures:
+
+### Single Resource Responses (GET by ID, POST, PUT)
+- Return the resource directly at the root level
+- Embed `_links` object within the resource for HATEOAS navigation
+- Use `sharedAPI.RespondJSON(w, statusCode, resource)`
+- Example:
+```json
+{
+  "id": "123",
+  "name": "Component A",
+  "_links": {
+    "self": "/api/v1/components/123",
+    "update": "/api/v1/components/123",
+    "delete": "/api/v1/components/123"
+  }
+}
+```
+
+### Non-Paginated Collection Responses (GET all)
+- Use structured envelope with `data` and `_links`
+- Use `sharedAPI.RespondCollection(w, statusCode, data, links)`
+- Example:
+```json
+{
+  "data": [
+    {"id": "123", "name": "Item 1", "_links": {...}},
+    {"id": "456", "name": "Item 2", "_links": {...}}
+  ],
+  "_links": {
+    "self": "/api/v1/items"
+  }
+}
+```
+
+### Paginated Collection Responses (GET with pagination)
+- Use structured envelope with `data`, `pagination`, and `_links`
+- Use `sharedAPI.RespondPaginated(w, statusCode, data, hasMore, nextCursor, limit, selfLink, baseLink)`
+- Example:
+```json
+{
+  "data": [
+    {"id": "123", "name": "Item 1", "_links": {...}},
+    {"id": "456", "name": "Item 2", "_links": {...}}
+  ],
+  "pagination": {
+    "hasMore": true,
+    "limit": 50,
+    "cursor": "eyJpZCI6IjQ1NiIsInRzIjoxNjQwMDAwMDAwfQ=="
+  },
+  "_links": {
+    "self": "/api/v1/items?after=xyz&limit=50",
+    "next": "/api/v1/items?after=abc&limit=50"
+  }
+}
+```
+
+### Success Responses (201 Created, 204 No Content)
+- **201 Created with body**: Return created resource directly with Location header
+  - Use: `w.Header().Set("Location", location)` then `sharedAPI.RespondJSON(w, http.StatusCreated, resource)`
+- **201 Created without body**: Return 201 with Location header only
+  - Use: `w.Header().Set("Location", location)` then `w.WriteHeader(http.StatusCreated)`
+- **204 No Content**: No response body (for DELETE, PATCH updates)
+  - Use: `w.WriteHeader(http.StatusNoContent)`
+- NEVER wrap simple success messages in "data" envelopes
+
+### Error Responses
+- Always use consistent error structure via `sharedAPI.RespondError(w, statusCode, err, message)`
+- Structure:
+```json
+{
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "details": {
+    "fieldName": "Field-specific error"
+  }
+}
+```
+
+### Implementation Rules
+1. NEVER use `sharedAPI.RespondSuccess()` or `sharedAPI.RespondCreated()` - these are deprecated wrappers
+2. Single resources: `sharedAPI.RespondJSON(w, statusCode, resource)`
+3. Non-paginated collections: `sharedAPI.RespondCollection(w, statusCode, data, links)`
+4. Paginated collections: `sharedAPI.RespondPaginated(w, statusCode, data, hasMore, nextCursor, limit, selfLink, baseLink)`
+5. Created: `w.Header().Set("Location", ...")` + `sharedAPI.RespondJSON(w, http.StatusCreated, resource)`
+6. No content: `w.WriteHeader(http.StatusNoContent)`
+7. Errors: `sharedAPI.RespondError(w, statusCode, err, message)`
 
 # Spec Management
 - **NEVER modify a spec file with "done" status**

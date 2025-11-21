@@ -38,16 +38,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO"
-                            }
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -85,13 +82,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -126,13 +123,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -177,19 +174,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -218,22 +215,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO"
-                            }
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -262,16 +256,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO"
-                            }
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -300,16 +291,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO"
-                            }
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -359,13 +347,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -412,19 +400,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -453,16 +441,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO"
-                            }
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -507,19 +492,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -569,13 +554,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -595,16 +580,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO"
-                            }
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -642,13 +624,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -677,13 +659,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -712,16 +694,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO"
-                            }
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -768,19 +747,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -807,13 +786,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -848,13 +827,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.PaginatedResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.PaginatedResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -892,13 +871,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -933,13 +912,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -984,19 +963,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.ErrorResponse"
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     }
                 }
@@ -1110,10 +1089,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.ComponentRelationDTO"
-                            }
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
                         }
                     },
                     "500": {
@@ -1148,10 +1124,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.ComponentRelationDTO"
-                            }
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
                         }
                     },
                     "500": {
@@ -1450,10 +1423,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.SuccessResponse"
-                        }
+                        "description": "Created"
                     },
                     "400": {
                         "description": "Bad Request",
@@ -1566,11 +1536,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.SuccessResponse"
-                        }
+                    "204": {
+                        "description": "No Content"
                     },
                     "400": {
                         "description": "Bad Request",
@@ -1613,11 +1580,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.SuccessResponse"
-                        }
+                    "204": {
+                        "description": "No Content"
                     },
                     "404": {
                         "description": "Not Found",
@@ -1666,11 +1630,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.SuccessResponse"
-                        }
+                    "204": {
+                        "description": "No Content"
                     },
                     "400": {
                         "description": "Bad Request",
@@ -1939,6 +1900,30 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_shared_api.CollectionMeta": {
+            "type": "object",
+            "properties": {
+                "total": {
+                    "description": "Total count if available",
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_shared_api.CollectionResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "data": {},
+                "meta": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionMeta"
+                }
+            }
+        },
         "easi_backend_internal_shared_api.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -1986,18 +1971,6 @@ const docTemplate = `{
                 }
             }
         },
-        "easi_backend_internal_shared_api.SuccessResponse": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "data": {}
-            }
-        },
         "internal_architecturemodeling_infrastructure_api.CreateApplicationComponentRequest": {
             "type": "object",
             "properties": {
@@ -2026,38 +1999,6 @@ const docTemplate = `{
                 },
                 "targetComponentId": {
                     "type": "string"
-                }
-            }
-        },
-        "internal_architecturemodeling_infrastructure_api.ErrorResponse": {
-            "type": "object",
-            "properties": {
-                "details": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "error": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_architecturemodeling_infrastructure_api.PaginatedResponse": {
-            "type": "object",
-            "properties": {
-                "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "data": {},
-                "pagination": {
-                    "$ref": "#/definitions/easi_backend_internal_shared_api.PaginationInfo"
                 }
             }
         },
@@ -2179,23 +2120,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "targetCapabilityId": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_capabilitymapping_infrastructure_api.ErrorResponse": {
-            "type": "object",
-            "properties": {
-                "details": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "error": {
-                    "type": "string"
-                },
-                "message": {
                     "type": "string"
                 }
             }

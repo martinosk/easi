@@ -15,10 +15,17 @@ type ErrorResponse struct {
 	Details map[string]string `json:"details,omitempty"`
 }
 
-// SuccessResponse represents a successful API response
-type SuccessResponse struct {
-	Data  interface{}       `json:"data,omitempty"`
+
+// CollectionResponse represents a collection of resources
+type CollectionResponse struct {
+	Data  interface{}       `json:"data"`
 	Links map[string]string `json:"_links,omitempty"`
+	Meta  *CollectionMeta   `json:"meta,omitempty"`
+}
+
+// CollectionMeta contains metadata about a collection
+type CollectionMeta struct {
+	Total *int `json:"total,omitempty"` // Total count if available
 }
 
 // RespondJSON sends a JSON response
@@ -74,22 +81,28 @@ func MapErrorToStatusCode(err error, defaultCode int) int {
 	}
 }
 
-// RespondSuccess sends a success response with optional HATEOAS links
-func RespondSuccess(w http.ResponseWriter, statusCode int, data interface{}, links map[string]string) {
-	response := SuccessResponse{
+// RespondNoContent sends a 204 No Content response
+func RespondNoContent(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// RespondCollection sends a collection response with consistent wrapping
+func RespondCollection(w http.ResponseWriter, statusCode int, data interface{}, links map[string]string) {
+	response := CollectionResponse{
 		Data:  data,
 		Links: links,
 	}
 	RespondJSON(w, statusCode, response)
 }
 
-// RespondCreated sends a 201 Created response with Location header
-func RespondCreated(w http.ResponseWriter, location string, data interface{}, links map[string]string) {
-	w.Header().Set("Location", location)
-	RespondSuccess(w, http.StatusCreated, data, links)
-}
-
-// RespondNoContent sends a 204 No Content response
-func RespondNoContent(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusNoContent)
+// RespondCollectionWithTotal sends a collection response with total count metadata
+func RespondCollectionWithTotal(w http.ResponseWriter, statusCode int, data interface{}, total int, links map[string]string) {
+	response := CollectionResponse{
+		Data:  data,
+		Links: links,
+		Meta: &CollectionMeta{
+			Total: &total,
+		},
+	}
+	RespondJSON(w, statusCode, response)
 }

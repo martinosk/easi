@@ -13,7 +13,6 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-type ErrorResponse = sharedAPI.ErrorResponse
 
 type CapabilityHandlers struct {
 	commandBus cqrs.CommandBus
@@ -53,8 +52,8 @@ type UpdateCapabilityRequest struct {
 // @Produce json
 // @Param capability body CreateCapabilityRequest true "Capability data"
 // @Success 201 {object} easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO
-// @Failure 400 {object} api.ErrorResponse
-// @Failure 500 {object} api.ErrorResponse
+// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities [post]
 func (h *CapabilityHandlers) CreateCapability(w http.ResponseWriter, r *http.Request) {
 	var req CreateCapabilityRequest
@@ -123,8 +122,8 @@ func (h *CapabilityHandlers) CreateCapability(w http.ResponseWriter, r *http.Req
 // @Description Retrieves all business capabilities in the capability map
 // @Tags capabilities
 // @Produce json
-// @Success 200 {array} easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO
-// @Failure 500 {object} api.ErrorResponse
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities [get]
 func (h *CapabilityHandlers) GetAllCapabilities(w http.ResponseWriter, r *http.Request) {
 	capabilities, err := h.readModel.GetAll(r.Context())
@@ -137,7 +136,11 @@ func (h *CapabilityHandlers) GetAllCapabilities(w http.ResponseWriter, r *http.R
 		capabilities[i].Links = h.hateoas.CapabilityLinks(capabilities[i].ID, capabilities[i].ParentID)
 	}
 
-	sharedAPI.RespondJSON(w, http.StatusOK, capabilities)
+	links := map[string]string{
+		"self": "/api/v1/capabilities",
+	}
+
+	sharedAPI.RespondCollection(w, http.StatusOK, capabilities, links)
 }
 
 // GetCapabilityByID godoc
@@ -147,8 +150,8 @@ func (h *CapabilityHandlers) GetAllCapabilities(w http.ResponseWriter, r *http.R
 // @Produce json
 // @Param id path string true "Capability ID"
 // @Success 200 {object} easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO
-// @Failure 404 {object} api.ErrorResponse
-// @Failure 500 {object} api.ErrorResponse
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id} [get]
 func (h *CapabilityHandlers) GetCapabilityByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -175,9 +178,9 @@ func (h *CapabilityHandlers) GetCapabilityByID(w http.ResponseWriter, r *http.Re
 // @Tags capabilities
 // @Produce json
 // @Param id path string true "Capability ID"
-// @Success 200 {array} easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO
-// @Failure 404 {object} api.ErrorResponse
-// @Failure 500 {object} api.ErrorResponse
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id}/children [get]
 func (h *CapabilityHandlers) GetCapabilityChildren(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -203,7 +206,12 @@ func (h *CapabilityHandlers) GetCapabilityChildren(w http.ResponseWriter, r *htt
 		children[i].Links = h.hateoas.CapabilityLinks(children[i].ID, children[i].ParentID)
 	}
 
-	sharedAPI.RespondJSON(w, http.StatusOK, children)
+	links := map[string]string{
+		"self":   "/api/v1/capabilities/" + id + "/children",
+		"parent": "/api/v1/capabilities/" + id,
+	}
+
+	sharedAPI.RespondCollection(w, http.StatusOK, children, links)
 }
 
 // UpdateCapability godoc
@@ -215,9 +223,9 @@ func (h *CapabilityHandlers) GetCapabilityChildren(w http.ResponseWriter, r *htt
 // @Param id path string true "Capability ID"
 // @Param capability body UpdateCapabilityRequest true "Updated capability data"
 // @Success 200 {object} easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO
-// @Failure 400 {object} api.ErrorResponse
-// @Failure 404 {object} api.ErrorResponse
-// @Failure 500 {object} api.ErrorResponse
+// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id} [put]
 func (h *CapabilityHandlers) UpdateCapability(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")

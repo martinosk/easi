@@ -300,17 +300,15 @@ func TestGetRelationByID_Integration(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response struct {
-		Data readmodels.ComponentRelationDTO `json:"data"`
-	}
+	var response readmodels.ComponentRelationDTO
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
 
-	assert.Equal(t, relationID, response.Data.ID)
-	assert.Equal(t, comp1, response.Data.SourceComponentID)
-	assert.Equal(t, comp2, response.Data.TargetComponentID)
-	assert.Equal(t, "Triggers", response.Data.RelationType)
-	assert.NotNil(t, response.Data.Links)
+	assert.Equal(t, relationID, response.ID)
+	assert.Equal(t, comp1, response.SourceComponentID)
+	assert.Equal(t, comp2, response.TargetComponentID)
+	assert.Equal(t, "Triggers", response.RelationType)
+	assert.NotNil(t, response.Links)
 }
 
 func TestGetRelationByID_NotFound_Integration(t *testing.T) {

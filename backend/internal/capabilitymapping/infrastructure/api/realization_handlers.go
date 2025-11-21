@@ -49,9 +49,9 @@ type LinkSystemRequest struct {
 // @Param id path string true "Capability ID"
 // @Param system body LinkSystemRequest true "System link data"
 // @Success 201 {object} easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO
-// @Failure 400 {object} api.ErrorResponse
-// @Failure 404 {object} api.ErrorResponse
-// @Failure 500 {object} api.ErrorResponse
+// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id}/systems [post]
 func (h *RealizationHandlers) LinkSystemToCapability(w http.ResponseWriter, r *http.Request) {
 	capabilityID := chi.URLParam(r, "id")
@@ -119,7 +119,8 @@ func (h *RealizationHandlers) LinkSystemToCapability(w http.ResponseWriter, r *h
 	realization.Links = h.hateoas.RealizationLinks(realization.ID, realization.CapabilityID, realization.ComponentID)
 
 	location := fmt.Sprintf("/api/capability-realizations/%s", realization.ID)
-	sharedAPI.RespondCreated(w, location, realization, nil)
+	w.Header().Set("Location", location)
+	sharedAPI.RespondJSON(w, http.StatusCreated, realization)
 }
 
 // GetSystemsByCapability godoc
@@ -128,8 +129,8 @@ func (h *RealizationHandlers) LinkSystemToCapability(w http.ResponseWriter, r *h
 // @Tags capabilities
 // @Produce json
 // @Param id path string true "Capability ID"
-// @Success 200 {array} easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO
-// @Failure 500 {object} api.ErrorResponse
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id}/systems [get]
 func (h *RealizationHandlers) GetSystemsByCapability(w http.ResponseWriter, r *http.Request) {
 	capabilityID := chi.URLParam(r, "id")
@@ -144,7 +145,12 @@ func (h *RealizationHandlers) GetSystemsByCapability(w http.ResponseWriter, r *h
 		realizations[i].Links = h.hateoas.RealizationLinks(realizations[i].ID, realizations[i].CapabilityID, realizations[i].ComponentID)
 	}
 
-	sharedAPI.RespondJSON(w, http.StatusOK, realizations)
+	links := map[string]string{
+		"self":       "/api/v1/capabilities/" + capabilityID + "/systems",
+		"capability": "/api/v1/capabilities/" + capabilityID,
+	}
+
+	sharedAPI.RespondCollection(w, http.StatusOK, realizations, links)
 }
 
 // GetCapabilitiesByComponent godoc
@@ -153,8 +159,8 @@ func (h *RealizationHandlers) GetSystemsByCapability(w http.ResponseWriter, r *h
 // @Tags capability-realizations
 // @Produce json
 // @Param componentId path string true "Component ID"
-// @Success 200 {array} easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO
-// @Failure 500 {object} api.ErrorResponse
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capability-realizations/by-component/{componentId} [get]
 func (h *RealizationHandlers) GetCapabilitiesByComponent(w http.ResponseWriter, r *http.Request) {
 	componentID := chi.URLParam(r, "componentId")
@@ -169,7 +175,12 @@ func (h *RealizationHandlers) GetCapabilitiesByComponent(w http.ResponseWriter, 
 		realizations[i].Links = h.hateoas.RealizationLinks(realizations[i].ID, realizations[i].CapabilityID, realizations[i].ComponentID)
 	}
 
-	sharedAPI.RespondJSON(w, http.StatusOK, realizations)
+	links := map[string]string{
+		"self":      "/api/v1/capability-realizations/by-component/" + componentID,
+		"component": "/api/v1/components/" + componentID,
+	}
+
+	sharedAPI.RespondCollection(w, http.StatusOK, realizations, links)
 }
 
 type UpdateRealizationRequest struct {
@@ -186,9 +197,9 @@ type UpdateRealizationRequest struct {
 // @Param id path string true "Realization ID"
 // @Param realization body UpdateRealizationRequest true "Updated realization data"
 // @Success 200 {object} easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO
-// @Failure 400 {object} api.ErrorResponse
-// @Failure 404 {object} api.ErrorResponse
-// @Failure 500 {object} api.ErrorResponse
+// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capability-realizations/{id} [put]
 func (h *RealizationHandlers) UpdateRealization(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -242,8 +253,8 @@ func (h *RealizationHandlers) UpdateRealization(w http.ResponseWriter, r *http.R
 // @Tags capability-realizations
 // @Param id path string true "Realization ID"
 // @Success 204 "No Content"
-// @Failure 404 {object} api.ErrorResponse
-// @Failure 500 {object} api.ErrorResponse
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capability-realizations/{id} [delete]
 func (h *RealizationHandlers) DeleteRealization(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")

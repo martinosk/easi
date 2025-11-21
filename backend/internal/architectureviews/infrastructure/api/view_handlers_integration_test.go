@@ -128,8 +128,8 @@ func setupViewHandlers(db *sql.DB) (*ViewHandlers, *readmodels.ArchitectureViewR
 	viewRepo := repositories.NewArchitectureViewRepository(eventStore)
 	layoutRepo := repositories.NewViewLayoutRepository(tenantDB)
 	createHandler := handlers.NewCreateViewHandler(viewRepo, readModel)
-	addComponentHandler := handlers.NewAddComponentToViewHandler(viewRepo)
-	updatePositionHandler := handlers.NewUpdateComponentPositionHandler(viewRepo)
+	addComponentHandler := handlers.NewAddComponentToViewHandler(viewRepo, layoutRepo)
+	updatePositionHandler := handlers.NewUpdateComponentPositionHandler(layoutRepo)
 	renameHandler := handlers.NewRenameViewHandler(viewRepo)
 	deleteHandler := handlers.NewDeleteViewHandler(viewRepo)
 	removeComponentHandler := handlers.NewRemoveComponentFromViewHandler(viewRepo)
@@ -304,17 +304,15 @@ func TestGetViewByID_Integration(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response struct {
-		Data readmodels.ArchitectureViewDTO `json:"data"`
-	}
+	var response readmodels.ArchitectureViewDTO
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
 
-	assert.Equal(t, viewID, response.Data.ID)
-	assert.Equal(t, "Test View", response.Data.Name)
-	assert.Equal(t, "Test Description", response.Data.Description)
-	assert.Len(t, response.Data.Components, 2)
-	assert.NotNil(t, response.Data.Links)
+	assert.Equal(t, viewID, response.ID)
+	assert.Equal(t, "Test View", response.Name)
+	assert.Equal(t, "Test Description", response.Description)
+	assert.Len(t, response.Components, 2)
+	assert.NotNil(t, response.Links)
 }
 
 func TestGetViewByID_NotFound_Integration(t *testing.T) {
@@ -470,16 +468,18 @@ func TestUpdateComponentPosition_Integration(t *testing.T) {
 	viewHandlers.UpdateComponentPosition(w, req)
 
 	// Assert HTTP response
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, http.StatusNoContent, w.Code)
 
-	// Verify event was created
-	var count int
+	// Verify position was updated in the database
+	testCtx.setTenantContext(t)
+	var x, y float64
 	err = testCtx.db.QueryRow(
-		"SELECT COUNT(*) FROM events WHERE aggregate_id = $1 AND event_type = 'ComponentPositionUpdated'",
-		viewID,
-	).Scan(&count)
+		"SELECT x, y FROM view_component_positions WHERE view_id = $1 AND component_id = $2",
+		viewID, componentID,
+	).Scan(&x, &y)
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, count, 1, "At least one ComponentPositionUpdated event should be created")
+	assert.Equal(t, 300.0, x, "X position should be updated to 300.0")
+	assert.Equal(t, 400.0, y, "Y position should be updated to 400.0")
 }
 
 func TestAddComponentToView_ViewNotFound_Integration(t *testing.T) {
@@ -574,7 +574,7 @@ func TestSetDefaultView_Integration(t *testing.T) {
 	rctx1.URLParams.Add("id", view1ID)
 	setView1DefaultReq = setView1DefaultReq.WithContext(context.WithValue(setView1DefaultReq.Context(), chi.RouteCtxKey, rctx1))
 	viewHandlers.SetDefaultView(setView1DefaultW, setView1DefaultReq)
-	require.Equal(t, http.StatusOK, setView1DefaultW.Code)
+	require.Equal(t, http.StatusNoContent, setView1DefaultW.Code)
 
 	// Verify view 1 is now default
 	defaultView, err := readModel.GetDefaultView(tenantContext())
@@ -594,7 +594,7 @@ func TestSetDefaultView_Integration(t *testing.T) {
 	viewHandlers.SetDefaultView(setDefaultW, setDefaultReq)
 
 	// Assert HTTP response
-	assert.Equal(t, http.StatusOK, setDefaultW.Code)
+	assert.Equal(t, http.StatusNoContent, setDefaultW.Code)
 
 	// Verify that view 2 is now the default
 	defaultView, err = readModel.GetDefaultView(tenantContext())

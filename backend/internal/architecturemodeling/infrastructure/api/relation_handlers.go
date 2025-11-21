@@ -221,7 +221,7 @@ func (h *RelationHandlers) GetRelationByID(w http.ResponseWriter, r *http.Reques
 // @Tags relations
 // @Produce json
 // @Param componentId path string true "Component ID"
-// @Success 200 {array} readmodels.ComponentRelationDTO
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /relations/from/{componentId} [get]
 func (h *RelationHandlers) GetRelationsFromComponent(w http.ResponseWriter, r *http.Request) {
@@ -238,7 +238,12 @@ func (h *RelationHandlers) GetRelationsFromComponent(w http.ResponseWriter, r *h
 		relations[i].Links = h.hateoas.RelationLinks(relations[i].ID)
 	}
 
-	sharedAPI.RespondJSON(w, http.StatusOK, relations)
+	links := map[string]string{
+		"self":      "/api/v1/relations/from/" + componentID,
+		"component": "/api/v1/components/" + componentID,
+	}
+
+	sharedAPI.RespondCollection(w, http.StatusOK, relations, links)
 }
 
 // GetRelationsToComponent godoc
@@ -247,7 +252,7 @@ func (h *RelationHandlers) GetRelationsFromComponent(w http.ResponseWriter, r *h
 // @Tags relations
 // @Produce json
 // @Param componentId path string true "Component ID"
-// @Success 200 {array} readmodels.ComponentRelationDTO
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /relations/to/{componentId} [get]
 func (h *RelationHandlers) GetRelationsToComponent(w http.ResponseWriter, r *http.Request) {
@@ -264,7 +269,12 @@ func (h *RelationHandlers) GetRelationsToComponent(w http.ResponseWriter, r *htt
 		relations[i].Links = h.hateoas.RelationLinks(relations[i].ID)
 	}
 
-	sharedAPI.RespondJSON(w, http.StatusOK, relations)
+	links := map[string]string{
+		"self":      "/api/v1/relations/to/" + componentID,
+		"component": "/api/v1/components/" + componentID,
+	}
+
+	sharedAPI.RespondCollection(w, http.StatusOK, relations, links)
 }
 
 // UpdateComponentRelation godoc

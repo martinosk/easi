@@ -159,7 +159,11 @@ func (h *ViewHandlers) GetAllViews(w http.ResponseWriter, r *http.Request) {
 		views[i].Links = h.hateoas.ViewLinks(views[i].ID)
 	}
 
-	sharedAPI.RespondJSON(w, http.StatusOK, views)
+	links := map[string]string{
+		"self": "/api/v1/views",
+	}
+
+	sharedAPI.RespondCollection(w, http.StatusOK, views, links)
 }
 
 // GetViewByID godoc
@@ -200,7 +204,7 @@ func (h *ViewHandlers) GetViewByID(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "View ID"
 // @Param component body AddComponentRequest true "Component data"
-// @Success 201 {object} sharedAPI.SuccessResponse
+// @Success 201
 // @Failure 400 {object} sharedAPI.ErrorResponse
 // @Failure 404 {object} sharedAPI.ErrorResponse
 // @Failure 409 {object} sharedAPI.ErrorResponse "Component already in view"
@@ -244,7 +248,7 @@ func (h *ViewHandlers) AddComponentToView(w http.ResponseWriter, r *http.Request
 // @Param id path string true "View ID"
 // @Param componentId path string true "Component ID"
 // @Param position body UpdatePositionRequest true "Position data"
-// @Success 200 {object} sharedAPI.SuccessResponse
+// @Success 204
 // @Failure 400 {object} sharedAPI.ErrorResponse
 // @Failure 404 {object} sharedAPI.ErrorResponse "View or component not found"
 // @Failure 500 {object} sharedAPI.ErrorResponse
@@ -315,7 +319,7 @@ func (h *ViewHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Re
 // @Produce json
 // @Param id path string true "View ID"
 // @Param view body RenameViewRequest true "New view name"
-// @Success 200 {object} sharedAPI.SuccessResponse
+// @Success 204
 // @Failure 400 {object} sharedAPI.ErrorResponse
 // @Failure 404 {object} sharedAPI.ErrorResponse
 // @Failure 500 {object} sharedAPI.ErrorResponse
@@ -415,7 +419,7 @@ func (h *ViewHandlers) RemoveComponentFromView(w http.ResponseWriter, r *http.Re
 // @Tags views
 // @Produce json
 // @Param id path string true "View ID"
-// @Success 200 {object} sharedAPI.SuccessResponse
+// @Success 204
 // @Failure 404 {object} sharedAPI.ErrorResponse
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/default [put]

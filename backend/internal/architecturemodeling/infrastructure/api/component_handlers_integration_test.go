@@ -251,16 +251,14 @@ func TestGetComponentByID_Integration(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response struct {
-		Data readmodels.ApplicationComponentDTO `json:"data"`
-	}
+	var response readmodels.ApplicationComponentDTO
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
 
-	assert.Equal(t, componentID, response.Data.ID)
-	assert.Equal(t, "Test Service", response.Data.Name)
-	assert.Equal(t, "Test Description", response.Data.Description)
-	assert.NotNil(t, response.Data.Links)
+	assert.Equal(t, componentID, response.ID)
+	assert.Equal(t, "Test Service", response.Name)
+	assert.Equal(t, "Test Description", response.Description)
+	assert.NotNil(t, response.Links)
 }
 
 func TestGetComponentByID_NotFound_Integration(t *testing.T) {
