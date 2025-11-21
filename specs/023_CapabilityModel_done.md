@@ -87,6 +87,6 @@ New bounded context: **CapabilityMapping** (core domain)
 - [x] Specification ready
 - [x] Implementation done
 - [x] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
+- [x] Integration tests implemented if relevant
 - [x] API Documentation updated in OpenAPI specification
-- [ ] User sign-off
+- [x] User sign-off

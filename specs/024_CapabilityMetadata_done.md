@@ -83,7 +83,7 @@ Lists tags.
 ## Checklist
 - [x] Specification ready
 - [x] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
 - [x] API Documentation updated in OpenAPI specification
-- [ ] User sign-off
+- [x] User sign-off
