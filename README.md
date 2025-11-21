@@ -35,14 +35,6 @@ The system uses event sourcing for core aggregates, REST Level 3 APIs with HATEO
 - **Capability** - Business capabilities with hierarchical structure (L1-L4)
 - **CapabilityDependency** - Dependencies between capabilities (Requires, Enables, Supports)
 
-**Features:**
-- Event-sourced domain models with read model projections
-- Multi-tenant data isolation
-- REST Level 3 APIs with HATEOAS links
-- Capability hierarchy modeling (4 levels)
-- Capability metadata (strategy alignment, maturity, ownership, experts, tags)
-- Capability dependency tracking
-
 ### Bounded contexts
 #### ArchitectureModeling
 This is the core domain that supports and enforces best practices for architecture modelling and documentation.
@@ -56,28 +48,10 @@ It is considered supporting, because the API and event first approach of Easi al
 #### CapabilityMapping
 Core domain for enterprise capability modeling. Uses CQRS with event sourcing.
 
-**Implemented (Specs 023-025):**
-- **Capability Hierarchy** - 4-level capability model (L1: Domain, L2: Area, L3: Capability, L4: Sub-capability)
-- **Capability Metadata** - Strategy pillars, maturity levels, ownership model, experts, tags
-- **Capability Dependencies** - Model relationships between capabilities (Requires, Enables, Supports)
-
 **API Endpoints:**
-- `POST/GET/PUT /api/capabilities` - Manage capabilities
-- `GET /api/capabilities/{id}/children` - Get child capabilities
-- `PUT /api/capabilities/{id}/metadata` - Update metadata
-- `POST /api/capabilities/{id}/experts` - Add experts
-- `POST /api/capabilities/{id}/tags` - Add tags
-- `POST/GET/DELETE /api/capability-dependencies` - Manage dependencies
-- `GET /api/capabilities/{id}/dependencies/outgoing` - Dependencies this capability has
-- `GET /api/capabilities/{id}/dependencies/incoming` - Dependencies on this capability
-
-**Planned (Specs 026-029):**
-- System realization links to architecture components
-- Custom perspectives and viewpoints
-- Capability versioning
+ OpenAPI spec is available at backend/docs/docs.go and served on the backend at http://localhost:8080/swagger/index.html
 
 ### ArchitectureAnalysis
-Core domain that allows the gathering and analysis of architecture knowledge. It supports the architecture modelling process.
 
 ┌─────────────────────────────────────────────────────────┐
 │                      Browser                            │
@@ -136,14 +110,9 @@ Core domain that allows the gathering and analysis of architecture knowledge. It
 │  └────────────────────────────────────────────────┘  │
 └───────────────────────────────────────────────────────┘
 
-
-### Structure
-- Bounded contexts organize the codebase
-- RESTful APIs (maturity level 3)
-
 ## Tech Stack
 - **Backend**: Go
-- **Frontend**: React, TypeScript
+- **Frontend**: React, TypeScript, Vite, React Flow
 - **API**: OpenAPI specifications
 - **Containers**: Docker/Podman
 
@@ -158,28 +127,47 @@ Core domain that allows the gathering and analysis of architecture knowledge. It
 ./setup-local-env.sh
 
 # Start database and services
-docker compose up -d
+docker-compose up -d
+# or if using Podman
+podman compose up -d
 ```
-
-### Environment Configuration
-The project uses environment variables for configuration. On first setup, run `./setup-local-env.sh` to create a `.env` file with default development values.
 
 ## Database
 PostgreSQL 16
 
 ## Testing
+### Running backend unit tests
+```bash
+cd backend
+make build
+make test
+```
+
+### Running backend integration tests
+```bash
+# Start db and run db migration
+podman compose up -d
+cd backend
+# build and test backend
+make build
+./test-integration.sh
+```
+
+### Running frontend unit tests
+```bash
+cd frontend
+npm run test
+```
 
 ### Running E2E Tests
 ```bash
 # Start the test environment
-docker compose -f docker-compose.e2e.yml up -d
+podman compose -f docker-compose.e2e.yml up -d
 
 # Run the e2e tests
 cd frontend
 npm run test:e2e
 
 # Clean up
-docker compose -f docker-compose.e2e.yml down
+podman compose -f docker-compose.e2e.yml down
 ```
-
-**Note**: Some tests may fail if the database is not clean between runs. This will be addressed in a future update when tests run as isolated tenants.
