@@ -82,7 +82,7 @@ func (ctx *testContext) createTestCapability(t *testing.T, id, name, level strin
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
 		"INSERT INTO capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
-		id, name, "", level, testTenantID(), "Initial", "Active",
+		id, name, "", level, testTenantID(), "Genesis", "Active",
 	)
 	require.NoError(t, err)
 	ctx.trackID(id)
@@ -373,14 +373,14 @@ func TestGetCapabilityChildren_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	_, err := testCtx.db.Exec(
 		"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
-		childID1, "Child 1", "", "L2", parentID, testTenantID(), "Initial", "Active",
+		childID1, "Child 1", "", "L2", parentID, testTenantID(), "Genesis", "Active",
 	)
 	require.NoError(t, err)
 	testCtx.trackID(childID1)
 
 	_, err = testCtx.db.Exec(
 		"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
-		childID2, "Child 2", "", "L2", parentID, testTenantID(), "Initial", "Active",
+		childID2, "Child 2", "", "L2", parentID, testTenantID(), "Genesis", "Active",
 	)
 	require.NoError(t, err)
 	testCtx.trackID(childID2)

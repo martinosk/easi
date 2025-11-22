@@ -51,7 +51,7 @@ func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
 	metadataReqBody := UpdateCapabilityMetadataRequest{
 		StrategyPillar: "Transform",
 		PillarWeight:   75,
-		MaturityLevel:  "Developing",
+		MaturityLevel:  "Custom Build",
 		OwnershipModel: "TribeOwned",
 		PrimaryOwner:   "Platform Tribe - John Doe",
 		EAOwner:        "Jane Smith",
@@ -82,7 +82,7 @@ func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
 	).Scan(&metadataEventData)
 	require.NoError(t, err)
 	assert.Contains(t, metadataEventData, "Transform")
-	assert.Contains(t, metadataEventData, "Developing")
+	assert.Contains(t, metadataEventData, "Custom Build")
 	assert.Contains(t, metadataEventData, "TribeOwned")
 
 	time.Sleep(100 * time.Millisecond)
@@ -96,7 +96,7 @@ func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Transform", strategyPillar)
 	assert.Equal(t, 75, pillarWeight)
-	assert.Equal(t, "Developing", maturityLevel)
+	assert.Equal(t, "Custom Build", maturityLevel)
 	assert.Equal(t, "TribeOwned", ownershipModel)
 	assert.Equal(t, "Active", status)
 }
@@ -133,7 +133,7 @@ func TestUpdateCapabilityMetadata_InvalidPillarWeight_Integration(t *testing.T) 
 
 	metadataReqBody := UpdateCapabilityMetadataRequest{
 		PillarWeight:  150,
-		MaturityLevel: "Initial",
+		MaturityLevel: "Genesis",
 		Status:        "Active",
 	}
 	metadataBody, _ := json.Marshal(metadataReqBody)
@@ -390,7 +390,7 @@ func TestUpdateCapabilityMetadata_NotFound_Integration(t *testing.T) {
 	nonExistentID := fmt.Sprintf("non-existent-%d", time.Now().UnixNano())
 
 	metadataReqBody := UpdateCapabilityMetadataRequest{
-		MaturityLevel: "Initial",
+		MaturityLevel: "Genesis",
 		Status:        "Active",
 	}
 	metadataBody, _ := json.Marshal(metadataReqBody)

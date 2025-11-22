@@ -241,3 +241,10 @@ export interface UpdateRealizationRequest {
   realizationLevel: RealizationLevel;
   notes?: string;
 }
+
+export interface MaturityLevelOption {
+  value: string;
+  numericValue: number;
+}
+
+export type MaturityLevelsResponse = CollectionResponse<MaturityLevelOption>;

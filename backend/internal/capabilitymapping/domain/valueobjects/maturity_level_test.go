@@ -12,11 +12,10 @@ func TestNewMaturityLevel_ValidValues(t *testing.T) {
 		input    string
 		expected MaturityLevel
 	}{
-		{"Initial", "Initial", MaturityInitial},
-		{"Developing", "Developing", MaturityDeveloping},
-		{"Defined", "Defined", MaturityDefined},
-		{"Managed", "Managed", MaturityManaged},
-		{"Optimizing", "Optimizing", MaturityOptimizing},
+		{"Genesis", "Genesis", MaturityGenesis},
+		{"Custom Build", "Custom Build", MaturityCustomBuild},
+		{"Product", "Product", MaturityProduct},
+		{"Commodity", "Commodity", MaturityCommodity},
 	}
 
 	for _, tt := range tests {
@@ -29,15 +28,15 @@ func TestNewMaturityLevel_ValidValues(t *testing.T) {
 }
 
 func TestNewMaturityLevel_TrimSpace(t *testing.T) {
-	level, err := NewMaturityLevel("  Managed  ")
+	level, err := NewMaturityLevel("  Product  ")
 	assert.NoError(t, err)
-	assert.Equal(t, MaturityManaged, level)
+	assert.Equal(t, MaturityProduct, level)
 }
 
 func TestNewMaturityLevel_Empty(t *testing.T) {
 	level, err := NewMaturityLevel("")
 	assert.NoError(t, err)
-	assert.Equal(t, MaturityInitial, level)
+	assert.Equal(t, MaturityGenesis, level)
 }
 
 func TestNewMaturityLevel_InvalidValue(t *testing.T) {
@@ -47,13 +46,13 @@ func TestNewMaturityLevel_InvalidValue(t *testing.T) {
 }
 
 func TestMaturityLevel_Value(t *testing.T) {
-	level := MaturityDefined
-	assert.Equal(t, "Defined", level.Value())
+	level := MaturityProduct
+	assert.Equal(t, "Product", level.Value())
 }
 
 func TestMaturityLevel_String(t *testing.T) {
-	level := MaturityOptimizing
-	assert.Equal(t, "Optimizing", level.String())
+	level := MaturityCommodity
+	assert.Equal(t, "Commodity", level.String())
 }
 
 func TestMaturityLevel_NumericValue(t *testing.T) {
@@ -61,11 +60,10 @@ func TestMaturityLevel_NumericValue(t *testing.T) {
 		level    MaturityLevel
 		expected int
 	}{
-		{MaturityInitial, 1},
-		{MaturityDeveloping, 2},
-		{MaturityDefined, 3},
-		{MaturityManaged, 4},
-		{MaturityOptimizing, 5},
+		{MaturityGenesis, 1},
+		{MaturityCustomBuild, 2},
+		{MaturityProduct, 3},
+		{MaturityCommodity, 4},
 	}
 
 	for _, tt := range tests {
@@ -76,9 +74,9 @@ func TestMaturityLevel_NumericValue(t *testing.T) {
 }
 
 func TestMaturityLevel_Equals(t *testing.T) {
-	level1 := MaturityManaged
-	level2 := MaturityManaged
-	level3 := MaturityDefined
+	level1 := MaturityProduct
+	level2 := MaturityProduct
+	level3 := MaturityGenesis
 
 	assert.True(t, level1.Equals(level2))
 	assert.False(t, level1.Equals(level3))

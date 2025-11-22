@@ -1,6 +1,7 @@
 import React from 'react';
 import { CreateComponentDialog } from './CreateComponentDialog';
 import { CreateRelationDialog } from './CreateRelationDialog';
+import { CreateCapabilityDialog } from './CreateCapabilityDialog';
 import { EditComponentDialog } from './EditComponentDialog';
 import { EditRelationDialog } from './EditRelationDialog';
 import type { Component, Relation } from '../api/types';
@@ -26,6 +27,10 @@ interface DialogManagerProps {
     onClose: () => void;
     relation: Relation | null;
   };
+  capabilityDialog: {
+    isOpen: boolean;
+    onClose: () => void;
+  };
 }
 
 export const DialogManager: React.FC<DialogManagerProps> = ({
@@ -33,6 +38,7 @@ export const DialogManager: React.FC<DialogManagerProps> = ({
   relationDialog,
   editComponentDialog,
   editRelationDialog,
+  capabilityDialog,
 }) => {
   return (
     <>
@@ -58,6 +64,11 @@ export const DialogManager: React.FC<DialogManagerProps> = ({
         isOpen={editRelationDialog.isOpen}
         onClose={editRelationDialog.onClose}
         relation={editRelationDialog.relation}
+      />
+
+      <CreateCapabilityDialog
+        isOpen={capabilityDialog.isOpen}
+        onClose={capabilityDialog.onClose}
       />
     </>
   );

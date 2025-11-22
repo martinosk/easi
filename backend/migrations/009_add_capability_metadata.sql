@@ -16,7 +16,7 @@ ADD COLUMN IF NOT EXISTS pillar_weight INT CHECK (pillar_weight >= 0 AND pillar_
 
 -- Maturity tracking
 ALTER TABLE capabilities
-ADD COLUMN IF NOT EXISTS maturity_level VARCHAR(50) NOT NULL DEFAULT 'Initial' CHECK (maturity_level IN ('Initial', 'Developing', 'Defined', 'Managed', 'Optimizing'));
+ADD COLUMN IF NOT EXISTS maturity_level VARCHAR(50) NOT NULL DEFAULT 'Genesis';
 
 -- Ownership model
 ALTER TABLE capabilities

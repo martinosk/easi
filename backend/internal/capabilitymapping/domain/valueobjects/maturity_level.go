@@ -8,27 +8,26 @@ import (
 )
 
 var (
-	ErrInvalidMaturityLevel = errors.New("invalid maturity level: must be Initial, Developing, Defined, Managed, or Optimizing")
+	ErrInvalidMaturityLevel = errors.New("invalid maturity level: must be Genesis, Custom Build, Product, or Commodity")
 )
 
 type MaturityLevel string
 
 const (
-	MaturityInitial    MaturityLevel = "Initial"
-	MaturityDeveloping MaturityLevel = "Developing"
-	MaturityDefined    MaturityLevel = "Defined"
-	MaturityManaged    MaturityLevel = "Managed"
-	MaturityOptimizing MaturityLevel = "Optimizing"
+	MaturityGenesis     MaturityLevel = "Genesis"
+	MaturityCustomBuild MaturityLevel = "Custom Build"
+	MaturityProduct     MaturityLevel = "Product"
+	MaturityCommodity   MaturityLevel = "Commodity"
 )
 
 func NewMaturityLevel(value string) (MaturityLevel, error) {
 	normalized := strings.TrimSpace(value)
 	if normalized == "" {
-		return MaturityInitial, nil
+		return MaturityGenesis, nil
 	}
 
 	switch MaturityLevel(normalized) {
-	case MaturityInitial, MaturityDeveloping, MaturityDefined, MaturityManaged, MaturityOptimizing:
+	case MaturityGenesis, MaturityCustomBuild, MaturityProduct, MaturityCommodity:
 		return MaturityLevel(normalized), nil
 	default:
 		return "", ErrInvalidMaturityLevel
@@ -52,16 +51,14 @@ func (m MaturityLevel) String() string {
 
 func (m MaturityLevel) NumericValue() int {
 	switch m {
-	case MaturityInitial:
+	case MaturityGenesis:
 		return 1
-	case MaturityDeveloping:
+	case MaturityCustomBuild:
 		return 2
-	case MaturityDefined:
+	case MaturityProduct:
 		return 3
-	case MaturityManaged:
+	case MaturityCommodity:
 		return 4
-	case MaturityOptimizing:
-		return 5
 	default:
 		return 0
 	}

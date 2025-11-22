@@ -80,8 +80,10 @@ func SetupCapabilityMappingRoutes(
 	capabilityHandlers := NewCapabilityHandlers(commandBus, capabilityReadModel, hateoas)
 	dependencyHandlers := NewDependencyHandlers(commandBus, dependencyReadModel, hateoas)
 	realizationHandlers := NewRealizationHandlers(commandBus, realizationReadModel, hateoas)
+	maturityLevelHandlers := NewMaturityLevelHandlers()
 
 	r.Route("/capabilities", func(r chi.Router) {
+		r.Get("/metadata/maturity-levels", maturityLevelHandlers.GetMaturityLevels)
 		r.Post("/", capabilityHandlers.CreateCapability)
 		r.Get("/", capabilityHandlers.GetAllCapabilities)
 		r.Get("/{id}", capabilityHandlers.GetCapabilityByID)

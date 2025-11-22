@@ -32,7 +32,7 @@ As a user, I need to create new capabilities directly from the sidebar so that I
 │  [Active              ▼]            │
 │                                     │
 │  Maturity Level:                    │
-│  [Initial             ▼]            │
+│  [Genesis             ▼]            │
 │                                     │
 │           [Cancel]  [Create]        │
 └─────────────────────────────────────┘
@@ -52,7 +52,7 @@ As a user, I need to create new capabilities directly from the sidebar so that I
 | Name | Yes | 1-200 characters | - |
 | Description | No | Max 1000 characters | - |
 | Status | Yes | Enum: Active, Planned, Deprecated, Retired | Active |
-| Maturity Level | Yes | Enum: Initial, Developing, Established, Optimized | Initial |
+| Maturity Level | Yes | Enum: Genesis, Custom Build, Product, Commodity | Genesis |
 
 ## User Flow
 
@@ -61,7 +61,7 @@ As a user, I need to create new capabilities directly from the sidebar so that I
 3. User enters capability name (required)
 4. User optionally enters description
 5. User selects status (defaults to Active)
-6. User selects maturity level (defaults to Initial)
+6. User selects maturity level (defaults to Genesis)
 7. User clicks "Create"
 8. System creates capability as L1 (root)
 9. System updates metadata (status, maturity)
@@ -77,23 +77,23 @@ As a user, I need to create new capabilities directly from the sidebar so that I
 - "Creating..." text shown during submission
 
 ## Acceptance Criteria
-- [ ] "+ Add" button appears next to "Capabilities" header in sidebar
-- [ ] Clicking button opens CreateCapabilityDialog
-- [ ] Dialog contains all fields: name, description, status, maturity level
-- [ ] Name field is required and validated (1-200 chars)
-- [ ] Description is optional and validated (max 1000 chars)
-- [ ] Status dropdown has valid options with Active as default
-- [ ] Maturity level dropdown has valid options with Initial as default
-- [ ] Form validation shows errors inline
-- [ ] Successful creation refreshes capability tree
-- [ ] New capability appears in tree as L1
-- [ ] Dialog closes after successful creation
-- [ ] Cancel button closes dialog without creating
-- [ ] Backend errors are displayed to user
+- [x] "+ Add" button appears next to "Capabilities" header in sidebar
+- [x] Clicking button opens CreateCapabilityDialog
+- [x] Dialog contains all fields: name, description, status, maturity level
+- [x] Name field is required and validated (1-200 chars)
+- [x] Description is optional and validated (max 1000 chars)
+- [x] Status dropdown has valid options with Active as default
+- [x] Maturity level dropdown has valid options with Genesis as default
+- [x] Form validation shows errors inline
+- [x] Successful creation refreshes capability tree
+- [x] New capability appears in tree as L1
+- [x] Dialog closes after successful creation
+- [x] Cancel button closes dialog without creating
+- [x] Backend errors are displayed to user
 
 ## Checklist
-- [ ] Specification ready
-- [ ] Implementation done
+- [x] Specification ready
+- [x] Implementation done
 - [ ] Unit tests implemented and passing
 - [ ] Integration tests implemented if relevant
 - [ ] Documentation updated if needed

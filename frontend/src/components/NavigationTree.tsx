@@ -22,12 +22,11 @@ const getPersistedSet = (key: string): Set<string> => {
 
 const getMaturityClass = (maturityLevel?: string): string => {
   switch (maturityLevel?.toLowerCase()) {
-    case 'initial': return 'maturity-initial';
-    case 'developing': return 'maturity-developing';
-    case 'defined': return 'maturity-defined';
-    case 'managed': return 'maturity-managed';
-    case 'optimizing': return 'maturity-optimizing';
-    default: return 'maturity-initial';
+    case 'genesis': return 'maturity-genesis';
+    case 'custom build': return 'maturity-custom-build';
+    case 'product': return 'maturity-product';
+    case 'commodity': return 'maturity-commodity';
+    default: return 'maturity-genesis';
   }
 };
 
@@ -75,6 +74,7 @@ interface NavigationTreeProps {
   onViewSelect?: (viewId: string) => void;
   onAddComponent?: () => void;
   onCapabilitySelect?: (capabilityId: string) => void;
+  onAddCapability?: () => void;
 }
 
 interface ViewContextMenuState {
@@ -103,6 +103,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   onViewSelect,
   onAddComponent,
   onCapabilitySelect,
+  onAddCapability,
 }) => {
   const components = useAppStore((state) => state.components);
   const currentView = useAppStore((state) => state.currentView);
@@ -566,6 +567,14 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                   <span className="category-icon">{isCapabilitiesExpanded ? '▼' : '▶'}</span>
                   <span className="category-label">Capabilities</span>
                   <span className="category-count">{capabilities.length}</span>
+                </button>
+                <button
+                  className="add-view-btn"
+                  onClick={onAddCapability}
+                  title="Create new capability"
+                  data-testid="create-capability-button"
+                >
+                  +
                 </button>
               </div>
 

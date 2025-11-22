@@ -20,6 +20,7 @@ function App() {
   const editComponentDialog = useDialogState();
   const relationDialog = useRelationDialog();
   const editRelationDialog = useDialogState();
+  const capabilityDialog = useDialogState();
 
   // Store selectors
   const loadData = useAppStore((state) => state.loadData);
@@ -75,6 +76,7 @@ function App() {
         selectedNodeId={selectedNodeId}
         selectedEdgeId={selectedEdgeId}
         onAddComponent={componentDialog.open}
+        onAddCapability={capabilityDialog.open}
         onConnect={relationDialog.open}
         onComponentDrop={addComponentToView}
         onComponentSelect={navigateToComponent}
@@ -106,6 +108,10 @@ function App() {
           isOpen: editRelationDialog.isOpen,
           onClose: editRelationDialog.close,
           relation: selectedRelation || null,
+        }}
+        capabilityDialog={{
+          isOpen: capabilityDialog.isOpen,
+          onClose: capabilityDialog.close,
         }}
       />
     </AppLayout>

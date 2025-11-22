@@ -26,6 +26,7 @@ import type {
   CreateCapabilityDependencyRequest,
   LinkSystemToCapabilityRequest,
   UpdateRealizationRequest,
+  MaturityLevelsResponse,
 } from './types';
 import { ApiError } from './types';
 
@@ -286,6 +287,13 @@ class ApiClient {
 
   async deleteRealization(id: string): Promise<void> {
     await this.client.delete(`/api/v1/capability-realizations/${id}`);
+  }
+
+  async getMaturityLevels(): Promise<string[]> {
+    const response = await this.client.get<MaturityLevelsResponse>(
+      '/api/v1/capabilities/metadata/maturity-levels'
+    );
+    return response.data.data.map((level) => level.value);
   }
 }
 

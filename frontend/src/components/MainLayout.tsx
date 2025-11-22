@@ -11,6 +11,7 @@ interface MainLayoutProps {
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
   onAddComponent: () => void;
+  onAddCapability: () => void;
   onConnect: (source: string, target: string) => void;
   onComponentDrop: (componentId: string, x: number, y: number) => Promise<void>;
   onComponentSelect: (componentId: string) => void;
@@ -25,6 +26,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   selectedNodeId,
   selectedEdgeId,
   onAddComponent,
+  onAddCapability,
   onConnect,
   onComponentDrop,
   onComponentSelect,
@@ -42,6 +44,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           onComponentSelect={onComponentSelect}
           onViewSelect={onViewSelect}
           onAddComponent={onAddComponent}
+          onAddCapability={onAddCapability}
         />
 
         <div className="canvas-section">

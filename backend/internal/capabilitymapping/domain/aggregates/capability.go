@@ -157,7 +157,7 @@ func (c *Capability) apply(event domain.DomainEvent) {
 		c.level, _ = valueobjects.NewCapabilityLevel(e.Level)
 		c.createdAt = e.CreatedAt
 		c.status = valueobjects.StatusActive
-		c.maturityLevel = valueobjects.MaturityInitial
+		c.maturityLevel = valueobjects.MaturityGenesis
 	case events.CapabilityUpdated:
 		c.name, _ = valueobjects.NewCapabilityName(e.Name)
 		c.description = valueobjects.NewDescription(e.Description)
