@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -138,51 +139,61 @@ func (h *RelationHandlers) CreateComponentRelation(w http.ResponseWriter, r *htt
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /relations [get]
 func (h *RelationHandlers) GetAllRelations(w http.ResponseWriter, r *http.Request) {
-	// Parse pagination parameters
 	params := sharedAPI.ParsePaginationParams(r)
 
-	// Decode cursor if present
-	var afterCursor string
-	var afterTimestamp int64
-	if params.After != "" {
-		cursor, err := sharedAPI.DecodeCursor(params.After)
-		if err != nil {
-			sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid pagination cursor")
-			return
-		}
-		if cursor != nil {
-			afterCursor = cursor.ID
-			afterTimestamp = cursor.Timestamp
-		}
+	afterCursor, afterTimestamp, err := h.decodePaginationCursor(params.After)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid pagination cursor")
+		return
 	}
 
-	// Get paginated relations
 	relations, hasMore, err := h.readModel.GetAllPaginated(r.Context(), params.Limit, afterCursor, afterTimestamp)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve relations")
 		return
 	}
 
-	// Add HATEOAS links to each relation
+	h.addLinksToRelations(relations)
+
+	nextCursor := h.buildNextCursor(relations, hasMore)
+	selfLink := h.buildSelfLink("/api/v1/relations", params)
+
+	sharedAPI.RespondPaginated(w, http.StatusOK, relations, hasMore, nextCursor, params.Limit, selfLink, "/api/v1/relations")
+}
+
+func (h *RelationHandlers) decodePaginationCursor(after string) (string, int64, error) {
+	if after == "" {
+		return "", 0, nil
+	}
+	cursor, err := sharedAPI.DecodeCursor(after)
+	if err != nil {
+		return "", 0, err
+	}
+	if cursor == nil {
+		return "", 0, nil
+	}
+	return cursor.ID, cursor.Timestamp, nil
+}
+
+func (h *RelationHandlers) buildNextCursor(relations []readmodels.ComponentRelationDTO, hasMore bool) string {
+	if !hasMore || len(relations) == 0 {
+		return ""
+	}
+	lastRelation := relations[len(relations)-1]
+	return sharedAPI.EncodeCursor(lastRelation.ID, lastRelation.CreatedAt)
+}
+
+func (h *RelationHandlers) buildSelfLink(basePath string, params sharedAPI.PaginationParams) string {
+	if params.After == "" {
+		return basePath
+	}
+	return fmt.Sprintf("%s?after=%s&limit=%d", basePath, params.After, params.Limit)
+}
+
+func (h *RelationHandlers) addLinksToRelations(relations []readmodels.ComponentRelationDTO) {
 	for i := range relations {
 		relations[i].Links = h.hateoas.RelationLinks(relations[i].ID)
 	}
-
-	// Generate next cursor if there are more results
-	var nextCursor string
-	if hasMore && len(relations) > 0 {
-		lastRelation := relations[len(relations)-1]
-		nextCursor = sharedAPI.EncodeCursor(lastRelation.ID, lastRelation.CreatedAt)
-	}
-
-	// Build self link
-	selfLink := "/api/v1/relations"
-	if params.After != "" {
-		selfLink = fmt.Sprintf("/api/v1/relations?after=%s&limit=%d", params.After, params.Limit)
-	}
-
-	// Respond with paginated data
-	sharedAPI.RespondPaginated(w, http.StatusOK, relations, hasMore, nextCursor, params.Limit, selfLink, "/api/v1/relations")
 }
 
 // GetRelationByID godoc
@@ -225,25 +236,7 @@ func (h *RelationHandlers) GetRelationByID(w http.ResponseWriter, r *http.Reques
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /relations/from/{componentId} [get]
 func (h *RelationHandlers) GetRelationsFromComponent(w http.ResponseWriter, r *http.Request) {
-	componentID := chi.URLParam(r, "componentId")
-
-	relations, err := h.readModel.GetBySourceID(r.Context(), componentID)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve relations")
-		return
-	}
-
-	// Add HATEOAS links to each relation
-	for i := range relations {
-		relations[i].Links = h.hateoas.RelationLinks(relations[i].ID)
-	}
-
-	links := map[string]string{
-		"self":      "/api/v1/relations/from/" + componentID,
-		"component": "/api/v1/components/" + componentID,
-	}
-
-	sharedAPI.RespondCollection(w, http.StatusOK, relations, links)
+	h.getRelationsByComponent(w, r, "from", h.readModel.GetBySourceID)
 }
 
 // GetRelationsToComponent godoc
@@ -256,21 +249,24 @@ func (h *RelationHandlers) GetRelationsFromComponent(w http.ResponseWriter, r *h
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /relations/to/{componentId} [get]
 func (h *RelationHandlers) GetRelationsToComponent(w http.ResponseWriter, r *http.Request) {
+	h.getRelationsByComponent(w, r, "to", h.readModel.GetByTargetID)
+}
+
+type relationFetcher func(ctx context.Context, componentID string) ([]readmodels.ComponentRelationDTO, error)
+
+func (h *RelationHandlers) getRelationsByComponent(w http.ResponseWriter, r *http.Request, direction string, fetch relationFetcher) {
 	componentID := chi.URLParam(r, "componentId")
 
-	relations, err := h.readModel.GetByTargetID(r.Context(), componentID)
+	relations, err := fetch(r.Context(), componentID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve relations")
 		return
 	}
 
-	// Add HATEOAS links to each relation
-	for i := range relations {
-		relations[i].Links = h.hateoas.RelationLinks(relations[i].ID)
-	}
+	h.addLinksToRelations(relations)
 
 	links := map[string]string{
-		"self":      "/api/v1/relations/to/" + componentID,
+		"self":      fmt.Sprintf("/api/v1/relations/%s/%s", direction, componentID),
 		"component": "/api/v1/components/" + componentID,
 	}
 
