@@ -94,7 +94,7 @@ As a user, I need to create new capabilities directly from the sidebar so that I
 ## Checklist
 - [x] Specification ready
 - [x] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] Documentation updated if needed
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] Documentation updated if needed
 - [ ] User sign-off

@@ -55,13 +55,40 @@ Create a few more components:
 **Option B: Manual (future feature)**
 Currently only drag-to-connect is supported.
 
-### 4. Arrange Components
+### 4. Working with Capabilities
+
+The sidebar includes a **Capabilities** section showing your business capability hierarchy.
+
+**View Capabilities:**
+1. Look for the **Capabilities** section in the left sidebar
+2. Click the expand/collapse arrows to navigate the hierarchy
+3. Capabilities are organized by level (L1, L2, L3, L4)
+4. Color indicators show maturity level
+
+**Create a New Capability:**
+1. Click the **"+"** button next to "Capabilities" in the sidebar
+2. A dialog opens with the following fields:
+   - **Name** (required): 1-200 characters
+   - **Description** (optional): Up to 1000 characters
+   - **Status**: Active (default), Planned, Deprecated, or Retired
+   - **Maturity Level**: Genesis (default), Custom Build, Product, or Commodity
+3. Click **"Create"** to add the capability
+4. New capabilities start at L1 (root level)
+5. The tree automatically refreshes to show your new capability
+
+**Maturity Levels (Wardley Map Evolution):**
+- **Genesis**: Novel, uncertain, rapidly changing
+- **Custom Build**: Understood but requires custom solutions
+- **Product**: Increasingly standardized, product/rental options
+- **Commodity**: Highly standardized, utility services
+
+### 5. Arrange Components
 
 1. Click and drag components to reposition them
 2. Positions are automatically saved
 3. Reload the page - positions persist!
 
-### 5. View Details
+### 6. View Details
 
 **Component Details:**
 1. Click on any component

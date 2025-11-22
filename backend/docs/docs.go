@@ -94,6 +94,41 @@ const docTemplate = `{
                 }
             }
         },
+        "/capabilities/metadata/maturity-levels": {
+            "get": {
+                "description": "Returns the list of valid maturity level options for capabilities based on Wardley mapping evolution stages (Genesis, Custom Build, Product, Commodity)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Get valid maturity levels",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.MaturityLevelDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/capabilities/{id}": {
             "get": {
                 "description": "Retrieves a specific business capability by its ID",
@@ -396,6 +431,62 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO"
                         }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capabilities/{id}/parent": {
+            "patch": {
+                "description": "Changes the parent of a capability and recalculates levels for the entire subtree",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Change capability parent",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New parent data",
+                        "name": "parent",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ChangeCapabilityParentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
                     },
                     "400": {
                         "description": "Bad Request",
@@ -2090,6 +2181,14 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_capabilitymapping_infrastructure_api.ChangeCapabilityParentRequest": {
+            "type": "object",
+            "properties": {
+                "parentId": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_capabilitymapping_infrastructure_api.CreateCapabilityRequest": {
             "type": "object",
             "properties": {
@@ -2135,6 +2234,19 @@ const docTemplate = `{
                 },
                 "realizationLevel": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.MaturityLevelDTO": {
+            "type": "object",
+            "properties": {
+                "numericValue": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "value": {
+                    "type": "string",
+                    "example": "Genesis"
                 }
             }
         },
