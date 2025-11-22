@@ -15,7 +15,20 @@ import type { CapabilityId, DependencyId, RealizationId } from '../types/storeTy
 import apiClient from '../../api/client';
 import { handleApiCall } from '../utils/apiHelpers';
 import toast from 'react-hot-toast';
-import { ApiError } from '../../api/types';
+const updateCapabilityInList = (
+  capabilities: Capability[],
+  id: CapabilityId,
+  updated: Capability
+): Capability[] => capabilities.map((c) => (c.id === id ? updated : c));
+
+const mergeRealizations = (
+  existing: CapabilityRealization[],
+  incoming: CapabilityRealization[]
+): CapabilityRealization[] => {
+  const incomingIds = new Set(incoming.map((r) => r.id));
+  const filtered = existing.filter((r) => !incomingIds.has(r.id));
+  return [...filtered, ...incoming];
+};
 
 export interface CapabilityState {
   capabilities: Capability[];
@@ -80,72 +93,36 @@ export const createCapabilitySlice: StateCreator<
   },
 
   updateCapability: async (id: CapabilityId, data: UpdateCapabilityRequest) => {
-    const { capabilities } = get();
-
     const updatedCapability = await handleApiCall(
       () => apiClient.updateCapability(id, data),
       'Failed to update capability'
     );
-
-    set({
-      capabilities: capabilities.map((c) =>
-        c.id === id ? updatedCapability : c
-      ),
-    });
-
+    set({ capabilities: updateCapabilityInList(get().capabilities, id, updatedCapability) });
     toast.success(`Capability "${data.name}" updated`);
     return updatedCapability;
   },
 
   updateCapabilityMetadata: async (id: CapabilityId, data: UpdateCapabilityMetadataRequest) => {
-    const { capabilities } = get();
-
     const updatedCapability = await handleApiCall(
       () => apiClient.updateCapabilityMetadata(id, data),
       'Failed to update capability metadata'
     );
-
-    set({
-      capabilities: capabilities.map((c) =>
-        c.id === id ? updatedCapability : c
-      ),
-    });
-
+    set({ capabilities: updateCapabilityInList(get().capabilities, id, updatedCapability) });
     toast.success('Capability metadata updated');
     return updatedCapability;
   },
 
   addCapabilityExpert: async (id: CapabilityId, data: AddCapabilityExpertRequest) => {
-    await handleApiCall(
-      () => apiClient.addCapabilityExpert(id, data),
-      'Failed to add expert'
-    );
-
+    await handleApiCall(() => apiClient.addCapabilityExpert(id, data), 'Failed to add expert');
     const updatedCapability = await apiClient.getCapabilityById(id);
-    const { capabilities } = get();
-    set({
-      capabilities: capabilities.map((c) =>
-        c.id === id ? updatedCapability : c
-      ),
-    });
-
+    set({ capabilities: updateCapabilityInList(get().capabilities, id, updatedCapability) });
     toast.success(`Expert "${data.expertName}" added`);
   },
 
   addCapabilityTag: async (id: CapabilityId, tag: string) => {
-    await handleApiCall(
-      () => apiClient.addCapabilityTag(id, { tag }),
-      'Failed to add tag'
-    );
-
+    await handleApiCall(() => apiClient.addCapabilityTag(id, { tag }), 'Failed to add tag');
     const updatedCapability = await apiClient.getCapabilityById(id);
-    const { capabilities } = get();
-    set({
-      capabilities: capabilities.map((c) =>
-        c.id === id ? updatedCapability : c
-      ),
-    });
-
+    set({ capabilities: updateCapabilityInList(get().capabilities, id, updatedCapability) });
     toast.success(`Tag "${tag}" added`);
   },
 
@@ -163,21 +140,9 @@ export const createCapabilitySlice: StateCreator<
   },
 
   deleteCapabilityDependency: async (id: DependencyId) => {
-    const { capabilityDependencies } = get();
-
-    try {
-      await apiClient.deleteCapabilityDependency(id);
-      set({
-        capabilityDependencies: capabilityDependencies.filter((d) => d.id !== id),
-      });
-      toast.success('Dependency deleted');
-    } catch (error) {
-      const errorMessage = error instanceof ApiError
-        ? error.message
-        : 'Failed to delete dependency';
-      toast.error(errorMessage);
-      throw error;
-    }
+    await handleApiCall(() => apiClient.deleteCapabilityDependency(id), 'Failed to delete dependency');
+    set({ capabilityDependencies: get().capabilityDependencies.filter((d) => d.id !== id) });
+    toast.success('Dependency deleted');
   },
 
   linkSystemToCapability: async (capabilityId: CapabilityId, data: LinkSystemToCapabilityRequest) => {
@@ -212,21 +177,9 @@ export const createCapabilitySlice: StateCreator<
   },
 
   deleteRealization: async (id: RealizationId) => {
-    const { capabilityRealizations } = get();
-
-    try {
-      await apiClient.deleteRealization(id);
-      set({
-        capabilityRealizations: capabilityRealizations.filter((r) => r.id !== id),
-      });
-      toast.success('Realization deleted');
-    } catch (error) {
-      const errorMessage = error instanceof ApiError
-        ? error.message
-        : 'Failed to delete realization';
-      toast.error(errorMessage);
-      throw error;
-    }
+    await handleApiCall(() => apiClient.deleteRealization(id), 'Failed to delete realization');
+    set({ capabilityRealizations: get().capabilityRealizations.filter((r) => r.id !== id) });
+    toast.success('Realization deleted');
   },
 
   loadRealizationsByCapability: async (capabilityId: CapabilityId) => {
@@ -234,12 +187,7 @@ export const createCapabilitySlice: StateCreator<
       () => apiClient.getSystemsByCapability(capabilityId),
       'Failed to load realizations'
     );
-
-    const { capabilityRealizations } = get();
-    const existingIds = new Set(realizations.map((r) => r.id));
-    const filtered = capabilityRealizations.filter((r) => !existingIds.has(r.id));
-    set({ capabilityRealizations: [...filtered, ...realizations] });
-
+    set({ capabilityRealizations: mergeRealizations(get().capabilityRealizations, realizations) });
     return realizations;
   },
 
@@ -248,12 +196,7 @@ export const createCapabilitySlice: StateCreator<
       () => apiClient.getCapabilitiesByComponent(componentId),
       'Failed to load realizations'
     );
-
-    const { capabilityRealizations } = get();
-    const existingIds = new Set(realizations.map((r) => r.id));
-    const filtered = capabilityRealizations.filter((r) => !existingIds.has(r.id));
-    set({ capabilityRealizations: [...filtered, ...realizations] });
-
+    set({ capabilityRealizations: mergeRealizations(get().capabilityRealizations, realizations) });
     return realizations;
   },
 });

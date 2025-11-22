@@ -112,42 +112,38 @@ const nodeTypes: NodeTypes = {
   component: ComponentNode,
 };
 
-const getBestHandles = (
-  sourceNode: Node | undefined,
-  targetNode: Node | undefined
-): { sourceHandle: string; targetHandle: string } => {
-  if (!sourceNode || !targetNode) {
-    return { sourceHandle: 'top', targetHandle: 'top' };
-  }
+type HandlePair = { sourceHandle: string; targetHandle: string };
 
-  const sourceX = sourceNode.position.x + (sourceNode.width || 150) / 2;
-  const sourceY = sourceNode.position.y + (sourceNode.height || 100) / 2;
-  const targetX = targetNode.position.x + (targetNode.width || 150) / 2;
-  const targetY = targetNode.position.y + (targetNode.height || 100) / 2;
+const HANDLE_PAIRS: HandlePair[] = [
+  { sourceHandle: 'right', targetHandle: 'left' },
+  { sourceHandle: 'bottom', targetHandle: 'top' },
+  { sourceHandle: 'left', targetHandle: 'right' },
+  { sourceHandle: 'top', targetHandle: 'bottom' },
+];
 
-  const dx = targetX - sourceX;
-  const dy = targetY - sourceY;
+const DEFAULT_HANDLES: HandlePair = { sourceHandle: 'top', targetHandle: 'top' };
 
-  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+const getNodeCenter = (node: Node): { x: number; y: number } => ({
+  x: node.position.x + (node.width || 150) / 2,
+  y: node.position.y + (node.height || 100) / 2,
+});
 
-  let sourceHandle = 'right';
-  let targetHandle = 'left';
+const angleToHandleIndex = (angleDegrees: number): number => {
+  const normalized = ((angleDegrees % 360) + 360) % 360;
+  if (normalized < 45 || normalized >= 315) return 0;
+  if (normalized < 135) return 1;
+  if (normalized < 225) return 2;
+  return 3;
+};
 
-  if (angle >= -45 && angle < 45) {
-    sourceHandle = 'right';
-    targetHandle = 'left';
-  } else if (angle >= 45 && angle < 135) {
-    sourceHandle = 'bottom';
-    targetHandle = 'top';
-  } else if (angle >= 135 || angle < -135) {
-    sourceHandle = 'left';
-    targetHandle = 'right';
-  } else {
-    sourceHandle = 'top';
-    targetHandle = 'bottom';
-  }
+const getBestHandles = (sourceNode: Node | undefined, targetNode: Node | undefined): HandlePair => {
+  if (!sourceNode || !targetNode) return DEFAULT_HANDLES;
 
-  return { sourceHandle, targetHandle };
+  const source = getNodeCenter(sourceNode);
+  const target = getNodeCenter(targetNode);
+  const angle = Math.atan2(target.y - source.y, target.x - source.x) * (180 / Math.PI);
+
+  return HANDLE_PAIRS[angleToHandleIndex(angle)];
 };
 
 const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps>(

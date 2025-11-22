@@ -51,26 +51,19 @@ class ApiClient {
   }
 
   private extractErrorMessage(error: AxiosError): string {
-    if (error.response?.data) {
-      const data = error.response.data as { message?: string; error?: string; details?: Record<string, string> };
-      if (data.message) {
-        return data.message;
-      }
-      if (data.error) {
-        return data.error;
-      }
-      if (data.details) {
-        const detailMessages = Object.values(data.details).filter(Boolean);
-        if (detailMessages.length > 0) {
-          return detailMessages.join(', ');
-        }
-      }
-      return 'An error occurred';
-    }
-    if (error.message) {
-      return error.message;
-    }
-    return 'An unknown error occurred';
+    const responseMessage = this.extractResponseMessage(error.response?.data);
+    return responseMessage ?? error.message ?? 'An unknown error occurred';
+  }
+
+  private extractResponseMessage(data: unknown): string | null {
+    if (!data || typeof data !== 'object') return null;
+
+    const errorData = data as { message?: string; error?: string; details?: Record<string, string> };
+    if (errorData.message) return errorData.message;
+    if (errorData.error) return errorData.error;
+
+    const detailMessages = errorData.details ? Object.values(errorData.details).filter(Boolean) : [];
+    return detailMessages.length > 0 ? detailMessages.join(', ') : 'An error occurred';
   }
 
   async getComponents(): Promise<Component[]> {
