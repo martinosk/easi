@@ -2,10 +2,12 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
+	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -267,4 +269,44 @@ func (h *CapabilityHandlers) UpdateCapability(w http.ResponseWriter, r *http.Req
 	capability.Links = h.hateoas.CapabilityLinks(capability.ID, capability.ParentID)
 
 	sharedAPI.RespondJSON(w, http.StatusOK, capability)
+}
+
+// DeleteCapability godoc
+// @Summary Delete a capability
+// @Description Deletes a business capability. Cannot delete capabilities that have children.
+// @Tags capabilities
+// @Param id path string true "Capability ID"
+// @Success 204 "No Content"
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 409 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Router /capabilities/{id} [delete]
+func (h *CapabilityHandlers) DeleteCapability(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	capability, err := h.readModel.GetByID(r.Context(), id)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve capability")
+		return
+	}
+
+	if capability == nil {
+		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Capability not found")
+		return
+	}
+
+	cmd := &commands.DeleteCapability{
+		ID: id,
+	}
+
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		if errors.Is(err, handlers.ErrCapabilityHasChildren) {
+			sharedAPI.RespondError(w, http.StatusConflict, err, "Cannot delete capability with children. Delete child capabilities first.")
+			return
+		}
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to delete capability")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

@@ -41,6 +41,7 @@ func SetupCapabilityMappingRoutes(
 	eventBus.Subscribe("CapabilityExpertAdded", capabilityProjector)
 	eventBus.Subscribe("CapabilityTagAdded", capabilityProjector)
 	eventBus.Subscribe("CapabilityParentChanged", capabilityProjector)
+	eventBus.Subscribe("CapabilityDeleted", capabilityProjector)
 
 	eventBus.Subscribe("CapabilityDependencyCreated", dependencyProjector)
 	eventBus.Subscribe("CapabilityDependencyDeleted", dependencyProjector)
@@ -55,6 +56,7 @@ func SetupCapabilityMappingRoutes(
 	addExpertHandler := handlers.NewAddCapabilityExpertHandler(capabilityRepo)
 	addTagHandler := handlers.NewAddCapabilityTagHandler(capabilityRepo)
 	changeParentHandler := handlers.NewChangeCapabilityParentHandler(capabilityRepo, capabilityReadModel)
+	deleteCapabilityHandler := handlers.NewDeleteCapabilityHandler(capabilityRepo, capabilityReadModel)
 
 	createDependencyHandler := handlers.NewCreateCapabilityDependencyHandler(dependencyRepo, capabilityRepo)
 	deleteDependencyHandler := handlers.NewDeleteCapabilityDependencyHandler(dependencyRepo)
@@ -69,6 +71,7 @@ func SetupCapabilityMappingRoutes(
 	commandBus.Register("AddCapabilityExpert", addExpertHandler)
 	commandBus.Register("AddCapabilityTag", addTagHandler)
 	commandBus.Register("ChangeCapabilityParent", changeParentHandler)
+	commandBus.Register("DeleteCapability", deleteCapabilityHandler)
 
 	commandBus.Register("CreateCapabilityDependency", createDependencyHandler)
 	commandBus.Register("DeleteCapabilityDependency", deleteDependencyHandler)
@@ -83,7 +86,11 @@ func SetupCapabilityMappingRoutes(
 	maturityLevelHandlers := NewMaturityLevelHandlers()
 
 	r.Route("/capabilities", func(r chi.Router) {
+		r.Get("/metadata", maturityLevelHandlers.GetMetadataIndex)
 		r.Get("/metadata/maturity-levels", maturityLevelHandlers.GetMaturityLevels)
+		r.Get("/metadata/statuses", maturityLevelHandlers.GetStatuses)
+		r.Get("/metadata/ownership-models", maturityLevelHandlers.GetOwnershipModels)
+		r.Get("/metadata/strategy-pillars", maturityLevelHandlers.GetStrategyPillars)
 		r.Post("/", capabilityHandlers.CreateCapability)
 		r.Get("/", capabilityHandlers.GetAllCapabilities)
 		r.Get("/{id}", capabilityHandlers.GetCapabilityByID)
@@ -97,6 +104,7 @@ func SetupCapabilityMappingRoutes(
 		r.Patch("/{id}/parent", capabilityHandlers.ChangeCapabilityParent)
 		r.Post("/{id}/experts", capabilityHandlers.AddCapabilityExpert)
 		r.Post("/{id}/tags", capabilityHandlers.AddCapabilityTag)
+		r.Delete("/{id}", capabilityHandlers.DeleteCapability)
 	})
 
 	r.Route("/capability-dependencies", func(r chi.Router) {

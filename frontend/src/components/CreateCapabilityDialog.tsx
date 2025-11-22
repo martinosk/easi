@@ -1,21 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../store/appStore';
 import { apiClient } from '../api/client';
+import type { StatusOption } from '../api/types';
 
 interface CreateCapabilityDialogProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const STATUS_OPTIONS = ['Active', 'Planned', 'Deprecated', 'Retired'] as const;
 const DEFAULT_MATURITY_LEVELS = ['Genesis', 'Custom Build', 'Product', 'Commodity'];
-
-type StatusOption = (typeof STATUS_OPTIONS)[number];
+const DEFAULT_STATUSES: StatusOption[] = [
+  { value: 'Active', displayName: 'Active', sortOrder: 1 },
+  { value: 'Planned', displayName: 'Planned', sortOrder: 2 },
+  { value: 'Deprecated', displayName: 'Deprecated', sortOrder: 3 },
+];
 
 interface FormState {
   name: string;
   description: string;
-  status: StatusOption;
+  status: string;
   maturityLevel: string;
 }
 
@@ -55,6 +58,8 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
   const [backendError, setBackendError] = useState<string | null>(null);
   const [maturityLevels, setMaturityLevels] = useState<string[]>([]);
   const [isLoadingMaturityLevels, setIsLoadingMaturityLevels] = useState(false);
+  const [statuses, setStatuses] = useState<StatusOption[]>([]);
+  const [isLoadingStatuses, setIsLoadingStatuses] = useState(false);
 
   const dialogRef = useRef<HTMLDialogElement>(null);
   const createCapability = useAppStore((state) => state.createCapability);
@@ -66,14 +71,16 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
 
     if (isOpen) {
       dialog.showModal();
-      fetchMaturityLevels();
+      fetchMetadata();
     } else {
       dialog.close();
     }
   }, [isOpen]);
 
-  const fetchMaturityLevels = async () => {
+  const fetchMetadata = async () => {
     setIsLoadingMaturityLevels(true);
+    setIsLoadingStatuses(true);
+
     try {
       const levels = await apiClient.getMaturityLevels();
       setMaturityLevels(levels);
@@ -87,6 +94,15 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
       }
     } finally {
       setIsLoadingMaturityLevels(false);
+    }
+
+    try {
+      const statusList = await apiClient.getStatuses();
+      setStatuses(statusList.sort((a, b) => a.sortOrder - b.sortOrder));
+    } catch {
+      setStatuses(DEFAULT_STATUSES);
+    } finally {
+      setIsLoadingStatuses(false);
     }
   };
 
@@ -215,14 +231,18 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
               className="form-select"
               value={form.status}
               onChange={(e) => handleFieldChange('status', e.target.value)}
-              disabled={isCreating}
+              disabled={isCreating || isLoadingStatuses}
               data-testid="capability-status-select"
             >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
+              {isLoadingStatuses ? (
+                <option value="">Loading...</option>
+              ) : (
+                statuses.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.displayName}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
@@ -269,7 +289,7 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={isCreating || isLoadingMaturityLevels || !form.name.trim()}
+              disabled={isCreating || isLoadingMaturityLevels || isLoadingStatuses || !form.name.trim()}
               data-testid="create-capability-submit"
             >
               {isCreating ? 'Creating...' : 'Create'}

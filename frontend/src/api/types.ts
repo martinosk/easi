@@ -247,4 +247,23 @@ export interface MaturityLevelOption {
   numericValue: number;
 }
 
+export interface StatusOption {
+  value: string;
+  displayName: string;
+  sortOrder: number;
+}
+
+export interface OwnershipModelOption {
+  value: string;
+  displayName: string;
+}
+
+export interface StrategyPillarOption {
+  value: string;
+  displayName: string;
+}
+
 export type MaturityLevelsResponse = CollectionResponse<MaturityLevelOption>;
+export type StatusesResponse = CollectionResponse<StatusOption>;
+export type OwnershipModelsResponse = CollectionResponse<OwnershipModelOption>;
+export type StrategyPillarsResponse = CollectionResponse<StrategyPillarOption>;

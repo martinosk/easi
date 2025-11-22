@@ -4,6 +4,10 @@ import apiClient from '../api/client';
 import type { View, Component, Capability } from '../api/types';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { ConfirmationDialog } from './ConfirmationDialog';
+import { EditCapabilityDialog } from './EditCapabilityDialog';
+import { DeleteCapabilityDialog } from './DeleteCapabilityDialog';
+import { AddExpertDialog } from './AddExpertDialog';
+import { AddTagDialog } from './AddTagDialog';
 
 interface CapabilityTreeNode {
   capability: Capability;
@@ -92,6 +96,12 @@ interface ComponentContextMenuState {
   componentName: string;
 }
 
+interface CapabilityContextMenuState {
+  x: number;
+  y: number;
+  capability: Capability;
+}
+
 interface EditingState {
   viewId?: string;
   componentId?: string;
@@ -126,6 +136,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
   const [viewContextMenu, setViewContextMenu] = useState<ViewContextMenuState | null>(null);
   const [componentContextMenu, setComponentContextMenu] = useState<ComponentContextMenuState | null>(null);
+  const [capabilityContextMenu, setCapabilityContextMenu] = useState<CapabilityContextMenuState | null>(null);
   const [editingState, setEditingState] = useState<EditingState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     type: 'view' | 'component';
@@ -136,6 +147,11 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   const [createViewName, setCreateViewName] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
+
+  const [editCapability, setEditCapability] = useState<Capability | null>(null);
+  const [deleteCapability, setDeleteCapability] = useState<Capability | null>(null);
+  const [addExpertCapabilityId, setAddExpertCapabilityId] = useState<string | null>(null);
+  const [addTagCapabilityId, setAddTagCapabilityId] = useState<string | null>(null);
 
   // Load views when component mounts or when currentView changes
   useEffect(() => {
@@ -188,6 +204,33 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
     }
   };
 
+  const handleCapabilityContextMenu = (e: React.MouseEvent, capability: Capability) => {
+    const pos = getContextMenuPosition(e);
+    setCapabilityContextMenu({ ...pos, capability });
+  };
+
+  const getCapabilityContextMenuItems = (menu: CapabilityContextMenuState): ContextMenuItem[] => {
+    return [
+      {
+        label: 'Edit',
+        onClick: () => setEditCapability(menu.capability),
+      },
+      {
+        label: 'Add Expert',
+        onClick: () => setAddExpertCapabilityId(menu.capability.id),
+      },
+      {
+        label: 'Add Tag',
+        onClick: () => setAddTagCapabilityId(menu.capability.id),
+      },
+      {
+        label: 'Delete',
+        onClick: () => setDeleteCapability(menu.capability),
+        isDanger: true,
+      },
+    ];
+  };
+
   const renderCapabilityNode = (node: CapabilityTreeNode): React.ReactNode => {
     const { capability, children } = node;
     const hasChildren = children.length > 0;
@@ -205,6 +248,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
             e.dataTransfer.effectAllowed = 'copy';
           }}
           onClick={() => handleCapabilityClick(capability.id)}
+          onContextMenu={(e) => handleCapabilityContextMenu(e, capability)}
           title={capability.description || capability.name}
         >
           {hasChildren ? (
@@ -621,6 +665,15 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
         />
       )}
 
+      {capabilityContextMenu && (
+        <ContextMenu
+          x={capabilityContextMenu.x}
+          y={capabilityContextMenu.y}
+          items={getCapabilityContextMenuItems(capabilityContextMenu)}
+          onClose={() => setCapabilityContextMenu(null)}
+        />
+      )}
+
       {/* Create View Dialog */}
       {showCreateDialog && (
         <div className="dialog-overlay" onClick={() => setShowCreateDialog(false)}>
@@ -667,6 +720,30 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
           isLoading={isDeleting}
         />
       )}
+
+      <EditCapabilityDialog
+        isOpen={editCapability !== null}
+        onClose={() => setEditCapability(null)}
+        capability={editCapability}
+      />
+
+      <DeleteCapabilityDialog
+        isOpen={deleteCapability !== null}
+        onClose={() => setDeleteCapability(null)}
+        capability={deleteCapability}
+      />
+
+      <AddExpertDialog
+        isOpen={addExpertCapabilityId !== null}
+        onClose={() => setAddExpertCapabilityId(null)}
+        capabilityId={addExpertCapabilityId || ''}
+      />
+
+      <AddTagDialog
+        isOpen={addTagCapabilityId !== null}
+        onClose={() => setAddTagCapabilityId(null)}
+        capabilityId={addTagCapabilityId || ''}
+      />
     </>
   );
 };

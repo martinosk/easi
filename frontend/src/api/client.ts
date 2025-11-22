@@ -27,6 +27,12 @@ import type {
   LinkSystemToCapabilityRequest,
   UpdateRealizationRequest,
   MaturityLevelsResponse,
+  StatusOption,
+  StatusesResponse,
+  OwnershipModelOption,
+  OwnershipModelsResponse,
+  StrategyPillarOption,
+  StrategyPillarsResponse,
 } from './types';
 import { ApiError } from './types';
 
@@ -227,6 +233,10 @@ class ApiClient {
     await this.client.post(`/api/v1/capabilities/${id}/tags`, request);
   }
 
+  async deleteCapability(id: string): Promise<void> {
+    await this.client.delete(`/api/v1/capabilities/${id}`);
+  }
+
   async getCapabilityDependencies(): Promise<CapabilityDependency[]> {
     const response = await this.client.get<CollectionResponse<CapabilityDependency>>('/api/v1/capability-dependencies');
     return response.data.data || [];
@@ -294,6 +304,27 @@ class ApiClient {
       '/api/v1/capabilities/metadata/maturity-levels'
     );
     return response.data.data.map((level) => level.value);
+  }
+
+  async getStatuses(): Promise<StatusOption[]> {
+    const response = await this.client.get<StatusesResponse>(
+      '/api/v1/capabilities/metadata/statuses'
+    );
+    return response.data.data;
+  }
+
+  async getOwnershipModels(): Promise<OwnershipModelOption[]> {
+    const response = await this.client.get<OwnershipModelsResponse>(
+      '/api/v1/capabilities/metadata/ownership-models'
+    );
+    return response.data.data;
+  }
+
+  async getStrategyPillars(): Promise<StrategyPillarOption[]> {
+    const response = await this.client.get<StrategyPillarsResponse>(
+      '/api/v1/capabilities/metadata/strategy-pillars'
+    );
+    return response.data.data;
   }
 }
 

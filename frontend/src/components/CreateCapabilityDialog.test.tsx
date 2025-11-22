@@ -10,6 +10,7 @@ vi.mock('../store/appStore', () => ({
 vi.mock('../api/client', () => ({
   apiClient: {
     getMaturityLevels: vi.fn(),
+    getStatuses: vi.fn(),
   },
 }));
 
@@ -54,13 +55,23 @@ describe('CreateCapabilityDialog', () => {
       'Product',
       'Commodity',
     ]);
+
+    vi.mocked(apiClient.getStatuses).mockResolvedValue([
+      { value: 'Active', displayName: 'Active', sortOrder: 1 },
+      { value: 'Planned', displayName: 'Planned', sortOrder: 2 },
+      { value: 'Deprecated', displayName: 'Deprecated', sortOrder: 3 },
+    ]);
   });
 
   describe('Dialog visibility', () => {
-    it('should show modal when isOpen is true', () => {
+    it('should show modal when isOpen is true', async () => {
       render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
       expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
+      });
     });
 
     it('should not show modal when isOpen is false', () => {
@@ -69,16 +80,24 @@ describe('CreateCapabilityDialog', () => {
       expect(HTMLDialogElement.prototype.showModal).not.toHaveBeenCalled();
     });
 
-    it('should render dialog title when open', () => {
+    it('should render dialog title when open', async () => {
       render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
       expect(
         screen.getByRole('heading', { level: 2, hidden: true })
       ).toHaveTextContent('Create Capability');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
+      });
     });
 
     it('should call onClose when cancel button is clicked', async () => {
       render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
+      });
 
       const cancelButton = screen.getByTestId('create-capability-cancel');
       fireEvent.click(cancelButton);
@@ -88,33 +107,40 @@ describe('CreateCapabilityDialog', () => {
   });
 
   describe('Form fields', () => {
-    it('should render all form fields', () => {
+    it('should render all form fields', async () => {
       render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
       expect(screen.getByTestId('capability-name-input')).toBeInTheDocument();
       expect(screen.getByTestId('capability-description-input')).toBeInTheDocument();
       expect(screen.getByTestId('capability-status-select')).toBeInTheDocument();
       expect(screen.getByTestId('capability-maturity-select')).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
+      });
     });
 
-    it('should have Active as default status', () => {
+    it('should have Active as default status', async () => {
       render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
-      const statusSelect = screen.getByTestId('capability-status-select') as HTMLSelectElement;
-      expect(statusSelect.value).toBe('Active');
+      await waitFor(() => {
+        const statusSelect = screen.getByTestId('capability-status-select') as HTMLSelectElement;
+        expect(statusSelect.value).toBe('Active');
+      });
     });
 
-    it('should show all status options', () => {
+    it('should show all status options', async () => {
       render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
-      const statusSelect = screen.getByTestId('capability-status-select');
-      const options = statusSelect.querySelectorAll('option');
+      await waitFor(() => {
+        const statusSelect = screen.getByTestId('capability-status-select');
+        const options = statusSelect.querySelectorAll('option');
 
-      expect(options).toHaveLength(4);
-      expect(options[0].value).toBe('Active');
-      expect(options[1].value).toBe('Planned');
-      expect(options[2].value).toBe('Deprecated');
-      expect(options[3].value).toBe('Retired');
+        expect(options).toHaveLength(3);
+        expect(options[0].value).toBe('Active');
+        expect(options[1].value).toBe('Planned');
+        expect(options[2].value).toBe('Deprecated');
+      });
     });
   });
 

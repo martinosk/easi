@@ -3,6 +3,8 @@ package readmodels
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 	"time"
 
 	"easi/backend/internal/infrastructure/database"
@@ -151,6 +153,35 @@ func (rm *CapabilityReadModel) UpdateParent(ctx context.Context, id, parentID, l
 	return err
 }
 
+func (rm *CapabilityReadModel) Delete(ctx context.Context, id string) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"DELETE FROM capability_tags WHERE tenant_id = $1 AND capability_id = $2",
+		tenantID.Value(), id,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"DELETE FROM capability_experts WHERE tenant_id = $1 AND capability_id = $2",
+		tenantID.Value(), id,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"DELETE FROM capabilities WHERE tenant_id = $1 AND id = $2",
+		tenantID.Value(), id,
+	)
+	return err
+}
+
 func (rm *CapabilityReadModel) GetByID(ctx context.Context, id string) (*CapabilityDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
@@ -273,7 +304,7 @@ func (rm *CapabilityReadModel) GetAll(ctx context.Context) ([]CapabilityDTO, err
 	}
 
 	return rm.queryCapabilityList(ctx,
-		"SELECT id, name, description, parent_id, level, created_at FROM capabilities WHERE tenant_id = $1 ORDER BY level, name",
+		"SELECT id, name, description, parent_id, level, strategy_pillar, pillar_weight, maturity_level, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilities WHERE tenant_id = $1 ORDER BY level, name",
 		tenantID.Value(),
 	)
 }
@@ -285,14 +316,19 @@ func (rm *CapabilityReadModel) GetChildren(ctx context.Context, parentID string)
 	}
 
 	return rm.queryCapabilityList(ctx,
-		"SELECT id, name, description, parent_id, level, created_at FROM capabilities WHERE tenant_id = $1 AND parent_id = $2 ORDER BY name",
+		"SELECT id, name, description, parent_id, level, strategy_pillar, pillar_weight, maturity_level, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilities WHERE tenant_id = $1 AND parent_id = $2 ORDER BY name",
 		tenantID.Value(), parentID,
 	)
 }
 
 func (rm *CapabilityReadModel) queryCapabilityList(ctx context.Context, query string, args ...interface{}) ([]CapabilityDTO, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var capabilities []CapabilityDTO
-	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
 			return err
@@ -300,17 +336,125 @@ func (rm *CapabilityReadModel) queryCapabilityList(ctx context.Context, query st
 		defer rows.Close()
 
 		for rows.Next() {
-			var dto CapabilityDTO
-			var parentID sql.NullString
-			if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &parentID, &dto.Level, &dto.CreatedAt); err != nil {
+			var result capabilityScanResult
+			if err := rows.Scan(
+				&result.dto.ID,
+				&result.dto.Name,
+				&result.dto.Description,
+				&result.parentID,
+				&result.dto.Level,
+				&result.strategyPillar,
+				&result.pillarWeight,
+				&result.dto.MaturityLevel,
+				&result.ownershipModel,
+				&result.primaryOwner,
+				&result.eaOwner,
+				&result.dto.Status,
+				&result.dto.CreatedAt,
+			); err != nil {
 				return err
 			}
-			if parentID.Valid {
-				dto.ParentID = parentID.String
-			}
-			capabilities = append(capabilities, dto)
+			capabilities = append(capabilities, *result.toDTO())
 		}
-		return rows.Err()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		if len(capabilities) == 0 {
+			return nil
+		}
+
+		capabilityIDs := make([]string, len(capabilities))
+		capabilityMap := make(map[string]*CapabilityDTO)
+		for i := range capabilities {
+			capabilityIDs[i] = capabilities[i].ID
+			capabilityMap[capabilities[i].ID] = &capabilities[i]
+		}
+
+		if err := rm.fetchExpertsBatch(ctx, tx, tenantID.Value(), capabilityMap); err != nil {
+			return err
+		}
+
+		return rm.fetchTagsBatch(ctx, tx, tenantID.Value(), capabilityMap)
 	})
 	return capabilities, err
+}
+
+func (rm *CapabilityReadModel) fetchExpertsBatch(ctx context.Context, tx *sql.Tx, tenantID string, capabilityMap map[string]*CapabilityDTO) error {
+	if len(capabilityMap) == 0 {
+		return nil
+	}
+
+	ids := make([]interface{}, 0, len(capabilityMap))
+	for id := range capabilityMap {
+		ids = append(ids, id)
+	}
+
+	placeholders := make([]string, len(ids))
+	for i := range ids {
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
+	}
+
+	query := fmt.Sprintf(
+		"SELECT capability_id, expert_name, expert_role, contact_info, added_at FROM capability_experts WHERE tenant_id = $1 AND capability_id IN (%s)",
+		strings.Join(placeholders, ", "),
+	)
+
+	args := append([]interface{}{tenantID}, ids...)
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var capabilityID string
+		var expert ExpertDTO
+		if err := rows.Scan(&capabilityID, &expert.Name, &expert.Role, &expert.Contact, &expert.AddedAt); err != nil {
+			return err
+		}
+		if cap, ok := capabilityMap[capabilityID]; ok {
+			cap.Experts = append(cap.Experts, expert)
+		}
+	}
+	return rows.Err()
+}
+
+func (rm *CapabilityReadModel) fetchTagsBatch(ctx context.Context, tx *sql.Tx, tenantID string, capabilityMap map[string]*CapabilityDTO) error {
+	if len(capabilityMap) == 0 {
+		return nil
+	}
+
+	ids := make([]interface{}, 0, len(capabilityMap))
+	for id := range capabilityMap {
+		ids = append(ids, id)
+	}
+
+	placeholders := make([]string, len(ids))
+	for i := range ids {
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
+	}
+
+	query := fmt.Sprintf(
+		"SELECT capability_id, tag FROM capability_tags WHERE tenant_id = $1 AND capability_id IN (%s) ORDER BY tag",
+		strings.Join(placeholders, ", "),
+	)
+
+	args := append([]interface{}{tenantID}, ids...)
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var capabilityID, tag string
+		if err := rows.Scan(&capabilityID, &tag); err != nil {
+			return err
+		}
+		if cap, ok := capabilityMap[capabilityID]; ok {
+			cap.Tags = append(cap.Tags, tag)
+		}
+	}
+	return rows.Err()
 }

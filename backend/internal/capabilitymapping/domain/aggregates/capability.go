@@ -182,6 +182,7 @@ func (c *Capability) apply(event domain.DomainEvent) {
 			c.parentID = valueobjects.CapabilityID{}
 		}
 		c.level, _ = valueobjects.NewCapabilityLevel(e.NewLevel)
+	case events.CapabilityDeleted:
 	}
 }
 
@@ -257,6 +258,15 @@ func (c *Capability) ChangeParent(newParentID valueobjects.CapabilityID, newLeve
 		c.level.Value(),
 		newLevel.Value(),
 	)
+
+	c.apply(event)
+	c.RaiseEvent(event)
+
+	return nil
+}
+
+func (c *Capability) Delete() error {
+	event := events.NewCapabilityDeleted(c.ID())
 
 	c.apply(event)
 	c.RaiseEvent(event)

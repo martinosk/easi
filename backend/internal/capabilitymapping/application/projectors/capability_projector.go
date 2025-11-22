@@ -96,6 +96,14 @@ func (p *CapabilityProjector) ProjectEvent(ctx context.Context, eventType string
 		}
 
 		return p.readModel.UpdateParent(ctx, event.CapabilityID, event.NewParentID, event.NewLevel)
+	case "CapabilityDeleted":
+		var event events.CapabilityDeleted
+		if err := json.Unmarshal(eventData, &event); err != nil {
+			log.Printf("Failed to unmarshal CapabilityDeleted event: %v", err)
+			return err
+		}
+
+		return p.readModel.Delete(ctx, event.ID)
 	}
 
 	return nil

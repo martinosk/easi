@@ -447,3 +447,59 @@ func createL4Capability(t *testing.T, capabilityName string) *Capability {
 	return capability
 }
 
+func TestCapability_Delete_RaisesDeletedEvent(t *testing.T) {
+	capability := createL1Capability(t, "Customer Engagement")
+	capability.MarkChangesAsCommitted()
+
+	err := capability.Delete()
+	require.NoError(t, err)
+
+	uncommittedEvents := capability.GetUncommittedChanges()
+	require.Len(t, uncommittedEvents, 1)
+	assert.Equal(t, "CapabilityDeleted", uncommittedEvents[0].EventType())
+
+	eventData := uncommittedEvents[0].EventData()
+	assert.Equal(t, capability.ID(), eventData["id"])
+	assert.NotNil(t, eventData["deletedAt"])
+}
+
+func TestCapability_Delete_LoadFromHistory(t *testing.T) {
+	capability := createL1Capability(t, "Customer Engagement")
+
+	err := capability.Delete()
+	require.NoError(t, err)
+
+	allEvents := capability.GetUncommittedChanges()
+	require.Len(t, allEvents, 2)
+
+	loadedCapability, err := LoadCapabilityFromHistory(allEvents)
+	require.NoError(t, err)
+	assert.Equal(t, capability.ID(), loadedCapability.ID())
+	assert.Equal(t, capability.Name().Value(), loadedCapability.Name().Value())
+}
+
+func TestCapability_Delete_PreservesAggregateState(t *testing.T) {
+	name, err := valueobjects.NewCapabilityName("Finance")
+	require.NoError(t, err)
+
+	description := valueobjects.NewDescription("Financial capabilities")
+
+	level, err := valueobjects.NewCapabilityLevel("L1")
+	require.NoError(t, err)
+
+	var parentID valueobjects.CapabilityID
+
+	capability, err := NewCapability(name, description, parentID, level)
+	require.NoError(t, err)
+	capability.MarkChangesAsCommitted()
+
+	originalID := capability.ID()
+	originalName := capability.Name().Value()
+
+	err = capability.Delete()
+	require.NoError(t, err)
+
+	assert.Equal(t, originalID, capability.ID())
+	assert.Equal(t, originalName, capability.Name().Value())
+}
+

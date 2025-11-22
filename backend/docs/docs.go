@@ -94,6 +94,26 @@ const docTemplate = `{
                 }
             }
         },
+        "/capabilities/metadata": {
+            "get": {
+                "description": "Returns HATEOAS links to all capability metadata endpoints",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "List available metadata types",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.MetadataIndexDTO"
+                        }
+                    }
+                }
+            }
+        },
         "/capabilities/metadata/maturity-levels": {
             "get": {
                 "description": "Returns the list of valid maturity level options for capabilities based on Wardley mapping evolution stages (Genesis, Custom Build, Product, Commodity)",
@@ -119,6 +139,111 @@ const docTemplate = `{
                                             "type": "array",
                                             "items": {
                                                 "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.MaturityLevelDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/capabilities/metadata/ownership-models": {
+            "get": {
+                "description": "Returns ownership classification options (TribeOwned, TeamOwned, Shared, EnterpriseService)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Get valid ownership models",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.OwnershipModelDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/capabilities/metadata/statuses": {
+            "get": {
+                "description": "Returns lifecycle statuses for capabilities (Active, Planned, Deprecated)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Get valid capability statuses",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.StatusDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/capabilities/metadata/strategy-pillars": {
+            "get": {
+                "description": "Returns strategic alignment categories (AlwaysOn, Grow, Transform)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Get valid strategy pillars",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.StrategyPillarDTO"
                                             }
                                         }
                                     }
@@ -214,6 +339,45 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Deletes a business capability. Cannot delete capabilities that have children.",
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Delete a capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -2247,6 +2411,60 @@ const docTemplate = `{
                 "value": {
                     "type": "string",
                     "example": "Genesis"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.MetadataIndexDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.OwnershipModelDTO": {
+            "type": "object",
+            "properties": {
+                "displayName": {
+                    "type": "string",
+                    "example": "Tribe Owned"
+                },
+                "value": {
+                    "type": "string",
+                    "example": "TribeOwned"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.StatusDTO": {
+            "type": "object",
+            "properties": {
+                "displayName": {
+                    "type": "string",
+                    "example": "Active"
+                },
+                "sortOrder": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "value": {
+                    "type": "string",
+                    "example": "Active"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.StrategyPillarDTO": {
+            "type": "object",
+            "properties": {
+                "displayName": {
+                    "type": "string",
+                    "example": "Always On"
+                },
+                "value": {
+                    "type": "string",
+                    "example": "AlwaysOn"
                 }
             }
         },

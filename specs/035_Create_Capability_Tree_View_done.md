@@ -97,4 +97,4 @@ As a user, I need to create new capabilities directly from the sidebar so that I
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] Documentation updated if needed
-- [ ] User sign-off
+- [x] User sign-off

@@ -31,7 +31,7 @@ Right-click on capability in tree or canvas:
 │  [Manage customer lifecycle     ]   │
 │                                     │
 │  Status: [Active ▼]                 │
-│  Maturity Level: [Developing ▼]    │
+│  Maturity Level: [Genesis ▼]    │
 │  Ownership Model: [Shared ▼]        │
 │  Primary Owner: [John Doe       ]   │
 │  EA Owner: [Jane Smith          ]   │
@@ -112,24 +112,24 @@ Simple input field or dialog for entering tag name.
 | Pillar Weight | UpdateCapabilityMetadata | 0-100 |
 
 ## Acceptance Criteria
-- [ ] Context menu appears on right-click of capability in tree and canvas
-- [ ] Edit action opens dialog with pre-populated data
-- [ ] All fields can be edited (name, description, metadata)
-- [ ] Experts can be added and are listed
-- [ ] Tags can be added and are displayed as chips/badges
-- [ ] Save button updates capability via API
-- [ ] Validation errors displayed inline
-- [ ] Delete action shows confirmation dialog
-- [ ] Successful delete removes capability from tree/canvas
-- [ ] Delete fails with error if capability has children
-- [ ] All changes refresh capability tree
-- [ ] Backend errors displayed to user
-- [ ] Cancel closes dialogs without changes
+- [x] Context menu appears on right-click of capability in tree and canvas
+- [x] Edit action opens dialog with pre-populated data
+- [x] All fields can be edited (name, description, metadata)
+- [x] Experts can be added and are listed
+- [x] Tags can be added and are displayed as chips/badges
+- [x] Save button updates capability via API
+- [x] Validation errors displayed inline
+- [x] Delete action shows confirmation dialog
+- [x] Successful delete removes capability from tree/canvas
+- [x] Delete fails with error if capability has children
+- [x] All changes refresh capability tree
+- [x] Backend errors displayed to user
+- [x] Cancel closes dialogs without changes
 
 ## Checklist
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
 - [ ] Documentation updated if needed
 - [ ] User sign-off

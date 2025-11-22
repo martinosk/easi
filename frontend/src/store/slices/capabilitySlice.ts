@@ -44,6 +44,7 @@ export interface CapabilityActions {
   updateCapabilityMetadata: (id: CapabilityId, data: UpdateCapabilityMetadataRequest) => Promise<Capability>;
   addCapabilityExpert: (id: CapabilityId, data: AddCapabilityExpertRequest) => Promise<void>;
   addCapabilityTag: (id: CapabilityId, tag: string) => Promise<void>;
+  deleteCapability: (id: CapabilityId) => Promise<void>;
   createCapabilityDependency: (data: CreateCapabilityDependencyRequest) => Promise<CapabilityDependency>;
   deleteCapabilityDependency: (id: DependencyId) => Promise<void>;
   linkSystemToCapability: (capabilityId: CapabilityId, data: LinkSystemToCapabilityRequest) => Promise<CapabilityRealization>;
@@ -124,6 +125,12 @@ export const createCapabilitySlice: StateCreator<
     const updatedCapability = await apiClient.getCapabilityById(id);
     set({ capabilities: updateCapabilityInList(get().capabilities, id, updatedCapability) });
     toast.success(`Tag "${tag}" added`);
+  },
+
+  deleteCapability: async (id: CapabilityId) => {
+    await handleApiCall(() => apiClient.deleteCapability(id), 'Failed to delete capability');
+    set({ capabilities: get().capabilities.filter((c) => c.id !== id) });
+    toast.success('Capability deleted');
   },
 
   createCapabilityDependency: async (data: CreateCapabilityDependencyRequest) => {

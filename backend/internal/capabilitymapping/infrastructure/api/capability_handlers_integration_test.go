@@ -106,6 +106,7 @@ func setupHandlers(db *sql.DB) *CapabilityHandlers {
 	eventBus.Subscribe("CapabilityMetadataUpdated", projector)
 	eventBus.Subscribe("CapabilityExpertAdded", projector)
 	eventBus.Subscribe("CapabilityTagAdded", projector)
+	eventBus.Subscribe("CapabilityDeleted", projector)
 
 	capabilityRepo := repositories.NewCapabilityRepository(eventStore)
 	createHandler := handlers.NewCreateCapabilityHandler(capabilityRepo)
@@ -113,12 +114,14 @@ func setupHandlers(db *sql.DB) *CapabilityHandlers {
 	updateMetadataHandler := handlers.NewUpdateCapabilityMetadataHandler(capabilityRepo)
 	addExpertHandler := handlers.NewAddCapabilityExpertHandler(capabilityRepo)
 	addTagHandler := handlers.NewAddCapabilityTagHandler(capabilityRepo)
+	deleteHandler := handlers.NewDeleteCapabilityHandler(capabilityRepo, readModel)
 
 	commandBus.Register("CreateCapability", createHandler)
 	commandBus.Register("UpdateCapability", updateHandler)
 	commandBus.Register("UpdateCapabilityMetadata", updateMetadataHandler)
 	commandBus.Register("AddCapabilityExpert", addExpertHandler)
 	commandBus.Register("AddCapabilityTag", addTagHandler)
+	commandBus.Register("DeleteCapability", deleteHandler)
 
 	return NewCapabilityHandlers(commandBus, readModel, hateoas)
 }
@@ -404,4 +407,138 @@ func TestGetCapabilityChildren_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, 2, len(response.Data))
+}
+
+func TestDeleteCapability_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	handlers := setupHandlers(testCtx.db)
+
+	createReqBody := CreateCapabilityRequest{
+		Name:        "Capability To Delete",
+		Description: "This will be deleted",
+		Level:       "L1",
+	}
+	createBody, _ := json.Marshal(createReqBody)
+
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/capabilities", bytes.NewReader(createBody))
+	createReq.Header.Set("Content-Type", "application/json")
+	createReq = withTestTenant(createReq)
+	createW := httptest.NewRecorder()
+
+	handlers.CreateCapability(createW, createReq)
+	assert.Equal(t, http.StatusCreated, createW.Code)
+
+	testCtx.setTenantContext(t)
+	var capabilityID string
+	err := testCtx.db.QueryRow(
+		"SELECT aggregate_id FROM events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
+	).Scan(&capabilityID)
+	require.NoError(t, err)
+	testCtx.trackID(capabilityID)
+
+	time.Sleep(100 * time.Millisecond)
+
+	capability, err := handlers.readModel.GetByID(tenantContext(), capabilityID)
+	require.NoError(t, err)
+	assert.NotNil(t, capability)
+
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/capabilities/"+capabilityID, nil)
+	deleteReq = withTestTenant(deleteReq)
+	deleteReq = deleteReq.WithContext(context.WithValue(deleteReq.Context(), chi.RouteCtxKey, &chi.Context{
+		URLParams: chi.RouteParams{
+			Keys:   []string{"id"},
+			Values: []string{capabilityID},
+		},
+	}))
+	deleteW := httptest.NewRecorder()
+
+	handlers.DeleteCapability(deleteW, deleteReq)
+
+	assert.Equal(t, http.StatusNoContent, deleteW.Code)
+
+	time.Sleep(100 * time.Millisecond)
+
+	deletedCapability, err := handlers.readModel.GetByID(tenantContext(), capabilityID)
+	require.NoError(t, err)
+	assert.Nil(t, deletedCapability)
+
+	testCtx.setTenantContext(t)
+	var eventCount int
+	err = testCtx.db.QueryRow(
+		"SELECT COUNT(*) FROM events WHERE aggregate_id = $1 AND event_type = 'CapabilityDeleted'",
+		capabilityID,
+	).Scan(&eventCount)
+	require.NoError(t, err)
+	assert.Equal(t, 1, eventCount)
+}
+
+func TestDeleteCapability_NotFound_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	handlers := setupHandlers(testCtx.db)
+
+	nonExistentID := fmt.Sprintf("non-existent-%d", time.Now().UnixNano())
+
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/capabilities/"+nonExistentID, nil)
+	deleteReq = withTestTenant(deleteReq)
+	deleteReq = deleteReq.WithContext(context.WithValue(deleteReq.Context(), chi.RouteCtxKey, &chi.Context{
+		URLParams: chi.RouteParams{
+			Keys:   []string{"id"},
+			Values: []string{nonExistentID},
+		},
+	}))
+	deleteW := httptest.NewRecorder()
+
+	handlers.DeleteCapability(deleteW, deleteReq)
+
+	assert.Equal(t, http.StatusNotFound, deleteW.Code)
+}
+
+func TestDeleteCapability_HasChildren_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	handlers := setupHandlers(testCtx.db)
+
+	parentID := fmt.Sprintf("test-parent-%d", time.Now().UnixNano())
+	childID := fmt.Sprintf("test-child-%d", time.Now().UnixNano())
+
+	testCtx.createTestCapability(t, parentID, "Parent Capability", "L1")
+
+	testCtx.setTenantContext(t)
+	_, err := testCtx.db.Exec(
+		"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+		childID, "Child Capability", "", "L2", parentID, testTenantID(), "Genesis", "Active",
+	)
+	require.NoError(t, err)
+	testCtx.trackID(childID)
+
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/capabilities/"+parentID, nil)
+	deleteReq = withTestTenant(deleteReq)
+	deleteReq = deleteReq.WithContext(context.WithValue(deleteReq.Context(), chi.RouteCtxKey, &chi.Context{
+		URLParams: chi.RouteParams{
+			Keys:   []string{"id"},
+			Values: []string{parentID},
+		},
+	}))
+	deleteW := httptest.NewRecorder()
+
+	handlers.DeleteCapability(deleteW, deleteReq)
+
+	assert.Equal(t, http.StatusConflict, deleteW.Code)
+
+	var response struct {
+		Error   string `json:"error"`
+		Message string `json:"message"`
+	}
+	err = json.NewDecoder(deleteW.Body).Decode(&response)
+	require.NoError(t, err)
+	assert.Contains(t, response.Message, "Cannot delete capability with children")
+
+	parentCapability, err := handlers.readModel.GetByID(tenantContext(), parentID)
+	require.NoError(t, err)
+	assert.NotNil(t, parentCapability)
 }
