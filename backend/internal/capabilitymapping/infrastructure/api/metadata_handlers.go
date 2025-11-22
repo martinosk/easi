@@ -2,12 +2,32 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
+	"easi/backend/internal/capabilitymapping/domain/entities"
+	"easi/backend/internal/capabilitymapping/domain/valueobjects"
+	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
 	"github.com/go-chi/chi/v5"
 )
+
+func isValidationError(err error) bool {
+	return errors.Is(err, valueobjects.ErrInvalidPillarWeight) ||
+		errors.Is(err, valueobjects.ErrInvalidMaturityLevel) ||
+		errors.Is(err, valueobjects.ErrInvalidOwnershipModel) ||
+		errors.Is(err, valueobjects.ErrInvalidCapabilityStatus) ||
+		errors.Is(err, valueobjects.ErrInvalidStrategyPillar) ||
+		errors.Is(err, valueobjects.ErrTagEmpty) ||
+		errors.Is(err, entities.ErrExpertNameEmpty) ||
+		errors.Is(err, entities.ErrExpertRoleEmpty) ||
+		errors.Is(err, entities.ErrExpertContactEmpty)
+}
+
+func isNotFoundError(err error) bool {
+	return errors.Is(err, repositories.ErrCapabilityNotFound)
+}
 
 type UpdateCapabilityMetadataRequest struct {
 	StrategyPillar string `json:"strategyPillar,omitempty"`
@@ -63,6 +83,14 @@ func (h *CapabilityHandlers) UpdateCapabilityMetadata(w http.ResponseWriter, r *
 	}
 
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		if isNotFoundError(err) {
+			sharedAPI.RespondError(w, http.StatusNotFound, err, "Capability not found")
+			return
+		}
+		if isValidationError(err) {
+			sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+			return
+		}
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update capability metadata")
 		return
 	}
@@ -112,6 +140,14 @@ func (h *CapabilityHandlers) AddCapabilityExpert(w http.ResponseWriter, r *http.
 	}
 
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		if isNotFoundError(err) {
+			sharedAPI.RespondError(w, http.StatusNotFound, err, "Capability not found")
+			return
+		}
+		if isValidationError(err) {
+			sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+			return
+		}
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to add expert")
 		return
 	}
@@ -148,6 +184,14 @@ func (h *CapabilityHandlers) AddCapabilityTag(w http.ResponseWriter, r *http.Req
 	}
 
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		if isNotFoundError(err) {
+			sharedAPI.RespondError(w, http.StatusNotFound, err, "Capability not found")
+			return
+		}
+		if isValidationError(err) {
+			sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+			return
+		}
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to add tag")
 		return
 	}

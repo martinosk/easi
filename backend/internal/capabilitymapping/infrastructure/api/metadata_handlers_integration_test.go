@@ -278,7 +278,7 @@ func TestAddCapabilityTag_Integration(t *testing.T) {
 
 	createReqBody := CreateCapabilityRequest{
 		Name:  "API Management",
-		Level: "L2",
+		Level: "L1",
 	}
 	createBody, _ := json.Marshal(createReqBody)
 

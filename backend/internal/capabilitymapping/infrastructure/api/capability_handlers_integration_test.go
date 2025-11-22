@@ -81,8 +81,8 @@ func (ctx *testContext) trackID(id string) {
 func (ctx *testContext) createTestCapability(t *testing.T, id, name, level string) {
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
-		"INSERT INTO capabilities (id, name, description, level, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, NOW())",
-		id, name, "", level, testTenantID(),
+		"INSERT INTO capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		id, name, "", level, testTenantID(), "Initial", "Active",
 	)
 	require.NoError(t, err)
 	ctx.trackID(id)
@@ -108,7 +108,7 @@ func setupHandlers(db *sql.DB) *CapabilityHandlers {
 	eventBus.Subscribe("CapabilityTagAdded", projector)
 
 	capabilityRepo := repositories.NewCapabilityRepository(eventStore)
-	createHandler := handlers.NewCreateCapabilityHandler(capabilityRepo, readModel)
+	createHandler := handlers.NewCreateCapabilityHandler(capabilityRepo)
 	updateHandler := handlers.NewUpdateCapabilityHandler(capabilityRepo)
 	updateMetadataHandler := handlers.NewUpdateCapabilityMetadataHandler(capabilityRepo)
 	addExpertHandler := handlers.NewAddCapabilityExpertHandler(capabilityRepo)
@@ -372,15 +372,15 @@ func TestGetCapabilityChildren_Integration(t *testing.T) {
 
 	testCtx.setTenantContext(t)
 	_, err := testCtx.db.Exec(
-		"INSERT INTO capabilities (id, name, level, parent_id, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, NOW())",
-		childID1, "Child 1", "L2", parentID, testTenantID(),
+		"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+		childID1, "Child 1", "", "L2", parentID, testTenantID(), "Initial", "Active",
 	)
 	require.NoError(t, err)
 	testCtx.trackID(childID1)
 
 	_, err = testCtx.db.Exec(
-		"INSERT INTO capabilities (id, name, level, parent_id, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, NOW())",
-		childID2, "Child 2", "L2", parentID, testTenantID(),
+		"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+		childID2, "Child 2", "", "L2", parentID, testTenantID(), "Initial", "Active",
 	)
 	require.NoError(t, err)
 	testCtx.trackID(childID2)
