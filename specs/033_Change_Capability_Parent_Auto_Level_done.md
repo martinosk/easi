@@ -56,21 +56,21 @@ Body: `{ "parentId": "uuid-of-new-parent" }` (empty string for root)
 - `404 Not Found`: Capability or parent not found
 
 ## Acceptance Criteria
-- [ ] `ChangeCapabilityParent` command implemented
-- [ ] `CapabilityParentChanged` event defined and projected
-- [ ] Command handler implements recursive level recalculation for all descendants
-- [ ] Maximum depth validation prevents L5+ hierarchies with clear error message
-- [ ] Circular reference detection prevents invalid hierarchies
-- [ ] Self-reference validation prevents capability being its own parent
-- [ ] Read model updated with parent and level changes
-- [ ] API endpoint `PATCH /api/v1/capabilities/:id/parent` implemented
-- [ ] Domain model relaxed to allow orphan capabilities at creation
-- [ ] Setting parentId to empty string makes capability L1 (root)
+- [x] `ChangeCapabilityParent` command implemented
+- [x] `CapabilityParentChanged` event defined and projected
+- [x] Command handler implements recursive level recalculation for all descendants
+- [x] Maximum depth validation prevents L5+ hierarchies with clear error message
+- [x] Circular reference detection prevents invalid hierarchies
+- [x] Self-reference validation prevents capability being its own parent
+- [x] Read model updated with parent and level changes
+- [x] API endpoint `PATCH /api/v1/capabilities/:id/parent` implemented
+- [x] Domain model relaxed to allow orphan capabilities at creation
+- [x] Setting parentId to empty string makes capability L1 (root)
 
 ## Checklist
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] Documentation updated if needed
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] Documentation updated if needed
+- [x] User sign-off

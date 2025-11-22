@@ -133,6 +133,24 @@ func (rm *CapabilityReadModel) Update(ctx context.Context, id, name, description
 	return err
 }
 
+func (rm *CapabilityReadModel) UpdateParent(ctx context.Context, id, parentID, level string) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	var parentIDValue interface{} = nil
+	if parentID != "" {
+		parentIDValue = parentID
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"UPDATE capabilities SET parent_id = $1, level = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
+		parentIDValue, level, tenantID.Value(), id,
+	)
+	return err
+}
+
 func (rm *CapabilityReadModel) GetByID(ctx context.Context, id string) (*CapabilityDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {

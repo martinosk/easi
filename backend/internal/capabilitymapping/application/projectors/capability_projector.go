@@ -88,6 +88,14 @@ func (p *CapabilityProjector) ProjectEvent(ctx context.Context, eventType string
 		}
 
 		return p.readModel.AddTag(ctx, event.CapabilityID, event.Tag, event.AddedAt)
+	case "CapabilityParentChanged":
+		var event events.CapabilityParentChanged
+		if err := json.Unmarshal(eventData, &event); err != nil {
+			log.Printf("Failed to unmarshal CapabilityParentChanged event: %v", err)
+			return err
+		}
+
+		return p.readModel.UpdateParent(ctx, event.CapabilityID, event.NewParentID, event.NewLevel)
 	}
 
 	return nil

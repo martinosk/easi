@@ -116,6 +116,16 @@ func (r *CapabilityRepository) deserializeEvents(storedEvents []domain.DomainEve
 			concreteEvent := events.NewCapabilityTagAdded(capabilityID, tag)
 			domainEvents = append(domainEvents, concreteEvent)
 
+		case "CapabilityParentChanged":
+			capabilityID, _ := eventData["capabilityId"].(string)
+			oldParentID, _ := eventData["oldParentId"].(string)
+			newParentID, _ := eventData["newParentId"].(string)
+			oldLevel, _ := eventData["oldLevel"].(string)
+			newLevel, _ := eventData["newLevel"].(string)
+
+			concreteEvent := events.NewCapabilityParentChanged(capabilityID, oldParentID, newParentID, oldLevel, newLevel)
+			domainEvents = append(domainEvents, concreteEvent)
+
 		default:
 			continue
 		}

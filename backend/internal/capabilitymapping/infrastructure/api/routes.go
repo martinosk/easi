@@ -40,6 +40,7 @@ func SetupCapabilityMappingRoutes(
 	eventBus.Subscribe("CapabilityMetadataUpdated", capabilityProjector)
 	eventBus.Subscribe("CapabilityExpertAdded", capabilityProjector)
 	eventBus.Subscribe("CapabilityTagAdded", capabilityProjector)
+	eventBus.Subscribe("CapabilityParentChanged", capabilityProjector)
 
 	eventBus.Subscribe("CapabilityDependencyCreated", dependencyProjector)
 	eventBus.Subscribe("CapabilityDependencyDeleted", dependencyProjector)
@@ -53,6 +54,7 @@ func SetupCapabilityMappingRoutes(
 	updateMetadataHandler := handlers.NewUpdateCapabilityMetadataHandler(capabilityRepo)
 	addExpertHandler := handlers.NewAddCapabilityExpertHandler(capabilityRepo)
 	addTagHandler := handlers.NewAddCapabilityTagHandler(capabilityRepo)
+	changeParentHandler := handlers.NewChangeCapabilityParentHandler(capabilityRepo, capabilityReadModel)
 
 	createDependencyHandler := handlers.NewCreateCapabilityDependencyHandler(dependencyRepo, capabilityRepo)
 	deleteDependencyHandler := handlers.NewDeleteCapabilityDependencyHandler(dependencyRepo)
@@ -66,6 +68,7 @@ func SetupCapabilityMappingRoutes(
 	commandBus.Register("UpdateCapabilityMetadata", updateMetadataHandler)
 	commandBus.Register("AddCapabilityExpert", addExpertHandler)
 	commandBus.Register("AddCapabilityTag", addTagHandler)
+	commandBus.Register("ChangeCapabilityParent", changeParentHandler)
 
 	commandBus.Register("CreateCapabilityDependency", createDependencyHandler)
 	commandBus.Register("DeleteCapabilityDependency", deleteDependencyHandler)
@@ -89,6 +92,7 @@ func SetupCapabilityMappingRoutes(
 		r.Get("/{id}/dependencies/incoming", dependencyHandlers.GetIncomingDependencies)
 		r.Put("/{id}", capabilityHandlers.UpdateCapability)
 		r.Put("/{id}/metadata", capabilityHandlers.UpdateCapabilityMetadata)
+		r.Patch("/{id}/parent", capabilityHandlers.ChangeCapabilityParent)
 		r.Post("/{id}/experts", capabilityHandlers.AddCapabilityExpert)
 		r.Post("/{id}/tags", capabilityHandlers.AddCapabilityTag)
 	})

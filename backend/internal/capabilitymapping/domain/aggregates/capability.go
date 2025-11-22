@@ -11,9 +11,12 @@ import (
 )
 
 var (
-	ErrL1CannotHaveParent         = errors.New("L1 capabilities cannot have a parent")
-	ErrNonL1MustHaveParent        = errors.New("L2-L4 capabilities must have a parent")
-	ErrParentMustBeOneLevelAbove  = errors.New("parent must be exactly one level above")
+	ErrL1CannotHaveParent            = errors.New("L1 capabilities cannot have a parent")
+	ErrNonL1MustHaveParent           = errors.New("L2-L4 capabilities must have a parent")
+	ErrParentMustBeOneLevelAbove     = errors.New("parent must be exactly one level above")
+	ErrCapabilityCannotBeOwnParent   = errors.New("capability cannot be its own parent")
+	ErrWouldCreateCircularReference  = errors.New("operation would create circular reference")
+	ErrWouldExceedMaximumDepth       = errors.New("operation would create L5+ hierarchy")
 )
 
 type Capability struct {
@@ -172,6 +175,13 @@ func (c *Capability) apply(event domain.DomainEvent) {
 	case events.CapabilityTagAdded:
 		tag, _ := valueobjects.NewTag(e.Tag)
 		c.tags = append(c.tags, tag)
+	case events.CapabilityParentChanged:
+		if e.NewParentID != "" {
+			c.parentID, _ = valueobjects.NewCapabilityIDFromString(e.NewParentID)
+		} else {
+			c.parentID = valueobjects.CapabilityID{}
+		}
+		c.level, _ = valueobjects.NewCapabilityLevel(e.NewLevel)
 	}
 }
 
@@ -231,15 +241,34 @@ func (c *Capability) Tags() []valueobjects.Tag {
 	return c.tags
 }
 
+func (c *Capability) ChangeParent(newParentID valueobjects.CapabilityID, newLevel valueobjects.CapabilityLevel) error {
+	if newParentID.Value() == c.ID() {
+		return ErrCapabilityCannotBeOwnParent
+	}
+
+	if newLevel.NumericValue() > 4 {
+		return ErrWouldExceedMaximumDepth
+	}
+
+	event := events.NewCapabilityParentChanged(
+		c.ID(),
+		c.parentID.Value(),
+		newParentID.Value(),
+		c.level.Value(),
+		newLevel.Value(),
+	)
+
+	c.apply(event)
+	c.RaiseEvent(event)
+
+	return nil
+}
+
 func validateHierarchy(parentID valueobjects.CapabilityID, level valueobjects.CapabilityLevel) error {
 	hasParent := parentID.Value() != ""
 
 	if level == valueobjects.LevelL1 && hasParent {
 		return ErrL1CannotHaveParent
-	}
-
-	if level != valueobjects.LevelL1 && !hasParent {
-		return ErrNonL1MustHaveParent
 	}
 
 	return nil

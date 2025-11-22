@@ -1,4 +1,4 @@
-clau{
+{
   "permissions": {
     "allow": [
       "Bash(find:*)",
@@ -12,7 +12,9 @@ clau{
       "Bash(~/go/bin/swag init:*)",
       "Bash(npm test:*)",
       "Bash(npm run build:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "mcp__codescene__code_health_score",
+      "mcp__codescene__code_health_review"
     ],
     "deny": [],
     "ask": []
