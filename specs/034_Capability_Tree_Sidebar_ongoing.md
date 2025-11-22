@@ -69,21 +69,19 @@ Create SQL migration with sample capability hierarchy for testing:
 - Pricing Management → under Product Catalog
 
 ## Acceptance Criteria
-- [ ] "Capabilities" section appears in NavigationTree sidebar
-- [ ] Hierarchical tree structure displays correctly (L1→L2→L3→L4)
-- [ ] Expand/collapse functionality works for parent nodes
-- [ ] Level labels (L1:, L2:, etc.) displayed before capability names
-- [ ] Color coding applied based on maturity level
-- [ ] Capabilities are draggable from tree
-- [ ] Seed data migration creates sample capability hierarchy
-- [ ] Tree correctly handles orphan capabilities as roots
-- [ ] Root nodes sorted alphabetically
-- [ ] Capabilities load on application startup
+- [x] "Capabilities" section appears in NavigationTree sidebar
+- [x] Hierarchical tree structure displays correctly (L1→L2→L3→L4)
+- [x] Expand/collapse functionality works for parent nodes
+- [x] Level labels (L1:, L2:, etc.) displayed before capability names
+- [x] Color coding applied based on maturity level
+- [x] Capabilities are draggable from tree
+- [x] Seed data migration creates sample capability hierarchy
+- [x] Tree correctly handles orphan capabilities as roots
+- [x] Root nodes sorted alphabetically
+- [x] Capabilities load on application startup
 
 ## Checklist
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] Documentation updated if needed
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] User sign-off

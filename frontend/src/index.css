@@ -933,6 +933,119 @@ body {
   font-size: 0.85em;
 }
 
+/* Capability Tree Styles */
+.capability-tree-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: grab;
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-700);
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+  gap: var(--spacing-xs);
+}
+
+.capability-tree-item:hover {
+  background: var(--color-gray-100);
+}
+
+.capability-tree-item.selected {
+  font-weight: 600;
+  background: var(--color-gray-200);
+}
+
+.capability-tree-item:active {
+  cursor: grabbing;
+}
+
+.capability-expand-btn {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--color-gray-500);
+  flex-shrink: 0;
+}
+
+.capability-expand-btn:hover {
+  color: var(--color-gray-700);
+}
+
+.capability-expand-placeholder {
+  width: 16px;
+  flex-shrink: 0;
+}
+
+.capability-level-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.capability-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capability-maturity-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Maturity level colors */
+.maturity-initial {
+  background-color: var(--color-gray-400);
+}
+
+.maturity-developing {
+  background-color: #f59e0b;
+}
+
+.maturity-defined {
+  background-color: #10b981;
+}
+
+.maturity-managed {
+  background-color: #3b82f6;
+}
+
+.maturity-optimizing {
+  background-color: #8b5cf6;
+}
+
+/* Tree indentation per level */
+.capability-level-1 {
+  padding-left: var(--spacing-sm);
+}
+
+.capability-level-2 {
+  padding-left: calc(var(--spacing-sm) + 16px);
+}
+
+.capability-level-3 {
+  padding-left: calc(var(--spacing-sm) + 32px);
+}
+
+.capability-level-4 {
+  padding-left: calc(var(--spacing-sm) + 48px);
+}
+
 /* Context Menu */
 .context-menu {
   position: fixed;

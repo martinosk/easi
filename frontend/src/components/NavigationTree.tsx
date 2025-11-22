@@ -1,14 +1,80 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAppStore } from '../store/appStore';
 import apiClient from '../api/client';
-import type { View, Component } from '../api/types';
+import type { View, Component, Capability } from '../api/types';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { ConfirmationDialog } from './ConfirmationDialog';
+
+interface CapabilityTreeNode {
+  capability: Capability;
+  children: CapabilityTreeNode[];
+}
+
+const getPersistedBoolean = (key: string, defaultValue: boolean): boolean => {
+  const saved = localStorage.getItem(key);
+  return saved !== null ? JSON.parse(saved) : defaultValue;
+};
+
+const getPersistedSet = (key: string): Set<string> => {
+  const saved = localStorage.getItem(key);
+  return saved ? new Set(JSON.parse(saved)) : new Set();
+};
+
+const getMaturityClass = (maturityLevel?: string): string => {
+  switch (maturityLevel?.toLowerCase()) {
+    case 'initial': return 'maturity-initial';
+    case 'developing': return 'maturity-developing';
+    case 'defined': return 'maturity-defined';
+    case 'managed': return 'maturity-managed';
+    case 'optimizing': return 'maturity-optimizing';
+    default: return 'maturity-initial';
+  }
+};
+
+const getLevelNumber = (level: string): number => {
+  switch (level) {
+    case 'L1': return 1;
+    case 'L2': return 2;
+    case 'L3': return 3;
+    case 'L4': return 4;
+    default: return 1;
+  }
+};
+
+const getContextMenuPosition = (e: React.MouseEvent) => {
+  e.preventDefault();
+  e.stopPropagation();
+  return { x: e.clientX, y: e.clientY };
+};
+
+const buildCapabilityTree = (capabilities: Capability[]): CapabilityTreeNode[] => {
+  const capabilityMap = new Map<string, CapabilityTreeNode>();
+
+  capabilities.forEach((cap) => {
+    capabilityMap.set(cap.id, { capability: cap, children: [] });
+  });
+
+  const roots: CapabilityTreeNode[] = [];
+
+  capabilities.forEach((cap) => {
+    const node = capabilityMap.get(cap.id)!;
+    if (cap.parentId && capabilityMap.has(cap.parentId)) {
+      capabilityMap.get(cap.parentId)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+
+  roots.sort((a, b) => a.capability.name.localeCompare(b.capability.name));
+
+  return roots;
+};
 
 interface NavigationTreeProps {
   onComponentSelect?: (componentId: string) => void;
   onViewSelect?: (viewId: string) => void;
   onAddComponent?: () => void;
+  onCapabilitySelect?: (capabilityId: string) => void;
 }
 
 interface ViewContextMenuState {
@@ -36,25 +102,21 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   onComponentSelect,
   onViewSelect,
   onAddComponent,
+  onCapabilitySelect,
 }) => {
   const components = useAppStore((state) => state.components);
   const currentView = useAppStore((state) => state.currentView);
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
+  const capabilities = useAppStore((state) => state.capabilities);
+  const loadCapabilities = useAppStore((state) => state.loadCapabilities);
 
-  const [isOpen, setIsOpen] = useState(() => {
-    const saved = localStorage.getItem('navigationTreeOpen');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
+  const [isOpen, setIsOpen] = useState(() => getPersistedBoolean('navigationTreeOpen', true));
+  const [isModelsExpanded, setIsModelsExpanded] = useState(() => getPersistedBoolean('navigationTreeModelsExpanded', true));
+  const [isViewsExpanded, setIsViewsExpanded] = useState(() => getPersistedBoolean('navigationTreeViewsExpanded', true));
+  const [isCapabilitiesExpanded, setIsCapabilitiesExpanded] = useState(() => getPersistedBoolean('navigationTreeCapabilitiesExpanded', true));
+  const [expandedCapabilities, setExpandedCapabilities] = useState<Set<string>>(() => getPersistedSet('navigationTreeExpandedCapabilities'));
 
-  const [isModelsExpanded, setIsModelsExpanded] = useState(() => {
-    const saved = localStorage.getItem('navigationTreeModelsExpanded');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-
-  const [isViewsExpanded, setIsViewsExpanded] = useState(() => {
-    const saved = localStorage.getItem('navigationTreeViewsExpanded');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
+  const [selectedCapabilityId, setSelectedCapabilityId] = useState<string | null>(null);
 
   const views = useAppStore((state) => state.views);
   const loadViews = useAppStore((state) => state.loadViews);
@@ -92,6 +154,83 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
     localStorage.setItem('navigationTreeViewsExpanded', JSON.stringify(isViewsExpanded));
   }, [isViewsExpanded]);
 
+  useEffect(() => {
+    localStorage.setItem('navigationTreeCapabilitiesExpanded', JSON.stringify(isCapabilitiesExpanded));
+  }, [isCapabilitiesExpanded]);
+
+  useEffect(() => {
+    localStorage.setItem('navigationTreeExpandedCapabilities', JSON.stringify([...expandedCapabilities]));
+  }, [expandedCapabilities]);
+
+  useEffect(() => {
+    loadCapabilities();
+  }, [loadCapabilities]);
+
+  const capabilityTree = useMemo(() => buildCapabilityTree(capabilities), [capabilities]);
+
+  const toggleCapabilityExpanded = useCallback((capabilityId: string) => {
+    setExpandedCapabilities((prev) => {
+      const next = new Set(prev);
+      if (next.has(capabilityId)) {
+        next.delete(capabilityId);
+      } else {
+        next.add(capabilityId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleCapabilityClick = (capabilityId: string) => {
+    setSelectedCapabilityId(capabilityId);
+    if (onCapabilitySelect) {
+      onCapabilitySelect(capabilityId);
+    }
+  };
+
+  const renderCapabilityNode = (node: CapabilityTreeNode): React.ReactNode => {
+    const { capability, children } = node;
+    const hasChildren = children.length > 0;
+    const isExpanded = expandedCapabilities.has(capability.id);
+    const levelNum = getLevelNumber(capability.level);
+    const isSelected = selectedCapabilityId === capability.id;
+
+    return (
+      <div key={capability.id}>
+        <div
+          className={`capability-tree-item capability-level-${levelNum} ${isSelected ? 'selected' : ''}`}
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData('capabilityId', capability.id);
+            e.dataTransfer.effectAllowed = 'copy';
+          }}
+          onClick={() => handleCapabilityClick(capability.id)}
+          title={capability.description || capability.name}
+        >
+          {hasChildren ? (
+            <button
+              className="capability-expand-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleCapabilityExpanded(capability.id);
+              }}
+            >
+              {isExpanded ? '▼' : '▶'}
+            </button>
+          ) : (
+            <span className="capability-expand-placeholder" />
+          )}
+          <span className="capability-level-badge">{capability.level}:</span>
+          <span className="capability-name">{capability.name}</span>
+          <span className={`capability-maturity-indicator ${getMaturityClass(capability.maturityLevel)}`} title={capability.maturityLevel || 'Initial'} />
+        </div>
+        {hasChildren && isExpanded && (
+          <div className="capability-children">
+            {children.map(renderCapabilityNode)}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const handleComponentClick = (componentId: string) => {
     if (onComponentSelect) {
@@ -106,26 +245,13 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   };
 
   const handleViewContextMenu = (e: React.MouseEvent, view: View) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setViewContextMenu({
-      x: e.clientX,
-      y: e.clientY,
-      viewId: view.id,
-      viewName: view.name,
-      isDefault: view.isDefault,
-    });
+    const pos = getContextMenuPosition(e);
+    setViewContextMenu({ ...pos, viewId: view.id, viewName: view.name, isDefault: view.isDefault });
   };
 
   const handleComponentContextMenu = (e: React.MouseEvent, component: Component) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setComponentContextMenu({
-      x: e.clientX,
-      y: e.clientY,
-      componentId: component.id,
-      componentName: component.name,
-    });
+    const pos = getContextMenuPosition(e);
+    setComponentContextMenu({ ...pos, componentId: component.id, componentName: component.name });
   };
 
   const handleRenameSubmit = async () => {
@@ -425,6 +551,30 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                         </div>
                       );
                     })
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Capabilities Section */}
+            <div className="tree-category">
+              <div className="category-header-wrapper">
+                <button
+                  className="category-header"
+                  onClick={() => setIsCapabilitiesExpanded(!isCapabilitiesExpanded)}
+                >
+                  <span className="category-icon">{isCapabilitiesExpanded ? '▼' : '▶'}</span>
+                  <span className="category-label">Capabilities</span>
+                  <span className="category-count">{capabilities.length}</span>
+                </button>
+              </div>
+
+              {isCapabilitiesExpanded && (
+                <div className="tree-items">
+                  {capabilityTree.length === 0 ? (
+                    <div className="tree-item-empty">No capabilities</div>
+                  ) : (
+                    capabilityTree.map(renderCapabilityNode)
                   )}
                 </div>
               )}
