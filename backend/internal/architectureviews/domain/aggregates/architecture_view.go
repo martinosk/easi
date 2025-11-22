@@ -126,28 +126,23 @@ func (v *ArchitectureView) Delete() error {
 }
 
 func (v *ArchitectureView) SetAsDefault() error {
-	if err := v.checkNotDeleted(); err != nil {
-		return err
-	}
-
-	if v.isDefault {
-		return nil
-	}
-
-	v.applyAndRaise(events.NewDefaultViewChanged(v.ID(), true))
-	return nil
+	return v.setDefaultStatus(true)
 }
 
 func (v *ArchitectureView) UnsetAsDefault() error {
+	return v.setDefaultStatus(false)
+}
+
+func (v *ArchitectureView) setDefaultStatus(makeDefault bool) error {
 	if err := v.checkNotDeleted(); err != nil {
 		return err
 	}
 
-	if !v.isDefault {
+	if v.isDefault == makeDefault {
 		return nil
 	}
 
-	v.applyAndRaise(events.NewDefaultViewChanged(v.ID(), false))
+	v.applyAndRaise(events.NewDefaultViewChanged(v.ID(), makeDefault))
 	return nil
 }
 
@@ -172,7 +167,6 @@ func (v *ArchitectureView) apply(event domain.DomainEvent) {
 		v.applyViewCreated(e)
 	case events.ComponentAddedToView:
 		v.applyComponentAdded(e)
-	case events.ComponentPositionUpdated:
 	case events.ComponentRemovedFromView:
 		v.applyComponentRemoved(e)
 	case events.ViewRenamed:
@@ -181,8 +175,7 @@ func (v *ArchitectureView) apply(event domain.DomainEvent) {
 		v.applyViewDeleted()
 	case events.DefaultViewChanged:
 		v.applyDefaultViewChanged(e)
-	case events.ViewEdgeTypeUpdated:
-	case events.ViewLayoutDirectionUpdated:
+	case events.ComponentPositionUpdated, events.ViewEdgeTypeUpdated, events.ViewLayoutDirectionUpdated:
 	}
 }
 

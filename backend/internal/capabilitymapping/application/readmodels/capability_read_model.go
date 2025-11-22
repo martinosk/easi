@@ -35,6 +35,26 @@ type ExpertDTO struct {
 	AddedAt time.Time `json:"addedAt"`
 }
 
+type CapabilityMetadataUpdate struct {
+	StrategyPillar string
+	PillarWeight   int
+	MaturityLevel  string
+	OwnershipModel string
+	PrimaryOwner   string
+	EAOwner        string
+	Status         string
+}
+
+type capabilityScanResult struct {
+	dto            CapabilityDTO
+	parentID       sql.NullString
+	strategyPillar sql.NullString
+	pillarWeight   sql.NullInt64
+	ownershipModel sql.NullString
+	primaryOwner   sql.NullString
+	eaOwner        sql.NullString
+}
+
 type CapabilityReadModel struct {
 	db *database.TenantAwareDB
 }
@@ -61,7 +81,7 @@ func (rm *CapabilityReadModel) Insert(ctx context.Context, dto CapabilityDTO) er
 	return err
 }
 
-func (rm *CapabilityReadModel) UpdateMetadata(ctx context.Context, id, strategyPillar string, pillarWeight int, maturityLevel, ownershipModel, primaryOwner, eaOwner, status string) error {
+func (rm *CapabilityReadModel) UpdateMetadata(ctx context.Context, id string, metadata CapabilityMetadataUpdate) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -69,7 +89,7 @@ func (rm *CapabilityReadModel) UpdateMetadata(ctx context.Context, id, strategyP
 
 	_, err = rm.db.ExecContext(ctx,
 		"UPDATE capabilities SET strategy_pillar = $1, pillar_weight = $2, maturity_level = $3, ownership_model = $4, primary_owner = $5, ea_owner = $6, status = $7, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $8 AND id = $9",
-		strategyPillar, pillarWeight, maturityLevel, ownershipModel, primaryOwner, eaOwner, status, tenantID.Value(), id,
+		metadata.StrategyPillar, metadata.PillarWeight, metadata.MaturityLevel, metadata.OwnershipModel, metadata.PrimaryOwner, metadata.EAOwner, metadata.Status, tenantID.Value(), id,
 	)
 	return err
 }
@@ -119,60 +139,26 @@ func (rm *CapabilityReadModel) GetByID(ctx context.Context, id string) (*Capabil
 		return nil, err
 	}
 
-	var dto CapabilityDTO
-	var parentID, strategyPillar, ownershipModel, primaryOwner, eaOwner sql.NullString
-	var pillarWeight sql.NullInt64
+	var result capabilityScanResult
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, description, parent_id, level, strategy_pillar, pillar_weight, maturity_level, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilities WHERE tenant_id = $1 AND id = $2",
-			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.Name, &dto.Description, &parentID, &dto.Level, &strategyPillar, &pillarWeight, &dto.MaturityLevel, &ownershipModel, &primaryOwner, &eaOwner, &dto.Status, &dto.CreatedAt)
-
-		if err == sql.ErrNoRows {
+		found, err := rm.scanCapability(ctx, tx, tenantID.Value(), id, &result)
+		if err != nil {
+			return err
+		}
+		if !found {
 			notFound = true
 			return nil
 		}
+
+		result.dto.Experts, err = rm.fetchExperts(ctx, tx, tenantID.Value(), id)
 		if err != nil {
 			return err
 		}
 
-		rows, err := tx.QueryContext(ctx,
-			"SELECT expert_name, expert_role, contact_info, added_at FROM capability_experts WHERE tenant_id = $1 AND capability_id = $2",
-			tenantID.Value(), id,
-		)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var expert ExpertDTO
-			if err := rows.Scan(&expert.Name, &expert.Role, &expert.Contact, &expert.AddedAt); err != nil {
-				return err
-			}
-			dto.Experts = append(dto.Experts, expert)
-		}
-
-		tagRows, err := tx.QueryContext(ctx,
-			"SELECT tag FROM capability_tags WHERE tenant_id = $1 AND capability_id = $2 ORDER BY tag",
-			tenantID.Value(), id,
-		)
-		if err != nil {
-			return err
-		}
-		defer tagRows.Close()
-
-		for tagRows.Next() {
-			var tag string
-			if err := tagRows.Scan(&tag); err != nil {
-				return err
-			}
-			dto.Tags = append(dto.Tags, tag)
-		}
-
-		return nil
+		result.dto.Tags, err = rm.fetchTags(ctx, tx, tenantID.Value(), id)
+		return err
 	})
 
 	if err != nil {
@@ -182,26 +168,84 @@ func (rm *CapabilityReadModel) GetByID(ctx context.Context, id string) (*Capabil
 		return nil, nil
 	}
 
-	if parentID.Valid {
-		dto.ParentID = parentID.String
-	}
-	if strategyPillar.Valid {
-		dto.StrategyPillar = strategyPillar.String
-	}
-	if pillarWeight.Valid {
-		dto.PillarWeight = int(pillarWeight.Int64)
-	}
-	if ownershipModel.Valid {
-		dto.OwnershipModel = ownershipModel.String
-	}
-	if primaryOwner.Valid {
-		dto.PrimaryOwner = primaryOwner.String
-	}
-	if eaOwner.Valid {
-		dto.EAOwner = eaOwner.String
-	}
+	return result.toDTO(), nil
+}
 
-	return &dto, nil
+func (rm *CapabilityReadModel) scanCapability(ctx context.Context, tx *sql.Tx, tenantID, id string, result *capabilityScanResult) (bool, error) {
+	err := tx.QueryRowContext(ctx,
+		"SELECT id, name, description, parent_id, level, strategy_pillar, pillar_weight, maturity_level, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilities WHERE tenant_id = $1 AND id = $2",
+		tenantID, id,
+	).Scan(&result.dto.ID, &result.dto.Name, &result.dto.Description, &result.parentID, &result.dto.Level, &result.strategyPillar, &result.pillarWeight, &result.dto.MaturityLevel, &result.ownershipModel, &result.primaryOwner, &result.eaOwner, &result.dto.Status, &result.dto.CreatedAt)
+
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+func (rm *CapabilityReadModel) fetchExperts(ctx context.Context, tx *sql.Tx, tenantID, capabilityID string) ([]ExpertDTO, error) {
+	rows, err := tx.QueryContext(ctx,
+		"SELECT expert_name, expert_role, contact_info, added_at FROM capability_experts WHERE tenant_id = $1 AND capability_id = $2",
+		tenantID, capabilityID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var experts []ExpertDTO
+	for rows.Next() {
+		var expert ExpertDTO
+		if err := rows.Scan(&expert.Name, &expert.Role, &expert.Contact, &expert.AddedAt); err != nil {
+			return nil, err
+		}
+		experts = append(experts, expert)
+	}
+	return experts, rows.Err()
+}
+
+func (rm *CapabilityReadModel) fetchTags(ctx context.Context, tx *sql.Tx, tenantID, capabilityID string) ([]string, error) {
+	rows, err := tx.QueryContext(ctx,
+		"SELECT tag FROM capability_tags WHERE tenant_id = $1 AND capability_id = $2 ORDER BY tag",
+		tenantID, capabilityID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tags []string
+	for rows.Next() {
+		var tag string
+		if err := rows.Scan(&tag); err != nil {
+			return nil, err
+		}
+		tags = append(tags, tag)
+	}
+	return tags, rows.Err()
+}
+
+func (r *capabilityScanResult) toDTO() *CapabilityDTO {
+	dto := &r.dto
+	if r.parentID.Valid {
+		dto.ParentID = r.parentID.String
+	}
+	if r.strategyPillar.Valid {
+		dto.StrategyPillar = r.strategyPillar.String
+	}
+	if r.pillarWeight.Valid {
+		dto.PillarWeight = int(r.pillarWeight.Int64)
+	}
+	if r.ownershipModel.Valid {
+		dto.OwnershipModel = r.ownershipModel.String
+	}
+	if r.primaryOwner.Valid {
+		dto.PrimaryOwner = r.primaryOwner.String
+	}
+	if r.eaOwner.Valid {
+		dto.EAOwner = r.eaOwner.String
+	}
+	return dto
 }
 
 func (rm *CapabilityReadModel) GetAll(ctx context.Context) ([]CapabilityDTO, error) {
@@ -210,12 +254,28 @@ func (rm *CapabilityReadModel) GetAll(ctx context.Context) ([]CapabilityDTO, err
 		return nil, err
 	}
 
+	return rm.queryCapabilityList(ctx,
+		"SELECT id, name, description, parent_id, level, created_at FROM capabilities WHERE tenant_id = $1 ORDER BY level, name",
+		tenantID.Value(),
+	)
+}
+
+func (rm *CapabilityReadModel) GetChildren(ctx context.Context, parentID string) ([]CapabilityDTO, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return rm.queryCapabilityList(ctx,
+		"SELECT id, name, description, parent_id, level, created_at FROM capabilities WHERE tenant_id = $1 AND parent_id = $2 ORDER BY name",
+		tenantID.Value(), parentID,
+	)
+}
+
+func (rm *CapabilityReadModel) queryCapabilityList(ctx context.Context, query string, args ...interface{}) ([]CapabilityDTO, error) {
 	var capabilities []CapabilityDTO
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, description, parent_id, level, created_at FROM capabilities WHERE tenant_id = $1 ORDER BY level, name",
-			tenantID.Value(),
-		)
+	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
 			return err
 		}
@@ -232,44 +292,7 @@ func (rm *CapabilityReadModel) GetAll(ctx context.Context) ([]CapabilityDTO, err
 			}
 			capabilities = append(capabilities, dto)
 		}
-
 		return rows.Err()
 	})
-
-	return capabilities, err
-}
-
-func (rm *CapabilityReadModel) GetChildren(ctx context.Context, parentID string) ([]CapabilityDTO, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var capabilities []CapabilityDTO
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, description, parent_id, level, created_at FROM capabilities WHERE tenant_id = $1 AND parent_id = $2 ORDER BY name",
-			tenantID.Value(), parentID,
-		)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var dto CapabilityDTO
-			var parentIDVal sql.NullString
-			if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &parentIDVal, &dto.Level, &dto.CreatedAt); err != nil {
-				return err
-			}
-			if parentIDVal.Valid {
-				dto.ParentID = parentIDVal.String
-			}
-			capabilities = append(capabilities, dto)
-		}
-
-		return rows.Err()
-	})
-
 	return capabilities, err
 }

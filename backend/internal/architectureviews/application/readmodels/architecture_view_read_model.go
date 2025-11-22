@@ -112,74 +112,61 @@ func (rm *ArchitectureViewReadModel) RemoveComponent(ctx context.Context, viewID
 
 // UpdateViewName updates a view's name
 func (rm *ArchitectureViewReadModel) UpdateViewName(ctx context.Context, viewID, newName string) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
-		"UPDATE architecture_views SET name = $1, updated_at = $2 WHERE tenant_id = $3 AND id = $4",
-		newName, time.Now().UTC(), tenantID.Value(), viewID,
-	)
-	return err
+	return rm.updateViewField(ctx, viewID, "name", newName)
 }
 
 // MarkViewAsDeleted marks a view as deleted
 func (rm *ArchitectureViewReadModel) MarkViewAsDeleted(ctx context.Context, viewID string) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
-		"UPDATE architecture_views SET is_deleted = true, updated_at = $1 WHERE tenant_id = $2 AND id = $3",
-		time.Now().UTC(), tenantID.Value(), viewID,
-	)
-	return err
+	return rm.updateViewField(ctx, viewID, "is_deleted", true)
 }
 
 // SetViewAsDefault sets a view as the default
 func (rm *ArchitectureViewReadModel) SetViewAsDefault(ctx context.Context, viewID string, isDefault bool) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
-		"UPDATE architecture_views SET is_default = $1, updated_at = $2 WHERE tenant_id = $3 AND id = $4",
-		isDefault, time.Now().UTC(), tenantID.Value(), viewID,
-	)
-	return err
+	return rm.updateViewField(ctx, viewID, "is_default", isDefault)
 }
 
 func (rm *ArchitectureViewReadModel) UpdateEdgeType(ctx context.Context, viewID, edgeType string) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
-		"UPDATE architecture_views SET edge_type = $1, updated_at = $2 WHERE tenant_id = $3 AND id = $4",
-		edgeType, time.Now().UTC(), tenantID.Value(), viewID,
-	)
-	return err
+	return rm.updateViewField(ctx, viewID, "edge_type", edgeType)
 }
 
 func (rm *ArchitectureViewReadModel) UpdateLayoutDirection(ctx context.Context, viewID, layoutDirection string) error {
+	return rm.updateViewField(ctx, viewID, "layout_direction", layoutDirection)
+}
+
+func (rm *ArchitectureViewReadModel) updateViewField(ctx context.Context, viewID, field string, value interface{}) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
 	}
 
-	_, err = rm.db.ExecContext(ctx,
-		"UPDATE architecture_views SET layout_direction = $1, updated_at = $2 WHERE tenant_id = $3 AND id = $4",
-		layoutDirection, time.Now().UTC(), tenantID.Value(), viewID,
-	)
+	query := "UPDATE architecture_views SET " + field + " = $1, updated_at = $2 WHERE tenant_id = $3 AND id = $4"
+	_, err = rm.db.ExecContext(ctx, query, value, time.Now().UTC(), tenantID.Value(), viewID)
 	return err
 }
 
 // GetDefaultView retrieves the default view for the current tenant
 func (rm *ArchitectureViewReadModel) GetDefaultView(ctx context.Context) (*ArchitectureViewDTO, error) {
+	return rm.getViewByQuery(ctx,
+		`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction
+		FROM architecture_views av
+		LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
+		WHERE av.tenant_id = $1 AND av.is_default = true AND av.is_deleted = false LIMIT 1`,
+		func(tenantID string) []interface{} { return []interface{}{tenantID} },
+	)
+}
+
+// GetByID retrieves a view by ID with all component positions for the current tenant
+func (rm *ArchitectureViewReadModel) GetByID(ctx context.Context, id string) (*ArchitectureViewDTO, error) {
+	return rm.getViewByQuery(ctx,
+		`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction
+		FROM architecture_views av
+		LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
+		WHERE av.tenant_id = $1 AND av.id = $2 AND av.is_deleted = false`,
+		func(tenantID string) []interface{} { return []interface{}{tenantID, id} },
+	)
+}
+
+func (rm *ArchitectureViewReadModel) getViewByQuery(ctx context.Context, query string, argsBuilder func(tenantID string) []interface{}) (*ArchitectureViewDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, err
@@ -189,37 +176,17 @@ func (rm *ArchitectureViewReadModel) GetDefaultView(ctx context.Context) (*Archi
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		var edgeType, layoutDirection sql.NullString
-		err := tx.QueryRowContext(ctx,
-			`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction
-			FROM architecture_views av
-			LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
-			WHERE av.tenant_id = $1 AND av.is_default = true AND av.is_deleted = false LIMIT 1`,
-			tenantID.Value(),
-		).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt, &edgeType, &layoutDirection)
-
-		if err == sql.ErrNoRows {
+		found, err := rm.scanSingleView(ctx, tx, query, argsBuilder(tenantID.Value()), &dto)
+		if err != nil {
+			return err
+		}
+		if !found {
 			notFound = true
 			return nil
 		}
-		if err != nil {
-			return err
-		}
 
-		if edgeType.Valid {
-			dto.EdgeType = edgeType.String
-		}
-		if layoutDirection.Valid {
-			dto.LayoutDirection = layoutDirection.String
-		}
-
-		components, err := rm.getComponentsForViewTx(ctx, tx, tenantID.Value(), dto.ID)
-		if err != nil {
-			return err
-		}
-		dto.Components = components
-
-		return nil
+		dto.Components, err = rm.getComponentsForViewTx(ctx, tx, tenantID.Value(), dto.ID)
+		return err
 	})
 
 	if err != nil {
@@ -232,70 +199,27 @@ func (rm *ArchitectureViewReadModel) GetDefaultView(ctx context.Context) (*Archi
 	return &dto, nil
 }
 
-// GetByID retrieves a view by ID with all component positions for the current tenant
-func (rm *ArchitectureViewReadModel) GetByID(ctx context.Context, id string) (*ArchitectureViewDTO, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
+func (rm *ArchitectureViewReadModel) scanSingleView(ctx context.Context, tx *sql.Tx, query string, args []interface{}, dto *ArchitectureViewDTO) (bool, error) {
+	var edgeType, layoutDirection sql.NullString
+	err := tx.QueryRowContext(ctx, query, args...).Scan(
+		&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt, &edgeType, &layoutDirection,
+	)
+
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
-	var dto ArchitectureViewDTO
-	var notFound bool
-
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		var edgeType, layoutDirection sql.NullString
-		err := tx.QueryRowContext(ctx,
-			`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction
-			FROM architecture_views av
-			LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
-			WHERE av.tenant_id = $1 AND av.id = $2 AND av.is_deleted = false`,
-			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt, &edgeType, &layoutDirection)
-
-		if err == sql.ErrNoRows {
-			notFound = true
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-
-		if edgeType.Valid {
-			dto.EdgeType = edgeType.String
-		}
-		if layoutDirection.Valid {
-			dto.LayoutDirection = layoutDirection.String
-		}
-
-		rows, err := tx.QueryContext(ctx,
-			"SELECT component_id, x, y FROM view_component_positions WHERE tenant_id = $1 AND view_id = $2",
-			tenantID.Value(), id,
-		)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		dto.Components = make([]ComponentPositionDTO, 0)
-		for rows.Next() {
-			var comp ComponentPositionDTO
-			if err := rows.Scan(&comp.ComponentID, &comp.X, &comp.Y); err != nil {
-				return err
-			}
-			dto.Components = append(dto.Components, comp)
-		}
-
-		return rows.Err()
-	})
-
-	if err != nil {
-		return nil, err
+	if edgeType.Valid {
+		dto.EdgeType = edgeType.String
 	}
-	if notFound {
-		return nil, nil
+	if layoutDirection.Valid {
+		dto.LayoutDirection = layoutDirection.String
 	}
 
-	return &dto, nil
+	return true, nil
 }
 
 func (rm *ArchitectureViewReadModel) GetAll(ctx context.Context) ([]ArchitectureViewDTO, error) {

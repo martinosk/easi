@@ -63,7 +63,15 @@ func (p *CapabilityProjector) ProjectEvent(ctx context.Context, eventType string
 			return err
 		}
 
-		return p.readModel.UpdateMetadata(ctx, event.ID, event.StrategyPillar, event.PillarWeight, event.MaturityLevel, event.OwnershipModel, event.PrimaryOwner, event.EAOwner, event.Status)
+		return p.readModel.UpdateMetadata(ctx, event.ID, readmodels.CapabilityMetadataUpdate{
+			StrategyPillar: event.StrategyPillar,
+			PillarWeight:   event.PillarWeight,
+			MaturityLevel:  event.MaturityLevel,
+			OwnershipModel: event.OwnershipModel,
+			PrimaryOwner:   event.PrimaryOwner,
+			EAOwner:        event.EAOwner,
+			Status:         event.Status,
+		})
 	case "CapabilityExpertAdded":
 		var event events.CapabilityExpertAdded
 		if err := json.Unmarshal(eventData, &event); err != nil {
