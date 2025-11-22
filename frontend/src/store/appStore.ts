@@ -5,6 +5,7 @@ import { createViewSlice, type ViewState, type ViewActions } from './slices/view
 import { createViewportSlice, type ViewportSliceState, type ViewportActions } from './slices/viewportSlice';
 import { createSelectionSlice, type SelectionState, type SelectionActions } from './slices/selectionSlice';
 import { createLayoutSlice, type LayoutActions } from './slices/layoutSlice';
+import { createCapabilitySlice, type CapabilityState, type CapabilityActions } from './slices/capabilitySlice';
 
 export type AppStore =
   & ComponentState
@@ -17,7 +18,9 @@ export type AppStore =
   & ViewportActions
   & SelectionState
   & SelectionActions
-  & LayoutActions;
+  & LayoutActions
+  & CapabilityState
+  & CapabilityActions;
 
 export const useAppStore = create<AppStore>()((...args) => ({
   ...createComponentSlice(...args),
@@ -26,12 +29,16 @@ export const useAppStore = create<AppStore>()((...args) => ({
   ...createViewportSlice(...args),
   ...createSelectionSlice(...args),
   ...createLayoutSlice(...args),
+  ...createCapabilitySlice(...args),
 }));
 
 export type {
   ComponentId,
   RelationId,
   ViewId,
+  CapabilityId,
+  DependencyId,
+  RealizationId,
   RelationType,
   EdgeType,
   LayoutDirection,

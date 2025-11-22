@@ -15,6 +15,17 @@ import type {
   UpdateViewLayoutDirectionRequest,
   PaginatedResponse,
   CollectionResponse,
+  Capability,
+  CapabilityDependency,
+  CapabilityRealization,
+  CreateCapabilityRequest,
+  UpdateCapabilityRequest,
+  UpdateCapabilityMetadataRequest,
+  AddCapabilityExpertRequest,
+  AddCapabilityTagRequest,
+  CreateCapabilityDependencyRequest,
+  LinkSystemToCapabilityRequest,
+  UpdateRealizationRequest,
 } from './types';
 import { ApiError } from './types';
 
@@ -182,6 +193,106 @@ class ApiClient {
 
   async updateViewLayoutDirection(viewId: string, request: UpdateViewLayoutDirectionRequest): Promise<void> {
     await this.client.patch(`/api/v1/views/${viewId}/layout-direction`, request);
+  }
+
+  async getCapabilities(): Promise<Capability[]> {
+    const response = await this.client.get<CollectionResponse<Capability>>('/api/v1/capabilities');
+    return response.data.data || [];
+  }
+
+  async getCapabilityById(id: string): Promise<Capability> {
+    const response = await this.client.get<Capability>(`/api/v1/capabilities/${id}`);
+    return response.data;
+  }
+
+  async getCapabilityChildren(id: string): Promise<Capability[]> {
+    const response = await this.client.get<CollectionResponse<Capability>>(`/api/v1/capabilities/${id}/children`);
+    return response.data.data || [];
+  }
+
+  async createCapability(request: CreateCapabilityRequest): Promise<Capability> {
+    const response = await this.client.post<Capability>('/api/v1/capabilities', request);
+    return response.data;
+  }
+
+  async updateCapability(id: string, request: UpdateCapabilityRequest): Promise<Capability> {
+    const response = await this.client.put<Capability>(`/api/v1/capabilities/${id}`, request);
+    return response.data;
+  }
+
+  async updateCapabilityMetadata(id: string, request: UpdateCapabilityMetadataRequest): Promise<Capability> {
+    const response = await this.client.put<Capability>(`/api/v1/capabilities/${id}/metadata`, request);
+    return response.data;
+  }
+
+  async addCapabilityExpert(id: string, request: AddCapabilityExpertRequest): Promise<void> {
+    await this.client.post(`/api/v1/capabilities/${id}/experts`, request);
+  }
+
+  async addCapabilityTag(id: string, request: AddCapabilityTagRequest): Promise<void> {
+    await this.client.post(`/api/v1/capabilities/${id}/tags`, request);
+  }
+
+  async getCapabilityDependencies(): Promise<CapabilityDependency[]> {
+    const response = await this.client.get<CollectionResponse<CapabilityDependency>>('/api/v1/capability-dependencies');
+    return response.data.data || [];
+  }
+
+  async getOutgoingDependencies(capabilityId: string): Promise<CapabilityDependency[]> {
+    const response = await this.client.get<CollectionResponse<CapabilityDependency>>(
+      `/api/v1/capabilities/${capabilityId}/dependencies/outgoing`
+    );
+    return response.data.data || [];
+  }
+
+  async getIncomingDependencies(capabilityId: string): Promise<CapabilityDependency[]> {
+    const response = await this.client.get<CollectionResponse<CapabilityDependency>>(
+      `/api/v1/capabilities/${capabilityId}/dependencies/incoming`
+    );
+    return response.data.data || [];
+  }
+
+  async createCapabilityDependency(request: CreateCapabilityDependencyRequest): Promise<CapabilityDependency> {
+    const response = await this.client.post<CapabilityDependency>('/api/v1/capability-dependencies', request);
+    return response.data;
+  }
+
+  async deleteCapabilityDependency(id: string): Promise<void> {
+    await this.client.delete(`/api/v1/capability-dependencies/${id}`);
+  }
+
+  async getSystemsByCapability(capabilityId: string): Promise<CapabilityRealization[]> {
+    const response = await this.client.get<CollectionResponse<CapabilityRealization>>(
+      `/api/v1/capabilities/${capabilityId}/systems`
+    );
+    return response.data.data || [];
+  }
+
+  async getCapabilitiesByComponent(componentId: string): Promise<CapabilityRealization[]> {
+    const response = await this.client.get<CollectionResponse<CapabilityRealization>>(
+      `/api/v1/capability-realizations/by-component/${componentId}`
+    );
+    return response.data.data || [];
+  }
+
+  async linkSystemToCapability(capabilityId: string, request: LinkSystemToCapabilityRequest): Promise<CapabilityRealization> {
+    const response = await this.client.post<CapabilityRealization>(
+      `/api/v1/capabilities/${capabilityId}/systems`,
+      request
+    );
+    return response.data;
+  }
+
+  async updateRealization(id: string, request: UpdateRealizationRequest): Promise<CapabilityRealization> {
+    const response = await this.client.put<CapabilityRealization>(
+      `/api/v1/capability-realizations/${id}`,
+      request
+    );
+    return response.data;
+  }
+
+  async deleteRealization(id: string): Promise<void> {
+    await this.client.delete(`/api/v1/capability-realizations/${id}`);
   }
 }
 

@@ -42,7 +42,7 @@ Based on existing backend routes:
 
 **CapabilityDependency**: id, sourceCapabilityId, targetCapabilityId, dependencyType (Requires/Enables/Supports), description, createdAt, _links
 
-**CapabilityRealization**: id, capabilityId, systemId, coveragePercent, notes, createdAt, _links
+**CapabilityRealization**: id, capabilityId, componentId, realizationLevel, notes, linkedAt, _links
 
 **Request types** for create/update operations matching each endpoint
 
@@ -54,16 +54,16 @@ Extend Zustand store with:
 - Cache invalidation on mutations
 
 ## Acceptance Criteria
-- [ ] All TypeScript interfaces defined matching backend DTOs
-- [ ] All API client methods implemented with proper error handling
-- [ ] Zustand store extended with capability state and actions
-- [ ] API client follows existing patterns (axios, error interception)
-- [ ] Types properly exported for use in components
+- [x] All TypeScript interfaces defined matching backend DTOs
+- [x] All API client methods implemented with proper error handling
+- [x] Zustand store extended with capability state and actions
+- [x] API client follows existing patterns (axios, error interception)
+- [x] Types properly exported for use in components
 
 ## Checklist
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] Documentation updated if needed
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] Documentation updated if needed
+- [x] User sign-off

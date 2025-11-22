@@ -1,6 +1,9 @@
 export type ComponentId = string;
 export type RelationId = string;
 export type ViewId = string;
+export type CapabilityId = string;
+export type DependencyId = string;
+export type RealizationId = string;
 export type RelationType = 'Triggers' | 'Serves';
 export type EdgeType = string;
 export type LayoutDirection = string;

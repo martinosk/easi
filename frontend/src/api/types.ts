@@ -141,3 +141,103 @@ export class ApiError extends Error {
     this.response = response;
   }
 }
+
+export type CapabilityLevel = 'L1' | 'L2' | 'L3' | 'L4';
+export type DependencyType = 'Requires' | 'Enables' | 'Supports';
+export type RealizationLevel = 'Full' | 'Partial' | 'Planned';
+
+export interface Expert {
+  name: string;
+  role: string;
+  contact: string;
+  addedAt: string;
+}
+
+export interface Capability {
+  id: string;
+  name: string;
+  description?: string;
+  parentId?: string;
+  level: CapabilityLevel;
+  strategyPillar?: string;
+  pillarWeight?: number;
+  maturityLevel?: string;
+  ownershipModel?: string;
+  primaryOwner?: string;
+  eaOwner?: string;
+  status?: string;
+  experts?: Expert[];
+  tags?: string[];
+  createdAt: string;
+  _links: HATEOASLinks;
+}
+
+export interface CapabilityDependency {
+  id: string;
+  sourceCapabilityId: string;
+  targetCapabilityId: string;
+  dependencyType: DependencyType;
+  description?: string;
+  createdAt: string;
+  _links: HATEOASLinks;
+}
+
+export interface CapabilityRealization {
+  id: string;
+  capabilityId: string;
+  componentId: string;
+  realizationLevel: RealizationLevel;
+  notes?: string;
+  linkedAt: string;
+  _links: HATEOASLinks;
+}
+
+export interface CreateCapabilityRequest {
+  name: string;
+  description?: string;
+  parentId?: string;
+  level: CapabilityLevel;
+}
+
+export interface UpdateCapabilityRequest {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateCapabilityMetadataRequest {
+  strategyPillar?: string;
+  pillarWeight?: number;
+  maturityLevel: string;
+  ownershipModel?: string;
+  primaryOwner?: string;
+  eaOwner?: string;
+  status: string;
+}
+
+export interface AddCapabilityExpertRequest {
+  expertName: string;
+  expertRole: string;
+  contactInfo: string;
+}
+
+export interface AddCapabilityTagRequest {
+  tag: string;
+}
+
+export interface CreateCapabilityDependencyRequest {
+  sourceCapabilityId: string;
+  targetCapabilityId: string;
+  dependencyType: DependencyType;
+  description?: string;
+}
+
+export interface LinkSystemToCapabilityRequest {
+  componentId: string;
+  realizationLevel: RealizationLevel;
+  notes?: string;
+}
+
+export interface UpdateRealizationRequest {
+  realizationLevel: RealizationLevel;
+  notes?: string;
+}
