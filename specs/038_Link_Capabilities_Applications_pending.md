@@ -31,6 +31,8 @@ As a user, I need to link capabilities to applications so that I can document wh
 When auto-created from hierarchical rule:
 - Same styling but with 60% opacity
 - Label: "Realizes (inherited)"
+- **Visibility rule: Only displayed when the directly realized capability is not visible on canvas**
+- If both direct and inherited capabilities are visible, only the direct realization edge is shown
 
 ## Functional Requirements
 
@@ -44,8 +46,35 @@ When auto-created from hierarchical rule:
 When application realizes a capability:
 1. System automatically creates realizations for all ancestor capabilities
 2. If app realizes L3, also create realizations for L2 and L1 parents
-3. Ancestor realizations shown with reduced opacity if visible on canvas
-4. Notes field indicates "Auto-created via hierarchical realization rule"
+3. **Visual display follows visibility rule:**
+   - If direct realization source is visible on canvas, show only the direct edge
+   - If direct realization source is not visible, show inherited edge to closest visible ancestor
+   - Inherited edges displayed with reduced opacity (60%) and "(inherited)" label
+
+Example scenarios:
+- Canvas shows L3 and L2: Only L3→App edge visible
+- Canvas shows only L2 (L3 not present): L2→App edge visible with inherited styling
+- Canvas shows L1, L2, L3: Only L3→App edge visible
+- Canvas shows only L1 (L2, L3 not present): L1→App edge visible with inherited styling
+
+## Domain Model
+
+### RealizationOrigin Value Object
+Distinguishes realizations by their provenance:
+- **Direct**: Explicitly created by user action
+- **Inherited**: Automatically derived from hierarchical rule
+
+### SourceRealizationID Value Object
+Optional reference to the causative direct realization:
+- Null for Direct realizations
+- Required for Inherited realizations - references the Direct realization that triggered creation
+
+### Invariants
+1. **Origin Immutability**: A realization's origin cannot change after creation
+2. **Source Validity**: Inherited realizations must reference a valid Direct realization; if source is deleted, inherited must cascade delete
+3. **No Duplicate Direct Realizations**: Only one Direct realization per capability-component pair
+4. **Promotion Rule**: Creating a Direct realization for an existing Inherited pair replaces the Inherited with Direct
+5. **Deletion Cascade**: Deleting a Direct realization cascades to all Inherited realizations with that source (unless ancestor has another Direct from same component)
 
 ### Edit Realization
 Dialog fields:
@@ -72,10 +101,11 @@ Dialog fields:
 Application: SAP System
 ━━━━━━━━━━━━━━━━━━━━━━━
 Realizes Capabilities:
-• L3: Billing (100%)
-• L2: Finance (100%) [inherited]
-• L1: Core Operations (100%) [inherited]
+• L3: Billing (100%) ← direct
+• L2: Finance (100%) ← inherited
+• L1: Core Operations (100%) ← inherited
 ```
+Note: Details panel always shows all realizations (both direct and inherited) regardless of canvas visibility. The visibility rule only applies to edge rendering on canvas.
 
 ### Capability Selected
 ```
@@ -96,16 +126,30 @@ Right-click on realization edge:
 ```
 
 ## Acceptance Criteria
+
+### Domain Model
+- [ ] RealizationOrigin value object with Direct/Inherited variants
+- [ ] SourceRealizationID value object for tracking inheritance source
+- [ ] Invariants enforced: origin immutability, source validity, no duplicate directs
+- [ ] Deletion cascade: removing Direct realization removes its Inherited realizations
+
+### Backend
+- [ ] Backend API called to create linkage
+- [ ] Hierarchical rule enforced: Direct realization creates Inherited ancestor realizations
+- [ ] Each realization stores origin (Direct/Inherited) and sourceRealizationID
+
+### Frontend
 - [ ] Can connect capability to application (either direction)
 - [ ] Realization edge created with distinct styling (green dashed)
-- [ ] Backend API called to create linkage
-- [ ] Hierarchical rule enforced: child realization creates ancestor realizations
-- [ ] Inherited realizations shown with different styling (reduced opacity)
+- [ ] Inherited realizations only shown when directly realized capability is not visible on canvas
+- [ ] When both direct and inherited capabilities are visible, only direct edge is displayed
+- [ ] Inherited realizations shown with different styling (60% opacity) when displayed
+- [ ] Edge visibility updates dynamically when capabilities are added/removed from canvas
 - [ ] Multiple capabilities can link to same application
 - [ ] Coverage percentage can be edited (0-100)
 - [ ] Notes can be added to realization
 - [ ] Realization edges can be deleted via context menu
-- [ ] Application details panel shows realized capabilities
+- [ ] Application details panel shows realized capabilities (distinguishing direct vs inherited)
 - [ ] Capability details panel shows realizing applications
 - [ ] Existing realizations loaded and displayed when canvas loads
 
