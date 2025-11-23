@@ -12,7 +12,9 @@ type DeleteSystemRealizationHandler struct {
 	repository *repositories.RealizationRepository
 }
 
-func NewDeleteSystemRealizationHandler(repository *repositories.RealizationRepository) *DeleteSystemRealizationHandler {
+func NewDeleteSystemRealizationHandler(
+	repository *repositories.RealizationRepository,
+) *DeleteSystemRealizationHandler {
 	return &DeleteSystemRealizationHandler{
 		repository: repository,
 	}

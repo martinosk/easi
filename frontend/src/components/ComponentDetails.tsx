@@ -1,24 +1,54 @@
 import React from 'react';
 import { useAppStore } from '../store/appStore';
+import type { CapabilityRealization, Capability } from '../api/types';
 
 interface ComponentDetailsProps {
   onEdit: () => void;
   onRemoveFromView?: () => void;
 }
 
+const getLevelBadge = (level: string): string => {
+  const badges: Record<string, string> = {
+    Full: '100%',
+    Partial: 'Partial',
+    Planned: 'Planned',
+  };
+  return badges[level] || level;
+};
+
+const getCapabilityName = (capabilities: Capability[], capabilityId: string): string => {
+  const cap = capabilities.find((c) => c.id === capabilityId);
+  return cap ? `${cap.level}: ${cap.name}` : 'Unknown';
+};
+
+interface RealizationListProps {
+  realizations: CapabilityRealization[];
+  capabilities: Capability[];
+  origin: 'Direct' | 'Inherited';
+}
+
+const RealizationListItems: React.FC<RealizationListProps> = ({ realizations, capabilities, origin }) => (
+  <>
+    {realizations.map((r) => (
+      <li key={r.id} className={`realization-item${origin === 'Inherited' ? ' inherited' : ''}`}>
+        <span className="realization-name">{getCapabilityName(capabilities, r.capabilityId)}</span>
+        <span className="realization-level">{getLevelBadge(r.realizationLevel)}</span>
+        <span className={`realization-origin origin-${origin.toLowerCase()}`}>{origin.toLowerCase()}</span>
+      </li>
+    ))}
+  </>
+);
+
 export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRemoveFromView }) => {
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const components = useAppStore((state) => state.components);
   const currentView = useAppStore((state) => state.currentView);
   const clearSelection = useAppStore((state) => state.clearSelection);
-
-  if (!selectedNodeId) {
-    return null;
-  }
+  const capabilityRealizations = useAppStore((state) => state.capabilityRealizations);
+  const capabilities = useAppStore((state) => state.capabilities);
 
   const component = components.find((c) => c.id === selectedNodeId);
-
-  if (!component) {
+  if (!selectedNodeId || !component) {
     return null;
   }
 
@@ -28,6 +58,13 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
 
   const archimateLink = component._links.archimate?.href;
   const formattedDate = new Date(component.createdAt).toLocaleString();
+
+  const componentRealizations = capabilityRealizations.filter(
+    (r) => r.componentId === component.id
+  );
+
+  const directRealizations = componentRealizations.filter((r) => r.origin === 'Direct');
+  const inheritedRealizations = componentRealizations.filter((r) => r.origin === 'Inherited');
 
   return (
     <div className="detail-panel">
@@ -89,9 +126,18 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
               rel="noopener noreferrer"
               className="archimate-link"
             >
-              <span className="archimate-icon">📚</span>
               ArchiMate Documentation
             </a>
+          </div>
+        )}
+
+        {componentRealizations.length > 0 && (
+          <div className="detail-field">
+            <label className="detail-label">Realizes Capabilities</label>
+            <ul className="realization-list">
+              <RealizationListItems realizations={directRealizations} capabilities={capabilities} origin="Direct" />
+              <RealizationListItems realizations={inheritedRealizations} capabilities={capabilities} origin="Inherited" />
+            </ul>
           </div>
         )}
       </div>

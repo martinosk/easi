@@ -822,6 +822,16 @@ body {
   border: 1px solid var(--color-gray-200);
 }
 
+.react-flow__edge.realization-edge .react-flow__edge-path {
+  stroke: #10B981;
+  stroke-dasharray: 5,5;
+  stroke-width: 2px;
+}
+
+.react-flow__edge.realization-edge.inherited .react-flow__edge-path {
+  opacity: 0.6;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .detail-section {
@@ -1347,6 +1357,89 @@ body {
   background: #dc2626;
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
+}
+
+/* Realization Styles */
+.realization-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.realization-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.realization-item:last-child {
+  border-bottom: none;
+}
+
+.realization-item.inherited {
+  opacity: 0.7;
+}
+
+.realization-name {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-800);
+}
+
+.realization-level {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 2px 6px;
+  background: var(--color-success);
+  color: white;
+  border-radius: var(--radius-sm);
+}
+
+.realization-origin {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.origin-direct {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--color-primary);
+}
+
+.origin-inherited {
+  background: rgba(107, 114, 128, 0.1);
+  color: var(--color-gray-600);
+}
+
+.origin-badge {
+  display: inline-block;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.detail-info {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--color-gray-50);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-600);
+  line-height: 1.5;
+}
+
+.form-static {
+  padding: 0.625rem 0;
+  font-size: var(--font-size-base);
+  color: var(--color-gray-700);
+  background: var(--color-gray-50);
+  border-radius: var(--radius-md);
+  padding-left: 0.875rem;
 }
 
 /* Responsive adjustments for navigation tree */

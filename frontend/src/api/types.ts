@@ -201,6 +201,8 @@ export interface CapabilityRealization {
   componentId: string;
   realizationLevel: RealizationLevel;
   notes?: string;
+  origin: string;
+  sourceRealizationId?: string;
   linkedAt: string;
   _links: HATEOASLinks;
 }

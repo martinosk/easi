@@ -1,4 +1,4 @@
-import React, { useCallback, useImperativeHandle, forwardRef, useState } from 'react';
+import React, { useCallback, useImperativeHandle, forwardRef, useState, useEffect } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -26,6 +26,7 @@ import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { ConfirmationDialog } from './ConfirmationDialog';
 import { CapabilityNode } from './CapabilityNode';
 import toast from 'react-hot-toast';
+import type { CapabilityRealization } from '../api/types';
 
 interface ComponentCanvasProps {
   onConnect: (source: string, target: string) => void;
@@ -177,6 +178,10 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
   const changeCapabilityParent = useAppStore((state) => state.changeCapabilityParent);
   const deleteCapability = useAppStore((state) => state.deleteCapability);
 
+  const capabilityRealizations = useAppStore((state) => state.capabilityRealizations);
+  const loadRealizationsByComponent = useAppStore((state) => state.loadRealizationsByComponent);
+  const deleteRealization = useAppStore((state) => state.deleteRealization);
+
   const [nodes, setNodes] = React.useState<Node[]>([]);
   const [edges, setEdges] = React.useState<Edge[]>([]);
   const [isFirstLoad, setIsFirstLoad] = React.useState(true);
@@ -192,10 +197,11 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     y: number;
     edgeId: string;
     edgeName: string;
-    edgeType: 'relation' | 'parent';
+    edgeType: 'relation' | 'parent' | 'realization';
+    realizationId?: string;
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
-    type: 'component-from-view' | 'component-from-model' | 'relation-from-model' | 'capability-from-canvas' | 'capability-from-model' | 'parent-relation';
+    type: 'component-from-view' | 'component-from-model' | 'relation-from-model' | 'capability-from-canvas' | 'capability-from-model' | 'parent-relation' | 'realization';
     id: string;
     name: string;
     childId?: string;
@@ -256,6 +262,14 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
 
     setNodes([...componentNodes, ...capabilityNodes]);
   }, [components, currentView, selectedNodeId, canvasCapabilities, capabilities, selectedCapabilityId]);
+
+  useEffect(() => {
+    if (!currentView) return;
+    const componentIdsOnCanvas = currentView.components.map((vc) => vc.componentId);
+    componentIdsOnCanvas.forEach((componentId) => {
+      loadRealizationsByComponent(componentId);
+    });
+  }, [currentView?.id, currentView?.components.length, loadRealizationsByComponent]);
 
   // Build edges from relations and capability parent relationships
   React.useEffect(() => {
@@ -344,8 +358,77 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
       })
       .filter((e) => e !== null) as Edge[];
 
-    setEdges([...relationEdges, ...parentEdges]);
-  }, [relations, selectedEdgeId, currentView?.edgeType, nodes, canvasCapabilities, capabilities]);
+    const visibleCapabilityIds = new Set(canvasCapabilities.map((cc) => cc.capabilityId));
+    const componentIdsOnCanvas = new Set(
+      currentView?.components.map((vc) => vc.componentId) || []
+    );
+
+    const shouldShowRealizationEdge = (realization: CapabilityRealization): boolean => {
+      if (!componentIdsOnCanvas.has(realization.componentId)) return false;
+      if (!visibleCapabilityIds.has(realization.capabilityId)) return false;
+
+      if (realization.origin === 'Direct') {
+        return true;
+      }
+
+      if (realization.origin === 'Inherited' && realization.sourceRealizationId) {
+        const sourceRealization = capabilityRealizations.find(
+          (r) => r.id === realization.sourceRealizationId
+        );
+        if (sourceRealization) {
+          return !visibleCapabilityIds.has(sourceRealization.capabilityId);
+        }
+      }
+      return false;
+    };
+
+    const realizationEdges = capabilityRealizations
+      .filter(shouldShowRealizationEdge)
+      .map((realization) => {
+        const edgeId = `realization-${realization.id}`;
+        const isSelected = selectedEdgeId === edgeId;
+        const isInherited = realization.origin === 'Inherited';
+
+        const sourceNodeId = realization.componentId;
+        const targetNodeId = `cap-${realization.capabilityId}`;
+
+        const sourceNode = nodes.find((n) => n.id === sourceNodeId);
+        const targetNode = nodes.find((n) => n.id === targetNodeId);
+        const { sourceHandle, targetHandle } = getBestHandles(sourceNode, targetNode);
+
+        return {
+          id: edgeId,
+          source: sourceNodeId,
+          target: targetNodeId,
+          sourceHandle,
+          targetHandle,
+          label: isInherited ? 'Realizes (inherited)' : 'Realizes',
+          type: 'default' as const,
+          animated: isSelected,
+          className: isInherited ? 'realization-edge inherited' : 'realization-edge',
+          style: {
+            stroke: '#10B981',
+            strokeWidth: isSelected ? 3 : 2,
+            strokeDasharray: '5,5',
+            opacity: isInherited ? 0.6 : 1.0,
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: '#10B981',
+          },
+          labelStyle: {
+            fill: '#10B981',
+            fontWeight: isSelected ? 700 : 500,
+            opacity: isInherited ? 0.8 : 1.0,
+          },
+          labelBgStyle: {
+            fill: '#ffffff',
+          },
+        };
+      });
+
+    setEdges([...relationEdges, ...parentEdges, ...realizationEdges]);
+  }, [relations, selectedEdgeId, currentView?.edgeType, currentView?.components, nodes, canvasCapabilities, capabilities, capabilityRealizations]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -431,6 +514,22 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
           edgeName: 'Parent',
           edgeType: 'parent',
         });
+      } else if (edge.id.startsWith('realization-')) {
+        const realizationId = edge.id.replace('realization-', '');
+        const realization = capabilityRealizations.find((r) => r.id === realizationId);
+        if (realization) {
+          const capability = capabilities.find((c) => c.id === realization.capabilityId);
+          const component = components.find((c) => c.id === realization.componentId);
+          const edgeName = `${capability?.name || 'Capability'} -> ${component?.name || 'Component'}`;
+          setEdgeContextMenu({
+            x: event.clientX,
+            y: event.clientY,
+            edgeId: edge.id,
+            edgeName,
+            edgeType: 'realization',
+            realizationId,
+          });
+        }
       } else {
         const relation = relations.find((r) => r.id === edge.id);
         if (relation) {
@@ -444,7 +543,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         }
       }
     },
-    [relations]
+    [relations, capabilityRealizations, capabilities, components]
   );
 
   const onNodeDragStop = useCallback(
@@ -458,6 +557,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     },
     [updatePosition, updateCapabilityPosition]
   );
+
+  const linkSystemToCapability = useAppStore((state) => state.linkSystemToCapability);
 
   const onConnectHandler = useCallback(
     async (connection: Connection) => {
@@ -483,9 +584,25 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
       } else if (!sourceIsCapability && !targetIsCapability) {
         // Component to component connection
         onConnect(connection.target, connection.source);
+      } else {
+        // Capability to component or component to capability - create realization
+        const capabilityId = sourceIsCapability
+          ? connection.source.replace('cap-', '')
+          : connection.target.replace('cap-', '');
+        const componentId = sourceIsCapability ? connection.target : connection.source;
+
+        try {
+          await linkSystemToCapability(capabilityId, {
+            componentId,
+            realizationLevel: 'Full',
+          });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Failed to create realization';
+          toast.error(errorMessage);
+        }
       }
     },
-    [onConnect, changeCapabilityParent]
+    [onConnect, changeCapabilityParent, linkSystemToCapability]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -561,6 +678,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         await deleteCapability(deleteTarget.id);
       } else if (deleteTarget.type === 'parent-relation' && deleteTarget.childId) {
         await changeCapabilityParent(deleteTarget.childId, null);
+      } else if (deleteTarget.type === 'realization') {
+        await deleteRealization(deleteTarget.id);
       }
       setDeleteTarget(null);
     } catch (error) {
@@ -644,6 +763,33 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
             setEdgeContextMenu(null);
           },
           isDanger: true,
+        },
+      ];
+    }
+
+    if (edgeContextMenu.edgeType === 'realization' && edgeContextMenu.realizationId) {
+      const realization = capabilityRealizations.find(
+        (r) => r.id === edgeContextMenu.realizationId
+      );
+      const isInherited = realization?.origin === 'Inherited';
+
+      if (isInherited) {
+        return [];
+      }
+
+      return [
+        {
+          label: 'Delete Realization',
+          onClick: () => {
+            setDeleteTarget({
+              type: 'realization',
+              id: edgeContextMenu.realizationId!,
+              name: edgeContextMenu.edgeName,
+            });
+            setEdgeContextMenu(null);
+          },
+          isDanger: true,
+          ariaLabel: 'Delete realization link',
         },
       ];
     }
@@ -748,6 +894,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
               ? 'Delete Capability from Model'
               : deleteTarget.type === 'parent-relation'
               ? 'Remove Parent Relationship'
+              : deleteTarget.type === 'realization'
+              ? 'Delete Realization'
               : 'Delete Relation from Model'
           }
           message={
@@ -757,6 +905,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
               ? 'This will delete the capability from the entire model, remove it from ALL views, and affect any child capabilities.'
               : deleteTarget.type === 'parent-relation'
               ? 'This will remove the parent-child relationship. The child capability will become a top-level (L1) capability.'
+              : deleteTarget.type === 'realization'
+              ? 'This will remove the link between this capability and application. Any inherited realizations will also be removed.'
               : 'This will delete the relation from the entire model and remove it from ALL views.'
           }
           itemName={deleteTarget.name}

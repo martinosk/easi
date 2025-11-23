@@ -344,7 +344,7 @@ describe('CreateCapabilityDialog', () => {
 
     it('should disable submit button during creation', async () => {
       mockCreateCapability.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 500))
       );
 
       render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
@@ -361,10 +361,9 @@ describe('CreateCapabilityDialog', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Creating...')).toBeInTheDocument();
+        const disabledButton = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
+        expect(disabledButton.disabled).toBe(true);
       });
-
-      const disabledButton = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
-      expect(disabledButton.disabled).toBe(true);
     });
 
     it('should disable inputs while creating', async () => {

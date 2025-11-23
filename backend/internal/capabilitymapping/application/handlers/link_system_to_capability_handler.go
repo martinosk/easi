@@ -13,7 +13,8 @@ import (
 )
 
 var (
-	ErrComponentNotFound = errors.New("component not found")
+	ErrComponentNotFound                = errors.New("component not found")
+	ErrCapabilityNotFoundForRealization = errors.New("capability not found")
 )
 
 type LinkSystemToCapabilityHandler struct {
@@ -87,7 +88,3 @@ func (h *LinkSystemToCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Com
 
 	return h.realizationRepository.Save(ctx, realization)
 }
-
-var (
-	ErrCapabilityNotFoundForRealization = errors.New("capability not found")
-)

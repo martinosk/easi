@@ -33,7 +33,7 @@ func SetupCapabilityMappingRoutes(
 
 	capabilityProjector := projectors.NewCapabilityProjector(capabilityReadModel)
 	dependencyProjector := projectors.NewDependencyProjector(dependencyReadModel)
-	realizationProjector := projectors.NewRealizationProjector(realizationReadModel)
+	realizationProjector := projectors.NewRealizationProjector(realizationReadModel, capabilityReadModel)
 
 	eventBus.Subscribe("CapabilityCreated", capabilityProjector)
 	eventBus.Subscribe("CapabilityUpdated", capabilityProjector)

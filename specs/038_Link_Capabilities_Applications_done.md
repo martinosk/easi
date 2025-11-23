@@ -128,35 +128,35 @@ Right-click on realization edge:
 ## Acceptance Criteria
 
 ### Domain Model
-- [ ] RealizationOrigin value object with Direct/Inherited variants
-- [ ] SourceRealizationID value object for tracking inheritance source
-- [ ] Invariants enforced: origin immutability, source validity, no duplicate directs
-- [ ] Deletion cascade: removing Direct realization removes its Inherited realizations
+- [x] RealizationOrigin value object with Direct/Inherited variants
+- [x] SourceRealizationID value object for tracking inheritance source
+- [x] Invariants enforced: origin immutability, source validity, no duplicate directs
+- [x] Deletion cascade: removing Direct realization removes its Inherited realizations
 
 ### Backend
-- [ ] Backend API called to create linkage
-- [ ] Hierarchical rule enforced: Direct realization creates Inherited ancestor realizations
-- [ ] Each realization stores origin (Direct/Inherited) and sourceRealizationID
+- [x] Backend API called to create linkage
+- [x] Hierarchical rule enforced: Direct realization creates Inherited ancestor realizations
+- [x] Each realization stores origin (Direct/Inherited) and sourceRealizationID
 
 ### Frontend
-- [ ] Can connect capability to application (either direction)
-- [ ] Realization edge created with distinct styling (green dashed)
-- [ ] Inherited realizations only shown when directly realized capability is not visible on canvas
-- [ ] When both direct and inherited capabilities are visible, only direct edge is displayed
-- [ ] Inherited realizations shown with different styling (60% opacity) when displayed
-- [ ] Edge visibility updates dynamically when capabilities are added/removed from canvas
-- [ ] Multiple capabilities can link to same application
-- [ ] Coverage percentage can be edited (0-100)
-- [ ] Notes can be added to realization
-- [ ] Realization edges can be deleted via context menu
-- [ ] Application details panel shows realized capabilities (distinguishing direct vs inherited)
-- [ ] Capability details panel shows realizing applications
-- [ ] Existing realizations loaded and displayed when canvas loads
+- [x] Can connect capability to application (either direction)
+- [x] Realization edge created with distinct styling (green dashed)
+- [x] Inherited realizations only shown when directly realized capability is not visible on canvas
+- [x] When both direct and inherited capabilities are visible, only direct edge is displayed
+- [x] Inherited realizations shown with different styling (60% opacity) when displayed
+- [x] Edge visibility updates dynamically when capabilities are added/removed from canvas
+- [x] Multiple capabilities can link to same application
+- [x] Coverage percentage can be edited (0-100)
+- [x] Notes can be added to realization
+- [x] Realization edges can be deleted via context menu
+- [x] Application details panel shows realized capabilities (distinguishing direct vs inherited)
+- [x] Capability details panel shows realizing applications
+- [x] Existing realizations loaded and displayed when canvas loads
 
 ## Checklist
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] Documentation updated if needed
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] Documentation updated if needed
+- [x] User sign-off

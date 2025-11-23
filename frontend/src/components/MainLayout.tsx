@@ -5,6 +5,7 @@ import { ViewSelector } from './ViewSelector';
 import { ComponentCanvas, type ComponentCanvasRef } from './ComponentCanvas';
 import { ComponentDetails } from './ComponentDetails';
 import { RelationDetails } from './RelationDetails';
+import { RealizationDetails } from './RealizationDetails';
 import { CapabilityDetails } from './CapabilityDetails';
 import { useAppStore } from '../store/appStore';
 import type { Capability } from '../api/types';
@@ -83,7 +84,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 onRemoveFromView={onRemoveFromView}
               />
             )}
-            {selectedEdgeId && <RelationDetails onEdit={onEditRelation} />}
+            {selectedEdgeId && selectedEdgeId.startsWith('realization-') && (
+              <RealizationDetails />
+            )}
+            {selectedEdgeId && !selectedEdgeId.startsWith('realization-') && !selectedEdgeId.startsWith('parent-') && (
+              <RelationDetails onEdit={onEditRelation} />
+            )}
             {selectedCapabilityId && (
               <CapabilityDetails onRemoveFromView={handleRemoveCapabilityFromView} />
             )}
