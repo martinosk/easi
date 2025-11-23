@@ -7,6 +7,7 @@ import { ComponentDetails } from './ComponentDetails';
 import { RelationDetails } from './RelationDetails';
 import { CapabilityDetails } from './CapabilityDetails';
 import { useAppStore } from '../store/appStore';
+import type { Capability } from '../api/types';
 
 interface MainLayoutProps {
   canvasRef: React.RefObject<ComponentCanvasRef | null>;
@@ -17,9 +18,11 @@ interface MainLayoutProps {
   onConnect: (source: string, target: string) => void;
   onComponentDrop: (componentId: string, x: number, y: number) => Promise<void>;
   onComponentSelect: (componentId: string) => void;
+  onCapabilitySelect: (capabilityId: string) => void;
   onViewSelect: (viewId: string) => Promise<void>;
-  onEditComponent: () => void;
+  onEditComponent: (componentId?: string) => void;
   onEditRelation: () => void;
+  onEditCapability: (capability: Capability) => void;
   onRemoveFromView: () => void;
 }
 
@@ -32,15 +35,17 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   onConnect,
   onComponentDrop,
   onComponentSelect,
+  onCapabilitySelect,
   onViewSelect,
   onEditComponent,
   onEditRelation,
+  onEditCapability,
   onRemoveFromView,
 }) => {
   const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
   const removeCapabilityFromCanvas = useAppStore((state) => state.removeCapabilityFromCanvas);
 
-  const handleRemoveCapabilityFromCanvas = () => {
+  const handleRemoveCapabilityFromView = () => {
     if (selectedCapabilityId) {
       removeCapabilityFromCanvas(selectedCapabilityId);
     }
@@ -53,9 +58,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       <div className="main-content">
         <NavigationTree
           onComponentSelect={onComponentSelect}
+          onCapabilitySelect={onCapabilitySelect}
           onViewSelect={onViewSelect}
           onAddComponent={onAddComponent}
           onAddCapability={onAddCapability}
+          onEditCapability={onEditCapability}
+          onEditComponent={onEditComponent}
         />
 
         <div className="canvas-section">
@@ -77,7 +85,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             )}
             {selectedEdgeId && <RelationDetails onEdit={onEditRelation} />}
             {selectedCapabilityId && (
-              <CapabilityDetails onRemoveFromCanvas={handleRemoveCapabilityFromCanvas} />
+              <CapabilityDetails onRemoveFromView={handleRemoveCapabilityFromView} />
             )}
           </div>
         )}

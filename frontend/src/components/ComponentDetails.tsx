@@ -48,7 +48,7 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
             Edit
           </button>
           {isInCurrentView && onRemoveFromView && (
-            <button className="btn btn-danger btn-small" onClick={onRemoveFromView}>
+            <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>
               Remove from View
             </button>
           )}

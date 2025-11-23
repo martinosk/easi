@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../store/appStore';
 import { EditCapabilityDialog } from './EditCapabilityDialog';
-import { DeleteCapabilityDialog } from './DeleteCapabilityDialog';
 import { DetailField } from './DetailField';
 
 interface CapabilityDetailsProps {
-  onRemoveFromCanvas: () => void;
+  onRemoveFromView: () => void;
 }
 
 const getMaturityBadgeClass = (maturityLevel?: string): string => {
@@ -19,12 +18,11 @@ const getMaturityBadgeClass = (maturityLevel?: string): string => {
   return maturityClasses[level || ''] || 'badge-default';
 };
 
-export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFromCanvas }) => {
+export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFromView }) => {
   const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
   const capabilities = useAppStore((state) => state.capabilities);
   const selectCapability = useAppStore((state) => state.selectCapability);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const capability = capabilities.find((c) => c.id === selectedCapabilityId);
   if (!selectedCapabilityId || !capability) return null;
@@ -41,8 +39,7 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
       <div className="detail-content">
         <div className="detail-actions">
           <button className="btn btn-secondary btn-small" onClick={() => setShowEditDialog(true)}>Edit</button>
-          <button className="btn btn-secondary btn-small" onClick={onRemoveFromCanvas}>Remove from Canvas</button>
-          <button className="btn btn-danger btn-small" onClick={() => setShowDeleteDialog(true)}>Delete</button>
+          <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>Remove from View</button>
         </div>
 
         <DetailField label="Name">{capability.name}</DetailField>
@@ -81,7 +78,6 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
       </div>
 
       <EditCapabilityDialog isOpen={showEditDialog} onClose={() => setShowEditDialog(false)} capability={capability} />
-      <DeleteCapabilityDialog isOpen={showDeleteDialog} onClose={() => setShowDeleteDialog(false)} capability={capability} />
     </div>
   );
 };

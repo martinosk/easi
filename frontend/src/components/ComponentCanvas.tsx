@@ -175,6 +175,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
   const updateCapabilityPosition = useAppStore((state) => state.updateCapabilityPosition);
   const selectCapability = useAppStore((state) => state.selectCapability);
   const changeCapabilityParent = useAppStore((state) => state.changeCapabilityParent);
+  const deleteCapability = useAppStore((state) => state.deleteCapability);
 
   const [nodes, setNodes] = React.useState<Node[]>([]);
   const [edges, setEdges] = React.useState<Edge[]>([]);
@@ -194,7 +195,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     edgeType: 'relation' | 'parent';
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
-    type: 'component-from-view' | 'component-from-model' | 'relation-from-model' | 'capability-from-canvas' | 'parent-relation';
+    type: 'component-from-view' | 'component-from-model' | 'relation-from-model' | 'capability-from-canvas' | 'capability-from-model' | 'parent-relation';
     id: string;
     name: string;
     childId?: string;
@@ -556,6 +557,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         await deleteRelation(deleteTarget.id);
       } else if (deleteTarget.type === 'capability-from-canvas') {
         removeCapabilityFromCanvas(deleteTarget.id);
+      } else if (deleteTarget.type === 'capability-from-model') {
+        await deleteCapability(deleteTarget.id);
       } else if (deleteTarget.type === 'parent-relation' && deleteTarget.childId) {
         await changeCapabilityParent(deleteTarget.childId, null);
       }
@@ -573,18 +576,31 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     if (nodeContextMenu.nodeType === 'capability') {
       return [
         {
-          label: 'Remove from Canvas',
+          label: 'Remove from View',
           onClick: () => {
             removeCapabilityFromCanvas(nodeContextMenu.nodeId);
             setNodeContextMenu(null);
           },
+        },
+        {
+          label: 'Delete from Model',
+          onClick: () => {
+            setDeleteTarget({
+              type: 'capability-from-model',
+              id: nodeContextMenu.nodeId,
+              name: nodeContextMenu.nodeName,
+            });
+            setNodeContextMenu(null);
+          },
+          isDanger: true,
+          ariaLabel: 'Delete capability from entire model',
         },
       ];
     }
 
     return [
       {
-        label: 'Delete from View',
+        label: 'Remove from View',
         onClick: () => {
           removeComponentFromView(nodeContextMenu.nodeId);
           setNodeContextMenu(null);
@@ -728,6 +744,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
           title={
             deleteTarget.type === 'component-from-model'
               ? 'Delete Component from Model'
+              : deleteTarget.type === 'capability-from-model'
+              ? 'Delete Capability from Model'
               : deleteTarget.type === 'parent-relation'
               ? 'Remove Parent Relationship'
               : 'Delete Relation from Model'
@@ -735,6 +753,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
           message={
             deleteTarget.type === 'component-from-model'
               ? 'This will delete the component from the entire model, remove it from ALL views, and delete ALL relations involving this component.'
+              : deleteTarget.type === 'capability-from-model'
+              ? 'This will delete the capability from the entire model, remove it from ALL views, and affect any child capabilities.'
               : deleteTarget.type === 'parent-relation'
               ? 'This will remove the parent-child relationship. The child capability will become a top-level (L1) capability.'
               : 'This will delete the relation from the entire model and remove it from ALL views.'

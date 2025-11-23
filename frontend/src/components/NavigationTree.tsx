@@ -4,10 +4,7 @@ import apiClient from '../api/client';
 import type { View, Component, Capability } from '../api/types';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { ConfirmationDialog } from './ConfirmationDialog';
-import { EditCapabilityDialog } from './EditCapabilityDialog';
 import { DeleteCapabilityDialog } from './DeleteCapabilityDialog';
-import { AddExpertDialog } from './AddExpertDialog';
-import { AddTagDialog } from './AddTagDialog';
 
 interface CapabilityTreeNode {
   capability: Capability;
@@ -79,6 +76,8 @@ interface NavigationTreeProps {
   onAddComponent?: () => void;
   onCapabilitySelect?: (capabilityId: string) => void;
   onAddCapability?: () => void;
+  onEditCapability?: (capability: Capability) => void;
+  onEditComponent?: (componentId: string) => void;
 }
 
 interface ViewContextMenuState {
@@ -114,12 +113,15 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   onAddComponent,
   onCapabilitySelect,
   onAddCapability,
+  onEditCapability,
+  onEditComponent,
 }) => {
   const components = useAppStore((state) => state.components);
   const currentView = useAppStore((state) => state.currentView);
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const capabilities = useAppStore((state) => state.capabilities);
   const loadCapabilities = useAppStore((state) => state.loadCapabilities);
+  const canvasCapabilities = useAppStore((state) => state.canvasCapabilities);
 
   const [isOpen, setIsOpen] = useState(() => getPersistedBoolean('navigationTreeOpen', true));
   const [isModelsExpanded, setIsModelsExpanded] = useState(() => getPersistedBoolean('navigationTreeModelsExpanded', true));
@@ -148,10 +150,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
 
-  const [editCapability, setEditCapability] = useState<Capability | null>(null);
   const [deleteCapability, setDeleteCapability] = useState<Capability | null>(null);
-  const [addExpertCapabilityId, setAddExpertCapabilityId] = useState<string | null>(null);
-  const [addTagCapabilityId, setAddTagCapabilityId] = useState<string | null>(null);
 
   // Load views when component mounts or when currentView changes
   useEffect(() => {
@@ -213,20 +212,17 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
     return [
       {
         label: 'Edit',
-        onClick: () => setEditCapability(menu.capability),
+        onClick: () => {
+          if (onEditCapability) {
+            onEditCapability(menu.capability);
+          }
+        },
       },
       {
-        label: 'Add Expert',
-        onClick: () => setAddExpertCapabilityId(menu.capability.id),
-      },
-      {
-        label: 'Add Tag',
-        onClick: () => setAddTagCapabilityId(menu.capability.id),
-      },
-      {
-        label: 'Delete',
+        label: 'Delete from Model',
         onClick: () => setDeleteCapability(menu.capability),
         isDanger: true,
+        ariaLabel: 'Delete capability from entire model',
       },
     ];
   };
@@ -237,11 +233,15 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
     const isExpanded = expandedCapabilities.has(capability.id);
     const levelNum = getLevelNumber(capability.level);
     const isSelected = selectedCapabilityId === capability.id;
+    const isOnCanvas = canvasCapabilities.some((cc) => cc.capabilityId === capability.id);
+
+    const baseTitle = capability.description || capability.name;
+    const title = isOnCanvas ? baseTitle : `${baseTitle} (not in view)`;
 
     return (
       <div key={capability.id}>
         <div
-          className={`capability-tree-item capability-level-${levelNum} ${isSelected ? 'selected' : ''}`}
+          className={`capability-tree-item capability-level-${levelNum} ${isSelected ? 'selected' : ''} ${!isOnCanvas ? 'not-in-view' : ''}`}
           draggable
           onDragStart={(e) => {
             e.dataTransfer.setData('capabilityId', capability.id);
@@ -249,7 +249,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
           }}
           onClick={() => handleCapabilityClick(capability.id)}
           onContextMenu={(e) => handleCapabilityContextMenu(e, capability)}
-          title={capability.description || capability.name}
+          title={title}
         >
           {hasChildren ? (
             <button
@@ -403,12 +403,11 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   const getComponentContextMenuItems = (menu: ComponentContextMenuState): ContextMenuItem[] => {
     return [
       {
-        label: 'Rename',
+        label: 'Edit',
         onClick: () => {
-          setEditingState({
-            componentId: menu.componentId,
-            name: menu.componentName,
-          });
+          if (onEditComponent) {
+            onEditComponent(menu.componentId);
+          }
         },
       },
       {
@@ -721,28 +720,10 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
         />
       )}
 
-      <EditCapabilityDialog
-        isOpen={editCapability !== null}
-        onClose={() => setEditCapability(null)}
-        capability={editCapability}
-      />
-
       <DeleteCapabilityDialog
         isOpen={deleteCapability !== null}
         onClose={() => setDeleteCapability(null)}
         capability={deleteCapability}
-      />
-
-      <AddExpertDialog
-        isOpen={addExpertCapabilityId !== null}
-        onClose={() => setAddExpertCapabilityId(null)}
-        capabilityId={addExpertCapabilityId || ''}
-      />
-
-      <AddTagDialog
-        isOpen={addTagCapabilityId !== null}
-        onClose={() => setAddTagCapabilityId(null)}
-        capabilityId={addTagCapabilityId || ''}
       />
     </>
   );

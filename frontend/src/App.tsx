@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from './store/appStore';
 import { AppLayout } from './components/AppLayout';
 import { LoadingScreen } from './components/LoadingScreen';
@@ -6,6 +6,7 @@ import { ErrorScreen } from './components/ErrorScreen';
 import { MainLayout } from './components/MainLayout';
 import { DialogManager } from './components/DialogManager';
 import type { ComponentCanvasRef } from './components/ComponentCanvas';
+import type { Capability } from './api/types';
 import { useDialogState } from './hooks/useDialogState';
 import { useRelationDialog } from './hooks/useRelationDialog';
 import { useViewOperations } from './hooks/useViewOperations';
@@ -21,6 +22,27 @@ function App() {
   const relationDialog = useRelationDialog();
   const editRelationDialog = useDialogState();
   const capabilityDialog = useDialogState();
+  const editCapabilityDialogState = useDialogState();
+  const [editCapabilityTarget, setEditCapabilityTarget] = useState<Capability | null>(null);
+
+  const openEditCapabilityDialog = useCallback((capability: Capability) => {
+    setEditCapabilityTarget(capability);
+    editCapabilityDialogState.open();
+  }, [editCapabilityDialogState]);
+
+  const closeEditCapabilityDialog = useCallback(() => {
+    editCapabilityDialogState.close();
+    setEditCapabilityTarget(null);
+  }, [editCapabilityDialogState]);
+
+  const selectNode = useAppStore((state) => state.selectNode);
+
+  const openEditComponentDialog = useCallback((componentId?: string) => {
+    if (componentId) {
+      selectNode(componentId);
+    }
+    editComponentDialog.open();
+  }, [selectNode, editComponentDialog]);
 
   // Store selectors
   const loadData = useAppStore((state) => state.loadData);
@@ -33,7 +55,7 @@ function App() {
 
   // Custom hooks for operations
   const { removeComponentFromView, addComponentToView, switchView } = useViewOperations();
-  const { navigateToComponent } = useCanvasNavigation(canvasRef);
+  const { navigateToComponent, navigateToCapability } = useCanvasNavigation(canvasRef);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -80,9 +102,11 @@ function App() {
         onConnect={relationDialog.open}
         onComponentDrop={addComponentToView}
         onComponentSelect={navigateToComponent}
+        onCapabilitySelect={navigateToCapability}
         onViewSelect={switchView}
-        onEditComponent={editComponentDialog.open}
+        onEditComponent={openEditComponentDialog}
         onEditRelation={editRelationDialog.open}
+        onEditCapability={openEditCapabilityDialog}
         onRemoveFromView={() =>
           selectedNodeId && removeComponentFromView(selectedNodeId)
         }
@@ -112,6 +136,11 @@ function App() {
         capabilityDialog={{
           isOpen: capabilityDialog.isOpen,
           onClose: capabilityDialog.close,
+        }}
+        editCapabilityDialog={{
+          isOpen: editCapabilityDialogState.isOpen,
+          onClose: closeEditCapabilityDialog,
+          capability: editCapabilityTarget,
         }}
       />
     </AppLayout>
