@@ -164,3 +164,17 @@ REST Level 3 APIs must follow consistent response structures:
 - Do not add conditional logic checking current schema state - migrations run in order
 - Foreign key constraints should not be used in event-sourced read models:
   - Referential integrity is maintained by the domain model and event handlers
+
+# Running Tests
+
+## Frontend Tests
+Frontend tests use Vitest with process isolation (takes ~45 seconds). Use these commands:
+- `npm test -- --run` - Run all tests once (use 3 minute timeout)
+- `npm test -- --run --reporter=dot` - Compact output (dots instead of verbose names)
+- `npm test -- --run src/path/to/file.test.ts` - Run specific test file
+
+Note: Always use `--run` flag to avoid watch mode which waits indefinitely.
+
+## Backend Tests
+- `go test ./...` - Run all Go tests
+- `go test ./internal/path/to/package` - Run specific package tests
