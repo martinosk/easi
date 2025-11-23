@@ -8,6 +8,7 @@ import type {
   CreateRelationRequest,
   CreateViewRequest,
   AddComponentToViewRequest,
+  AddCapabilityToViewRequest,
   UpdatePositionRequest,
   UpdateMultiplePositionsRequest,
   RenameViewRequest,
@@ -195,6 +196,18 @@ class ApiClient {
     await this.client.patch(`/api/v1/views/${viewId}/layout-direction`, request);
   }
 
+  async addCapabilityToView(viewId: string, request: AddCapabilityToViewRequest): Promise<void> {
+    await this.client.post(`/api/v1/views/${viewId}/capabilities`, request);
+  }
+
+  async updateCapabilityPositionInView(viewId: string, capabilityId: string, x: number, y: number): Promise<void> {
+    await this.client.patch(`/api/v1/views/${viewId}/capabilities/${capabilityId}/position`, { x, y });
+  }
+
+  async removeCapabilityFromView(viewId: string, capabilityId: string): Promise<void> {
+    await this.client.delete(`/api/v1/views/${viewId}/capabilities/${capabilityId}`);
+  }
+
   async getCapabilities(): Promise<Capability[]> {
     const response = await this.client.get<CollectionResponse<Capability>>('/api/v1/capabilities');
     return response.data.data || [];
@@ -235,6 +248,12 @@ class ApiClient {
 
   async deleteCapability(id: string): Promise<void> {
     await this.client.delete(`/api/v1/capabilities/${id}`);
+  }
+
+  async changeCapabilityParent(id: string, parentId: string | null): Promise<void> {
+    await this.client.patch(`/api/v1/capabilities/${id}/parent`, {
+      parentId: parentId || '',
+    });
   }
 
   async getCapabilityDependencies(): Promise<CapabilityDependency[]> {

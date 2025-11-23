@@ -25,22 +25,38 @@ const mockAxiosInstance = {
 
 (axios.create as MockedFunction<typeof axios.create>).mockReturnValue(mockAxiosInstance as any);
 
-describe('API Client - Capability Operations', () => {
-  let apiClient: typeof import('./client').apiClient;
-  let responseInterceptorError: (error: any) => never;
+interface SetupResult {
+  apiClient: typeof import('./client').apiClient;
+  responseInterceptorError?: (error: any) => never;
+}
 
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    vi.resetModules();
+async function setupApiClient(captureInterceptor = false): Promise<SetupResult> {
+  vi.clearAllMocks();
+  vi.resetModules();
 
+  let responseInterceptorError: ((error: any) => never) | undefined;
+  if (captureInterceptor) {
     mockAxiosInstance.interceptors.response.use.mockImplementation(
       (_onFulfilled: any, onRejected: any) => {
         responseInterceptorError = onRejected;
       }
     );
+  } else {
+    mockAxiosInstance.interceptors.response.use.mockImplementation(() => {});
+  }
 
-    const clientModule = await import('./client');
-    apiClient = clientModule.apiClient;
+  const clientModule = await import('./client');
+  return { apiClient: clientModule.apiClient, responseInterceptorError };
+}
+
+describe('API Client - Capability Operations', () => {
+  let apiClient: typeof import('./client').apiClient;
+  let responseInterceptorError: (error: any) => never;
+
+  beforeEach(async () => {
+    const setup = await setupApiClient(true);
+    apiClient = setup.apiClient;
+    responseInterceptorError = setup.responseInterceptorError!;
   });
 
   describe('getCapabilities', () => {
@@ -289,13 +305,8 @@ describe('API Client - Capability Dependency Operations', () => {
   let apiClient: typeof import('./client').apiClient;
 
   beforeEach(async () => {
-    vi.clearAllMocks();
-    vi.resetModules();
-
-    mockAxiosInstance.interceptors.response.use.mockImplementation(() => {});
-
-    const clientModule = await import('./client');
-    apiClient = clientModule.apiClient;
+    const setup = await setupApiClient();
+    apiClient = setup.apiClient;
   });
 
   describe('getCapabilityDependencies', () => {
@@ -422,13 +433,8 @@ describe('API Client - Capability Realization Operations', () => {
   let apiClient: typeof import('./client').apiClient;
 
   beforeEach(async () => {
-    vi.clearAllMocks();
-    vi.resetModules();
-
-    mockAxiosInstance.interceptors.response.use.mockImplementation(() => {});
-
-    const clientModule = await import('./client');
-    apiClient = clientModule.apiClient;
+    const setup = await setupApiClient();
+    apiClient = setup.apiClient;
   });
 
   describe('getSystemsByCapability', () => {
@@ -558,23 +564,179 @@ describe('API Client - Capability Realization Operations', () => {
   });
 });
 
+describe('API Client - Capability View Operations', () => {
+  let apiClient: typeof import('./client').apiClient;
+
+  beforeEach(async () => {
+    const setup = await setupApiClient();
+    apiClient = setup.apiClient;
+  });
+
+  describe('addCapabilityToView', () => {
+    it('should add capability to view with position', async () => {
+      const request = {
+        capabilityId: 'cap-1',
+        x: 100,
+        y: 200,
+      };
+
+      mockAxiosInstance.post.mockResolvedValueOnce({ data: undefined });
+
+      await apiClient.addCapabilityToView('view-1', request);
+
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        '/api/v1/views/view-1/capabilities',
+        request
+      );
+    });
+
+    it('should handle adding capability at origin position', async () => {
+      const request = {
+        capabilityId: 'cap-1',
+        x: 0,
+        y: 0,
+      };
+
+      mockAxiosInstance.post.mockResolvedValueOnce({ data: undefined });
+
+      await apiClient.addCapabilityToView('view-1', request);
+
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        '/api/v1/views/view-1/capabilities',
+        request
+      );
+    });
+
+    it('should handle adding capability with large coordinates', async () => {
+      const request = {
+        capabilityId: 'cap-1',
+        x: 5000,
+        y: 3000,
+      };
+
+      mockAxiosInstance.post.mockResolvedValueOnce({ data: undefined });
+
+      await apiClient.addCapabilityToView('view-1', request);
+
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+        '/api/v1/views/view-1/capabilities',
+        request
+      );
+    });
+  });
+
+  describe('updateCapabilityPositionInView', () => {
+    it('should update capability position in view', async () => {
+      mockAxiosInstance.patch.mockResolvedValueOnce({ data: undefined });
+
+      await apiClient.updateCapabilityPositionInView('view-1', 'cap-1', 150, 250);
+
+      expect(mockAxiosInstance.patch).toHaveBeenCalledWith(
+        '/api/v1/views/view-1/capabilities/cap-1/position',
+        { x: 150, y: 250 }
+      );
+    });
+
+    it('should handle updating to origin position', async () => {
+      mockAxiosInstance.patch.mockResolvedValueOnce({ data: undefined });
+
+      await apiClient.updateCapabilityPositionInView('view-1', 'cap-1', 0, 0);
+
+      expect(mockAxiosInstance.patch).toHaveBeenCalledWith(
+        '/api/v1/views/view-1/capabilities/cap-1/position',
+        { x: 0, y: 0 }
+      );
+    });
+
+    it('should handle negative coordinates', async () => {
+      mockAxiosInstance.patch.mockResolvedValueOnce({ data: undefined });
+
+      await apiClient.updateCapabilityPositionInView('view-1', 'cap-1', -50, -100);
+
+      expect(mockAxiosInstance.patch).toHaveBeenCalledWith(
+        '/api/v1/views/view-1/capabilities/cap-1/position',
+        { x: -50, y: -100 }
+      );
+    });
+  });
+
+  describe('removeCapabilityFromView', () => {
+    it('should remove capability from view', async () => {
+      mockAxiosInstance.delete.mockResolvedValueOnce({ data: undefined });
+
+      await apiClient.removeCapabilityFromView('view-1', 'cap-1');
+
+      expect(mockAxiosInstance.delete).toHaveBeenCalledWith(
+        '/api/v1/views/view-1/capabilities/cap-1'
+      );
+    });
+
+    it('should call correct endpoint for different view and capability ids', async () => {
+      mockAxiosInstance.delete.mockResolvedValueOnce({ data: undefined });
+
+      await apiClient.removeCapabilityFromView('view-abc', 'cap-xyz');
+
+      expect(mockAxiosInstance.delete).toHaveBeenCalledWith(
+        '/api/v1/views/view-abc/capabilities/cap-xyz'
+      );
+    });
+  });
+
+  describe('changeCapabilityParent', () => {
+    it('should change capability parent', async () => {
+      mockAxiosInstance.patch.mockResolvedValueOnce({ data: undefined });
+
+      await apiClient.changeCapabilityParent('cap-child', 'cap-parent');
+
+      expect(mockAxiosInstance.patch).toHaveBeenCalledWith(
+        '/api/v1/capabilities/cap-child/parent',
+        { parentId: 'cap-parent' }
+      );
+    });
+
+    it('should remove parent when null is passed', async () => {
+      mockAxiosInstance.patch.mockResolvedValueOnce({ data: undefined });
+
+      await apiClient.changeCapabilityParent('cap-child', null);
+
+      expect(mockAxiosInstance.patch).toHaveBeenCalledWith(
+        '/api/v1/capabilities/cap-child/parent',
+        { parentId: '' }
+      );
+    });
+
+    it('should handle orphaning capability by setting empty parentId', async () => {
+      mockAxiosInstance.patch.mockResolvedValueOnce({ data: undefined });
+
+      await apiClient.changeCapabilityParent('cap-1', null);
+
+      expect(mockAxiosInstance.patch).toHaveBeenCalledWith(
+        '/api/v1/capabilities/cap-1/parent',
+        { parentId: '' }
+      );
+    });
+  });
+
+  describe('deleteCapability', () => {
+    it('should delete capability', async () => {
+      mockAxiosInstance.delete.mockResolvedValueOnce({ data: undefined });
+
+      await apiClient.deleteCapability('cap-1');
+
+      expect(mockAxiosInstance.delete).toHaveBeenCalledWith('/api/v1/capabilities/cap-1');
+    });
+  });
+});
+
 describe('API Client - Error Handling', () => {
   let ApiError: typeof import('./types').ApiError;
   let responseInterceptorError: (error: any) => never;
 
   beforeEach(async () => {
-    vi.clearAllMocks();
-    vi.resetModules();
-
-    mockAxiosInstance.interceptors.response.use.mockImplementation(
-      (_onFulfilled: any, onRejected: any) => {
-        responseInterceptorError = onRejected;
-      }
-    );
-
+    const setup = await setupApiClient(true);
+    responseInterceptorError = setup.responseInterceptorError!;
     const typesModule = await import('./types');
     ApiError = typesModule.ApiError;
-    await import('./client');
   });
 
   it('should throw ApiError with message from response', () => {

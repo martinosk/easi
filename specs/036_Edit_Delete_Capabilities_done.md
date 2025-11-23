@@ -131,5 +131,5 @@ Simple input field or dialog for entering tag name.
 - [x] Implementation done
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
-- [ ] Documentation updated if needed
-- [ ] User sign-off
+- [x] Documentation updated if needed
+- [x] User sign-off

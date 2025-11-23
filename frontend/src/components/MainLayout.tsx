@@ -5,6 +5,8 @@ import { ViewSelector } from './ViewSelector';
 import { ComponentCanvas, type ComponentCanvasRef } from './ComponentCanvas';
 import { ComponentDetails } from './ComponentDetails';
 import { RelationDetails } from './RelationDetails';
+import { CapabilityDetails } from './CapabilityDetails';
+import { useAppStore } from '../store/appStore';
 
 interface MainLayoutProps {
   canvasRef: React.RefObject<ComponentCanvasRef | null>;
@@ -35,6 +37,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   onEditRelation,
   onRemoveFromView,
 }) => {
+  const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
+  const removeCapabilityFromCanvas = useAppStore((state) => state.removeCapabilityFromCanvas);
+
+  const handleRemoveCapabilityFromCanvas = () => {
+    if (selectedCapabilityId) {
+      removeCapabilityFromCanvas(selectedCapabilityId);
+    }
+  };
+
   return (
     <>
       <Toolbar />
@@ -56,7 +67,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           />
         </div>
 
-        {(selectedNodeId || selectedEdgeId) && (
+        {(selectedNodeId || selectedEdgeId || selectedCapabilityId) && (
           <div className="detail-section">
             {selectedNodeId && (
               <ComponentDetails
@@ -65,6 +76,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               />
             )}
             {selectedEdgeId && <RelationDetails onEdit={onEditRelation} />}
+            {selectedCapabilityId && (
+              <CapabilityDetails onRemoveFromCanvas={handleRemoveCapabilityFromCanvas} />
+            )}
           </div>
         )}
       </div>

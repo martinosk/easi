@@ -68,9 +68,9 @@ func setupViewTestDB(t *testing.T) (*viewTestContext, func()) {
 
 	// Clean up only the data created in this specific test
 	cleanup := func() {
-		// Delete views and component positions by tracking the IDs created during the test
+		// Delete views and element positions by tracking the IDs created during the test
 		for _, id := range ctx.createdIDs {
-			db.Exec("DELETE FROM view_component_positions WHERE view_id = $1", id)
+			db.Exec("DELETE FROM view_element_positions WHERE view_id = $1", id)
 			db.Exec("DELETE FROM architecture_views WHERE id = $1", id)
 			db.Exec("DELETE FROM events WHERE aggregate_id = $1", id)
 		}
@@ -100,7 +100,7 @@ func (ctx *viewTestContext) createTestView(t *testing.T, id, name, description s
 func (ctx *viewTestContext) addTestComponentToView(t *testing.T, viewID, componentID string, x, y float64) {
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
-		"INSERT INTO view_component_positions (view_id, component_id, x, y, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, NOW())",
+		"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, tenant_id, created_at) VALUES ($1, $2, 'component', $3, $4, $5, NOW())",
 		viewID, componentID, x, y, testTenantID(),
 	)
 	require.NoError(t, err)
@@ -148,7 +148,7 @@ func setupViewHandlers(db *sql.DB) (*ViewHandlers, *readmodels.ArchitectureViewR
 	commandBus.Register("UpdateViewLayoutDirection", updateLayoutDirectionHandler)
 
 	// Setup HTTP handlers
-	viewHandlers := NewViewHandlers(commandBus, readModel, hateoas)
+	viewHandlers := NewViewHandlers(commandBus, readModel, layoutRepo, hateoas)
 
 	return viewHandlers, readModel
 }
@@ -474,7 +474,7 @@ func TestUpdateComponentPosition_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var x, y float64
 	err = testCtx.db.QueryRow(
-		"SELECT x, y FROM view_component_positions WHERE view_id = $1 AND component_id = $2",
+		"SELECT x, y FROM view_element_positions WHERE view_id = $1 AND element_id = $2 AND element_type = 'component'",
 		viewID, componentID,
 	).Scan(&x, &y)
 	require.NoError(t, err)

@@ -23,6 +23,7 @@ export interface ViewActions {
 type StoreWithDependencies = ViewState & {
   components: Component[];
   relations: Relation[];
+  syncCanvasCapabilitiesFromView: (view: View) => void;
 };
 
 let isLoadingData = false;
@@ -70,6 +71,7 @@ export const createViewSlice: StateCreator<
 
       const fullView = await apiClient.getViewById(currentView.id);
       set({ currentView: fullView, views, isLoading: false });
+      get().syncCanvasCapabilitiesFromView(fullView);
 
       toast.success('Data loaded successfully');
     } catch (error) {
@@ -104,6 +106,7 @@ export const createViewSlice: StateCreator<
     try {
       const fullView = await apiClient.getViewById(viewId);
       set({ currentView: fullView });
+      get().syncCanvasCapabilitiesFromView(fullView);
     } catch (error) {
       const errorMessage = error instanceof ApiError
         ? error.message

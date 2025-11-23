@@ -12,6 +12,13 @@ import (
 type ViewID string
 type ComponentID string
 
+type ElementType string
+
+const (
+	ElementTypeComponent  ElementType = "component"
+	ElementTypeCapability ElementType = "capability"
+)
+
 type Position struct {
 	X float64
 	Y float64
@@ -21,6 +28,12 @@ type ComponentPositionDTO struct {
 	ComponentID string  `json:"componentId"`
 	X           float64 `json:"x"`
 	Y           float64 `json:"y"`
+}
+
+type CapabilityPositionDTO struct {
+	CapabilityID string  `json:"capabilityId"`
+	X            float64 `json:"x"`
+	Y            float64 `json:"y"`
 }
 
 func NewComponentPosition(componentID ComponentID, pos Position) ComponentPositionDTO {
@@ -33,15 +46,16 @@ func NewComponentPosition(componentID ComponentID, pos Position) ComponentPositi
 
 // ArchitectureViewDTO represents the read model for architecture views
 type ArchitectureViewDTO struct {
-	ID              string                 `json:"id"`
-	Name            string                 `json:"name"`
-	Description     string                 `json:"description,omitempty"`
-	IsDefault       bool                   `json:"isDefault"`
-	Components      []ComponentPositionDTO `json:"components"`
-	CreatedAt       time.Time              `json:"createdAt"`
-	EdgeType        string                 `json:"edgeType,omitempty"`
-	LayoutDirection string                 `json:"layoutDirection,omitempty"`
-	Links           map[string]string      `json:"_links,omitempty"`
+	ID              string                  `json:"id"`
+	Name            string                  `json:"name"`
+	Description     string                  `json:"description,omitempty"`
+	IsDefault       bool                    `json:"isDefault"`
+	Components      []ComponentPositionDTO  `json:"components"`
+	Capabilities    []CapabilityPositionDTO `json:"capabilities"`
+	CreatedAt       time.Time               `json:"createdAt"`
+	EdgeType        string                  `json:"edgeType,omitempty"`
+	LayoutDirection string                  `json:"layoutDirection,omitempty"`
+	Links           map[string]string       `json:"_links,omitempty"`
 }
 
 // ArchitectureViewReadModel handles queries for architecture views
@@ -71,41 +85,64 @@ func (rm *ArchitectureViewReadModel) InsertView(ctx context.Context, dto Archite
 }
 
 func (rm *ArchitectureViewReadModel) AddComponent(ctx context.Context, viewID ViewID, componentID ComponentID, pos Position) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO view_component_positions (view_id, tenant_id, component_id, x, y, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		viewID, tenantID.Value(), componentID, pos.X, pos.Y, time.Now().UTC(),
-	)
-	return err
+	return rm.addElement(ctx, string(viewID), string(componentID), ElementTypeComponent, pos)
 }
 
 func (rm *ArchitectureViewReadModel) UpdateComponentPosition(ctx context.Context, viewID ViewID, componentID ComponentID, pos Position) error {
+	return rm.updateElementPosition(ctx, string(viewID), string(componentID), ElementTypeComponent, pos)
+}
+
+func (rm *ArchitectureViewReadModel) RemoveComponent(ctx context.Context, viewID, componentID string) error {
+	return rm.removeElement(ctx, viewID, componentID, ElementTypeComponent)
+}
+
+func (rm *ArchitectureViewReadModel) AddCapability(ctx context.Context, viewID, capabilityID string, pos Position) error {
+	return rm.addElement(ctx, viewID, capabilityID, ElementTypeCapability, pos)
+}
+
+func (rm *ArchitectureViewReadModel) UpdateCapabilityPosition(ctx context.Context, viewID, capabilityID string, pos Position) error {
+	return rm.updateElementPosition(ctx, viewID, capabilityID, ElementTypeCapability, pos)
+}
+
+func (rm *ArchitectureViewReadModel) RemoveCapability(ctx context.Context, viewID, capabilityID string) error {
+	return rm.removeElement(ctx, viewID, capabilityID, ElementTypeCapability)
+}
+
+func (rm *ArchitectureViewReadModel) addElement(ctx context.Context, viewID, elementID string, elementType ElementType, pos Position) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE view_component_positions SET x = $1, y = $2, updated_at = $3 WHERE tenant_id = $4 AND view_id = $5 AND component_id = $6",
-		pos.X, pos.Y, time.Now().UTC(), tenantID.Value(), viewID, componentID,
+		"INSERT INTO view_element_positions (view_id, tenant_id, element_id, element_type, x, y, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		viewID, tenantID.Value(), elementID, string(elementType), pos.X, pos.Y, time.Now().UTC(),
 	)
 	return err
 }
 
-// RemoveComponent removes a component from a view
-func (rm *ArchitectureViewReadModel) RemoveComponent(ctx context.Context, viewID, componentID string) error {
+func (rm *ArchitectureViewReadModel) updateElementPosition(ctx context.Context, viewID, elementID string, elementType ElementType, pos Position) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM view_component_positions WHERE tenant_id = $1 AND view_id = $2 AND component_id = $3",
-		tenantID.Value(), viewID, componentID,
+		"UPDATE view_element_positions SET x = $1, y = $2, updated_at = $3 WHERE tenant_id = $4 AND view_id = $5 AND element_id = $6 AND element_type = $7",
+		pos.X, pos.Y, time.Now().UTC(), tenantID.Value(), viewID, elementID, string(elementType),
+	)
+	return err
+}
+
+func (rm *ArchitectureViewReadModel) removeElement(ctx context.Context, viewID, elementID string, elementType ElementType) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"DELETE FROM view_element_positions WHERE tenant_id = $1 AND view_id = $2 AND element_id = $3 AND element_type = $4",
+		tenantID.Value(), viewID, elementID, string(elementType),
 	)
 	return err
 }
@@ -186,6 +223,11 @@ func (rm *ArchitectureViewReadModel) getViewByQuery(ctx context.Context, query s
 		}
 
 		dto.Components, err = rm.getComponentsForViewTx(ctx, tx, tenantID.Value(), dto.ID)
+		if err != nil {
+			return err
+		}
+
+		dto.Capabilities, err = rm.getCapabilitiesForViewTx(ctx, tx, tenantID.Value(), dto.ID)
 		return err
 	})
 
@@ -292,31 +334,52 @@ func (rm *ArchitectureViewReadModel) populateViewComponents(ctx context.Context,
 			return err
 		}
 		views[i].Components = components
+
+		capabilities, err := rm.getCapabilitiesForViewTx(ctx, tx, tenantID, views[i].ID)
+		if err != nil {
+			return err
+		}
+		views[i].Capabilities = capabilities
 	}
 	return nil
 }
 
-// getComponentsForViewTx is a helper to fetch components for a view within a transaction
 func (rm *ArchitectureViewReadModel) getComponentsForViewTx(ctx context.Context, tx *sql.Tx, tenantID, viewID string) ([]ComponentPositionDTO, error) {
+	return getElementsForViewTx(ctx, tx, tenantID, viewID, ElementTypeComponent, func(rows *sql.Rows) (ComponentPositionDTO, error) {
+		var dto ComponentPositionDTO
+		err := rows.Scan(&dto.ComponentID, &dto.X, &dto.Y)
+		return dto, err
+	})
+}
+
+func (rm *ArchitectureViewReadModel) getCapabilitiesForViewTx(ctx context.Context, tx *sql.Tx, tenantID, viewID string) ([]CapabilityPositionDTO, error) {
+	return getElementsForViewTx(ctx, tx, tenantID, viewID, ElementTypeCapability, func(rows *sql.Rows) (CapabilityPositionDTO, error) {
+		var dto CapabilityPositionDTO
+		err := rows.Scan(&dto.CapabilityID, &dto.X, &dto.Y)
+		return dto, err
+	})
+}
+
+func getElementsForViewTx[T any](ctx context.Context, tx *sql.Tx, tenantID, viewID string, elementType ElementType, scan func(*sql.Rows) (T, error)) ([]T, error) {
 	rows, err := tx.QueryContext(ctx,
-		"SELECT component_id, x, y FROM view_component_positions WHERE tenant_id = $1 AND view_id = $2",
-		tenantID, viewID,
+		"SELECT element_id, x, y FROM view_element_positions WHERE tenant_id = $1 AND view_id = $2 AND element_type = $3",
+		tenantID, viewID, string(elementType),
 	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	components := make([]ComponentPositionDTO, 0)
+	elements := make([]T, 0)
 	for rows.Next() {
-		var comp ComponentPositionDTO
-		if err := rows.Scan(&comp.ComponentID, &comp.X, &comp.Y); err != nil {
+		elem, err := scan(rows)
+		if err != nil {
 			return nil, err
 		}
-		components = append(components, comp)
+		elements = append(elements, elem)
 	}
 
-	return components, rows.Err()
+	return elements, rows.Err()
 }
 
 func (rm *ArchitectureViewReadModel) GetViewsContainingComponent(ctx context.Context, componentID string) ([]string, error) {
@@ -328,7 +391,7 @@ func (rm *ArchitectureViewReadModel) GetViewsContainingComponent(ctx context.Con
 	var viewIDs []string
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT DISTINCT view_id FROM view_component_positions WHERE tenant_id = $1 AND component_id = $2",
+			"SELECT DISTINCT view_id FROM view_element_positions WHERE tenant_id = $1 AND element_id = $2 AND element_type = 'component'",
 			tenantID.Value(), componentID,
 		)
 		if err != nil {

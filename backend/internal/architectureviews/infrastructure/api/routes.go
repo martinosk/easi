@@ -76,7 +76,7 @@ func SetupArchitectureViewsRoutes(
 	commandBus.Register("UpdateViewLayoutDirection", updateLayoutDirectionHandler)
 
 	// Initialize HTTP handlers
-	viewHandlers := NewViewHandlers(commandBus, viewReadModel, hateoas)
+	viewHandlers := NewViewHandlers(commandBus, viewReadModel, layoutRepo, hateoas)
 
 	// Register routes
 	r.Route("/views", func(r chi.Router) {
@@ -92,6 +92,9 @@ func SetupArchitectureViewsRoutes(
 		r.Delete("/{id}/components/{componentId}", viewHandlers.RemoveComponentFromView)
 		r.Patch("/{id}/components/{componentId}/position", viewHandlers.UpdateComponentPosition)
 		r.Patch("/{id}/layout", viewHandlers.UpdateMultiplePositions)
+		r.Post("/{id}/capabilities", viewHandlers.AddCapabilityToView)
+		r.Delete("/{id}/capabilities/{capabilityId}", viewHandlers.RemoveCapabilityFromView)
+		r.Patch("/{id}/capabilities/{capabilityId}/position", viewHandlers.UpdateCapabilityPosition)
 	})
 
 	return nil

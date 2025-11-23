@@ -24,6 +24,8 @@ import '@xyflow/react/dist/style.css';
 import { useAppStore } from '../store/appStore';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { ConfirmationDialog } from './ConfirmationDialog';
+import { CapabilityNode } from './CapabilityNode';
+import toast from 'react-hot-toast';
 
 interface ComponentCanvasProps {
   onConnect: (source: string, target: string) => void;
@@ -110,6 +112,7 @@ const ComponentNode: React.FC<{ data: ComponentNodeData; id: string }> = ({ data
 
 const nodeTypes: NodeTypes = {
   component: ComponentNode,
+  capability: CapabilityNode,
 };
 
 type HandlePair = { sourceHandle: string; targetHandle: string };
@@ -164,6 +167,15 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
   const saveViewportState = useAppStore((state) => state.saveViewportState);
   const getViewportState = useAppStore((state) => state.getViewportState);
 
+  const capabilities = useAppStore((state) => state.capabilities);
+  const canvasCapabilities = useAppStore((state) => state.canvasCapabilities);
+  const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
+  const addCapabilityToCanvas = useAppStore((state) => state.addCapabilityToCanvas);
+  const removeCapabilityFromCanvas = useAppStore((state) => state.removeCapabilityFromCanvas);
+  const updateCapabilityPosition = useAppStore((state) => state.updateCapabilityPosition);
+  const selectCapability = useAppStore((state) => state.selectCapability);
+  const changeCapabilityParent = useAppStore((state) => state.changeCapabilityParent);
+
   const [nodes, setNodes] = React.useState<Node[]>([]);
   const [edges, setEdges] = React.useState<Edge[]>([]);
   const [isFirstLoad, setIsFirstLoad] = React.useState(true);
@@ -172,26 +184,29 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     y: number;
     nodeId: string;
     nodeName: string;
+    nodeType: 'component' | 'capability';
   } | null>(null);
   const [edgeContextMenu, setEdgeContextMenu] = useState<{
     x: number;
     y: number;
     edgeId: string;
     edgeName: string;
+    edgeType: 'relation' | 'parent';
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
-    type: 'component-from-view' | 'component-from-model' | 'relation-from-model';
+    type: 'component-from-view' | 'component-from-model' | 'relation-from-model' | 'capability-from-canvas' | 'parent-relation';
     id: string;
     name: string;
+    childId?: string;
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Build nodes from components and view positions
+  // Build nodes from components and capabilities
   React.useEffect(() => {
     if (!currentView) return;
 
-    // Only show components that are in the current view
-    const newNodes: Node[] = components
+    // Build component nodes from view
+    const componentNodes: Node[] = components
       .filter((component) => {
         return currentView.components.some(
           (vc) => vc.componentId === component.id
@@ -204,7 +219,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
 
         const position = viewComponent
           ? { x: viewComponent.x, y: viewComponent.y }
-          : { x: 400, y: 300 }; // Default center position (shouldn't happen after filter)
+          : { x: 400, y: 300 };
 
         return {
           id: component.id,
@@ -218,14 +233,35 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         };
       });
 
-    setNodes(newNodes);
-  }, [components, currentView, selectedNodeId]);
+    // Build capability nodes from canvas capabilities
+    const capabilityNodes: Node[] = canvasCapabilities
+      .map((cc) => {
+        const capability = capabilities.find((c) => c.id === cc.capabilityId);
+        if (!capability) return null;
 
-  // Build edges from relations
+        return {
+          id: `cap-${capability.id}`,
+          type: 'capability' as const,
+          position: { x: cc.x, y: cc.y },
+          data: {
+            label: capability.name,
+            level: capability.level,
+            maturityLevel: capability.maturityLevel,
+            isSelected: selectedCapabilityId === capability.id,
+          },
+        };
+      })
+      .filter((n) => n !== null) as Node[];
+
+    setNodes([...componentNodes, ...capabilityNodes]);
+  }, [components, currentView, selectedNodeId, canvasCapabilities, capabilities, selectedCapabilityId]);
+
+  // Build edges from relations and capability parent relationships
   React.useEffect(() => {
     const edgeType = currentView?.edgeType || 'default';
 
-    const newEdges: Edge[] = relations.map((relation) => {
+    // Build relation edges
+    const relationEdges: Edge[] = relations.map((relation) => {
       const isSelected = selectedEdgeId === relation.id;
       const isTriggers = relation.relationType === 'Triggers';
 
@@ -260,8 +296,55 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
       };
     });
 
-    setEdges(newEdges);
-  }, [relations, selectedEdgeId, currentView?.edgeType, nodes]);
+    // Build parent edges from capabilities on canvas
+    const canvasCapabilityIds = new Set(canvasCapabilities.map((cc) => cc.capabilityId));
+    const parentEdges: Edge[] = canvasCapabilities
+      .map((cc) => {
+        const capability = capabilities.find((c) => c.id === cc.capabilityId);
+        if (!capability || !capability.parentId) return null;
+
+        // Only show edge if parent is also on canvas
+        if (!canvasCapabilityIds.has(capability.parentId)) return null;
+
+        const childNodeId = `cap-${capability.id}`;
+        const parentNodeId = `cap-${capability.parentId}`;
+        const edgeId = `parent-${capability.parentId}-${capability.id}`;
+        const isSelected = selectedEdgeId === edgeId;
+
+        const parentNode = nodes.find((n) => n.id === parentNodeId);
+        const childNode = nodes.find((n) => n.id === childNodeId);
+        const { sourceHandle, targetHandle } = getBestHandles(parentNode, childNode);
+
+        return {
+          id: edgeId,
+          source: parentNodeId,
+          target: childNodeId,
+          sourceHandle,
+          targetHandle,
+          label: 'Parent',
+          type: 'default' as const,
+          animated: isSelected,
+          style: {
+            stroke: '#374151',
+            strokeWidth: 3,
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: '#374151',
+          },
+          labelStyle: {
+            fill: '#374151',
+            fontWeight: isSelected ? 700 : 600,
+          },
+          labelBgStyle: {
+            fill: '#ffffff',
+          },
+        };
+      })
+      .filter((e) => e !== null) as Edge[];
+
+    setEdges([...relationEdges, ...parentEdges]);
+  }, [relations, selectedEdgeId, currentView?.edgeType, nodes, canvasCapabilities, capabilities]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -279,9 +362,16 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
 
   const onNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
-      selectNode(node.id);
+      if (node.type === 'capability') {
+        const capId = node.id.replace('cap-', '');
+        selectCapability(capId);
+        selectNode(null);
+      } else {
+        selectNode(node.id);
+        selectCapability(null);
+      }
     },
-    [selectNode]
+    [selectNode, selectCapability]
   );
 
   const onEdgeClick = useCallback(
@@ -293,37 +383,64 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
 
   const onPaneClick = useCallback(() => {
     clearSelection();
+    selectCapability(null);
     setNodeContextMenu(null);
     setEdgeContextMenu(null);
-  }, [clearSelection]);
+  }, [clearSelection, selectCapability]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
       event.preventDefault();
-      const component = components.find(c => c.id === node.id);
-      if (component) {
-        setNodeContextMenu({
-          x: event.clientX,
-          y: event.clientY,
-          nodeId: node.id,
-          nodeName: component.name,
-        });
+      if (node.type === 'capability') {
+        const capId = node.id.replace('cap-', '');
+        const capability = capabilities.find((c) => c.id === capId);
+        if (capability) {
+          setNodeContextMenu({
+            x: event.clientX,
+            y: event.clientY,
+            nodeId: capId,
+            nodeName: capability.name,
+            nodeType: 'capability',
+          });
+        }
+      } else {
+        const component = components.find((c) => c.id === node.id);
+        if (component) {
+          setNodeContextMenu({
+            x: event.clientX,
+            y: event.clientY,
+            nodeId: node.id,
+            nodeName: component.name,
+            nodeType: 'component',
+          });
+        }
       }
     },
-    [components]
+    [components, capabilities]
   );
 
   const onEdgeContextMenu = useCallback(
     (event: React.MouseEvent, edge: Edge) => {
       event.preventDefault();
-      const relation = relations.find(r => r.id === edge.id);
-      if (relation) {
+      if (edge.id.startsWith('parent-')) {
         setEdgeContextMenu({
           x: event.clientX,
           y: event.clientY,
           edgeId: edge.id,
-          edgeName: relation.name || relation.relationType,
+          edgeName: 'Parent',
+          edgeType: 'parent',
         });
+      } else {
+        const relation = relations.find((r) => r.id === edge.id);
+        if (relation) {
+          setEdgeContextMenu({
+            x: event.clientX,
+            y: event.clientY,
+            edgeId: edge.id,
+            edgeName: relation.name || relation.relationType,
+            edgeType: 'relation',
+          });
+        }
       }
     },
     [relations]
@@ -331,20 +448,43 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
 
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
-      updatePosition(node.id, node.position);
+      if (node.type === 'capability') {
+        const capId = node.id.replace('cap-', '');
+        updateCapabilityPosition(capId, node.position.x, node.position.y);
+      } else {
+        updatePosition(node.id, node.position);
+      }
     },
-    [updatePosition]
+    [updatePosition, updateCapabilityPosition]
   );
 
   const onConnectHandler = useCallback(
-    (connection: Connection) => {
-      if (connection.source && connection.target) {
-        // Swap source and target because React Flow's connection.source/target
-        // are inverted from our domain model (connection.target is where you start dragging)
+    async (connection: Connection) => {
+      if (!connection.source || !connection.target) return;
+
+      const sourceIsCapability = connection.source.startsWith('cap-');
+      const targetIsCapability = connection.target.startsWith('cap-');
+
+      if (sourceIsCapability && targetIsCapability) {
+        // Capability to capability connection - create parent relationship
+        // Source is the parent, target is the child (React Flow inverted)
+        const parentId = connection.target.replace('cap-', '');
+        const childId = connection.source.replace('cap-', '');
+
+        try {
+          await changeCapabilityParent(childId, parentId);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Failed to create parent relationship';
+          if (errorMessage.includes('depth') || errorMessage.includes('L5')) {
+            toast.error('Cannot create this parent relationship: would result in hierarchy deeper than L4');
+          }
+        }
+      } else if (!sourceIsCapability && !targetIsCapability) {
+        // Component to component connection
         onConnect(connection.target, connection.source);
       }
     },
-    [onConnect]
+    [onConnect, changeCapabilityParent]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -357,7 +497,9 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
       event.preventDefault();
 
       const componentId = event.dataTransfer.getData('componentId');
-      if (!componentId || !onComponentDrop || !reactFlowInstance) return;
+      const capabilityId = event.dataTransfer.getData('capabilityId');
+
+      if (!reactFlowInstance) return;
 
       // Get the position where the drop occurred
       const bounds = (event.target as HTMLElement).getBoundingClientRect();
@@ -366,9 +508,13 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         y: event.clientY - bounds.top,
       });
 
-      onComponentDrop(componentId, position.x, position.y);
+      if (componentId && onComponentDrop) {
+        onComponentDrop(componentId, position.x, position.y);
+      } else if (capabilityId) {
+        addCapabilityToCanvas(capabilityId, position.x, position.y);
+      }
     },
-    [onComponentDrop, reactFlowInstance]
+    [onComponentDrop, reactFlowInstance, addCapabilityToCanvas]
   );
 
   // Restore viewport state when view changes
@@ -408,6 +554,10 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         await deleteComponent(deleteTarget.id);
       } else if (deleteTarget.type === 'relation-from-model') {
         await deleteRelation(deleteTarget.id);
+      } else if (deleteTarget.type === 'capability-from-canvas') {
+        removeCapabilityFromCanvas(deleteTarget.id);
+      } else if (deleteTarget.type === 'parent-relation' && deleteTarget.childId) {
+        await changeCapabilityParent(deleteTarget.childId, null);
       }
       setDeleteTarget(null);
     } catch (error) {
@@ -419,6 +569,18 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
 
   const getNodeContextMenuItems = (): ContextMenuItem[] => {
     if (!nodeContextMenu) return [];
+
+    if (nodeContextMenu.nodeType === 'capability') {
+      return [
+        {
+          label: 'Remove from Canvas',
+          onClick: () => {
+            removeCapabilityFromCanvas(nodeContextMenu.nodeId);
+            setNodeContextMenu(null);
+          },
+        },
+      ];
+    }
 
     return [
       {
@@ -446,6 +608,29 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
 
   const getEdgeContextMenuItems = (): ContextMenuItem[] => {
     if (!edgeContextMenu) return [];
+
+    if (edgeContextMenu.edgeType === 'parent') {
+      const edgeId = edgeContextMenu.edgeId;
+      const parentIdStart = edgeId.indexOf('-') + 1;
+      const parentIdEnd = edgeId.indexOf('-', parentIdStart + 36);
+      const childId = edgeId.substring(parentIdEnd + 1);
+
+      return [
+        {
+          label: 'Remove Parent Relationship',
+          onClick: () => {
+            setDeleteTarget({
+              type: 'parent-relation',
+              id: edgeContextMenu.edgeId,
+              name: 'Parent relationship',
+              childId,
+            });
+            setEdgeContextMenu(null);
+          },
+          isDanger: true,
+        },
+      ];
+    }
 
     return [
       {
@@ -510,6 +695,10 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         <Controls />
         <MiniMap
           nodeColor={(node) => {
+            if (node.type === 'capability') {
+              const capId = node.id.replace('cap-', '');
+              return capId === selectedCapabilityId ? '#1f2937' : '#374151';
+            }
             return node.id === selectedNodeId ? '#8b5cf6' : '#3b82f6';
           }}
           maskColor="rgba(0, 0, 0, 0.1)"
@@ -539,15 +728,19 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
           title={
             deleteTarget.type === 'component-from-model'
               ? 'Delete Component from Model'
+              : deleteTarget.type === 'parent-relation'
+              ? 'Remove Parent Relationship'
               : 'Delete Relation from Model'
           }
           message={
             deleteTarget.type === 'component-from-model'
               ? 'This will delete the component from the entire model, remove it from ALL views, and delete ALL relations involving this component.'
+              : deleteTarget.type === 'parent-relation'
+              ? 'This will remove the parent-child relationship. The child capability will become a top-level (L1) capability.'
               : 'This will delete the relation from the entire model and remove it from ALL views.'
           }
           itemName={deleteTarget.name}
-          confirmText="Delete"
+          confirmText={deleteTarget.type === 'parent-relation' ? 'Remove' : 'Delete'}
           cancelText="Cancel"
           onConfirm={handleDeleteConfirm}
           onCancel={() => setDeleteTarget(null)}

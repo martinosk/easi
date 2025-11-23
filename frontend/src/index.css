@@ -348,6 +348,101 @@ body {
   right: -6px;
 }
 
+/* Capability Node */
+.capability-node {
+  width: 200px;
+  position: relative;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow-md);
+  border: 3px solid;
+  transition: all 0.2s ease;
+}
+
+.capability-node:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.capability-node-selected {
+  border-color: #374151 !important;
+  box-shadow: 0 0 0 3px rgba(55, 65, 81, 0.3), var(--shadow-lg);
+}
+
+.capability-node-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.capability-node-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: white;
+  font-weight: 700;
+}
+
+.capability-node-icon {
+  font-size: var(--font-size-base);
+}
+
+.capability-node-level {
+  font-size: var(--font-size-sm);
+  opacity: 0.9;
+}
+
+.capability-node-name {
+  font-size: var(--font-size-base);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capability-node-maturity {
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  width: fit-content;
+}
+
+/* Capability Connection Handles */
+.capability-handle {
+  width: 12px;
+  height: 12px;
+  background: white;
+  border: 2px solid #374151;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.capability-handle:hover {
+  width: 16px;
+  height: 16px;
+  background: #374151;
+  border-color: #1f2937;
+  box-shadow: 0 0 0 4px rgba(55, 65, 81, 0.2);
+}
+
+.capability-handle-top {
+  top: -6px;
+}
+
+.capability-handle-bottom {
+  bottom: -6px;
+}
+
+.capability-handle-left {
+  left: -6px;
+}
+
+.capability-handle-right {
+  right: -6px;
+}
+
 /* Detail Panel */
 .detail-panel {
   padding: var(--spacing-lg);
@@ -431,6 +526,81 @@ body {
   color: var(--color-gray-400);
   font-family: monospace;
   word-break: break-all;
+}
+
+/* Capability Details Badges */
+.level-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #374151;
+  color: white;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+
+.maturity-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: white;
+}
+
+.badge-genesis {
+  background: #ef4444;
+}
+
+.badge-custom-build {
+  background: #f97316;
+}
+
+.badge-product {
+  background: #22c55e;
+}
+
+.badge-commodity {
+  background: #3b82f6;
+}
+
+.badge-default {
+  background: #6b7280;
+}
+
+.expert-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.expert-item {
+  padding: var(--spacing-xs) 0;
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.expert-item:last-child {
+  border-bottom: none;
+}
+
+.expert-contact {
+  color: var(--color-gray-500);
+  font-size: var(--font-size-sm);
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.tag-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
 }
 
 .detail-archimate {

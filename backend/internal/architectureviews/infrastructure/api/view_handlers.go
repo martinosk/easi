@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,18 +18,27 @@ import (
 type ViewHandlers struct {
 	commandBus cqrs.CommandBus
 	readModel  *readmodels.ArchitectureViewReadModel
+	layoutRepo LayoutRepository
 	hateoas    *sharedAPI.HATEOASLinks
+}
+
+type LayoutRepository interface {
+	AddCapabilityToView(ctx context.Context, viewID, capabilityID string, x, y float64) error
+	UpdateCapabilityPosition(ctx context.Context, viewID, capabilityID string, x, y float64) error
+	RemoveCapabilityFromView(ctx context.Context, viewID, capabilityID string) error
 }
 
 // NewViewHandlers creates a new view handlers instance
 func NewViewHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.ArchitectureViewReadModel,
+	layoutRepo LayoutRepository,
 	hateoas *sharedAPI.HATEOASLinks,
 ) *ViewHandlers {
 	return &ViewHandlers{
 		commandBus: commandBus,
 		readModel:  readModel,
+		layoutRepo: layoutRepo,
 		hateoas:    hateoas,
 	}
 }
@@ -490,6 +500,71 @@ func (h *ViewHandlers) UpdateLayoutDirection(w http.ResponseWriter, r *http.Requ
 
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+type AddCapabilityRequest struct {
+	CapabilityID string  `json:"capabilityId"`
+	X            float64 `json:"x"`
+	Y            float64 `json:"y"`
+}
+
+type UpdateCapabilityPositionRequest struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
+func (h *ViewHandlers) AddCapabilityToView(w http.ResponseWriter, r *http.Request) {
+	viewID := chi.URLParam(r, "id")
+
+	var req AddCapabilityRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+
+	if req.CapabilityID == "" {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "capabilityId is required")
+		return
+	}
+
+	if err := h.layoutRepo.AddCapabilityToView(r.Context(), viewID, req.CapabilityID, req.X, req.Y); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to add capability to view")
+		return
+	}
+
+	location := fmt.Sprintf("/api/v1/views/%s/capabilities", viewID)
+	w.Header().Set("Location", location)
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (h *ViewHandlers) UpdateCapabilityPosition(w http.ResponseWriter, r *http.Request) {
+	viewID := chi.URLParam(r, "id")
+	capabilityID := chi.URLParam(r, "capabilityId")
+
+	var req UpdateCapabilityPositionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+
+	if err := h.layoutRepo.UpdateCapabilityPosition(r.Context(), viewID, capabilityID, req.X, req.Y); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update capability position")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ViewHandlers) RemoveCapabilityFromView(w http.ResponseWriter, r *http.Request) {
+	viewID := chi.URLParam(r, "id")
+	capabilityID := chi.URLParam(r, "capabilityId")
+
+	if err := h.layoutRepo.RemoveCapabilityFromView(r.Context(), viewID, capabilityID); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to remove capability from view")
 		return
 	}
 

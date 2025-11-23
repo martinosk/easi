@@ -40,16 +40,29 @@ export interface ViewComponent {
   y: number;
 }
 
+export interface ViewCapability {
+  capabilityId: string;
+  x: number;
+  y: number;
+}
+
 export interface View {
   id: string;
   name: string;
   description?: string;
   isDefault: boolean;
   components: ViewComponent[];
+  capabilities: ViewCapability[];
   edgeType?: string;
   layoutDirection?: string;
   createdAt: string;
   _links: HATEOASLinks;
+}
+
+export interface AddCapabilityToViewRequest {
+  capabilityId: string;
+  x: number;
+  y: number;
 }
 
 export interface CreateComponentRequest {

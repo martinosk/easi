@@ -92,23 +92,21 @@ Actions:
 - Remove from Canvas button
 
 ## Acceptance Criteria
-- [ ] Capabilities can be dragged from sidebar onto canvas
-- [ ] Capability nodes visually distinct from applications (diamond icon, maturity color, solid border)
-- [ ] Level prefix shown (L1:, L2:, etc.)
-- [ ] Connecting two capabilities creates parent-child relationship
-- [ ] Backend API called to update parent
-- [ ] Capability levels automatically recalculated and displayed
-- [ ] Error shown if connection would create L5+
-- [ ] Deleting parent edge makes child orphan (L1)
-- [ ] Capability nodes can be selected
-- [ ] Selected capability shows details in panel
-- [ ] Capabilities can be removed from canvas (not deleted)
-- [ ] Parent edges visually distinct (thick gray solid line with label)
+- [x] Capabilities can be dragged from sidebar onto canvas
+- [x] Capability nodes visually distinct from applications (diamond icon, maturity color, solid border)
+- [x] Level prefix shown (L1:, L2:, etc.)
+- [x] Connecting two capabilities creates parent-child relationship
+- [x] Backend API called to update parent
+- [x] Capability levels automatically recalculated and displayed
+- [x] Error shown if connection would create L5+
+- [x] Deleting parent edge makes child orphan (L1)
+- [x] Capability nodes can be selected
+- [x] Selected capability shows details in panel
+- [x] Capabilities can be removed from canvas (not deleted)
+- [x] Parent edges visually distinct (thick gray solid line with label)
 
 ## Checklist
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] Documentation updated if needed
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] User sign-off
