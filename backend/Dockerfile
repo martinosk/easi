@@ -24,9 +24,6 @@ WORKDIR /app
 # Copy the binary from builder
 COPY --from=builder /app/api .
 
-# Copy migrations
-COPY --from=builder /app/migrations ./migrations
-
 # Create non-root user
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser

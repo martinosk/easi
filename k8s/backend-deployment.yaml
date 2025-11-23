@@ -28,15 +28,22 @@ spec:
           capabilities:
             drop:
             - ALL
-          readOnlyRootFilesystem: true
         env:
         - name: DB_ADMIN_CONN_STRING
           valueFrom:
             secretKeyRef:
               name: easi-db-credentials
-              key: DB_ADMIN_CONN_STRING
-        - name: MIGRATIONS_PATH
-          value: "/app/migrations"
+              key: admin-conn-string
+        - name: EASI_APP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: easi-db-credentials
+              key: easi-app-password
+        - name: EASI_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: easi-db-credentials
+              key: easi-admin-password
         resources:
           requests:
             memory: "64Mi"

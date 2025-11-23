@@ -46,12 +46,18 @@ func main() {
 
 	log.Println("Connected to database successfully")
 
-	// Run migrations
-	migrationsPath := getEnv("MIGRATIONS_PATH", "./migrations")
-	migrationRunner := migrations.NewRunner(db, migrationsPath)
+	migrationRunner := migrations.NewRunner(db, "./deploy-scripts/migrations")
+
+	if err := migrationRunner.RunAlwaysScripts("./deploy-scripts/pre"); err != nil {
+		log.Fatalf("Pre-migration scripts failed: %v", err)
+	}
 
 	if err := migrationRunner.Run(); err != nil {
 		log.Fatalf("Migration failed: %v", err)
+	}
+
+	if err := migrationRunner.RunAlwaysScripts("./deploy-scripts/post"); err != nil {
+		log.Fatalf("Post-migration scripts failed: %v", err)
 	}
 
 	log.Println("All migrations completed successfully")

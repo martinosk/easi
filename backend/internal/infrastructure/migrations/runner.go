@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -180,4 +181,81 @@ func (r *Runner) executeMigration(filename string) error {
 	}
 
 	return nil
+}
+
+// RunAlwaysScripts executes all SQL scripts in the given directory on every run.
+// Scripts are executed in sorted order. Environment variables in the format
+// ${VAR_NAME} are substituted before execution.
+func (r *Runner) RunAlwaysScripts(scriptsPath string) error {
+	if _, err := os.Stat(scriptsPath); os.IsNotExist(err) {
+		return nil
+	}
+
+	files, err := os.ReadDir(scriptsPath)
+	if err != nil {
+		return fmt.Errorf("failed to read scripts directory: %w", err)
+	}
+
+	var scriptFiles []string
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		if strings.HasSuffix(file.Name(), ".sql") {
+			scriptFiles = append(scriptFiles, file.Name())
+		}
+	}
+
+	sort.Strings(scriptFiles)
+
+	for _, file := range scriptFiles {
+		if err := r.executeAlwaysScript(scriptsPath, file); err != nil {
+			return fmt.Errorf("failed to execute script %s: %w", file, err)
+		}
+		log.Printf("Successfully executed run-always script: %s", file)
+	}
+
+	return nil
+}
+
+func (r *Runner) executeAlwaysScript(scriptsPath, filename string) error {
+	if err := validateMigrationFilename(filename); err != nil {
+		return fmt.Errorf("invalid script filename: %w", err)
+	}
+
+	filePath := filepath.Join(scriptsPath, filename)
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read script file: %w", err)
+	}
+
+	sqlContent := substituteEnvVars(string(content))
+
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(sqlContent); err != nil {
+		return fmt.Errorf("failed to execute script SQL: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+var envVarPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
+
+func substituteEnvVars(content string) string {
+	return envVarPattern.ReplaceAllStringFunc(content, func(match string) string {
+		varName := envVarPattern.FindStringSubmatch(match)[1]
+		if value := os.Getenv(varName); value != "" {
+			return value
+		}
+		return match
+	})
 }

@@ -162,7 +162,7 @@ steps:
     kubernetesServiceEndpoint: '$(k8s-service-connection)'
     namespace: '$(kubernetes-namespace)'
     command: create
-    arguments: 'secret generic easi-db-credentials --from-literal=DB_ADMIN_CONN_STRING="$(DB_ADMIN_CONN_STRING)"'
+    arguments: 'secret generic easi-db-credentials --from-literal=admin-conn-string="$(DB_ADMIN_CONN_STRING)" --from-literal=easi-app-password="$(EASI_APP_PASSWORD)" --from-literal=easi-admin-password="$(EASI_ADMIN_PASSWORD)"'
     versionSpec: 1.22.9
 
 - task: Kubernetes@1
@@ -191,7 +191,7 @@ steps:
 
 - task: Kubernetes@1
   name: ApplyManifests
-  displayName: 'Apply backend and frontend manifests'
+  displayName: 'Apply manifests'
   condition: succeeded()
   inputs:
     connectionType: Kubernetes Service Connection
