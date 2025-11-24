@@ -15,10 +15,11 @@ import (
 )
 
 type ViewHandlers struct {
-	commandBus cqrs.CommandBus
-	readModel  *readmodels.ArchitectureViewReadModel
-	layoutRepo LayoutRepository
-	hateoas    *sharedAPI.HATEOASLinks
+	commandBus   cqrs.CommandBus
+	readModel    *readmodels.ArchitectureViewReadModel
+	layoutRepo   LayoutRepository
+	hateoas      *sharedAPI.HATEOASLinks
+	errorHandler *sharedAPI.ErrorHandler
 }
 
 type LayoutRepository interface {
@@ -34,16 +35,17 @@ func NewViewHandlers(
 	hateoas *sharedAPI.HATEOASLinks,
 ) *ViewHandlers {
 	return &ViewHandlers{
-		commandBus: commandBus,
-		readModel:  readModel,
-		layoutRepo: layoutRepo,
-		hateoas:    hateoas,
+		commandBus:   commandBus,
+		readModel:    readModel,
+		layoutRepo:   layoutRepo,
+		hateoas:      hateoas,
+		errorHandler: sharedAPI.NewErrorHandler(),
 	}
 }
 
 func (h *ViewHandlers) dispatchCommand(w http.ResponseWriter, r *http.Request, cmd cqrs.Command) {
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		h.errorHandler.HandleError(w, err, "Failed to execute command")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -109,13 +111,13 @@ type UpdateLayoutDirectionRequest struct {
 func (h *ViewHandlers) CreateView(w http.ResponseWriter, r *http.Request) {
 	var req CreateViewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		h.errorHandler.HandleValidationError(w, err)
 		return
 	}
 
 	_, err := valueobjects.NewViewName(req.Name)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		h.errorHandler.HandleValidationError(w, err)
 		return
 	}
 
@@ -193,12 +195,12 @@ func (h *ViewHandlers) GetViewByID(w http.ResponseWriter, r *http.Request) {
 
 	view, err := h.readModel.GetByID(r.Context(), id)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve view")
+		h.errorHandler.HandleError(w, err, "Failed to retrieve view")
 		return
 	}
 
 	if view == nil {
-		sharedAPI.RespondError(w, http.StatusNotFound, nil, "View not found")
+		h.errorHandler.HandleNotFound(w, "View")
 		return
 	}
 

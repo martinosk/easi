@@ -46,7 +46,7 @@ func setupRelationTestDB(t *testing.T) (*relationTestContext, func()) {
 	dbHost := getEnv("INTEGRATION_TEST_DB_HOST", "localhost")
 	dbPort := getEnv("INTEGRATION_TEST_DB_PORT", "5432")
 	dbUser := getEnv("INTEGRATION_TEST_DB_USER", "easi_app")
-	dbPassword := getEnv("INTEGRATION_TEST_DB_PASSWORD", "change_me_in_production")
+	dbPassword := getEnv("INTEGRATION_TEST_DB_PASSWORD", "localdev")
 	dbName := getEnv("INTEGRATION_TEST_DB_NAME", "easi")
 	dbSSLMode := getEnv("INTEGRATION_TEST_DB_SSLMODE", "disable")
 

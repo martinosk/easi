@@ -16,9 +16,10 @@ import (
 )
 
 type ComponentHandlers struct {
-	commandBus cqrs.CommandBus
-	readModel  *readmodels.ApplicationComponentReadModel
-	hateoas    *sharedAPI.HATEOASLinks
+	commandBus        cqrs.CommandBus
+	readModel         *readmodels.ApplicationComponentReadModel
+	hateoas           *sharedAPI.HATEOASLinks
+	paginationHelper  *sharedAPI.PaginationHelper
 }
 
 func NewComponentHandlers(
@@ -27,9 +28,10 @@ func NewComponentHandlers(
 	hateoas *sharedAPI.HATEOASLinks,
 ) *ComponentHandlers {
 	return &ComponentHandlers{
-		commandBus: commandBus,
-		readModel:  readModel,
-		hateoas:    hateoas,
+		commandBus:       commandBus,
+		readModel:        readModel,
+		hateoas:          hateoas,
+		paginationHelper: sharedAPI.NewPaginationHelper("/api/v1/components"),
 	}
 }
 
@@ -113,7 +115,7 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Request) {
 	params := sharedAPI.ParsePaginationParams(r)
 
-	afterCursor, afterTimestamp, err := h.processPaginationCursor(params.After)
+	afterCursor, afterTimestamp, err := h.paginationHelper.ProcessCursor(params.After)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid pagination cursor")
 		return
@@ -125,52 +127,17 @@ func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	h.addHATEOASLinks(components)
+	for i := range components {
+		components[i].Links = h.hateoas.ComponentLinks(components[i].ID)
+	}
 
-	nextCursor := h.generateNextCursor(components, hasMore)
-	selfLink := h.buildSelfLink("/api/v1/components", params)
+	pageables := ConvertToPageable(components)
+	nextCursor := h.paginationHelper.GenerateNextCursor(pageables, hasMore)
+	selfLink := h.paginationHelper.BuildSelfLink(params)
 
 	sharedAPI.RespondPaginated(w, http.StatusOK, components, hasMore, nextCursor, params.Limit, selfLink, "/api/v1/components")
 }
 
-func (h *ComponentHandlers) processPaginationCursor(after string) (string, int64, error) {
-	if after == "" {
-		return "", 0, nil
-	}
-
-	cursor, err := sharedAPI.DecodeCursor(after)
-	if err != nil {
-		return "", 0, err
-	}
-
-	if cursor == nil {
-		return "", 0, nil
-	}
-
-	return cursor.ID, cursor.Timestamp, nil
-}
-
-func (h *ComponentHandlers) addHATEOASLinks(components []readmodels.ApplicationComponentDTO) {
-	for i := range components {
-		components[i].Links = h.hateoas.ComponentLinks(components[i].ID)
-	}
-}
-
-func (h *ComponentHandlers) generateNextCursor(components []readmodels.ApplicationComponentDTO, hasMore bool) string {
-	if !hasMore || len(components) == 0 {
-		return ""
-	}
-
-	lastComponent := components[len(components)-1]
-	return sharedAPI.EncodeCursor(lastComponent.ID, lastComponent.CreatedAt)
-}
-
-func (h *ComponentHandlers) buildSelfLink(basePath string, params sharedAPI.PaginationParams) string {
-	if params.After == "" {
-		return basePath
-	}
-	return fmt.Sprintf("%s?after=%s&limit=%d", basePath, params.After, params.Limit)
-}
 
 // GetComponentByID godoc
 // @Summary Get an application component by ID

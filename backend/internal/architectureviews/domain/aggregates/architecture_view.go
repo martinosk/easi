@@ -23,25 +23,22 @@ var (
 	ErrViewAlreadyDeleted = errors.New("view has been deleted")
 )
 
-// ArchitectureView represents an architecture view aggregate
 type ArchitectureView struct {
 	domain.AggregateRoot
 	name            valueobjects.ViewName
-	description     string
-	components      map[string]bool // componentID -> exists (membership set)
+	description     valueobjects.ViewDescription
+	components      valueobjects.ComponentMembership
 	isDefault       bool
 	isDeleted       bool
 	createdAt       time.Time
 }
 
-// NewArchitectureView creates a new architecture view
 func NewArchitectureView(name valueobjects.ViewName, description string, isDefault bool) (*ArchitectureView, error) {
 	aggregate := &ArchitectureView{
 		AggregateRoot: domain.NewAggregateRoot(),
-		components:    make(map[string]bool),
+		components:    valueobjects.NewComponentMembership(),
 	}
 
-	// Raise creation event
 	viewCreatedEvent := events.NewViewCreated(
 		aggregate.ID(),
 		name.Value(),
@@ -51,7 +48,6 @@ func NewArchitectureView(name valueobjects.ViewName, description string, isDefau
 	aggregate.apply(viewCreatedEvent)
 	aggregate.RaiseEvent(viewCreatedEvent)
 
-	// If this is the default view, raise the default view changed event
 	if isDefault {
 		defaultEvent := events.NewDefaultViewChanged(aggregate.ID(), true)
 		aggregate.apply(defaultEvent)
@@ -78,7 +74,7 @@ func (v *ArchitectureView) AddComponent(componentID string) error {
 		return err
 	}
 
-	if v.components[componentID] {
+	if v.components.Contains(componentID) {
 		return ErrComponentAlreadyInView
 	}
 
@@ -91,7 +87,7 @@ func (v *ArchitectureView) RemoveComponent(componentID string) error {
 		return err
 	}
 
-	if !v.components[componentID] {
+	if !v.components.Contains(componentID) {
 		return ErrComponentNotFound
 	}
 
@@ -147,11 +143,10 @@ func (v *ArchitectureView) setDefaultStatus(makeDefault bool) error {
 }
 
 
-// LoadFromHistory reconstructs the aggregate from events
 func LoadArchitectureViewFromHistory(events []domain.DomainEvent) (*ArchitectureView, error) {
 	aggregate := &ArchitectureView{
 		AggregateRoot: domain.NewAggregateRoot(),
-		components:    make(map[string]bool),
+		components:    valueobjects.NewComponentMembership(),
 	}
 
 	aggregate.LoadFromHistory(events, func(event domain.DomainEvent) {
@@ -182,16 +177,16 @@ func (v *ArchitectureView) apply(event domain.DomainEvent) {
 func (v *ArchitectureView) applyViewCreated(e events.ViewCreated) {
 	v.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
 	v.name, _ = valueobjects.NewViewName(e.Name)
-	v.description = e.Description
+	v.description = valueobjects.NewViewDescription(e.Description)
 	v.createdAt = e.CreatedAt
 }
 
 func (v *ArchitectureView) applyComponentAdded(e events.ComponentAddedToView) {
-	v.components[e.ComponentID] = true
+	v.components.Add(e.ComponentID)
 }
 
 func (v *ArchitectureView) applyComponentRemoved(e events.ComponentRemovedFromView) {
-	delete(v.components, e.ComponentID)
+	v.components.Remove(e.ComponentID)
 }
 
 func (v *ArchitectureView) applyViewRenamed(e events.ViewRenamed) {
@@ -206,41 +201,30 @@ func (v *ArchitectureView) applyDefaultViewChanged(e events.DefaultViewChanged) 
 	v.isDefault = e.IsDefault
 }
 
-// Name returns the view name
 func (v *ArchitectureView) Name() valueobjects.ViewName {
 	return v.name
 }
 
-// Description returns the view description
 func (v *ArchitectureView) Description() string {
-	return v.description
+	return v.description.Value()
 }
 
-// Components returns all component IDs in the view (membership set)
 func (v *ArchitectureView) Components() []string {
-	componentIDs := make([]string, 0, len(v.components))
-	for componentID := range v.components {
-		componentIDs = append(componentIDs, componentID)
-	}
-	return componentIDs
+	return v.components.GetAll()
 }
 
-// HasComponent checks if a component is in the view
 func (v *ArchitectureView) HasComponent(componentID string) bool {
-	return v.components[componentID]
+	return v.components.Contains(componentID)
 }
 
-// CreatedAt returns when the view was created
 func (v *ArchitectureView) CreatedAt() time.Time {
 	return v.createdAt
 }
 
-// IsDefault returns whether this is the default view
 func (v *ArchitectureView) IsDefault() bool {
 	return v.isDefault
 }
 
-// IsDeleted returns whether this view has been deleted
 func (v *ArchitectureView) IsDeleted() bool {
 	return v.isDeleted
 }

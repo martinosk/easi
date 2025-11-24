@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package api
@@ -22,6 +23,7 @@ import (
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
+
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
@@ -45,7 +47,7 @@ func setupTestDB(t *testing.T) (*testContext, func()) {
 	dbHost := getEnv("INTEGRATION_TEST_DB_HOST", "localhost")
 	dbPort := getEnv("INTEGRATION_TEST_DB_PORT", "5432")
 	dbUser := getEnv("INTEGRATION_TEST_DB_USER", "easi_app")
-	dbPassword := getEnv("INTEGRATION_TEST_DB_PASSWORD", "change_me_in_production")
+	dbPassword := getEnv("INTEGRATION_TEST_DB_PASSWORD", "localdev")
 	dbName := getEnv("INTEGRATION_TEST_DB_NAME", "easi")
 	dbSSLMode := getEnv("INTEGRATION_TEST_DB_SSLMODE", "disable")
 
