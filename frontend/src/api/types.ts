@@ -282,3 +282,16 @@ export type MaturityLevelsResponse = CollectionResponse<MaturityLevelOption>;
 export type StatusesResponse = CollectionResponse<StatusOption>;
 export type OwnershipModelsResponse = CollectionResponse<OwnershipModelOption>;
 export type StrategyPillarsResponse = CollectionResponse<StrategyPillarOption>;
+
+export interface VersionResponse {
+  version: string;
+}
+
+export interface Release {
+  version: string;
+  releaseDate: string;
+  notes: string;
+  _links: HATEOASLinks;
+}
+
+export type ReleasesResponse = CollectionResponse<Release>;

@@ -34,6 +34,9 @@ import type {
   OwnershipModelsResponse,
   StrategyPillarOption,
   StrategyPillarsResponse,
+  VersionResponse,
+  Release,
+  ReleasesResponse,
 } from './types';
 import { ApiError } from './types';
 
@@ -344,6 +347,34 @@ class ApiClient {
       '/api/v1/capabilities/metadata/strategy-pillars'
     );
     return response.data.data;
+  }
+
+  async getVersion(): Promise<string> {
+    const response = await this.client.get<VersionResponse>('/api/v1/version');
+    return response.data.version;
+  }
+
+  async getLatestRelease(): Promise<Release | null> {
+    try {
+      const response = await this.client.get<Release>('/api/v1/releases/latest');
+      return response.data;
+    } catch {
+      return null;
+    }
+  }
+
+  async getReleaseByVersion(version: string): Promise<Release | null> {
+    try {
+      const response = await this.client.get<Release>(`/api/v1/releases/${version}`);
+      return response.data;
+    } catch {
+      return null;
+    }
+  }
+
+  async getReleases(): Promise<Release[]> {
+    const response = await this.client.get<ReleasesResponse>('/api/v1/releases');
+    return response.data.data || [];
   }
 }
 

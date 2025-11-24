@@ -5,6 +5,8 @@ import { LoadingScreen } from './components/LoadingScreen';
 import { ErrorScreen } from './components/ErrorScreen';
 import { MainLayout } from './components/MainLayout';
 import { DialogManager } from './components/DialogManager';
+import { ReleaseNotesOverlay } from './components/ReleaseNotesOverlay';
+import { ReleaseNotesBrowser } from './components/ReleaseNotesBrowser';
 import type { ComponentCanvasRef } from './components/ComponentCanvas';
 import type { Capability } from './api/types';
 import { useDialogState } from './hooks/useDialogState';
@@ -12,9 +14,12 @@ import { useRelationDialog } from './hooks/useRelationDialog';
 import { useViewOperations } from './hooks/useViewOperations';
 import { useCanvasNavigation } from './hooks/useCanvasNavigation';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useReleaseNotes } from './hooks/useReleaseNotes';
 
 function App() {
   const canvasRef = useRef<ComponentCanvasRef>(null);
+
+  const { showOverlay: showReleaseNotes, release, dismiss: dismissReleaseNotes } = useReleaseNotes();
 
   // Dialog state management
   const componentDialog = useDialogState();
@@ -23,6 +28,7 @@ function App() {
   const editRelationDialog = useDialogState();
   const capabilityDialog = useDialogState();
   const editCapabilityDialogState = useDialogState();
+  const releaseNotesBrowserDialog = useDialogState();
   const [editCapabilityTarget, setEditCapabilityTarget] = useState<Capability | null>(null);
 
   const openEditCapabilityDialog = useCallback((capability: Capability) => {
@@ -110,6 +116,7 @@ function App() {
         onRemoveFromView={() =>
           selectedNodeId && removeComponentFromView(selectedNodeId)
         }
+        onOpenReleaseNotes={releaseNotesBrowserDialog.open}
       />
 
       <DialogManager
@@ -142,6 +149,19 @@ function App() {
           onClose: closeEditCapabilityDialog,
           capability: editCapabilityTarget,
         }}
+      />
+
+      {showReleaseNotes && release && (
+        <ReleaseNotesOverlay
+          isOpen={showReleaseNotes}
+          release={release}
+          onDismiss={dismissReleaseNotes}
+        />
+      )}
+
+      <ReleaseNotesBrowser
+        isOpen={releaseNotesBrowserDialog.isOpen}
+        onClose={releaseNotesBrowserDialog.close}
       />
     </AppLayout>
   );

@@ -3,6 +3,7 @@ package api
 import (
 	"log"
 	"net/http"
+	"os"
 
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
@@ -10,6 +11,7 @@ import (
 	"easi/backend/internal/infrastructure/api/middleware"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
+	releasesAPI "easi/backend/internal/releases/infrastructure/api"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
@@ -18,6 +20,15 @@ import (
 	"github.com/go-chi/cors"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
+
+var appVersion = getEnv("APP_VERSION", "0.0.0")
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
 
 // NewRouter creates and configures the HTTP router
 func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) http.Handler {
@@ -43,6 +54,13 @@ func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) htt
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
+	})
+
+	// Version endpoint (outside /api/v1 to avoid tenant middleware)
+	r.Get("/api/v1/version", func(w http.ResponseWriter, r *http.Request) {
+		sharedAPI.RespondJSON(w, http.StatusOK, map[string]string{
+			"version": appVersion,
+		})
 	})
 
 	// Swagger documentation
@@ -75,6 +93,11 @@ func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) htt
 		// Capability Mapping Context
 		if err := capabilityAPI.SetupCapabilityMappingRoutes(r, commandBus, eventStore, eventBus, db, hateoas); err != nil {
 			log.Fatalf("Failed to setup capability mapping routes: %v", err)
+		}
+
+		// Releases Context (system-wide, no tenancy)
+		if err := releasesAPI.SetupReleasesRoutes(r, db.DB()); err != nil {
+			log.Fatalf("Failed to setup releases routes: %v", err)
 		}
 	})
 

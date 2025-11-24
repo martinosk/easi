@@ -25,6 +25,7 @@ interface MainLayoutProps {
   onEditRelation: () => void;
   onEditCapability: (capability: Capability) => void;
   onRemoveFromView: () => void;
+  onOpenReleaseNotes?: () => void;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({
@@ -42,6 +43,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   onEditRelation,
   onEditCapability,
   onRemoveFromView,
+  onOpenReleaseNotes,
 }) => {
   const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
   const removeCapabilityFromCanvas = useAppStore((state) => state.removeCapabilityFromCanvas);
@@ -54,7 +56,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   return (
     <>
-      <Toolbar />
+      <Toolbar onOpenReleaseNotes={onOpenReleaseNotes} />
 
       <div className="main-content">
         <NavigationTree
