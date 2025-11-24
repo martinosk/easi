@@ -3,7 +3,7 @@ import { useAppStore } from '../store/appStore';
 import type { CapabilityRealization, Capability } from '../api/types';
 
 interface ComponentDetailsProps {
-  onEdit: () => void;
+  onEdit: (componentId: string) => void;
   onRemoveFromView?: () => void;
 }
 
@@ -81,7 +81,7 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
 
       <div className="detail-content">
         <div className="detail-actions">
-          <button className="btn btn-secondary btn-small" onClick={onEdit}>
+          <button className="btn btn-secondary btn-small" onClick={() => onEdit(component.id)}>
             Edit
           </button>
           {isInCurrentView && onRemoveFromView && (

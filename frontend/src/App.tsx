@@ -8,7 +8,7 @@ import { DialogManager } from './components/DialogManager';
 import { ReleaseNotesOverlay } from './components/ReleaseNotesOverlay';
 import { ReleaseNotesBrowser } from './components/ReleaseNotesBrowser';
 import type { ComponentCanvasRef } from './components/ComponentCanvas';
-import type { Capability } from './api/types';
+import type { Capability, Component } from './api/types';
 import { useDialogState } from './hooks/useDialogState';
 import { useRelationDialog } from './hooks/useRelationDialog';
 import { useViewOperations } from './hooks/useViewOperations';
@@ -30,6 +30,7 @@ function App() {
   const editCapabilityDialogState = useDialogState();
   const releaseNotesBrowserDialog = useDialogState();
   const [editCapabilityTarget, setEditCapabilityTarget] = useState<Capability | null>(null);
+  const [editComponentTarget, setEditComponentTarget] = useState<Component | null>(null);
 
   const openEditCapabilityDialog = useCallback((capability: Capability) => {
     setEditCapabilityTarget(capability);
@@ -42,13 +43,21 @@ function App() {
   }, [editCapabilityDialogState]);
 
   const selectNode = useAppStore((state) => state.selectNode);
+  const getComponents = useAppStore.getState;
 
   const openEditComponentDialog = useCallback((componentId?: string) => {
     if (componentId) {
       selectNode(componentId);
+      const component = getComponents().components.find((c) => c.id === componentId);
+      setEditComponentTarget(component || null);
     }
     editComponentDialog.open();
-  }, [selectNode, editComponentDialog]);
+  }, [selectNode, editComponentDialog, getComponents]);
+
+  const closeEditComponentDialog = useCallback(() => {
+    editComponentDialog.close();
+    setEditComponentTarget(null);
+  }, [editComponentDialog]);
 
   // Store selectors
   const loadData = useAppStore((state) => state.loadData);
@@ -56,7 +65,6 @@ function App() {
   const error = useAppStore((state) => state.error);
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
-  const components = useAppStore((state) => state.components);
   const relations = useAppStore((state) => state.relations);
 
   // Custom hooks for operations
@@ -74,7 +82,6 @@ function App() {
   }, [loadData]);
 
   // Derived state
-  const selectedComponent = components.find((c) => c.id === selectedNodeId);
   const selectedRelation = relations.find((r) => r.id === selectedEdgeId);
   const hasNoData = !useAppStore.getState().components.length;
 
@@ -132,8 +139,8 @@ function App() {
         }}
         editComponentDialog={{
           isOpen: editComponentDialog.isOpen,
-          onClose: editComponentDialog.close,
-          component: selectedComponent || null,
+          onClose: closeEditComponentDialog,
+          component: editComponentTarget,
         }}
         editRelationDialog={{
           isOpen: editRelationDialog.isOpen,
