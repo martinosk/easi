@@ -10,11 +10,9 @@ import (
 )
 
 var (
-	// ErrSelfReference is returned when source and target are the same
 	ErrSelfReference = errors.New("component cannot have a relation to itself")
 )
 
-// ComponentRelation represents a relation between two application components
 type ComponentRelation struct {
 	domain.AggregateRoot
 	sourceComponentID valueobjects.ComponentID
@@ -26,14 +24,8 @@ type ComponentRelation struct {
 	isDeleted         bool
 }
 
-// NewComponentRelation creates a new component relation
-func NewComponentRelation(
-	sourceID, targetID valueobjects.ComponentID,
-	relationType valueobjects.RelationType,
-	name, description valueobjects.Description,
-) (*ComponentRelation, error) {
-	// Validate no self-reference
-	if sourceID.Equals(targetID) {
+func NewComponentRelation(properties valueobjects.RelationProperties) (*ComponentRelation, error) {
+	if properties.SourceID().Equals(properties.TargetID()) {
 		return nil, ErrSelfReference
 	}
 
@@ -41,14 +33,13 @@ func NewComponentRelation(
 		AggregateRoot: domain.NewAggregateRoot(),
 	}
 
-	// Raise creation event
 	event := events.NewComponentRelationCreated(
 		aggregate.ID(),
-		sourceID.Value(),
-		targetID.Value(),
-		relationType.Value(),
-		name.Value(),
-		description.Value(),
+		properties.SourceID().Value(),
+		properties.TargetID().Value(),
+		properties.RelationType().Value(),
+		properties.Name().Value(),
+		properties.Description().Value(),
 	)
 
 	aggregate.apply(event)
@@ -57,7 +48,6 @@ func NewComponentRelation(
 	return aggregate, nil
 }
 
-// LoadFromHistory reconstructs the aggregate from events
 func LoadComponentRelationFromHistory(events []domain.DomainEvent) (*ComponentRelation, error) {
 	aggregate := &ComponentRelation{
 		AggregateRoot: domain.NewAggregateRoot(),
@@ -70,9 +60,7 @@ func LoadComponentRelationFromHistory(events []domain.DomainEvent) (*ComponentRe
 	return aggregate, nil
 }
 
-// Update updates the relation's name and description
 func (c *ComponentRelation) Update(name, description valueobjects.Description) error {
-	// Raise update event
 	event := events.NewComponentRelationUpdated(
 		c.ID(),
 		name.Value(),
@@ -118,32 +106,26 @@ func (c *ComponentRelation) apply(event domain.DomainEvent) {
 	}
 }
 
-// SourceComponentID returns the source component ID
 func (c *ComponentRelation) SourceComponentID() valueobjects.ComponentID {
 	return c.sourceComponentID
 }
 
-// TargetComponentID returns the target component ID
 func (c *ComponentRelation) TargetComponentID() valueobjects.ComponentID {
 	return c.targetComponentID
 }
 
-// RelationType returns the relation type
 func (c *ComponentRelation) RelationType() valueobjects.RelationType {
 	return c.relationType
 }
 
-// Name returns the relation name
 func (c *ComponentRelation) Name() valueobjects.Description {
 	return c.name
 }
 
-// Description returns the relation description
 func (c *ComponentRelation) Description() valueobjects.Description {
 	return c.description
 }
 
-// CreatedAt returns when the relation was created
 func (c *ComponentRelation) CreatedAt() time.Time {
 	return c.createdAt
 }

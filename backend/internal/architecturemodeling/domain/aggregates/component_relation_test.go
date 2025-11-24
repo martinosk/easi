@@ -22,7 +22,8 @@ func TestNewComponentRelation_ValidInputs(t *testing.T) {
 	name := valueobjects.NewDescription("User triggers order")
 	description := valueobjects.NewDescription("When user submits order, it triggers order processing")
 
-	relation, err := NewComponentRelation(sourceID, targetID, relationType, name, description)
+	properties := valueobjects.NewRelationProperties(sourceID, targetID, relationType, name, description)
+	relation, err := NewComponentRelation(properties)
 
 	require.NoError(t, err)
 	assert.NotNil(t, relation)
@@ -45,7 +46,8 @@ func TestNewComponentRelation_SelfReference(t *testing.T) {
 	name := valueobjects.NewDescription("Self relation")
 	description := valueobjects.NewDescription("Should not be allowed")
 
-	relation, err := NewComponentRelation(componentID, componentID, relationType, name, description)
+	properties := valueobjects.NewRelationProperties(componentID, componentID, relationType, name, description)
+	relation, err := NewComponentRelation(properties)
 
 	assert.Error(t, err)
 	assert.Equal(t, ErrSelfReference, err)
@@ -65,7 +67,8 @@ func TestNewComponentRelation_RaisesCreatedEvent(t *testing.T) {
 	name := valueobjects.NewDescription("Test relation")
 	description := valueobjects.NewDescription("Test description")
 
-	relation, err := NewComponentRelation(sourceID, targetID, relationType, name, description)
+	properties := valueobjects.NewRelationProperties(sourceID, targetID, relationType, name, description)
+	relation, err := NewComponentRelation(properties)
 	require.NoError(t, err)
 
 	uncommittedEvents := relation.GetUncommittedChanges()
@@ -86,7 +89,8 @@ func TestNewComponentRelation_WithServesType(t *testing.T) {
 	name := valueobjects.NewDescription("API serves UI")
 	description := valueobjects.NewDescription("API provides services to UI")
 
-	relation, err := NewComponentRelation(sourceID, targetID, relationType, name, description)
+	properties := valueobjects.NewRelationProperties(sourceID, targetID, relationType, name, description)
+	relation, err := NewComponentRelation(properties)
 
 	require.NoError(t, err)
 	assert.NotNil(t, relation)
@@ -107,7 +111,8 @@ func TestComponentRelation_Update(t *testing.T) {
 	name := valueobjects.NewDescription("Original name")
 	description := valueobjects.NewDescription("Original description")
 
-	relation, err := NewComponentRelation(sourceID, targetID, relationType, name, description)
+	properties := valueobjects.NewRelationProperties(sourceID, targetID, relationType, name, description)
+	relation, err := NewComponentRelation(properties)
 	require.NoError(t, err)
 
 	// Clear uncommitted events to test update event separately
@@ -143,7 +148,8 @@ func TestLoadComponentRelationFromHistory(t *testing.T) {
 	name := valueobjects.NewDescription("Test relation")
 	description := valueobjects.NewDescription("Test description")
 
-	originalRelation, err := NewComponentRelation(sourceID, targetID, relationType, name, description)
+	properties := valueobjects.NewRelationProperties(sourceID, targetID, relationType, name, description)
+	originalRelation, err := NewComponentRelation(properties)
 	require.NoError(t, err)
 
 	events := originalRelation.GetUncommittedChanges()
@@ -174,7 +180,8 @@ func TestComponentRelation_WithEmptyNameAndDescription(t *testing.T) {
 	name := valueobjects.NewDescription("")
 	description := valueobjects.NewDescription("")
 
-	relation, err := NewComponentRelation(sourceID, targetID, relationType, name, description)
+	properties := valueobjects.NewRelationProperties(sourceID, targetID, relationType, name, description)
+	relation, err := NewComponentRelation(properties)
 
 	require.NoError(t, err)
 	assert.NotNil(t, relation)

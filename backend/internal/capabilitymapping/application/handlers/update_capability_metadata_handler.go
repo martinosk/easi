@@ -58,7 +58,7 @@ func (h *UpdateCapabilityMetadataHandler) Handle(ctx context.Context, cmd cqrs.C
 		return err
 	}
 
-	if err := capability.UpdateMetadata(
+	metadata := valueobjects.NewCapabilityMetadata(
 		strategyPillar,
 		pillarWeight,
 		maturityLevel,
@@ -66,7 +66,9 @@ func (h *UpdateCapabilityMetadataHandler) Handle(ctx context.Context, cmd cqrs.C
 		primaryOwner,
 		eaOwner,
 		status,
-	); err != nil {
+	)
+
+	if err := capability.UpdateMetadata(metadata); err != nil {
 		return err
 	}
 

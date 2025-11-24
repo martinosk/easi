@@ -44,12 +44,19 @@ func (h *CreateComponentRelationHandler) Handle(ctx context.Context, cmd cqrs.Co
 	name := valueobjects.NewDescription(command.Name)
 	description := valueobjects.NewDescription(command.Description)
 
-	relation, err := aggregates.NewComponentRelation(sourceID, targetID, relationType, name, description)
+	properties := valueobjects.NewRelationProperties(
+		sourceID,
+		targetID,
+		relationType,
+		name,
+		description,
+	)
+
+	relation, err := aggregates.NewComponentRelation(properties)
 	if err != nil {
 		return err
 	}
 
-	// Set the ID on the command so the caller can retrieve it
 	command.ID = relation.ID()
 
 	return h.repository.Save(ctx, relation)

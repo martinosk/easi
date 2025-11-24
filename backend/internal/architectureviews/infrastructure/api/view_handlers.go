@@ -14,7 +14,6 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// ViewHandlers handles HTTP requests for architecture views
 type ViewHandlers struct {
 	commandBus cqrs.CommandBus
 	readModel  *readmodels.ArchitectureViewReadModel
@@ -28,7 +27,6 @@ type LayoutRepository interface {
 	RemoveCapabilityFromView(ctx context.Context, viewID, capabilityID string) error
 }
 
-// NewViewHandlers creates a new view handlers instance
 func NewViewHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.ArchitectureViewReadModel,
@@ -43,20 +41,33 @@ func NewViewHandlers(
 	}
 }
 
-// CreateViewRequest represents the request body for creating a view
+func (h *ViewHandlers) dispatchCommand(w http.ResponseWriter, r *http.Request, cmd cqrs.Command) {
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ViewHandlers) dispatchCommandWithStatus(w http.ResponseWriter, r *http.Request, cmd cqrs.Command, errorStatus int) {
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, errorStatus, err, "")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 type CreateViewRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 }
 
-// AddComponentRequest represents the request body for adding a component to a view
 type AddComponentRequest struct {
 	ComponentID string  `json:"componentId"`
 	X           float64 `json:"x"`
 	Y           float64 `json:"y"`
 }
 
-// UpdatePositionRequest represents the request body for updating component position
 type UpdatePositionRequest struct {
 	X float64 `json:"x"`
 	Y float64 `json:"y"`
@@ -72,7 +83,6 @@ type UpdateMultiplePositionsRequest struct {
 	Positions []PositionUpdateItem `json:"positions"`
 }
 
-// RenameViewRequest represents the request body for renaming a view
 type RenameViewRequest struct {
 	Name string `json:"name"`
 }
@@ -103,26 +113,22 @@ func (h *ViewHandlers) CreateView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate using domain value objects
 	_, err := valueobjects.NewViewName(req.Name)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
 
-	// Create command (pass by reference so handler can set ID)
 	cmd := &commands.CreateView{
 		Name:        req.Name,
 		Description: req.Description,
 	}
 
-	// Dispatch command
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create view")
 		return
 	}
 
-	// Retrieve the created view from read model
 	view, err := h.readModel.GetByID(r.Context(), cmd.ID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve created view")
@@ -130,7 +136,6 @@ func (h *ViewHandlers) CreateView(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if view == nil {
-		// If not yet in read model, return minimal response with Location header
 		location := fmt.Sprintf("/api/v1/views/%s", cmd.ID)
 		w.Header().Set("Location", location)
 		sharedAPI.RespondJSON(w, http.StatusCreated, map[string]string{
@@ -140,10 +145,8 @@ func (h *ViewHandlers) CreateView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Add HATEOAS links
 	view.Links = h.hateoas.ViewLinks(view.ID)
 
-	// Return created resource with Location header
 	location := fmt.Sprintf("/api/v1/views/%s", view.ID)
 	w.Header().Set("Location", location)
 	sharedAPI.RespondJSON(w, http.StatusCreated, view)
@@ -164,7 +167,6 @@ func (h *ViewHandlers) GetAllViews(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Add HATEOAS links to each view
 	for i := range views {
 		views[i].Links = h.hateoas.ViewLinks(views[i].ID)
 	}
@@ -200,7 +202,6 @@ func (h *ViewHandlers) GetViewByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Add HATEOAS links
 	view.Links = h.hateoas.ViewLinks(view.ID)
 
 	sharedAPI.RespondJSON(w, http.StatusOK, view)
@@ -229,7 +230,6 @@ func (h *ViewHandlers) AddComponentToView(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Create command
 	cmd := commands.AddComponentToView{
 		ViewID:      viewID,
 		ComponentID: req.ComponentID,
@@ -237,13 +237,11 @@ func (h *ViewHandlers) AddComponentToView(w http.ResponseWriter, r *http.Request
 		Y:           req.Y,
 	}
 
-	// Dispatch command
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
 
-	// Return 201 with Location header
 	location := fmt.Sprintf("/api/v1/views/%s/components", viewID)
 	w.Header().Set("Location", location)
 	w.WriteHeader(http.StatusCreated)
@@ -273,7 +271,6 @@ func (h *ViewHandlers) UpdateComponentPosition(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Create command
 	cmd := commands.UpdateComponentPosition{
 		ViewID:      viewID,
 		ComponentID: componentID,
@@ -281,7 +278,6 @@ func (h *ViewHandlers) UpdateComponentPosition(w http.ResponseWriter, r *http.Re
 		Y:           req.Y,
 	}
 
-	// Dispatch command
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
@@ -343,26 +339,16 @@ func (h *ViewHandlers) RenameView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate using domain value objects
 	_, err := valueobjects.NewViewName(req.Name)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
 
-	// Create command
-	cmd := &commands.RenameView{
+	h.dispatchCommand(w, r, &commands.RenameView{
 		ViewID:  viewID,
 		NewName: req.Name,
-	}
-
-	// Dispatch command
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	})
 }
 
 // DeleteView godoc
@@ -379,18 +365,9 @@ func (h *ViewHandlers) RenameView(w http.ResponseWriter, r *http.Request) {
 func (h *ViewHandlers) DeleteView(w http.ResponseWriter, r *http.Request) {
 	viewID := chi.URLParam(r, "id")
 
-	// Create command
-	cmd := &commands.DeleteView{
+	h.dispatchCommandWithStatus(w, r, &commands.DeleteView{
 		ViewID: viewID,
-	}
-
-	// Dispatch command
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusConflict, err, "")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	}, http.StatusConflict)
 }
 
 // RemoveComponentFromView godoc
@@ -408,19 +385,10 @@ func (h *ViewHandlers) RemoveComponentFromView(w http.ResponseWriter, r *http.Re
 	viewID := chi.URLParam(r, "id")
 	componentID := chi.URLParam(r, "componentId")
 
-	// Create command
-	cmd := &commands.RemoveComponentFromView{
+	h.dispatchCommand(w, r, &commands.RemoveComponentFromView{
 		ViewID:      viewID,
 		ComponentID: componentID,
-	}
-
-	// Dispatch command
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	})
 }
 
 // SetDefaultView godoc
@@ -436,18 +404,9 @@ func (h *ViewHandlers) RemoveComponentFromView(w http.ResponseWriter, r *http.Re
 func (h *ViewHandlers) SetDefaultView(w http.ResponseWriter, r *http.Request) {
 	viewID := chi.URLParam(r, "id")
 
-	// Create command
-	cmd := &commands.SetDefaultView{
+	h.dispatchCommand(w, r, &commands.SetDefaultView{
 		ViewID: viewID,
-	}
-
-	// Dispatch command
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	})
 }
 
 func (h *ViewHandlers) UpdateEdgeType(w http.ResponseWriter, r *http.Request) {
@@ -465,17 +424,10 @@ func (h *ViewHandlers) UpdateEdgeType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cmd := &commands.UpdateViewEdgeType{
+	h.dispatchCommand(w, r, &commands.UpdateViewEdgeType{
 		ViewID:   viewID,
 		EdgeType: req.EdgeType,
-	}
-
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	})
 }
 
 func (h *ViewHandlers) UpdateLayoutDirection(w http.ResponseWriter, r *http.Request) {
@@ -493,17 +445,10 @@ func (h *ViewHandlers) UpdateLayoutDirection(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	cmd := &commands.UpdateViewLayoutDirection{
+	h.dispatchCommand(w, r, &commands.UpdateViewLayoutDirection{
 		ViewID:          viewID,
 		LayoutDirection: req.LayoutDirection,
-	}
-
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	})
 }
 
 type AddCapabilityRequest struct {

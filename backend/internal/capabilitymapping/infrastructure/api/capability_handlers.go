@@ -64,24 +64,9 @@ func (h *CapabilityHandlers) CreateCapability(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	_, err := valueobjects.NewCapabilityName(req.Name)
-	if err != nil {
+	if err := h.validateCapabilityRequest(req); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
-	}
-
-	_, err = valueobjects.NewCapabilityLevel(req.Level)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
-	}
-
-	if req.ParentID != "" {
-		_, err = valueobjects.NewCapabilityIDFromString(req.ParentID)
-		if err != nil {
-			sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid parent ID")
-			return
-		}
 	}
 
 	cmd := &commands.CreateCapability{
@@ -96,26 +81,47 @@ func (h *CapabilityHandlers) CreateCapability(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	capability, err := h.readModel.GetByID(r.Context(), cmd.ID)
+	h.handleCreateCapabilityResponse(w, r, cmd.ID)
+}
+
+func (h *CapabilityHandlers) validateCapabilityRequest(req CreateCapabilityRequest) error {
+	if _, err := valueobjects.NewCapabilityName(req.Name); err != nil {
+		return err
+	}
+
+	if _, err := valueobjects.NewCapabilityLevel(req.Level); err != nil {
+		return err
+	}
+
+	if req.ParentID != "" {
+		if _, err := valueobjects.NewCapabilityIDFromString(req.ParentID); err != nil {
+			return fmt.Errorf("invalid parent ID: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (h *CapabilityHandlers) handleCreateCapabilityResponse(w http.ResponseWriter, r *http.Request, capabilityID string) {
+	capability, err := h.readModel.GetByID(r.Context(), capabilityID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve created capability")
 		return
 	}
 
+	location := fmt.Sprintf("/api/capabilities/%s", capabilityID)
+	w.Header().Set("Location", location)
+
 	if capability == nil {
-		location := fmt.Sprintf("/api/capabilities/%s", cmd.ID)
-		w.Header().Set("Location", location)
+		// Capability is still being processed
 		sharedAPI.RespondJSON(w, http.StatusCreated, map[string]string{
-			"id":      cmd.ID,
+			"id":      capabilityID,
 			"message": "Capability created, processing",
 		})
 		return
 	}
 
 	capability.Links = h.hateoas.CapabilityLinks(capability.ID, capability.ParentID)
-
-	location := fmt.Sprintf("/api/capabilities/%s", capability.ID)
-	w.Header().Set("Location", location)
 	sharedAPI.RespondJSON(w, http.StatusCreated, capability)
 }
 

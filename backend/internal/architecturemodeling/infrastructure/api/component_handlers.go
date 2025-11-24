@@ -61,27 +61,22 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 		return
 	}
 
-	// Validate using domain value objects
 	_, err := valueobjects.NewComponentName(req.Name)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
 
-	// Create command (pass by reference so handler can set ID)
 	cmd := &commands.CreateApplicationComponent{
 		Name:        req.Name,
 		Description: req.Description,
 	}
 
-	// Dispatch command
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create component")
 		return
 	}
 
-	// Retrieve the created component from read model
-	// Note: Due to eventual consistency, there might be a slight delay
 	component, err := h.readModel.GetByID(r.Context(), cmd.ID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve created component")
@@ -89,7 +84,6 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 	}
 
 	if component == nil {
-		// If not yet in read model, return minimal response with Location header
 		location := fmt.Sprintf("/api/v1/components/%s", cmd.ID)
 		w.Header().Set("Location", location)
 		sharedAPI.RespondJSON(w, http.StatusCreated, map[string]string{
@@ -99,10 +93,8 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 		return
 	}
 
-	// Add HATEOAS links
 	component.Links = h.hateoas.ComponentLinks(component.ID)
 
-	// Return created resource with Location header
 	location := fmt.Sprintf("/api/v1/components/%s", component.ID)
 	w.Header().Set("Location", location)
 	sharedAPI.RespondJSON(w, http.StatusCreated, component)
@@ -119,51 +111,65 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /components [get]
 func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Request) {
-	// Parse pagination parameters
 	params := sharedAPI.ParsePaginationParams(r)
 
-	// Decode cursor if present
-	var afterCursor string
-	var afterTimestamp int64
-	if params.After != "" {
-		cursor, err := sharedAPI.DecodeCursor(params.After)
-		if err != nil {
-			sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid pagination cursor")
-			return
-		}
-		if cursor != nil {
-			afterCursor = cursor.ID
-			afterTimestamp = cursor.Timestamp
-		}
+	afterCursor, afterTimestamp, err := h.processPaginationCursor(params.After)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid pagination cursor")
+		return
 	}
 
-	// Get paginated components
 	components, hasMore, err := h.readModel.GetAllPaginated(r.Context(), params.Limit, afterCursor, afterTimestamp)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve components")
 		return
 	}
 
-	// Add HATEOAS links to each component
+	h.addHATEOASLinks(components)
+
+	nextCursor := h.generateNextCursor(components, hasMore)
+	selfLink := h.buildSelfLink("/api/v1/components", params)
+
+	sharedAPI.RespondPaginated(w, http.StatusOK, components, hasMore, nextCursor, params.Limit, selfLink, "/api/v1/components")
+}
+
+func (h *ComponentHandlers) processPaginationCursor(after string) (string, int64, error) {
+	if after == "" {
+		return "", 0, nil
+	}
+
+	cursor, err := sharedAPI.DecodeCursor(after)
+	if err != nil {
+		return "", 0, err
+	}
+
+	if cursor == nil {
+		return "", 0, nil
+	}
+
+	return cursor.ID, cursor.Timestamp, nil
+}
+
+func (h *ComponentHandlers) addHATEOASLinks(components []readmodels.ApplicationComponentDTO) {
 	for i := range components {
 		components[i].Links = h.hateoas.ComponentLinks(components[i].ID)
 	}
+}
 
-	// Generate next cursor if there are more results
-	var nextCursor string
-	if hasMore && len(components) > 0 {
-		lastComponent := components[len(components)-1]
-		nextCursor = sharedAPI.EncodeCursor(lastComponent.ID, lastComponent.CreatedAt)
+func (h *ComponentHandlers) generateNextCursor(components []readmodels.ApplicationComponentDTO, hasMore bool) string {
+	if !hasMore || len(components) == 0 {
+		return ""
 	}
 
-	// Build self link
-	selfLink := "/api/v1/components"
-	if params.After != "" {
-		selfLink = fmt.Sprintf("/api/v1/components?after=%s&limit=%d", params.After, params.Limit)
-	}
+	lastComponent := components[len(components)-1]
+	return sharedAPI.EncodeCursor(lastComponent.ID, lastComponent.CreatedAt)
+}
 
-	// Respond with paginated data
-	sharedAPI.RespondPaginated(w, http.StatusOK, components, hasMore, nextCursor, params.Limit, selfLink, "/api/v1/components")
+func (h *ComponentHandlers) buildSelfLink(basePath string, params sharedAPI.PaginationParams) string {
+	if params.After == "" {
+		return basePath
+	}
+	return fmt.Sprintf("%s?after=%s&limit=%d", basePath, params.After, params.Limit)
 }
 
 // GetComponentByID godoc
@@ -190,7 +196,6 @@ func (h *ComponentHandlers) GetComponentByID(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Add HATEOAS links
 	component.Links = h.hateoas.ComponentLinks(component.ID)
 
 	sharedAPI.RespondJSON(w, http.StatusOK, component)
@@ -218,27 +223,23 @@ func (h *ComponentHandlers) UpdateApplicationComponent(w http.ResponseWriter, r 
 		return
 	}
 
-	// Validate using domain value objects
 	_, err := valueobjects.NewComponentName(req.Name)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
 
-	// Create command
 	cmd := &commands.UpdateApplicationComponent{
 		ID:          id,
 		Name:        req.Name,
 		Description: req.Description,
 	}
 
-	// Dispatch command
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update component")
 		return
 	}
 
-	// Retrieve the updated component from read model
 	component, err := h.readModel.GetByID(r.Context(), id)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve updated component")
@@ -250,7 +251,6 @@ func (h *ComponentHandlers) UpdateApplicationComponent(w http.ResponseWriter, r 
 		return
 	}
 
-	// Add HATEOAS links
 	component.Links = h.hateoas.ComponentLinks(component.ID)
 
 	sharedAPI.RespondJSON(w, http.StatusOK, component)

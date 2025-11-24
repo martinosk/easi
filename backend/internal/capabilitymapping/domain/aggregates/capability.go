@@ -90,24 +90,16 @@ func (c *Capability) Update(name valueobjects.CapabilityName, description valueo
 	return nil
 }
 
-func (c *Capability) UpdateMetadata(
-	strategyPillar valueobjects.StrategyPillar,
-	pillarWeight valueobjects.PillarWeight,
-	maturityLevel valueobjects.MaturityLevel,
-	ownershipModel valueobjects.OwnershipModel,
-	primaryOwner valueobjects.Owner,
-	eaOwner valueobjects.Owner,
-	status valueobjects.CapabilityStatus,
-) error {
+func (c *Capability) UpdateMetadata(metadata valueobjects.CapabilityMetadata) error {
 	event := events.NewCapabilityMetadataUpdated(
 		c.ID(),
-		strategyPillar.Value(),
-		pillarWeight.Value(),
-		maturityLevel.Value(),
-		ownershipModel.Value(),
-		primaryOwner.Value(),
-		eaOwner.Value(),
-		status.Value(),
+		metadata.StrategyPillar().Value(),
+		metadata.PillarWeight().Value(),
+		metadata.MaturityLevel().Value(),
+		metadata.OwnershipModel().Value(),
+		metadata.PrimaryOwner().Value(),
+		metadata.EAOwner().Value(),
+		metadata.Status().Value(),
 	)
 
 	c.apply(event)
