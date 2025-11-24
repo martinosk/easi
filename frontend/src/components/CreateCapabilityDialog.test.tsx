@@ -145,8 +145,12 @@ describe('CreateCapabilityDialog', () => {
   });
 
   describe('Form validation', () => {
-    it('should disable submit button when name is empty', () => {
+    it('should disable submit button when name is empty', async () => {
       render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
+      });
 
       const submitButton = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
       expect(submitButton.disabled).toBe(true);
@@ -215,6 +219,10 @@ describe('CreateCapabilityDialog', () => {
 
     it('should show error when name is only whitespace', async () => {
       render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
+      });
 
       const nameInput = screen.getByTestId('capability-name-input');
       fireEvent.change(nameInput, { target: { value: '   ' } });
@@ -464,6 +472,10 @@ describe('CreateCapabilityDialog', () => {
   describe('Form reset', () => {
     it('should reset form when dialog closes', async () => {
       render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
+      });
 
       const nameInput = screen.getByTestId('capability-name-input') as HTMLInputElement;
       fireEvent.change(nameInput, { target: { value: 'Test Capability' } });

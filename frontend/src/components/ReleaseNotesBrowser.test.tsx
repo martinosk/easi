@@ -182,10 +182,15 @@ describe('ReleaseNotesBrowser', () => {
   });
 
   describe('Dialog Behavior', () => {
-    it('should call showModal when isOpen changes to true', () => {
+    it('should call showModal when isOpen changes to true', async () => {
+      vi.mocked(apiClient.getReleases).mockResolvedValue(mockReleases);
+      vi.mocked(apiClient.getVersion).mockResolvedValue('2.0.0');
+
       render(<ReleaseNotesBrowser isOpen={true} onClose={mockOnClose} />);
 
-      expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+      });
     });
 
     it('should call close when isOpen changes to false', () => {

@@ -119,7 +119,9 @@ describe('Capability UI Consistency', () => {
 
         render(<EditCapabilityDialog isOpen={true} onClose={vi.fn()} capability={capability} />);
 
-        expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+        await waitFor(() => {
+          expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+        });
       });
 
       it('should not show modal when isOpen is false', async () => {
@@ -178,15 +180,21 @@ describe('Capability UI Consistency', () => {
         const { rerender } = render(
           <EditComponentDialog isOpen={true} onClose={vi.fn()} component={component} />
         );
+
+        await waitFor(() => {
+          expect((HTMLDialogElement.prototype.showModal as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0);
+        });
+
         const componentShowModalCalls = (HTMLDialogElement.prototype.showModal as ReturnType<typeof vi.fn>).mock.calls.length;
 
         rerender(
           <EditCapabilityDialog isOpen={true} onClose={vi.fn()} capability={capability} />
         );
-        const capabilityShowModalCalls = (HTMLDialogElement.prototype.showModal as ReturnType<typeof vi.fn>).mock.calls.length;
 
-        expect(componentShowModalCalls).toBeGreaterThan(0);
-        expect(capabilityShowModalCalls).toBeGreaterThan(componentShowModalCalls);
+        await waitFor(() => {
+          const capabilityShowModalCalls = (HTMLDialogElement.prototype.showModal as ReturnType<typeof vi.fn>).mock.calls.length;
+          expect(capabilityShowModalCalls).toBeGreaterThan(componentShowModalCalls);
+        });
       });
     });
   });

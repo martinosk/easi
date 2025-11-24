@@ -369,12 +369,12 @@ export const EditCapabilityDialog: React.FC<EditCapabilityDialogProps> = ({ isOp
             </div>
 
             <div className="form-row">
-              <SelectInput id="edit-capability-status" label="Status" value={form.status} options={statuses} onChange={(v) => handleFieldChange('status', v)} disabled={isSaving} isLoading={isLoadingStatuses} />
-              <SelectInput id="edit-capability-maturity" label="Maturity Level" value={form.maturityLevel} options={maturityLevels.map((level) => ({ value: level, displayName: level }))} onChange={(v) => handleFieldChange('maturityLevel', v)} disabled={isSaving} isLoading={isLoadingMaturityLevels} />
+              <SelectInput id="edit-capability-status" label="Status" value={form.status} options={statuses || []} onChange={(v) => handleFieldChange('status', v)} disabled={isSaving} isLoading={isLoadingStatuses} />
+              <SelectInput id="edit-capability-maturity" label="Maturity Level" value={form.maturityLevel} options={(maturityLevels || []).map((level) => ({ value: level, displayName: level }))} onChange={(v) => handleFieldChange('maturityLevel', v)} disabled={isSaving} isLoading={isLoadingMaturityLevels} />
             </div>
 
             <div className="form-row">
-              <SelectInput id="edit-capability-ownership" label="Ownership Model" value={form.ownershipModel} options={ownershipModels} onChange={(v) => handleFieldChange('ownershipModel', v)} disabled={isSaving} placeholder="Select ownership model" isLoading={isLoadingOwnershipModels} />
+              <SelectInput id="edit-capability-ownership" label="Ownership Model" value={form.ownershipModel} options={ownershipModels || []} onChange={(v) => handleFieldChange('ownershipModel', v)} disabled={isSaving} placeholder="Select ownership model" isLoading={isLoadingOwnershipModels} />
               <div className="form-group form-group-half">
                 <label htmlFor="edit-capability-primary-owner" className="form-label">Primary Owner</label>
                 <input id="edit-capability-primary-owner" type="text" className="form-input" value={form.primaryOwner} onChange={(e) => handleFieldChange('primaryOwner', e.target.value)} placeholder="Enter primary owner" disabled={isSaving} data-testid="edit-capability-primary-owner-input" />
@@ -386,7 +386,7 @@ export const EditCapabilityDialog: React.FC<EditCapabilityDialogProps> = ({ isOp
                 <label htmlFor="edit-capability-ea-owner" className="form-label">EA Owner</label>
                 <input id="edit-capability-ea-owner" type="text" className="form-input" value={form.eaOwner} onChange={(e) => handleFieldChange('eaOwner', e.target.value)} placeholder="Enter EA owner" disabled={isSaving} data-testid="edit-capability-ea-owner-input" />
               </div>
-              <SelectInput id="edit-capability-strategy-pillar" label="Strategy Pillar" value={form.strategyPillar} options={strategyPillars} onChange={(v) => handleFieldChange('strategyPillar', v)} disabled={isSaving} placeholder="Select strategy pillar" isLoading={isLoadingStrategyPillars} />
+              <SelectInput id="edit-capability-strategy-pillar" label="Strategy Pillar" value={form.strategyPillar} options={strategyPillars || []} onChange={(v) => handleFieldChange('strategyPillar', v)} disabled={isSaving} placeholder="Select strategy pillar" isLoading={isLoadingStrategyPillars} />
             </div>
 
             <div className="form-group">

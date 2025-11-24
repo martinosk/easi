@@ -14,9 +14,23 @@
       "Bash(npm run build:*)",
       "Bash(mv:*)",
       "mcp__codescene__code_health_score",
-      "mcp__codescene__code_health_review"
+      "mcp__codescene__code_health_review",
+      "Bash(git tag:*)"
     ],
     "deny": [],
     "ask": []
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r 'select(.filePath | test(\"\\\\.(go|ts|tsx|js|jsx)$\")) | \"REMINDER: Run CodeScene health check and review on \" + .filePath' 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
   }
 }

@@ -185,6 +185,10 @@ describe('useReleaseNotes', () => {
 
       const stored = localStorage.getItem(STORAGE_KEY);
       expect(stored).toBeNull();
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
     });
   });
 
