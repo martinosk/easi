@@ -54,6 +54,15 @@ steps:
     failTaskOnFailedTests: true
     testRunTitle: 'Frontend Unit Tests'
 
+# Get version from git tag
+- script: |
+    VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+    VERSION=${VERSION#v}  # Remove 'v' prefix if present
+    echo "Detected version: $VERSION"
+    echo "##vso[task.setvariable variable=APP_VERSION]$VERSION"
+  name: GetVersion
+  displayName: 'Get version from git tag'
+
 # Build Docker images after tests pass
 - task: Docker@2
   name: BuildMigrate
@@ -72,7 +81,7 @@ steps:
     command: 'build'
     Dockerfile: 'backend/Dockerfile'
     buildContext: 'backend'
-    arguments: '--tag easi-backend:$(Build.BuildNumber)'
+    arguments: '--tag easi-backend:$(Build.BuildNumber) --build-arg APP_VERSION=$(APP_VERSION)'
     addPipelineData: false
 
 - task: Docker@2

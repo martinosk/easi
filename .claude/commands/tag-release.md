@@ -21,75 +21,76 @@ Tag a new release with the specified version number.
 
    Example prompt: "Please provide the release notes content (you can use markdown):"
 
-4. **Store release notes in database**
-   Use curl to POST the release notes to the API:
+4. **Create migration to add release notes**
+   Find the next migration number and create a new migration file:
    ```bash
-   curl -X POST http://localhost:8080/api/v1/releases \
-     -H "Content-Type: application/json" \
-     -d '{
-       "version": "<version>",
-       "releaseDate": "<today ISO date>",
-       "notes": "<markdown content>"
-     }'
+   ls backend/deploy-scripts/migrations/*.sql | sort | tail -1
    ```
 
-5. **Update APP_VERSION in configuration**
-   Look for where APP_VERSION is configured and update it. Check:
-   - `.env` file
-   - `docker-compose.yml` or similar
-   - Any deploy configuration files
+   Create `backend/deploy-scripts/migrations/XXX_add_release_<version>.sql`:
+   ```sql
+   -- Migration: Add Release <version>
+   -- Description: Adds release notes for version <version>
 
-   If no explicit version file exists, inform the user they need to set `APP_VERSION=<version>` in their deployment.
-
-6. **Create git tag**
-   ```bash
-   git tag -a v<version> -m "Release v<version>"
+   INSERT INTO releases (version, release_date, notes, created_at) VALUES
+   ('<version>', '<today YYYY-MM-DD>', '<markdown content with escaped quotes>', CURRENT_TIMESTAMP)
+   ON CONFLICT (version) DO UPDATE SET
+     release_date = EXCLUDED.release_date,
+     notes = EXCLUDED.notes;
    ```
 
-7. **Commit any version changes**
-   If files were modified in step 5:
+5. **Commit migration**
    ```bash
-   git add <modified files>
-   git commit -m "chore: bump version to <version>
+   git add backend/deploy-scripts/migrations/
+   git commit -m "chore: add release notes for v<version>
 
    🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
    Co-Authored-By: Claude <noreply@anthropic.com>"
    ```
 
-8. **Summary**
+6. **Create git tag**
+   ```bash
+   git tag -a v<version> -m "Release v<version>"
+   ```
+
+7. **Summary**
    Display a summary of what was done:
    ```
    ✅ Release v<version> created successfully!
 
-   - Release notes stored in database
+   - Migration created: backend/deploy-scripts/migrations/XXX_add_release_<version>.sql
    - Git tag v<version> created
-   - Version configuration updated (if applicable)
+   - APP_VERSION will be set automatically from git tag at build time
 
    Next steps:
-   - Review the changes: git log -1 && git tag -l 'v*'
-   - Push the tag: git push origin v<version>
+   - Review the changes: git log -1 && git diff HEAD~1
    - Push commits: git push origin main
+   - Push the tag: git push origin v<version>
+   - Pipeline will inject version from tag and run migrations
    ```
 
 ## Error Handling
 
 - If the version already exists as a tag, warn and ask for confirmation to overwrite
-- If the API call fails, provide instructions for manual storage
 - If git operations fail, provide rollback instructions
+- Remember to escape single quotes in SQL by doubling them ('')
 
 ## Example
 
 ```
-User: /tag-release 1.2.0
-Claude: Creating release v1.2.0...
+User: /tag-release 0.8.0
+Claude: Creating release v0.8.0...
 
 Please provide the release notes content (you can use markdown), or paste the output from /generate-release-notes:
 
-User: ## What's New in 1.2.0
+User: ## What's New in 0.8.0
 ### Major
-- Added release notes system
+- Added new dashboard feature
 
-Claude: ✅ Release v1.2.0 created successfully!
+Claude: ✅ Release v0.8.0 created successfully!
+- Migration created: backend/deploy-scripts/migrations/017_add_release_0.8.0.sql
+- Git tag v0.8.0 created
+- APP_VERSION updated to 0.8.0
 ...
 ```
