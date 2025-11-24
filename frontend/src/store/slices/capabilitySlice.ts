@@ -164,14 +164,13 @@ export const createCapabilitySlice: StateCreator<
   },
 
   linkSystemToCapability: async (capabilityId: CapabilityId, data: LinkSystemToCapabilityRequest) => {
-    const { capabilityRealizations } = get();
-
     const newRealization = await handleApiCall(
       () => apiClient.linkSystemToCapability(capabilityId, data),
       'Failed to link system to capability'
     );
 
-    set({ capabilityRealizations: [...capabilityRealizations, newRealization] });
+    const allRealizations = await apiClient.getCapabilitiesByComponent(data.componentId);
+    set({ capabilityRealizations: mergeRealizations(get().capabilityRealizations, allRealizations) });
     toast.success('System linked to capability');
     return newRealization;
   },
@@ -196,7 +195,11 @@ export const createCapabilitySlice: StateCreator<
 
   deleteRealization: async (id: RealizationId) => {
     await handleApiCall(() => apiClient.deleteRealization(id), 'Failed to delete realization');
-    set({ capabilityRealizations: get().capabilityRealizations.filter((r) => r.id !== id) });
+    set({
+      capabilityRealizations: get().capabilityRealizations.filter(
+        (r) => r.id !== id && r.sourceRealizationId !== id
+      ),
+    });
     toast.success('Realization deleted');
   },
 

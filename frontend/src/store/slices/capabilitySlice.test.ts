@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { create } from 'zustand';
+import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import type {
   Capability,
   CapabilityDependency,
@@ -7,245 +7,67 @@ import type {
 } from '../../api/types';
 import { ApiError } from '../../api/types';
 import apiClient from '../../api/client';
-import type { CapabilityState, CapabilityActions } from './capabilitySlice';
+import { createCapabilitySlice, type CapabilityState, type CapabilityActions } from './capabilitySlice';
 
 vi.mock('../../api/client');
 
-const mockToast = {
-  success: vi.fn(),
-  error: vi.fn(),
-};
 vi.mock('react-hot-toast', () => ({
-  default: mockToast,
+  default: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
 }));
+
+import toast from 'react-hot-toast';
+const mockToast = vi.mocked(toast);
 
 type CapabilityStore = CapabilityState & CapabilityActions;
 
+function buildCapability(overrides: Partial<Capability> = {}): Capability {
+  const id = overrides.id ?? 'cap-1';
+  return {
+    id,
+    name: 'Test Capability',
+    level: 'L1',
+    createdAt: '2024-01-01T00:00:00Z',
+    _links: { self: { href: `/api/v1/capabilities/${id}` } },
+    ...overrides,
+  };
+}
+
+function buildDependency(overrides: Partial<CapabilityDependency> = {}): CapabilityDependency {
+  const id = overrides.id ?? 'dep-1';
+  return {
+    id,
+    sourceCapabilityId: 'cap-1',
+    targetCapabilityId: 'cap-2',
+    dependencyType: 'Requires',
+    createdAt: '2024-01-01T00:00:00Z',
+    _links: { self: { href: `/api/v1/capability-dependencies/${id}` } },
+    ...overrides,
+  };
+}
+
+function buildRealization(overrides: Partial<CapabilityRealization> = {}): CapabilityRealization {
+  const id = overrides.id ?? 'real-1';
+  return {
+    id,
+    capabilityId: 'cap-1',
+    componentId: 'comp-1',
+    realizationLevel: 'Full',
+    origin: 'Direct',
+    linkedAt: '2024-01-01T00:00:00Z',
+    _links: { self: { href: `/api/v1/capability-realizations/${id}` } },
+    ...overrides,
+  };
+}
+
 describe('CapabilitySlice Tests', () => {
-  let useStore: ReturnType<typeof create<CapabilityStore>>;
+  let useStore: UseBoundStore<StoreApi<CapabilityStore>>;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
-
-    useStore = create<CapabilityStore>((set, get) => ({
-      capabilities: [],
-      capabilityDependencies: [],
-      capabilityRealizations: [],
-
-      loadCapabilities: async () => {
-        try {
-          const capabilities = await apiClient.getCapabilities();
-          set({ capabilities });
-        } catch (error) {
-          const message = error instanceof ApiError ? error.message : 'Failed to load capabilities';
-          mockToast.error(message);
-          throw error;
-        }
-      },
-
-      loadCapabilityDependencies: async () => {
-        try {
-          const capabilityDependencies = await apiClient.getCapabilityDependencies();
-          set({ capabilityDependencies });
-        } catch (error) {
-          const message = error instanceof ApiError ? error.message : 'Failed to load capability dependencies';
-          mockToast.error(message);
-          throw error;
-        }
-      },
-
-      createCapability: async (data) => {
-        const { capabilities } = get();
-        try {
-          const newCapability = await apiClient.createCapability(data);
-          set({ capabilities: [...capabilities, newCapability] });
-          mockToast.success(`Capability "${data.name}" created`);
-          return newCapability;
-        } catch (error) {
-          const message = error instanceof ApiError ? error.message : 'Failed to create capability';
-          mockToast.error(message);
-          throw error;
-        }
-      },
-
-      updateCapability: async (id, data) => {
-        const { capabilities } = get();
-        try {
-          const updatedCapability = await apiClient.updateCapability(id, data);
-          set({
-            capabilities: capabilities.map((c) =>
-              c.id === id ? updatedCapability : c
-            ),
-          });
-          mockToast.success(`Capability "${data.name}" updated`);
-          return updatedCapability;
-        } catch (error) {
-          const message = error instanceof ApiError ? error.message : 'Failed to update capability';
-          mockToast.error(message);
-          throw error;
-        }
-      },
-
-      updateCapabilityMetadata: async (id, data) => {
-        const { capabilities } = get();
-        try {
-          const updatedCapability = await apiClient.updateCapabilityMetadata(id, data);
-          set({
-            capabilities: capabilities.map((c) =>
-              c.id === id ? updatedCapability : c
-            ),
-          });
-          mockToast.success('Capability metadata updated');
-          return updatedCapability;
-        } catch (error) {
-          const message = error instanceof ApiError ? error.message : 'Failed to update capability metadata';
-          mockToast.error(message);
-          throw error;
-        }
-      },
-
-      addCapabilityExpert: async (id, data) => {
-        try {
-          await apiClient.addCapabilityExpert(id, data);
-          const updatedCapability = await apiClient.getCapabilityById(id);
-          const { capabilities } = get();
-          set({
-            capabilities: capabilities.map((c) =>
-              c.id === id ? updatedCapability : c
-            ),
-          });
-          mockToast.success(`Expert "${data.expertName}" added`);
-        } catch (error) {
-          const message = error instanceof ApiError ? error.message : 'Failed to add expert';
-          mockToast.error(message);
-          throw error;
-        }
-      },
-
-      addCapabilityTag: async (id, tag) => {
-        try {
-          await apiClient.addCapabilityTag(id, { tag });
-          const updatedCapability = await apiClient.getCapabilityById(id);
-          const { capabilities } = get();
-          set({
-            capabilities: capabilities.map((c) =>
-              c.id === id ? updatedCapability : c
-            ),
-          });
-          mockToast.success(`Tag "${tag}" added`);
-        } catch (error) {
-          const message = error instanceof ApiError ? error.message : 'Failed to add tag';
-          mockToast.error(message);
-          throw error;
-        }
-      },
-
-      createCapabilityDependency: async (data) => {
-        const { capabilityDependencies } = get();
-        try {
-          const newDependency = await apiClient.createCapabilityDependency(data);
-          set({ capabilityDependencies: [...capabilityDependencies, newDependency] });
-          mockToast.success('Dependency created');
-          return newDependency;
-        } catch (error) {
-          const message = error instanceof ApiError ? error.message : 'Failed to create dependency';
-          mockToast.error(message);
-          throw error;
-        }
-      },
-
-      deleteCapabilityDependency: async (id) => {
-        const { capabilityDependencies } = get();
-        try {
-          await apiClient.deleteCapabilityDependency(id);
-          set({
-            capabilityDependencies: capabilityDependencies.filter((d) => d.id !== id),
-          });
-          mockToast.success('Dependency deleted');
-        } catch (error) {
-          const message = error instanceof ApiError ? error.message : 'Failed to delete dependency';
-          mockToast.error(message);
-          throw error;
-        }
-      },
-
-      linkSystemToCapability: async (capabilityId, data) => {
-        const { capabilityRealizations } = get();
-        try {
-          const newRealization = await apiClient.linkSystemToCapability(capabilityId, data);
-          set({ capabilityRealizations: [...capabilityRealizations, newRealization] });
-          mockToast.success('System linked to capability');
-          return newRealization;
-        } catch (error) {
-          const message = error instanceof ApiError ? error.message : 'Failed to link system to capability';
-          mockToast.error(message);
-          throw error;
-        }
-      },
-
-      updateRealization: async (id, data) => {
-        const { capabilityRealizations } = get();
-        try {
-          const updatedRealization = await apiClient.updateRealization(id, data);
-          set({
-            capabilityRealizations: capabilityRealizations.map((r) =>
-              r.id === id ? updatedRealization : r
-            ),
-          });
-          mockToast.success('Realization updated');
-          return updatedRealization;
-        } catch (error) {
-          const message = error instanceof ApiError ? error.message : 'Failed to update realization';
-          mockToast.error(message);
-          throw error;
-        }
-      },
-
-      deleteRealization: async (id) => {
-        const { capabilityRealizations } = get();
-        try {
-          await apiClient.deleteRealization(id);
-          set({
-            capabilityRealizations: capabilityRealizations.filter((r) => r.id !== id),
-          });
-          mockToast.success('Realization deleted');
-        } catch (error) {
-          const message = error instanceof ApiError ? error.message : 'Failed to delete realization';
-          mockToast.error(message);
-          throw error;
-        }
-      },
-
-      loadRealizationsByCapability: async (capabilityId) => {
-        try {
-          const realizations = await apiClient.getSystemsByCapability(capabilityId);
-          const { capabilityRealizations } = get();
-          const existingIds = new Set(realizations.map((r) => r.id));
-          const filtered = capabilityRealizations.filter((r) => !existingIds.has(r.id));
-          set({ capabilityRealizations: [...filtered, ...realizations] });
-          return realizations;
-        } catch (error) {
-          const message = error instanceof ApiError ? error.message : 'Failed to load realizations';
-          mockToast.error(message);
-          throw error;
-        }
-      },
-
-      loadRealizationsByComponent: async (componentId) => {
-        try {
-          const realizations = await apiClient.getCapabilitiesByComponent(componentId);
-          const { capabilityRealizations } = get();
-          const existingIds = new Set(realizations.map((r) => r.id));
-          const filtered = capabilityRealizations.filter((r) => !existingIds.has(r.id));
-          set({ capabilityRealizations: [...filtered, ...realizations] });
-          return realizations;
-        } catch (error) {
-          const message = error instanceof ApiError ? error.message : 'Failed to load realizations';
-          mockToast.error(message);
-          throw error;
-        }
-      },
-    }));
+    useStore = create<CapabilityStore>()(createCapabilitySlice);
   });
 
   describe('Capability Management', () => {
@@ -635,30 +457,64 @@ describe('CapabilitySlice Tests', () => {
 
   describe('Realization Management', () => {
     describe('linkSystemToCapability', () => {
-      it('should link system and add realization to state', async () => {
+      it('should link system and fetch all realizations including inherited', async () => {
         const request = {
           componentId: 'comp-1',
           realizationLevel: 'Full' as const,
           notes: 'Primary system',
         };
 
-        const mockRealization: CapabilityRealization = {
+        const directRealization: CapabilityRealization = {
           id: 'real-new',
-          capabilityId: 'cap-1',
+          capabilityId: 'cap-l3',
           componentId: 'comp-1',
           realizationLevel: 'Full',
           notes: 'Primary system',
+          origin: 'Direct',
           linkedAt: '2024-01-01T00:00:00Z',
           _links: { self: { href: '/api/v1/capability-realizations/real-new' } },
         };
 
-        vi.mocked(apiClient.linkSystemToCapability).mockResolvedValueOnce(mockRealization);
+        const inheritedL2: CapabilityRealization = {
+          id: 'real-inherited-l2',
+          capabilityId: 'cap-l2',
+          componentId: 'comp-1',
+          realizationLevel: 'Full',
+          origin: 'Inherited',
+          sourceRealizationId: 'real-new',
+          linkedAt: '2024-01-01T00:00:00Z',
+          _links: { self: { href: '/api/v1/capability-realizations/real-inherited-l2' } },
+        };
 
-        const result = await useStore.getState().linkSystemToCapability('cap-1', request);
+        const inheritedL1: CapabilityRealization = {
+          id: 'real-inherited-l1',
+          capabilityId: 'cap-l1',
+          componentId: 'comp-1',
+          realizationLevel: 'Full',
+          origin: 'Inherited',
+          sourceRealizationId: 'real-new',
+          linkedAt: '2024-01-01T00:00:00Z',
+          _links: { self: { href: '/api/v1/capability-realizations/real-inherited-l1' } },
+        };
 
-        expect(apiClient.linkSystemToCapability).toHaveBeenCalledWith('cap-1', request);
-        expect(result).toEqual(mockRealization);
-        expect(useStore.getState().capabilityRealizations).toContainEqual(mockRealization);
+        vi.mocked(apiClient.linkSystemToCapability).mockResolvedValueOnce(directRealization);
+        vi.mocked(apiClient.getCapabilitiesByComponent).mockResolvedValueOnce([
+          directRealization,
+          inheritedL2,
+          inheritedL1,
+        ]);
+
+        const result = await useStore.getState().linkSystemToCapability('cap-l3', request);
+
+        expect(apiClient.linkSystemToCapability).toHaveBeenCalledWith('cap-l3', request);
+        expect(apiClient.getCapabilitiesByComponent).toHaveBeenCalledWith('comp-1');
+        expect(result).toEqual(directRealization);
+
+        const state = useStore.getState();
+        expect(state.capabilityRealizations).toHaveLength(3);
+        expect(state.capabilityRealizations).toContainEqual(directRealization);
+        expect(state.capabilityRealizations).toContainEqual(inheritedL2);
+        expect(state.capabilityRealizations).toContainEqual(inheritedL1);
         expect(mockToast.success).toHaveBeenCalledWith('System linked to capability');
       });
 
@@ -679,15 +535,7 @@ describe('CapabilitySlice Tests', () => {
 
     describe('updateRealization', () => {
       it('should update realization and reflect in state', async () => {
-        const existingRealization: CapabilityRealization = {
-          id: 'real-1',
-          capabilityId: 'cap-1',
-          componentId: 'comp-1',
-          realizationLevel: 'Full',
-          linkedAt: '2024-01-01T00:00:00Z',
-          _links: { self: { href: '/api/v1/capability-realizations/real-1' } },
-        };
-
+        const existingRealization = buildRealization();
         useStore.setState({ capabilityRealizations: [existingRealization] });
 
         const request = {
@@ -714,15 +562,7 @@ describe('CapabilitySlice Tests', () => {
 
     describe('deleteRealization', () => {
       it('should delete realization and remove from state', async () => {
-        const existingRealization: CapabilityRealization = {
-          id: 'real-1',
-          capabilityId: 'cap-1',
-          componentId: 'comp-1',
-          realizationLevel: 'Full',
-          linkedAt: '2024-01-01T00:00:00Z',
-          _links: { self: { href: '/api/v1/capability-realizations/real-1' } },
-        };
-
+        const existingRealization = buildRealization();
         useStore.setState({ capabilityRealizations: [existingRealization] });
 
         vi.mocked(apiClient.deleteRealization).mockResolvedValueOnce(undefined);
@@ -731,6 +571,46 @@ describe('CapabilitySlice Tests', () => {
 
         expect(apiClient.deleteRealization).toHaveBeenCalledWith('real-1');
         expect(useStore.getState().capabilityRealizations).toHaveLength(0);
+        expect(mockToast.success).toHaveBeenCalledWith('Realization deleted');
+      });
+
+      it('should cascade delete inherited realizations from state', async () => {
+        const directRealization = buildRealization({ id: 'real-direct', capabilityId: 'cap-l3' });
+        const inheritedL2 = buildRealization({
+          id: 'real-inherited-l2',
+          capabilityId: 'cap-l2',
+          origin: 'Inherited',
+          sourceRealizationId: 'real-direct',
+        });
+        const inheritedL1 = buildRealization({
+          id: 'real-inherited-l1',
+          capabilityId: 'cap-l1',
+          origin: 'Inherited',
+          sourceRealizationId: 'real-direct',
+        });
+        const unrelatedRealization = buildRealization({
+          id: 'real-unrelated',
+          capabilityId: 'cap-other',
+          componentId: 'comp-2',
+          realizationLevel: 'Partial',
+        });
+
+        useStore.setState({
+          capabilityRealizations: [directRealization, inheritedL2, inheritedL1, unrelatedRealization],
+        });
+
+        vi.mocked(apiClient.deleteRealization).mockResolvedValueOnce(undefined);
+
+        await useStore.getState().deleteRealization('real-direct');
+
+        expect(apiClient.deleteRealization).toHaveBeenCalledWith('real-direct');
+
+        const state = useStore.getState();
+        expect(state.capabilityRealizations).toHaveLength(1);
+        expect(state.capabilityRealizations[0].id).toBe('real-unrelated');
+        expect(state.capabilityRealizations).not.toContainEqual(directRealization);
+        expect(state.capabilityRealizations).not.toContainEqual(inheritedL2);
+        expect(state.capabilityRealizations).not.toContainEqual(inheritedL1);
         expect(mockToast.success).toHaveBeenCalledWith('Realization deleted');
       });
 
@@ -748,16 +628,7 @@ describe('CapabilitySlice Tests', () => {
 
     describe('loadRealizationsByCapability', () => {
       it('should load realizations for a capability', async () => {
-        const mockRealizations: CapabilityRealization[] = [
-          {
-            id: 'real-1',
-            capabilityId: 'cap-1',
-            componentId: 'comp-1',
-            realizationLevel: 'Full',
-            linkedAt: '2024-01-01T00:00:00Z',
-            _links: { self: { href: '/api/v1/capability-realizations/real-1' } },
-          },
-        ];
+        const mockRealizations = [buildRealization()];
 
         vi.mocked(apiClient.getSystemsByCapability).mockResolvedValueOnce(mockRealizations);
 
@@ -769,27 +640,15 @@ describe('CapabilitySlice Tests', () => {
       });
 
       it('should merge new realizations with existing ones', async () => {
-        const existingRealization: CapabilityRealization = {
+        const existingRealization = buildRealization({
           id: 'real-existing',
           capabilityId: 'cap-2',
           componentId: 'comp-2',
           realizationLevel: 'Partial',
-          linkedAt: '2024-01-01T00:00:00Z',
-          _links: { self: { href: '/api/v1/capability-realizations/real-existing' } },
-        };
-
+        });
         useStore.setState({ capabilityRealizations: [existingRealization] });
 
-        const newRealizations: CapabilityRealization[] = [
-          {
-            id: 'real-1',
-            capabilityId: 'cap-1',
-            componentId: 'comp-1',
-            realizationLevel: 'Full',
-            linkedAt: '2024-01-01T00:00:00Z',
-            _links: { self: { href: '/api/v1/capability-realizations/real-1' } },
-          },
-        ];
+        const newRealizations = [buildRealization()];
 
         vi.mocked(apiClient.getSystemsByCapability).mockResolvedValueOnce(newRealizations);
 
@@ -802,27 +661,11 @@ describe('CapabilitySlice Tests', () => {
       });
 
       it('should replace existing realizations with same id', async () => {
-        const existingRealization: CapabilityRealization = {
-          id: 'real-1',
-          capabilityId: 'cap-1',
-          componentId: 'comp-1',
-          realizationLevel: 'Partial',
-          linkedAt: '2024-01-01T00:00:00Z',
-          _links: { self: { href: '/api/v1/capability-realizations/real-1' } },
-        };
-
+        const existingRealization = buildRealization({ realizationLevel: 'Partial' });
         useStore.setState({ capabilityRealizations: [existingRealization] });
 
-        const updatedRealizations: CapabilityRealization[] = [
-          {
-            id: 'real-1',
-            capabilityId: 'cap-1',
-            componentId: 'comp-1',
-            realizationLevel: 'Full',
-            notes: 'Updated',
-            linkedAt: '2024-01-01T00:00:00Z',
-            _links: { self: { href: '/api/v1/capability-realizations/real-1' } },
-          },
+        const updatedRealizations = [
+          buildRealization({ realizationLevel: 'Full', notes: 'Updated' }),
         ];
 
         vi.mocked(apiClient.getSystemsByCapability).mockResolvedValueOnce(updatedRealizations);
@@ -837,23 +680,9 @@ describe('CapabilitySlice Tests', () => {
 
     describe('loadRealizationsByComponent', () => {
       it('should load realizations for a component', async () => {
-        const mockRealizations: CapabilityRealization[] = [
-          {
-            id: 'real-1',
-            capabilityId: 'cap-1',
-            componentId: 'comp-1',
-            realizationLevel: 'Full',
-            linkedAt: '2024-01-01T00:00:00Z',
-            _links: { self: { href: '/api/v1/capability-realizations/real-1' } },
-          },
-          {
-            id: 'real-2',
-            capabilityId: 'cap-2',
-            componentId: 'comp-1',
-            realizationLevel: 'Partial',
-            linkedAt: '2024-01-01T00:00:00Z',
-            _links: { self: { href: '/api/v1/capability-realizations/real-2' } },
-          },
+        const mockRealizations = [
+          buildRealization(),
+          buildRealization({ id: 'real-2', capabilityId: 'cap-2', realizationLevel: 'Partial' }),
         ];
 
         vi.mocked(apiClient.getCapabilitiesByComponent).mockResolvedValueOnce(mockRealizations);

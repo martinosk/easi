@@ -42,6 +42,8 @@ func (p *RealizationProjector) ProjectEvent(ctx context.Context, eventType strin
 		return p.handleRealizationUpdated(ctx, eventData)
 	case "SystemRealizationDeleted":
 		return p.handleRealizationDeleted(ctx, eventData)
+	case "CapabilityParentChanged":
+		return p.handleCapabilityParentChanged(ctx, eventData)
 	}
 	return nil
 }
@@ -105,8 +107,58 @@ func (p *RealizationProjector) createInheritedRealizationsForAncestors(ctx conte
 		return nil
 	}
 
+	nextSource := source
+	nextSource.CapabilityID = capability.ParentID
+	return p.propagateInheritedRealizations(ctx, nextSource)
+}
+
+func (p *RealizationProjector) handleCapabilityParentChanged(ctx context.Context, eventData []byte) error {
+	var event events.CapabilityParentChanged
+	if err := unmarshalEvent(eventData, &event, "CapabilityParentChanged"); err != nil {
+		return err
+	}
+
+	if event.NewParentID == "" {
+		return nil
+	}
+
+	realizations, err := p.readModel.GetByCapabilityID(ctx, event.CapabilityID)
+	if err != nil {
+		return err
+	}
+
+	for _, realization := range realizations {
+		sourceID := realization.ID
+		if realization.Origin == "Inherited" && realization.SourceRealizationID != "" {
+			sourceID = realization.SourceRealizationID
+		}
+
+		source := readmodels.RealizationDTO{
+			ID:           sourceID,
+			CapabilityID: event.NewParentID,
+			ComponentID:  realization.ComponentID,
+			LinkedAt:     realization.LinkedAt,
+		}
+
+		if err := p.propagateInheritedRealizations(ctx, source); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *RealizationProjector) propagateInheritedRealizations(ctx context.Context, source readmodels.RealizationDTO) error {
+	capability, err := p.capabilityReadModel.GetByID(ctx, source.CapabilityID)
+	if err != nil {
+		return err
+	}
+	if capability == nil {
+		return nil
+	}
+
 	inheritedDTO := readmodels.RealizationDTO{
-		CapabilityID:        capability.ParentID,
+		CapabilityID:        source.CapabilityID,
 		ComponentID:         source.ComponentID,
 		RealizationLevel:    "Full",
 		Origin:              "Inherited",
@@ -118,7 +170,11 @@ func (p *RealizationProjector) createInheritedRealizationsForAncestors(ctx conte
 		return err
 	}
 
+	if capability.ParentID == "" {
+		return nil
+	}
+
 	nextSource := source
 	nextSource.CapabilityID = capability.ParentID
-	return p.createInheritedRealizationsForAncestors(ctx, nextSource)
+	return p.propagateInheritedRealizations(ctx, nextSource)
 }

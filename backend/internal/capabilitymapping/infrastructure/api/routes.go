@@ -49,6 +49,7 @@ func SetupCapabilityMappingRoutes(
 	eventBus.Subscribe("SystemLinkedToCapability", realizationProjector)
 	eventBus.Subscribe("SystemRealizationUpdated", realizationProjector)
 	eventBus.Subscribe("SystemRealizationDeleted", realizationProjector)
+	eventBus.Subscribe("CapabilityParentChanged", realizationProjector)
 
 	createCapabilityHandler := handlers.NewCreateCapabilityHandler(capabilityRepo)
 	updateCapabilityHandler := handlers.NewUpdateCapabilityHandler(capabilityRepo)
