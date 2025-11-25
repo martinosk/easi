@@ -24,8 +24,8 @@ export const ColorSchemeSelector: React.FC = () => {
         aria-label="Select color scheme for canvas elements"
       >
         <option value="maturity">Maturity</option>
-        <option value="archimate">ArchiMate</option>
-        <option value="archimate-classic">ArchiMate (classic)</option>
+        <option value="archimate">Modern</option>
+        <option value="archimate-classic">Classic</option>
         <option value="custom">Custom</option>
       </select>
     </div>
