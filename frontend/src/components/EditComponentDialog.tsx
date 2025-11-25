@@ -51,12 +51,12 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
     setError(null);
 
     if (!name.trim()) {
-      setError('Component name is required');
+      setError('Application name is required');
       return;
     }
 
     if (!component) {
-      setError('No component selected');
+      setError('No application selected');
       return;
     }
 
@@ -69,7 +69,7 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
       });
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update component');
+      setError(err instanceof Error ? err.message : 'Failed to update application');
     } finally {
       setIsUpdating(false);
     }
@@ -78,7 +78,7 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
   return (
     <dialog ref={dialogRef} className="dialog" onClose={handleClose}>
       <div className="dialog-content">
-        <h2 className="dialog-title">Edit Component</h2>
+        <h2 className="dialog-title">Edit Application</h2>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -91,7 +91,7 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
               className="form-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter component name"
+              placeholder="Enter application name"
               disabled={isUpdating}
               autoFocus
             />
@@ -106,7 +106,7 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
               className="form-textarea"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter component description (optional)"
+              placeholder="Enter application description (optional)"
               rows={4}
               disabled={isUpdating}
             />
@@ -128,7 +128,7 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
               className="btn btn-primary"
               disabled={isUpdating || !name.trim()}
             >
-              {isUpdating ? 'Updating...' : 'Update Component'}
+              {isUpdating ? 'Updating...' : 'Update Application'}
             </button>
           </div>
         </form>

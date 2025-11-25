@@ -14,6 +14,8 @@ export interface ComponentActions {
   createComponent: (data: ComponentData) => Promise<Component>;
   updateComponent: (id: ComponentId, data: ComponentData) => Promise<Component>;
   deleteComponent: (id: ComponentId) => Promise<void>;
+  updateComponentColor: (viewId: string, componentId: string, color: string) => Promise<void>;
+  clearComponentColor: (viewId: string, componentId: string) => Promise<void>;
 }
 
 type StoreWithDependencies = ComponentState & {
@@ -98,6 +100,64 @@ export const createComponentSlice: StateCreator<
         : 'Failed to delete component';
 
       toast.error(errorMessage);
+      throw error;
+    }
+  },
+
+  updateComponentColor: async (viewId: string, componentId: string, color: string) => {
+    const { currentView } = get();
+    if (!currentView) return;
+
+    const previousComponents = currentView.components;
+    const updatedComponents = currentView.components.map((vc) =>
+      vc.componentId === componentId ? { ...vc, customColor: color } : vc
+    );
+
+    set({
+      currentView: {
+        ...currentView,
+        components: updatedComponents,
+      },
+    });
+
+    try {
+      await apiClient.updateComponentColor(viewId, componentId, color);
+    } catch (error) {
+      set({
+        currentView: {
+          ...currentView,
+          components: previousComponents,
+        },
+      });
+      throw error;
+    }
+  },
+
+  clearComponentColor: async (viewId: string, componentId: string) => {
+    const { currentView } = get();
+    if (!currentView) return;
+
+    const previousComponents = currentView.components;
+    const updatedComponents = currentView.components.map((vc) =>
+      vc.componentId === componentId ? { ...vc, customColor: undefined } : vc
+    );
+
+    set({
+      currentView: {
+        ...currentView,
+        components: updatedComponents,
+      },
+    });
+
+    try {
+      await apiClient.clearComponentColor(viewId, componentId);
+    } catch (error) {
+      set({
+        currentView: {
+          ...currentView,
+          components: previousComponents,
+        },
+      });
       throw error;
     }
   },

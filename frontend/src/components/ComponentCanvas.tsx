@@ -25,6 +25,7 @@ import { useAppStore } from '../store/appStore';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { ConfirmationDialog } from './ConfirmationDialog';
 import { CapabilityNode } from './CapabilityNode';
+import { ComponentNode } from './ComponentNode';
 import toast from 'react-hot-toast';
 import type { CapabilityRealization } from '../api/types';
 
@@ -36,80 +37,6 @@ interface ComponentCanvasProps {
 export interface ComponentCanvasRef {
   centerOnNode: (nodeId: string) => void;
 }
-
-interface ComponentNodeData {
-  label: string;
-  description?: string;
-  isSelected: boolean;
-}
-
-const ComponentNode: React.FC<{ data: ComponentNodeData; id: string }> = ({ data, id }) => {
-  return (
-    <div
-      className={`component-node ${data.isSelected ? 'component-node-selected' : ''}`}
-      data-component-id={id}
-    >
-      <Handle
-        type="source"
-        position={Position.Top}
-        id="top"
-        className="component-handle component-handle-top"
-      />
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="top"
-        className="component-handle component-handle-top"
-      />
-
-      <Handle
-        type="source"
-        position={Position.Left}
-        id="left"
-        className="component-handle component-handle-left"
-      />
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="left"
-        className="component-handle component-handle-left"
-      />
-
-      <div className="component-node-content">
-        <div className="component-node-header">{data.label}</div>
-        {data.description && (
-          <div className="component-node-description">{data.description}</div>
-        )}
-      </div>
-
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="right"
-        className="component-handle component-handle-right"
-      />
-      <Handle
-        type="target"
-        position={Position.Right}
-        id="right"
-        className="component-handle component-handle-right"
-      />
-
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="bottom"
-        className="component-handle component-handle-bottom"
-      />
-      <Handle
-        type="target"
-        position={Position.Bottom}
-        id="bottom"
-        className="component-handle component-handle-bottom"
-      />
-    </div>
-  );
-};
 
 const nodeTypes: NodeTypes = {
   component: ComponentNode,
@@ -236,6 +163,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
             label: component.name,
             description: component.description,
             isSelected: selectedNodeId === component.id,
+            customColor: viewComponent?.customColor,
           },
         };
       });
@@ -246,6 +174,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         const capability = capabilities.find((c) => c.id === cc.capabilityId);
         if (!capability) return null;
 
+        const viewCapability = currentView.capabilities.find((vc) => vc.capabilityId === capability.id);
+
         return {
           id: `cap-${capability.id}`,
           type: 'capability' as const,
@@ -255,6 +185,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
             level: capability.level,
             maturityLevel: capability.maturityLevel,
             isSelected: selectedCapabilityId === capability.id,
+            customColor: viewCapability?.customColor,
           },
         };
       })

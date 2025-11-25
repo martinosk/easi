@@ -41,7 +41,7 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
     setError(null);
 
     if (!name.trim()) {
-      setError('Component name is required');
+      setError('Application name is required');
       return;
     }
 
@@ -54,7 +54,7 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
       });
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create component');
+      setError(err instanceof Error ? err.message : 'Failed to create application');
     } finally {
       setIsCreating(false);
     }
@@ -63,7 +63,7 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
   return (
     <dialog ref={dialogRef} className="dialog" onClose={handleClose} data-testid="create-component-dialog">
       <div className="dialog-content">
-        <h2 className="dialog-title">Create Component</h2>
+        <h2 className="dialog-title">Create Application</h2>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -76,7 +76,7 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
               className="form-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter component name"
+              placeholder="Enter application name"
               autoFocus
               disabled={isCreating}
               data-testid="component-name-input"
@@ -92,7 +92,7 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
               className="form-textarea"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter component description (optional)"
+              placeholder="Enter application description (optional)"
               rows={3}
               disabled={isCreating}
               data-testid="component-description-input"
@@ -117,7 +117,7 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
               disabled={isCreating || !name.trim()}
               data-testid="create-component-submit"
             >
-              {isCreating ? 'Creating...' : 'Create Component'}
+              {isCreating ? 'Creating...' : 'Create Application'}
             </button>
           </div>
         </form>

@@ -27,7 +27,7 @@ describe('CreateComponentDialog', () => {
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
     // Check for the heading element (use hidden option because dialog is not accessible by default in JSDOM)
-    expect(screen.getByRole('heading', { level: 2, hidden: true })).toHaveTextContent('Create Component');
+    expect(screen.getByRole('heading', { level: 2, hidden: true })).toHaveTextContent('Create Application');
     expect(screen.getByLabelText(/Name/, {})).toBeInTheDocument();
     expect(screen.getByLabelText(/Description/, {})).toBeInTheDocument();
   });
@@ -48,7 +48,7 @@ describe('CreateComponentDialog', () => {
     render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
 
     const buttons = screen.getAllByRole('button', { hidden: true });
-    const submitButton = buttons.find(btn => btn.textContent === 'Create Component') as HTMLButtonElement;
+    const submitButton = buttons.find(btn => btn.textContent === 'Create Application') as HTMLButtonElement;
 
     // Button should be disabled when name is empty
     expect(submitButton.disabled).toBe(true);
@@ -63,7 +63,7 @@ describe('CreateComponentDialog', () => {
     const nameInput = screen.getByLabelText(/Name/, {});
     const descriptionInput = screen.getByLabelText(/Description/, {});
     const buttons = screen.getAllByRole('button', { hidden: true });
-    const submitButton = buttons.find(btn => btn.textContent === 'Create Component');
+    const submitButton = buttons.find(btn => btn.textContent === 'Create Application');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
     fireEvent.change(descriptionInput, { target: { value: 'Test Description' } });
@@ -86,7 +86,7 @@ describe('CreateComponentDialog', () => {
 
     const nameInput = screen.getByLabelText(/Name/, {});
     const buttons = screen.getAllByRole('button', { hidden: true });
-    const submitButton = buttons.find(btn => btn.textContent === 'Create Component');
+    const submitButton = buttons.find(btn => btn.textContent === 'Create Application');
 
     fireEvent.change(nameInput, { target: { value: '  Test Component  ' } });
     fireEvent.click(submitButton!);
@@ -106,7 +106,7 @@ describe('CreateComponentDialog', () => {
 
     const nameInput = screen.getByLabelText(/Name/, {});
     const buttons = screen.getAllByRole('button', { hidden: true });
-    const submitButton = buttons.find(btn => btn.textContent === 'Create Component');
+    const submitButton = buttons.find(btn => btn.textContent === 'Create Application');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
     fireEvent.click(submitButton!);
@@ -127,7 +127,7 @@ describe('CreateComponentDialog', () => {
 
     const nameInput = screen.getByLabelText(/Name/, {}) as HTMLInputElement;
     const buttons = screen.getAllByRole('button', { hidden: true });
-    const submitButton = buttons.find(btn => btn.textContent === 'Create Component');
+    const submitButton = buttons.find(btn => btn.textContent === 'Create Application');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
     fireEvent.click(submitButton!);

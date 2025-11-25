@@ -1645,6 +1645,158 @@ const docTemplate = `{
                 }
             }
         },
+        "/views/{id}/capabilities/{capabilityId}/color": {
+            "delete": {
+                "description": "Removes the custom color from a capability, returning it to the default color scheme",
+                "tags": [
+                    "views"
+                ],
+                "summary": "Clear custom color for a capability in a view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "capabilityId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Sets a custom hex color for a capability when using the custom color scheme",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Update custom color for a capability in a view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "capabilityId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Color update request with hex color (e.g., #FF5733)",
+                        "name": "color",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.UpdateElementColorRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Invalid hex color format",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/views/{id}/color-scheme": {
+            "patch": {
+                "description": "Updates the color scheme for an architecture view. Valid schemes: maturity, archimate, archimate-classic, custom",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Update color scheme for a view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Color scheme update request",
+                        "name": "colorScheme",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.UpdateColorSchemeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "_links": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                },
+                                "colorScheme": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/views/{id}/components": {
             "post": {
                 "description": "Adds a component to an architecture view at a specific position",
@@ -1739,6 +1891,94 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "View or component not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/views/{id}/components/{componentId}/color": {
+            "delete": {
+                "description": "Removes the custom color from a component, returning it to the default color scheme",
+                "tags": [
+                    "views"
+                ],
+                "summary": "Clear custom color for a component in a view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "componentId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Sets a custom hex color for a component when using the custom color scheme",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Update custom color for a component in a view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "componentId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Color update request with hex color (e.g., #FF5733)",
+                        "name": "color",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.UpdateElementColorRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Invalid hex color format",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -1975,6 +2215,15 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "capabilities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architectureviews_application_readmodels.CapabilityPositionDTO"
+                    }
+                },
+                "colorScheme": {
+                    "type": "string"
+                },
                 "components": {
                     "type": "array",
                     "items": {
@@ -2004,10 +2253,42 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_architectureviews_application_readmodels.CapabilityPositionDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "capabilityId": {
+                    "type": "string"
+                },
+                "customColor": {
+                    "type": "string"
+                },
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
         "easi_backend_internal_architectureviews_application_readmodels.ComponentPositionDTO": {
             "type": "object",
             "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "componentId": {
+                    "type": "string"
+                },
+                "customColor": {
                     "type": "string"
                 },
                 "x": {
@@ -2150,7 +2431,13 @@ const docTemplate = `{
                 "notes": {
                     "type": "string"
                 },
+                "origin": {
+                    "type": "string"
+                },
                 "realizationLevel": {
+                    "type": "string"
+                },
+                "sourceRealizationId": {
                     "type": "string"
                 }
             }
@@ -2309,6 +2596,23 @@ const docTemplate = `{
             "properties": {
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_architectureviews_infrastructure_api.UpdateColorSchemeRequest": {
+            "type": "object",
+            "properties": {
+                "colorScheme": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_architectureviews_infrastructure_api.UpdateElementColorRequest": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string",
+                    "example": "#FF5733"
                 }
             }
         },

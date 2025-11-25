@@ -25,6 +25,7 @@ export interface CanvasCapabilityActions {
   selectCapability: (capabilityId: CapabilityId | null) => void;
   clearCanvasCapabilities: () => void;
   syncCanvasCapabilitiesFromView: (view: View) => void;
+  updateCapabilityColor: (viewId: string, capabilityId: string, color: string) => Promise<void>;
 }
 
 export const createCanvasCapabilitySlice: StateCreator<
@@ -106,5 +107,34 @@ export const createCanvasCapabilitySlice: StateCreator<
       y: vc.y,
     }));
     set({ canvasCapabilities: capabilities, selectedCapabilityId: null });
+  },
+
+  updateCapabilityColor: async (viewId: string, capabilityId: string, color: string) => {
+    const { currentView } = get();
+    if (!currentView) return;
+
+    const previousCapabilities = currentView.capabilities;
+    const updatedCapabilities = currentView.capabilities.map((vc) =>
+      vc.capabilityId === capabilityId ? { ...vc, customColor: color } : vc
+    );
+
+    set({
+      currentView: {
+        ...currentView,
+        capabilities: updatedCapabilities,
+      },
+    });
+
+    try {
+      await apiClient.updateCapabilityColor(viewId, capabilityId, color);
+    } catch (error) {
+      set({
+        currentView: {
+          ...currentView,
+          capabilities: previousCapabilities,
+        },
+      });
+      throw error;
+    }
   },
 });

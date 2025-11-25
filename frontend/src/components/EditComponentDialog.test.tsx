@@ -99,7 +99,7 @@ describe('EditComponentDialog', () => {
       fireEvent.submit(form!);
 
       await waitFor(() => {
-        expect(dialog.getByText('Component name is required')).toBeInTheDocument();
+        expect(dialog.getByText('Application name is required')).toBeInTheDocument();
       });
     });
 
@@ -125,7 +125,7 @@ describe('EditComponentDialog', () => {
       fireEvent.submit(form!);
 
       await waitFor(() => {
-        expect(dialog.getByText('No component selected')).toBeInTheDocument();
+        expect(dialog.getByText('No application selected')).toBeInTheDocument();
       });
     });
 
@@ -336,7 +336,7 @@ describe('EditComponentDialog', () => {
       const nameInput = dialog.getByLabelText(/name/i);
       fireEvent.change(nameInput, { target: { value: '   ' } });
 
-      const submitButton = dialog.getByText('Update Component');
+      const submitButton = dialog.getByText('Update Application');
       expect(submitButton).toBeDisabled();
     });
 

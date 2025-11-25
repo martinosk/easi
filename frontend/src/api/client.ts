@@ -14,6 +14,7 @@ import type {
   RenameViewRequest,
   UpdateViewEdgeTypeRequest,
   UpdateViewLayoutDirectionRequest,
+  UpdateViewColorSchemeRequest,
   PaginatedResponse,
   CollectionResponse,
   Capability,
@@ -199,6 +200,10 @@ class ApiClient {
     await this.client.patch(`/api/v1/views/${viewId}/layout-direction`, request);
   }
 
+  async updateViewColorScheme(viewId: string, request: UpdateViewColorSchemeRequest): Promise<void> {
+    await this.client.patch(`/api/v1/views/${viewId}/color-scheme`, request);
+  }
+
   async addCapabilityToView(viewId: string, request: AddCapabilityToViewRequest): Promise<void> {
     await this.client.post(`/api/v1/views/${viewId}/capabilities`, request);
   }
@@ -209,6 +214,22 @@ class ApiClient {
 
   async removeCapabilityFromView(viewId: string, capabilityId: string): Promise<void> {
     await this.client.delete(`/api/v1/views/${viewId}/capabilities/${capabilityId}`);
+  }
+
+  async updateCapabilityColor(viewId: string, capabilityId: string, color: string): Promise<void> {
+    await this.client.patch(`/api/v1/views/${viewId}/capabilities/${capabilityId}/color`, { color });
+  }
+
+  async clearCapabilityColor(viewId: string, capabilityId: string): Promise<void> {
+    await this.client.delete(`/api/v1/views/${viewId}/capabilities/${capabilityId}/color`);
+  }
+
+  async updateComponentColor(viewId: string, componentId: string, color: string): Promise<void> {
+    await this.client.patch(`/api/v1/views/${viewId}/components/${componentId}/color`, { color });
+  }
+
+  async clearComponentColor(viewId: string, componentId: string): Promise<void> {
+    await this.client.delete(`/api/v1/views/${viewId}/components/${componentId}/color`);
   }
 
   async getCapabilities(): Promise<Capability[]> {

@@ -410,7 +410,7 @@ describe('Capability UI Consistency', () => {
         fireEvent.contextMenu(capabilityItem!);
 
         await waitFor(() => {
-          expect(screen.getByRole('menuitem', { name: /Delete capability from entire model/i })).toBeInTheDocument();
+          expect(screen.getByRole('menuitem', { name: /Delete capability from model/i })).toBeInTheDocument();
         });
       });
     });
@@ -454,7 +454,7 @@ describe('Capability UI Consistency', () => {
         fireEvent.contextMenu(componentButton!);
 
         await waitFor(() => {
-          expect(screen.getByRole('menuitem', { name: /Delete component from entire model/i })).toBeInTheDocument();
+          expect(screen.getByRole('menuitem', { name: /Delete application from model/i })).toBeInTheDocument();
         });
       });
     });

@@ -62,6 +62,9 @@ func SetupArchitectureViewsRoutes(
 	setDefaultViewHandler := handlers.NewSetDefaultViewHandler(viewRepo, viewReadModel)
 	updateEdgeTypeHandler := handlers.NewUpdateViewEdgeTypeHandler(layoutRepo)
 	updateLayoutDirectionHandler := handlers.NewUpdateViewLayoutDirectionHandler(layoutRepo)
+	updateColorSchemeHandler := handlers.NewUpdateViewColorSchemeHandler(layoutRepo)
+	updateElementColorHandler := handlers.NewUpdateElementColorHandler(layoutRepo)
+	clearElementColorHandler := handlers.NewClearElementColorHandler(layoutRepo)
 
 	// Register command handlers
 	commandBus.Register("CreateView", createViewHandler)
@@ -74,6 +77,9 @@ func SetupArchitectureViewsRoutes(
 	commandBus.Register("SetDefaultView", setDefaultViewHandler)
 	commandBus.Register("UpdateViewEdgeType", updateEdgeTypeHandler)
 	commandBus.Register("UpdateViewLayoutDirection", updateLayoutDirectionHandler)
+	commandBus.Register("UpdateViewColorScheme", updateColorSchemeHandler)
+	commandBus.Register("UpdateElementColor", updateElementColorHandler)
+	commandBus.Register("ClearElementColor", clearElementColorHandler)
 
 	// Initialize HTTP handlers
 	viewHandlers := NewViewHandlers(commandBus, viewReadModel, layoutRepo, hateoas)
@@ -88,13 +94,18 @@ func SetupArchitectureViewsRoutes(
 		r.Put("/{id}/default", viewHandlers.SetDefaultView)
 		r.Patch("/{id}/edge-type", viewHandlers.UpdateEdgeType)
 		r.Patch("/{id}/layout-direction", viewHandlers.UpdateLayoutDirection)
+		r.Patch("/{id}/color-scheme", viewHandlers.UpdateColorScheme)
 		r.Post("/{id}/components", viewHandlers.AddComponentToView)
 		r.Delete("/{id}/components/{componentId}", viewHandlers.RemoveComponentFromView)
 		r.Patch("/{id}/components/{componentId}/position", viewHandlers.UpdateComponentPosition)
+		r.Patch("/{id}/components/{componentId}/color", viewHandlers.UpdateComponentColor)
+		r.Delete("/{id}/components/{componentId}/color", viewHandlers.ClearComponentColor)
 		r.Patch("/{id}/layout", viewHandlers.UpdateMultiplePositions)
 		r.Post("/{id}/capabilities", viewHandlers.AddCapabilityToView)
 		r.Delete("/{id}/capabilities/{capabilityId}", viewHandlers.RemoveCapabilityFromView)
 		r.Patch("/{id}/capabilities/{capabilityId}/position", viewHandlers.UpdateCapabilityPosition)
+		r.Patch("/{id}/capabilities/{capabilityId}/color", viewHandlers.UpdateCapabilityColor)
+		r.Delete("/{id}/capabilities/{capabilityId}/color", viewHandlers.ClearCapabilityColor)
 	})
 
 	return nil

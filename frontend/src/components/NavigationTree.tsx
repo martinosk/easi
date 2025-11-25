@@ -21,7 +21,11 @@ const getPersistedSet = (key: string): Set<string> => {
   return saved ? new Set(JSON.parse(saved)) : new Set();
 };
 
-const getMaturityClass = (maturityLevel?: string): string => {
+const getMaturityClass = (colorScheme: string, maturityLevel?: string): string => {
+  if (colorScheme === 'archimate' || colorScheme === 'archimate-classic') {
+    return 'maturity-archimate';
+  }
+
   switch (maturityLevel?.toLowerCase()) {
     case 'genesis': return 'maturity-genesis';
     case 'custom build': return 'maturity-custom-build';
@@ -222,7 +226,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
         label: 'Delete from Model',
         onClick: () => setDeleteCapability(menu.capability),
         isDanger: true,
-        ariaLabel: 'Delete capability from entire model',
+        ariaLabel: 'Delete capability from model',
       },
     ];
   };
@@ -234,6 +238,15 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
     const levelNum = getLevelNumber(capability.level);
     const isSelected = selectedCapabilityId === capability.id;
     const isOnCanvas = canvasCapabilities.some((cc) => cc.capabilityId === capability.id);
+    const colorScheme = currentView?.colorScheme || 'maturity';
+
+    const viewCapability = currentView?.capabilities.find(vc => vc.capabilityId === capability.id);
+    const customColor = viewCapability?.customColor;
+    const shouldShowColorIndicator =
+      currentView?.colorScheme === 'custom' &&
+      customColor !== undefined &&
+      customColor !== null &&
+      customColor !== '';
 
     const baseTitle = capability.description || capability.name;
     const title = isOnCanvas ? baseTitle : `${baseTitle} (not in view)`;
@@ -266,7 +279,21 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
           )}
           <span className="capability-level-badge">{capability.level}:</span>
           <span className="capability-name">{capability.name}</span>
-          <span className={`capability-maturity-indicator ${getMaturityClass(capability.maturityLevel)}`} title={capability.maturityLevel || 'Initial'} />
+          <span className={`capability-maturity-indicator ${getMaturityClass(colorScheme, capability.maturityLevel)}`} title={capability.maturityLevel || 'Initial'} />
+          {shouldShowColorIndicator && (
+            <div
+              data-testid="custom-color-indicator"
+              style={{
+                width: '10px',
+                height: '10px',
+                borderRadius: '2px',
+                backgroundColor: customColor,
+                display: 'inline-block',
+                marginLeft: '8px',
+                border: '1px solid rgba(0,0,0,0.1)',
+              }}
+            />
+          )}
         </div>
         {hasChildren && isExpanded && (
           <div className="capability-children">
@@ -420,7 +447,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
           });
         },
         isDanger: true,
-        ariaLabel: 'Delete component from entire model',
+        ariaLabel: 'Delete application from model',
       },
     ];
   };
@@ -449,13 +476,13 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                   onClick={() => setIsModelsExpanded(!isModelsExpanded)}
                 >
                   <span className="category-icon">{isModelsExpanded ? '▼' : '▶'}</span>
-                  <span className="category-label">Models</span>
+                  <span className="category-label">Applications</span>
                   <span className="category-count">{components.length}</span>
                 </button>
                 <button
                   className="add-view-btn"
                   onClick={onAddComponent}
-                  title="Create new component"
+                  title="Create new application"
                   data-testid="create-component-button"
                 >
                   +
@@ -465,7 +492,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
               {isModelsExpanded && (
                 <div className="tree-items">
                   {components.length === 0 ? (
-                    <div className="tree-item-empty">No components</div>
+                    <div className="tree-item-empty">No applications</div>
                   ) : (
                     components.map((component) => {
                       const isInCurrentView = currentView?.components.some(
@@ -498,6 +525,14 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                         );
                       }
 
+                      const viewComponent = currentView?.components.find(vc => vc.componentId === component.id);
+                      const customColor = viewComponent?.customColor;
+                      const shouldShowColorIndicator =
+                        currentView?.colorScheme === 'custom' &&
+                        customColor !== undefined &&
+                        customColor !== null &&
+                        customColor !== '';
+
                       return (
                         <button
                           key={component.id}
@@ -515,6 +550,20 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                         >
                           <span className="tree-item-icon">📦</span>
                           <span className="tree-item-label">{component.name}</span>
+                          {shouldShowColorIndicator && (
+                            <div
+                              data-testid="custom-color-indicator"
+                              style={{
+                                width: '10px',
+                                height: '10px',
+                                borderRadius: '2px',
+                                backgroundColor: customColor,
+                                display: 'inline-block',
+                                marginLeft: '8px',
+                                border: '1px solid rgba(0,0,0,0.1)',
+                              }}
+                            />
+                          )}
                         </button>
                       );
                     })
@@ -705,11 +754,11 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
       {/* Delete Confirmation Dialog */}
       {deleteTarget && (
         <ConfirmationDialog
-          title={deleteTarget.type === 'view' ? 'Delete View' : 'Delete Component'}
+          title={deleteTarget.type === 'view' ? 'Delete View' : 'Delete Application'}
           message={
             deleteTarget.type === 'view'
               ? `Are you sure you want to delete this view?`
-              : `This will delete the component from the entire model, remove it from ALL views, and delete ALL relations involving this component.`
+              : `This will delete the application from the entire model, remove it from ALL views, and delete ALL relations involving this application.`
           }
           itemName={deleteTarget.name}
           confirmText="Delete"

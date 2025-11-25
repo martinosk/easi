@@ -295,13 +295,13 @@ describe('AppStore Tests', () => {
 
       it('should handle validation error when creating component with empty name', async () => {
         // Arrange
-        const validationError = new ApiError('Component name is required', 400);
+        const validationError = new ApiError('Application name is required', 400);
         vi.mocked(apiClient.createComponent).mockRejectedValueOnce(validationError);
 
         // Act & Assert
         await expect(useStore.getState().createComponent('', '')).rejects.toThrow(validationError);
         expect(apiClient.createComponent).toHaveBeenCalled();
-        expect(mockToast.error).toHaveBeenCalledWith('Component name is required');
+        expect(mockToast.error).toHaveBeenCalledWith('Application name is required');
       });
 
       it('should handle duplicate component name error', async () => {

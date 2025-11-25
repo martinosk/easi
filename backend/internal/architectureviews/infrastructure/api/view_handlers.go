@@ -97,6 +97,10 @@ type UpdateLayoutDirectionRequest struct {
 	LayoutDirection string `json:"layoutDirection"`
 }
 
+type UpdateColorSchemeRequest struct {
+	ColorScheme string `json:"colorScheme"`
+}
+
 // CreateView godoc
 // @Summary Create a new architecture view
 // @Description Creates a new architecture view for organizing components
@@ -171,6 +175,7 @@ func (h *ViewHandlers) GetAllViews(w http.ResponseWriter, r *http.Request) {
 
 	for i := range views {
 		views[i].Links = h.hateoas.ViewLinks(views[i].ID)
+		h.addElementLinks(&views[i])
 	}
 
 	links := map[string]string{
@@ -205,6 +210,7 @@ func (h *ViewHandlers) GetViewByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	view.Links = h.hateoas.ViewLinks(view.ID)
+	h.addElementLinks(view)
 
 	sharedAPI.RespondJSON(w, http.StatusOK, view)
 }
@@ -516,4 +522,203 @@ func (h *ViewHandlers) RemoveCapabilityFromView(w http.ResponseWriter, r *http.R
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// UpdateColorScheme godoc
+// @Summary Update color scheme for a view
+// @Description Updates the color scheme for an architecture view. Valid schemes: maturity, archimate, archimate-classic, custom
+// @Tags views
+// @Accept json
+// @Produce json
+// @Param id path string true "View ID"
+// @Param colorScheme body UpdateColorSchemeRequest true "Color scheme update request"
+// @Success 200 {object} object{colorScheme=string,_links=map[string]string}
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/color-scheme [patch]
+func (h *ViewHandlers) UpdateColorScheme(w http.ResponseWriter, r *http.Request) {
+	viewID := chi.URLParam(r, "id")
+
+	var req UpdateColorSchemeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+
+	_, err := valueobjects.NewColorScheme(req.ColorScheme)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	if err := h.commandBus.Dispatch(r.Context(), &commands.UpdateViewColorScheme{
+		ViewID:      viewID,
+		ColorScheme: req.ColorScheme,
+	}); err != nil {
+		h.errorHandler.HandleError(w, err, "Failed to update color scheme")
+		return
+	}
+
+	response := struct {
+		ColorScheme string            `json:"colorScheme"`
+		Links       map[string]string `json:"_links"`
+	}{
+		ColorScheme: req.ColorScheme,
+		Links: map[string]string{
+			"self": fmt.Sprintf("/api/v1/views/%s/color-scheme", viewID),
+			"view": fmt.Sprintf("/api/v1/views/%s", viewID),
+		},
+	}
+
+	sharedAPI.RespondJSON(w, http.StatusOK, response)
+}
+
+type UpdateElementColorRequest struct {
+	Color string `json:"color" example:"#FF5733"`
+}
+
+// UpdateComponentColor godoc
+// @Summary Update custom color for a component in a view
+// @Description Sets a custom hex color for a component when using the custom color scheme
+// @Tags views
+// @Accept json
+// @Param id path string true "View ID"
+// @Param componentId path string true "Component ID"
+// @Param color body UpdateElementColorRequest true "Color update request with hex color (e.g., #FF5733)"
+// @Success 204
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid hex color format"
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/components/{componentId}/color [patch]
+func (h *ViewHandlers) UpdateComponentColor(w http.ResponseWriter, r *http.Request) {
+	viewID := chi.URLParam(r, "id")
+	componentID := chi.URLParam(r, "componentId")
+
+	var req UpdateElementColorRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+
+	cmd := &commands.UpdateElementColor{
+		ViewID:      viewID,
+		ElementID:   componentID,
+		ElementType: "component",
+		Color:       req.Color,
+	}
+
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// UpdateCapabilityColor godoc
+// @Summary Update custom color for a capability in a view
+// @Description Sets a custom hex color for a capability when using the custom color scheme
+// @Tags views
+// @Accept json
+// @Param id path string true "View ID"
+// @Param capabilityId path string true "Capability ID"
+// @Param color body UpdateElementColorRequest true "Color update request with hex color (e.g., #FF5733)"
+// @Success 204
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid hex color format"
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/capabilities/{capabilityId}/color [patch]
+func (h *ViewHandlers) UpdateCapabilityColor(w http.ResponseWriter, r *http.Request) {
+	viewID := chi.URLParam(r, "id")
+	capabilityID := chi.URLParam(r, "capabilityId")
+
+	var req UpdateElementColorRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+
+	cmd := &commands.UpdateElementColor{
+		ViewID:      viewID,
+		ElementID:   capabilityID,
+		ElementType: "capability",
+		Color:       req.Color,
+	}
+
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ClearComponentColor godoc
+// @Summary Clear custom color for a component in a view
+// @Description Removes the custom color from a component, returning it to the default color scheme
+// @Tags views
+// @Param id path string true "View ID"
+// @Param componentId path string true "Component ID"
+// @Success 204
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/components/{componentId}/color [delete]
+func (h *ViewHandlers) ClearComponentColor(w http.ResponseWriter, r *http.Request) {
+	viewID := chi.URLParam(r, "id")
+	componentID := chi.URLParam(r, "componentId")
+
+	cmd := &commands.ClearElementColor{
+		ViewID:      viewID,
+		ElementID:   componentID,
+		ElementType: "component",
+	}
+
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to clear component color")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ClearCapabilityColor godoc
+// @Summary Clear custom color for a capability in a view
+// @Description Removes the custom color from a capability, returning it to the default color scheme
+// @Tags views
+// @Param id path string true "View ID"
+// @Param capabilityId path string true "Capability ID"
+// @Success 204
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/capabilities/{capabilityId}/color [delete]
+func (h *ViewHandlers) ClearCapabilityColor(w http.ResponseWriter, r *http.Request) {
+	viewID := chi.URLParam(r, "id")
+	capabilityID := chi.URLParam(r, "capabilityId")
+
+	cmd := &commands.ClearElementColor{
+		ViewID:      viewID,
+		ElementID:   capabilityID,
+		ElementType: "capability",
+	}
+
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to clear capability color")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ViewHandlers) addElementLinks(view *readmodels.ArchitectureViewDTO) {
+	for i := range view.Components {
+		componentID := view.Components[i].ComponentID
+		view.Components[i].Links = map[string]string{
+			"updateColor": fmt.Sprintf("/api/v1/views/%s/components/%s/color", view.ID, componentID),
+			"clearColor":  fmt.Sprintf("/api/v1/views/%s/components/%s/color", view.ID, componentID),
+		}
+	}
+
+	for i := range view.Capabilities {
+		capabilityID := view.Capabilities[i].CapabilityID
+		view.Capabilities[i].Links = map[string]string{
+			"updateColor": fmt.Sprintf("/api/v1/views/%s/capabilities/%s/color", view.ID, capabilityID),
+			"clearColor":  fmt.Sprintf("/api/v1/views/%s/capabilities/%s/color", view.ID, capabilityID),
+		}
+	}
 }

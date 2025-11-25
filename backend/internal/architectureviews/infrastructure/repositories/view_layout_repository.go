@@ -158,6 +158,10 @@ func (r *ViewLayoutRepository) UpdateLayoutDirection(ctx context.Context, viewID
 	return r.updateViewPreference(ctx, viewID, "layout_direction", layoutDirection)
 }
 
+func (r *ViewLayoutRepository) UpdateColorScheme(ctx context.Context, viewID, colorScheme string) error {
+	return r.updateViewPreference(ctx, viewID, "color_scheme", colorScheme)
+}
+
 func (r *ViewLayoutRepository) updateViewPreference(ctx context.Context, viewID, column, value string) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
@@ -169,6 +173,32 @@ func (r *ViewLayoutRepository) updateViewPreference(ctx context.Context, viewID,
 		ON CONFLICT (tenant_id, view_id)
 		DO UPDATE SET ` + column + ` = $3, updated_at = $4`
 	_, err = r.db.ExecContext(ctx, query, tenantID.Value(), viewID, value, time.Now().UTC())
+	return err
+}
+
+func (r *ViewLayoutRepository) UpdateElementColor(ctx context.Context, viewID, elementID string, elementType ElementType, color string) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	query := `UPDATE view_element_positions
+		SET custom_color = $1, updated_at = $2
+		WHERE tenant_id = $3 AND view_id = $4 AND element_id = $5 AND element_type = $6`
+	_, err = r.db.ExecContext(ctx, query, color, time.Now().UTC(), tenantID.Value(), viewID, elementID, string(elementType))
+	return err
+}
+
+func (r *ViewLayoutRepository) ClearElementColor(ctx context.Context, viewID, elementID string, elementType ElementType) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	query := `UPDATE view_element_positions
+		SET custom_color = NULL, updated_at = $1
+		WHERE tenant_id = $2 AND view_id = $3 AND element_id = $4 AND element_type = $5`
+	_, err = r.db.ExecContext(ctx, query, time.Now().UTC(), tenantID.Value(), viewID, elementID, string(elementType))
 	return err
 }
 

@@ -25,15 +25,19 @@ type Position struct {
 }
 
 type ComponentPositionDTO struct {
-	ComponentID string  `json:"componentId"`
-	X           float64 `json:"x"`
-	Y           float64 `json:"y"`
+	ComponentID string            `json:"componentId"`
+	X           float64           `json:"x"`
+	Y           float64           `json:"y"`
+	CustomColor *string           `json:"customColor,omitempty"`
+	Links       map[string]string `json:"_links,omitempty"`
 }
 
 type CapabilityPositionDTO struct {
-	CapabilityID string  `json:"capabilityId"`
-	X            float64 `json:"x"`
-	Y            float64 `json:"y"`
+	CapabilityID string            `json:"capabilityId"`
+	X            float64           `json:"x"`
+	Y            float64           `json:"y"`
+	CustomColor  *string           `json:"customColor,omitempty"`
+	Links        map[string]string `json:"_links,omitempty"`
 }
 
 func NewComponentPosition(componentID ComponentID, pos Position) ComponentPositionDTO {
@@ -55,6 +59,7 @@ type ArchitectureViewDTO struct {
 	CreatedAt       time.Time               `json:"createdAt"`
 	EdgeType        string                  `json:"edgeType,omitempty"`
 	LayoutDirection string                  `json:"layoutDirection,omitempty"`
+	ColorScheme     string                  `json:"colorScheme,omitempty"`
 	Links           map[string]string       `json:"_links,omitempty"`
 }
 
@@ -184,7 +189,7 @@ func (rm *ArchitectureViewReadModel) updateViewField(ctx context.Context, viewID
 // GetDefaultView retrieves the default view for the current tenant
 func (rm *ArchitectureViewReadModel) GetDefaultView(ctx context.Context) (*ArchitectureViewDTO, error) {
 	return rm.getViewByQuery(ctx,
-		`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction
+		`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction, vp.color_scheme
 		FROM architecture_views av
 		LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
 		WHERE av.tenant_id = $1 AND av.is_default = true AND av.is_deleted = false LIMIT 1`,
@@ -195,7 +200,7 @@ func (rm *ArchitectureViewReadModel) GetDefaultView(ctx context.Context) (*Archi
 // GetByID retrieves a view by ID with all component positions for the current tenant
 func (rm *ArchitectureViewReadModel) GetByID(ctx context.Context, id string) (*ArchitectureViewDTO, error) {
 	return rm.getViewByQuery(ctx,
-		`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction
+		`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction, vp.color_scheme
 		FROM architecture_views av
 		LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
 		WHERE av.tenant_id = $1 AND av.id = $2 AND av.is_deleted = false`,
@@ -242,9 +247,9 @@ func (rm *ArchitectureViewReadModel) getViewByQuery(ctx context.Context, query s
 }
 
 func (rm *ArchitectureViewReadModel) scanSingleView(ctx context.Context, tx *sql.Tx, query string, args []interface{}, dto *ArchitectureViewDTO) (bool, error) {
-	var edgeType, layoutDirection sql.NullString
+	var edgeType, layoutDirection, colorScheme sql.NullString
 	err := tx.QueryRowContext(ctx, query, args...).Scan(
-		&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt, &edgeType, &layoutDirection,
+		&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt, &edgeType, &layoutDirection, &colorScheme,
 	)
 
 	if err == sql.ErrNoRows {
@@ -259,6 +264,9 @@ func (rm *ArchitectureViewReadModel) scanSingleView(ctx context.Context, tx *sql
 	}
 	if layoutDirection.Valid {
 		dto.LayoutDirection = layoutDirection.String
+	}
+	if colorScheme.Valid {
+		dto.ColorScheme = colorScheme.String
 	}
 
 	return true, nil
@@ -285,7 +293,7 @@ func (rm *ArchitectureViewReadModel) GetAll(ctx context.Context) ([]Architecture
 
 func (rm *ArchitectureViewReadModel) queryViews(ctx context.Context, tx *sql.Tx, tenantID string) ([]ArchitectureViewDTO, error) {
 	rows, err := tx.QueryContext(ctx,
-		`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction
+		`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction, vp.color_scheme
 		FROM architecture_views av
 		LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
 		WHERE av.tenant_id = $1 AND av.is_deleted = false ORDER BY av.is_default DESC, av.created_at DESC`,
@@ -310,9 +318,9 @@ func (rm *ArchitectureViewReadModel) queryViews(ctx context.Context, tx *sql.Tx,
 
 func (rm *ArchitectureViewReadModel) scanViewRow(rows *sql.Rows) (ArchitectureViewDTO, error) {
 	var dto ArchitectureViewDTO
-	var edgeType, layoutDirection sql.NullString
+	var edgeType, layoutDirection, colorScheme sql.NullString
 
-	err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt, &edgeType, &layoutDirection)
+	err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt, &edgeType, &layoutDirection, &colorScheme)
 	if err != nil {
 		return dto, err
 	}
@@ -322,6 +330,9 @@ func (rm *ArchitectureViewReadModel) scanViewRow(rows *sql.Rows) (ArchitectureVi
 	}
 	if layoutDirection.Valid {
 		dto.LayoutDirection = layoutDirection.String
+	}
+	if colorScheme.Valid {
+		dto.ColorScheme = colorScheme.String
 	}
 
 	return dto, nil
@@ -347,7 +358,11 @@ func (rm *ArchitectureViewReadModel) populateViewComponents(ctx context.Context,
 func (rm *ArchitectureViewReadModel) getComponentsForViewTx(ctx context.Context, tx *sql.Tx, tenantID, viewID string) ([]ComponentPositionDTO, error) {
 	return getElementsForViewTx(ctx, tx, tenantID, viewID, ElementTypeComponent, func(rows *sql.Rows) (ComponentPositionDTO, error) {
 		var dto ComponentPositionDTO
-		err := rows.Scan(&dto.ComponentID, &dto.X, &dto.Y)
+		var customColor sql.NullString
+		err := rows.Scan(&dto.ComponentID, &dto.X, &dto.Y, &customColor)
+		if customColor.Valid {
+			dto.CustomColor = &customColor.String
+		}
 		return dto, err
 	})
 }
@@ -355,14 +370,18 @@ func (rm *ArchitectureViewReadModel) getComponentsForViewTx(ctx context.Context,
 func (rm *ArchitectureViewReadModel) getCapabilitiesForViewTx(ctx context.Context, tx *sql.Tx, tenantID, viewID string) ([]CapabilityPositionDTO, error) {
 	return getElementsForViewTx(ctx, tx, tenantID, viewID, ElementTypeCapability, func(rows *sql.Rows) (CapabilityPositionDTO, error) {
 		var dto CapabilityPositionDTO
-		err := rows.Scan(&dto.CapabilityID, &dto.X, &dto.Y)
+		var customColor sql.NullString
+		err := rows.Scan(&dto.CapabilityID, &dto.X, &dto.Y, &customColor)
+		if customColor.Valid {
+			dto.CustomColor = &customColor.String
+		}
 		return dto, err
 	})
 }
 
 func getElementsForViewTx[T any](ctx context.Context, tx *sql.Tx, tenantID, viewID string, elementType ElementType, scan func(*sql.Rows) (T, error)) ([]T, error) {
 	rows, err := tx.QueryContext(ctx,
-		"SELECT element_id, x, y FROM view_element_positions WHERE tenant_id = $1 AND view_id = $2 AND element_type = $3",
+		"SELECT element_id, x, y, custom_color FROM view_element_positions WHERE tenant_id = $1 AND view_id = $2 AND element_type = $3",
 		tenantID, viewID, string(elementType),
 	)
 	if err != nil {

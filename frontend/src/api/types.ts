@@ -38,12 +38,14 @@ export interface ViewComponent {
   componentId: string;
   x: number;
   y: number;
+  customColor?: string;
 }
 
 export interface ViewCapability {
   capabilityId: string;
   x: number;
   y: number;
+  customColor?: string;
 }
 
 export interface View {
@@ -55,6 +57,7 @@ export interface View {
   capabilities: ViewCapability[];
   edgeType?: string;
   layoutDirection?: string;
+  colorScheme?: string;
   createdAt: string;
   _links: HATEOASLinks;
 }
@@ -114,6 +117,10 @@ export interface UpdateViewEdgeTypeRequest {
 
 export interface UpdateViewLayoutDirectionRequest {
   layoutDirection: string;
+}
+
+export interface UpdateViewColorSchemeRequest {
+  colorScheme: string;
 }
 
 export interface PaginationInfo {

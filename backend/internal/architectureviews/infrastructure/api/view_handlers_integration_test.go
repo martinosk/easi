@@ -136,6 +136,9 @@ func setupViewHandlers(db *sql.DB) (*ViewHandlers, *readmodels.ArchitectureViewR
 	setDefaultHandler := handlers.NewSetDefaultViewHandler(viewRepo, readModel)
 	updateEdgeTypeHandler := handlers.NewUpdateViewEdgeTypeHandler(layoutRepo)
 	updateLayoutDirectionHandler := handlers.NewUpdateViewLayoutDirectionHandler(layoutRepo)
+	updateColorSchemeHandler := handlers.NewUpdateViewColorSchemeHandler(layoutRepo)
+	updateElementColorHandler := handlers.NewUpdateElementColorHandler(layoutRepo)
+	clearElementColorHandler := handlers.NewClearElementColorHandler(layoutRepo)
 
 	commandBus.Register("CreateView", createHandler)
 	commandBus.Register("AddComponentToView", addComponentHandler)
@@ -146,6 +149,9 @@ func setupViewHandlers(db *sql.DB) (*ViewHandlers, *readmodels.ArchitectureViewR
 	commandBus.Register("SetDefaultView", setDefaultHandler)
 	commandBus.Register("UpdateViewEdgeType", updateEdgeTypeHandler)
 	commandBus.Register("UpdateViewLayoutDirection", updateLayoutDirectionHandler)
+	commandBus.Register("UpdateViewColorScheme", updateColorSchemeHandler)
+	commandBus.Register("UpdateElementColor", updateElementColorHandler)
+	commandBus.Register("ClearElementColor", clearElementColorHandler)
 
 	// Setup HTTP handlers
 	viewHandlers := NewViewHandlers(commandBus, readModel, layoutRepo, hateoas)
@@ -805,4 +811,560 @@ func TestUpdateMultipleEdgeTypesAndDirections_Integration(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, direction, view.LayoutDirection)
 	}
+}
+
+func TestUpdateColorScheme_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	viewHandlers, readModel := setupViewHandlers(testCtx.db)
+
+	viewID := "view-color-scheme-test-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	reqBody := UpdateColorSchemeRequest{
+		ColorScheme: "archimate",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/color-scheme", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	viewHandlers.UpdateColorScheme(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response struct {
+		ColorScheme string            `json:"colorScheme"`
+		Links       map[string]string `json:"_links"`
+	}
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+	assert.Equal(t, "archimate", response.ColorScheme)
+	assert.NotNil(t, response.Links)
+	assert.Contains(t, response.Links, "self")
+	assert.Equal(t, "/api/v1/views/"+viewID+"/color-scheme", response.Links["self"])
+	assert.Contains(t, response.Links, "view")
+	assert.Equal(t, "/api/v1/views/"+viewID, response.Links["view"])
+
+	view, err := readModel.GetByID(tenantContext(), viewID)
+	require.NoError(t, err)
+	assert.Equal(t, "archimate", view.ColorScheme)
+}
+
+func TestUpdateColorScheme_InvalidValue_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	viewHandlers, _ := setupViewHandlers(testCtx.db)
+
+	viewID := "view-color-scheme-invalid-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	reqBody := UpdateColorSchemeRequest{
+		ColorScheme: "invalid-scheme",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/color-scheme", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	viewHandlers.UpdateColorScheme(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestUpdateColorScheme_AllValidValues_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	viewHandlers, readModel := setupViewHandlers(testCtx.db)
+
+	viewID := "view-color-scheme-all-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	colorSchemes := []string{"maturity", "archimate", "archimate-classic", "custom"}
+	for _, colorScheme := range colorSchemes {
+		reqBody := UpdateColorSchemeRequest{ColorScheme: colorScheme}
+		body, _ := json.Marshal(reqBody)
+		req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/color-scheme", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req = withTestTenant(req)
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", viewID)
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+		w := httptest.NewRecorder()
+		viewHandlers.UpdateColorScheme(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		view, err := readModel.GetByID(tenantContext(), viewID)
+		require.NoError(t, err)
+		assert.Equal(t, colorScheme, view.ColorScheme)
+	}
+}
+
+func TestGetViewByID_ReturnsColorScheme_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupViewHandlers(testCtx.db)
+
+	viewID := "view-with-color-scheme-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/views/"+viewID, nil)
+	req = withTestTenant(req)
+	w := httptest.NewRecorder()
+
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+	handlers.GetViewByID(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response readmodels.ArchitectureViewDTO
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+
+	assert.Equal(t, viewID, response.ID)
+	assert.NotNil(t, response.ColorScheme)
+}
+
+func TestUpdateComponentColor_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupViewHandlers(testCtx.db)
+
+	viewID := "view-comp-color-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	componentID := "comp-" + testCtx.testID
+	testCtx.addTestComponentToView(t, viewID, componentID, 100.0, 200.0)
+
+	reqBody := UpdateElementColorRequest{
+		Color: "#FF5733",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	rctx.URLParams.Add("componentId", componentID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	handlers.UpdateComponentColor(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	testCtx.setTenantContext(t)
+	var customColor sql.NullString
+	err := testCtx.db.QueryRow(
+		"SELECT custom_color FROM view_element_positions WHERE view_id = $1 AND element_id = $2 AND element_type = 'component'",
+		viewID, componentID,
+	).Scan(&customColor)
+	require.NoError(t, err)
+	assert.True(t, customColor.Valid)
+	assert.Equal(t, "#FF5733", customColor.String)
+}
+
+func TestUpdateCapabilityColor_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupViewHandlers(testCtx.db)
+
+	viewID := "view-cap-color-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	capabilityID := "cap-" + testCtx.testID
+	testCtx.setTenantContext(t)
+	_, err := testCtx.db.Exec(
+		"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, tenant_id, created_at) VALUES ($1, $2, 'capability', $3, $4, $5, NOW())",
+		viewID, capabilityID, 150.0, 250.0, testTenantID(),
+	)
+	require.NoError(t, err)
+
+	reqBody := UpdateElementColorRequest{
+		Color: "#00FF00",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/capabilities/"+capabilityID+"/color", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	rctx.URLParams.Add("capabilityId", capabilityID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	handlers.UpdateCapabilityColor(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	testCtx.setTenantContext(t)
+	var customColor sql.NullString
+	err = testCtx.db.QueryRow(
+		"SELECT custom_color FROM view_element_positions WHERE view_id = $1 AND element_id = $2 AND element_type = 'capability'",
+		viewID, capabilityID,
+	).Scan(&customColor)
+	require.NoError(t, err)
+	assert.True(t, customColor.Valid)
+	assert.Equal(t, "#00FF00", customColor.String)
+}
+
+func TestUpdateComponentColor_InvalidHexColor_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupViewHandlers(testCtx.db)
+
+	viewID := "view-comp-invalid-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	componentID := "comp-" + testCtx.testID
+	testCtx.addTestComponentToView(t, viewID, componentID, 100.0, 200.0)
+
+	reqBody := UpdateElementColorRequest{
+		Color: "invalid-color",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	rctx.URLParams.Add("componentId", componentID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	handlers.UpdateComponentColor(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestUpdateComponentColor_MissingHash_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupViewHandlers(testCtx.db)
+
+	viewID := "view-comp-no-hash-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	componentID := "comp-" + testCtx.testID
+	testCtx.addTestComponentToView(t, viewID, componentID, 100.0, 200.0)
+
+	reqBody := UpdateElementColorRequest{
+		Color: "FF5733",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	rctx.URLParams.Add("componentId", componentID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	handlers.UpdateComponentColor(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestUpdateComponentColor_TooShort_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupViewHandlers(testCtx.db)
+
+	viewID := "view-comp-short-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	componentID := "comp-" + testCtx.testID
+	testCtx.addTestComponentToView(t, viewID, componentID, 100.0, 200.0)
+
+	reqBody := UpdateElementColorRequest{
+		Color: "#FFF",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	rctx.URLParams.Add("componentId", componentID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	handlers.UpdateComponentColor(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestClearComponentColor_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupViewHandlers(testCtx.db)
+
+	viewID := "view-clear-comp-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	componentID := "comp-" + testCtx.testID
+	testCtx.setTenantContext(t)
+	_, err := testCtx.db.Exec(
+		"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, custom_color, tenant_id, created_at) VALUES ($1, $2, 'component', $3, $4, $5, $6, NOW())",
+		viewID, componentID, 100.0, 200.0, "#FF5733", testTenantID(),
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", nil)
+	req = withTestTenant(req)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	rctx.URLParams.Add("componentId", componentID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	handlers.ClearComponentColor(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	testCtx.setTenantContext(t)
+	var customColor sql.NullString
+	err = testCtx.db.QueryRow(
+		"SELECT custom_color FROM view_element_positions WHERE view_id = $1 AND element_id = $2 AND element_type = 'component'",
+		viewID, componentID,
+	).Scan(&customColor)
+	require.NoError(t, err)
+	assert.False(t, customColor.Valid)
+}
+
+func TestClearCapabilityColor_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupViewHandlers(testCtx.db)
+
+	viewID := "view-clear-cap-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	capabilityID := "cap-" + testCtx.testID
+	testCtx.setTenantContext(t)
+	_, err := testCtx.db.Exec(
+		"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, custom_color, tenant_id, created_at) VALUES ($1, $2, 'capability', $3, $4, $5, $6, NOW())",
+		viewID, capabilityID, 150.0, 250.0, "#00FF00", testTenantID(),
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/views/"+viewID+"/capabilities/"+capabilityID+"/color", nil)
+	req = withTestTenant(req)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	rctx.URLParams.Add("capabilityId", capabilityID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	handlers.ClearCapabilityColor(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	testCtx.setTenantContext(t)
+	var customColor sql.NullString
+	err = testCtx.db.QueryRow(
+		"SELECT custom_color FROM view_element_positions WHERE view_id = $1 AND element_id = $2 AND element_type = 'capability'",
+		viewID, capabilityID,
+	).Scan(&customColor)
+	require.NoError(t, err)
+	assert.False(t, customColor.Valid)
+}
+
+func TestGetViewByID_ReturnsCustomColorForComponents_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupViewHandlers(testCtx.db)
+
+	viewID := "view-with-custom-colors-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	comp1 := "comp-1-" + testCtx.testID
+	comp2 := "comp-2-" + testCtx.testID
+	testCtx.setTenantContext(t)
+	_, err := testCtx.db.Exec(
+		"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, custom_color, tenant_id, created_at) VALUES ($1, $2, 'component', $3, $4, $5, $6, NOW())",
+		viewID, comp1, 100.0, 200.0, "#FF5733", testTenantID(),
+	)
+	require.NoError(t, err)
+	_, err = testCtx.db.Exec(
+		"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, tenant_id, created_at) VALUES ($1, $2, 'component', $3, $4, $5, NOW())",
+		viewID, comp2, 300.0, 400.0, testTenantID(),
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/views/"+viewID, nil)
+	req = withTestTenant(req)
+	w := httptest.NewRecorder()
+
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+	handlers.GetViewByID(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response readmodels.ArchitectureViewDTO
+	err = json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+
+	assert.Equal(t, viewID, response.ID)
+	assert.Len(t, response.Components, 2)
+
+	var comp1Found, comp2Found bool
+	for _, comp := range response.Components {
+		if comp.ComponentID == comp1 {
+			comp1Found = true
+			assert.NotNil(t, comp.CustomColor)
+			assert.Equal(t, "#FF5733", *comp.CustomColor)
+		}
+		if comp.ComponentID == comp2 {
+			comp2Found = true
+			assert.Nil(t, comp.CustomColor)
+		}
+	}
+	assert.True(t, comp1Found, "Component 1 should be in response")
+	assert.True(t, comp2Found, "Component 2 should be in response")
+}
+
+func TestGetViewByID_ReturnsCustomColorForCapabilities_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupViewHandlers(testCtx.db)
+
+	viewID := "view-with-cap-colors-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	cap1 := "cap-1-" + testCtx.testID
+	cap2 := "cap-2-" + testCtx.testID
+	testCtx.setTenantContext(t)
+	_, err := testCtx.db.Exec(
+		"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, custom_color, tenant_id, created_at) VALUES ($1, $2, 'capability', $3, $4, $5, $6, NOW())",
+		viewID, cap1, 100.0, 200.0, "#00FF00", testTenantID(),
+	)
+	require.NoError(t, err)
+	_, err = testCtx.db.Exec(
+		"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, tenant_id, created_at) VALUES ($1, $2, 'capability', $3, $4, $5, NOW())",
+		viewID, cap2, 300.0, 400.0, testTenantID(),
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/views/"+viewID, nil)
+	req = withTestTenant(req)
+	w := httptest.NewRecorder()
+
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+	handlers.GetViewByID(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response readmodels.ArchitectureViewDTO
+	err = json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+
+	assert.Equal(t, viewID, response.ID)
+	assert.Len(t, response.Capabilities, 2)
+
+	var cap1Found, cap2Found bool
+	for _, cap := range response.Capabilities {
+		if cap.CapabilityID == cap1 {
+			cap1Found = true
+			assert.NotNil(t, cap.CustomColor)
+			assert.Equal(t, "#00FF00", *cap.CustomColor)
+		}
+		if cap.CapabilityID == cap2 {
+			cap2Found = true
+			assert.Nil(t, cap.CustomColor)
+		}
+	}
+	assert.True(t, cap1Found, "Capability 1 should be in response")
+	assert.True(t, cap2Found, "Capability 2 should be in response")
+}
+
+func TestGetViewByID_ReturnsHATEOASLinksForColors_Integration(t *testing.T) {
+	testCtx, cleanup := setupViewTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupViewHandlers(testCtx.db)
+
+	viewID := "view-with-links-" + testCtx.testID
+	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+	componentID := "comp-" + testCtx.testID
+	testCtx.addTestComponentToView(t, viewID, componentID, 100.0, 200.0)
+
+	capabilityID := "cap-" + testCtx.testID
+	testCtx.setTenantContext(t)
+	_, err := testCtx.db.Exec(
+		"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, tenant_id, created_at) VALUES ($1, $2, 'capability', $3, $4, $5, NOW())",
+		viewID, capabilityID, 150.0, 250.0, testTenantID(),
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/views/"+viewID, nil)
+	req = withTestTenant(req)
+	w := httptest.NewRecorder()
+
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", viewID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+	handlers.GetViewByID(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response readmodels.ArchitectureViewDTO
+	err = json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+
+	assert.Len(t, response.Components, 1)
+	compLinks := response.Components[0].Links
+	assert.NotNil(t, compLinks)
+	assert.Contains(t, compLinks, "updateColor")
+	assert.Contains(t, compLinks, "clearColor")
+	assert.Equal(t, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", compLinks["updateColor"])
+	assert.Equal(t, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", compLinks["clearColor"])
+
+	assert.Len(t, response.Capabilities, 1)
+	capLinks := response.Capabilities[0].Links
+	assert.NotNil(t, capLinks)
+	assert.Contains(t, capLinks, "updateColor")
+	assert.Contains(t, capLinks, "clearColor")
+	assert.Equal(t, "/api/v1/views/"+viewID+"/capabilities/"+capabilityID+"/color", capLinks["updateColor"])
+	assert.Equal(t, "/api/v1/views/"+viewID+"/capabilities/"+capabilityID+"/color", capLinks["clearColor"])
 }
