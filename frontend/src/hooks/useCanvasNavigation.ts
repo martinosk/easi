@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useAppStore } from '../store/appStore';
-import type { ComponentCanvasRef } from '../components/ComponentCanvas';
+import type { ComponentCanvasRef } from '../features/canvas/components/ComponentCanvas';
 
 export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRef | null>) {
   const currentView = useAppStore((state) => state.currentView);
