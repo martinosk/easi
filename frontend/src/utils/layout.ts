@@ -32,7 +32,8 @@ export const calculateDagreLayout = (
   nodes.forEach((node) => {
     const width = 180;
     const height = 80;
-    dagreGraph.setNode(node.id, { width, height });
+    const layer = node.data?.layer ?? 0;
+    dagreGraph.setNode(node.id, { width, height, rank: layer });
   });
 
   edges.forEach((edge) => {

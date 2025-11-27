@@ -1,6 +1,5 @@
 import React from 'react';
 import { EdgeTypeSelector, LayoutDirectionSelector, ColorSchemeSelector } from '../../features/views';
-import { AutoLayoutButton } from '../../features/canvas';
 
 interface ToolbarProps {
   onOpenReleaseNotes?: () => void;
@@ -16,7 +15,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onOpenReleaseNotes }) => {
         <EdgeTypeSelector />
         <LayoutDirectionSelector />
         <ColorSchemeSelector />
-        <AutoLayoutButton />
         {onOpenReleaseNotes && (
           <button
             type="button"
