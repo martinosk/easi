@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand';
-import type { Component, Relation, View } from '../../api/types';
+import type { Component, Relation, View, Capability, CapabilityDependency, CapabilityRealization, ViewComponent } from '../../api/types';
 import type { ComponentId, Position, EdgeType, LayoutDirection } from '../types/storeTypes';
 import apiClient from '../../api/client';
 import { handleApiCall, optimisticUpdate } from '../utils/apiHelpers';
@@ -14,15 +14,211 @@ export interface LayoutActions {
   applyAutoLayout: () => Promise<void>;
 }
 
+type CanvasCapability = { capabilityId: string; x: number; y: number };
+
 type StoreWithDependencies = {
   currentView: View | null;
   components: Component[];
   relations: Relation[];
-  capabilities: import('../../api/types').Capability[];
-  capabilityDependencies: import('../../api/types').CapabilityDependency[];
-  capabilityRealizations: import('../../api/types').CapabilityRealization[];
-  canvasCapabilities: Array<{ capabilityId: string; x: number; y: number }>;
+  capabilities: Capability[];
+  capabilityDependencies: CapabilityDependency[];
+  capabilityRealizations: CapabilityRealization[];
+  canvasCapabilities: CanvasCapability[];
 };
+
+interface LayoutNode {
+  id: string;
+  type?: string;
+  position: Position;
+  data?: { label: string; description?: string };
+}
+
+interface LayoutEdge {
+  id: string;
+  source: string;
+  target: string;
+}
+
+function buildComponentNodes(
+  components: Component[],
+  viewComponents: ViewComponent[]
+): LayoutNode[] {
+  return components
+    .filter((component) =>
+      viewComponents.some((vc) => vc.componentId === component.id)
+    )
+    .map((component) => {
+      const viewComponent = viewComponents.find(
+        (vc) => vc.componentId === component.id
+      );
+      const position = viewComponent
+        ? { x: viewComponent.x, y: viewComponent.y }
+        : { x: 400, y: 300 };
+
+      return {
+        id: component.id,
+        type: 'component',
+        position,
+        data: {
+          label: component.name,
+          description: component.description,
+        },
+      };
+    });
+}
+
+function buildCapabilityNodes(
+  canvasCapabilities: CanvasCapability[],
+  capabilities: Capability[]
+): LayoutNode[] {
+  return canvasCapabilities
+    .map((canvasCapability) => {
+      const capability = capabilities.find((c) => c.id === canvasCapability.capabilityId);
+      if (!capability) return null;
+
+      return {
+        id: capability.id,
+        type: 'capability' as const,
+        position: { x: canvasCapability.x, y: canvasCapability.y },
+        data: {
+          label: capability.name,
+          description: capability.description,
+        },
+      } satisfies LayoutNode;
+    })
+    .filter((node): node is NonNullable<typeof node> => node !== null);
+}
+
+function buildRelationEdges(
+  relations: Relation[],
+  viewComponents: ViewComponent[]
+): LayoutEdge[] {
+  return relations
+    .filter((relation) => {
+      const sourceInView = viewComponents.some(
+        (vc) => vc.componentId === relation.sourceComponentId
+      );
+      const targetInView = viewComponents.some(
+        (vc) => vc.componentId === relation.targetComponentId
+      );
+      return sourceInView && targetInView;
+    })
+    .map((relation) => ({
+      id: relation.id,
+      source: relation.sourceComponentId,
+      target: relation.targetComponentId,
+    }));
+}
+
+function buildCapabilityParentEdges(
+  canvasCapabilities: CanvasCapability[],
+  capabilities: Capability[]
+): LayoutEdge[] {
+  return canvasCapabilities
+    .map((canvasCapability) => {
+      const capability = capabilities.find((c) => c.id === canvasCapability.capabilityId);
+      if (!capability || !capability.parentId) return null;
+
+      const parentInView = canvasCapabilities.some((cc) => cc.capabilityId === capability.parentId);
+      if (!parentInView) return null;
+
+      return {
+        id: `parent-${capability.id}`,
+        source: capability.parentId,
+        target: capability.id,
+      };
+    })
+    .filter((edge): edge is LayoutEdge => edge !== null);
+}
+
+function buildCapabilityDependencyEdges(
+  capabilityDependencies: CapabilityDependency[],
+  canvasCapabilities: CanvasCapability[]
+): LayoutEdge[] {
+  return capabilityDependencies
+    .filter((dep) => {
+      const sourceInView = canvasCapabilities.some((cc) => cc.capabilityId === dep.sourceCapabilityId);
+      const targetInView = canvasCapabilities.some((cc) => cc.capabilityId === dep.targetCapabilityId);
+      return sourceInView && targetInView;
+    })
+    .map((dep) => ({
+      id: dep.id,
+      source: dep.sourceCapabilityId,
+      target: dep.targetCapabilityId,
+    }));
+}
+
+function buildRealizationEdges(
+  capabilityRealizations: CapabilityRealization[],
+  canvasCapabilities: CanvasCapability[],
+  viewComponents: ViewComponent[]
+): LayoutEdge[] {
+  return capabilityRealizations
+    .filter((real) => {
+      const capabilityInView = canvasCapabilities.some((cc) => cc.capabilityId === real.capabilityId);
+      const componentInView = viewComponents.some((vc) => vc.componentId === real.componentId);
+      return capabilityInView && componentInView;
+    })
+    .map((real) => ({
+      id: real.id,
+      source: real.componentId,
+      target: real.capabilityId,
+    }));
+}
+
+function extractComponentPositions(layoutedNodes: LayoutNode[]): Array<{ componentId: string; x: number; y: number }> {
+  return layoutedNodes
+    .filter((node) => node.type === 'component')
+    .map((node) => ({
+      componentId: node.id,
+      x: node.position.x,
+      y: node.position.y,
+    }));
+}
+
+function extractCapabilityPositions(layoutedNodes: LayoutNode[]): Array<{ capabilityId: string; x: number; y: number }> {
+  return layoutedNodes
+    .filter((node) => node.type === 'capability')
+    .map((node) => ({
+      capabilityId: node.id,
+      x: node.position.x,
+      y: node.position.y,
+    }));
+}
+
+type ViewPropertyKey = 'edgeType' | 'layoutDirection' | 'colorScheme';
+
+async function updateViewProperty<K extends ViewPropertyKey>(
+  currentView: View,
+  propertyKey: K,
+  newValue: string,
+  set: (partial: { currentView: View }) => void,
+  apiCall: () => Promise<unknown>,
+  successMessage: string,
+  errorMessage: string
+): Promise<void> {
+  const previousValue = currentView[propertyKey];
+
+  set({
+    currentView: {
+      ...currentView,
+      [propertyKey]: newValue,
+    },
+  });
+
+  await optimisticUpdate(
+    apiCall,
+    () => {},
+    () => set({
+      currentView: {
+        ...currentView,
+        [propertyKey]: previousValue,
+      },
+    }),
+    successMessage,
+    errorMessage
+  );
+}
 
 export const createLayoutSlice: StateCreator<
   StoreWithDependencies & LayoutActions,
@@ -56,29 +252,14 @@ export const createLayoutSlice: StateCreator<
 
   setEdgeType: async (edgeType: EdgeType) => {
     const { currentView } = get();
+    if (!currentView) return;
 
-    if (!currentView) {
-      return;
-    }
-
-    const previousEdgeType = currentView.edgeType;
-
-    set({
-      currentView: {
-        ...currentView,
-        edgeType,
-      },
-    });
-
-    await optimisticUpdate(
+    await updateViewProperty(
+      currentView,
+      'edgeType',
+      edgeType,
+      set,
       () => apiClient.updateViewEdgeType(currentView.id, { edgeType }),
-      () => {},
-      () => set({
-        currentView: {
-          ...currentView,
-          edgeType: previousEdgeType,
-        },
-      }),
       'Edge type updated',
       'Failed to update edge type'
     );
@@ -86,29 +267,14 @@ export const createLayoutSlice: StateCreator<
 
   setLayoutDirection: async (layoutDirection: LayoutDirection) => {
     const { currentView } = get();
+    if (!currentView) return;
 
-    if (!currentView) {
-      return;
-    }
-
-    const previousLayoutDirection = currentView.layoutDirection;
-
-    set({
-      currentView: {
-        ...currentView,
-        layoutDirection,
-      },
-    });
-
-    await optimisticUpdate(
+    await updateViewProperty(
+      currentView,
+      'layoutDirection',
+      layoutDirection,
+      set,
       () => apiClient.updateViewLayoutDirection(currentView.id, { layoutDirection }),
-      () => {},
-      () => set({
-        currentView: {
-          ...currentView,
-          layoutDirection: previousLayoutDirection,
-        },
-      }),
       'Layout direction updated',
       'Failed to update layout direction'
     );
@@ -116,29 +282,14 @@ export const createLayoutSlice: StateCreator<
 
   setColorScheme: async (colorScheme: string) => {
     const { currentView } = get();
+    if (!currentView) return;
 
-    if (!currentView) {
-      return;
-    }
-
-    const previousColorScheme = currentView.colorScheme;
-
-    set({
-      currentView: {
-        ...currentView,
-        colorScheme,
-      },
-    });
-
-    await optimisticUpdate(
+    await updateViewProperty(
+      currentView,
+      'colorScheme',
+      colorScheme,
+      set,
       () => apiClient.updateViewColorScheme(currentView.id, { colorScheme }),
-      () => {},
-      () => set({
-        currentView: {
-          ...currentView,
-          colorScheme: previousColorScheme,
-        },
-      }),
       'Color scheme updated',
       'Failed to update color scheme'
     );
@@ -154,126 +305,22 @@ export const createLayoutSlice: StateCreator<
     try {
       const { calculateDagreLayout } = await import('../../utils/layout');
 
-      const componentNodes = components
-        .filter((component) =>
-          currentView.components.some((vc) => vc.componentId === component.id)
-        )
-        .map((component) => {
-          const viewComponent = currentView.components.find(
-            (vc) => vc.componentId === component.id
-          );
-
-          const position = viewComponent
-            ? { x: viewComponent.x, y: viewComponent.y }
-            : { x: 400, y: 300 };
-
-          return {
-            id: component.id,
-            type: 'component',
-            position,
-            data: {
-              label: component.name,
-              description: component.description,
-            },
-          };
-        });
-
-      const capabilityNodes = canvasCapabilities
-        .map((canvasCapability) => {
-          const capability = capabilities.find((c) => c.id === canvasCapability.capabilityId);
-          if (!capability) return null;
-
-          return {
-            id: capability.id,
-            type: 'capability',
-            position: { x: canvasCapability.x, y: canvasCapability.y },
-            data: {
-              label: capability.name,
-              description: capability.description,
-            },
-          };
-        })
-        .filter((node): node is NonNullable<typeof node> => node !== null);
-
+      const componentNodes = buildComponentNodes(components, currentView.components);
+      const capabilityNodes = buildCapabilityNodes(canvasCapabilities, capabilities);
       const nodes = [...componentNodes, ...capabilityNodes];
 
-      const relationEdges = relations
-        .filter((relation) => {
-          const sourceInView = currentView.components.some(
-            (vc) => vc.componentId === relation.sourceComponentId
-          );
-          const targetInView = currentView.components.some(
-            (vc) => vc.componentId === relation.targetComponentId
-          );
-          return sourceInView && targetInView;
-        })
-        .map((relation) => ({
-          id: relation.id,
-          source: relation.sourceComponentId,
-          target: relation.targetComponentId,
-        }));
-
-      const capabilityParentEdges = canvasCapabilities
-        .map((canvasCapability) => {
-          const capability = capabilities.find((c) => c.id === canvasCapability.capabilityId);
-          if (!capability || !capability.parentId) return null;
-
-          const parentInView = canvasCapabilities.some((cc) => cc.capabilityId === capability.parentId);
-          if (!parentInView) return null;
-
-          return {
-            id: `parent-${capability.id}`,
-            source: capability.parentId,
-            target: capability.id,
-          };
-        })
-        .filter((edge): edge is NonNullable<typeof edge> => edge !== null);
-
-      const capabilityDependencyEdges = capabilityDependencies
-        .filter((dep) => {
-          const sourceInView = canvasCapabilities.some((cc) => cc.capabilityId === dep.sourceCapabilityId);
-          const targetInView = canvasCapabilities.some((cc) => cc.capabilityId === dep.targetCapabilityId);
-          return sourceInView && targetInView;
-        })
-        .map((dep) => ({
-          id: dep.id,
-          source: dep.sourceCapabilityId,
-          target: dep.targetCapabilityId,
-        }));
-
-      const realizationEdges = capabilityRealizations
-        .filter((real) => {
-          const capabilityInView = canvasCapabilities.some((cc) => cc.capabilityId === real.capabilityId);
-          const componentInView = currentView.components.some((vc) => vc.componentId === real.componentId);
-          return capabilityInView && componentInView;
-        })
-        .map((real) => ({
-          id: real.id,
-          source: real.componentId,
-          target: real.capabilityId,
-        }));
-
+      const relationEdges = buildRelationEdges(relations, currentView.components);
+      const capabilityParentEdges = buildCapabilityParentEdges(canvasCapabilities, capabilities);
+      const capabilityDependencyEdges = buildCapabilityDependencyEdges(capabilityDependencies, canvasCapabilities);
+      const realizationEdges = buildRealizationEdges(capabilityRealizations, canvasCapabilities, currentView.components);
       const edges = [...relationEdges, ...capabilityParentEdges, ...capabilityDependencyEdges, ...realizationEdges];
 
       const layoutedNodes = calculateDagreLayout(nodes, edges, {
         direction: (currentView.layoutDirection as 'TB' | 'LR' | 'BT' | 'RL') || 'TB',
       });
 
-      const componentPositions = layoutedNodes
-        .filter((node) => node.type === 'component')
-        .map((node) => ({
-          componentId: node.id,
-          x: node.position.x,
-          y: node.position.y,
-        }));
-
-      const capabilityPositionUpdates = layoutedNodes
-        .filter((node) => node.type === 'capability')
-        .map((node) => ({
-          capabilityId: node.id,
-          x: node.position.x,
-          y: node.position.y,
-        }));
+      const componentPositions = extractComponentPositions(layoutedNodes);
+      const capabilityPositionUpdates = extractCapabilityPositions(layoutedNodes);
 
       await apiClient.updateMultiplePositions(currentView.id, { positions: componentPositions });
 

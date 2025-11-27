@@ -27,6 +27,51 @@ interface MainLayoutProps {
   onOpenReleaseNotes?: () => void;
 }
 
+const isRealizationEdge = (edgeId: string): boolean => edgeId.startsWith('realization-');
+const isParentEdge = (edgeId: string): boolean => edgeId.startsWith('parent-');
+const isRelationEdge = (edgeId: string): boolean => !isRealizationEdge(edgeId) && !isParentEdge(edgeId);
+
+interface DetailSectionProps {
+  selectedNodeId: string | null;
+  selectedEdgeId: string | null;
+  selectedCapabilityId: string | null;
+  onEditComponent: (componentId?: string) => void;
+  onEditRelation: () => void;
+  onRemoveFromView: () => void;
+  onRemoveCapabilityFromView: () => void;
+}
+
+const DetailSection: React.FC<DetailSectionProps> = ({
+  selectedNodeId,
+  selectedEdgeId,
+  selectedCapabilityId,
+  onEditComponent,
+  onEditRelation,
+  onRemoveFromView,
+  onRemoveCapabilityFromView,
+}) => {
+  const hasSelection = selectedNodeId || selectedEdgeId || selectedCapabilityId;
+  if (!hasSelection) return null;
+
+  return (
+    <div className="detail-section">
+      {selectedNodeId && (
+        <ComponentDetails
+          onEdit={onEditComponent}
+          onRemoveFromView={onRemoveFromView}
+        />
+      )}
+      {selectedEdgeId && isRealizationEdge(selectedEdgeId) && <RealizationDetails />}
+      {selectedEdgeId && isRelationEdge(selectedEdgeId) && (
+        <RelationDetails onEdit={onEditRelation} />
+      )}
+      {selectedCapabilityId && (
+        <CapabilityDetails onRemoveFromView={onRemoveCapabilityFromView} />
+      )}
+    </div>
+  );
+};
+
 export const MainLayout: React.FC<MainLayoutProps> = ({
   canvasRef,
   selectedNodeId,
@@ -77,25 +122,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           />
         </div>
 
-        {(selectedNodeId || selectedEdgeId || selectedCapabilityId) && (
-          <div className="detail-section">
-            {selectedNodeId && (
-              <ComponentDetails
-                onEdit={onEditComponent}
-                onRemoveFromView={onRemoveFromView}
-              />
-            )}
-            {selectedEdgeId && selectedEdgeId.startsWith('realization-') && (
-              <RealizationDetails />
-            )}
-            {selectedEdgeId && !selectedEdgeId.startsWith('realization-') && !selectedEdgeId.startsWith('parent-') && (
-              <RelationDetails onEdit={onEditRelation} />
-            )}
-            {selectedCapabilityId && (
-              <CapabilityDetails onRemoveFromView={handleRemoveCapabilityFromView} />
-            )}
-          </div>
-        )}
+        <DetailSection
+          selectedNodeId={selectedNodeId}
+          selectedEdgeId={selectedEdgeId}
+          selectedCapabilityId={selectedCapabilityId}
+          onEditComponent={onEditComponent}
+          onEditRelation={onEditRelation}
+          onRemoveFromView={onRemoveFromView}
+          onRemoveCapabilityFromView={handleRemoveCapabilityFromView}
+        />
       </div>
     </>
   );

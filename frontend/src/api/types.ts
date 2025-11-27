@@ -1,3 +1,20 @@
+declare const __brand: unique symbol;
+type Brand<B> = { [__brand]: B };
+type Branded<T, B> = T & Brand<B>;
+
+export type ComponentId = Branded<string, 'ComponentId'>;
+export type RelationId = Branded<string, 'RelationId'>;
+export type ViewId = Branded<string, 'ViewId'>;
+export type CapabilityId = Branded<string, 'CapabilityId'>;
+export type CapabilityDependencyId = Branded<string, 'CapabilityDependencyId'>;
+export type RealizationId = Branded<string, 'RealizationId'>;
+export type ReleaseVersion = Branded<string, 'ReleaseVersion'>;
+
+export interface Position {
+  x: number;
+  y: number;
+}
+
 export interface HATEOASLink {
   href: string;
 }
@@ -16,7 +33,7 @@ export interface HATEOASLinks {
 }
 
 export interface Component {
-  id: string;
+  id: ComponentId;
   name: string;
   description?: string;
   createdAt: string;
@@ -24,9 +41,9 @@ export interface Component {
 }
 
 export interface Relation {
-  id: string;
-  sourceComponentId: string;
-  targetComponentId: string;
+  id: RelationId;
+  sourceComponentId: ComponentId;
+  targetComponentId: ComponentId;
   relationType: 'Triggers' | 'Serves';
   name?: string;
   description?: string;
@@ -35,21 +52,21 @@ export interface Relation {
 }
 
 export interface ViewComponent {
-  componentId: string;
+  componentId: ComponentId;
   x: number;
   y: number;
   customColor?: string;
 }
 
 export interface ViewCapability {
-  capabilityId: string;
+  capabilityId: CapabilityId;
   x: number;
   y: number;
   customColor?: string;
 }
 
 export interface View {
-  id: string;
+  id: ViewId;
   name: string;
   description?: string;
   isDefault: boolean;
@@ -63,7 +80,7 @@ export interface View {
 }
 
 export interface AddCapabilityToViewRequest {
-  capabilityId: string;
+  capabilityId: CapabilityId;
   x: number;
   y: number;
 }
@@ -74,8 +91,8 @@ export interface CreateComponentRequest {
 }
 
 export interface CreateRelationRequest {
-  sourceComponentId: string;
-  targetComponentId: string;
+  sourceComponentId: ComponentId;
+  targetComponentId: ComponentId;
   relationType: 'Triggers' | 'Serves';
   name?: string;
   description?: string;
@@ -87,7 +104,7 @@ export interface CreateViewRequest {
 }
 
 export interface AddComponentToViewRequest {
-  componentId: string;
+  componentId: ComponentId;
   x: number;
   y: number;
 }
@@ -98,7 +115,7 @@ export interface UpdatePositionRequest {
 }
 
 export interface PositionUpdate {
-  componentId: string;
+  componentId: ComponentId;
   x: number;
   y: number;
 }
@@ -174,10 +191,10 @@ export interface Expert {
 }
 
 export interface Capability {
-  id: string;
+  id: CapabilityId;
   name: string;
   description?: string;
-  parentId?: string;
+  parentId?: CapabilityId;
   level: CapabilityLevel;
   strategyPillar?: string;
   pillarWeight?: number;
@@ -193,9 +210,9 @@ export interface Capability {
 }
 
 export interface CapabilityDependency {
-  id: string;
-  sourceCapabilityId: string;
-  targetCapabilityId: string;
+  id: CapabilityDependencyId;
+  sourceCapabilityId: CapabilityId;
+  targetCapabilityId: CapabilityId;
   dependencyType: DependencyType;
   description?: string;
   createdAt: string;
@@ -203,13 +220,13 @@ export interface CapabilityDependency {
 }
 
 export interface CapabilityRealization {
-  id: string;
-  capabilityId: string;
-  componentId: string;
+  id: RealizationId;
+  capabilityId: CapabilityId;
+  componentId: ComponentId;
   realizationLevel: RealizationLevel;
   notes?: string;
   origin: string;
-  sourceRealizationId?: string;
+  sourceRealizationId?: RealizationId;
   linkedAt: string;
   _links: HATEOASLinks;
 }
@@ -217,7 +234,7 @@ export interface CapabilityRealization {
 export interface CreateCapabilityRequest {
   name: string;
   description?: string;
-  parentId?: string;
+  parentId?: CapabilityId;
   level: CapabilityLevel;
 }
 
@@ -247,14 +264,14 @@ export interface AddCapabilityTagRequest {
 }
 
 export interface CreateCapabilityDependencyRequest {
-  sourceCapabilityId: string;
-  targetCapabilityId: string;
+  sourceCapabilityId: CapabilityId;
+  targetCapabilityId: CapabilityId;
   dependencyType: DependencyType;
   description?: string;
 }
 
 export interface LinkSystemToCapabilityRequest {
-  componentId: string;
+  componentId: ComponentId;
   realizationLevel: RealizationLevel;
   notes?: string;
 }
@@ -295,7 +312,7 @@ export interface VersionResponse {
 }
 
 export interface Release {
-  version: string;
+  version: ReleaseVersion;
   releaseDate: string;
   notes: string;
   _links: HATEOASLinks;

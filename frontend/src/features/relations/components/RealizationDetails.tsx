@@ -3,6 +3,22 @@ import { useAppStore } from '../../../store/appStore';
 import { EditRealizationDialog } from './EditRealizationDialog';
 import { DetailField } from '../../../components/shared/DetailField';
 
+const REALIZATION_PREFIX = 'realization-';
+
+const LEVEL_DISPLAY_MAP: Record<string, string> = {
+  Full: 'Full (100%)',
+  Partial: 'Partial',
+  Planned: 'Planned',
+};
+
+const getLevelDisplay = (level: string): string => LEVEL_DISPLAY_MAP[level] ?? level;
+
+const isRealizationEdge = (edgeId: string | null): boolean =>
+  edgeId !== null && edgeId.startsWith(REALIZATION_PREFIX);
+
+const extractRealizationId = (edgeId: string): string =>
+  edgeId.replace(REALIZATION_PREFIX, '');
+
 export const RealizationDetails: React.FC = () => {
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
   const capabilityRealizations = useAppStore((state) => state.capabilityRealizations);
@@ -12,11 +28,11 @@ export const RealizationDetails: React.FC = () => {
 
   const [showEditDialog, setShowEditDialog] = useState(false);
 
-  if (!selectedEdgeId || !selectedEdgeId.startsWith('realization-')) {
+  if (!isRealizationEdge(selectedEdgeId)) {
     return null;
   }
 
-  const realizationId = selectedEdgeId.replace('realization-', '');
+  const realizationId = extractRealizationId(selectedEdgeId!);
   const realization = capabilityRealizations.find((r) => r.id === realizationId);
 
   if (!realization) {
@@ -27,19 +43,6 @@ export const RealizationDetails: React.FC = () => {
   const component = components.find((c) => c.id === realization.componentId);
   const formattedDate = new Date(realization.linkedAt).toLocaleString();
   const isInherited = realization.origin === 'Inherited';
-
-  const getLevelDisplay = (level: string): string => {
-    switch (level) {
-      case 'Full':
-        return 'Full (100%)';
-      case 'Partial':
-        return 'Partial';
-      case 'Planned':
-        return 'Planned';
-      default:
-        return level;
-    }
-  };
 
   return (
     <div className="detail-panel">

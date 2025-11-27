@@ -1,8 +1,11 @@
 import axios, { type AxiosError, type AxiosInstance } from 'axios';
 import type {
   Component,
+  ComponentId,
   Relation,
+  RelationId,
   View,
+  ViewId,
   ViewComponent,
   CreateComponentRequest,
   CreateRelationRequest,
@@ -18,8 +21,11 @@ import type {
   PaginatedResponse,
   CollectionResponse,
   Capability,
+  CapabilityId,
   CapabilityDependency,
+  CapabilityDependencyId,
   CapabilityRealization,
+  RealizationId,
   CreateCapabilityRequest,
   UpdateCapabilityRequest,
   UpdateCapabilityMetadataRequest,
@@ -38,6 +44,8 @@ import type {
   VersionResponse,
   Release,
   ReleasesResponse,
+  ReleaseVersion,
+  Position,
 } from './types';
 import { ApiError } from './types';
 
@@ -83,7 +91,7 @@ class ApiClient {
     return response.data.data || [];
   }
 
-  async getComponentById(id: string): Promise<Component> {
+  async getComponentById(id: ComponentId): Promise<Component> {
     const response = await this.client.get<Component>(`/api/v1/components/${id}`);
     return response.data;
   }
@@ -93,12 +101,12 @@ class ApiClient {
     return response.data;
   }
 
-  async updateComponent(id: string, request: CreateComponentRequest): Promise<Component> {
+  async updateComponent(id: ComponentId, request: CreateComponentRequest): Promise<Component> {
     const response = await this.client.put<Component>(`/api/v1/components/${id}`, request);
     return response.data;
   }
 
-  async deleteComponent(id: string): Promise<void> {
+  async deleteComponent(id: ComponentId): Promise<void> {
     await this.client.delete(`/api/v1/components/${id}`);
   }
 
@@ -107,7 +115,7 @@ class ApiClient {
     return response.data.data || [];
   }
 
-  async getRelationById(id: string): Promise<Relation> {
+  async getRelationById(id: RelationId): Promise<Relation> {
     const response = await this.client.get<Relation>(`/api/v1/relations/${id}`);
     return response.data;
   }
@@ -117,12 +125,12 @@ class ApiClient {
     return response.data;
   }
 
-  async updateRelation(id: string, request: Partial<CreateRelationRequest>): Promise<Relation> {
+  async updateRelation(id: RelationId, request: Partial<CreateRelationRequest>): Promise<Relation> {
     const response = await this.client.put<Relation>(`/api/v1/relations/${id}`, request);
     return response.data;
   }
 
-  async deleteRelation(id: string): Promise<void> {
+  async deleteRelation(id: RelationId): Promise<void> {
     await this.client.delete(`/api/v1/relations/${id}`);
   }
 
@@ -131,7 +139,7 @@ class ApiClient {
     return response.data.data || [];
   }
 
-  async getViewById(id: string): Promise<View> {
+  async getViewById(id: ViewId): Promise<View> {
     const response = await this.client.get<View>(`/api/v1/views/${id}`);
     return response.data;
   }
@@ -141,23 +149,20 @@ class ApiClient {
     return response.data;
   }
 
-  async getViewComponents(viewId: string): Promise<ViewComponent[]> {
+  async getViewComponents(viewId: ViewId): Promise<ViewComponent[]> {
     const response = await this.client.get<CollectionResponse<ViewComponent>>(
       `/api/v1/views/${viewId}/components`
     );
     return response.data.data || [];
   }
 
-  async addComponentToView(
-    viewId: string,
-    request: AddComponentToViewRequest
-  ): Promise<void> {
+  async addComponentToView(viewId: ViewId, request: AddComponentToViewRequest): Promise<void> {
     await this.client.post(`/api/v1/views/${viewId}/components`, request);
   }
 
   async updateComponentPosition(
-    viewId: string,
-    componentId: string,
+    viewId: ViewId,
+    componentId: ComponentId,
     request: UpdatePositionRequest
   ): Promise<void> {
     await this.client.patch(
@@ -166,69 +171,66 @@ class ApiClient {
     );
   }
 
-  async updateMultiplePositions(
-    viewId: string,
-    request: UpdateMultiplePositionsRequest
-  ): Promise<void> {
-    await this.client.patch(
-      `/api/v1/views/${viewId}/layout`,
-      request
-    );
+  async updateMultiplePositions(viewId: ViewId, request: UpdateMultiplePositionsRequest): Promise<void> {
+    await this.client.patch(`/api/v1/views/${viewId}/layout`, request);
   }
 
-  async renameView(viewId: string, request: RenameViewRequest): Promise<void> {
+  async renameView(viewId: ViewId, request: RenameViewRequest): Promise<void> {
     await this.client.patch(`/api/v1/views/${viewId}/name`, request);
   }
 
-  async deleteView(viewId: string): Promise<void> {
+  async deleteView(viewId: ViewId): Promise<void> {
     await this.client.delete(`/api/v1/views/${viewId}`);
   }
 
-  async removeComponentFromView(viewId: string, componentId: string): Promise<void> {
+  async removeComponentFromView(viewId: ViewId, componentId: ComponentId): Promise<void> {
     await this.client.delete(`/api/v1/views/${viewId}/components/${componentId}`);
   }
 
-  async setDefaultView(viewId: string): Promise<void> {
+  async setDefaultView(viewId: ViewId): Promise<void> {
     await this.client.put(`/api/v1/views/${viewId}/default`);
   }
 
-  async updateViewEdgeType(viewId: string, request: UpdateViewEdgeTypeRequest): Promise<void> {
+  async updateViewEdgeType(viewId: ViewId, request: UpdateViewEdgeTypeRequest): Promise<void> {
     await this.client.patch(`/api/v1/views/${viewId}/edge-type`, request);
   }
 
-  async updateViewLayoutDirection(viewId: string, request: UpdateViewLayoutDirectionRequest): Promise<void> {
+  async updateViewLayoutDirection(viewId: ViewId, request: UpdateViewLayoutDirectionRequest): Promise<void> {
     await this.client.patch(`/api/v1/views/${viewId}/layout-direction`, request);
   }
 
-  async updateViewColorScheme(viewId: string, request: UpdateViewColorSchemeRequest): Promise<void> {
+  async updateViewColorScheme(viewId: ViewId, request: UpdateViewColorSchemeRequest): Promise<void> {
     await this.client.patch(`/api/v1/views/${viewId}/color-scheme`, request);
   }
 
-  async addCapabilityToView(viewId: string, request: AddCapabilityToViewRequest): Promise<void> {
+  async addCapabilityToView(viewId: ViewId, request: AddCapabilityToViewRequest): Promise<void> {
     await this.client.post(`/api/v1/views/${viewId}/capabilities`, request);
   }
 
-  async updateCapabilityPositionInView(viewId: string, capabilityId: string, x: number, y: number): Promise<void> {
-    await this.client.patch(`/api/v1/views/${viewId}/capabilities/${capabilityId}/position`, { x, y });
+  async updateCapabilityPositionInView(viewId: ViewId, capabilityId: CapabilityId, position: Position): Promise<void>;
+  async updateCapabilityPositionInView(viewId: ViewId, capabilityId: CapabilityId, x: number, y: number): Promise<void>;
+  async updateCapabilityPositionInView(viewId: ViewId, capabilityId: CapabilityId, xOrPosition: number | Position, y?: number): Promise<void> {
+    const position = typeof xOrPosition === 'number' ? { x: xOrPosition, y: y! } : xOrPosition;
+    await this.client.patch(`/api/v1/views/${viewId}/capabilities/${capabilityId}/position`, position);
   }
 
-  async removeCapabilityFromView(viewId: string, capabilityId: string): Promise<void> {
+  async removeCapabilityFromView(viewId: ViewId, capabilityId: CapabilityId): Promise<void> {
     await this.client.delete(`/api/v1/views/${viewId}/capabilities/${capabilityId}`);
   }
 
-  async updateCapabilityColor(viewId: string, capabilityId: string, color: string): Promise<void> {
+  async updateCapabilityColor(viewId: ViewId, capabilityId: CapabilityId, color: string): Promise<void> {
     await this.client.patch(`/api/v1/views/${viewId}/capabilities/${capabilityId}/color`, { color });
   }
 
-  async clearCapabilityColor(viewId: string, capabilityId: string): Promise<void> {
+  async clearCapabilityColor(viewId: ViewId, capabilityId: CapabilityId): Promise<void> {
     await this.client.delete(`/api/v1/views/${viewId}/capabilities/${capabilityId}/color`);
   }
 
-  async updateComponentColor(viewId: string, componentId: string, color: string): Promise<void> {
+  async updateComponentColor(viewId: ViewId, componentId: ComponentId, color: string): Promise<void> {
     await this.client.patch(`/api/v1/views/${viewId}/components/${componentId}/color`, { color });
   }
 
-  async clearComponentColor(viewId: string, componentId: string): Promise<void> {
+  async clearComponentColor(viewId: ViewId, componentId: ComponentId): Promise<void> {
     await this.client.delete(`/api/v1/views/${viewId}/components/${componentId}/color`);
   }
 
@@ -237,12 +239,12 @@ class ApiClient {
     return response.data.data || [];
   }
 
-  async getCapabilityById(id: string): Promise<Capability> {
+  async getCapabilityById(id: CapabilityId): Promise<Capability> {
     const response = await this.client.get<Capability>(`/api/v1/capabilities/${id}`);
     return response.data;
   }
 
-  async getCapabilityChildren(id: string): Promise<Capability[]> {
+  async getCapabilityChildren(id: CapabilityId): Promise<Capability[]> {
     const response = await this.client.get<CollectionResponse<Capability>>(`/api/v1/capabilities/${id}/children`);
     return response.data.data || [];
   }
@@ -252,29 +254,29 @@ class ApiClient {
     return response.data;
   }
 
-  async updateCapability(id: string, request: UpdateCapabilityRequest): Promise<Capability> {
+  async updateCapability(id: CapabilityId, request: UpdateCapabilityRequest): Promise<Capability> {
     const response = await this.client.put<Capability>(`/api/v1/capabilities/${id}`, request);
     return response.data;
   }
 
-  async updateCapabilityMetadata(id: string, request: UpdateCapabilityMetadataRequest): Promise<Capability> {
+  async updateCapabilityMetadata(id: CapabilityId, request: UpdateCapabilityMetadataRequest): Promise<Capability> {
     const response = await this.client.put<Capability>(`/api/v1/capabilities/${id}/metadata`, request);
     return response.data;
   }
 
-  async addCapabilityExpert(id: string, request: AddCapabilityExpertRequest): Promise<void> {
+  async addCapabilityExpert(id: CapabilityId, request: AddCapabilityExpertRequest): Promise<void> {
     await this.client.post(`/api/v1/capabilities/${id}/experts`, request);
   }
 
-  async addCapabilityTag(id: string, request: AddCapabilityTagRequest): Promise<void> {
+  async addCapabilityTag(id: CapabilityId, request: AddCapabilityTagRequest): Promise<void> {
     await this.client.post(`/api/v1/capabilities/${id}/tags`, request);
   }
 
-  async deleteCapability(id: string): Promise<void> {
+  async deleteCapability(id: CapabilityId): Promise<void> {
     await this.client.delete(`/api/v1/capabilities/${id}`);
   }
 
-  async changeCapabilityParent(id: string, parentId: string | null): Promise<void> {
+  async changeCapabilityParent(id: CapabilityId, parentId: CapabilityId | null): Promise<void> {
     await this.client.patch(`/api/v1/capabilities/${id}/parent`, {
       parentId: parentId || '',
     });
@@ -285,14 +287,14 @@ class ApiClient {
     return response.data.data || [];
   }
 
-  async getOutgoingDependencies(capabilityId: string): Promise<CapabilityDependency[]> {
+  async getOutgoingDependencies(capabilityId: CapabilityId): Promise<CapabilityDependency[]> {
     const response = await this.client.get<CollectionResponse<CapabilityDependency>>(
       `/api/v1/capabilities/${capabilityId}/dependencies/outgoing`
     );
     return response.data.data || [];
   }
 
-  async getIncomingDependencies(capabilityId: string): Promise<CapabilityDependency[]> {
+  async getIncomingDependencies(capabilityId: CapabilityId): Promise<CapabilityDependency[]> {
     const response = await this.client.get<CollectionResponse<CapabilityDependency>>(
       `/api/v1/capabilities/${capabilityId}/dependencies/incoming`
     );
@@ -304,25 +306,25 @@ class ApiClient {
     return response.data;
   }
 
-  async deleteCapabilityDependency(id: string): Promise<void> {
+  async deleteCapabilityDependency(id: CapabilityDependencyId): Promise<void> {
     await this.client.delete(`/api/v1/capability-dependencies/${id}`);
   }
 
-  async getSystemsByCapability(capabilityId: string): Promise<CapabilityRealization[]> {
+  async getSystemsByCapability(capabilityId: CapabilityId): Promise<CapabilityRealization[]> {
     const response = await this.client.get<CollectionResponse<CapabilityRealization>>(
       `/api/v1/capabilities/${capabilityId}/systems`
     );
     return response.data.data || [];
   }
 
-  async getCapabilitiesByComponent(componentId: string): Promise<CapabilityRealization[]> {
+  async getCapabilitiesByComponent(componentId: ComponentId): Promise<CapabilityRealization[]> {
     const response = await this.client.get<CollectionResponse<CapabilityRealization>>(
       `/api/v1/capability-realizations/by-component/${componentId}`
     );
     return response.data.data || [];
   }
 
-  async linkSystemToCapability(capabilityId: string, request: LinkSystemToCapabilityRequest): Promise<CapabilityRealization> {
+  async linkSystemToCapability(capabilityId: CapabilityId, request: LinkSystemToCapabilityRequest): Promise<CapabilityRealization> {
     const response = await this.client.post<CapabilityRealization>(
       `/api/v1/capabilities/${capabilityId}/systems`,
       request
@@ -330,7 +332,7 @@ class ApiClient {
     return response.data;
   }
 
-  async updateRealization(id: string, request: UpdateRealizationRequest): Promise<CapabilityRealization> {
+  async updateRealization(id: RealizationId, request: UpdateRealizationRequest): Promise<CapabilityRealization> {
     const response = await this.client.put<CapabilityRealization>(
       `/api/v1/capability-realizations/${id}`,
       request
@@ -338,7 +340,7 @@ class ApiClient {
     return response.data;
   }
 
-  async deleteRealization(id: string): Promise<void> {
+  async deleteRealization(id: RealizationId): Promise<void> {
     await this.client.delete(`/api/v1/capability-realizations/${id}`);
   }
 
@@ -384,7 +386,7 @@ class ApiClient {
     }
   }
 
-  async getReleaseByVersion(version: string): Promise<Release | null> {
+  async getReleaseByVersion(version: ReleaseVersion): Promise<Release | null> {
     try {
       const response = await this.client.get<Release>(`/api/v1/releases/${version}`);
       return response.data;

@@ -22,29 +22,25 @@ const getPersistedSet = (key: string): Set<string> => {
   return saved ? new Set(JSON.parse(saved)) : new Set();
 };
 
+const MATURITY_CLASS_MAP: Record<string, string> = {
+  genesis: 'maturity-genesis',
+  'custom build': 'maturity-custom-build',
+  product: 'maturity-product',
+  commodity: 'maturity-commodity',
+};
+
 const getMaturityClass = (colorScheme: string, maturityLevel?: string): string => {
   if (colorScheme === 'archimate' || colorScheme === 'archimate-classic') {
     return 'maturity-archimate';
   }
-
-  switch (maturityLevel?.toLowerCase()) {
-    case 'genesis': return 'maturity-genesis';
-    case 'custom build': return 'maturity-custom-build';
-    case 'product': return 'maturity-product';
-    case 'commodity': return 'maturity-commodity';
-    default: return 'maturity-genesis';
-  }
+  return MATURITY_CLASS_MAP[maturityLevel?.toLowerCase() ?? ''] ?? 'maturity-genesis';
 };
 
-const getLevelNumber = (level: string): number => {
-  switch (level) {
-    case 'L1': return 1;
-    case 'L2': return 2;
-    case 'L3': return 3;
-    case 'L4': return 4;
-    default: return 1;
-  }
+const LEVEL_NUMBER_MAP: Record<string, number> = {
+  L1: 1, L2: 2, L3: 3, L4: 4,
 };
+
+const getLevelNumber = (level: string): number => LEVEL_NUMBER_MAP[level] ?? 1;
 
 const getContextMenuPosition = (e: React.MouseEvent) => {
   e.preventDefault();
@@ -73,6 +69,51 @@ const buildCapabilityTree = (capabilities: Capability[]): CapabilityTreeNode[] =
   roots.sort((a, b) => a.capability.name.localeCompare(b.capability.name));
 
   return roots;
+};
+
+const hasCustomColor = (
+  colorScheme: string | undefined,
+  customColor: string | undefined | null
+): boolean =>
+  colorScheme === 'custom' &&
+  customColor !== undefined &&
+  customColor !== null &&
+  customColor !== '';
+
+interface ColorIndicatorProps {
+  customColor: string | undefined;
+}
+
+const ColorIndicator: React.FC<ColorIndicatorProps> = ({ customColor }) => (
+  <div
+    data-testid="custom-color-indicator"
+    style={{
+      width: '10px',
+      height: '10px',
+      borderRadius: '2px',
+      backgroundColor: customColor,
+      display: 'inline-block',
+      marginLeft: '8px',
+      border: '1px solid rgba(0,0,0,0.1)',
+    }}
+  />
+);
+
+interface ExpandButtonProps {
+  hasChildren: boolean;
+  isExpanded: boolean;
+  onClick: (e: React.MouseEvent) => void;
+}
+
+const ExpandButton: React.FC<ExpandButtonProps> = ({ hasChildren, isExpanded, onClick }) => {
+  if (!hasChildren) {
+    return <span className="capability-expand-placeholder" />;
+  }
+  return (
+    <button className="capability-expand-btn" onClick={onClick}>
+      {isExpanded ? '\u25BC' : '\u25B6'}
+    </button>
+  );
 };
 
 interface NavigationTreeProps {
@@ -234,69 +275,61 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
   const renderCapabilityNode = (node: CapabilityTreeNode): React.ReactNode => {
     const { capability, children } = node;
-    const hasChildren = children.length > 0;
+    const hasChildNodes = children.length > 0;
     const isExpanded = expandedCapabilities.has(capability.id);
     const levelNum = getLevelNumber(capability.level);
     const isSelected = selectedCapabilityId === capability.id;
     const isOnCanvas = canvasCapabilities.some((cc) => cc.capabilityId === capability.id);
-    const colorScheme = currentView?.colorScheme || 'maturity';
+    const colorScheme = currentView?.colorScheme ?? 'maturity';
 
     const viewCapability = currentView?.capabilities.find(vc => vc.capabilityId === capability.id);
     const customColor = viewCapability?.customColor;
-    const shouldShowColorIndicator =
-      currentView?.colorScheme === 'custom' &&
-      customColor !== undefined &&
-      customColor !== null &&
-      customColor !== '';
+    const showColorIndicator = hasCustomColor(currentView?.colorScheme, customColor);
 
     const baseTitle = capability.description || capability.name;
     const title = isOnCanvas ? baseTitle : `${baseTitle} (not in view)`;
 
+    const handleExpandClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      toggleCapabilityExpanded(capability.id);
+    };
+
+    const handleDragStart = (e: React.DragEvent) => {
+      e.dataTransfer.setData('capabilityId', capability.id);
+      e.dataTransfer.effectAllowed = 'copy';
+    };
+
+    const itemClassName = [
+      'capability-tree-item',
+      `capability-level-${levelNum}`,
+      isSelected && 'selected',
+      !isOnCanvas && 'not-in-view',
+    ].filter(Boolean).join(' ');
+
     return (
       <div key={capability.id}>
         <div
-          className={`capability-tree-item capability-level-${levelNum} ${isSelected ? 'selected' : ''} ${!isOnCanvas ? 'not-in-view' : ''}`}
+          className={itemClassName}
           draggable
-          onDragStart={(e) => {
-            e.dataTransfer.setData('capabilityId', capability.id);
-            e.dataTransfer.effectAllowed = 'copy';
-          }}
+          onDragStart={handleDragStart}
           onClick={() => handleCapabilityClick(capability.id)}
           onContextMenu={(e) => handleCapabilityContextMenu(e, capability)}
           title={title}
         >
-          {hasChildren ? (
-            <button
-              className="capability-expand-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleCapabilityExpanded(capability.id);
-              }}
-            >
-              {isExpanded ? '▼' : '▶'}
-            </button>
-          ) : (
-            <span className="capability-expand-placeholder" />
-          )}
+          <ExpandButton
+            hasChildren={hasChildNodes}
+            isExpanded={isExpanded}
+            onClick={handleExpandClick}
+          />
           <span className="capability-level-badge">{capability.level}:</span>
           <span className="capability-name">{capability.name}</span>
-          <span className={`capability-maturity-indicator ${getMaturityClass(colorScheme, capability.maturityLevel)}`} title={capability.maturityLevel || 'Initial'} />
-          {shouldShowColorIndicator && (
-            <div
-              data-testid="custom-color-indicator"
-              style={{
-                width: '10px',
-                height: '10px',
-                borderRadius: '2px',
-                backgroundColor: customColor,
-                display: 'inline-block',
-                marginLeft: '8px',
-                border: '1px solid rgba(0,0,0,0.1)',
-              }}
-            />
-          )}
+          <span
+            className={`capability-maturity-indicator ${getMaturityClass(colorScheme, capability.maturityLevel)}`}
+            title={capability.maturityLevel || 'Initial'}
+          />
+          {showColorIndicator && <ColorIndicator customColor={customColor} />}
         </div>
-        {hasChildren && isExpanded && (
+        {hasChildNodes && isExpanded && (
           <div className="capability-children">
             {children.map(renderCapabilityNode)}
           </div>
@@ -528,11 +561,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
                       const viewComponent = currentView?.components.find(vc => vc.componentId === component.id);
                       const customColor = viewComponent?.customColor;
-                      const shouldShowColorIndicator =
-                        currentView?.colorScheme === 'custom' &&
-                        customColor !== undefined &&
-                        customColor !== null &&
-                        customColor !== '';
+                      const showColorIndicator = hasCustomColor(currentView?.colorScheme, customColor);
 
                       return (
                         <button
@@ -551,20 +580,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                         >
                           <span className="tree-item-icon">📦</span>
                           <span className="tree-item-label">{component.name}</span>
-                          {shouldShowColorIndicator && (
-                            <div
-                              data-testid="custom-color-indicator"
-                              style={{
-                                width: '10px',
-                                height: '10px',
-                                borderRadius: '2px',
-                                backgroundColor: customColor,
-                                display: 'inline-block',
-                                marginLeft: '8px',
-                                border: '1px solid rgba(0,0,0,0.1)',
-                              }}
-                            />
-                          )}
+                          {showColorIndicator && <ColorIndicator customColor={customColor} />}
                         </button>
                       );
                     })
