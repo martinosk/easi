@@ -313,6 +313,15 @@ body {
   line-height: 1.4;
 }
 
+/* Classic color scheme - black text */
+.component-node.classic-text .component-node-header {
+  color: #000000;
+}
+
+.component-node.classic-text .component-node-description {
+  color: rgba(0, 0, 0, 0.8);
+}
+
 /* Component Connection Handles */
 .component-handle {
   width: 12px;
@@ -407,6 +416,16 @@ body {
   padding: 2px 8px;
   border-radius: var(--radius-sm);
   width: fit-content;
+}
+
+/* Classic color scheme - black text */
+.capability-node.classic-text .capability-node-header {
+  color: #000000;
+}
+
+.capability-node.classic-text .capability-node-maturity {
+  color: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.1);
 }
 
 /* Capability Connection Handles */

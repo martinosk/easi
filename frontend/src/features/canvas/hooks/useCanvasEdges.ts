@@ -15,6 +15,8 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
 
   return useMemo(() => {
     const edgeType = currentView?.edgeType || 'default';
+    const colorScheme = currentView?.colorScheme || 'maturity';
+    const isClassicScheme = colorScheme === 'classic';
 
     const relationEdges: Edge[] = relations.map((relation) => {
       const isSelected = selectedEdgeId === relation.id;
@@ -23,6 +25,8 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
       const sourceNode = nodes.find(n => n.id === relation.sourceComponentId);
       const targetNode = nodes.find(n => n.id === relation.targetComponentId);
       const { sourceHandle, targetHandle } = getBestHandles(sourceNode, targetNode);
+
+      const edgeColor = isClassicScheme ? '#000000' : (isTriggers ? '#f97316' : '#3b82f6');
 
       return {
         id: relation.id,
@@ -34,15 +38,15 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
         type: edgeType,
         animated: isSelected,
         style: {
-          stroke: isTriggers ? '#f97316' : '#3b82f6',
+          stroke: edgeColor,
           strokeWidth: isSelected ? 3 : 2,
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: isTriggers ? '#f97316' : '#3b82f6',
+          color: edgeColor,
         },
         labelStyle: {
-          fill: isTriggers ? '#f97316' : '#3b82f6',
+          fill: edgeColor,
           fontWeight: isSelected ? 700 : 500,
         },
         labelBgStyle: {
@@ -68,6 +72,8 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
         const childNode = nodes.find((n) => n.id === childNodeId);
         const { sourceHandle, targetHandle } = getBestHandles(parentNode, childNode);
 
+        const parentEdgeColor = isClassicScheme ? '#000000' : '#374151';
+
         return {
           id: edgeId,
           source: parentNodeId,
@@ -78,15 +84,15 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
           type: 'default' as const,
           animated: isSelected,
           style: {
-            stroke: '#374151',
+            stroke: parentEdgeColor,
             strokeWidth: 3,
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: '#374151',
+            color: parentEdgeColor,
           },
           labelStyle: {
-            fill: '#374151',
+            fill: parentEdgeColor,
             fontWeight: isSelected ? 700 : 600,
           },
           labelBgStyle: {
@@ -134,6 +140,8 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
         const targetNode = nodes.find((n) => n.id === targetNodeId);
         const { sourceHandle, targetHandle } = getBestHandles(sourceNode, targetNode);
 
+        const realizationColor = isClassicScheme ? '#000000' : '#10B981';
+
         return {
           id: edgeId,
           source: sourceNodeId,
@@ -145,17 +153,17 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
           animated: isSelected,
           className: isInherited ? 'realization-edge inherited' : 'realization-edge',
           style: {
-            stroke: '#10B981',
+            stroke: realizationColor,
             strokeWidth: isSelected ? 3 : 2,
             strokeDasharray: '5,5',
             opacity: isInherited ? 0.6 : 1.0,
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: '#10B981',
+            color: realizationColor,
           },
           labelStyle: {
-            fill: '#10B981',
+            fill: realizationColor,
             fontWeight: isSelected ? 700 : 500,
             opacity: isInherited ? 0.8 : 1.0,
           },
@@ -166,5 +174,5 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
       });
 
     return [...relationEdges, ...parentEdges, ...realizationEdges];
-  }, [relations, selectedEdgeId, currentView?.edgeType, currentView?.components, nodes, canvasCapabilities, capabilities, capabilityRealizations]);
+  }, [relations, selectedEdgeId, currentView?.edgeType, currentView?.colorScheme, currentView?.components, nodes, canvasCapabilities, capabilities, capabilityRealizations]);
 };

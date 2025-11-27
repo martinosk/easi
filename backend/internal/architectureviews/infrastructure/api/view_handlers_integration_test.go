@@ -823,7 +823,7 @@ func TestUpdateColorScheme_Integration(t *testing.T) {
 	testCtx.createTestView(t, viewID, "Test View", "Test Description")
 
 	reqBody := UpdateColorSchemeRequest{
-		ColorScheme: "archimate",
+		ColorScheme: "classic",
 	}
 	body, _ := json.Marshal(reqBody)
 
@@ -845,7 +845,7 @@ func TestUpdateColorScheme_Integration(t *testing.T) {
 	}
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
-	assert.Equal(t, "archimate", response.ColorScheme)
+	assert.Equal(t, "classic", response.ColorScheme)
 	assert.NotNil(t, response.Links)
 	assert.Contains(t, response.Links, "self")
 	assert.Equal(t, "/api/v1/views/"+viewID+"/color-scheme", response.Links["self"])
@@ -854,7 +854,7 @@ func TestUpdateColorScheme_Integration(t *testing.T) {
 
 	view, err := readModel.GetByID(tenantContext(), viewID)
 	require.NoError(t, err)
-	assert.Equal(t, "archimate", view.ColorScheme)
+	assert.Equal(t, "classic", view.ColorScheme)
 }
 
 func TestUpdateColorScheme_InvalidValue_Integration(t *testing.T) {
@@ -893,7 +893,7 @@ func TestUpdateColorScheme_AllValidValues_Integration(t *testing.T) {
 	viewID := "view-color-scheme-all-" + testCtx.testID
 	testCtx.createTestView(t, viewID, "Test View", "Test Description")
 
-	colorSchemes := []string{"maturity", "archimate", "archimate-classic", "custom"}
+	colorSchemes := []string{"maturity", "classic", "custom"}
 	for _, colorScheme := range colorSchemes {
 		reqBody := UpdateColorSchemeRequest{ColorScheme: colorScheme}
 		body, _ := json.Marshal(reqBody)

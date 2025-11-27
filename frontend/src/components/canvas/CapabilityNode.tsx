@@ -3,7 +3,7 @@ import { Handle, Position } from '@xyflow/react';
 import { useAppStore } from '../../store/appStore';
 
 type HexColor = string;
-type ColorScheme = 'maturity' | 'archimate' | 'archimate-classic' | 'custom';
+type ColorScheme = 'maturity' | 'classic' | 'custom';
 type MaturityLevel = 'genesis' | 'custom build' | 'product' | 'commodity';
 
 export interface CapabilityNodeData {
@@ -22,7 +22,7 @@ const MATURITY_COLORS: Record<MaturityLevel, HexColor> = {
 };
 
 const DEFAULT_MATURITY_COLOR: HexColor = '#6b7280';
-const ARCHIMATE_COLOR: HexColor = '#B5FFFF';
+const CLASSIC_COLOR: HexColor = '#f9c268';
 const DEFAULT_CUSTOM_COLOR: HexColor = '#E0E0E0';
 const SELECTED_BORDER_COLOR: HexColor = '#374151';
 
@@ -32,8 +32,8 @@ const getMaturityColor = (maturityLevel?: string): HexColor => {
 };
 
 const getColorByScheme = (colorScheme: ColorScheme, maturityLevel?: string): HexColor => {
-  if (colorScheme === 'archimate' || colorScheme === 'archimate-classic') {
-    return ARCHIMATE_COLOR;
+  if (colorScheme === 'classic') {
+    return CLASSIC_COLOR;
   }
   return getMaturityColor(maturityLevel);
 };
@@ -70,9 +70,11 @@ export const CapabilityNode: React.FC<{ data: CapabilityNodeData; id: string }> 
   const baseColor = resolveBaseColor({ colorScheme, customColor: data.customColor, maturityLevel: data.maturityLevel });
   const borderColor = resolveBorderColor(data.isSelected, baseColor);
 
+  const nodeClassName = `capability-node ${data.isSelected ? 'capability-node-selected' : ''} ${colorScheme === 'classic' ? 'classic-text' : ''}`;
+
   return (
     <div
-      className={`capability-node ${data.isSelected ? 'capability-node-selected' : ''}`}
+      className={nodeClassName}
       style={{
         background: getBackgroundGradient(baseColor),
         borderColor: borderColor,

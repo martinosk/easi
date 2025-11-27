@@ -1735,7 +1735,7 @@ const docTemplate = `{
         },
         "/views/{id}/color-scheme": {
             "patch": {
-                "description": "Updates the color scheme for an architecture view. Valid schemes: maturity, archimate, archimate-classic, custom",
+                "description": "Updates the color scheme for an architecture view. Valid schemes: maturity, classic, custom",
                 "consumes": [
                     "application/json"
                 ],

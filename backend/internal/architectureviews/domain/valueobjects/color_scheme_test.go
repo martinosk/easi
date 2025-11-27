@@ -12,16 +12,10 @@ func TestNewColorScheme_Maturity(t *testing.T) {
 	assert.Equal(t, "maturity", colorScheme.Value())
 }
 
-func TestNewColorScheme_Archimate(t *testing.T) {
-	colorScheme, err := NewColorScheme("archimate")
+func TestNewColorScheme_Classic(t *testing.T) {
+	colorScheme, err := NewColorScheme("classic")
 	assert.NoError(t, err)
-	assert.Equal(t, "archimate", colorScheme.Value())
-}
-
-func TestNewColorScheme_ArchimateClassic(t *testing.T) {
-	colorScheme, err := NewColorScheme("archimate-classic")
-	assert.NoError(t, err)
-	assert.Equal(t, "archimate-classic", colorScheme.Value())
+	assert.Equal(t, "classic", colorScheme.Value())
 }
 
 func TestNewColorScheme_Custom(t *testing.T) {
@@ -62,13 +56,13 @@ func TestDefaultColorScheme(t *testing.T) {
 func TestColorScheme_Equals(t *testing.T) {
 	colorScheme1, _ := NewColorScheme("maturity")
 	colorScheme2, _ := NewColorScheme("maturity")
-	colorScheme3, _ := NewColorScheme("archimate")
+	colorScheme3, _ := NewColorScheme("classic")
 
 	assert.True(t, colorScheme1.Equals(colorScheme2))
 	assert.False(t, colorScheme1.Equals(colorScheme3))
 }
 
 func TestColorScheme_String(t *testing.T) {
-	colorScheme, _ := NewColorScheme("archimate-classic")
-	assert.Equal(t, "archimate-classic", colorScheme.String())
+	colorScheme, _ := NewColorScheme("classic")
+	assert.Equal(t, "classic", colorScheme.String())
 }

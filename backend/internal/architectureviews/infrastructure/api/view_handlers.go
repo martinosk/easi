@@ -526,7 +526,7 @@ func (h *ViewHandlers) RemoveCapabilityFromView(w http.ResponseWriter, r *http.R
 
 // UpdateColorScheme godoc
 // @Summary Update color scheme for a view
-// @Description Updates the color scheme for an architecture view. Valid schemes: maturity, archimate, archimate-classic, custom
+// @Description Updates the color scheme for an architecture view. Valid schemes: maturity, classic, custom
 // @Tags views
 // @Accept json
 // @Produce json

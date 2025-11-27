@@ -3,7 +3,7 @@ import { Handle, Position } from '@xyflow/react';
 import { useAppStore } from '../../store/appStore';
 
 type HexColor = string;
-type ColorScheme = 'maturity' | 'archimate' | 'archimate-classic' | 'custom';
+type ColorScheme = 'maturity' | 'classic' | 'custom';
 
 export interface ComponentNodeData {
   label: string;
@@ -14,8 +14,7 @@ export interface ComponentNodeData {
 
 const COMPONENT_COLORS: Record<ColorScheme, HexColor> = {
   'maturity': '#3b82f6',
-  'archimate': '#B5FFFF',
-  'archimate-classic': '#B5FFFF',
+  'classic': '#bfd9f0',
   'custom': '#3b82f6',
 };
 
@@ -57,9 +56,11 @@ export const ComponentNode: React.FC<{ data: ComponentNodeData; id: string }> = 
   const baseColor = resolveBaseColor({ colorScheme, customColor: data.customColor });
   const borderColor = resolveBorderColor(data.isSelected, baseColor);
 
+  const nodeClassName = `component-node ${data.isSelected ? 'component-node-selected' : ''} ${colorScheme === 'classic' ? 'classic-text' : ''}`;
+
   return (
     <div
-      className={`component-node ${data.isSelected ? 'component-node-selected' : ''}`}
+      className={nodeClassName}
       style={{
         background: getBackgroundGradient(baseColor),
         borderColor: borderColor,

@@ -70,13 +70,13 @@ func TestUpdateViewColorSchemeHandler_ValidMaturity(t *testing.T) {
 	assert.Equal(t, "maturity", mockRepo.colorScheme)
 }
 
-func TestUpdateViewColorSchemeHandler_ValidArchimate(t *testing.T) {
+func TestUpdateViewColorSchemeHandler_ValidClassic(t *testing.T) {
 	mockRepo := &mockLayoutRepository{}
 	handler := newTestableUpdateViewColorSchemeHandler(mockRepo)
 
 	cmd := &commands.UpdateViewColorScheme{
 		ViewID:      "view-456",
-		ColorScheme: "archimate",
+		ColorScheme: "classic",
 	}
 
 	err := handler.Handle(context.Background(), cmd)
@@ -84,24 +84,7 @@ func TestUpdateViewColorSchemeHandler_ValidArchimate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, mockRepo.updateColorSchemeCalled)
 	assert.Equal(t, "view-456", mockRepo.viewID)
-	assert.Equal(t, "archimate", mockRepo.colorScheme)
-}
-
-func TestUpdateViewColorSchemeHandler_ValidArchimateClassic(t *testing.T) {
-	mockRepo := &mockLayoutRepository{}
-	handler := newTestableUpdateViewColorSchemeHandler(mockRepo)
-
-	cmd := &commands.UpdateViewColorScheme{
-		ViewID:      "view-789",
-		ColorScheme: "archimate-classic",
-	}
-
-	err := handler.Handle(context.Background(), cmd)
-
-	assert.NoError(t, err)
-	assert.True(t, mockRepo.updateColorSchemeCalled)
-	assert.Equal(t, "view-789", mockRepo.viewID)
-	assert.Equal(t, "archimate-classic", mockRepo.colorScheme)
+	assert.Equal(t, "classic", mockRepo.colorScheme)
 }
 
 func TestUpdateViewColorSchemeHandler_ValidCustom(t *testing.T) {

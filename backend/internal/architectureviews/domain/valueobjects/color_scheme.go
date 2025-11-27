@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	ErrInvalidColorScheme = errors.New("invalid color scheme: must be 'maturity', 'archimate', 'archimate-classic', or 'custom'")
+	ErrInvalidColorScheme = errors.New("invalid color scheme: must be 'maturity', 'classic', or 'custom'")
 )
 
 type ColorScheme struct {
@@ -16,7 +16,7 @@ type ColorScheme struct {
 
 func NewColorScheme(value string) (ColorScheme, error) {
 	switch value {
-	case "maturity", "archimate", "archimate-classic", "custom":
+	case "maturity", "classic", "custom":
 		return ColorScheme{value: value}, nil
 	default:
 		return ColorScheme{}, ErrInvalidColorScheme
