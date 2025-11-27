@@ -176,9 +176,9 @@ describe('NavigationTree - Custom Color Indicators', () => {
       expect(colorIndicator).not.toBeInTheDocument();
     });
 
-    it('should NOT show color indicator next to component when colorScheme is "archimate" even if customColor exists', () => {
+    it('should NOT show color indicator next to component when colorScheme is "classic" even if customColor exists', () => {
       const currentView = createViewWithColorScheme(
-        'archimate',
+        'classic',
         [{ componentId: 'comp-1', customColor: '#00AA00' }],
         []
       );
@@ -324,38 +324,6 @@ describe('NavigationTree - Custom Color Indicators', () => {
         'maturity',
         [],
         [{ capabilityId: 'cap-1', customColor: '#AA00FF' }]
-      );
-
-      mockUseAppStore.mockImplementation((selector) => {
-        const state = {
-          components: mockComponents,
-          capabilities: mockCapabilities,
-          currentView,
-          views: [],
-          selectedNodeId: null,
-          canvasCapabilities: [{ capabilityId: 'cap-1', x: 100, y: 200 }],
-          loadViews: vi.fn(),
-          loadCapabilities: vi.fn(),
-          updateComponent: vi.fn(),
-          deleteComponent: vi.fn(),
-        };
-        return selector(state);
-      });
-
-      render(<NavigationTree />);
-
-      const customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item');
-      expect(customerMgmtItem).toBeInTheDocument();
-
-      const colorIndicator = within(customerMgmtItem!).queryByTestId('custom-color-indicator');
-      expect(colorIndicator).not.toBeInTheDocument();
-    });
-
-    it('should NOT show color indicator next to capability when colorScheme is "archimate-classic" even if customColor exists', () => {
-      const currentView = createViewWithColorScheme(
-        'archimate-classic',
-        [],
-        [{ capabilityId: 'cap-1', customColor: '#FFAA00' }]
       );
 
       mockUseAppStore.mockImplementation((selector) => {
@@ -560,7 +528,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
       expect(colorIndicator).toHaveStyle({ backgroundColor: '#FF5733' });
     });
 
-    it('should hide indicators when switching from custom to archimate scheme', () => {
+    it('should hide indicators when switching from custom to classic scheme', () => {
       const currentViewCustom = createViewWithColorScheme(
         'custom',
         [],
@@ -589,8 +557,8 @@ describe('NavigationTree - Custom Color Indicators', () => {
       let colorIndicator = within(customerMgmtItem!).getByTestId('custom-color-indicator');
       expect(colorIndicator).toBeInTheDocument();
 
-      const currentViewArchimate = createViewWithColorScheme(
-        'archimate',
+      const currentViewClassic = createViewWithColorScheme(
+        'classic',
         [],
         [{ capabilityId: 'cap-1', customColor: '#AA00FF' }]
       );
@@ -599,7 +567,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         const state = {
           components: mockComponents,
           capabilities: mockCapabilities,
-          currentView: currentViewArchimate,
+          currentView: currentViewClassic,
           views: [],
           selectedNodeId: null,
           canvasCapabilities: [{ capabilityId: 'cap-1', x: 100, y: 200 }],

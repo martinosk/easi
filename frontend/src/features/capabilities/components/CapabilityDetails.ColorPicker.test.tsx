@@ -103,19 +103,8 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       expect(colorPickerButton).toBeDisabled();
     });
 
-    it('should disable color picker when colorScheme is "archimate"', () => {
-      const mockView = createMockView('archimate');
-      const mockStore = createMockStore(mockView);
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
-
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
-
-      const colorPickerButton = screen.getByTestId('color-picker-button');
-      expect(colorPickerButton).toBeDisabled();
-    });
-
-    it('should disable color picker when colorScheme is "archimate-classic"', () => {
-      const mockView = createMockView('archimate-classic');
+    it('should disable color picker when colorScheme is "classic"', () => {
+      const mockView = createMockView('classic');
       const mockStore = createMockStore(mockView);
       vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
 

@@ -245,10 +245,10 @@ describe('AppStore Layout Tests', () => {
       useAppStore.setState({ currentView: mockView });
       vi.mocked(apiClient.updateViewColorScheme).mockResolvedValueOnce(undefined as any);
 
-      await useAppStore.getState().setColorScheme('archimate');
+      await useAppStore.getState().setColorScheme('classic');
 
-      expect(useAppStore.getState().currentView?.colorScheme).toBe('archimate');
-      expect(apiClient.updateViewColorScheme).toHaveBeenCalledWith('view-1', { colorScheme: 'archimate' });
+      expect(useAppStore.getState().currentView?.colorScheme).toBe('classic');
+      expect(apiClient.updateViewColorScheme).toHaveBeenCalledWith('view-1', { colorScheme: 'classic' });
       expect(mockToast.success).toHaveBeenCalledWith('Color scheme updated');
     });
 
@@ -269,7 +269,7 @@ describe('AppStore Layout Tests', () => {
       const apiError = new ApiError('Failed to update', 500);
       vi.mocked(apiClient.updateViewColorScheme).mockRejectedValueOnce(apiError);
 
-      await expect(useAppStore.getState().setColorScheme('archimate')).rejects.toThrow(apiError);
+      await expect(useAppStore.getState().setColorScheme('classic')).rejects.toThrow(apiError);
 
       expect(useAppStore.getState().currentView?.colorScheme).toBe('maturity');
       expect(mockToast.error).toHaveBeenCalledWith('Failed to update');
@@ -292,7 +292,7 @@ describe('AppStore Layout Tests', () => {
       const genericError = new Error('Network error');
       vi.mocked(apiClient.updateViewColorScheme).mockRejectedValueOnce(genericError);
 
-      await expect(useAppStore.getState().setColorScheme('archimate')).rejects.toThrow(genericError);
+      await expect(useAppStore.getState().setColorScheme('classic')).rejects.toThrow(genericError);
 
       expect(useAppStore.getState().currentView?.colorScheme).toBe('maturity');
       expect(mockToast.error).toHaveBeenCalledWith('Failed to update color scheme');
@@ -301,7 +301,7 @@ describe('AppStore Layout Tests', () => {
     it('should do nothing if no current view', async () => {
       useAppStore.setState({ currentView: null });
 
-      await useAppStore.getState().setColorScheme('archimate');
+      await useAppStore.getState().setColorScheme('classic');
 
       expect(apiClient.updateViewColorScheme).not.toHaveBeenCalled();
       expect(mockToast.success).not.toHaveBeenCalled();
@@ -320,7 +320,7 @@ describe('AppStore Layout Tests', () => {
         _links: { self: { href: '/api/views/view-1' } },
       };
 
-      const colorSchemes = ['maturity', 'archimate', 'archimate-classic'];
+      const colorSchemes = ['maturity', 'classic'];
 
       for (const colorScheme of colorSchemes) {
         useAppStore.setState({ currentView: { ...mockView, colorScheme: 'maturity' } });

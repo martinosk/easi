@@ -197,8 +197,8 @@ describe('ComponentNode Custom Color Rendering', () => {
       expect(node.style.background).not.toContain(hexToRgb('#FF5733'));
     });
 
-    it('should use archimate color when colorScheme is "archimate", ignoring customColor', () => {
-      const mockView = createMockView('archimate', [
+    it('should use classic color when colorScheme is "classic", ignoring customColor', () => {
+      const mockView = createMockView('classic', [
         { componentId: 'comp-1', customColor: '#FF5733' },
       ]);
       vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
@@ -211,29 +211,11 @@ describe('ComponentNode Custom Color Rendering', () => {
       );
 
       const node = container.querySelector('.component-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#B5FFFF'));
-      expect(node.style.background).not.toContain(hexToRgb('#FF5733'));
-    });
-
-    it('should use archimate-classic color when colorScheme is "archimate-classic", ignoring customColor', () => {
-      const mockView = createMockView('archimate-classic', [
-        { componentId: 'comp-1', customColor: '#FF5733' },
-      ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
-
-      const nodeData = createComponentNodeData();
-      const { container } = renderWithProvider(
-        <ComponentNode data={nodeData} id="comp-1" />
-      );
-
-      const node = container.querySelector('.component-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#B5FFFF'));
+      expect(node.style.background).toContain(hexToRgb('#bfd9f0'));
       expect(node.style.background).not.toContain(hexToRgb('#FF5733'));
     });
   });
-
+ 
   describe('Default Color Scheme Behavior', () => {
     it('should use default component color when colorScheme is undefined', () => {
       const mockView = createMockView('maturity', [
@@ -357,8 +339,8 @@ describe('ComponentNode Custom Color Rendering', () => {
       expect(node.style.background).not.toContain(hexToRgb('#3b82f6'));
     });
 
-    it('should switch from archimate color to custom color when scheme changes', () => {
-      let mockView = createMockView('archimate', [
+    it('should switch from classic color to custom color when scheme changes', () => {
+      let mockView = createMockView('classic', [
         { componentId: 'comp-1', customColor: '#FF5733' },
       ]);
       vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
@@ -371,7 +353,7 @@ describe('ComponentNode Custom Color Rendering', () => {
       );
 
       let node = container.querySelector('.component-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#B5FFFF'));
+      expect(node.style.background).toContain(hexToRgb('#bfd9f0'));
 
       mockView = createMockView('custom', [
         { componentId: 'comp-1', customColor: '#FF5733' },
