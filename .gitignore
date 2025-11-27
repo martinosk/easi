@@ -158,6 +158,7 @@ obj/
 [Rr]elease/
 [Rr]eleases/
 !backend/internal/releases/
+!frontend/src/contexts/releases/
 x64/
 x86/
 [Aa]rm/
