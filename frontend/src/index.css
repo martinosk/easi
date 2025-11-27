@@ -113,7 +113,8 @@ body {
 }
 
 .edge-type-selector,
-.layout-direction-selector {
+.layout-direction-selector,
+.color-scheme-selector {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xs);
