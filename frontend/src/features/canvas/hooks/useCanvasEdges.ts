@@ -81,7 +81,7 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
           sourceHandle,
           targetHandle,
           label: 'Parent',
-          type: 'default' as const,
+          type: edgeType,
           animated: isSelected,
           style: {
             stroke: parentEdgeColor,
@@ -149,7 +149,7 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
           sourceHandle,
           targetHandle,
           label: isInherited ? 'Realizes (inherited)' : 'Realizes',
-          type: 'default' as const,
+          type: edgeType,
           animated: isSelected,
           className: isInherited ? 'realization-edge inherited' : 'realization-edge',
           style: {
