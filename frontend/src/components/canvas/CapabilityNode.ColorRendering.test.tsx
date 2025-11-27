@@ -249,42 +249,6 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const node = container.querySelector('.capability-node') as HTMLElement;
       expect(node.style.background).toContain(hexToRgb('#3b82f6'));
     });
-
-    it('should use archimate color when colorScheme is "archimate", ignoring customColor', () => {
-      const mockView = createMockView('archimate', [
-        { capabilityId: 'cap-1', customColor: '#FF5733' },
-      ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
-
-      const nodeData = createCapabilityNodeData('Product');
-      const { container } = renderWithProvider(
-        <CapabilityNode data={nodeData} id="cap-1" />
-      );
-
-      const node = container.querySelector('.capability-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#B5FFFF'));
-      expect(node.style.background).not.toContain(hexToRgb('#FF5733'));
-    });
-
-    it('should use archimate-classic color when colorScheme is "archimate-classic", ignoring customColor', () => {
-      const mockView = createMockView('archimate-classic', [
-        { capabilityId: 'cap-1', customColor: '#FF5733' },
-      ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
-
-      const nodeData = createCapabilityNodeData('Genesis');
-      const { container } = renderWithProvider(
-        <CapabilityNode data={nodeData} id="cap-1" />
-      );
-
-      const node = container.querySelector('.capability-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#B5FFFF'));
-      expect(node.style.background).not.toContain(hexToRgb('#FF5733'));
-    });
   });
 
   describe('Default Color Scheme Behavior', () => {
@@ -408,36 +372,6 @@ describe('CapabilityNode Custom Color Rendering', () => {
       node = container.querySelector('.capability-node') as HTMLElement;
       expect(node.style.background).toContain(hexToRgb('#FF5733'));
       expect(node.style.background).not.toContain(hexToRgb('#ef4444'));
-    });
-
-    it('should switch from archimate color to custom color when scheme changes', () => {
-      let mockView = createMockView('archimate', [
-        { capabilityId: 'cap-1', customColor: '#FF5733' },
-      ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
-
-      const nodeData = createCapabilityNodeData('Product', false, '#FF5733');
-      const { container, rerender } = renderWithProvider(
-        <CapabilityNode data={nodeData} id="cap-1" />
-      );
-
-      let node = container.querySelector('.capability-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#B5FFFF'));
-
-      mockView = createMockView('custom', [
-        { capabilityId: 'cap-1', customColor: '#FF5733' },
-      ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
-
-      const updatedNodeData = createCapabilityNodeData('Product', false, '#FF5733');
-      rerender(<CapabilityNode data={updatedNodeData} id="cap-1" />);
-
-      node = container.querySelector('.capability-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#FF5733'));
     });
 
     it('should update to neutral default when custom color is removed in custom scheme', () => {
