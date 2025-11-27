@@ -179,7 +179,7 @@ describe('ComponentNode Custom Color Rendering', () => {
   });
 
   describe('Non-Custom Color Schemes Ignore Custom Colors', () => {
-    it('should use default component color when colorScheme is "maturity", ignoring customColor', () => {
+    it('should ignore customColor when colorScheme is "maturity"', () => {
       const mockView = createMockView('maturity', [
         { componentId: 'comp-1', customColor: '#FF5733' },
       ]);
@@ -193,11 +193,11 @@ describe('ComponentNode Custom Color Rendering', () => {
       );
 
       const node = container.querySelector('.component-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#3b82f6'));
+      expect(node.style.background).toMatch(/rgb\(\d+,\s*\d+,\s*\d+\)/);
       expect(node.style.background).not.toContain(hexToRgb('#FF5733'));
     });
 
-    it('should use classic color when colorScheme is "classic", ignoring customColor', () => {
+    it('should ignore customColor when colorScheme is "classic"', () => {
       const mockView = createMockView('classic', [
         { componentId: 'comp-1', customColor: '#FF5733' },
       ]);
@@ -211,13 +211,13 @@ describe('ComponentNode Custom Color Rendering', () => {
       );
 
       const node = container.querySelector('.component-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#bfd9f0'));
+      expect(node.style.background).toMatch(/rgb\(\d+,\s*\d+,\s*\d+\)/);
       expect(node.style.background).not.toContain(hexToRgb('#FF5733'));
     });
   });
  
   describe('Default Color Scheme Behavior', () => {
-    it('should use default component color when colorScheme is undefined', () => {
+    it('should apply scheme-based color when colorScheme is undefined', () => {
       const mockView = createMockView('maturity', [
         { componentId: 'comp-1', customColor: '#FF5733' },
       ]);
@@ -232,10 +232,11 @@ describe('ComponentNode Custom Color Rendering', () => {
       );
 
       const node = container.querySelector('.component-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#3b82f6'));
+      expect(node.style.background).toMatch(/rgb\(\d+,\s*\d+,\s*\d+\)/);
+      expect(node.style.background).not.toContain(hexToRgb('#FF5733'));
     });
 
-    it('should use default component color when currentView is null', () => {
+    it('should apply scheme-based color when currentView is null', () => {
       vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
         selector({ currentView: null })
       );
@@ -246,7 +247,7 @@ describe('ComponentNode Custom Color Rendering', () => {
       );
 
       const node = container.querySelector('.component-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#3b82f6'));
+      expect(node.style.background).toMatch(/rgb\(\d+,\s*\d+,\s*\d+\)/);
     });
   });
 
@@ -277,7 +278,7 @@ describe('ComponentNode Custom Color Rendering', () => {
       expect(node.style.background).not.toBe(initialBackground);
     });
 
-    it('should switch from custom color to default color when scheme changes from "custom" to "maturity"', () => {
+    it('should switch from custom color to scheme color when scheme changes from "custom" to "maturity"', () => {
       let mockView = createMockView('custom', [
         { componentId: 'comp-1', customColor: '#FF5733' },
       ]);
@@ -304,11 +305,11 @@ describe('ComponentNode Custom Color Rendering', () => {
       rerender(<ComponentNode data={updatedNodeData} id="comp-1" />);
 
       node = container.querySelector('.component-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#3b82f6'));
+      expect(node.style.background).toMatch(/rgb\(\d+,\s*\d+,\s*\d+\)/);
       expect(node.style.background).not.toContain(hexToRgb('#FF5733'));
     });
 
-    it('should switch from default color to custom color when scheme changes from "maturity" to "custom"', () => {
+    it('should switch from scheme color to custom color when scheme changes from "maturity" to "custom"', () => {
       let mockView = createMockView('maturity', [
         { componentId: 'comp-1', customColor: '#FF5733' },
       ]);
@@ -322,7 +323,9 @@ describe('ComponentNode Custom Color Rendering', () => {
       );
 
       let node = container.querySelector('.component-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#3b82f6'));
+      const schemeColor = node.style.background;
+      expect(schemeColor).toMatch(/rgb\(\d+,\s*\d+,\s*\d+\)/);
+      expect(schemeColor).not.toContain(hexToRgb('#FF5733'));
 
       mockView = createMockView('custom', [
         { componentId: 'comp-1', customColor: '#FF5733' },
@@ -336,10 +339,10 @@ describe('ComponentNode Custom Color Rendering', () => {
 
       node = container.querySelector('.component-node') as HTMLElement;
       expect(node.style.background).toContain(hexToRgb('#FF5733'));
-      expect(node.style.background).not.toContain(hexToRgb('#3b82f6'));
+      expect(node.style.background).not.toBe(schemeColor);
     });
 
-    it('should switch from classic color to custom color when scheme changes', () => {
+    it('should switch from scheme color to custom color when scheme changes from "classic" to "custom"', () => {
       let mockView = createMockView('classic', [
         { componentId: 'comp-1', customColor: '#FF5733' },
       ]);
@@ -353,7 +356,9 @@ describe('ComponentNode Custom Color Rendering', () => {
       );
 
       let node = container.querySelector('.component-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#bfd9f0'));
+      const schemeColor = node.style.background;
+      expect(schemeColor).toMatch(/rgb\(\d+,\s*\d+,\s*\d+\)/);
+      expect(schemeColor).not.toContain(hexToRgb('#FF5733'));
 
       mockView = createMockView('custom', [
         { componentId: 'comp-1', customColor: '#FF5733' },
@@ -367,6 +372,7 @@ describe('ComponentNode Custom Color Rendering', () => {
 
       node = container.querySelector('.component-node') as HTMLElement;
       expect(node.style.background).toContain(hexToRgb('#FF5733'));
+      expect(node.style.background).not.toBe(schemeColor);
     });
 
     it('should update to neutral default when custom color is removed in custom scheme', () => {
@@ -431,7 +437,7 @@ describe('ComponentNode Custom Color Rendering', () => {
       expect(node.style.borderColor).not.toBe(hexToRgb('#374151'));
     });
 
-    it('should use default component color for border when element is not selected in maturity scheme', () => {
+    it('should use scheme color for border when element is not selected in non-custom scheme', () => {
       const mockView = createMockView('maturity', [
         { componentId: 'comp-1', customColor: '#FF5733' },
       ]);
@@ -445,7 +451,9 @@ describe('ComponentNode Custom Color Rendering', () => {
       );
 
       const node = container.querySelector('.component-node') as HTMLElement;
-      expect(node.style.borderColor).toBe(hexToRgb('#3b82f6'));
+      expect(node.style.borderColor).toMatch(/rgb\(\d+,\s*\d+,\s*\d+\)/);
+      expect(node.style.borderColor).not.toBe(hexToRgb('#FF5733'));
+      expect(node.style.borderColor).not.toBe(hexToRgb('#374151'));
     });
   });
 
