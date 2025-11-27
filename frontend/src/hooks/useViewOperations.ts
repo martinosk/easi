@@ -1,13 +1,14 @@
 import { useCallback } from 'react';
 import { useAppStore } from '../store/appStore';
 import apiClient from '../api/client';
+import type { ComponentId, ViewId } from '../api/types';
 import toast from 'react-hot-toast';
 
 export function useViewOperations() {
   const currentView = useAppStore((state) => state.currentView);
 
   const removeComponentFromView = useCallback(
-    async (componentId: string) => {
+    async (componentId: ComponentId) => {
       if (!currentView) {
         console.warn('No current view selected');
         return;
@@ -28,7 +29,7 @@ export function useViewOperations() {
   );
 
   const addComponentToView = useCallback(
-    async (componentId: string, x: number, y: number) => {
+    async (componentId: ComponentId, x: number, y: number) => {
       if (!currentView) {
         console.warn('No current view selected');
         return;
@@ -51,7 +52,7 @@ export function useViewOperations() {
     [currentView]
   );
 
-  const switchView = useCallback(async (viewId: string) => {
+  const switchView = useCallback(async (viewId: ViewId) => {
     const switchViewAction = useAppStore.getState().switchView;
     try {
       await switchViewAction(viewId);

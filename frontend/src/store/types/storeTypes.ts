@@ -1,9 +1,21 @@
-export type ComponentId = string;
-export type RelationId = string;
-export type ViewId = string;
-export type CapabilityId = string;
-export type DependencyId = string;
-export type RealizationId = string;
+import type {
+  ComponentId,
+  RelationId,
+  ViewId,
+  CapabilityId,
+  CapabilityDependencyId,
+  RealizationId,
+} from '../../api/types';
+
+export type {
+  ComponentId,
+  RelationId,
+  ViewId,
+  CapabilityId,
+  RealizationId,
+};
+export type DependencyId = CapabilityDependencyId;
+
 export type RelationType = 'Triggers' | 'Serves';
 export type EdgeType = string;
 export type LayoutDirection = string;

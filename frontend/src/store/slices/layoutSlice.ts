@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { Component, Relation, View, Capability, CapabilityDependency, CapabilityRealization, ViewComponent } from '../../api/types';
-import type { ComponentId, Position, EdgeType, LayoutDirection } from '../types/storeTypes';
+import type { ComponentId, CapabilityId, Position, EdgeType, LayoutDirection } from '../types/storeTypes';
 import apiClient from '../../api/client';
 import { handleApiCall, optimisticUpdate } from '../utils/apiHelpers';
 import toast from 'react-hot-toast';
@@ -30,7 +30,7 @@ interface LayoutNode {
   id: string;
   type?: string;
   position: Position;
-  data?: { label: string; description?: string };
+  data: { label: string; description?: string };
 }
 
 interface LayoutEdge {
@@ -124,8 +124,8 @@ function buildCapabilityParentEdges(
 
       return {
         id: `parent-${capability.id}`,
-        source: capability.parentId,
-        target: capability.id,
+        source: capability.parentId as string,
+        target: capability.id as string,
       };
     })
     .filter((edge): edge is LayoutEdge => edge !== null);
@@ -166,21 +166,21 @@ function buildRealizationEdges(
     }));
 }
 
-function extractComponentPositions(layoutedNodes: LayoutNode[]): Array<{ componentId: string; x: number; y: number }> {
+function extractComponentPositions(layoutedNodes: LayoutNode[]): Array<{ componentId: ComponentId; x: number; y: number }> {
   return layoutedNodes
     .filter((node) => node.type === 'component')
     .map((node) => ({
-      componentId: node.id,
+      componentId: node.id as ComponentId,
       x: node.position.x,
       y: node.position.y,
     }));
 }
 
-function extractCapabilityPositions(layoutedNodes: LayoutNode[]): Array<{ capabilityId: string; x: number; y: number }> {
+function extractCapabilityPositions(layoutedNodes: LayoutNode[]): Array<{ capabilityId: CapabilityId; x: number; y: number }> {
   return layoutedNodes
     .filter((node) => node.type === 'capability')
     .map((node) => ({
-      capabilityId: node.id,
+      capabilityId: node.id as CapabilityId,
       x: node.position.x,
       y: node.position.y,
     }));
@@ -317,7 +317,7 @@ export const createLayoutSlice: StateCreator<
 
       const layoutedNodes = calculateDagreLayout(nodes, edges, {
         direction: (currentView.layoutDirection as 'TB' | 'LR' | 'BT' | 'RL') || 'TB',
-      });
+      }) as LayoutNode[];
 
       const componentPositions = extractComponentPositions(layoutedNodes);
       const capabilityPositionUpdates = extractCapabilityPositions(layoutedNodes);

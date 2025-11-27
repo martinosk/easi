@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useAppStore } from '../store/appStore';
 import type { ComponentCanvasRef } from '../features/canvas/components/ComponentCanvas';
+import type { ComponentId, CapabilityId } from '../api/types';
 
 export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRef | null>) {
   const currentView = useAppStore((state) => state.currentView);
@@ -15,7 +16,7 @@ export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRe
       );
 
       if (isInCurrentView) {
-        selectNode(componentId);
+        selectNode(componentId as ComponentId);
         canvasRef.current?.centerOnNode(componentId);
       }
     },
@@ -29,7 +30,7 @@ export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRe
       );
 
       if (isOnCanvas) {
-        selectCapability(capabilityId);
+        selectCapability(capabilityId as CapabilityId);
         selectNode(null);
         canvasRef.current?.centerOnNode(`cap-${capabilityId}`);
       }

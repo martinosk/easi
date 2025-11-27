@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import type { Connection } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
+import type { ComponentId, CapabilityId } from '../../../api/types';
 import toast from 'react-hot-toast';
 
 const CAPABILITY_PREFIX = 'cap-';
@@ -31,8 +32,8 @@ export const useCanvasConnection = (
 
   const handleCapabilityParentConnection = useCallback(
     async (source: string, target: string) => {
-      const parentId = extractCapabilityId(target);
-      const childId = extractCapabilityId(source);
+      const parentId = extractCapabilityId(target) as CapabilityId;
+      const childId = extractCapabilityId(source) as CapabilityId;
 
       try {
         await changeCapabilityParent(childId, parentId);
@@ -48,10 +49,10 @@ export const useCanvasConnection = (
 
   const handleMixedConnection = useCallback(
     async (source: string, target: string, sourceIsCapability: boolean) => {
-      const capabilityId = sourceIsCapability
+      const capabilityId = (sourceIsCapability
         ? extractCapabilityId(source)
-        : extractCapabilityId(target);
-      const componentId = sourceIsCapability ? target : source;
+        : extractCapabilityId(target)) as CapabilityId;
+      const componentId = (sourceIsCapability ? target : source) as ComponentId;
 
       try {
         await linkSystemToCapability(capabilityId, {

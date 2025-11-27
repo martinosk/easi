@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand';
-import type { CapabilityId } from '../types/storeTypes';
+import type { CapabilityId, ViewId } from '../types/storeTypes';
 import type { View } from '../../api/types';
 import apiClient from '../../api/client';
 
@@ -25,7 +25,7 @@ export interface CanvasCapabilityActions {
   selectCapability: (capabilityId: CapabilityId | null) => void;
   clearCanvasCapabilities: () => void;
   syncCanvasCapabilitiesFromView: (view: View) => void;
-  updateCapabilityColor: (viewId: string, capabilityId: string, color: string) => Promise<void>;
+  updateCapabilityColor: (viewId: ViewId, capabilityId: CapabilityId, color: string) => Promise<void>;
 }
 
 export const createCanvasCapabilitySlice: StateCreator<
@@ -109,7 +109,7 @@ export const createCanvasCapabilitySlice: StateCreator<
     set({ canvasCapabilities: capabilities, selectedCapabilityId: null });
   },
 
-  updateCapabilityColor: async (viewId: string, capabilityId: string, color: string) => {
+  updateCapabilityColor: async (viewId: ViewId, capabilityId: CapabilityId, color: string) => {
     const { currentView } = get();
     if (!currentView) return;
 

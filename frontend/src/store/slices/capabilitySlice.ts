@@ -11,7 +11,7 @@ import type {
   LinkSystemToCapabilityRequest,
   UpdateRealizationRequest,
 } from '../../api/types';
-import type { CapabilityId, DependencyId, RealizationId } from '../types/storeTypes';
+import type { CapabilityId, DependencyId, RealizationId, ComponentId } from '../types/storeTypes';
 import apiClient from '../../api/client';
 import { handleApiCall } from '../utils/apiHelpers';
 import toast from 'react-hot-toast';
@@ -52,7 +52,7 @@ export interface CapabilityActions {
   updateRealization: (id: RealizationId, data: UpdateRealizationRequest) => Promise<CapabilityRealization>;
   deleteRealization: (id: RealizationId) => Promise<void>;
   loadRealizationsByCapability: (capabilityId: CapabilityId) => Promise<CapabilityRealization[]>;
-  loadRealizationsByComponent: (componentId: string) => Promise<CapabilityRealization[]>;
+  loadRealizationsByComponent: (componentId: ComponentId) => Promise<CapabilityRealization[]>;
 }
 
 export const createCapabilitySlice: StateCreator<
@@ -212,7 +212,7 @@ export const createCapabilitySlice: StateCreator<
     return realizations;
   },
 
-  loadRealizationsByComponent: async (componentId: string) => {
+  loadRealizationsByComponent: async (componentId: ComponentId) => {
     const realizations = await handleApiCall(
       () => apiClient.getCapabilitiesByComponent(componentId),
       'Failed to load realizations'

@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { Component, View, Relation } from '../../api/types';
-import type { ComponentId, ComponentData, Position } from '../types/storeTypes';
+import type { ComponentId, ComponentData, Position, ViewId } from '../types/storeTypes';
 import apiClient from '../../api/client';
 import { handleApiCall } from '../utils/apiHelpers';
 import toast from 'react-hot-toast';
@@ -14,8 +14,8 @@ export interface ComponentActions {
   createComponent: (data: ComponentData) => Promise<Component>;
   updateComponent: (id: ComponentId, data: ComponentData) => Promise<Component>;
   deleteComponent: (id: ComponentId) => Promise<void>;
-  updateComponentColor: (viewId: string, componentId: string, color: string) => Promise<void>;
-  clearComponentColor: (viewId: string, componentId: string) => Promise<void>;
+  updateComponentColor: (viewId: ViewId, componentId: ComponentId, color: string) => Promise<void>;
+  clearComponentColor: (viewId: ViewId, componentId: ComponentId) => Promise<void>;
 }
 
 type StoreWithDependencies = ComponentState & {
@@ -104,7 +104,7 @@ export const createComponentSlice: StateCreator<
     }
   },
 
-  updateComponentColor: async (viewId: string, componentId: string, color: string) => {
+  updateComponentColor: async (viewId: ViewId, componentId: ComponentId, color: string) => {
     const { currentView } = get();
     if (!currentView) return;
 
@@ -133,7 +133,7 @@ export const createComponentSlice: StateCreator<
     }
   },
 
-  clearComponentColor: async (viewId: string, componentId: string) => {
+  clearComponentColor: async (viewId: ViewId, componentId: ComponentId) => {
     const { currentView } = get();
     if (!currentView) return;
 

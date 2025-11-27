@@ -87,7 +87,7 @@ export const AddTagDialog: React.FC<AddTagDialogProps> = ({
     setIsAdding(true);
 
     try {
-      await addCapabilityTag(capabilityId, form.tag.trim());
+      await addCapabilityTag(capabilityId as import('../../../api/types').CapabilityId, form.tag.trim());
 
       handleClose();
     } catch (err) {

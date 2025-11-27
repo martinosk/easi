@@ -85,7 +85,7 @@ export function useDialogManagement(
 
   const openEditComponentDialog = useCallback((componentId?: string) => {
     if (componentId) {
-      selectNode(componentId);
+      selectNode(componentId as import('../api/types').ComponentId);
       const component = getComponents().components.find((c) => c.id === componentId);
       setEditComponentTarget(component || null);
     }

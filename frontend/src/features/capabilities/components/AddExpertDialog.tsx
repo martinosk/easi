@@ -103,7 +103,7 @@ export const AddExpertDialog: React.FC<AddExpertDialogProps> = ({
     setIsAdding(true);
 
     try {
-      await addCapabilityExpert(capabilityId, {
+      await addCapabilityExpert(capabilityId as import('../../../api/types').CapabilityId, {
         expertName: form.name.trim(),
         expertRole: form.role.trim(),
         contactInfo: form.contact.trim(),

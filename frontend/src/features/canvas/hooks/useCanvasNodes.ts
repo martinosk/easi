@@ -1,7 +1,8 @@
 import { useMemo, useEffect } from 'react';
 import type { Node } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
-import type { Component, View, Capability, ViewCapability, CanvasCapability } from '../../../api/types';
+import type { Component, View, Capability, ViewCapability } from '../../../api/types';
+import type { CanvasCapability } from '../../../store/slices/canvasCapabilitySlice';
 
 interface Position {
   x: number;

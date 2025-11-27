@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAppStore } from '../../../store/appStore';
 import apiClient from '../../../api/client';
-import type { View, Component, Capability } from '../../../api/types';
+import type { View, Component, Capability, ViewId, ComponentId } from '../../../api/types';
 import { ContextMenu } from '../../../components/shared/ContextMenu';
 import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
@@ -129,7 +129,7 @@ interface NavigationTreeProps {
 interface ViewContextMenuState {
   x: number;
   y: number;
-  viewId: string;
+  viewId: ViewId;
   viewName: string;
   isDefault: boolean;
 }
@@ -137,7 +137,7 @@ interface ViewContextMenuState {
 interface ComponentContextMenuState {
   x: number;
   y: number;
-  componentId: string;
+  componentId: ComponentId;
   componentName: string;
 }
 
@@ -148,8 +148,8 @@ interface CapabilityContextMenuState {
 }
 
 interface EditingState {
-  viewId?: string;
-  componentId?: string;
+  viewId?: ViewId;
+  componentId?: ComponentId;
   name: string;
 }
 
@@ -186,11 +186,11 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   const [componentContextMenu, setComponentContextMenu] = useState<ComponentContextMenuState | null>(null);
   const [capabilityContextMenu, setCapabilityContextMenu] = useState<CapabilityContextMenuState | null>(null);
   const [editingState, setEditingState] = useState<EditingState | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{
-    type: 'view' | 'component';
-    id: string;
-    name: string;
-  } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<
+    | { type: 'view'; id: ViewId; name: string }
+    | { type: 'component'; id: ComponentId; name: string }
+    | null
+  >(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createViewName, setCreateViewName] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);

@@ -64,10 +64,10 @@ function App() {
         onAddComponent={dialogActions.openComponentDialog}
         onAddCapability={dialogActions.openCapabilityDialog}
         onConnect={dialogActions.openRelationDialog}
-        onComponentDrop={addComponentToView}
+        onComponentDrop={(id, x, y) => addComponentToView(id as import('./api/types').ComponentId, x, y)}
         onComponentSelect={navigateToComponent}
         onCapabilitySelect={navigateToCapability}
-        onViewSelect={switchView}
+        onViewSelect={(id) => switchView(id as import('./api/types').ViewId)}
         onEditComponent={dialogActions.openEditComponentDialog}
         onEditRelation={dialogActions.openEditRelationDialog}
         onEditCapability={dialogActions.openEditCapabilityDialog}

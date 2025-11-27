@@ -1,6 +1,7 @@
 import { ContextMenu, type ContextMenuItem } from '../../../../components/shared/ContextMenu';
 import { useAppStore } from '../../../../store/appStore';
 import type { NodeContextMenu as NodeContextMenuType } from '../../hooks/useContextMenu';
+import type { CapabilityId, ComponentId } from '../../../../api/types';
 
 interface NodeContextMenuProps {
   menu: NodeContextMenuType | null;
@@ -24,7 +25,7 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete }: NodeContextM
         {
           label: 'Remove from View',
           onClick: () => {
-            removeCapabilityFromCanvas(menu.nodeId);
+            removeCapabilityFromCanvas(menu.nodeId as CapabilityId);
             onClose();
           },
         },
@@ -48,7 +49,7 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete }: NodeContextM
       {
         label: 'Remove from View',
         onClick: () => {
-          removeComponentFromView(menu.nodeId);
+          removeComponentFromView(menu.nodeId as ComponentId);
           onClose();
         },
       },

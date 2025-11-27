@@ -70,8 +70,8 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
 
     try {
       await createRelation({
-        sourceComponentId,
-        targetComponentId,
+        sourceComponentId: sourceComponentId as import('../../../api/types').ComponentId,
+        targetComponentId: targetComponentId as import('../../../api/types').ComponentId,
         relationType,
         name: name.trim() || undefined,
         description: description.trim() || undefined,

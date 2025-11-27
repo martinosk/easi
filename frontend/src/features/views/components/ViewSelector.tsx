@@ -14,7 +14,7 @@ export const ViewSelector: React.FC = () => {
 
   const handleViewClick = async (viewId: string) => {
     if (currentView?.id !== viewId) {
-      await switchView(viewId);
+      await switchView(viewId as import('../../../api/types').ViewId);
     }
   };
 

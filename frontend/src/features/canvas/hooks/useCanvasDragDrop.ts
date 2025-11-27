@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import type { ReactFlowInstance } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
+import type { CapabilityId } from '../../../api/types';
 
 export const useCanvasDragDrop = (
   reactFlowInstance: ReactFlowInstance | null,
@@ -31,7 +32,7 @@ export const useCanvasDragDrop = (
       if (componentId && onComponentDrop) {
         onComponentDrop(componentId, position.x, position.y);
       } else if (capabilityId) {
-        addCapabilityToCanvas(capabilityId, position.x, position.y);
+        addCapabilityToCanvas(capabilityId as CapabilityId, position.x, position.y);
       }
     },
     [onComponentDrop, reactFlowInstance, addCapabilityToCanvas]
