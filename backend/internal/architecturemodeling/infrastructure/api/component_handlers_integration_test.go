@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -86,6 +87,51 @@ func (ctx *testContext) trackID(id string) {
 	ctx.createdIDs = append(ctx.createdIDs, id)
 }
 
+func (ctx *testContext) makeRequest(t *testing.T, method, url string, body []byte, urlParams map[string]string) (*httptest.ResponseRecorder, *http.Request) {
+	var bodyReader io.Reader
+	if body != nil {
+		bodyReader = bytes.NewReader(body)
+	}
+
+	req := httptest.NewRequest(method, url, bodyReader)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	req = withTestTenant(req)
+
+	if len(urlParams) > 0 {
+		rctx := chi.NewRouteContext()
+		for key, value := range urlParams {
+			rctx.URLParams.Add(key, value)
+		}
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	}
+
+	return httptest.NewRecorder(), req
+}
+
+func (ctx *testContext) createComponentViaAPI(t *testing.T, handlers *ComponentHandlers, name, description string) string {
+	reqBody := CreateApplicationComponentRequest{
+		Name:        name,
+		Description: description,
+	}
+	body, _ := json.Marshal(reqBody)
+
+	w, req := ctx.makeRequest(t, http.MethodPost, "/api/v1/components", body, nil)
+	handlers.CreateApplicationComponent(w, req)
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	ctx.setTenantContext(t)
+	var componentID string
+	err := ctx.db.QueryRow(
+		"SELECT aggregate_id FROM events WHERE event_type = 'ApplicationComponentCreated' ORDER BY created_at DESC LIMIT 1",
+	).Scan(&componentID)
+	require.NoError(t, err)
+	ctx.trackID(componentID)
+
+	return componentID
+}
+
 // createTestComponent creates a component directly in the read model for testing
 func (ctx *testContext) createTestComponent(t *testing.T, id, name, description string) {
 	ctx.setTenantContext(t)
@@ -143,35 +189,12 @@ func TestCreateComponent_Integration(t *testing.T) {
 
 	handlers, readModel := setupHandlers(testCtx.db)
 
-	// Create component via API
-	reqBody := CreateApplicationComponentRequest{
-		Name:        "User Service",
-		Description: "Handles user authentication and authorization",
-	}
-	body, _ := json.Marshal(reqBody)
+	aggregateID := testCtx.createComponentViaAPI(t, handlers, "User Service", "Handles user authentication and authorization")
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/components", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	handlers.CreateApplicationComponent(w, req)
-
-	// Assert HTTP response
-	assert.Equal(t, http.StatusCreated, w.Code)
-
-	// Get the created aggregate ID from the event store
 	testCtx.setTenantContext(t)
-	var aggregateID string
-	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ApplicationComponentCreated' ORDER BY created_at DESC LIMIT 1",
-	).Scan(&aggregateID)
-	require.NoError(t, err)
-	testCtx.trackID(aggregateID)
-
 	// Verify event data contains expected values
 	var eventData string
-	err = testCtx.db.QueryRow(
+	err := testCtx.db.QueryRow(
 		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'ApplicationComponentCreated'",
 		aggregateID,
 	).Scan(&eventData)
@@ -269,15 +292,10 @@ func TestGetComponentByID_NotFound_Integration(t *testing.T) {
 
 	handlers, _ := setupHandlers(testCtx.db)
 
-	// Test GET non-existent component with unique ID to avoid collisions
 	nonExistentID := fmt.Sprintf("non-existent-%d", time.Now().UnixNano())
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/components/"+nonExistentID, nil)
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", nonExistentID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	w, req := testCtx.makeRequest(t, http.MethodGet, "/api/v1/components/"+nonExistentID, nil, map[string]string{
+		"id": nonExistentID,
+	})
 
 	handlers.GetComponentByID(w, req)
 
@@ -290,21 +308,15 @@ func TestCreateComponent_ValidationError_Integration(t *testing.T) {
 
 	handlers, _ := setupHandlers(testCtx.db)
 
-	// Create component with empty name (should fail validation)
 	reqBody := CreateApplicationComponentRequest{
 		Name:        "",
 		Description: "Some description",
 	}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/components", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
+	w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/components", body, nil)
 	handlers.CreateApplicationComponent(w, req)
 
-	// Assert validation error
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
 	// Verify no event was created in our test's scope
@@ -502,46 +514,20 @@ func TestDeleteComponent_Integration(t *testing.T) {
 
 	handlers, _ := setupHandlers(testCtx.db)
 
-	createReqBody := CreateApplicationComponentRequest{
-		Name:        "Component To Delete",
-		Description: "This will be deleted",
-	}
-	createBody, _ := json.Marshal(createReqBody)
-
-	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/components", bytes.NewReader(createBody))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq = withTestTenant(createReq)
-	createW := httptest.NewRecorder()
-
-	handlers.CreateApplicationComponent(createW, createReq)
-	assert.Equal(t, http.StatusCreated, createW.Code)
-
-	testCtx.setTenantContext(t)
-	var componentID string
-	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ApplicationComponentCreated' ORDER BY created_at DESC LIMIT 1",
-	).Scan(&componentID)
-	require.NoError(t, err)
-	testCtx.trackID(componentID)
+	componentID := testCtx.createComponentViaAPI(t, handlers, "Component To Delete", "This will be deleted")
 
 	time.Sleep(100 * time.Millisecond)
 
-	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/components/"+componentID, nil)
-	deleteReq = withTestTenant(deleteReq)
-	deleteReq = deleteReq.WithContext(context.WithValue(deleteReq.Context(), chi.RouteCtxKey, &chi.Context{
-		URLParams: chi.RouteParams{
-			Keys:   []string{"id"},
-			Values: []string{componentID},
-		},
-	}))
-	deleteW := httptest.NewRecorder()
+	w, req := testCtx.makeRequest(t, http.MethodDelete, "/api/v1/components/"+componentID, nil, map[string]string{
+		"id": componentID,
+	})
+	handlers.DeleteApplicationComponent(w, req)
 
-	handlers.DeleteApplicationComponent(deleteW, deleteReq)
+	assert.Equal(t, http.StatusNoContent, w.Code)
 
-	assert.Equal(t, http.StatusNoContent, deleteW.Code)
-
+	testCtx.setTenantContext(t)
 	var deleteEventData string
-	err = testCtx.db.QueryRow(
+	err := testCtx.db.QueryRow(
 		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'ApplicationComponentDeleted'",
 		componentID,
 	).Scan(&deleteEventData)
@@ -566,22 +552,16 @@ func TestDeleteComponent_NotFound_Integration(t *testing.T) {
 	handlers, _ := setupHandlers(testCtx.db)
 
 	nonExistentID := "00000000-0000-0000-0000-000000000000"
-	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/components/"+nonExistentID, nil)
-	deleteReq = withTestTenant(deleteReq)
-	deleteReq = deleteReq.WithContext(context.WithValue(deleteReq.Context(), chi.RouteCtxKey, &chi.Context{
-		URLParams: chi.RouteParams{
-			Keys:   []string{"id"},
-			Values: []string{nonExistentID},
-		},
-	}))
-	deleteW := httptest.NewRecorder()
+	w, req := testCtx.makeRequest(t, http.MethodDelete, "/api/v1/components/"+nonExistentID, nil, map[string]string{
+		"id": nonExistentID,
+	})
 
-	handlers.DeleteApplicationComponent(deleteW, deleteReq)
+	handlers.DeleteApplicationComponent(w, req)
 
-	if deleteW.Code != http.StatusNotFound {
-		t.Logf("Response body: %s", deleteW.Body.String())
+	if w.Code != http.StatusNotFound {
+		t.Logf("Response body: %s", w.Body.String())
 	}
-	assert.Equal(t, http.StatusNotFound, deleteW.Code)
+	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
 func TestDeleteComponent_Idempotent_Integration(t *testing.T) {
@@ -590,55 +570,21 @@ func TestDeleteComponent_Idempotent_Integration(t *testing.T) {
 
 	handlers, _ := setupHandlers(testCtx.db)
 
-	createReqBody := CreateApplicationComponentRequest{
-		Name:        "Idempotent Delete Test",
-		Description: "Testing idempotent deletion",
-	}
-	createBody, _ := json.Marshal(createReqBody)
-
-	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/components", bytes.NewReader(createBody))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq = withTestTenant(createReq)
-	createW := httptest.NewRecorder()
-
-	handlers.CreateApplicationComponent(createW, createReq)
-	assert.Equal(t, http.StatusCreated, createW.Code)
-
-	testCtx.setTenantContext(t)
-	var componentID string
-	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ApplicationComponentCreated' ORDER BY created_at DESC LIMIT 1",
-	).Scan(&componentID)
-	require.NoError(t, err)
-	testCtx.trackID(componentID)
+	componentID := testCtx.createComponentViaAPI(t, handlers, "Idempotent Delete Test", "Testing idempotent deletion")
 
 	time.Sleep(100 * time.Millisecond)
 
-	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/components/"+componentID, nil)
-	deleteReq = withTestTenant(deleteReq)
-	deleteReq = deleteReq.WithContext(context.WithValue(deleteReq.Context(), chi.RouteCtxKey, &chi.Context{
-		URLParams: chi.RouteParams{
-			Keys:   []string{"id"},
-			Values: []string{componentID},
-		},
-	}))
-	deleteW := httptest.NewRecorder()
-
-	handlers.DeleteApplicationComponent(deleteW, deleteReq)
-	assert.Equal(t, http.StatusNoContent, deleteW.Code)
+	w, req := testCtx.makeRequest(t, http.MethodDelete, "/api/v1/components/"+componentID, nil, map[string]string{
+		"id": componentID,
+	})
+	handlers.DeleteApplicationComponent(w, req)
+	assert.Equal(t, http.StatusNoContent, w.Code)
 
 	time.Sleep(100 * time.Millisecond)
 
-	deleteReq2 := httptest.NewRequest(http.MethodDelete, "/api/v1/components/"+componentID, nil)
-	deleteReq2 = withTestTenant(deleteReq2)
-	deleteReq2 = deleteReq2.WithContext(context.WithValue(deleteReq2.Context(), chi.RouteCtxKey, &chi.Context{
-		URLParams: chi.RouteParams{
-			Keys:   []string{"id"},
-			Values: []string{componentID},
-		},
-	}))
-	deleteW2 := httptest.NewRecorder()
-
-	handlers.DeleteApplicationComponent(deleteW2, deleteReq2)
-	assert.Equal(t, http.StatusNoContent, deleteW2.Code)
+	w2, req2 := testCtx.makeRequest(t, http.MethodDelete, "/api/v1/components/"+componentID, nil, map[string]string{
+		"id": componentID,
+	})
+	handlers.DeleteApplicationComponent(w2, req2)
+	assert.Equal(t, http.StatusNoContent, w2.Code)
 }

@@ -3,10 +3,15 @@
 package api
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
+	"testing"
 
+	"github.com/go-chi/chi/v5"
 	sharedcontext "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/domain/valueobjects"
 )
@@ -29,4 +34,27 @@ func testTenantID() string {
 
 func tenantContext() context.Context {
 	return sharedcontext.WithTenant(context.Background(), sharedvo.DefaultTenantID())
+}
+
+func makeRequest(t *testing.T, method, url string, body []byte, urlParams map[string]string) (*httptest.ResponseRecorder, *http.Request) {
+	var bodyReader io.Reader
+	if body != nil {
+		bodyReader = bytes.NewReader(body)
+	}
+
+	req := httptest.NewRequest(method, url, bodyReader)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	req = withTestTenant(req)
+
+	if len(urlParams) > 0 {
+		rctx := chi.NewRouteContext()
+		for key, value := range urlParams {
+			rctx.URLParams.Add(key, value)
+		}
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	}
+
+	return httptest.NewRecorder(), req
 }

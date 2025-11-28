@@ -4,7 +4,6 @@ package api
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -22,7 +21,6 @@ import (
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
-	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -111,15 +109,9 @@ func TestChangeCapabilityParent_SuccessfullyChangeParent_Integration(t *testing.
 	}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/capabilities/"+childID+"/parent", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", childID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
+	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+childID+"/parent", body, map[string]string{
+		"id": childID,
+	})
 	h.ChangeCapabilityParent(w, req)
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
@@ -151,15 +143,9 @@ func TestChangeCapabilityParent_MakeCapabilityRoot_Integration(t *testing.T) {
 	}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/capabilities/"+childID+"/parent", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", childID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
+	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+childID+"/parent", body, map[string]string{
+		"id": childID,
+	})
 	h.ChangeCapabilityParent(w, req)
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
@@ -200,15 +186,9 @@ func TestChangeCapabilityParent_LevelAutoCalculation_Integration(t *testing.T) {
 	}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/capabilities/"+l1ID+"/parent", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", l1ID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
+	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+l1ID+"/parent", body, map[string]string{
+		"id": l1ID,
+	})
 	h.ChangeCapabilityParent(w, req)
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
@@ -237,15 +217,9 @@ func TestChangeCapabilityParent_RejectSelfReference_Integration(t *testing.T) {
 	}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/capabilities/"+capabilityID+"/parent", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", capabilityID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
+	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+capabilityID+"/parent", body, map[string]string{
+		"id": capabilityID,
+	})
 	h.ChangeCapabilityParent(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -273,15 +247,9 @@ func TestChangeCapabilityParent_RejectCircularReference_Integration(t *testing.T
 	}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/capabilities/"+l1ID+"/parent", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", l1ID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
+	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+l1ID+"/parent", body, map[string]string{
+		"id": l1ID,
+	})
 	h.ChangeCapabilityParent(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -315,15 +283,9 @@ func TestChangeCapabilityParent_RejectL5PlusHierarchy_Integration(t *testing.T) 
 	}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/capabilities/"+anotherL1ID+"/parent", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", anotherL1ID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
+	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+anotherL1ID+"/parent", body, map[string]string{
+		"id": anotherL1ID,
+	})
 	h.ChangeCapabilityParent(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -357,15 +319,9 @@ func TestChangeCapabilityParent_RejectL5PlusHierarchyWithSubtree_Integration(t *
 	}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/capabilities/"+targetL1ID+"/parent", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", targetL1ID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
+	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+targetL1ID+"/parent", body, map[string]string{
+		"id": targetL1ID,
+	})
 	h.ChangeCapabilityParent(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -389,15 +345,9 @@ func TestChangeCapabilityParent_NonExistentCapability_Integration(t *testing.T) 
 	}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/capabilities/"+nonExistentID+"/parent", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", nonExistentID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
+	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+nonExistentID+"/parent", body, map[string]string{
+		"id": nonExistentID,
+	})
 	h.ChangeCapabilityParent(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
@@ -421,15 +371,9 @@ func TestChangeCapabilityParent_NonExistentParent_Integration(t *testing.T) {
 	}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/capabilities/"+capabilityID+"/parent", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", capabilityID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
+	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+capabilityID+"/parent", body, map[string]string{
+		"id": capabilityID,
+	})
 	h.ChangeCapabilityParent(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
@@ -457,15 +401,9 @@ func TestChangeCapabilityParent_DescendantLevelsUpdated_Integration(t *testing.T
 	}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/capabilities/"+l2ID+"/parent", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", l2ID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
+	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+l2ID+"/parent", body, map[string]string{
+		"id": l2ID,
+	})
 	h.ChangeCapabilityParent(w, req)
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
