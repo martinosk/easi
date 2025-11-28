@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -104,6 +105,64 @@ func (ctx *viewTestContext) addTestComponentToView(t *testing.T, viewID, compone
 		viewID, componentID, x, y, testTenantID(),
 	)
 	require.NoError(t, err)
+}
+
+func (ctx *viewTestContext) makeRequest(t *testing.T, method, url string, body []byte, urlParams map[string]string) (*httptest.ResponseRecorder, *http.Request) {
+	var bodyReader io.Reader
+	if body != nil {
+		bodyReader = bytes.NewReader(body)
+	}
+
+	req := httptest.NewRequest(method, url, bodyReader)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	req = withTestTenant(req)
+
+	if len(urlParams) > 0 {
+		rctx := chi.NewRouteContext()
+		for key, value := range urlParams {
+			rctx.URLParams.Add(key, value)
+		}
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	}
+
+	return httptest.NewRecorder(), req
+}
+
+func (ctx *viewTestContext) createViewViaAPI(t *testing.T, handlers *ViewHandlers, name, description string) string {
+	reqBody := CreateViewRequest{
+		Name:        name,
+		Description: description,
+	}
+	body, _ := json.Marshal(reqBody)
+
+	w, req := ctx.makeRequest(t, http.MethodPost, "/api/v1/views", body, nil)
+	handlers.CreateView(w, req)
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	ctx.setTenantContext(t)
+	var viewID string
+	err := ctx.db.QueryRow(
+		"SELECT aggregate_id FROM events WHERE event_type = 'ViewCreated' ORDER BY created_at DESC LIMIT 1",
+	).Scan(&viewID)
+	require.NoError(t, err)
+	ctx.trackID(viewID)
+
+	return viewID
+}
+
+func (ctx *viewTestContext) addComponentViaAPI(t *testing.T, handlers *ViewHandlers, viewID, componentID string, x, y float64) {
+	reqBody := AddComponentRequest{
+		ComponentID: componentID,
+		X:           x,
+		Y:           y,
+	}
+	body, _ := json.Marshal(reqBody)
+
+	w, req := ctx.makeRequest(t, http.MethodPost, "/api/v1/views/"+viewID+"/components", body, map[string]string{"id": viewID})
+	handlers.AddComponentToView(w, req)
+	require.Equal(t, http.StatusCreated, w.Code)
 }
 
 func setupViewHandlers(db *sql.DB) (*ViewHandlers, *readmodels.ArchitectureViewReadModel) {
@@ -209,36 +268,42 @@ func TestCreateView_Integration(t *testing.T) {
 	assert.Equal(t, "Overall system architecture view", view.Description)
 }
 
-func TestCreateView_ValidationError_Integration(t *testing.T) {
-	testCtx, cleanup := setupViewTestDB(t)
-	defer cleanup()
-
-	handlers, _ := setupViewHandlers(testCtx.db)
-
-	// Create view with empty name (should fail validation)
-	reqBody := CreateViewRequest{
-		Name:        "",
-		Description: "Some description",
+func TestCreateView_ValidationErrors_Integration(t *testing.T) {
+	testCases := []struct {
+		name        string
+		viewName    string
+		description string
+	}{
+		{"EmptyName", "", "Some description"},
+		{"NameTooLong", "This is a view name that is one hundred and one characters long and should fail the validation tests!", "Some description"},
 	}
-	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/views", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			testCtx, cleanup := setupViewTestDB(t)
+			defer cleanup()
 
-	handlers.CreateView(w, req)
+			handlers, _ := setupViewHandlers(testCtx.db)
 
-	// Assert validation error
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+			reqBody := CreateViewRequest{
+				Name:        tc.viewName,
+				Description: tc.description,
+			}
+			body, _ := json.Marshal(reqBody)
 
-	// Verify no ViewCreated event was created
-	var count int
-	err := testCtx.db.QueryRow(
-		"SELECT COUNT(*) FROM events WHERE event_type = 'ViewCreated' AND created_at > NOW() - INTERVAL '2 seconds'",
-	).Scan(&count)
-	require.NoError(t, err)
-	assert.Equal(t, 0, count, "No ViewCreated events should be created for invalid request")
+			w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/views", body, nil)
+			handlers.CreateView(w, req)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+
+			var count int
+			err := testCtx.db.QueryRow(
+				"SELECT COUNT(*) FROM events WHERE event_type = 'ViewCreated' AND created_at > NOW() - INTERVAL '2 seconds'",
+			).Scan(&count)
+			require.NoError(t, err)
+			assert.Equal(t, 0, count, "No ViewCreated events should be created for invalid request")
+		})
+	}
 }
 
 func TestGetAllViews_Integration(t *testing.T) {
@@ -286,26 +351,15 @@ func TestGetViewByID_Integration(t *testing.T) {
 
 	handlers, _ := setupViewHandlers(testCtx.db)
 
-	// Create test data with unique IDs
 	viewID := fmt.Sprintf("test-view-%d", time.Now().UnixNano())
 	testCtx.createTestView(t, viewID, "Test View", "Test Description")
 
-	// Add some components to the view
 	comp1 := fmt.Sprintf("comp-1-%d", time.Now().UnixNano())
 	comp2 := fmt.Sprintf("comp-2-%d", time.Now().UnixNano())
 	testCtx.addTestComponentToView(t, viewID, comp1, 100.0, 200.0)
 	testCtx.addTestComponentToView(t, viewID, comp2, 300.0, 400.0)
 
-	// Test GET by ID
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/views/"+viewID, nil)
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	// Add URL param using chi context
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", viewID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
+	w, req := testCtx.makeRequest(t, http.MethodGet, "/api/v1/views/"+viewID, nil, map[string]string{"id": viewID})
 	handlers.GetViewByID(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -327,16 +381,8 @@ func TestGetViewByID_NotFound_Integration(t *testing.T) {
 
 	handlers, _ := setupViewHandlers(testCtx.db)
 
-	// Test GET non-existent view with unique ID
 	nonExistentID := fmt.Sprintf("non-existent-%d", time.Now().UnixNano())
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/views/"+nonExistentID, nil)
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", nonExistentID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
+	w, req := testCtx.makeRequest(t, http.MethodGet, "/api/v1/views/"+nonExistentID, nil, map[string]string{"id": nonExistentID})
 	handlers.GetViewByID(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
@@ -348,58 +394,26 @@ func TestAddComponentToView_Integration(t *testing.T) {
 
 	viewHandlers, _ := setupViewHandlers(testCtx.db)
 
-	// First create a view via event sourcing
-	createReqBody := CreateViewRequest{
-		Name:        "Test View",
-		Description: "Test Description",
-	}
-	createBody, _ := json.Marshal(createReqBody)
-	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/views", bytes.NewReader(createBody))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq = withTestTenant(createReq)
-	createW := httptest.NewRecorder()
-	viewHandlers.CreateView(createW, createReq)
-	require.Equal(t, http.StatusCreated, createW.Code)
+	viewID := testCtx.createViewViaAPI(t, viewHandlers, "Test View", "Test Description")
 
-	// Get the view ID from event store
-	testCtx.setTenantContext(t)
-	var viewID string
-	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ViewCreated' ORDER BY created_at DESC LIMIT 1",
-	).Scan(&viewID)
-	require.NoError(t, err)
-	testCtx.trackID(viewID)
-
-	// Add component to view with unique component ID
 	componentID := fmt.Sprintf("comp-%d", time.Now().UnixNano())
-	addReqBody := AddComponentRequest{
+	reqBody := AddComponentRequest{
 		ComponentID: componentID,
 		X:           150.5,
 		Y:           250.5,
 	}
-	addBody, _ := json.Marshal(addReqBody)
+	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/views/"+viewID+"/components", bytes.NewReader(addBody))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	// Add URL param using chi context
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", viewID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
+	w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/views/"+viewID+"/components", body, map[string]string{"id": viewID})
 	viewHandlers.AddComponentToView(w, req)
 
-	// Assert HTTP response (should be 201 Created)
 	if w.Code != http.StatusCreated {
 		t.Logf("Response body: %s", w.Body.String())
 	}
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	// Verify event was created
 	var count int
-	err = testCtx.db.QueryRow(
+	err := testCtx.db.QueryRow(
 		"SELECT COUNT(*) FROM events WHERE aggregate_id = $1 AND event_type = 'ComponentAddedToView'",
 		viewID,
 	).Scan(&count)
@@ -413,73 +427,28 @@ func TestUpdateComponentPosition_Integration(t *testing.T) {
 
 	viewHandlers, _ := setupViewHandlers(testCtx.db)
 
-	// First create a view
-	createReqBody := CreateViewRequest{
-		Name:        "Test View",
-		Description: "Test Description",
-	}
-	createBody, _ := json.Marshal(createReqBody)
-	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/views", bytes.NewReader(createBody))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq = withTestTenant(createReq)
-	createW := httptest.NewRecorder()
-	viewHandlers.CreateView(createW, createReq)
-	require.Equal(t, http.StatusCreated, createW.Code)
+	viewID := testCtx.createViewViaAPI(t, viewHandlers, "Test View", "Test Description")
 
-	// Get the view ID
-	testCtx.setTenantContext(t)
-	var viewID string
-	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ViewCreated' ORDER BY created_at DESC LIMIT 1",
-	).Scan(&viewID)
-	require.NoError(t, err)
-	testCtx.trackID(viewID)
-
-	// Add a component first with unique component ID
 	componentID := fmt.Sprintf("comp-%d", time.Now().UnixNano())
-	addReqBody := AddComponentRequest{
-		ComponentID: componentID,
-		X:           100.0,
-		Y:           200.0,
-	}
-	addBody, _ := json.Marshal(addReqBody)
-	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/views/"+viewID+"/components", bytes.NewReader(addBody))
-	addReq.Header.Set("Content-Type", "application/json")
-	addReq = withTestTenant(addReq)
-	addW := httptest.NewRecorder()
-	rctxAdd := chi.NewRouteContext()
-	rctxAdd.URLParams.Add("id", viewID)
-	addReq = addReq.WithContext(context.WithValue(addReq.Context(), chi.RouteCtxKey, rctxAdd))
-	viewHandlers.AddComponentToView(addW, addReq)
-	require.Equal(t, http.StatusCreated, addW.Code)
+	testCtx.addComponentViaAPI(t, viewHandlers, viewID, componentID, 100.0, 200.0)
 
-	// Now update the component position
 	updateReqBody := UpdatePositionRequest{
 		X: 300.0,
 		Y: 400.0,
 	}
 	updateBody, _ := json.Marshal(updateReqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/components/"+componentID+"/position", bytes.NewReader(updateBody))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	// Add URL params using chi context
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", viewID)
-	rctx.URLParams.Add("componentId", componentID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
+	w, req := testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+viewID+"/components/"+componentID+"/position", updateBody, map[string]string{
+		"id":          viewID,
+		"componentId": componentID,
+	})
 	viewHandlers.UpdateComponentPosition(w, req)
 
-	// Assert HTTP response
 	assert.Equal(t, http.StatusNoContent, w.Code)
 
-	// Verify position was updated in the database
 	testCtx.setTenantContext(t)
 	var x, y float64
-	err = testCtx.db.QueryRow(
+	err := testCtx.db.QueryRow(
 		"SELECT x, y FROM view_element_positions WHERE view_id = $1 AND element_id = $2 AND element_type = 'component'",
 		viewID, componentID,
 	).Scan(&x, &y)
@@ -527,126 +496,31 @@ func TestSetDefaultView_Integration(t *testing.T) {
 
 	viewHandlers, readModel := setupViewHandlers(testCtx.db)
 
-	// Create two views via API
-	view1ReqBody := CreateViewRequest{
-		Name:        "View 1",
-		Description: "First view",
-	}
-	body1, _ := json.Marshal(view1ReqBody)
-	req1 := httptest.NewRequest(http.MethodPost, "/api/v1/views", bytes.NewReader(body1))
-	req1.Header.Set("Content-Type", "application/json")
-	req1 = withTestTenant(req1)
-	w1 := httptest.NewRecorder()
-	viewHandlers.CreateView(w1, req1)
-	require.Equal(t, http.StatusCreated, w1.Code)
+	view1ID := testCtx.createViewViaAPI(t, viewHandlers, "View 1", "First view")
+	view2ID := testCtx.createViewViaAPI(t, viewHandlers, "View 2", "Second view")
 
-	// Get view1 ID
-	testCtx.setTenantContext(t)
-	var view1ID string
-	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ViewCreated' ORDER BY created_at DESC LIMIT 1",
-	).Scan(&view1ID)
-	require.NoError(t, err)
-	testCtx.trackID(view1ID)
+	w1, req1 := testCtx.makeRequest(t, http.MethodPut, "/api/v1/views/"+view1ID+"/default", nil, map[string]string{"id": view1ID})
+	viewHandlers.SetDefaultView(w1, req1)
+	require.Equal(t, http.StatusNoContent, w1.Code)
 
-	// Create second view
-	view2ReqBody := CreateViewRequest{
-		Name:        "View 2",
-		Description: "Second view",
-	}
-	body2, _ := json.Marshal(view2ReqBody)
-	req2 := httptest.NewRequest(http.MethodPost, "/api/v1/views", bytes.NewReader(body2))
-	req2.Header.Set("Content-Type", "application/json")
-	req2 = withTestTenant(req2)
-	w2 := httptest.NewRecorder()
-	viewHandlers.CreateView(w2, req2)
-	require.Equal(t, http.StatusCreated, w2.Code)
-
-	// Get view2 ID
-	testCtx.setTenantContext(t)
-	var view2ID string
-	err = testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ViewCreated' AND aggregate_id != $1 ORDER BY created_at DESC LIMIT 1",
-		view1ID,
-	).Scan(&view2ID)
-	require.NoError(t, err)
-	testCtx.trackID(view2ID)
-
-	// Set view 1 as default explicitly to establish known state
-	setView1DefaultReq := httptest.NewRequest(http.MethodPut, "/api/v1/views/"+view1ID+"/default", nil)
-	setView1DefaultReq = withTestTenant(setView1DefaultReq)
-	setView1DefaultW := httptest.NewRecorder()
-	rctx1 := chi.NewRouteContext()
-	rctx1.URLParams.Add("id", view1ID)
-	setView1DefaultReq = setView1DefaultReq.WithContext(context.WithValue(setView1DefaultReq.Context(), chi.RouteCtxKey, rctx1))
-	viewHandlers.SetDefaultView(setView1DefaultW, setView1DefaultReq)
-	require.Equal(t, http.StatusNoContent, setView1DefaultW.Code)
-
-	// Verify view 1 is now default
 	defaultView, err := readModel.GetDefaultView(tenantContext())
 	require.NoError(t, err)
 	assert.NotNil(t, defaultView)
 	assert.Equal(t, view1ID, defaultView.ID)
 
-	// Set view 2 as default via API
-	setDefaultReq := httptest.NewRequest(http.MethodPut, "/api/v1/views/"+view2ID+"/default", nil)
-	setDefaultReq = withTestTenant(setDefaultReq)
-	setDefaultW := httptest.NewRecorder()
+	w2, req2 := testCtx.makeRequest(t, http.MethodPut, "/api/v1/views/"+view2ID+"/default", nil, map[string]string{"id": view2ID})
+	viewHandlers.SetDefaultView(w2, req2)
 
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", view2ID)
-	setDefaultReq = setDefaultReq.WithContext(context.WithValue(setDefaultReq.Context(), chi.RouteCtxKey, rctx))
+	assert.Equal(t, http.StatusNoContent, w2.Code)
 
-	viewHandlers.SetDefaultView(setDefaultW, setDefaultReq)
-
-	// Assert HTTP response
-	assert.Equal(t, http.StatusNoContent, setDefaultW.Code)
-
-	// Verify that view 2 is now the default
 	defaultView, err = readModel.GetDefaultView(tenantContext())
 	require.NoError(t, err)
 	assert.NotNil(t, defaultView)
 	assert.Equal(t, view2ID, defaultView.ID)
 
-	// Verify that view 1 is no longer default
 	view1, err := readModel.GetByID(tenantContext(), view1ID)
 	require.NoError(t, err)
 	assert.False(t, view1.IsDefault)
-}
-
-func TestCreateView_NameTooLong_Integration(t *testing.T) {
-	testCtx, cleanup := setupViewTestDB(t)
-	defer cleanup()
-
-	viewHandlers, _ := setupViewHandlers(testCtx.db)
-
-	// Create view with name exceeding 100 characters (should fail validation)
-	tooLongName := "This is a view name that is one hundred and one characters long and should fail the validation tests!"
-	require.Len(t, tooLongName, 101, "Test string should be exactly 101 characters")
-
-	reqBody := CreateViewRequest{
-		Name:        tooLongName,
-		Description: "Some description",
-	}
-	body, _ := json.Marshal(reqBody)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/views", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	viewHandlers.CreateView(w, req)
-
-	// Assert validation error (400 Bad Request)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-
-	// Verify no ViewCreated event was created
-	var count int
-	err := testCtx.db.QueryRow(
-		"SELECT COUNT(*) FROM events WHERE event_type = 'ViewCreated' AND created_at > NOW() - INTERVAL '2 seconds'",
-	).Scan(&count)
-	require.NoError(t, err)
-	assert.Equal(t, 0, count, "No ViewCreated events should be created for invalid request")
 }
 
 func TestUpdateEdgeType_Integration(t *testing.T) {
@@ -658,19 +532,10 @@ func TestUpdateEdgeType_Integration(t *testing.T) {
 	viewID := "view-edge-test-" + testCtx.testID
 	testCtx.createTestView(t, viewID, "Test View", "Test Description")
 
-	reqBody := UpdateEdgeTypeRequest{
-		EdgeType: "step",
-	}
+	reqBody := UpdateEdgeTypeRequest{EdgeType: "step"}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/edge-type", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", viewID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	w := httptest.NewRecorder()
-
+	w, req := testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+viewID+"/edge-type", body, map[string]string{"id": viewID})
 	viewHandlers.UpdateEdgeType(w, req)
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
@@ -689,19 +554,10 @@ func TestUpdateEdgeType_InvalidValue_Integration(t *testing.T) {
 	viewID := "view-edge-invalid-" + testCtx.testID
 	testCtx.createTestView(t, viewID, "Test View", "Test Description")
 
-	reqBody := UpdateEdgeTypeRequest{
-		EdgeType: "invalid",
-	}
+	reqBody := UpdateEdgeTypeRequest{EdgeType: "invalid"}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/edge-type", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", viewID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	w := httptest.NewRecorder()
-
+	w, req := testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+viewID+"/edge-type", body, map[string]string{"id": viewID})
 	viewHandlers.UpdateEdgeType(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -716,19 +572,10 @@ func TestUpdateLayoutDirection_Integration(t *testing.T) {
 	viewID := "view-layout-test-" + testCtx.testID
 	testCtx.createTestView(t, viewID, "Test View", "Test Description")
 
-	reqBody := UpdateLayoutDirectionRequest{
-		LayoutDirection: "LR",
-	}
+	reqBody := UpdateLayoutDirectionRequest{LayoutDirection: "LR"}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/layout-direction", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", viewID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	w := httptest.NewRecorder()
-
+	w, req := testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+viewID+"/layout-direction", body, map[string]string{"id": viewID})
 	viewHandlers.UpdateLayoutDirection(w, req)
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
@@ -747,19 +594,10 @@ func TestUpdateLayoutDirection_InvalidValue_Integration(t *testing.T) {
 	viewID := "view-layout-invalid-" + testCtx.testID
 	testCtx.createTestView(t, viewID, "Test View", "Test Description")
 
-	reqBody := UpdateLayoutDirectionRequest{
-		LayoutDirection: "INVALID",
-	}
+	reqBody := UpdateLayoutDirectionRequest{LayoutDirection: "INVALID"}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/layout-direction", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", viewID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	w := httptest.NewRecorder()
-
+	w, req := testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+viewID+"/layout-direction", body, map[string]string{"id": viewID})
 	viewHandlers.UpdateLayoutDirection(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -942,378 +780,251 @@ func TestGetViewByID_ReturnsColorScheme_Integration(t *testing.T) {
 	assert.NotNil(t, response.ColorScheme)
 }
 
-func TestUpdateComponentColor_Integration(t *testing.T) {
-	testCtx, cleanup := setupViewTestDB(t)
-	defer cleanup()
-
-	handlers, _ := setupViewHandlers(testCtx.db)
-
-	viewID := "view-comp-color-" + testCtx.testID
-	testCtx.createTestView(t, viewID, "Test View", "Test Description")
-
-	componentID := "comp-" + testCtx.testID
-	testCtx.addTestComponentToView(t, viewID, componentID, 100.0, 200.0)
-
-	reqBody := UpdateElementColorRequest{
-		Color: "#FF5733",
+func TestUpdateElementColor_Integration(t *testing.T) {
+	testCases := []struct {
+		elementType string
+		color       string
+		urlPath     string
+		urlParam    string
+		handler     func(http.ResponseWriter, *http.Request)
+	}{
+		{"component", "#FF5733", "components", "componentId", nil},
+		{"capability", "#00FF00", "capabilities", "capabilityId", nil},
 	}
-	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", viewID)
-	rctx.URLParams.Add("componentId", componentID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	w := httptest.NewRecorder()
+	for _, tc := range testCases {
+		t.Run(tc.elementType, func(t *testing.T) {
+			testCtx, cleanup := setupViewTestDB(t)
+			defer cleanup()
 
-	handlers.UpdateComponentColor(w, req)
+			handlers, _ := setupViewHandlers(testCtx.db)
 
-	assert.Equal(t, http.StatusNoContent, w.Code)
+			viewID := "view-" + tc.elementType + "-color-" + testCtx.testID
+			testCtx.createTestView(t, viewID, "Test View", "Test Description")
 
-	testCtx.setTenantContext(t)
-	var customColor sql.NullString
-	err := testCtx.db.QueryRow(
-		"SELECT custom_color FROM view_element_positions WHERE view_id = $1 AND element_id = $2 AND element_type = 'component'",
-		viewID, componentID,
-	).Scan(&customColor)
-	require.NoError(t, err)
-	assert.True(t, customColor.Valid)
-	assert.Equal(t, "#FF5733", customColor.String)
-}
+			elementID := tc.elementType[:3] + "-" + testCtx.testID
+			if tc.elementType == "component" {
+				testCtx.addTestComponentToView(t, viewID, elementID, 100.0, 200.0)
+			} else {
+				testCtx.setTenantContext(t)
+				_, err := testCtx.db.Exec(
+					"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW())",
+					viewID, elementID, tc.elementType, 150.0, 250.0, testTenantID(),
+				)
+				require.NoError(t, err)
+			}
 
-func TestUpdateCapabilityColor_Integration(t *testing.T) {
-	testCtx, cleanup := setupViewTestDB(t)
-	defer cleanup()
+			reqBody := UpdateElementColorRequest{Color: tc.color}
+			body, _ := json.Marshal(reqBody)
 
-	handlers, _ := setupViewHandlers(testCtx.db)
+			w, req := testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+viewID+"/"+tc.urlPath+"/"+elementID+"/color", body, map[string]string{
+				"id":       viewID,
+				tc.urlParam: elementID,
+			})
 
-	viewID := "view-cap-color-" + testCtx.testID
-	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+			if tc.elementType == "component" {
+				handlers.UpdateComponentColor(w, req)
+			} else {
+				handlers.UpdateCapabilityColor(w, req)
+			}
 
-	capabilityID := "cap-" + testCtx.testID
-	testCtx.setTenantContext(t)
-	_, err := testCtx.db.Exec(
-		"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, tenant_id, created_at) VALUES ($1, $2, 'capability', $3, $4, $5, NOW())",
-		viewID, capabilityID, 150.0, 250.0, testTenantID(),
-	)
-	require.NoError(t, err)
+			assert.Equal(t, http.StatusNoContent, w.Code)
 
-	reqBody := UpdateElementColorRequest{
-		Color: "#00FF00",
+			testCtx.setTenantContext(t)
+			var customColor sql.NullString
+			err := testCtx.db.QueryRow(
+				"SELECT custom_color FROM view_element_positions WHERE view_id = $1 AND element_id = $2 AND element_type = $3",
+				viewID, elementID, tc.elementType,
+			).Scan(&customColor)
+			require.NoError(t, err)
+			assert.True(t, customColor.Valid)
+			assert.Equal(t, tc.color, customColor.String)
+		})
 	}
-	body, _ := json.Marshal(reqBody)
-
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/capabilities/"+capabilityID+"/color", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", viewID)
-	rctx.URLParams.Add("capabilityId", capabilityID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	w := httptest.NewRecorder()
-
-	handlers.UpdateCapabilityColor(w, req)
-
-	assert.Equal(t, http.StatusNoContent, w.Code)
-
-	testCtx.setTenantContext(t)
-	var customColor sql.NullString
-	err = testCtx.db.QueryRow(
-		"SELECT custom_color FROM view_element_positions WHERE view_id = $1 AND element_id = $2 AND element_type = 'capability'",
-		viewID, capabilityID,
-	).Scan(&customColor)
-	require.NoError(t, err)
-	assert.True(t, customColor.Valid)
-	assert.Equal(t, "#00FF00", customColor.String)
 }
 
-func TestUpdateComponentColor_InvalidHexColor_Integration(t *testing.T) {
-	testCtx, cleanup := setupViewTestDB(t)
-	defer cleanup()
-
-	handlers, _ := setupViewHandlers(testCtx.db)
-
-	viewID := "view-comp-invalid-" + testCtx.testID
-	testCtx.createTestView(t, viewID, "Test View", "Test Description")
-
-	componentID := "comp-" + testCtx.testID
-	testCtx.addTestComponentToView(t, viewID, componentID, 100.0, 200.0)
-
-	reqBody := UpdateElementColorRequest{
-		Color: "invalid-color",
+func TestUpdateComponentColor_InvalidValues_Integration(t *testing.T) {
+	testCases := []struct {
+		name  string
+		color string
+	}{
+		{"InvalidHexColor", "invalid-color"},
+		{"MissingHash", "FF5733"},
+		{"TooShort", "#FFF"},
 	}
-	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", viewID)
-	rctx.URLParams.Add("componentId", componentID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	w := httptest.NewRecorder()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			testCtx, cleanup := setupViewTestDB(t)
+			defer cleanup()
 
-	handlers.UpdateComponentColor(w, req)
+			handlers, _ := setupViewHandlers(testCtx.db)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
+			viewID := "view-comp-" + testCtx.testID
+			testCtx.createTestView(t, viewID, "Test View", "Test Description")
 
-func TestUpdateComponentColor_MissingHash_Integration(t *testing.T) {
-	testCtx, cleanup := setupViewTestDB(t)
-	defer cleanup()
+			componentID := "comp-" + testCtx.testID
+			testCtx.addTestComponentToView(t, viewID, componentID, 100.0, 200.0)
 
-	handlers, _ := setupViewHandlers(testCtx.db)
+			reqBody := UpdateElementColorRequest{Color: tc.color}
+			body, _ := json.Marshal(reqBody)
 
-	viewID := "view-comp-no-hash-" + testCtx.testID
-	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+			w, req := testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", body, map[string]string{
+				"id":          viewID,
+				"componentId": componentID,
+			})
+			handlers.UpdateComponentColor(w, req)
 
-	componentID := "comp-" + testCtx.testID
-	testCtx.addTestComponentToView(t, viewID, componentID, 100.0, 200.0)
-
-	reqBody := UpdateElementColorRequest{
-		Color: "FF5733",
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+		})
 	}
-	body, _ := json.Marshal(reqBody)
-
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", viewID)
-	rctx.URLParams.Add("componentId", componentID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	w := httptest.NewRecorder()
-
-	handlers.UpdateComponentColor(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestUpdateComponentColor_TooShort_Integration(t *testing.T) {
-	testCtx, cleanup := setupViewTestDB(t)
-	defer cleanup()
-
-	handlers, _ := setupViewHandlers(testCtx.db)
-
-	viewID := "view-comp-short-" + testCtx.testID
-	testCtx.createTestView(t, viewID, "Test View", "Test Description")
-
-	componentID := "comp-" + testCtx.testID
-	testCtx.addTestComponentToView(t, viewID, componentID, 100.0, 200.0)
-
-	reqBody := UpdateElementColorRequest{
-		Color: "#FFF",
+func TestClearElementColor_Integration(t *testing.T) {
+	testCases := []struct {
+		elementType string
+		color       string
+		urlPath     string
+		urlParam    string
+	}{
+		{"component", "#FF5733", "components", "componentId"},
+		{"capability", "#00FF00", "capabilities", "capabilityId"},
 	}
-	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", viewID)
-	rctx.URLParams.Add("componentId", componentID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	w := httptest.NewRecorder()
+	for _, tc := range testCases {
+		t.Run(tc.elementType, func(t *testing.T) {
+			testCtx, cleanup := setupViewTestDB(t)
+			defer cleanup()
 
-	handlers.UpdateComponentColor(w, req)
+			handlers, _ := setupViewHandlers(testCtx.db)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
+			viewID := "view-clear-" + tc.elementType + "-" + testCtx.testID
+			testCtx.createTestView(t, viewID, "Test View", "Test Description")
 
-func TestClearComponentColor_Integration(t *testing.T) {
-	testCtx, cleanup := setupViewTestDB(t)
-	defer cleanup()
+			elementID := tc.elementType[:3] + "-" + testCtx.testID
+			testCtx.setTenantContext(t)
+			x, y := 100.0, 200.0
+			if tc.elementType == "capability" {
+				x, y = 150.0, 250.0
+			}
+			_, err := testCtx.db.Exec(
+				"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, custom_color, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+				viewID, elementID, tc.elementType, x, y, tc.color, testTenantID(),
+			)
+			require.NoError(t, err)
 
-	handlers, _ := setupViewHandlers(testCtx.db)
+			w, req := testCtx.makeRequest(t, http.MethodDelete, "/api/v1/views/"+viewID+"/"+tc.urlPath+"/"+elementID+"/color", nil, map[string]string{
+				"id":       viewID,
+				tc.urlParam: elementID,
+			})
 
-	viewID := "view-clear-comp-" + testCtx.testID
-	testCtx.createTestView(t, viewID, "Test View", "Test Description")
+			if tc.elementType == "component" {
+				handlers.ClearComponentColor(w, req)
+			} else {
+				handlers.ClearCapabilityColor(w, req)
+			}
 
-	componentID := "comp-" + testCtx.testID
-	testCtx.setTenantContext(t)
-	_, err := testCtx.db.Exec(
-		"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, custom_color, tenant_id, created_at) VALUES ($1, $2, 'component', $3, $4, $5, $6, NOW())",
-		viewID, componentID, 100.0, 200.0, "#FF5733", testTenantID(),
-	)
-	require.NoError(t, err)
+			assert.Equal(t, http.StatusNoContent, w.Code)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", nil)
-	req = withTestTenant(req)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", viewID)
-	rctx.URLParams.Add("componentId", componentID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	w := httptest.NewRecorder()
-
-	handlers.ClearComponentColor(w, req)
-
-	assert.Equal(t, http.StatusNoContent, w.Code)
-
-	testCtx.setTenantContext(t)
-	var customColor sql.NullString
-	err = testCtx.db.QueryRow(
-		"SELECT custom_color FROM view_element_positions WHERE view_id = $1 AND element_id = $2 AND element_type = 'component'",
-		viewID, componentID,
-	).Scan(&customColor)
-	require.NoError(t, err)
-	assert.False(t, customColor.Valid)
-}
-
-func TestClearCapabilityColor_Integration(t *testing.T) {
-	testCtx, cleanup := setupViewTestDB(t)
-	defer cleanup()
-
-	handlers, _ := setupViewHandlers(testCtx.db)
-
-	viewID := "view-clear-cap-" + testCtx.testID
-	testCtx.createTestView(t, viewID, "Test View", "Test Description")
-
-	capabilityID := "cap-" + testCtx.testID
-	testCtx.setTenantContext(t)
-	_, err := testCtx.db.Exec(
-		"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, custom_color, tenant_id, created_at) VALUES ($1, $2, 'capability', $3, $4, $5, $6, NOW())",
-		viewID, capabilityID, 150.0, 250.0, "#00FF00", testTenantID(),
-	)
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/views/"+viewID+"/capabilities/"+capabilityID+"/color", nil)
-	req = withTestTenant(req)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", viewID)
-	rctx.URLParams.Add("capabilityId", capabilityID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	w := httptest.NewRecorder()
-
-	handlers.ClearCapabilityColor(w, req)
-
-	assert.Equal(t, http.StatusNoContent, w.Code)
-
-	testCtx.setTenantContext(t)
-	var customColor sql.NullString
-	err = testCtx.db.QueryRow(
-		"SELECT custom_color FROM view_element_positions WHERE view_id = $1 AND element_id = $2 AND element_type = 'capability'",
-		viewID, capabilityID,
-	).Scan(&customColor)
-	require.NoError(t, err)
-	assert.False(t, customColor.Valid)
-}
-
-func TestGetViewByID_ReturnsCustomColorForComponents_Integration(t *testing.T) {
-	testCtx, cleanup := setupViewTestDB(t)
-	defer cleanup()
-
-	handlers, _ := setupViewHandlers(testCtx.db)
-
-	viewID := "view-with-custom-colors-" + testCtx.testID
-	testCtx.createTestView(t, viewID, "Test View", "Test Description")
-
-	comp1 := "comp-1-" + testCtx.testID
-	comp2 := "comp-2-" + testCtx.testID
-	testCtx.setTenantContext(t)
-	_, err := testCtx.db.Exec(
-		"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, custom_color, tenant_id, created_at) VALUES ($1, $2, 'component', $3, $4, $5, $6, NOW())",
-		viewID, comp1, 100.0, 200.0, "#FF5733", testTenantID(),
-	)
-	require.NoError(t, err)
-	_, err = testCtx.db.Exec(
-		"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, tenant_id, created_at) VALUES ($1, $2, 'component', $3, $4, $5, NOW())",
-		viewID, comp2, 300.0, 400.0, testTenantID(),
-	)
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/views/"+viewID, nil)
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", viewID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-	handlers.GetViewByID(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var response readmodels.ArchitectureViewDTO
-	err = json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
-
-	assert.Equal(t, viewID, response.ID)
-	assert.Len(t, response.Components, 2)
-
-	var comp1Found, comp2Found bool
-	for _, comp := range response.Components {
-		if comp.ComponentID == comp1 {
-			comp1Found = true
-			assert.NotNil(t, comp.CustomColor)
-			assert.Equal(t, "#FF5733", *comp.CustomColor)
-		}
-		if comp.ComponentID == comp2 {
-			comp2Found = true
-			assert.Nil(t, comp.CustomColor)
-		}
+			testCtx.setTenantContext(t)
+			var customColor sql.NullString
+			err = testCtx.db.QueryRow(
+				"SELECT custom_color FROM view_element_positions WHERE view_id = $1 AND element_id = $2 AND element_type = $3",
+				viewID, elementID, tc.elementType,
+			).Scan(&customColor)
+			require.NoError(t, err)
+			assert.False(t, customColor.Valid)
+		})
 	}
-	assert.True(t, comp1Found, "Component 1 should be in response")
-	assert.True(t, comp2Found, "Component 2 should be in response")
 }
 
-func TestGetViewByID_ReturnsCustomColorForCapabilities_Integration(t *testing.T) {
-	testCtx, cleanup := setupViewTestDB(t)
-	defer cleanup()
-
-	handlers, _ := setupViewHandlers(testCtx.db)
-
-	viewID := "view-with-cap-colors-" + testCtx.testID
-	testCtx.createTestView(t, viewID, "Test View", "Test Description")
-
-	cap1 := "cap-1-" + testCtx.testID
-	cap2 := "cap-2-" + testCtx.testID
-	testCtx.setTenantContext(t)
-	_, err := testCtx.db.Exec(
-		"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, custom_color, tenant_id, created_at) VALUES ($1, $2, 'capability', $3, $4, $5, $6, NOW())",
-		viewID, cap1, 100.0, 200.0, "#00FF00", testTenantID(),
-	)
-	require.NoError(t, err)
-	_, err = testCtx.db.Exec(
-		"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, tenant_id, created_at) VALUES ($1, $2, 'capability', $3, $4, $5, NOW())",
-		viewID, cap2, 300.0, 400.0, testTenantID(),
-	)
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/views/"+viewID, nil)
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", viewID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-	handlers.GetViewByID(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var response readmodels.ArchitectureViewDTO
-	err = json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
-
-	assert.Equal(t, viewID, response.ID)
-	assert.Len(t, response.Capabilities, 2)
-
-	var cap1Found, cap2Found bool
-	for _, cap := range response.Capabilities {
-		if cap.CapabilityID == cap1 {
-			cap1Found = true
-			assert.NotNil(t, cap.CustomColor)
-			assert.Equal(t, "#00FF00", *cap.CustomColor)
-		}
-		if cap.CapabilityID == cap2 {
-			cap2Found = true
-			assert.Nil(t, cap.CustomColor)
-		}
+func TestGetViewByID_ReturnsCustomColorForElements_Integration(t *testing.T) {
+	testCases := []struct {
+		elementType    string
+		color          string
+		checkResponse  func(*testing.T, readmodels.ArchitectureViewDTO, string, string)
+	}{
+		{
+			"component",
+			"#FF5733",
+			func(t *testing.T, response readmodels.ArchitectureViewDTO, elem1, elem2 string) {
+				assert.Len(t, response.Components, 2)
+				var elem1Found, elem2Found bool
+				for _, comp := range response.Components {
+					if comp.ComponentID == elem1 {
+						elem1Found = true
+						assert.NotNil(t, comp.CustomColor)
+						assert.Equal(t, "#FF5733", *comp.CustomColor)
+					}
+					if comp.ComponentID == elem2 {
+						elem2Found = true
+						assert.Nil(t, comp.CustomColor)
+					}
+				}
+				assert.True(t, elem1Found, "Element 1 should be in response")
+				assert.True(t, elem2Found, "Element 2 should be in response")
+			},
+		},
+		{
+			"capability",
+			"#00FF00",
+			func(t *testing.T, response readmodels.ArchitectureViewDTO, elem1, elem2 string) {
+				assert.Len(t, response.Capabilities, 2)
+				var elem1Found, elem2Found bool
+				for _, cap := range response.Capabilities {
+					if cap.CapabilityID == elem1 {
+						elem1Found = true
+						assert.NotNil(t, cap.CustomColor)
+						assert.Equal(t, "#00FF00", *cap.CustomColor)
+					}
+					if cap.CapabilityID == elem2 {
+						elem2Found = true
+						assert.Nil(t, cap.CustomColor)
+					}
+				}
+				assert.True(t, elem1Found, "Element 1 should be in response")
+				assert.True(t, elem2Found, "Element 2 should be in response")
+			},
+		},
 	}
-	assert.True(t, cap1Found, "Capability 1 should be in response")
-	assert.True(t, cap2Found, "Capability 2 should be in response")
+
+	for _, tc := range testCases {
+		t.Run(tc.elementType, func(t *testing.T) {
+			testCtx, cleanup := setupViewTestDB(t)
+			defer cleanup()
+
+			handlers, _ := setupViewHandlers(testCtx.db)
+
+			viewID := "view-with-" + tc.elementType + "-colors-" + testCtx.testID
+			testCtx.createTestView(t, viewID, "Test View", "Test Description")
+
+			elem1 := tc.elementType[:3] + "-1-" + testCtx.testID
+			elem2 := tc.elementType[:3] + "-2-" + testCtx.testID
+			testCtx.setTenantContext(t)
+			_, err := testCtx.db.Exec(
+				"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, custom_color, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+				viewID, elem1, tc.elementType, 100.0, 200.0, tc.color, testTenantID(),
+			)
+			require.NoError(t, err)
+			_, err = testCtx.db.Exec(
+				"INSERT INTO view_element_positions (view_id, element_id, element_type, x, y, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW())",
+				viewID, elem2, tc.elementType, 300.0, 400.0, testTenantID(),
+			)
+			require.NoError(t, err)
+
+			w, req := testCtx.makeRequest(t, http.MethodGet, "/api/v1/views/"+viewID, nil, map[string]string{"id": viewID})
+			handlers.GetViewByID(w, req)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+
+			var response readmodels.ArchitectureViewDTO
+			err = json.NewDecoder(w.Body).Decode(&response)
+			require.NoError(t, err)
+
+			assert.Equal(t, viewID, response.ID)
+			tc.checkResponse(t, response, elem1, elem2)
+		})
+	}
 }
 
 func TestGetViewByID_ReturnsHATEOASLinksForColors_Integration(t *testing.T) {
