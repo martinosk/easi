@@ -38,12 +38,10 @@ The system uses event sourcing for core aggregates, REST Level 3 APIs with HATEO
 ### Bounded contexts
 #### ArchitectureModeling
 This is the core domain that supports and enforces best practices for architecture modelling and documentation.
-Focus is on enterprise architecture modelling in the style of ArchiMate, but an opinionated limited subset.
 
 #### ArchitectureViews
 This is a supporting domain that allows for visualisations of the architecture model.
 A key trait of Easi is that views are separate from the model.
-It is considered supporting, because the API and event first approach of Easi allows for complete freedom of creating views using other tools (COTS reporting solutions, OSS libraries etc)
 
 #### CapabilityMapping
 Core domain for enterprise capability modeling. Uses CQRS with event sourcing.
