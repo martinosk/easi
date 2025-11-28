@@ -59,7 +59,66 @@ func (h *ViewHandlers) dispatchCommandWithStatus(w http.ResponseWriter, r *http.
 	w.WriteHeader(http.StatusNoContent)
 }
 
-type CreateViewRequest struct {
+type elementParams struct {
+	viewID      string
+	elementID   string
+	elementType string
+}
+
+func (h *ViewHandlers) updateElementColor(w http.ResponseWriter, r *http.Request, params elementParams) {
+	var req UpdateElementColorRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+
+	cmd := &commands.UpdateElementColor{
+		ViewID:      params.viewID,
+		ElementID:   params.elementID,
+		ElementType: params.elementType,
+		Color:       req.Color,
+	}
+
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ViewHandlers) clearElementColor(w http.ResponseWriter, r *http.Request, params elementParams) {
+	cmd := &commands.ClearElementColor{
+		ViewID:      params.viewID,
+		ElementID:   params.elementID,
+		ElementType: params.elementType,
+	}
+
+	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, fmt.Sprintf("Failed to clear %s color", params.elementType))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ViewHandlers) decodeValidateAndDispatch(w http.ResponseWriter, r *http.Request, req interface{}, validate func() error, createCmd func() cqrs.Command) {
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+
+	if validate != nil {
+		if err := validate(); err != nil {
+			sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+			return
+		}
+	}
+
+	h.dispatchCommand(w, r, createCmd())
+}
+
+type CreateViewRequest struct{
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 }
@@ -272,26 +331,16 @@ func (h *ViewHandlers) AddComponentToView(w http.ResponseWriter, r *http.Request
 func (h *ViewHandlers) UpdateComponentPosition(w http.ResponseWriter, r *http.Request) {
 	viewID := chi.URLParam(r, "id")
 	componentID := chi.URLParam(r, "componentId")
-
 	var req UpdatePositionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
-		return
-	}
 
-	cmd := commands.UpdateComponentPosition{
-		ViewID:      viewID,
-		ComponentID: componentID,
-		X:           req.X,
-		Y:           req.Y,
-	}
-
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	h.decodeValidateAndDispatch(w, r, &req, nil, func() cqrs.Command {
+		return commands.UpdateComponentPosition{
+			ViewID:      viewID,
+			ComponentID: componentID,
+			X:           req.X,
+			Y:           req.Y,
+		}
+	})
 }
 
 func (h *ViewHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Request) {
@@ -340,23 +389,20 @@ func (h *ViewHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Re
 // @Router /views/{id}/name [patch]
 func (h *ViewHandlers) RenameView(w http.ResponseWriter, r *http.Request) {
 	viewID := chi.URLParam(r, "id")
-
 	var req RenameViewRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
-		return
-	}
 
-	_, err := valueobjects.NewViewName(req.Name)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
-	}
-
-	h.dispatchCommand(w, r, &commands.RenameView{
-		ViewID:  viewID,
-		NewName: req.Name,
-	})
+	h.decodeValidateAndDispatch(w, r, &req,
+		func() error {
+			_, err := valueobjects.NewViewName(req.Name)
+			return err
+		},
+		func() cqrs.Command {
+			return &commands.RenameView{
+				ViewID:  viewID,
+				NewName: req.Name,
+			}
+		},
+	)
 }
 
 // DeleteView godoc
@@ -419,44 +465,38 @@ func (h *ViewHandlers) SetDefaultView(w http.ResponseWriter, r *http.Request) {
 
 func (h *ViewHandlers) UpdateEdgeType(w http.ResponseWriter, r *http.Request) {
 	viewID := chi.URLParam(r, "id")
-
 	var req UpdateEdgeTypeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
-		return
-	}
 
-	_, err := valueobjects.NewEdgeType(req.EdgeType)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
-	}
-
-	h.dispatchCommand(w, r, &commands.UpdateViewEdgeType{
-		ViewID:   viewID,
-		EdgeType: req.EdgeType,
-	})
+	h.decodeValidateAndDispatch(w, r, &req,
+		func() error {
+			_, err := valueobjects.NewEdgeType(req.EdgeType)
+			return err
+		},
+		func() cqrs.Command {
+			return &commands.UpdateViewEdgeType{
+				ViewID:   viewID,
+				EdgeType: req.EdgeType,
+			}
+		},
+	)
 }
 
 func (h *ViewHandlers) UpdateLayoutDirection(w http.ResponseWriter, r *http.Request) {
 	viewID := chi.URLParam(r, "id")
-
 	var req UpdateLayoutDirectionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
-		return
-	}
 
-	_, err := valueobjects.NewLayoutDirection(req.LayoutDirection)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
-	}
-
-	h.dispatchCommand(w, r, &commands.UpdateViewLayoutDirection{
-		ViewID:          viewID,
-		LayoutDirection: req.LayoutDirection,
-	})
+	h.decodeValidateAndDispatch(w, r, &req,
+		func() error {
+			_, err := valueobjects.NewLayoutDirection(req.LayoutDirection)
+			return err
+		},
+		func() cqrs.Command {
+			return &commands.UpdateViewLayoutDirection{
+				ViewID:          viewID,
+				LayoutDirection: req.LayoutDirection,
+			}
+		},
+	)
 }
 
 type AddCapabilityRequest struct {
@@ -590,28 +630,11 @@ type UpdateElementColorRequest struct {
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/components/{componentId}/color [patch]
 func (h *ViewHandlers) UpdateComponentColor(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
-	componentID := chi.URLParam(r, "componentId")
-
-	var req UpdateElementColorRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
-		return
-	}
-
-	cmd := &commands.UpdateElementColor{
-		ViewID:      viewID,
-		ElementID:   componentID,
-		ElementType: "component",
-		Color:       req.Color,
-	}
-
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	h.updateElementColor(w, r, elementParams{
+		viewID:      chi.URLParam(r, "id"),
+		elementID:   chi.URLParam(r, "componentId"),
+		elementType: "component",
+	})
 }
 
 // UpdateCapabilityColor godoc
@@ -627,28 +650,11 @@ func (h *ViewHandlers) UpdateComponentColor(w http.ResponseWriter, r *http.Reque
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/capabilities/{capabilityId}/color [patch]
 func (h *ViewHandlers) UpdateCapabilityColor(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
-	capabilityID := chi.URLParam(r, "capabilityId")
-
-	var req UpdateElementColorRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
-		return
-	}
-
-	cmd := &commands.UpdateElementColor{
-		ViewID:      viewID,
-		ElementID:   capabilityID,
-		ElementType: "capability",
-		Color:       req.Color,
-	}
-
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	h.updateElementColor(w, r, elementParams{
+		viewID:      chi.URLParam(r, "id"),
+		elementID:   chi.URLParam(r, "capabilityId"),
+		elementType: "capability",
+	})
 }
 
 // ClearComponentColor godoc
@@ -661,21 +667,11 @@ func (h *ViewHandlers) UpdateCapabilityColor(w http.ResponseWriter, r *http.Requ
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/components/{componentId}/color [delete]
 func (h *ViewHandlers) ClearComponentColor(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
-	componentID := chi.URLParam(r, "componentId")
-
-	cmd := &commands.ClearElementColor{
-		ViewID:      viewID,
-		ElementID:   componentID,
-		ElementType: "component",
-	}
-
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to clear component color")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	h.clearElementColor(w, r, elementParams{
+		viewID:      chi.URLParam(r, "id"),
+		elementID:   chi.URLParam(r, "componentId"),
+		elementType: "component",
+	})
 }
 
 // ClearCapabilityColor godoc
@@ -688,21 +684,11 @@ func (h *ViewHandlers) ClearComponentColor(w http.ResponseWriter, r *http.Reques
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/capabilities/{capabilityId}/color [delete]
 func (h *ViewHandlers) ClearCapabilityColor(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
-	capabilityID := chi.URLParam(r, "capabilityId")
-
-	cmd := &commands.ClearElementColor{
-		ViewID:      viewID,
-		ElementID:   capabilityID,
-		ElementType: "capability",
-	}
-
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to clear capability color")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	h.clearElementColor(w, r, elementParams{
+		viewID:      chi.URLParam(r, "id"),
+		elementID:   chi.URLParam(r, "capabilityId"),
+		elementType: "capability",
+	})
 }
 
 func (h *ViewHandlers) addElementLinks(view *readmodels.ArchitectureViewDTO) {
