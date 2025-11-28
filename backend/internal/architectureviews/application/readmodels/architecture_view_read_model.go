@@ -11,6 +11,7 @@ import (
 
 type ViewID string
 type ComponentID string
+type CapabilityID string
 
 type ElementType string
 
@@ -22,6 +23,37 @@ const (
 type Position struct {
 	X float64
 	Y float64
+}
+
+type ElementPosition struct {
+	ViewID      ViewID
+	ElementID   string
+	ElementType ElementType
+	Position    Position
+}
+
+func NewElementPositionForComponent(viewID ViewID, componentID ComponentID, pos Position) ElementPosition {
+	return ElementPosition{
+		ViewID:      viewID,
+		ElementID:   string(componentID),
+		ElementType: ElementTypeComponent,
+		Position:    pos,
+	}
+}
+
+func NewElementPositionForCapability(viewID ViewID, capabilityID CapabilityID, pos Position) ElementPosition {
+	return ElementPosition{
+		ViewID:      viewID,
+		ElementID:   string(capabilityID),
+		ElementType: ElementTypeCapability,
+		Position:    pos,
+	}
+}
+
+type ViewFieldUpdate struct {
+	ViewID ViewID
+	Field  string
+	Value  interface{}
 }
 
 type ComponentPositionDTO struct {
@@ -73,116 +105,131 @@ func NewArchitectureViewReadModel(db *database.TenantAwareDB) *ArchitectureViewR
 	return &ArchitectureViewReadModel{db: db}
 }
 
+func (rm *ArchitectureViewReadModel) getTenantID(ctx context.Context) (string, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return "", err
+	}
+	return tenantID.Value(), nil
+}
+
 // InsertView adds a new view to the read model
 func (rm *ArchitectureViewReadModel) InsertView(ctx context.Context, dto ArchitectureViewDTO) error {
-	// Extract tenant from context - infrastructure concern
-	tenantID, err := sharedctx.GetTenant(ctx)
+	tenantID, err := rm.getTenantID(ctx)
 	if err != nil {
 		return err
 	}
 
-	// Use tenant-aware exec that sets app.current_tenant for RLS
 	_, err = rm.db.ExecContext(ctx,
 		"INSERT INTO architecture_views (id, tenant_id, name, description, is_default, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		dto.ID, tenantID.Value(), dto.Name, dto.Description, dto.IsDefault, dto.CreatedAt,
+		dto.ID, tenantID, dto.Name, dto.Description, dto.IsDefault, dto.CreatedAt,
 	)
 	return err
 }
 
 func (rm *ArchitectureViewReadModel) AddComponent(ctx context.Context, viewID ViewID, componentID ComponentID, pos Position) error {
-	return rm.addElement(ctx, string(viewID), string(componentID), ElementTypeComponent, pos)
+	elem := NewElementPositionForComponent(viewID, componentID, pos)
+	return rm.addElement(ctx, elem)
 }
 
 func (rm *ArchitectureViewReadModel) UpdateComponentPosition(ctx context.Context, viewID ViewID, componentID ComponentID, pos Position) error {
-	return rm.updateElementPosition(ctx, string(viewID), string(componentID), ElementTypeComponent, pos)
+	elem := NewElementPositionForComponent(viewID, componentID, pos)
+	return rm.updateElementPosition(ctx, elem)
 }
 
 func (rm *ArchitectureViewReadModel) RemoveComponent(ctx context.Context, viewID, componentID string) error {
-	return rm.removeElement(ctx, viewID, componentID, ElementTypeComponent)
+	return rm.removeElement(ctx, ViewID(viewID), componentID, ElementTypeComponent)
 }
 
 func (rm *ArchitectureViewReadModel) AddCapability(ctx context.Context, viewID, capabilityID string, pos Position) error {
-	return rm.addElement(ctx, viewID, capabilityID, ElementTypeCapability, pos)
+	elem := NewElementPositionForCapability(ViewID(viewID), CapabilityID(capabilityID), pos)
+	return rm.addElement(ctx, elem)
 }
 
 func (rm *ArchitectureViewReadModel) UpdateCapabilityPosition(ctx context.Context, viewID, capabilityID string, pos Position) error {
-	return rm.updateElementPosition(ctx, viewID, capabilityID, ElementTypeCapability, pos)
+	elem := NewElementPositionForCapability(ViewID(viewID), CapabilityID(capabilityID), pos)
+	return rm.updateElementPosition(ctx, elem)
 }
 
 func (rm *ArchitectureViewReadModel) RemoveCapability(ctx context.Context, viewID, capabilityID string) error {
-	return rm.removeElement(ctx, viewID, capabilityID, ElementTypeCapability)
+	return rm.removeElement(ctx, ViewID(viewID), capabilityID, ElementTypeCapability)
 }
 
-func (rm *ArchitectureViewReadModel) addElement(ctx context.Context, viewID, elementID string, elementType ElementType, pos Position) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
+func (rm *ArchitectureViewReadModel) addElement(ctx context.Context, elem ElementPosition) error {
+	tenantID, err := rm.getTenantID(ctx)
 	if err != nil {
 		return err
 	}
 
 	_, err = rm.db.ExecContext(ctx,
 		"INSERT INTO view_element_positions (view_id, tenant_id, element_id, element_type, x, y, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-		viewID, tenantID.Value(), elementID, string(elementType), pos.X, pos.Y, time.Now().UTC(),
+		string(elem.ViewID), tenantID, elem.ElementID, string(elem.ElementType), elem.Position.X, elem.Position.Y, time.Now().UTC(),
 	)
 	return err
 }
 
-func (rm *ArchitectureViewReadModel) updateElementPosition(ctx context.Context, viewID, elementID string, elementType ElementType, pos Position) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
+func (rm *ArchitectureViewReadModel) updateElementPosition(ctx context.Context, elem ElementPosition) error {
+	tenantID, err := rm.getTenantID(ctx)
 	if err != nil {
 		return err
 	}
 
 	_, err = rm.db.ExecContext(ctx,
 		"UPDATE view_element_positions SET x = $1, y = $2, updated_at = $3 WHERE tenant_id = $4 AND view_id = $5 AND element_id = $6 AND element_type = $7",
-		pos.X, pos.Y, time.Now().UTC(), tenantID.Value(), viewID, elementID, string(elementType),
+		elem.Position.X, elem.Position.Y, time.Now().UTC(), tenantID, string(elem.ViewID), elem.ElementID, string(elem.ElementType),
 	)
 	return err
 }
 
-func (rm *ArchitectureViewReadModel) removeElement(ctx context.Context, viewID, elementID string, elementType ElementType) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
+func (rm *ArchitectureViewReadModel) removeElement(ctx context.Context, viewID ViewID, elementID string, elementType ElementType) error {
+	tenantID, err := rm.getTenantID(ctx)
 	if err != nil {
 		return err
 	}
 
 	_, err = rm.db.ExecContext(ctx,
 		"DELETE FROM view_element_positions WHERE tenant_id = $1 AND view_id = $2 AND element_id = $3 AND element_type = $4",
-		tenantID.Value(), viewID, elementID, string(elementType),
+		tenantID, string(viewID), elementID, string(elementType),
 	)
 	return err
 }
 
 // UpdateViewName updates a view's name
 func (rm *ArchitectureViewReadModel) UpdateViewName(ctx context.Context, viewID, newName string) error {
-	return rm.updateViewField(ctx, viewID, "name", newName)
+	update := ViewFieldUpdate{ViewID: ViewID(viewID), Field: "name", Value: newName}
+	return rm.updateViewField(ctx, update)
 }
 
 // MarkViewAsDeleted marks a view as deleted
 func (rm *ArchitectureViewReadModel) MarkViewAsDeleted(ctx context.Context, viewID string) error {
-	return rm.updateViewField(ctx, viewID, "is_deleted", true)
+	update := ViewFieldUpdate{ViewID: ViewID(viewID), Field: "is_deleted", Value: true}
+	return rm.updateViewField(ctx, update)
 }
 
 // SetViewAsDefault sets a view as the default
 func (rm *ArchitectureViewReadModel) SetViewAsDefault(ctx context.Context, viewID string, isDefault bool) error {
-	return rm.updateViewField(ctx, viewID, "is_default", isDefault)
+	update := ViewFieldUpdate{ViewID: ViewID(viewID), Field: "is_default", Value: isDefault}
+	return rm.updateViewField(ctx, update)
 }
 
 func (rm *ArchitectureViewReadModel) UpdateEdgeType(ctx context.Context, viewID, edgeType string) error {
-	return rm.updateViewField(ctx, viewID, "edge_type", edgeType)
+	update := ViewFieldUpdate{ViewID: ViewID(viewID), Field: "edge_type", Value: edgeType}
+	return rm.updateViewField(ctx, update)
 }
 
 func (rm *ArchitectureViewReadModel) UpdateLayoutDirection(ctx context.Context, viewID, layoutDirection string) error {
-	return rm.updateViewField(ctx, viewID, "layout_direction", layoutDirection)
+	update := ViewFieldUpdate{ViewID: ViewID(viewID), Field: "layout_direction", Value: layoutDirection}
+	return rm.updateViewField(ctx, update)
 }
 
-func (rm *ArchitectureViewReadModel) updateViewField(ctx context.Context, viewID, field string, value interface{}) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
+func (rm *ArchitectureViewReadModel) updateViewField(ctx context.Context, update ViewFieldUpdate) error {
+	tenantID, err := rm.getTenantID(ctx)
 	if err != nil {
 		return err
 	}
 
-	query := "UPDATE architecture_views SET " + field + " = $1, updated_at = $2 WHERE tenant_id = $3 AND id = $4"
-	_, err = rm.db.ExecContext(ctx, query, value, time.Now().UTC(), tenantID.Value(), viewID)
+	query := "UPDATE architecture_views SET " + update.Field + " = $1, updated_at = $2 WHERE tenant_id = $3 AND id = $4"
+	_, err = rm.db.ExecContext(ctx, query, update.Value, time.Now().UTC(), tenantID, string(update.ViewID))
 	return err
 }
 
@@ -209,7 +256,7 @@ func (rm *ArchitectureViewReadModel) GetByID(ctx context.Context, id string) (*A
 }
 
 func (rm *ArchitectureViewReadModel) getViewByQuery(ctx context.Context, query string, argsBuilder func(tenantID string) []interface{}) (*ArchitectureViewDTO, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
+	tenantID, err := rm.getTenantID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +265,7 @@ func (rm *ArchitectureViewReadModel) getViewByQuery(ctx context.Context, query s
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		found, err := rm.scanSingleView(ctx, tx, query, argsBuilder(tenantID.Value()), &dto)
+		found, err := rm.scanSingleView(ctx, tx, query, argsBuilder(tenantID), &dto)
 		if err != nil {
 			return err
 		}
@@ -227,12 +274,12 @@ func (rm *ArchitectureViewReadModel) getViewByQuery(ctx context.Context, query s
 			return nil
 		}
 
-		dto.Components, err = rm.getComponentsForViewTx(ctx, tx, tenantID.Value(), dto.ID)
+		dto.Components, err = rm.getComponentsForViewTx(ctx, tx, tenantID, dto.ID)
 		if err != nil {
 			return err
 		}
 
-		dto.Capabilities, err = rm.getCapabilitiesForViewTx(ctx, tx, tenantID.Value(), dto.ID)
+		dto.Capabilities, err = rm.getCapabilitiesForViewTx(ctx, tx, tenantID, dto.ID)
 		return err
 	})
 
@@ -273,19 +320,19 @@ func (rm *ArchitectureViewReadModel) scanSingleView(ctx context.Context, tx *sql
 }
 
 func (rm *ArchitectureViewReadModel) GetAll(ctx context.Context) ([]ArchitectureViewDTO, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
+	tenantID, err := rm.getTenantID(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	var views []ArchitectureViewDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		views, err = rm.queryViews(ctx, tx, tenantID.Value())
+		views, err = rm.queryViews(ctx, tx, tenantID)
 		if err != nil {
 			return err
 		}
 
-		return rm.populateViewComponents(ctx, tx, tenantID.Value(), views)
+		return rm.populateViewComponents(ctx, tx, tenantID, views)
 	})
 
 	return views, err
@@ -402,7 +449,7 @@ func getElementsForViewTx[T any](ctx context.Context, tx *sql.Tx, tenantID, view
 }
 
 func (rm *ArchitectureViewReadModel) GetViewsContainingComponent(ctx context.Context, componentID string) ([]string, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
+	tenantID, err := rm.getTenantID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -411,7 +458,7 @@ func (rm *ArchitectureViewReadModel) GetViewsContainingComponent(ctx context.Con
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			"SELECT DISTINCT view_id FROM view_element_positions WHERE tenant_id = $1 AND element_id = $2 AND element_type = 'component'",
-			tenantID.Value(), componentID,
+			tenantID, componentID,
 		)
 		if err != nil {
 			return err
