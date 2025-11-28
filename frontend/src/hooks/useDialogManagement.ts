@@ -55,6 +55,56 @@ export interface UseDialogManagementReturn {
   actions: DialogManagementActions;
 }
 
+const buildDialogState = (
+  componentDialog: ReturnType<typeof useDialogState>,
+  editComponentDialog: ReturnType<typeof useDialogState>,
+  relationDialog: ReturnType<typeof useRelationDialog>,
+  editRelationDialog: ReturnType<typeof useDialogState>,
+  capabilityDialog: ReturnType<typeof useDialogState>,
+  editCapabilityDialogState: ReturnType<typeof useDialogState>,
+  releaseNotesBrowserDialog: ReturnType<typeof useDialogState>,
+  editComponentTarget: Component | null,
+  editCapabilityTarget: Capability | null,
+  selectedRelation: Relation | null,
+  closeEditComponentDialog: () => void,
+  closeEditCapabilityDialog: () => void
+): DialogManagementState => ({
+  componentDialog: {
+    isOpen: componentDialog.isOpen,
+    onClose: componentDialog.close,
+  },
+  editComponentDialog: {
+    isOpen: editComponentDialog.isOpen,
+    onClose: closeEditComponentDialog,
+    component: editComponentTarget,
+  },
+  relationDialog: {
+    isOpen: relationDialog.isOpen,
+    onClose: relationDialog.close,
+    sourceComponentId: relationDialog.sourceId,
+    targetComponentId: relationDialog.targetId,
+  },
+  editRelationDialog: {
+    isOpen: editRelationDialog.isOpen,
+    onClose: editRelationDialog.close,
+    relation: selectedRelation,
+  },
+  capabilityDialog: {
+    isOpen: capabilityDialog.isOpen,
+    onClose: capabilityDialog.close,
+  },
+  editCapabilityDialog: {
+    isOpen: editCapabilityDialogState.isOpen,
+    onClose: closeEditCapabilityDialog,
+    capability: editCapabilityTarget,
+  },
+  releaseNotesBrowserDialog: {
+    isOpen: releaseNotesBrowserDialog.isOpen,
+    onClose: releaseNotesBrowserDialog.close,
+    onOpen: releaseNotesBrowserDialog.open,
+  },
+});
+
 export function useDialogManagement(
   selectedEdgeId: string | null,
   relations: Relation[]
@@ -99,43 +149,23 @@ export function useDialogManagement(
 
   const selectedRelation = relations.find((r) => r.id === selectedEdgeId) || null;
 
+  const state = buildDialogState(
+    componentDialog,
+    editComponentDialog,
+    relationDialog,
+    editRelationDialog,
+    capabilityDialog,
+    editCapabilityDialogState,
+    releaseNotesBrowserDialog,
+    editComponentTarget,
+    editCapabilityTarget,
+    selectedRelation,
+    closeEditComponentDialog,
+    closeEditCapabilityDialog
+  );
+
   return {
-    state: {
-      componentDialog: {
-        isOpen: componentDialog.isOpen,
-        onClose: componentDialog.close,
-      },
-      editComponentDialog: {
-        isOpen: editComponentDialog.isOpen,
-        onClose: closeEditComponentDialog,
-        component: editComponentTarget,
-      },
-      relationDialog: {
-        isOpen: relationDialog.isOpen,
-        onClose: relationDialog.close,
-        sourceComponentId: relationDialog.sourceId,
-        targetComponentId: relationDialog.targetId,
-      },
-      editRelationDialog: {
-        isOpen: editRelationDialog.isOpen,
-        onClose: editRelationDialog.close,
-        relation: selectedRelation,
-      },
-      capabilityDialog: {
-        isOpen: capabilityDialog.isOpen,
-        onClose: capabilityDialog.close,
-      },
-      editCapabilityDialog: {
-        isOpen: editCapabilityDialogState.isOpen,
-        onClose: closeEditCapabilityDialog,
-        capability: editCapabilityTarget,
-      },
-      releaseNotesBrowserDialog: {
-        isOpen: releaseNotesBrowserDialog.isOpen,
-        onClose: releaseNotesBrowserDialog.close,
-        onOpen: releaseNotesBrowserDialog.open,
-      },
-    },
+    state,
     actions: {
       openComponentDialog: componentDialog.open,
       openCapabilityDialog: capabilityDialog.open,

@@ -69,120 +69,120 @@ func (r *ArchitectureViewRepository) GetByID(ctx context.Context, id string) (*a
 	return aggregates.LoadArchitectureViewFromHistory(domainEvents)
 }
 
-// deserializeEvents converts stored events to domain events
+type eventDeserializer func(map[string]interface{}) domain.DomainEvent
+
+var eventDeserializers = map[string]eventDeserializer{
+	"ViewCreated": deserializeViewCreated,
+	"ComponentAddedToView": func(data map[string]interface{}) domain.DomainEvent {
+		viewID, componentID, x, y := extractComponentPosition(data)
+		return events.ComponentAddedToView{
+			BaseEvent:   domain.NewBaseEvent(viewID),
+			ViewID:      viewID,
+			ComponentID: componentID,
+			X:           x,
+			Y:           y,
+		}
+	},
+	"ComponentPositionUpdated": func(data map[string]interface{}) domain.DomainEvent {
+		viewID, componentID, x, y := extractComponentPosition(data)
+		return events.ComponentPositionUpdated{
+			BaseEvent:   domain.NewBaseEvent(viewID),
+			ViewID:      viewID,
+			ComponentID: componentID,
+			X:           x,
+			Y:           y,
+		}
+	},
+	"ComponentRemovedFromView": deserializeComponentRemoved,
+	"ViewRenamed":              deserializeViewRenamed,
+	"ViewDeleted":              deserializeViewDeleted,
+	"DefaultViewChanged":       deserializeDefaultViewChanged,
+}
+
 func (r *ArchitectureViewRepository) deserializeEvents(storedEvents []domain.DomainEvent) ([]domain.DomainEvent, error) {
-	var domainEvents []domain.DomainEvent
+	domainEvents := make([]domain.DomainEvent, 0, len(storedEvents))
 
 	for _, event := range storedEvents {
-		// Get the event data as a map
-		eventData := event.EventData()
-
-		switch event.EventType() {
-		case "ViewCreated":
-			// Manually reconstruct the event from the map
-			id, _ := eventData["id"].(string)
-			name, _ := eventData["name"].(string)
-			description, _ := eventData["description"].(string)
-
-			specificEvent := events.ViewCreated{
-				BaseEvent:   domain.NewBaseEvent(id),
-				ID:          id,
-				Name:        name,
-				Description: description,
-			}
-			// Parse CreatedAt if present
-			if createdAtStr, ok := eventData["createdAt"].(string); ok {
-				if createdAt, err := json.Marshal(createdAtStr); err == nil {
-					json.Unmarshal(createdAt, &specificEvent.CreatedAt)
-				}
-			}
-			domainEvents = append(domainEvents, specificEvent)
-
-		case "ComponentAddedToView":
-			// Manually reconstruct the event from the map
-			viewID, _ := eventData["viewId"].(string)
-			componentID, _ := eventData["componentId"].(string)
-			x, _ := eventData["x"].(float64)
-			y, _ := eventData["y"].(float64)
-
-			specificEvent := events.ComponentAddedToView{
-				BaseEvent:   domain.NewBaseEvent(viewID),
-				ViewID:      viewID,
-				ComponentID: componentID,
-				X:           x,
-				Y:           y,
-			}
-			domainEvents = append(domainEvents, specificEvent)
-
-		case "ComponentPositionUpdated":
-			// Manually reconstruct the event from the map
-			viewID, _ := eventData["viewId"].(string)
-			componentID, _ := eventData["componentId"].(string)
-			x, _ := eventData["x"].(float64)
-			y, _ := eventData["y"].(float64)
-
-			specificEvent := events.ComponentPositionUpdated{
-				BaseEvent:   domain.NewBaseEvent(viewID),
-				ViewID:      viewID,
-				ComponentID: componentID,
-				X:           x,
-				Y:           y,
-			}
-			domainEvents = append(domainEvents, specificEvent)
-
-		case "ComponentRemovedFromView":
-			// Manually reconstruct the event from the map
-			viewID, _ := eventData["viewId"].(string)
-			componentID, _ := eventData["componentId"].(string)
-
-			specificEvent := events.ComponentRemovedFromView{
-				BaseEvent:   domain.NewBaseEvent(viewID),
-				ViewID:      viewID,
-				ComponentID: componentID,
-			}
-			domainEvents = append(domainEvents, specificEvent)
-
-		case "ViewRenamed":
-			// Manually reconstruct the event from the map
-			viewID, _ := eventData["viewId"].(string)
-			oldName, _ := eventData["oldName"].(string)
-			newName, _ := eventData["newName"].(string)
-
-			specificEvent := events.ViewRenamed{
-				BaseEvent: domain.NewBaseEvent(viewID),
-				ViewID:    viewID,
-				OldName:   oldName,
-				NewName:   newName,
-			}
-			domainEvents = append(domainEvents, specificEvent)
-
-		case "ViewDeleted":
-			// Manually reconstruct the event from the map
-			viewID, _ := eventData["viewId"].(string)
-
-			specificEvent := events.ViewDeleted{
-				BaseEvent: domain.NewBaseEvent(viewID),
-				ViewID:    viewID,
-			}
-			domainEvents = append(domainEvents, specificEvent)
-
-		case "DefaultViewChanged":
-			// Manually reconstruct the event from the map
-			viewID, _ := eventData["viewId"].(string)
-			isDefault, _ := eventData["isDefault"].(bool)
-
-			specificEvent := events.DefaultViewChanged{
-				BaseEvent: domain.NewBaseEvent(viewID),
-				ViewID:    viewID,
-				IsDefault: isDefault,
-			}
-			domainEvents = append(domainEvents, specificEvent)
-
-		default:
-			// Unknown event type, skip it
+		deserializer, exists := eventDeserializers[event.EventType()]
+		if !exists {
 			continue
 		}
+
+		domainEvents = append(domainEvents, deserializer(event.EventData()))
 	}
 
 	return domainEvents, nil
+}
+
+func deserializeViewCreated(data map[string]interface{}) domain.DomainEvent {
+	id, _ := data["id"].(string)
+	name, _ := data["name"].(string)
+	description, _ := data["description"].(string)
+
+	evt := events.ViewCreated{
+		BaseEvent:   domain.NewBaseEvent(id),
+		ID:          id,
+		Name:        name,
+		Description: description,
+	}
+
+	if createdAtStr, ok := data["createdAt"].(string); ok {
+		if createdAt, err := json.Marshal(createdAtStr); err == nil {
+			json.Unmarshal(createdAt, &evt.CreatedAt)
+		}
+	}
+
+	return evt
+}
+
+func extractComponentPosition(data map[string]interface{}) (viewID, componentID string, x, y float64) {
+	viewID, _ = data["viewId"].(string)
+	componentID, _ = data["componentId"].(string)
+	x, _ = data["x"].(float64)
+	y, _ = data["y"].(float64)
+	return
+}
+
+func deserializeComponentRemoved(data map[string]interface{}) domain.DomainEvent {
+	viewID, _ := data["viewId"].(string)
+	componentID, _ := data["componentId"].(string)
+
+	return events.ComponentRemovedFromView{
+		BaseEvent:   domain.NewBaseEvent(viewID),
+		ViewID:      viewID,
+		ComponentID: componentID,
+	}
+}
+
+func deserializeViewRenamed(data map[string]interface{}) domain.DomainEvent {
+	viewID, _ := data["viewId"].(string)
+	oldName, _ := data["oldName"].(string)
+	newName, _ := data["newName"].(string)
+
+	return events.ViewRenamed{
+		BaseEvent: domain.NewBaseEvent(viewID),
+		ViewID:    viewID,
+		OldName:   oldName,
+		NewName:   newName,
+	}
+}
+
+func deserializeViewDeleted(data map[string]interface{}) domain.DomainEvent {
+	viewID, _ := data["viewId"].(string)
+
+	return events.ViewDeleted{
+		BaseEvent: domain.NewBaseEvent(viewID),
+		ViewID:    viewID,
+	}
+}
+
+func deserializeDefaultViewChanged(data map[string]interface{}) domain.DomainEvent {
+	viewID, _ := data["viewId"].(string)
+	isDefault, _ := data["isDefault"].(bool)
+
+	return events.DefaultViewChanged{
+		BaseEvent: domain.NewBaseEvent(viewID),
+		ViewID:    viewID,
+		IsDefault: isDefault,
+	}
 }

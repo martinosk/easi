@@ -42,42 +42,13 @@ func (h *ChangeCapabilityParentHandler) Handle(ctx context.Context, cmd cqrs.Com
 		return err
 	}
 
-	var newParentID valueobjects.CapabilityID
-	var newLevel valueobjects.CapabilityLevel
-
-	if command.NewParentID == "" {
-		newLevel = valueobjects.LevelL1
-	} else {
-		newParentID, err = valueobjects.NewCapabilityIDFromString(command.NewParentID)
-		if err != nil {
-			return err
-		}
-
-		parent, err := h.repository.GetByID(ctx, command.NewParentID)
-		if err != nil {
-			if errors.Is(err, repositories.ErrCapabilityNotFound) {
-				return ErrParentCapabilityNotFound
-			}
-			return err
-		}
-
-		if err := h.detectCircularReference(ctx, command.CapabilityID, command.NewParentID); err != nil {
-			return err
-		}
-
-		newLevel, err = h.calculateChildLevel(parent.Level())
-		if err != nil {
-			return err
-		}
-	}
-
-	subtreeDepth, err := h.calculateSubtreeDepth(ctx, command.CapabilityID)
+	newParentID, newLevel, err := h.determineNewParentAndLevel(ctx, command)
 	if err != nil {
 		return err
 	}
 
-	if newLevel.NumericValue()+subtreeDepth > 4 {
-		return aggregates.ErrWouldExceedMaximumDepth
+	if err := h.validateDepthConstraints(ctx, command.CapabilityID, newLevel); err != nil {
+		return err
 	}
 
 	if err := capability.ChangeParent(newParentID, newLevel); err != nil {
@@ -89,6 +60,49 @@ func (h *ChangeCapabilityParentHandler) Handle(ctx context.Context, cmd cqrs.Com
 	}
 
 	return h.updateDescendantLevels(ctx, command.CapabilityID, newLevel)
+}
+
+func (h *ChangeCapabilityParentHandler) determineNewParentAndLevel(ctx context.Context, command *commands.ChangeCapabilityParent) (valueobjects.CapabilityID, valueobjects.CapabilityLevel, error) {
+	if command.NewParentID == "" {
+		return valueobjects.CapabilityID{}, valueobjects.LevelL1, nil
+	}
+
+	newParentID, err := valueobjects.NewCapabilityIDFromString(command.NewParentID)
+	if err != nil {
+		return valueobjects.CapabilityID{}, "", err
+	}
+
+	parent, err := h.repository.GetByID(ctx, command.NewParentID)
+	if err != nil {
+		if errors.Is(err, repositories.ErrCapabilityNotFound) {
+			return valueobjects.CapabilityID{}, "", ErrParentCapabilityNotFound
+		}
+		return valueobjects.CapabilityID{}, "", err
+	}
+
+	if err := h.detectCircularReference(ctx, command.CapabilityID, command.NewParentID); err != nil {
+		return valueobjects.CapabilityID{}, "", err
+	}
+
+	newLevel, err := h.calculateChildLevel(parent.Level())
+	if err != nil {
+		return valueobjects.CapabilityID{}, "", err
+	}
+
+	return newParentID, newLevel, nil
+}
+
+func (h *ChangeCapabilityParentHandler) validateDepthConstraints(ctx context.Context, capabilityID string, newLevel valueobjects.CapabilityLevel) error {
+	subtreeDepth, err := h.calculateSubtreeDepth(ctx, capabilityID)
+	if err != nil {
+		return err
+	}
+
+	if newLevel.NumericValue()+subtreeDepth > 4 {
+		return aggregates.ErrWouldExceedMaximumDepth
+	}
+
+	return nil
 }
 
 func (h *ChangeCapabilityParentHandler) detectCircularReference(ctx context.Context, capabilityID, newParentID string) error {
@@ -105,18 +119,26 @@ func (h *ChangeCapabilityParentHandler) detectCircularReference(ctx context.Cont
 		}
 		visited[currentID] = true
 
-		parent, err := h.repository.GetByID(ctx, currentID)
+		nextParentID, err := h.getParentIDOrBreak(ctx, currentID)
 		if err != nil {
-			if errors.Is(err, repositories.ErrCapabilityNotFound) {
-				break
-			}
 			return err
 		}
 
-		currentID = parent.ParentID().Value()
+		currentID = nextParentID
 	}
 
 	return nil
+}
+
+func (h *ChangeCapabilityParentHandler) getParentIDOrBreak(ctx context.Context, capabilityID string) (string, error) {
+	parent, err := h.repository.GetByID(ctx, capabilityID)
+	if err != nil {
+		if errors.Is(err, repositories.ErrCapabilityNotFound) {
+			return "", nil
+		}
+		return "", err
+	}
+	return parent.ParentID().Value(), nil
 }
 
 func (h *ChangeCapabilityParentHandler) calculateChildLevel(parentLevel valueobjects.CapabilityLevel) (valueobjects.CapabilityLevel, error) {

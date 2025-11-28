@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAppStore } from '../../../store/appStore';
 import { EditRealizationDialog } from './EditRealizationDialog';
 import { DetailField } from '../../../components/shared/DetailField';
+import type { CapabilityRealization, Capability, Component } from '../../../api/types';
 
 const REALIZATION_PREFIX = 'realization-';
 
@@ -19,14 +20,18 @@ const isRealizationEdge = (edgeId: string | null): boolean =>
 const extractRealizationId = (edgeId: string): string =>
   edgeId.replace(REALIZATION_PREFIX, '');
 
-export const RealizationDetails: React.FC = () => {
-  const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
+interface RealizationData {
+  realization: CapabilityRealization;
+  capability: Capability | undefined;
+  component: Component | undefined;
+  formattedDate: string;
+  isInherited: boolean;
+}
+
+const useRealizationData = (selectedEdgeId: string | null): RealizationData | null => {
   const capabilityRealizations = useAppStore((state) => state.capabilityRealizations);
   const capabilities = useAppStore((state) => state.capabilities);
   const components = useAppStore((state) => state.components);
-  const selectEdge = useAppStore((state) => state.selectEdge);
-
-  const [showEditDialog, setShowEditDialog] = useState(false);
 
   if (!isRealizationEdge(selectedEdgeId)) {
     return null;
@@ -43,6 +48,22 @@ export const RealizationDetails: React.FC = () => {
   const component = components.find((c) => c.id === realization.componentId);
   const formattedDate = new Date(realization.linkedAt).toLocaleString();
   const isInherited = realization.origin === 'Inherited';
+
+  return { realization, capability, component, formattedDate, isInherited };
+};
+
+export const RealizationDetails: React.FC = () => {
+  const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
+  const selectEdge = useAppStore((state) => state.selectEdge);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+
+  const data = useRealizationData(selectedEdgeId);
+
+  if (!data) {
+    return null;
+  }
+
+  const { realization, capability, component, formattedDate, isInherited } = data;
 
   return (
     <div className="detail-panel">

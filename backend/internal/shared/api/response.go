@@ -95,14 +95,20 @@ func RespondCollection(w http.ResponseWriter, statusCode int, data interface{}, 
 	RespondJSON(w, statusCode, response)
 }
 
-// RespondCollectionWithTotal sends a collection response with total count metadata
-func RespondCollectionWithTotal(w http.ResponseWriter, statusCode int, data interface{}, total int, links map[string]string) {
+type CollectionWithTotalParams struct {
+	Data       interface{}
+	Total      int
+	Links      map[string]string
+	StatusCode int
+}
+
+func RespondCollectionWithTotal(w http.ResponseWriter, params CollectionWithTotalParams) {
 	response := CollectionResponse{
-		Data:  data,
-		Links: links,
+		Data:  params.Data,
+		Links: params.Links,
 		Meta: &CollectionMeta{
-			Total: &total,
+			Total: &params.Total,
 		},
 	}
-	RespondJSON(w, statusCode, response)
+	RespondJSON(w, params.StatusCode, response)
 }

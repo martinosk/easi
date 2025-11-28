@@ -113,7 +113,6 @@ body {
 }
 
 .edge-type-selector,
-.layout-direction-selector,
 .color-scheme-selector {
   display: flex;
   flex-direction: column;

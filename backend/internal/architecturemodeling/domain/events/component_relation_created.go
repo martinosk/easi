@@ -18,16 +18,24 @@ type ComponentRelationCreated struct {
 	CreatedAt         time.Time
 }
 
-// NewComponentRelationCreated creates a new ComponentRelationCreated event
-func NewComponentRelationCreated(id, sourceID, targetID, relationType, name, description string) ComponentRelationCreated {
+type ComponentRelationParams struct {
+	ID          string
+	SourceID    string
+	TargetID    string
+	Type        string
+	Name        string
+	Description string
+}
+
+func NewComponentRelationCreated(params ComponentRelationParams) ComponentRelationCreated {
 	return ComponentRelationCreated{
-		BaseEvent:         domain.NewBaseEvent(id),
-		ID:                id,
-		SourceComponentID: sourceID,
-		TargetComponentID: targetID,
-		RelationType:      relationType,
-		Name:              name,
-		Description:       description,
+		BaseEvent:         domain.NewBaseEvent(params.ID),
+		ID:                params.ID,
+		SourceComponentID: params.SourceID,
+		TargetComponentID: params.TargetID,
+		RelationType:      params.Type,
+		Name:              params.Name,
+		Description:       params.Description,
 		CreatedAt:         time.Now().UTC(),
 	}
 }

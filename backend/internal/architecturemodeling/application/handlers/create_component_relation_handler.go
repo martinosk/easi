@@ -44,13 +44,13 @@ func (h *CreateComponentRelationHandler) Handle(ctx context.Context, cmd cqrs.Co
 	name := valueobjects.NewDescription(command.Name)
 	description := valueobjects.NewDescription(command.Description)
 
-	properties := valueobjects.NewRelationProperties(
-		sourceID,
-		targetID,
-		relationType,
-		name,
-		description,
-	)
+	properties := valueobjects.NewRelationProperties(valueobjects.RelationPropertiesParams{
+		SourceID:     sourceID,
+		TargetID:     targetID,
+		RelationType: relationType,
+		Name:         name,
+		Description:  description,
+	})
 
 	relation, err := aggregates.NewComponentRelation(properties)
 	if err != nil {

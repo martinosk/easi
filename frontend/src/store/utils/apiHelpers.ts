@@ -14,13 +14,19 @@ export async function handleApiCall<T>(
   }
 }
 
+interface OptimisticUpdateOptions<T> {
+  apiCall: () => Promise<T>;
+  onSuccess: (result: T) => void;
+  onError: () => void;
+  successMessage: string;
+  errorMessage: string;
+}
+
 export async function optimisticUpdate<T>(
-  apiCall: () => Promise<T>,
-  onSuccess: (result: T) => void,
-  onError: () => void,
-  successMessage: string,
-  errorMessage: string
+  options: OptimisticUpdateOptions<T>
 ): Promise<T> {
+  const { apiCall, onSuccess, onError, successMessage, errorMessage } = options;
+
   try {
     const result = await apiCall();
     onSuccess(result);

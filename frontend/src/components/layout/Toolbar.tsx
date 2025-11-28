@@ -1,5 +1,5 @@
 import React from 'react';
-import { EdgeTypeSelector, LayoutDirectionSelector, ColorSchemeSelector } from '../../features/views';
+import { EdgeTypeSelector, ColorSchemeSelector } from '../../features/views';
 
 interface ToolbarProps {
   onOpenReleaseNotes?: () => void;
@@ -13,7 +13,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onOpenReleaseNotes }) => {
       </div>
       <div className="toolbar-right">
         <EdgeTypeSelector />
-        <LayoutDirectionSelector />
         <ColorSchemeSelector />
         {onOpenReleaseNotes && (
           <button

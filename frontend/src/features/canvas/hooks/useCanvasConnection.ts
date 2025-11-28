@@ -75,17 +75,17 @@ export const useCanvasConnection = (
       const targetIsCapability = isCapabilityNode(connection.target);
       const connectionType = getConnectionType(sourceIsCapability, targetIsCapability);
 
-      switch (connectionType) {
-        case 'capability-to-capability':
-          await handleCapabilityParentConnection(connection.source, connection.target);
-          break;
-        case 'component-to-component':
-          onConnect(connection.target, connection.source);
-          break;
-        case 'mixed':
-          await handleMixedConnection(connection.source, connection.target, sourceIsCapability);
-          break;
+      if (connectionType === 'capability-to-capability') {
+        await handleCapabilityParentConnection(connection.source, connection.target);
+        return;
       }
+
+      if (connectionType === 'component-to-component') {
+        onConnect(connection.target, connection.source);
+        return;
+      }
+
+      await handleMixedConnection(connection.source, connection.target, sourceIsCapability);
     },
     [onConnect, handleCapabilityParentConnection, handleMixedConnection]
   );

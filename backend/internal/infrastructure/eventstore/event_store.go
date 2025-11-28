@@ -9,6 +9,7 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/shared/domain"
+	sharedvo "easi/backend/internal/shared/domain/valueobjects"
 	"easi/backend/internal/shared/events"
 	sharedctx "easi/backend/internal/shared/context"
 )
@@ -58,22 +59,37 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 		return nil
 	}
 
-	// Extract tenant from context - this is infrastructure concern
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get tenant from context: %w", err)
 	}
 
-	// Use tenant-aware transaction that sets app.current_tenant for RLS
 	tx, err := s.db.BeginTxWithTenant(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	// Check current version - filtered by tenant
+	if err := s.checkVersionConflict(ctx, tx, tenantID, aggregateID, expectedVersion); err != nil {
+		return err
+	}
+
+	if err := s.insertEvents(ctx, tx, tenantID, aggregateID, events, expectedVersion); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	s.publishEventsIfAvailable(ctx, events)
+
+	return nil
+}
+
+func (s *PostgresEventStore) checkVersionConflict(ctx context.Context, tx *sql.Tx, tenantID sharedvo.TenantID, aggregateID string, expectedVersion int) error {
 	var currentVersion int
-	err = tx.QueryRowContext(ctx,
+	err := tx.QueryRowContext(ctx,
 		"SELECT COALESCE(MAX(version), 0) FROM events WHERE tenant_id = $1 AND aggregate_id = $2",
 		tenantID.Value(),
 		aggregateID,
@@ -86,7 +102,10 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 		return fmt.Errorf("concurrency conflict: expected version %d, got %d", expectedVersion, currentVersion)
 	}
 
-	// Insert events with tenant_id
+	return nil
+}
+
+func (s *PostgresEventStore) insertEvents(ctx context.Context, tx *sql.Tx, tenantID sharedvo.TenantID, aggregateID string, events []domain.DomainEvent, expectedVersion int) error {
 	stmt, err := tx.PrepareContext(ctx,
 		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5, $6)",
 	)
@@ -103,7 +122,7 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 
 		version := expectedVersion + i + 1
 		_, err = stmt.ExecContext(ctx,
-			tenantID.Value(), // Infrastructure adds tenant_id
+			tenantID.Value(),
 			event.AggregateID(),
 			event.EventType(),
 			eventData,
@@ -115,20 +134,15 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
+	return nil
+}
 
-	// Publish events to event bus after successful commit
+func (s *PostgresEventStore) publishEventsIfAvailable(ctx context.Context, events []domain.DomainEvent) {
 	if s.eventBus != nil {
 		if err := s.eventBus.Publish(ctx, events); err != nil {
-			// Log the error but don't fail the operation since events are already persisted
-			// In a production system, you might want to implement retry logic or dead letter queue
 			fmt.Printf("Warning: failed to publish events to event bus: %v\n", err)
 		}
 	}
-
-	return nil
 }
 
 // GetEvents retrieves all events for an aggregate

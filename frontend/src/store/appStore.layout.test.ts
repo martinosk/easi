@@ -34,7 +34,6 @@ describe('AppStore Layout Tests', () => {
         isDefault: false,
         components: [],
         edgeType: 'default',
-        layoutDirection: 'TB',
         createdAt: new Date().toISOString(),
         _links: { self: { href: '/api/views/view-1' } },
       };
@@ -56,7 +55,6 @@ describe('AppStore Layout Tests', () => {
         isDefault: false,
         components: [],
         edgeType: 'default',
-        layoutDirection: 'TB',
         createdAt: new Date().toISOString(),
         _links: { self: { href: '/api/views/view-1' } },
       };
@@ -78,7 +76,6 @@ describe('AppStore Layout Tests', () => {
         isDefault: false,
         components: [],
         edgeType: 'default',
-        layoutDirection: 'TB',
         createdAt: new Date().toISOString(),
         _links: { self: { href: '/api/views/view-1' } },
       };
@@ -109,7 +106,6 @@ describe('AppStore Layout Tests', () => {
         isDefault: false,
         components: [],
         edgeType: 'default',
-        layoutDirection: 'TB',
         createdAt: new Date().toISOString(),
         _links: { self: { href: '/api/views/view-1' } },
       };
@@ -127,107 +123,6 @@ describe('AppStore Layout Tests', () => {
     });
   });
 
-  describe('setLayoutDirection', () => {
-    it('should update layout direction successfully', async () => {
-      const mockView: View = {
-        id: 'view-1',
-        name: 'Test View',
-        isDefault: false,
-        components: [],
-        edgeType: 'default',
-        layoutDirection: 'TB',
-        createdAt: new Date().toISOString(),
-        _links: { self: { href: '/api/views/view-1' } },
-      };
-
-      useAppStore.setState({ currentView: mockView });
-      vi.mocked(apiClient.updateViewLayoutDirection).mockResolvedValueOnce(undefined as any);
-
-      await useAppStore.getState().setLayoutDirection('LR');
-
-      expect(useAppStore.getState().currentView?.layoutDirection).toBe('LR');
-      expect(apiClient.updateViewLayoutDirection).toHaveBeenCalledWith('view-1', { layoutDirection: 'LR' });
-      expect(mockToast.success).toHaveBeenCalledWith('Layout direction updated');
-    });
-
-    it('should rollback on API error', async () => {
-      const mockView: View = {
-        id: 'view-1',
-        name: 'Test View',
-        isDefault: false,
-        components: [],
-        edgeType: 'default',
-        layoutDirection: 'TB',
-        createdAt: new Date().toISOString(),
-        _links: { self: { href: '/api/views/view-1' } },
-      };
-
-      useAppStore.setState({ currentView: mockView });
-      const apiError = new ApiError('Failed to update', 500);
-      vi.mocked(apiClient.updateViewLayoutDirection).mockRejectedValueOnce(apiError);
-
-      await expect(useAppStore.getState().setLayoutDirection('LR')).rejects.toThrow(apiError);
-
-      expect(useAppStore.getState().currentView?.layoutDirection).toBe('TB');
-      expect(mockToast.error).toHaveBeenCalledWith('Failed to update');
-    });
-
-    it('should handle generic error', async () => {
-      const mockView: View = {
-        id: 'view-1',
-        name: 'Test View',
-        isDefault: false,
-        components: [],
-        edgeType: 'default',
-        layoutDirection: 'TB',
-        createdAt: new Date().toISOString(),
-        _links: { self: { href: '/api/views/view-1' } },
-      };
-
-      useAppStore.setState({ currentView: mockView });
-      const genericError = new Error('Network error');
-      vi.mocked(apiClient.updateViewLayoutDirection).mockRejectedValueOnce(genericError);
-
-      await expect(useAppStore.getState().setLayoutDirection('LR')).rejects.toThrow(genericError);
-
-      expect(useAppStore.getState().currentView?.layoutDirection).toBe('TB');
-      expect(mockToast.error).toHaveBeenCalledWith('Failed to update layout direction');
-    });
-
-    it('should do nothing if no current view', async () => {
-      useAppStore.setState({ currentView: null });
-
-      await useAppStore.getState().setLayoutDirection('LR');
-
-      expect(apiClient.updateViewLayoutDirection).not.toHaveBeenCalled();
-      expect(mockToast.success).not.toHaveBeenCalled();
-    });
-
-    it('should handle all valid directions', async () => {
-      const mockView: View = {
-        id: 'view-1',
-        name: 'Test View',
-        isDefault: false,
-        components: [],
-        edgeType: 'default',
-        layoutDirection: 'TB',
-        createdAt: new Date().toISOString(),
-        _links: { self: { href: '/api/views/view-1' } },
-      };
-
-      const directions = ['TB', 'LR', 'BT', 'RL'];
-
-      for (const direction of directions) {
-        useAppStore.setState({ currentView: { ...mockView, layoutDirection: 'TB' } });
-        vi.mocked(apiClient.updateViewLayoutDirection).mockResolvedValueOnce(undefined as any);
-
-        await useAppStore.getState().setLayoutDirection(direction);
-
-        expect(useAppStore.getState().currentView?.layoutDirection).toBe(direction);
-      }
-    });
-  });
-
   describe('setColorScheme', () => {
     it('should update color scheme successfully', async () => {
       const mockView: View = {
@@ -236,7 +131,6 @@ describe('AppStore Layout Tests', () => {
         isDefault: false,
         components: [],
         edgeType: 'default',
-        layoutDirection: 'TB',
         colorScheme: 'maturity',
         createdAt: new Date().toISOString(),
         _links: { self: { href: '/api/views/view-1' } },
@@ -259,7 +153,6 @@ describe('AppStore Layout Tests', () => {
         isDefault: false,
         components: [],
         edgeType: 'default',
-        layoutDirection: 'TB',
         colorScheme: 'maturity',
         createdAt: new Date().toISOString(),
         _links: { self: { href: '/api/views/view-1' } },
@@ -282,7 +175,6 @@ describe('AppStore Layout Tests', () => {
         isDefault: false,
         components: [],
         edgeType: 'default',
-        layoutDirection: 'TB',
         colorScheme: 'maturity',
         createdAt: new Date().toISOString(),
         _links: { self: { href: '/api/views/view-1' } },
@@ -314,7 +206,6 @@ describe('AppStore Layout Tests', () => {
         isDefault: false,
         components: [],
         edgeType: 'default',
-        layoutDirection: 'TB',
         colorScheme: 'maturity',
         createdAt: new Date().toISOString(),
         _links: { self: { href: '/api/views/view-1' } },

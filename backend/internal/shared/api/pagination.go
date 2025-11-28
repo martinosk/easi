@@ -86,25 +86,34 @@ func EncodeCursor(id string, timestamp time.Time) string {
 	return base64.URLEncoding.EncodeToString(data)
 }
 
-// RespondPaginated sends a paginated response with proper HATEOAS links
-func RespondPaginated(w http.ResponseWriter, statusCode int, data interface{}, hasMore bool, nextCursor string, limit int, selfLink string, baseLink string) {
+type PaginatedResponseParams struct {
+	StatusCode int
+	Data       interface{}
+	HasMore    bool
+	NextCursor string
+	Limit      int
+	SelfLink   string
+	BaseLink   string
+}
+
+func RespondPaginated(w http.ResponseWriter, params PaginatedResponseParams) {
 	links := map[string]string{
-		"self": selfLink,
+		"self": params.SelfLink,
 	}
 
-	if nextCursor != "" && hasMore {
-		links["next"] = baseLink + "?after=" + nextCursor + "&limit=" + strconv.Itoa(limit)
+	if params.NextCursor != "" && params.HasMore {
+		links["next"] = params.BaseLink + "?after=" + params.NextCursor + "&limit=" + strconv.Itoa(params.Limit)
 	}
 
 	response := PaginatedResponse{
-		Data: data,
+		Data: params.Data,
 		Pagination: PaginationInfo{
-			HasMore: hasMore,
-			Limit:   limit,
-			Cursor:  nextCursor,
+			HasMore: params.HasMore,
+			Limit:   params.Limit,
+			Cursor:  params.NextCursor,
 		},
 		Links: links,
 	}
 
-	RespondJSON(w, statusCode, response)
+	RespondJSON(w, params.StatusCode, response)
 }

@@ -41,6 +41,30 @@ interface DetailSectionProps {
   onRemoveCapabilityFromView: () => void;
 }
 
+const renderDetailContent = (
+  selectedNodeId: string | null,
+  selectedEdgeId: string | null,
+  selectedCapabilityId: string | null,
+  onEditComponent: (componentId?: string) => void,
+  onEditRelation: () => void,
+  onRemoveFromView: () => void,
+  onRemoveCapabilityFromView: () => void
+): React.ReactNode => {
+  if (selectedNodeId) {
+    return <ComponentDetails onEdit={onEditComponent} onRemoveFromView={onRemoveFromView} />;
+  }
+  if (selectedEdgeId && isRealizationEdge(selectedEdgeId)) {
+    return <RealizationDetails />;
+  }
+  if (selectedEdgeId && isRelationEdge(selectedEdgeId)) {
+    return <RelationDetails onEdit={onEditRelation} />;
+  }
+  if (selectedCapabilityId) {
+    return <CapabilityDetails onRemoveFromView={onRemoveCapabilityFromView} />;
+  }
+  return null;
+};
+
 const DetailSection: React.FC<DetailSectionProps> = ({
   selectedNodeId,
   selectedEdgeId,
@@ -55,18 +79,14 @@ const DetailSection: React.FC<DetailSectionProps> = ({
 
   return (
     <div className="detail-section">
-      {selectedNodeId && (
-        <ComponentDetails
-          onEdit={onEditComponent}
-          onRemoveFromView={onRemoveFromView}
-        />
-      )}
-      {selectedEdgeId && isRealizationEdge(selectedEdgeId) && <RealizationDetails />}
-      {selectedEdgeId && isRelationEdge(selectedEdgeId) && (
-        <RelationDetails onEdit={onEditRelation} />
-      )}
-      {selectedCapabilityId && (
-        <CapabilityDetails onRemoveFromView={onRemoveCapabilityFromView} />
+      {renderDetailContent(
+        selectedNodeId,
+        selectedEdgeId,
+        selectedCapabilityId,
+        onEditComponent,
+        onEditRelation,
+        onRemoveFromView,
+        onRemoveCapabilityFromView
       )}
     </div>
   );

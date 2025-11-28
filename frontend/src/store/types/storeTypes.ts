@@ -18,7 +18,6 @@ export type DependencyId = CapabilityDependencyId;
 
 export type RelationType = 'Triggers' | 'Serves';
 export type EdgeType = string;
-export type LayoutDirection = string;
 
 export interface Position {
   readonly x: number;

@@ -43,63 +43,61 @@ func (h *ErrorHandler) mapError(err error, context string) (int, string) {
 	errMsg := strings.ToLower(err.Error())
 
 	switch {
-	case strings.Contains(errMsg, "not found"):
+	case containsAny(errMsg, "not found"):
 		return http.StatusNotFound, ""
-
-	case strings.Contains(errMsg, "already exists") ||
-	     strings.Contains(errMsg, "already in") ||
-	     strings.Contains(errMsg, "duplicate"):
+	case h.isConflictMessage(errMsg):
 		return http.StatusConflict, ""
-
-	case strings.Contains(errMsg, "invalid") ||
-	     strings.Contains(errMsg, "cannot be empty") ||
-	     strings.Contains(errMsg, "too long") ||
-	     strings.Contains(errMsg, "too short") ||
-	     strings.Contains(errMsg, "must be") ||
-	     strings.Contains(errMsg, "validation"):
+	case h.isValidationMessage(errMsg):
 		return http.StatusBadRequest, ""
-
-	case strings.Contains(errMsg, "unauthorized"):
+	case containsAny(errMsg, "unauthorized"):
 		return http.StatusUnauthorized, ""
-
-	case strings.Contains(errMsg, "forbidden") ||
-	     strings.Contains(errMsg, "permission"):
+	case containsAny(errMsg, "forbidden", "permission"):
 		return http.StatusForbidden, ""
-
-	case strings.Contains(errMsg, "cannot delete") ||
-	     strings.Contains(errMsg, "has children") ||
-	     strings.Contains(errMsg, "in use"):
-		return http.StatusConflict, ""
-
 	default:
-		if context != "" {
-			return http.StatusInternalServerError, context
-		}
-		return http.StatusInternalServerError, h.defaultMessage
+		return h.defaultErrorResponse(context)
 	}
+}
+
+func (h *ErrorHandler) isConflictMessage(errMsg string) bool {
+	return containsAny(errMsg, "already exists", "already in", "duplicate", "cannot delete", "has children", "in use")
+}
+
+func (h *ErrorHandler) isValidationMessage(errMsg string) bool {
+	return containsAny(errMsg, "invalid", "cannot be empty", "too long", "too short", "must be", "validation")
+}
+
+func (h *ErrorHandler) defaultErrorResponse(context string) (int, string) {
+	if context != "" {
+		return http.StatusInternalServerError, context
+	}
+	return http.StatusInternalServerError, h.defaultMessage
+}
+
+func containsAny(s string, substrings ...string) bool {
+	for _, substr := range substrings {
+		if strings.Contains(s, substr) {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *ErrorHandler) IsNotFoundError(err error) bool {
-	return err != nil && strings.Contains(strings.ToLower(err.Error()), "not found")
+	return h.matchesErrorPattern(err, "not found")
 }
 
 func (h *ErrorHandler) IsConflictError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errMsg := strings.ToLower(err.Error())
-	return strings.Contains(errMsg, "already exists") ||
-	       strings.Contains(errMsg, "duplicate") ||
-	       strings.Contains(errMsg, "conflict")
+	return h.matchesErrorPattern(err, "already exists", "duplicate", "conflict")
 }
 
 func (h *ErrorHandler) IsValidationError(err error) bool {
+	return h.matchesErrorPattern(err, "invalid", "validation", "must be", "cannot be")
+}
+
+func (h *ErrorHandler) matchesErrorPattern(err error, patterns ...string) bool {
 	if err == nil {
 		return false
 	}
 	errMsg := strings.ToLower(err.Error())
-	return strings.Contains(errMsg, "invalid") ||
-	       strings.Contains(errMsg, "validation") ||
-	       strings.Contains(errMsg, "must be") ||
-	       strings.Contains(errMsg, "cannot be")
+	return containsAny(errMsg, patterns...)
 }

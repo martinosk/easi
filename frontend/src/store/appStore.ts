@@ -45,7 +45,6 @@ export type {
   RealizationId,
   RelationType,
   EdgeType,
-  LayoutDirection,
   Position,
   ViewportState,
   ComponentData,

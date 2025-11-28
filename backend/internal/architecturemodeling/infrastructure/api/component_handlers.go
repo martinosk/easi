@@ -135,7 +135,15 @@ func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Requ
 	nextCursor := h.paginationHelper.GenerateNextCursor(pageables, hasMore)
 	selfLink := h.paginationHelper.BuildSelfLink(params)
 
-	sharedAPI.RespondPaginated(w, http.StatusOK, components, hasMore, nextCursor, params.Limit, selfLink, "/api/v1/components")
+	sharedAPI.RespondPaginated(w, sharedAPI.PaginatedResponseParams{
+		StatusCode: http.StatusOK,
+		Data:       components,
+		HasMore:    hasMore,
+		NextCursor: nextCursor,
+		Limit:      params.Limit,
+		SelfLink:   selfLink,
+		BaseLink:   "/api/v1/components",
+	})
 }
 
 

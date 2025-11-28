@@ -73,7 +73,6 @@ export interface View {
   components: ViewComponent[];
   capabilities: ViewCapability[];
   edgeType?: string;
-  layoutDirection?: string;
   colorScheme?: string;
   createdAt: string;
   _links: HATEOASLinks;
@@ -130,10 +129,6 @@ export interface RenameViewRequest {
 
 export interface UpdateViewEdgeTypeRequest {
   edgeType: string;
-}
-
-export interface UpdateViewLayoutDirectionRequest {
-  layoutDirection: string;
 }
 
 export interface UpdateViewColorSchemeRequest {

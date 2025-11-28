@@ -1,13 +1,12 @@
 import type { StateCreator } from 'zustand';
 import type { View } from '../../api/types';
-import type { ComponentId, Position, EdgeType, LayoutDirection } from '../types/storeTypes';
+import type { ComponentId, Position, EdgeType } from '../types/storeTypes';
 import apiClient from '../../api/client';
 import { handleApiCall, optimisticUpdate } from '../utils/apiHelpers';
 
 export interface LayoutActions {
   updatePosition: (componentId: ComponentId, position: Position) => Promise<void>;
   setEdgeType: (edgeType: EdgeType) => Promise<void>;
-  setLayoutDirection: (direction: LayoutDirection) => Promise<void>;
   setColorScheme: (colorScheme: string) => Promise<void>;
 }
 
@@ -15,7 +14,7 @@ type StoreWithDependencies = {
   currentView: View | null;
 };
 
-type ViewPropertyKey = 'edgeType' | 'layoutDirection' | 'colorScheme';
+type ViewPropertyKey = 'edgeType' | 'colorScheme';
 
 async function updateViewProperty<K extends ViewPropertyKey>(
   currentView: View,
@@ -35,18 +34,18 @@ async function updateViewProperty<K extends ViewPropertyKey>(
     },
   });
 
-  await optimisticUpdate(
+  await optimisticUpdate({
     apiCall,
-    () => {},
-    () => set({
+    onSuccess: () => {},
+    onError: () => set({
       currentView: {
         ...currentView,
         [propertyKey]: previousValue,
       },
     }),
     successMessage,
-    errorMessage
-  );
+    errorMessage,
+  });
 }
 
 export const createLayoutSlice: StateCreator<
@@ -91,21 +90,6 @@ export const createLayoutSlice: StateCreator<
       () => apiClient.updateViewEdgeType(currentView.id, { edgeType }),
       'Edge type updated',
       'Failed to update edge type'
-    );
-  },
-
-  setLayoutDirection: async (layoutDirection: LayoutDirection) => {
-    const { currentView } = get();
-    if (!currentView) return;
-
-    await updateViewProperty(
-      currentView,
-      'layoutDirection',
-      layoutDirection,
-      set,
-      () => apiClient.updateViewLayoutDirection(currentView.id, { layoutDirection }),
-      'Layout direction updated',
-      'Failed to update layout direction'
     );
   },
 

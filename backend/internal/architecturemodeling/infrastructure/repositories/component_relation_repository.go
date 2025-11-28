@@ -85,15 +85,14 @@ func (r *ComponentRelationRepository) deserializeEvents(storedEvents []domain.Do
 			createdAtStr, _ := eventData["createdAt"].(string)
 			createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
 
-			// Create concrete event
-			concreteEvent := events.NewComponentRelationCreated(
-				id,
-				sourceComponentID,
-				targetComponentID,
-				relationType,
-				name,
-				description,
-			)
+			concreteEvent := events.NewComponentRelationCreated(events.ComponentRelationParams{
+				ID:          id,
+				SourceID:    sourceComponentID,
+				TargetID:    targetComponentID,
+				Type:        relationType,
+				Name:        name,
+				Description: description,
+			})
 			concreteEvent.CreatedAt = createdAt
 			domainEvents = append(domainEvents, concreteEvent)
 

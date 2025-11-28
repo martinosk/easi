@@ -60,9 +60,16 @@ func (h *HATEOASLinks) ViewLinks(viewID string) map[string]string {
 	}
 }
 
-// CapabilityLinks generates links for a capability resource
 func (h *HATEOASLinks) CapabilityLinks(capabilityID, parentID string) map[string]string {
-	links := map[string]string{
+	links := h.buildCapabilityBaseLinks(capabilityID)
+	if parentID != "" {
+		links["parent"] = fmt.Sprintf("%s/capabilities/%s", h.baseURL, parentID)
+	}
+	return links
+}
+
+func (h *HATEOASLinks) buildCapabilityBaseLinks(capabilityID string) map[string]string {
+	return map[string]string{
 		"self":                  fmt.Sprintf("%s/capabilities/%s", h.baseURL, capabilityID),
 		"children":              fmt.Sprintf("%s/capabilities/%s/children", h.baseURL, capabilityID),
 		"systems":               fmt.Sprintf("%s/capabilities/%s/systems", h.baseURL, capabilityID),
@@ -70,12 +77,6 @@ func (h *HATEOASLinks) CapabilityLinks(capabilityID, parentID string) map[string
 		"incomingDependencies":  fmt.Sprintf("%s/capabilities/%s/dependencies/incoming", h.baseURL, capabilityID),
 		"collection":            fmt.Sprintf("%s/capabilities", h.baseURL),
 	}
-
-	if parentID != "" {
-		links["parent"] = fmt.Sprintf("%s/capabilities/%s", h.baseURL, parentID)
-	}
-
-	return links
 }
 
 // DependencyLinks generates links for a capability dependency resource

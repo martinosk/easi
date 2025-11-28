@@ -16,7 +16,6 @@ import type {
   UpdateMultiplePositionsRequest,
   RenameViewRequest,
   UpdateViewEdgeTypeRequest,
-  UpdateViewLayoutDirectionRequest,
   UpdateViewColorSchemeRequest,
   PaginatedResponse,
   CollectionResponse,
@@ -193,10 +192,6 @@ class ApiClient {
 
   async updateViewEdgeType(viewId: ViewId, request: UpdateViewEdgeTypeRequest): Promise<void> {
     await this.client.patch(`/api/v1/views/${viewId}/edge-type`, request);
-  }
-
-  async updateViewLayoutDirection(viewId: ViewId, request: UpdateViewLayoutDirectionRequest): Promise<void> {
-    await this.client.patch(`/api/v1/views/${viewId}/layout-direction`, request);
   }
 
   async updateViewColorScheme(viewId: ViewId, request: UpdateViewColorSchemeRequest): Promise<void> {

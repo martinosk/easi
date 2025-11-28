@@ -9,20 +9,21 @@ type RelationProperties struct {
 	description  Description
 }
 
-// NewRelationProperties creates a new relation properties value object
-func NewRelationProperties(
-	sourceID ComponentID,
-	targetID ComponentID,
-	relationType RelationType,
-	name Description,
-	description Description,
-) RelationProperties {
+type RelationPropertiesParams struct {
+	SourceID     ComponentID
+	TargetID     ComponentID
+	RelationType RelationType
+	Name         Description
+	Description  Description
+}
+
+func NewRelationProperties(params RelationPropertiesParams) RelationProperties {
 	return RelationProperties{
-		sourceID:     sourceID,
-		targetID:     targetID,
-		relationType: relationType,
-		name:         name,
-		description:  description,
+		sourceID:     params.SourceID,
+		targetID:     params.TargetID,
+		relationType: params.RelationType,
+		name:         params.Name,
+		description:  params.Description,
 	}
 }
 

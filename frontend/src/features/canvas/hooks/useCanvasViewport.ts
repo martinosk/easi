@@ -18,7 +18,10 @@ export const useCanvasViewport = (
     if (savedViewport) {
       reactFlowInstance.setViewport(savedViewport, { duration: 300 });
       setIsFirstLoad(false);
-    } else if (isFirstLoad && nodes.length > 0) {
+      return;
+    }
+
+    if (isFirstLoad && nodes.length > 0) {
       setTimeout(() => {
         reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
         setIsFirstLoad(false);

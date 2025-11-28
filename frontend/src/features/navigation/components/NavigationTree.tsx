@@ -273,21 +273,38 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
     ];
   };
 
-  const renderCapabilityNode = (node: CapabilityTreeNode): React.ReactNode => {
-    const { capability, children } = node;
-    const hasChildNodes = children.length > 0;
-    const isExpanded = expandedCapabilities.has(capability.id);
-    const levelNum = getLevelNumber(capability.level);
-    const isSelected = selectedCapabilityId === capability.id;
+  const getCapabilityNodeData = (node: CapabilityTreeNode) => {
+    const { capability } = node;
     const isOnCanvas = canvasCapabilities.some((cc) => cc.capabilityId === capability.id);
-    const colorScheme = currentView?.colorScheme ?? 'maturity';
-
     const viewCapability = currentView?.capabilities.find(vc => vc.capabilityId === capability.id);
     const customColor = viewCapability?.customColor;
-    const showColorIndicator = hasCustomColor(currentView?.colorScheme, customColor);
+    const colorScheme = currentView?.colorScheme ?? 'maturity';
 
-    const baseTitle = capability.description || capability.name;
-    const title = isOnCanvas ? baseTitle : `${baseTitle} (not in view)`;
+    return {
+      hasChildNodes: node.children.length > 0,
+      isExpanded: expandedCapabilities.has(capability.id),
+      levelNum: getLevelNumber(capability.level),
+      isSelected: selectedCapabilityId === capability.id,
+      isOnCanvas,
+      showColorIndicator: hasCustomColor(currentView?.colorScheme, customColor),
+      title: isOnCanvas ? (capability.description || capability.name) : `${capability.description || capability.name} (not in view)`,
+      customColor,
+      colorScheme,
+    };
+  };
+
+  const buildCapabilityItemClassName = (levelNum: number, isSelected: boolean, isOnCanvas: boolean): string => {
+    return [
+      'capability-tree-item',
+      `capability-level-${levelNum}`,
+      isSelected && 'selected',
+      !isOnCanvas && 'not-in-view',
+    ].filter(Boolean).join(' ');
+  };
+
+  const renderCapabilityNode = (node: CapabilityTreeNode): React.ReactNode => {
+    const { capability, children } = node;
+    const nodeData = getCapabilityNodeData(node);
 
     const handleExpandClick = (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -299,37 +316,30 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
       e.dataTransfer.effectAllowed = 'copy';
     };
 
-    const itemClassName = [
-      'capability-tree-item',
-      `capability-level-${levelNum}`,
-      isSelected && 'selected',
-      !isOnCanvas && 'not-in-view',
-    ].filter(Boolean).join(' ');
-
     return (
       <div key={capability.id}>
         <div
-          className={itemClassName}
+          className={buildCapabilityItemClassName(nodeData.levelNum, nodeData.isSelected, nodeData.isOnCanvas)}
           draggable
           onDragStart={handleDragStart}
           onClick={() => handleCapabilityClick(capability.id)}
           onContextMenu={(e) => handleCapabilityContextMenu(e, capability)}
-          title={title}
+          title={nodeData.title}
         >
           <ExpandButton
-            hasChildren={hasChildNodes}
-            isExpanded={isExpanded}
+            hasChildren={nodeData.hasChildNodes}
+            isExpanded={nodeData.isExpanded}
             onClick={handleExpandClick}
           />
           <span className="capability-level-badge">{capability.level}:</span>
           <span className="capability-name">{capability.name}</span>
           <span
-            className={`capability-maturity-indicator ${getMaturityClass(colorScheme, capability.maturityLevel)}`}
+            className={`capability-maturity-indicator ${getMaturityClass(nodeData.colorScheme, capability.maturityLevel)}`}
             title={capability.maturityLevel || 'Initial'}
           />
-          {showColorIndicator && <ColorIndicator customColor={customColor} />}
+          {nodeData.showColorIndicator && <ColorIndicator customColor={nodeData.customColor} />}
         </div>
-        {hasChildNodes && isExpanded && (
+        {nodeData.hasChildNodes && nodeData.isExpanded && (
           <div className="capability-children">
             {children.map(renderCapabilityNode)}
           </div>

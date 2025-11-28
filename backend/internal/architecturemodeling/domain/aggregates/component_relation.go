@@ -33,14 +33,14 @@ func NewComponentRelation(properties valueobjects.RelationProperties) (*Componen
 		AggregateRoot: domain.NewAggregateRoot(),
 	}
 
-	event := events.NewComponentRelationCreated(
-		aggregate.ID(),
-		properties.SourceID().Value(),
-		properties.TargetID().Value(),
-		properties.RelationType().Value(),
-		properties.Name().Value(),
-		properties.Description().Value(),
-	)
+	event := events.NewComponentRelationCreated(events.ComponentRelationParams{
+		ID:          aggregate.ID(),
+		SourceID:    properties.SourceID().Value(),
+		TargetID:    properties.TargetID().Value(),
+		Type:        properties.RelationType().Value(),
+		Name:        properties.Name().Value(),
+		Description: properties.Description().Value(),
+	})
 
 	aggregate.apply(event)
 	aggregate.RaiseEvent(event)

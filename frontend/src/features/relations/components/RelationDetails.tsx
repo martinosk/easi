@@ -1,15 +1,22 @@
 import React from 'react';
 import { useAppStore } from '../../../store/appStore';
+import type { Relation, Component } from '../../../api/types';
 
 interface RelationDetailsProps {
   onEdit: () => void;
 }
 
-export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
-  const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
+interface RelationData {
+  relation: Relation;
+  sourceComponent: Component | undefined;
+  targetComponent: Component | undefined;
+  archimateLink: string | undefined;
+  formattedDate: string;
+}
+
+const useRelationData = (selectedEdgeId: string | null): RelationData | null => {
   const relations = useAppStore((state) => state.relations);
   const components = useAppStore((state) => state.components);
-  const clearSelection = useAppStore((state) => state.clearSelection);
 
   if (!selectedEdgeId) {
     return null;
@@ -21,15 +28,25 @@ export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
     return null;
   }
 
-  const sourceComponent = components.find(
-    (c) => c.id === relation.sourceComponentId
-  );
-  const targetComponent = components.find(
-    (c) => c.id === relation.targetComponentId
-  );
-
+  const sourceComponent = components.find((c) => c.id === relation.sourceComponentId);
+  const targetComponent = components.find((c) => c.id === relation.targetComponentId);
   const archimateLink = relation._links.archimate?.href;
   const formattedDate = new Date(relation.createdAt).toLocaleString();
+
+  return { relation, sourceComponent, targetComponent, archimateLink, formattedDate };
+};
+
+export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
+  const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
+  const clearSelection = useAppStore((state) => state.clearSelection);
+
+  const data = useRelationData(selectedEdgeId);
+
+  if (!data) {
+    return null;
+  }
+
+  const { relation, sourceComponent, targetComponent, archimateLink, formattedDate } = data;
 
   return (
     <div className="detail-panel">

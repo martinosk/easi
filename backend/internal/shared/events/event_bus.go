@@ -54,25 +54,38 @@ func (b *InMemoryEventBus) Publish(ctx context.Context, events []domain.DomainEv
 	defer b.mu.RUnlock()
 
 	for _, event := range events {
-		eventType := event.EventType()
-
-		// Call global handlers
-		for _, handler := range b.globalHandlers {
-			if err := handler.Handle(ctx, event); err != nil {
-				return fmt.Errorf("global handler failed for event %s: %w", eventType, err)
-			}
+		if err := b.publishToGlobalHandlers(ctx, event); err != nil {
+			return err
 		}
-
-		// Call event-specific handlers
-		if handlers, exists := b.handlers[eventType]; exists {
-			for _, handler := range handlers {
-				if err := handler.Handle(ctx, event); err != nil {
-					return fmt.Errorf("handler failed for event %s: %w", eventType, err)
-				}
-			}
+		if err := b.publishToEventHandlers(ctx, event); err != nil {
+			return err
 		}
 	}
 
+	return nil
+}
+
+func (b *InMemoryEventBus) publishToGlobalHandlers(ctx context.Context, event domain.DomainEvent) error {
+	for _, handler := range b.globalHandlers {
+		if err := handler.Handle(ctx, event); err != nil {
+			return fmt.Errorf("global handler failed for event %s: %w", event.EventType(), err)
+		}
+	}
+	return nil
+}
+
+func (b *InMemoryEventBus) publishToEventHandlers(ctx context.Context, event domain.DomainEvent) error {
+	eventType := event.EventType()
+	handlers, exists := b.handlers[eventType]
+	if !exists {
+		return nil
+	}
+
+	for _, handler := range handlers {
+		if err := handler.Handle(ctx, event); err != nil {
+			return fmt.Errorf("handler failed for event %s: %w", eventType, err)
+		}
+	}
 	return nil
 }
 

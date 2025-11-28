@@ -21,34 +21,33 @@ export const useDeleteConfirmation = () => {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleDeleteConfirm = useCallback(async () => {
-    if (!deleteTarget) return;
-
-    setIsDeleting(true);
-    try {
-      if (deleteTarget.type === 'component-from-view') {
-        await removeComponentFromView(deleteTarget.id as ComponentId);
-      } else if (deleteTarget.type === 'component-from-model') {
-        await deleteComponent(deleteTarget.id as ComponentId);
-      } else if (deleteTarget.type === 'relation-from-model') {
-        await deleteRelation(deleteTarget.id as RelationId);
-      } else if (deleteTarget.type === 'capability-from-canvas') {
-        removeCapabilityFromCanvas(deleteTarget.id as CapabilityId);
-      } else if (deleteTarget.type === 'capability-from-model') {
-        await deleteCapability(deleteTarget.id as CapabilityId);
-      } else if (deleteTarget.type === 'parent-relation' && deleteTarget.childId) {
-        await changeCapabilityParent(deleteTarget.childId as CapabilityId, null);
-      } else if (deleteTarget.type === 'realization') {
-        await deleteRealization(deleteTarget.id as RealizationId);
-      }
-      setDeleteTarget(null);
-    } catch (error) {
-      console.error('Failed to delete:', error);
-    } finally {
-      setIsDeleting(false);
+  const executeDelete = useCallback(async (target: DeleteTarget) => {
+    switch (target.type) {
+      case 'component-from-view':
+        await removeComponentFromView(target.id as ComponentId);
+        break;
+      case 'component-from-model':
+        await deleteComponent(target.id as ComponentId);
+        break;
+      case 'relation-from-model':
+        await deleteRelation(target.id as RelationId);
+        break;
+      case 'capability-from-canvas':
+        removeCapabilityFromCanvas(target.id as CapabilityId);
+        break;
+      case 'capability-from-model':
+        await deleteCapability(target.id as CapabilityId);
+        break;
+      case 'parent-relation':
+        if (target.childId) {
+          await changeCapabilityParent(target.childId as CapabilityId, null);
+        }
+        break;
+      case 'realization':
+        await deleteRealization(target.id as RealizationId);
+        break;
     }
   }, [
-    deleteTarget,
     removeComponentFromView,
     deleteComponent,
     deleteRelation,
@@ -57,6 +56,20 @@ export const useDeleteConfirmation = () => {
     changeCapabilityParent,
     deleteRealization,
   ]);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return;
+
+    setIsDeleting(true);
+    try {
+      await executeDelete(deleteTarget);
+      setDeleteTarget(null);
+    } catch (error) {
+      console.error('Failed to delete:', error);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [deleteTarget, executeDelete]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeleteTarget(null);

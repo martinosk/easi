@@ -158,7 +158,15 @@ func (h *RelationHandlers) GetAllRelations(w http.ResponseWriter, r *http.Reques
 	nextCursor := h.buildNextCursor(relations, hasMore)
 	selfLink := h.buildSelfLink("/api/v1/relations", params)
 
-	sharedAPI.RespondPaginated(w, http.StatusOK, relations, hasMore, nextCursor, params.Limit, selfLink, "/api/v1/relations")
+	sharedAPI.RespondPaginated(w, sharedAPI.PaginatedResponseParams{
+		StatusCode: http.StatusOK,
+		Data:       relations,
+		HasMore:    hasMore,
+		NextCursor: nextCursor,
+		Limit:      params.Limit,
+		SelfLink:   selfLink,
+		BaseLink:   "/api/v1/relations",
+	})
 }
 
 func (h *RelationHandlers) decodePaginationCursor(after string) (string, int64, error) {

@@ -139,61 +139,74 @@ func (rm *ApplicationComponentReadModel) GetAll(ctx context.Context) ([]Applicat
 	return components, err
 }
 
-// GetAllPaginated retrieves components with cursor-based pagination for the current tenant
+type paginationQuery struct {
+	tenantID       string
+	afterCursor    string
+	afterTimestamp int64
+	limit          int
+}
+
 func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, limit int, afterCursor string, afterTimestamp int64) ([]ApplicationComponentDTO, bool, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, false, err
 	}
 
-	// Query one extra to determine if there are more results
-	queryLimit := limit + 1
+	query := paginationQuery{
+		tenantID:       tenantID.Value(),
+		afterCursor:    afterCursor,
+		afterTimestamp: afterTimestamp,
+		limit:          limit + 1,
+	}
 
 	var components []ApplicationComponentDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		var rows *sql.Rows
-		var err error
-
-		if afterCursor == "" {
-			// No cursor, get first page
-			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY created_at DESC, id DESC LIMIT $2",
-				tenantID.Value(), queryLimit,
-			)
-		} else {
-			// Use cursor for pagination
-			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND is_deleted = FALSE AND (created_at < to_timestamp($2) OR (created_at = to_timestamp($2) AND id < $3)) ORDER BY created_at DESC, id DESC LIMIT $4",
-				tenantID.Value(), afterTimestamp, afterCursor, queryLimit,
-			)
-		}
-
+		rows, err := rm.queryPaginatedComponents(ctx, tx, query)
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
 
-		for rows.Next() {
-			var dto ApplicationComponentDTO
-			if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
-				return err
-			}
-			components = append(components, dto)
-		}
-
-		return rows.Err()
+		components, err = rm.scanComponents(rows)
+		return err
 	})
 
 	if err != nil {
 		return nil, false, err
 	}
 
-	// Check if there are more results
+	return rm.trimAndCheckMore(components, limit)
+}
+
+func (rm *ApplicationComponentReadModel) queryPaginatedComponents(ctx context.Context, tx *sql.Tx, query paginationQuery) (*sql.Rows, error) {
+	if query.afterCursor == "" {
+		return tx.QueryContext(ctx,
+			"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY created_at DESC, id DESC LIMIT $2",
+			query.tenantID, query.limit,
+		)
+	}
+	return tx.QueryContext(ctx,
+		"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND is_deleted = FALSE AND (created_at < to_timestamp($2) OR (created_at = to_timestamp($2) AND id < $3)) ORDER BY created_at DESC, id DESC LIMIT $4",
+		query.tenantID, query.afterTimestamp, query.afterCursor, query.limit,
+	)
+}
+
+func (rm *ApplicationComponentReadModel) scanComponents(rows *sql.Rows) ([]ApplicationComponentDTO, error) {
+	var components []ApplicationComponentDTO
+	for rows.Next() {
+		var dto ApplicationComponentDTO
+		if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt); err != nil {
+			return nil, err
+		}
+		components = append(components, dto)
+	}
+	return components, rows.Err()
+}
+
+func (rm *ApplicationComponentReadModel) trimAndCheckMore(components []ApplicationComponentDTO, limit int) ([]ApplicationComponentDTO, bool, error) {
 	hasMore := len(components) > limit
 	if hasMore {
-		// Remove the extra item
 		components = components[:limit]
 	}
-
 	return components, hasMore, nil
 }
