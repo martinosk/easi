@@ -9,7 +9,7 @@ import (
 )
 
 func TestAssignCapabilityToDomain(t *testing.T) {
-	businessDomainID, err := valueobjects.NewBusinessDomainIDFromString("bd-550e8400-e29b-41d4-a716-446655440000")
+	businessDomainID, err := valueobjects.NewBusinessDomainIDFromString("550e8400-e29b-41d4-a716-446655440000")
 	require.NoError(t, err)
 
 	capabilityID, err := valueobjects.NewCapabilityIDFromString("550e8400-e29b-41d4-a716-446655440001")
@@ -26,7 +26,7 @@ func TestAssignCapabilityToDomain(t *testing.T) {
 }
 
 func TestAssignCapabilityToDomain_RaisesEvent(t *testing.T) {
-	businessDomainID, err := valueobjects.NewBusinessDomainIDFromString("bd-550e8400-e29b-41d4-a716-446655440000")
+	businessDomainID, err := valueobjects.NewBusinessDomainIDFromString("550e8400-e29b-41d4-a716-446655440000")
 	require.NoError(t, err)
 
 	capabilityID, err := valueobjects.NewCapabilityIDFromString("550e8400-e29b-41d4-a716-446655440001")
@@ -79,7 +79,7 @@ func TestUnassignCapabilityFromDomain_PreservesState(t *testing.T) {
 }
 
 func TestBusinessDomainAssignment_LoadFromHistory(t *testing.T) {
-	businessDomainID, err := valueobjects.NewBusinessDomainIDFromString("bd-550e8400-e29b-41d4-a716-446655440000")
+	businessDomainID, err := valueobjects.NewBusinessDomainIDFromString("550e8400-e29b-41d4-a716-446655440000")
 	require.NoError(t, err)
 
 	capabilityID, err := valueobjects.NewCapabilityIDFromString("550e8400-e29b-41d4-a716-446655440001")
@@ -117,7 +117,7 @@ func TestBusinessDomainAssignment_LoadFromHistoryWithUnassign(t *testing.T) {
 func createAssignment(t *testing.T) *BusinessDomainAssignment {
 	t.Helper()
 
-	businessDomainID, err := valueobjects.NewBusinessDomainIDFromString("bd-550e8400-e29b-41d4-a716-446655440000")
+	businessDomainID, err := valueobjects.NewBusinessDomainIDFromString("550e8400-e29b-41d4-a716-446655440000")
 	require.NoError(t, err)
 
 	capabilityID, err := valueobjects.NewCapabilityIDFromString("550e8400-e29b-41d4-a716-446655440001")

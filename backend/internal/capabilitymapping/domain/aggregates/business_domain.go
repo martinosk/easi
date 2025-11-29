@@ -19,8 +19,9 @@ func NewBusinessDomain(
 	name valueobjects.DomainName,
 	description valueobjects.Description,
 ) (*BusinessDomain, error) {
+	id := valueobjects.NewBusinessDomainID()
 	aggregate := &BusinessDomain{
-		AggregateRoot: domain.NewAggregateRoot(),
+		AggregateRoot: domain.NewAggregateRootWithID(id.Value()),
 	}
 
 	event := events.NewBusinessDomainCreated(

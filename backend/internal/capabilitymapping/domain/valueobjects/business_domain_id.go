@@ -1,15 +1,8 @@
 package valueobjects
 
 import (
-	"errors"
-	"strings"
-
 	"easi/backend/internal/shared/domain"
 	"github.com/google/uuid"
-)
-
-var (
-	ErrBusinessDomainIDMissingPrefix = errors.New("business domain ID must start with 'bd-' prefix")
 )
 
 type BusinessDomainID struct {
@@ -17,7 +10,7 @@ type BusinessDomainID struct {
 }
 
 func NewBusinessDomainID() BusinessDomainID {
-	return BusinessDomainID{value: "bd-" + uuid.New().String()}
+	return BusinessDomainID{value: uuid.New().String()}
 }
 
 func NewBusinessDomainIDFromString(value string) (BusinessDomainID, error) {
@@ -25,12 +18,7 @@ func NewBusinessDomainIDFromString(value string) (BusinessDomainID, error) {
 		return BusinessDomainID{}, domain.ErrEmptyValue
 	}
 
-	if !strings.HasPrefix(value, "bd-") {
-		return BusinessDomainID{}, ErrBusinessDomainIDMissingPrefix
-	}
-
-	guidPart := strings.TrimPrefix(value, "bd-")
-	if _, err := uuid.Parse(guidPart); err != nil {
+	if _, err := uuid.Parse(value); err != nil {
 		return BusinessDomainID{}, domain.ErrInvalidValue
 	}
 
