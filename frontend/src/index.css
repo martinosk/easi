@@ -678,6 +678,10 @@ body {
   box-shadow: var(--shadow-xl);
   max-width: 500px;
   width: 90vw;
+  margin: auto;
+  position: fixed;
+  inset: 0;
+  height: fit-content;
 }
 
 .dialog::backdrop {

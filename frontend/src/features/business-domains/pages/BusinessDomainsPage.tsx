@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
 import { DomainList } from '../components/DomainList';
@@ -30,6 +30,18 @@ export function BusinessDomainsPage() {
   const [selectedCapability, setSelectedCapability] = useState<Capability | null>(null);
   const [activeCapability, setActiveCapability] = useState<Capability | null>(null);
   const [contextMenu, setContextMenu] = useState<DomainContextMenuState | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (dialogMode) {
+      dialog.showModal();
+    } else {
+      dialog.close();
+    }
+  }, [dialogMode]);
 
   const allCapabilities = useMemo(() => {
     const flatten = (nodes: typeof tree): Capability[] => {
@@ -282,19 +294,17 @@ export function BusinessDomainsPage() {
         />
       )}
 
-      {dialogMode && (
-        <dialog open className="dialog" data-testid="domain-dialog">
-          <div className="dialog-content">
-            <h2 className="dialog-title">{dialogMode === 'create' ? 'Create Domain' : 'Edit Domain'}</h2>
-            <DomainForm
-              mode={dialogMode}
-              domain={selectedDomain || undefined}
-              onSubmit={handleFormSubmit}
-              onCancel={handleFormCancel}
-            />
-          </div>
-        </dialog>
-      )}
+      <dialog ref={dialogRef} className="dialog" onClose={handleFormCancel} data-testid="domain-dialog">
+        <div className="dialog-content">
+          <h2 className="dialog-title">{dialogMode === 'create' ? 'Create Domain' : 'Edit Domain'}</h2>
+          <DomainForm
+            mode={dialogMode || 'create'}
+            domain={selectedDomain || undefined}
+            onSubmit={handleFormSubmit}
+            onCancel={handleFormCancel}
+          />
+        </div>
+      </dialog>
 
       {domainToDelete && (
         <ConfirmationDialog
