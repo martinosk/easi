@@ -102,6 +102,44 @@ func (h *HATEOASLinks) RealizationLinks(realizationID, capabilityID, componentID
 }
 
 // ArchimateDocLink generates a link to ArchiMate documentation
+func (h *HATEOASLinks) BusinessDomainLinks(domainID string, hasCapabilities bool) map[string]string {
+	links := map[string]string{
+		"self":         fmt.Sprintf("%s/business-domains/%s", h.baseURL, domainID),
+		"capabilities": fmt.Sprintf("%s/business-domains/%s/capabilities", h.baseURL, domainID),
+		"update":       fmt.Sprintf("%s/business-domains/%s", h.baseURL, domainID),
+		"collection":   fmt.Sprintf("%s/business-domains", h.baseURL),
+	}
+	if !hasCapabilities {
+		links["delete"] = fmt.Sprintf("%s/business-domains/%s", h.baseURL, domainID)
+	}
+	return links
+}
+
+func (h *HATEOASLinks) CapabilityInDomainLinks(capabilityID, domainID string) map[string]string {
+	return map[string]string{
+		"self":              fmt.Sprintf("%s/capabilities/%s", h.baseURL, capabilityID),
+		"children":          fmt.Sprintf("%s/capabilities/%s/children", h.baseURL, capabilityID),
+		"businessDomains":   fmt.Sprintf("%s/capabilities/%s/business-domains", h.baseURL, capabilityID),
+		"removeFromDomain":  fmt.Sprintf("%s/business-domains/%s/capabilities/%s", h.baseURL, domainID, capabilityID),
+	}
+}
+
+func (h *HATEOASLinks) DomainForCapabilityLinks(domainID, capabilityID string) map[string]string {
+	return map[string]string{
+		"self":             fmt.Sprintf("%s/business-domains/%s", h.baseURL, domainID),
+		"capabilities":     fmt.Sprintf("%s/business-domains/%s/capabilities", h.baseURL, domainID),
+		"removeCapability": fmt.Sprintf("%s/business-domains/%s/capabilities/%s", h.baseURL, domainID, capabilityID),
+	}
+}
+
+func (h *HATEOASLinks) AssignmentLinks(domainID, capabilityID string) map[string]string {
+	return map[string]string{
+		"capability":     fmt.Sprintf("%s/capabilities/%s", h.baseURL, capabilityID),
+		"businessDomain": fmt.Sprintf("%s/business-domains/%s", h.baseURL, domainID),
+		"remove":         fmt.Sprintf("%s/business-domains/%s/capabilities/%s", h.baseURL, domainID, capabilityID),
+	}
+}
+
 func (h *HATEOASLinks) ArchimateDocLink(elementType string) string {
 	baseURL := "https://pubs.opengroup.org/architecture/archimate3-doc/chap"
 

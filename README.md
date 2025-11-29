@@ -28,14 +28,9 @@ Supporting domains can use CRUD or whatever other architecture makes sense for t
 ### Current Architecture Summary
 The system uses event sourcing for core aggregates, REST Level 3 APIs with HATEOAS, and a clean separation between domain models and infrastructure.
 
-**Implemented Aggregates:**
-- **ApplicationComponent** - Architecture components with relations
-- **ComponentRelation** - Component relationships (Triggers, Serves)
-- **ArchitectureView** - Graphical view layouts with positions
-- **Capability** - Business capabilities with hierarchical structure (L1-L4)
-- **CapabilityDependency** - Dependencies between capabilities (Requires, Enables, Supports)
-
 ### Bounded contexts
+See [detailed bounded context documentation](docs/bounded-contexts/README.md).
+
 #### ArchitectureModeling
 This is the core domain that supports and enforces best practices for architecture modelling and documentation.
 

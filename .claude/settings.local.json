@@ -16,7 +16,8 @@
       "mcp__codescene__code_health_score",
       "mcp__codescene__code_health_review",
       "Bash(git tag:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(go vet:*)"
     ],
     "deny": [],
     "ask": []
