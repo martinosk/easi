@@ -135,7 +135,7 @@ func (h *RelationHandlers) CreateComponentRelation(w http.ResponseWriter, r *htt
 // @Produce json
 // @Param limit query int false "Number of items per page (max 100)" default(50)
 // @Param after query string false "Cursor for pagination (opaque token)"
-// @Success 200 {object} easi_backend_internal_shared_api.PaginatedResponse
+// @Success 200 {object} easi_backend_internal_shared_api.PaginatedResponse{data=[]readmodels.ComponentRelationDTO}
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /relations [get]
 func (h *RelationHandlers) GetAllRelations(w http.ResponseWriter, r *http.Request) {
@@ -240,7 +240,7 @@ func (h *RelationHandlers) GetRelationByID(w http.ResponseWriter, r *http.Reques
 // @Tags relations
 // @Produce json
 // @Param componentId path string true "Component ID"
-// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]readmodels.ComponentRelationDTO}
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /relations/from/{componentId} [get]
 func (h *RelationHandlers) GetRelationsFromComponent(w http.ResponseWriter, r *http.Request) {
@@ -253,7 +253,7 @@ func (h *RelationHandlers) GetRelationsFromComponent(w http.ResponseWriter, r *h
 // @Tags relations
 // @Produce json
 // @Param componentId path string true "Component ID"
-// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]readmodels.ComponentRelationDTO}
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /relations/to/{componentId} [get]
 func (h *RelationHandlers) GetRelationsToComponent(w http.ResponseWriter, r *http.Request) {

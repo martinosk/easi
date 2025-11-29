@@ -129,7 +129,7 @@ func (h *RealizationHandlers) LinkSystemToCapability(w http.ResponseWriter, r *h
 // @Tags capabilities
 // @Produce json
 // @Param id path string true "Capability ID"
-// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO}
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id}/systems [get]
 func (h *RealizationHandlers) GetSystemsByCapability(w http.ResponseWriter, r *http.Request) {
@@ -159,7 +159,7 @@ func (h *RealizationHandlers) GetSystemsByCapability(w http.ResponseWriter, r *h
 // @Tags capability-realizations
 // @Produce json
 // @Param componentId path string true "Component ID"
-// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO}
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capability-realizations/by-component/{componentId} [get]
 func (h *RealizationHandlers) GetCapabilitiesByComponent(w http.ResponseWriter, r *http.Request) {

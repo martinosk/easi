@@ -121,7 +121,7 @@ func (h *DependencyHandlers) CreateDependency(w http.ResponseWriter, r *http.Req
 // @Description Retrieves all capability dependencies in the system
 // @Tags capability-dependencies
 // @Produce json
-// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO}
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capability-dependencies [get]
 func (h *DependencyHandlers) GetAllDependencies(w http.ResponseWriter, r *http.Request) {
@@ -148,7 +148,7 @@ func (h *DependencyHandlers) GetAllDependencies(w http.ResponseWriter, r *http.R
 // @Tags capabilities
 // @Produce json
 // @Param id path string true "Capability ID"
-// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO}
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id}/dependencies/outgoing [get]
 func (h *DependencyHandlers) GetOutgoingDependencies(w http.ResponseWriter, r *http.Request) {
@@ -178,7 +178,7 @@ func (h *DependencyHandlers) GetOutgoingDependencies(w http.ResponseWriter, r *h
 // @Tags capabilities
 // @Produce json
 // @Param id path string true "Capability ID"
-// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO}
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id}/dependencies/incoming [get]
 func (h *DependencyHandlers) GetIncomingDependencies(w http.ResponseWriter, r *http.Request) {

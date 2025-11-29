@@ -116,11 +116,11 @@ func (h *CapabilityHandlers) UpdateCapabilityMetadata(w http.ResponseWriter, r *
 // @Description Associates a subject matter expert with a capability
 // @Tags capabilities
 // @Accept json
-// @Produce json
 // @Param id path string true "Capability ID"
 // @Param expert body AddCapabilityExpertRequest true "Expert data"
-// @Success 201 {object} map[string]string
+// @Success 204 "No Content"
 // @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id}/experts [post]
 func (h *CapabilityHandlers) AddCapabilityExpert(w http.ResponseWriter, r *http.Request) {
@@ -152,9 +152,7 @@ func (h *CapabilityHandlers) AddCapabilityExpert(w http.ResponseWriter, r *http.
 		return
 	}
 
-	sharedAPI.RespondJSON(w, http.StatusCreated, map[string]string{
-		"message": "Expert added successfully",
-	})
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // AddCapabilityTag godoc
@@ -162,11 +160,11 @@ func (h *CapabilityHandlers) AddCapabilityExpert(w http.ResponseWriter, r *http.
 // @Description Associates a tag with a capability for categorization
 // @Tags capabilities
 // @Accept json
-// @Produce json
 // @Param id path string true "Capability ID"
 // @Param tag body AddCapabilityTagRequest true "Tag data"
-// @Success 201 {object} map[string]string
+// @Success 204 "No Content"
 // @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id}/tags [post]
 func (h *CapabilityHandlers) AddCapabilityTag(w http.ResponseWriter, r *http.Request) {
@@ -196,7 +194,5 @@ func (h *CapabilityHandlers) AddCapabilityTag(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	sharedAPI.RespondJSON(w, http.StatusCreated, map[string]string{
-		"message": "Tag added successfully",
-	})
+	w.WriteHeader(http.StatusNoContent)
 }

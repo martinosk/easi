@@ -11,6 +11,7 @@ import (
 	"easi/backend/internal/infrastructure/api"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
+	_ "easi/backend/internal/shared/api"
 	_ "github.com/lib/pq"
 )
 

@@ -109,7 +109,7 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 // @Produce json
 // @Param limit query int false "Number of items per page (max 100)" default(50)
 // @Param after query string false "Cursor for pagination (opaque token)"
-// @Success 200 {object} easi_backend_internal_shared_api.PaginatedResponse
+// @Success 200 {object} easi_backend_internal_shared_api.PaginatedResponse{data=[]readmodels.ApplicationComponentDTO}
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /components [get]
 func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Request) {

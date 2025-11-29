@@ -130,7 +130,7 @@ func (h *CapabilityHandlers) handleCreateCapabilityResponse(w http.ResponseWrite
 // @Description Retrieves all business capabilities in the capability map
 // @Tags capabilities
 // @Produce json
-// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO}
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities [get]
 func (h *CapabilityHandlers) GetAllCapabilities(w http.ResponseWriter, r *http.Request) {
@@ -186,7 +186,7 @@ func (h *CapabilityHandlers) GetCapabilityByID(w http.ResponseWriter, r *http.Re
 // @Tags capabilities
 // @Produce json
 // @Param id path string true "Capability ID"
-// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO}
 // @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id}/children [get]
