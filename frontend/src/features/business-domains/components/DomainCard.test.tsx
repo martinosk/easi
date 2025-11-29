@@ -19,11 +19,10 @@ describe('DomainCard', () => {
   };
 
   it('renders domain information correctly', () => {
-    const onEdit = vi.fn();
-    const onDelete = vi.fn();
-    const onView = vi.fn();
+    const onVisualize = vi.fn();
+    const onContextMenu = vi.fn();
 
-    render(<DomainCard domain={mockDomain} onEdit={onEdit} onDelete={onDelete} onView={onView} />);
+    render(<DomainCard domain={mockDomain} onVisualize={onVisualize} onContextMenu={onContextMenu} />);
 
     expect(screen.getByText('Customer Experience')).toBeInTheDocument();
     expect(screen.getByText('All customer-facing capabilities')).toBeInTheDocument();
@@ -32,97 +31,56 @@ describe('DomainCard', () => {
 
   it('shows singular capability text when count is 1', () => {
     const domain: BusinessDomain = { ...mockDomain, capabilityCount: 1 };
-    const onEdit = vi.fn();
-    const onDelete = vi.fn();
-    const onView = vi.fn();
+    const onVisualize = vi.fn();
+    const onContextMenu = vi.fn();
 
-    render(<DomainCard domain={domain} onEdit={onEdit} onDelete={onDelete} onView={onView} />);
+    render(<DomainCard domain={domain} onVisualize={onVisualize} onContextMenu={onContextMenu} />);
 
     expect(screen.getByText('1 capability')).toBeInTheDocument();
   });
 
-  it('shows Manage button that calls onView', () => {
-    const onEdit = vi.fn();
-    const onDelete = vi.fn();
-    const onView = vi.fn();
+  it('calls onVisualize when card is clicked', () => {
+    const onVisualize = vi.fn();
+    const onContextMenu = vi.fn();
 
-    render(<DomainCard domain={mockDomain} onEdit={onEdit} onDelete={onDelete} onView={onView} />);
+    render(<DomainCard domain={mockDomain} onVisualize={onVisualize} onContextMenu={onContextMenu} />);
 
-    const manageButton = screen.getByTestId('domain-view-domain-1');
-    fireEvent.click(manageButton);
+    const card = screen.getByTestId('domain-card-domain-1');
+    fireEvent.click(card);
 
-    expect(onView).toHaveBeenCalledWith(mockDomain);
+    expect(onVisualize).toHaveBeenCalledWith(mockDomain);
   });
 
-  it('shows Edit button when update link is present', () => {
-    const onEdit = vi.fn();
-    const onDelete = vi.fn();
-    const onView = vi.fn();
+  it('calls onContextMenu when right-clicked', () => {
+    const onVisualize = vi.fn();
+    const onContextMenu = vi.fn();
 
-    render(<DomainCard domain={mockDomain} onEdit={onEdit} onDelete={onDelete} onView={onView} />);
+    render(<DomainCard domain={mockDomain} onVisualize={onVisualize} onContextMenu={onContextMenu} />);
 
-    const editButton = screen.getByTestId('domain-edit-domain-1');
-    fireEvent.click(editButton);
+    const card = screen.getByTestId('domain-card-domain-1');
+    fireEvent.contextMenu(card);
 
-    expect(onEdit).toHaveBeenCalledWith(mockDomain);
-  });
-
-  it('hides Delete button when domain has capabilities', () => {
-    const onEdit = vi.fn();
-    const onDelete = vi.fn();
-    const onView = vi.fn();
-
-    render(<DomainCard domain={mockDomain} onEdit={onEdit} onDelete={onDelete} onView={onView} />);
-
-    expect(screen.queryByTestId('domain-delete-domain-1')).not.toBeInTheDocument();
-  });
-
-  it('shows Delete button when domain has no capabilities and delete link exists', () => {
-    const domain: BusinessDomain = {
-      ...mockDomain,
-      capabilityCount: 0,
-      _links: {
-        ...mockDomain._links,
-        delete: { href: '/api/v1/business-domains/domain-1' },
-      },
-    };
-    const onEdit = vi.fn();
-    const onDelete = vi.fn();
-    const onView = vi.fn();
-
-    render(<DomainCard domain={domain} onEdit={onEdit} onDelete={onDelete} onView={onView} />);
-
-    const deleteButton = screen.getByTestId('domain-delete-domain-1');
-    expect(deleteButton).toBeInTheDocument();
-
-    fireEvent.click(deleteButton);
-    expect(onDelete).toHaveBeenCalledWith(domain);
+    expect(onContextMenu).toHaveBeenCalled();
+    expect(onVisualize).not.toHaveBeenCalled();
   });
 
   it('displays "No description" when description is empty', () => {
     const domain: BusinessDomain = { ...mockDomain, description: '' };
-    const onEdit = vi.fn();
-    const onDelete = vi.fn();
-    const onView = vi.fn();
+    const onVisualize = vi.fn();
+    const onContextMenu = vi.fn();
 
-    render(<DomainCard domain={domain} onEdit={onEdit} onDelete={onDelete} onView={onView} />);
+    render(<DomainCard domain={domain} onVisualize={onVisualize} onContextMenu={onContextMenu} />);
 
     expect(screen.getByText('No description')).toBeInTheDocument();
   });
 
-  it('hides Edit button when update link is not present', () => {
-    const domain: BusinessDomain = {
-      ...mockDomain,
-      _links: {
-        self: { href: '/api/v1/business-domains/domain-1' },
-      },
-    };
-    const onEdit = vi.fn();
-    const onDelete = vi.fn();
-    const onView = vi.fn();
+  it('shows selected state when isSelected is true', () => {
+    const onVisualize = vi.fn();
+    const onContextMenu = vi.fn();
 
-    render(<DomainCard domain={domain} onEdit={onEdit} onDelete={onDelete} onView={onView} />);
+    render(<DomainCard domain={mockDomain} onVisualize={onVisualize} onContextMenu={onContextMenu} isSelected={true} />);
 
-    expect(screen.queryByTestId('domain-edit-domain-1')).not.toBeInTheDocument();
+    const card = screen.getByTestId('domain-card-domain-1');
+    expect(card).toHaveStyle({ backgroundColor: '#eff6ff' });
   });
 });

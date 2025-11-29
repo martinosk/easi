@@ -1,14 +1,14 @@
 import { DomainCard } from './DomainCard';
-import type { BusinessDomain } from '../../../api/types';
+import type { BusinessDomain, BusinessDomainId } from '../../../api/types';
 
 interface DomainListProps {
   domains: BusinessDomain[];
-  onEdit: (domain: BusinessDomain) => void;
-  onDelete: (domain: BusinessDomain) => void;
-  onView: (domain: BusinessDomain) => void;
+  onVisualize: (domain: BusinessDomain) => void;
+  onContextMenu: (e: React.MouseEvent, domain: BusinessDomain) => void;
+  selectedDomainId?: BusinessDomainId | null;
 }
 
-export function DomainList({ domains, onEdit, onDelete, onView }: DomainListProps) {
+export function DomainList({ domains, onVisualize, onContextMenu, selectedDomainId }: DomainListProps) {
   if (domains.length === 0) {
     return (
       <div className="empty-state" data-testid="domains-empty-state">
@@ -24,9 +24,9 @@ export function DomainList({ domains, onEdit, onDelete, onView }: DomainListProp
         <DomainCard
           key={domain.id}
           domain={domain}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onView={onView}
+          onVisualize={onVisualize}
+          onContextMenu={onContextMenu}
+          isSelected={domain.id === selectedDomainId}
         />
       ))}
     </div>

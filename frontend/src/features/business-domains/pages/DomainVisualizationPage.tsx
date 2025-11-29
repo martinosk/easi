@@ -8,8 +8,12 @@ import { DomainGrid } from '../components/DomainGrid';
 import { CapabilityExplorer } from '../components/CapabilityExplorer';
 import type { BusinessDomainId, Capability, CapabilityId } from '../../../api/types';
 
-export function DomainVisualizationPage() {
-  const [selectedDomainId, setSelectedDomainId] = useState<BusinessDomainId | null>(null);
+interface DomainVisualizationPageProps {
+  initialDomainId?: BusinessDomainId;
+}
+
+export function DomainVisualizationPage({ initialDomainId }: DomainVisualizationPageProps) {
+  const [selectedDomainId, setSelectedDomainId] = useState<BusinessDomainId | null>(initialDomainId ?? null);
   const [selectedCapability, setSelectedCapability] = useState<Capability | null>(null);
   const [activeCapability, setActiveCapability] = useState<Capability | null>(null);
   const { domains, isLoading: domainsLoading } = useBusinessDomains();

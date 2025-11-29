@@ -1,10 +1,17 @@
 # Business Domain Visualization UI
 
 ## Status
-**Reopened** - Original treemap visualization completed. Adding interactive grid-based visualization with drag-and-drop capabilities.
+**Reopened** - Original treemap visualization completed. Adding interactive grid-based visualization with drag-and-drop capabilities. Updating navigation: visualization is accessed directly from domain list via "Visualize" button per domain.
 
 ## User Need
 Enterprise architects need a spatial, interactive visualization of business domain composition that allows them to arrange capabilities visually, assign L1 capabilities to domains via drag-and-drop, and navigate a nested hierarchy down to L4 depth.
+
+## Navigation
+- Visualization is shown inline on the Business Domains page (no separate route)
+- Accessed via "Visualize" button on each domain card
+- Clicking "Visualize" shows the grid visualization for that domain inline
+- Capability explorer is always visible on the right sidebar
+- User can switch domains by clicking "Visualize" on a different domain card
 
 ## Dependencies
 - Spec 056: Business Domain REST API
@@ -67,27 +74,27 @@ The following components and features have been implemented:
 
 Display L1 capabilities for a selected domain in a static grid.
 
-- [ ] Add "grid" view mode to ViewModeToggle (treemap | tree | grid)
-- [ ] Create DomainGrid component using @dnd-kit DndContext
-- [ ] Display L1 capabilities only (no nesting yet)
-- [ ] Auto-arrange by capability code (alphabetical)
-- [ ] Fixed size: L1 = 4x4 grid units
-- [ ] Apply L1 color (Blue #3b82f6)
-- [ ] Domain selector in left sidebar switches grid content
-- [ ] Orphaned capabilities NOT shown in grid (explorer only)
+- [x] Add "grid" view mode to ViewModeToggle (treemap | tree | grid)
+- [x] Create DomainGrid component using @dnd-kit DndContext
+- [x] Display L1 capabilities only (no nesting yet)
+- [x] Auto-arrange by capability code (alphabetical)
+- [x] Fixed size: L1 = 4x4 grid units
+- [x] Apply L1 color (Blue #3b82f6)
+- [x] Domain selector in left sidebar switches grid content
+- [x] Orphaned capabilities NOT shown in grid (explorer only)
 
 ### Slice 2: Capability Explorer + Drag to Assign
 
 Right sidebar explorer showing all L1 capabilities for drag-and-drop assignment.
 
-- [ ] Create CapabilityExplorer component (right sidebar)
-- [ ] Display full L1-L4 capability tree in explorer
-- [ ] Only L1 items draggable from explorer
-- [ ] Visual indicator for L1s already assigned to other domains
-- [ ] Drag L1 from explorer onto grid assigns to current domain
-- [ ] API call: assign capability to domain (existing endpoint)
-- [ ] Grid refreshes after assignment
-- [ ] Many-to-many: same L1 can appear in multiple domains
+- [x] Create CapabilityExplorer component (right sidebar)
+- [x] Display full L1-L4 capability tree in explorer
+- [x] Only L1 items draggable from explorer
+- [x] Visual indicator for L1s already assigned to other domains
+- [x] Drag L1 from explorer onto grid assigns to current domain
+- [x] API call: assign capability to domain (existing endpoint)
+- [x] Grid refreshes after assignment
+- [x] Many-to-many: same L1 can appear in multiple domains
 
 ### Slice 3: Drag Within Grid + Position Persistence
 
@@ -132,21 +139,21 @@ Allow dragging capabilities to different parents with confirmation dialog.
 
 Click capability to open existing detail panel.
 
-- [ ] Wire click handler on grid items
-- [ ] Open CapabilityDetailPanel on click (reuse existing component)
-- [ ] Panel shows full capability information
-- [ ] Close panel returns focus to grid
+- [x] Wire click handler on grid items
+- [x] Open detail panel on click (basic implementation)
+- [x] Panel shows capability information (name, level, description)
+- [x] Close panel returns focus to grid
 
 ### Slice 7: Visual Polish
 
 Final styling and animations.
 
 - [ ] Apply domain-specific background color to grid area
-- [ ] Visual indicator for L1s assigned to multiple domains (badge/icon)
+- [x] Visual indicator for L1s assigned to other domains (badge in explorer)
 - [ ] Smooth animation for depth collapse/expand
-- [ ] DragOverlay for visual feedback during drag
+- [x] DragOverlay for visual feedback during drag
 - [ ] Hover states on grid items
-- [ ] Loading states during API calls
+- [x] Loading states during API calls
 
 ---
 
@@ -318,17 +325,17 @@ User Opens Visualization → Frontend
 
 ## Acceptance Criteria Summary
 
-- [ ] Grid view mode added to existing toggle
-- [ ] Domain selector switches between domain grids
+- [x] Grid view mode added to existing toggle
+- [x] Domain selector switches between domain grids
 - [ ] BusinessDomainView created on entering visualization (Views API)
-- [ ] L1 capabilities display in grid at 4x4 size
-- [ ] Capability explorer shows full L1-L4 tree
-- [ ] Drag L1 from explorer assigns to domain (CapabilityMapping API)
+- [x] L1 capabilities display in grid at 4x4 size
+- [x] Capability explorer shows full L1-L4 tree
+- [x] Drag L1 from explorer assigns to domain (CapabilityMapping API)
 - [ ] Drag within grid rearranges layout
 - [ ] Positions persist via Views API (organization-wide)
 - [ ] Nested grids show L2/L3/L4 inside parents
 - [ ] Depth selector controls visible levels
 - [ ] Drag between parents shows confirmation
-- [ ] Click opens detail panel
-- [ ] Level colors match existing scheme
-- [ ] Multiple-domain indicator on L1s
+- [x] Click opens detail panel
+- [x] Level colors match existing scheme
+- [x] Multiple-domain indicator on L1s

@@ -2,62 +2,52 @@ import type { BusinessDomain } from '../../../api/types';
 
 interface DomainCardProps {
   domain: BusinessDomain;
-  onEdit: (domain: BusinessDomain) => void;
-  onDelete: (domain: BusinessDomain) => void;
-  onView: (domain: BusinessDomain) => void;
+  onVisualize: (domain: BusinessDomain) => void;
+  onContextMenu: (e: React.MouseEvent, domain: BusinessDomain) => void;
+  isSelected?: boolean;
 }
 
-export function DomainCard({ domain, onEdit, onDelete, onView }: DomainCardProps) {
-  const canDelete = domain.capabilityCount === 0 && domain._links.delete;
+export function DomainCard({ domain, onVisualize, onContextMenu, isSelected }: DomainCardProps) {
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onContextMenu(e, domain);
+  };
 
   return (
-    <div className="domain-card" data-testid={`domain-card-${domain.id}`}>
-      <div className="domain-card-header">
-        <h3 className="domain-card-title">{domain.name}</h3>
-        <div className="domain-card-badge">
+    <button
+      type="button"
+      className={`domain-card-button${isSelected ? ' domain-card-button--selected' : ''}`}
+      onClick={() => onVisualize(domain)}
+      onContextMenu={handleContextMenu}
+      data-testid={`domain-card-${domain.id}`}
+      style={{
+        display: 'block',
+        width: '100%',
+        textAlign: 'left',
+        padding: '0.75rem',
+        marginBottom: '0.5rem',
+        border: isSelected ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+        borderRadius: '0.5rem',
+        backgroundColor: isSelected ? '#eff6ff' : '#fff',
+        cursor: 'pointer',
+        transition: 'all 0.15s ease',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
+        <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#111827' }}>{domain.name}</h3>
+        <span style={{ fontSize: '0.75rem', color: '#6b7280', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>
           {domain.capabilityCount} {domain.capabilityCount === 1 ? 'capability' : 'capabilities'}
-        </div>
+        </span>
       </div>
 
-      <p className="domain-card-description">{domain.description || 'No description'}</p>
+      <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', color: '#6b7280' }}>
+        {domain.description || 'No description'}
+      </p>
 
-      <div className="domain-card-meta">
-        <span className="domain-card-date">Created: {new Date(domain.createdAt).toLocaleDateString()}</span>
-        {domain.updatedAt && (
-          <span className="domain-card-date">Updated: {new Date(domain.updatedAt).toLocaleDateString()}</span>
-        )}
-      </div>
-
-      <div className="domain-card-actions">
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={() => onView(domain)}
-          data-testid={`domain-view-${domain.id}`}
-        >
-          Manage
-        </button>
-        {domain._links.update && (
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => onEdit(domain)}
-            data-testid={`domain-edit-${domain.id}`}
-          >
-            Edit
-          </button>
-        )}
-        {canDelete && (
-          <button
-            type="button"
-            className="btn btn-danger btn-sm"
-            onClick={() => onDelete(domain)}
-            data-testid={`domain-delete-${domain.id}`}
-          >
-            Delete
-          </button>
-        )}
-      </div>
-    </div>
+      <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+        Created: {new Date(domain.createdAt).toLocaleDateString()}
+      </span>
+    </button>
   );
 }

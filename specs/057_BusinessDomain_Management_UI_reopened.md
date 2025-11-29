@@ -1,5 +1,8 @@
 # Business Domain Management UI
 
+## Status
+**Reopened** - Original CRUD UI completed. Updating navigation: remove separate Visualization submenu, add Visualize button per domain.
+
 ## Description
 React frontend for CRUD operations on business domains and managing capability associations.
 
@@ -8,6 +11,35 @@ Enable enterprise architects to create, update, and delete business domains and 
 
 ## Dependencies
 - Spec 056: Business Domain REST API
+
+## Completed Work (Previous Implementation)
+
+- [x] BusinessDomainsPage with domain list
+- [x] DomainDetailPage for capability management
+- [x] DomainList and DomainCard components
+- [x] DomainForm for create/edit
+- [x] CapabilityAssociationManager, CapabilitySelectorModal
+- [x] All React Query hooks for CRUD operations
+- [x] Toast notifications and confirmation dialogs
+
+---
+
+## New Work: Inline Visualization
+
+### User Story
+As an architect, I can click a "Visualize" button on any domain card to show the grid visualization for that domain inline on the same page. The capability explorer is always visible on the right side.
+
+### Changes Required
+
+- [x] Remove "Visualization" link button from BusinessDomainsPage header
+- [x] Add "Visualize" button to DomainCard (shows inline visualization, no navigation)
+- [x] Merge visualization components into BusinessDomainsPage layout
+- [x] Capability explorer always visible on right sidebar
+- [x] Domain grid shows when a domain is selected for visualization
+- [x] Remove separate `/business-domains/{id}/visualization` route
+- [x] Remove "Manage" button and DomainDetailPage (capability management via drag-and-drop in visualization)
+
+---
 
 ## Pages
 
@@ -58,11 +90,11 @@ Displays business domains in grid or list format.
 - `domains`: Array of BusinessDomain objects
 - `onEdit`: Callback when edit clicked
 - `onDelete`: Callback when delete clicked
-- `onView`: Callback when domain clicked
+- `onVisualize`: Callback when visualize clicked
 
 **Behavior:**
 - Render domain cards with name, description, capability count
-- Show action buttons (edit, delete, view)
+- Show action buttons (visualize, edit, delete)
 - Hide delete button if domain has capabilities
 - Handle loading and error states
 
@@ -73,7 +105,7 @@ Individual domain display card.
 - `domain`: BusinessDomain object
 - `onEdit`: Edit callback
 - `onDelete`: Delete callback
-- `onView`: View callback
+- `onVisualize`: Visualize callback
 
 **Behavior:**
 - Display domain name as heading
@@ -178,10 +210,7 @@ Display associated capabilities as removable tags.
 
 Add to React Router configuration:
 ```
-/business-domains -> BusinessDomainsPage
-/business-domains/new -> DomainDetailPage (create mode)
-/business-domains/:id -> DomainDetailPage (edit mode)
-/business-domains/visualization -> DomainVisualizationPage (see spec 058)
+/business-domains -> BusinessDomainsPage (includes inline visualization)
 ```
 
 ## API Integration
