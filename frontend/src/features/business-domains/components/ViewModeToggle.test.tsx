@@ -8,7 +8,7 @@ describe('ViewModeToggle', () => {
     render(<ViewModeToggle mode="treemap" onModeChange={onModeChange} />);
 
     expect(screen.getByRole('button', { name: /treemap/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /tree/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^tree$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /grid/i })).toBeInTheDocument();
   });
 
@@ -35,7 +35,7 @@ describe('ViewModeToggle', () => {
     render(<ViewModeToggle mode="grid" onModeChange={onModeChange} />);
 
     const treemapButton = screen.getByRole('button', { name: /treemap/i });
-    const treeButton = screen.getByRole('button', { name: /tree/i });
+    const treeButton = screen.getByRole('button', { name: /^tree$/i });
 
     expect(treemapButton).not.toHaveClass('bg-blue-600', 'text-white');
     expect(treeButton).not.toHaveClass('bg-blue-600', 'text-white');

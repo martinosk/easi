@@ -189,7 +189,7 @@ const ComponentContent: React.FC<ComponentContentProps> = ({
       <DetailField label="Type">Application Component</DetailField>
       <DetailField label="ID"><span className="detail-id">{component.id}</span></DetailField>
 
-      <ArchimateLinkField href={component._links.archimate?.href} />
+      <ArchimateLinkField href={component._links.archimate} />
 
       {componentInView && currentView && (
         <ColorPickerField

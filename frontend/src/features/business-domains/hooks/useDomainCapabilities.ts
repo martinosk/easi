@@ -12,8 +12,7 @@ export interface UseDomainCapabilitiesResult {
 }
 
 export function useDomainCapabilities(
-  capabilitiesLink: string | undefined,
-  associateLink: string | undefined
+  capabilitiesLink: string | undefined
 ): UseDomainCapabilitiesResult {
   const [capabilities, setCapabilities] = useState<Capability[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,17 +42,17 @@ export function useDomainCapabilities(
 
   const associateCapability = useCallback(
     async (capabilityId: CapabilityId, capability: Capability) => {
-      if (!associateLink) {
-        throw new Error('Associate link not available');
+      if (!capabilitiesLink) {
+        throw new Error('Capabilities link not available');
       }
-      await apiClient.associateCapabilityWithDomain(associateLink, { capabilityId });
+      await apiClient.associateCapabilityWithDomain(capabilitiesLink, { capabilityId });
       setCapabilities((prev) => [...prev, capability]);
     },
-    [associateLink]
+    [capabilitiesLink]
   );
 
   const dissociateCapability = useCallback(async (capability: Capability) => {
-    const dissociateLink = capability._links.dissociate?.href;
+    const dissociateLink = capability._links.dissociate;
     if (!dissociateLink) {
       throw new Error('Dissociate link not available');
     }

@@ -130,8 +130,7 @@ export function DomainDetailPage({ domainId }: DomainDetailPageProps) {
 
       <div className="domain-capabilities-section">
         <CapabilityAssociationManager
-          capabilitiesLink={domain._links.capabilities?.href}
-          associateLink={domain._links.associate?.href}
+          capabilitiesLink={domain._links.capabilities}
         />
       </div>
     </div>

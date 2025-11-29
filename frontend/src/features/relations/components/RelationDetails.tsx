@@ -30,7 +30,7 @@ const useRelationData = (selectedEdgeId: string | null): RelationData | null => 
 
   const sourceComponent = components.find((c) => c.id === relation.sourceComponentId);
   const targetComponent = components.find((c) => c.id === relation.targetComponentId);
-  const archimateLink = relation._links.archimate?.href;
+  const archimateLink = relation._links.archimate;
   const formattedDate = new Date(relation.createdAt).toLocaleString();
 
   return { relation, sourceComponent, targetComponent, archimateLink, formattedDate };

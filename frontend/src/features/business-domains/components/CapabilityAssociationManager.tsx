@@ -7,14 +7,12 @@ import type { Capability } from '../../../api/types';
 
 interface CapabilityAssociationManagerProps {
   capabilitiesLink?: string;
-  associateLink?: string;
 }
 
-export function CapabilityAssociationManager({ capabilitiesLink, associateLink }: CapabilityAssociationManagerProps) {
+export function CapabilityAssociationManager({ capabilitiesLink }: CapabilityAssociationManagerProps) {
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const { capabilities, isLoading, error, associateCapability, dissociateCapability } = useDomainCapabilities(
-    capabilitiesLink,
-    associateLink
+    capabilitiesLink
   );
 
   const handleAddCapabilities = async (selectedCapabilities: Capability[]) => {
@@ -54,7 +52,7 @@ export function CapabilityAssociationManager({ capabilitiesLink, associateLink }
     <div className="capability-association-manager" data-testid="capability-association-manager">
       <div className="capability-association-header">
         <h3>Associated Capabilities</h3>
-        {associateLink && (
+        {capabilitiesLink && (
           <button
             type="button"
             className="btn btn-primary"

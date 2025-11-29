@@ -16,25 +16,25 @@ export interface Position {
   y: number;
 }
 
-export interface HATEOASLink {
-  href: string;
-}
-
 export interface HATEOASLinks {
-  self?: HATEOASLink;
-  next?: HATEOASLink;
-  archimate?: HATEOASLink;
-  update?: HATEOASLink;
-  delete?: HATEOASLink;
-  components?: HATEOASLink;
-  relations?: HATEOASLink;
-  views?: HATEOASLink;
-  addComponent?: HATEOASLink;
-  updatePosition?: HATEOASLink;
-  capabilities?: HATEOASLink;
-  collection?: HATEOASLink;
-  associate?: HATEOASLink;
-  dissociate?: HATEOASLink;
+  self?: string;
+  next?: string;
+  archimate?: string;
+  update?: string;
+  delete?: string;
+  components?: string;
+  relations?: string;
+  views?: string;
+  addComponent?: string;
+  updatePosition?: string;
+  capabilities?: string;
+  collection?: string;
+  associate?: string;
+  dissociate?: string;
+  removeFromDomain?: string;
+  children?: string;
+  businessDomains?: string;
+  [key: string]: string | undefined;
 }
 
 export interface Component {
