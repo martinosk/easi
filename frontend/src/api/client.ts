@@ -45,6 +45,12 @@ import type {
   ReleasesResponse,
   ReleaseVersion,
   Position,
+  BusinessDomain,
+  BusinessDomainId,
+  CreateBusinessDomainRequest,
+  UpdateBusinessDomainRequest,
+  AssociateCapabilityRequest,
+  BusinessDomainsResponse,
 } from './types';
 import { ApiError } from './types';
 
@@ -393,6 +399,43 @@ class ApiClient {
   async getReleases(): Promise<Release[]> {
     const response = await this.client.get<ReleasesResponse>('/api/v1/releases');
     return response.data.data || [];
+  }
+
+  async getBusinessDomains(): Promise<BusinessDomain[]> {
+    const response = await this.client.get<BusinessDomainsResponse>('/api/v1/business-domains');
+    return response.data.data || [];
+  }
+
+  async getBusinessDomainById(id: BusinessDomainId): Promise<BusinessDomain> {
+    const response = await this.client.get<BusinessDomain>(`/api/v1/business-domains/${id}`);
+    return response.data;
+  }
+
+  async createBusinessDomain(request: CreateBusinessDomainRequest): Promise<BusinessDomain> {
+    const response = await this.client.post<BusinessDomain>('/api/v1/business-domains', request);
+    return response.data;
+  }
+
+  async updateBusinessDomain(id: BusinessDomainId, request: UpdateBusinessDomainRequest): Promise<BusinessDomain> {
+    const response = await this.client.put<BusinessDomain>(`/api/v1/business-domains/${id}`, request);
+    return response.data;
+  }
+
+  async deleteBusinessDomain(id: BusinessDomainId): Promise<void> {
+    await this.client.delete(`/api/v1/business-domains/${id}`);
+  }
+
+  async getDomainCapabilities(capabilitiesLink: string): Promise<Capability[]> {
+    const response = await this.client.get<CollectionResponse<Capability>>(capabilitiesLink);
+    return response.data.data || [];
+  }
+
+  async associateCapabilityWithDomain(associateLink: string, request: AssociateCapabilityRequest): Promise<void> {
+    await this.client.post(associateLink, request);
+  }
+
+  async dissociateCapabilityFromDomain(dissociateLink: string): Promise<void> {
+    await this.client.delete(dissociateLink);
   }
 }
 

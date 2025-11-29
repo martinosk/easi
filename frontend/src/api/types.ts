@@ -9,6 +9,7 @@ export type CapabilityId = Branded<string, 'CapabilityId'>;
 export type CapabilityDependencyId = Branded<string, 'CapabilityDependencyId'>;
 export type RealizationId = Branded<string, 'RealizationId'>;
 export type ReleaseVersion = Branded<string, 'ReleaseVersion'>;
+export type BusinessDomainId = Branded<string, 'BusinessDomainId'>;
 
 export interface Position {
   x: number;
@@ -30,6 +31,10 @@ export interface HATEOASLinks {
   views?: HATEOASLink;
   addComponent?: HATEOASLink;
   updatePosition?: HATEOASLink;
+  capabilities?: HATEOASLink;
+  collection?: HATEOASLink;
+  associate?: HATEOASLink;
+  dissociate?: HATEOASLink;
 }
 
 export interface Component {
@@ -314,3 +319,29 @@ export interface Release {
 }
 
 export type ReleasesResponse = CollectionResponse<Release>;
+
+export interface BusinessDomain {
+  id: BusinessDomainId;
+  name: string;
+  description: string;
+  capabilityCount: number;
+  createdAt: string;
+  updatedAt?: string;
+  _links: HATEOASLinks;
+}
+
+export interface CreateBusinessDomainRequest {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateBusinessDomainRequest {
+  name: string;
+  description?: string;
+}
+
+export interface AssociateCapabilityRequest {
+  capabilityId: CapabilityId;
+}
+
+export type BusinessDomainsResponse = CollectionResponse<BusinessDomain>;
