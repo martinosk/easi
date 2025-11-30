@@ -3,7 +3,7 @@
 ## User Need
 As an enterprise architect, I need the Architecture Modeler to:
 1. Automatically arrange all element types on the canvas for better readability
-2. Choose color schemes that align with industry standards (ArchiMate) or internal conventions
+2. Choose color schemes that align with internal conventions or industry standards
 3. See consistent, professional terminology throughout the application
 
 ## Success Criteria
@@ -32,12 +32,12 @@ Currently, `applyAutoLayout` in `layoutSlice.ts` only processes application comp
 Add a dropdown to the toolbar allowing users to select canvas color schemes.
 
 - [x] Dropdown appears in toolbar next to existing controls (Edge Type, Layout Direction)
-- [x] Three options available: "Maturity" (default), "ArchiMate", "ArchiMate (classic)"
+- [x] Three options available: "Maturity" (default), "Classic", "Custom"
 - [x] Selection persists per view (frontend state only - backend endpoint not yet implemented)
 - [x] Capability nodes apply colors based on selected scheme:
   - **Maturity**: Current behavior (Genesis=red, Custom Build=orange, Product=green, Commodity=blue)
-  - **ArchiMate**: Modern ArchiMate palette (Business=#FFFFB5, Application=#B5FFFF, Technology=#C9E7B7)
-  - **ArchiMate (classic)**: Classic ArchiMate colors from Archi tool (#FFFFB5, #B5FFFF, #C9FFC9 per standard 3.2 prefs)
+  - **Classic**: Classic enterprise architecture palette (Business=#FFFFB5, Application=#B5FFFF, Technology=#C9E7B7)
+  - **Custom**: User-defined custom colors per element
 - [x] Application nodes apply appropriate layer color based on scheme (Application layer)
 - [x] Color scheme change reflects immediately without page reload
 

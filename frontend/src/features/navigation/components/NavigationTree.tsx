@@ -30,8 +30,8 @@ const MATURITY_CLASS_MAP: Record<string, string> = {
 };
 
 const getMaturityClass = (colorScheme: string, maturityLevel?: string): string => {
-  if (colorScheme === 'archimate' || colorScheme === 'archimate-classic') {
-    return 'maturity-archimate';
+  if (colorScheme === 'classic') {
+    return 'maturity-classic';
   }
   return MATURITY_CLASS_MAP[maturityLevel?.toLowerCase() ?? ''] ?? 'maturity-genesis';
 };

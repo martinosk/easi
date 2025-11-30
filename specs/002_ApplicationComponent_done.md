@@ -1,7 +1,7 @@
 # Application Component Feature
 
 ## Description
-Implements the ability to model Application Components as defined in the ArchiMate modelling language. An Application Component represents a modular, deployable, and replaceable part of a software system that encapsulates its contents and exposes its functionality through a set of interfaces.
+Implements the ability to model Application Components. An Application Component represents a modular, deployable, and replaceable part of a software system that encapsulates its contents and exposes its functionality through a set of interfaces.
 
 ## Command
 
@@ -50,9 +50,9 @@ Creates a new application component.
     "self": {
       "href": "/api/application-component/{id}"
     },
-    "archimate-spec": {
-      "href": "/api/documentation/application-component",
-      "title": "ArchiMate Application Component"
+    "reference": {
+      "href": "/api/v1/reference/components",
+      "title": "Application Component Reference"
     },
     "relations-from": {
       "href": "/api/component-relation/from/{id}",
@@ -81,9 +81,9 @@ Gets all application components.
       "self": {
         "href": "/api/application-component/{id}"
       },
-      "archimate-spec": {
-        "href": "/api/documentation/application-component",
-        "title": "ArchiMate Application Component"
+      "reference": {
+        "href": "/api/v1/reference/components",
+        "title": "Application Component Reference"
       },
       "relations-from": {
         "href": "/api/component-relation/from/{id}",
@@ -112,9 +112,9 @@ Gets a specific application component by ID.
     "self": {
       "href": "/api/application-component/{id}"
     },
-    "archimate-spec": {
-      "href": "/api/documentation/application-component",
-      "title": "ArchiMate Application Component"
+    "reference": {
+      "href": "/api/v1/reference/components",
+      "title": "Application Component Reference"
     },
     "relations-from": {
       "href": "/api/component-relation/from/{id}",

@@ -114,16 +114,16 @@ const RealizationsField: React.FC<RealizationsFieldProps> = ({ realizations, cap
   );
 };
 
-interface ArchimateLinkFieldProps {
+interface ReferenceLinkFieldProps {
   href: string | undefined;
 }
 
-const ArchimateLinkField: React.FC<ArchimateLinkFieldProps> = ({ href }) => {
+const ReferenceLinkField: React.FC<ReferenceLinkFieldProps> = ({ href }) => {
   if (!href) return null;
   return (
-    <div className="detail-archimate">
-      <a href={href} target="_blank" rel="noopener noreferrer" className="archimate-link">
-        ArchiMate Documentation
+    <div className="detail-reference">
+      <a href={href} target="_blank" rel="noopener noreferrer" className="reference-link">
+        Reference Documentation
       </a>
     </div>
   );
@@ -189,12 +189,12 @@ const ComponentContent: React.FC<ComponentContentProps> = ({
       <DetailField label="Type">Application Component</DetailField>
       <DetailField label="ID"><span className="detail-id">{component.id}</span></DetailField>
 
-      <ArchimateLinkField href={component._links.archimate} />
+      <ReferenceLinkField href={component._links.reference} />
 
       {componentInView && currentView && (
         <ColorPickerField
           componentInView={componentInView}
-          colorScheme={currentView.colorScheme || 'archimate'}
+          colorScheme={currentView.colorScheme || 'maturity'}
           onColorChange={onColorChange}
           onClearColor={onClearColor}
         />

@@ -19,7 +19,7 @@ export interface Position {
 export interface HATEOASLinks {
   self?: string;
   next?: string;
-  archimate?: string;
+  reference?: string;
   update?: string;
   delete?: string;
   components?: string;

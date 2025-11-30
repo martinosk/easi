@@ -27,7 +27,7 @@ const mockComponent: Component = {
   createdAt: '2024-01-01T00:00:00Z',
   _links: {
     self: { href: '/api/v1/components/comp-1' },
-    archimate: { href: 'https://archimate.com/comp-1' },
+    reference: { href: '/api/v1/reference/components' },
   },
 };
 

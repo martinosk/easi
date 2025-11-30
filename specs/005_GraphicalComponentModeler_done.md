@@ -22,7 +22,7 @@ Enable architects to create an interactive diagramming tool that:
 - Component positions should persist. This should be implemented as a new bounded context in the backed called "Architecture Views"
 - Users should be able to view component details
 - Users should be able to view relation details
-- Component and relation details must contain a "type" with link to the Archimate documentation as found in hatoas links.
+- Component and relation details must contain a "type" with link to reference documentation as found in HATEOAS links.
 
 ### Component Visualization
 - Components should be visually represented with their name and optionally description
@@ -68,8 +68,8 @@ The OpenAPI specification will be available at `frontend/openapi.json`
 - [x] Component positioning/dragging implemented (React Flow with backend Architecture Views persistence)
 - [x] Relation creation functionality implemented (CreateRelationDialog.tsx)
 - [x] Relation visualization implemented (React Flow edges with color coding)
-- [x] Component details view implemented (ComponentDetails.tsx with Archimate documentation links)
-- [x] Relation details view implemented (RelationDetails.tsx with Archimate documentation links)
+- [x] Component details view implemented (ComponentDetails.tsx with reference documentation links)
+- [x] Relation details view implemented (RelationDetails.tsx with reference documentation links)
 - [x] Error handling and user feedback implemented (error states and dialogs with toast notifications)
 - [x] Basic styling and UX polish (professional CSS with gradients, colors, animations)
 

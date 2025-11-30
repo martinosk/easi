@@ -20,7 +20,7 @@ func (h *HATEOASLinks) ComponentLinks(componentID string) map[string]string {
 	return map[string]string{
 		"self":       fmt.Sprintf("%s/components/%s", h.baseURL, componentID),
 		"delete":     fmt.Sprintf("%s/components/%s", h.baseURL, componentID),
-		"archimate":  h.ArchimateDocLink("application-component"),
+		"reference":  h.ReferenceDocLink("components"),
 		"collection": fmt.Sprintf("%s/components", h.baseURL),
 	}
 }
@@ -30,22 +30,22 @@ func (h *HATEOASLinks) RelationLinks(relationID string) map[string]string {
 	return map[string]string{
 		"self":       fmt.Sprintf("%s/relations/%s", h.baseURL, relationID),
 		"delete":     fmt.Sprintf("%s/relations/%s", h.baseURL, relationID),
-		"archimate":  h.ArchimateDocLink("relationship"),
+		"reference":  h.ReferenceDocLink("relations/generic"),
 		"collection": fmt.Sprintf("%s/relations", h.baseURL),
 	}
 }
 
-// RelationTypeLinks generates archimate documentation links for relation types
+// RelationTypeLinks generates reference documentation links for relation types
 func (h *HATEOASLinks) RelationTypeLinks(relationType string) map[string]string {
 	links := make(map[string]string)
 
 	switch relationType {
 	case "Triggers":
-		links["archimate"] = h.ArchimateDocLink("triggering-relationship")
+		links["reference"] = h.ReferenceDocLink("relations/triggering")
 	case "Serves":
-		links["archimate"] = h.ArchimateDocLink("serving-relationship")
+		links["reference"] = h.ReferenceDocLink("relations/serving")
 	default:
-		links["archimate"] = h.ArchimateDocLink("relationship")
+		links["reference"] = h.ReferenceDocLink("relations/generic")
 	}
 
 	return links
@@ -101,7 +101,6 @@ func (h *HATEOASLinks) RealizationLinks(realizationID, capabilityID, componentID
 	}
 }
 
-// ArchimateDocLink generates a link to ArchiMate documentation
 func (h *HATEOASLinks) BusinessDomainLinks(domainID string, hasCapabilities bool) map[string]string {
 	links := map[string]string{
 		"self":         fmt.Sprintf("%s/business-domains/%s", h.baseURL, domainID),
@@ -140,19 +139,7 @@ func (h *HATEOASLinks) AssignmentLinks(domainID, capabilityID string) map[string
 	}
 }
 
-func (h *HATEOASLinks) ArchimateDocLink(elementType string) string {
-	baseURL := "https://pubs.opengroup.org/architecture/archimate3-doc/chap"
-
-	switch elementType {
-	case "application-component":
-		return baseURL + "09.html#_Toc489946090"
-	case "triggering-relationship":
-		return baseURL + "05.html#_Toc489945994"
-	case "serving-relationship":
-		return baseURL + "05.html#_Toc489945993"
-	case "relationship":
-		return baseURL + "05.html"
-	default:
-		return baseURL + "01.html"
-	}
+// ReferenceDocLink generates a link to reference documentation
+func (h *HATEOASLinks) ReferenceDocLink(resourceType string) string {
+	return fmt.Sprintf("%s/reference/%s", h.baseURL, resourceType)
 }

@@ -73,12 +73,12 @@ Open your browser to: **http://localhost:5173**
 1. **Click on a component** - Side panel shows:
    - Name and description
    - Created date
-   - **ArchiMate Documentation link** (click to learn more)
+   - **Reference Documentation link** (click to learn more)
 
 2. **Click on a relation arrow** - Side panel shows:
    - Relation type and name
    - Source and target components
-   - **ArchiMate Documentation link** for the relation type
+   - **Reference Documentation link** for the relation type
 
 ### Canvas Controls
 

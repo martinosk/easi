@@ -10,7 +10,7 @@ interface RelationData {
   relation: Relation;
   sourceComponent: Component | undefined;
   targetComponent: Component | undefined;
-  archimateLink: string | undefined;
+  referenceLink: string | undefined;
   formattedDate: string;
 }
 
@@ -30,10 +30,10 @@ const useRelationData = (selectedEdgeId: string | null): RelationData | null => 
 
   const sourceComponent = components.find((c) => c.id === relation.sourceComponentId);
   const targetComponent = components.find((c) => c.id === relation.targetComponentId);
-  const archimateLink = relation._links.archimate;
+  const referenceLink = relation._links.reference;
   const formattedDate = new Date(relation.createdAt).toLocaleString();
 
-  return { relation, sourceComponent, targetComponent, archimateLink, formattedDate };
+  return { relation, sourceComponent, targetComponent, referenceLink, formattedDate };
 };
 
 export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
@@ -46,7 +46,7 @@ export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
     return null;
   }
 
-  const { relation, sourceComponent, targetComponent, archimateLink, formattedDate } = data;
+  const { relation, sourceComponent, targetComponent, referenceLink, formattedDate } = data;
 
   return (
     <div className="detail-panel">
@@ -115,16 +115,16 @@ export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
           <div className="detail-value detail-id">{relation.id}</div>
         </div>
 
-        {archimateLink && (
-          <div className="detail-archimate">
+        {referenceLink && (
+          <div className="detail-reference">
             <a
-              href={archimateLink}
+              href={referenceLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="archimate-link"
+              className="reference-link"
             >
-              <span className="archimate-icon">📚</span>
-              ArchiMate Documentation
+              <span className="reference-icon">📚</span>
+              Reference Documentation
             </a>
           </div>
         )}

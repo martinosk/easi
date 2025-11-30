@@ -36,11 +36,11 @@ Implement the missing backend endpoint for color scheme persistence.
 **API Endpoint:**
 ```http
 PATCH /api/v1/views/{viewId}/color-scheme
-Body: { "colorScheme": "maturity" | "archimate" | "archimate-classic" | "custom" }
+Body: { "colorScheme": "maturity" | "classic" | "custom" }
 
 Response: 200 OK
 {
-  "colorScheme": "archimate",
+  "colorScheme": "classic",
   "_links": {
     "self": "/api/v1/views/{viewId}/color-scheme",
     "view": "/api/v1/views/{viewId}"
@@ -60,7 +60,7 @@ Response: 200 OK
 
 **Acceptance Criteria:**
 - [x] Migration adds `color_scheme` column to `view_preferences`
-- [x] `ColorScheme` value object validates allowed values (maturity, archimate, archimate-classic, custom)
+- [x] `ColorScheme` value object validates allowed values (maturity, classic, custom)
 - [x] `UpdateViewColorScheme` command and handler implemented
 - [x] `ViewLayoutRepository.UpdateColorScheme` method added
 - [x] PATCH endpoint returns 200 OK with body and HATEOAS links

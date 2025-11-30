@@ -6,7 +6,7 @@ INSERT INTO releases (version, release_date, notes, created_at) VALUES
 ('0.1.0', '2025-11-10', '## What''s New in 0.1.0
 
 ### Major
-- **Application Component Modeling**: Create and manage application components using ArchiMate standards
+- **Application Component Modeling**: Create and manage application components using familiar enterprise architecture terminology
 - **Component Relations**: Define relationships between components (Triggers, Serves)
 - **Event Sourcing Backend**: Built on CQRS with event sourcing for full audit trail
 - **Canvas-Based Modeler**: Visual drag-and-drop interface for designing system architecture

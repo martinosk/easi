@@ -1,7 +1,7 @@
 # Component Relation Feature
 
 ## Description
-Implements the ability to model relationships between Application Components. Relations are unidirectional, representing how one component interacts with or depends on another component. This follows ArchiMate modelling principles where relationships have specific types and semantics.
+Implements the ability to model relationships between Application Components. Relations are unidirectional, representing how one component interacts with or depends on another component. Relationships have specific types and semantics that define how components interact.
 
 ## Relation Types
 - **Triggers**: Indicates that the source component initiates or activates functionality in the target component
@@ -70,9 +70,9 @@ Creates a new component relation.
     "self": {
       "href": "/api/component-relation/{id}"
     },
-    "archimate-spec": {
-      "href": "/api/documentation/component-relation-triggers",
-      "title": "ArchiMate Triggering Relationship"
+    "reference": {
+      "href": "/api/v1/reference/relations/triggering",
+      "title": "Triggering Relationship Reference"
     },
     "source": {
       "href": "/api/application-component/{sourceComponentId}",
@@ -108,9 +108,9 @@ Gets all component relations.
       "self": {
         "href": "/api/component-relation/{id}"
       },
-      "archimate-spec": {
-        "href": "/api/documentation/component-relation-triggers",
-        "title": "ArchiMate Triggering Relationship"
+      "reference": {
+        "href": "/api/v1/reference/relations/triggering",
+        "title": "Triggering Relationship Reference"
       },
       "source": {
         "href": "/api/application-component/{sourceComponentId}",
@@ -143,9 +143,9 @@ Gets all relations where the specified component is the source.
       "self": {
         "href": "/api/component-relation/{id}"
       },
-      "archimate-spec": {
-        "href": "/api/documentation/component-relation-triggers",
-        "title": "ArchiMate Triggering Relationship"
+      "reference": {
+        "href": "/api/v1/reference/relations/triggering",
+        "title": "Triggering Relationship Reference"
       },
       "source": {
         "href": "/api/application-component/{sourceComponentId}",
@@ -178,9 +178,9 @@ Gets all relations where the specified component is the target.
       "self": {
         "href": "/api/component-relation/{id}"
       },
-      "archimate-spec": {
-        "href": "/api/documentation/component-relation-triggers",
-        "title": "ArchiMate Triggering Relationship"
+      "reference": {
+        "href": "/api/v1/reference/relations/triggering",
+        "title": "Triggering Relationship Reference"
       },
       "source": {
         "href": "/api/application-component/{sourceComponentId}",
@@ -212,9 +212,9 @@ Gets a specific component relation by ID.
     "self": {
       "href": "/api/component-relation/{id}"
     },
-    "archimate-spec": {
-      "href": "/api/documentation/component-relation-triggers",
-      "title": "ArchiMate Triggering Relationship"
+    "reference": {
+      "href": "/api/v1/reference/relations/triggering",
+      "title": "Triggering Relationship Reference"
     },
     "source": {
       "href": "/api/application-component/{sourceComponentId}",
