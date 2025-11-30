@@ -42,8 +42,13 @@ export const createCanvasCapabilitySlice: StateCreator<
     const exists = canvasCapabilities.some((c) => c.capabilityId === capabilityId);
     if (exists || !currentView) return;
 
+    const newCapability = { capabilityId, x, y };
     set({
-      canvasCapabilities: [...canvasCapabilities, { capabilityId, x, y }],
+      canvasCapabilities: [...canvasCapabilities, newCapability],
+      currentView: {
+        ...currentView,
+        capabilities: [...currentView.capabilities, newCapability],
+      },
     });
 
     try {
@@ -51,6 +56,10 @@ export const createCanvasCapabilitySlice: StateCreator<
     } catch (error) {
       set({
         canvasCapabilities: canvasCapabilities.filter((c) => c.capabilityId !== capabilityId),
+        currentView: {
+          ...currentView,
+          capabilities: currentView.capabilities.filter((c) => c.capabilityId !== capabilityId),
+        },
       });
       throw error;
     }
@@ -61,9 +70,14 @@ export const createCanvasCapabilitySlice: StateCreator<
     if (!currentView) return;
 
     const removed = canvasCapabilities.find((c) => c.capabilityId === capabilityId);
+    const previousCapabilities = currentView.capabilities;
     set({
       canvasCapabilities: canvasCapabilities.filter((c) => c.capabilityId !== capabilityId),
       selectedCapabilityId: selectedCapabilityId === capabilityId ? null : selectedCapabilityId,
+      currentView: {
+        ...currentView,
+        capabilities: currentView.capabilities.filter((c) => c.capabilityId !== capabilityId),
+      },
     });
 
     try {
@@ -72,6 +86,10 @@ export const createCanvasCapabilitySlice: StateCreator<
       if (removed) {
         set({
           canvasCapabilities: [...get().canvasCapabilities, removed],
+          currentView: {
+            ...get().currentView!,
+            capabilities: previousCapabilities,
+          },
         });
       }
       throw error;

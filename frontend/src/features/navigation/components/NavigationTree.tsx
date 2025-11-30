@@ -167,7 +167,6 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const capabilities = useAppStore((state) => state.capabilities);
   const loadCapabilities = useAppStore((state) => state.loadCapabilities);
-  const canvasCapabilities = useAppStore((state) => state.canvasCapabilities);
 
   const [isOpen, setIsOpen] = useState(() => getPersistedBoolean('navigationTreeOpen', true));
   const [isModelsExpanded, setIsModelsExpanded] = useState(() => getPersistedBoolean('navigationTreeModelsExpanded', true));
@@ -275,8 +274,8 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
   const getCapabilityNodeData = (node: CapabilityTreeNode) => {
     const { capability } = node;
-    const isOnCanvas = canvasCapabilities.some((cc) => cc.capabilityId === capability.id);
     const viewCapability = currentView?.capabilities.find(vc => vc.capabilityId === capability.id);
+    const isOnCanvas = !!viewCapability;
     const customColor = viewCapability?.customColor;
     const colorScheme = currentView?.colorScheme ?? 'maturity';
 

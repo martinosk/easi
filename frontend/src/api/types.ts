@@ -345,3 +345,96 @@ export interface AssociateCapabilityRequest {
 }
 
 export type BusinessDomainsResponse = CollectionResponse<BusinessDomain>;
+
+export type LayoutContainerId = Branded<string, 'LayoutContainerId'>;
+export type LayoutContextType = 'architecture-canvas' | 'business-domain-grid';
+
+export interface LayoutLink {
+  href: string;
+  method?: string;
+}
+
+export interface LayoutLinks {
+  self?: LayoutLink;
+  updatePreferences?: LayoutLink;
+  batchUpdate?: LayoutLink;
+  delete?: LayoutLink;
+  layout?: LayoutLink;
+  update?: LayoutLink;
+}
+
+export interface ElementPositionLinks {
+  self?: LayoutLink;
+  layout?: LayoutLink;
+  update?: LayoutLink;
+  delete?: LayoutLink;
+}
+
+export interface ElementPosition {
+  elementId: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  customColor?: string;
+  sortOrder?: number;
+  _links: ElementPositionLinks;
+}
+
+export interface LayoutContainer {
+  id: LayoutContainerId;
+  contextType: LayoutContextType;
+  contextRef: string;
+  preferences: Record<string, unknown>;
+  elements: ElementPosition[];
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  _links: LayoutLinks;
+}
+
+export interface LayoutContainerSummary {
+  id: LayoutContainerId;
+  contextType: LayoutContextType;
+  contextRef: string;
+  preferences: Record<string, unknown>;
+  version: number;
+  _links: LayoutLinks;
+}
+
+export interface UpsertLayoutRequest {
+  preferences?: Record<string, unknown>;
+}
+
+export interface UpdatePreferencesRequest {
+  preferences: Record<string, unknown>;
+}
+
+export interface ElementPositionInput {
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  customColor?: string;
+  sortOrder?: number;
+}
+
+export interface BatchUpdateItem {
+  elementId: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  customColor?: string;
+  sortOrder?: number;
+}
+
+export interface BatchUpdateRequest {
+  updates: BatchUpdateItem[];
+}
+
+export interface BatchUpdateResponse {
+  updated: number;
+  elements: ElementPosition[];
+  _links: LayoutLinks;
+}

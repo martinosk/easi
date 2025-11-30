@@ -9,11 +9,11 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
   const relations = useAppStore((state) => state.relations);
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
   const currentView = useAppStore((state) => state.currentView);
-  const canvasCapabilities = useAppStore((state) => state.canvasCapabilities);
   const capabilities = useAppStore((state) => state.capabilities);
   const capabilityRealizations = useAppStore((state) => state.capabilityRealizations);
 
   return useMemo(() => {
+    const viewCapabilities = currentView?.capabilities || [];
     const edgeType = currentView?.edgeType || 'default';
     const colorScheme = currentView?.colorScheme || 'maturity';
     const isClassicScheme = colorScheme === 'classic';
@@ -55,10 +55,10 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
       };
     });
 
-    const canvasCapabilityIds = new Set(canvasCapabilities.map((cc) => cc.capabilityId));
-    const parentEdges: Edge[] = canvasCapabilities
-      .map((cc) => {
-        const capability = capabilities.find((c) => c.id === cc.capabilityId);
+    const canvasCapabilityIds = new Set(viewCapabilities.map((vc) => vc.capabilityId));
+    const parentEdges: Edge[] = viewCapabilities
+      .map((vc) => {
+        const capability = capabilities.find((c) => c.id === vc.capabilityId);
         if (!capability || !capability.parentId) return null;
 
         if (!canvasCapabilityIds.has(capability.parentId)) return null;
@@ -102,7 +102,7 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
       })
       .filter((e) => e !== null) as Edge[];
 
-    const visibleCapabilityIds = new Set(canvasCapabilities.map((cc) => cc.capabilityId));
+    const visibleCapabilityIds = new Set(viewCapabilities.map((vc) => vc.capabilityId));
     const componentIdsOnCanvas = new Set(
       currentView?.components.map((vc) => vc.componentId) || []
     );
@@ -174,5 +174,5 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
       });
 
     return [...relationEdges, ...parentEdges, ...realizationEdges];
-  }, [relations, selectedEdgeId, currentView?.edgeType, currentView?.colorScheme, currentView?.components, nodes, canvasCapabilities, capabilities, capabilityRealizations]);
+  }, [relations, selectedEdgeId, currentView, nodes, capabilities, capabilityRealizations]);
 };

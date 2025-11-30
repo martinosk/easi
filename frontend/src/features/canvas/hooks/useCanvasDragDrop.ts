@@ -1,13 +1,15 @@
 import { useCallback } from 'react';
 import type { ReactFlowInstance } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
-import type { CapabilityId } from '../../../api/types';
+import type { CapabilityId, ComponentId } from '../../../api/types';
+import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 
 export const useCanvasDragDrop = (
   reactFlowInstance: ReactFlowInstance | null,
   onComponentDrop?: (componentId: string, x: number, y: number) => void
 ) => {
   const addCapabilityToCanvas = useAppStore((state) => state.addCapabilityToCanvas);
+  const { updateComponentPosition, updateCapabilityPosition } = useCanvasLayoutContext();
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -15,7 +17,7 @@ export const useCanvasDragDrop = (
   }, []);
 
   const onDrop = useCallback(
-    (event: React.DragEvent) => {
+    async (event: React.DragEvent) => {
       event.preventDefault();
 
       const componentId = event.dataTransfer.getData('componentId');
@@ -30,12 +32,14 @@ export const useCanvasDragDrop = (
       });
 
       if (componentId && onComponentDrop) {
-        onComponentDrop(componentId, position.x, position.y);
+        await onComponentDrop(componentId, position.x, position.y);
+        await updateComponentPosition(componentId as ComponentId, position.x, position.y);
       } else if (capabilityId) {
-        addCapabilityToCanvas(capabilityId as CapabilityId, position.x, position.y);
+        await addCapabilityToCanvas(capabilityId as CapabilityId, position.x, position.y);
+        await updateCapabilityPosition(capabilityId as CapabilityId, position.x, position.y);
       }
     },
-    [onComponentDrop, reactFlowInstance, addCapabilityToCanvas]
+    [onComponentDrop, reactFlowInstance, addCapabilityToCanvas, updateComponentPosition, updateCapabilityPosition]
   );
 
   return { onDragOver, onDrop };

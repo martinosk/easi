@@ -2,14 +2,14 @@ import { useCallback } from 'react';
 import type { Node, Edge } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
 import type { ComponentId, CapabilityId, RelationId } from '../../../api/types';
+import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 
 export const useCanvasSelection = () => {
   const selectNode = useAppStore((state) => state.selectNode);
   const selectEdge = useAppStore((state) => state.selectEdge);
   const clearSelection = useAppStore((state) => state.clearSelection);
   const selectCapability = useAppStore((state) => state.selectCapability);
-  const updatePosition = useAppStore((state) => state.updatePosition);
-  const updateCapabilityPosition = useAppStore((state) => state.updateCapabilityPosition);
+  const { updateComponentPosition, updateCapabilityPosition } = useCanvasLayoutContext();
 
   const onNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
@@ -43,10 +43,10 @@ export const useCanvasSelection = () => {
         const capId = node.id.replace('cap-', '') as CapabilityId;
         updateCapabilityPosition(capId, node.position.x, node.position.y);
       } else {
-        updatePosition(node.id as ComponentId, node.position);
+        updateComponentPosition(node.id as ComponentId, node.position.x, node.position.y);
       }
     },
-    [updatePosition, updateCapabilityPosition]
+    [updateComponentPosition, updateCapabilityPosition]
   );
 
   return {

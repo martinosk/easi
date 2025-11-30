@@ -18,7 +18,7 @@
       "Bash(git tag:*)",
       "Bash(npx tsc:*)",
       "Bash(go vet:*)",
-      "Bash(npm run test:no-isolate:*)",
+      "Bash(npm run test:*)",
       "Bash(npx vitest:*)"
     ],
     "deny": [],

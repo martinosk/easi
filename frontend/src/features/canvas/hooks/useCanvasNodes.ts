@@ -1,28 +1,24 @@
 import { useMemo, useEffect } from 'react';
 import type { Node } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
-import type { Component, View, Capability, ViewCapability } from '../../../api/types';
-import type { CanvasCapability } from '../../../store/slices/canvasCapabilitySlice';
-
-interface Position {
-  x: number;
-  y: number;
-}
+import type { Component, View, Capability, ViewCapability, Position } from '../../../api/types';
+import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
+import type { CanvasPositionMap } from './useCanvasLayout';
 
 const DEFAULT_POSITION: Position = { x: 400, y: 300 };
 
 const createComponentNode = (
   component: Component,
   currentView: View,
+  layoutPositions: CanvasPositionMap,
   selectedNodeId: string | null
 ): Node => {
   const viewComponent = currentView.components.find(
     (vc) => vc.componentId === component.id
   );
 
-  const position = viewComponent
-    ? { x: viewComponent.x, y: viewComponent.y }
-    : DEFAULT_POSITION;
+  const layoutPosition = layoutPositions[component.id];
+  const position = layoutPosition ?? DEFAULT_POSITION;
 
   return {
     id: component.id,
@@ -38,22 +34,28 @@ const createComponentNode = (
 };
 
 const createCapabilityNode = (
-  cc: CanvasCapability,
+  capabilityId: string,
   capability: Capability,
+  layoutPositions: CanvasPositionMap,
   viewCapability: ViewCapability | undefined,
   selectedCapabilityId: string | null
-): Node => ({
-  id: `cap-${capability.id}`,
-  type: 'capability' as const,
-  position: { x: cc.x, y: cc.y },
-  data: {
-    label: capability.name,
-    level: capability.level,
-    maturityLevel: capability.maturityLevel,
-    isSelected: selectedCapabilityId === capability.id,
-    customColor: viewCapability?.customColor,
-  },
-});
+): Node => {
+  const layoutPosition = layoutPositions[capabilityId];
+  const position = layoutPosition ?? DEFAULT_POSITION;
+
+  return {
+    id: `cap-${capability.id}`,
+    type: 'capability' as const,
+    position,
+    data: {
+      label: capability.name,
+      level: capability.level,
+      maturityLevel: capability.maturityLevel,
+      isSelected: selectedCapabilityId === capability.id,
+      customColor: viewCapability?.customColor,
+    },
+  };
+};
 
 const isComponentInView = (component: Component, currentView: View): boolean =>
   currentView.components.some((vc) => vc.componentId === component.id);
@@ -62,10 +64,10 @@ export const useCanvasNodes = (): Node[] => {
   const components = useAppStore((state) => state.components);
   const currentView = useAppStore((state) => state.currentView);
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
-  const canvasCapabilities = useAppStore((state) => state.canvasCapabilities);
   const capabilities = useAppStore((state) => state.capabilities);
   const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
   const loadRealizationsByComponent = useAppStore((state) => state.loadRealizationsByComponent);
+  const { positions: layoutPositions } = useCanvasLayoutContext();
 
   useEffect(() => {
     if (!currentView) return;
@@ -79,21 +81,17 @@ export const useCanvasNodes = (): Node[] => {
 
     const componentNodes = components
       .filter((component) => isComponentInView(component, currentView))
-      .map((component) => createComponentNode(component, currentView, selectedNodeId));
+      .map((component) => createComponentNode(component, currentView, layoutPositions, selectedNodeId));
 
-    const capabilityNodes = canvasCapabilities
-      .map((cc) => {
-        const capability = capabilities.find((c) => c.id === cc.capabilityId);
+    const capabilityNodes = (currentView.capabilities || [])
+      .map((vc) => {
+        const capability = capabilities.find((c) => c.id === vc.capabilityId);
         if (!capability) return null;
 
-        const viewCapability = currentView.capabilities.find(
-          (vc) => vc.capabilityId === capability.id
-        );
-
-        return createCapabilityNode(cc, capability, viewCapability, selectedCapabilityId);
+        return createCapabilityNode(vc.capabilityId, capability, layoutPositions, vc, selectedCapabilityId);
       })
       .filter((n): n is Node => n !== null);
 
     return [...componentNodes, ...capabilityNodes];
-  }, [components, currentView, selectedNodeId, canvasCapabilities, capabilities, selectedCapabilityId]);
+  }, [components, currentView, selectedNodeId, capabilities, selectedCapabilityId, layoutPositions]);
 };

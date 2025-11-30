@@ -51,6 +51,14 @@ import type {
   UpdateBusinessDomainRequest,
   AssociateCapabilityRequest,
   BusinessDomainsResponse,
+  LayoutContextType,
+  LayoutContainer,
+  LayoutContainerSummary,
+  ElementPosition,
+  UpsertLayoutRequest,
+  ElementPositionInput,
+  BatchUpdateItem,
+  BatchUpdateResponse,
 } from './types';
 import { ApiError } from './types';
 
@@ -436,6 +444,89 @@ class ApiClient {
 
   async dissociateCapabilityFromDomain(dissociateLink: string): Promise<void> {
     await this.client.delete(dissociateLink);
+  }
+
+  async getLayout(contextType: LayoutContextType, contextRef: string): Promise<LayoutContainer | null> {
+    try {
+      const response = await this.client.get<LayoutContainer>(
+        `/api/v1/layouts/${contextType}/${contextRef}`
+      );
+      return response.data;
+    } catch (error) {
+      if (error instanceof ApiError && error.statusCode === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async upsertLayout(
+    contextType: LayoutContextType,
+    contextRef: string,
+    request: UpsertLayoutRequest = {}
+  ): Promise<LayoutContainer> {
+    const response = await this.client.put<LayoutContainer>(
+      `/api/v1/layouts/${contextType}/${contextRef}`,
+      request
+    );
+    return response.data;
+  }
+
+  async deleteLayout(contextType: LayoutContextType, contextRef: string): Promise<void> {
+    await this.client.delete(`/api/v1/layouts/${contextType}/${contextRef}`);
+  }
+
+  async updateLayoutPreferences(
+    contextType: LayoutContextType,
+    contextRef: string,
+    preferences: Record<string, unknown>,
+    version: number
+  ): Promise<LayoutContainerSummary> {
+    const response = await this.client.patch<LayoutContainerSummary>(
+      `/api/v1/layouts/${contextType}/${contextRef}/preferences`,
+      { preferences },
+      {
+        headers: {
+          'If-Match': `"${version}"`,
+        },
+      }
+    );
+    return response.data;
+  }
+
+  async upsertElementPosition(
+    contextType: LayoutContextType,
+    contextRef: string,
+    elementId: string,
+    position: ElementPositionInput
+  ): Promise<ElementPosition> {
+    const response = await this.client.put<ElementPosition>(
+      `/api/v1/layouts/${contextType}/${contextRef}/elements/${elementId}`,
+      position
+    );
+    return response.data;
+  }
+
+  async deleteElementPosition(
+    contextType: LayoutContextType,
+    contextRef: string,
+    elementId: string
+  ): Promise<void> {
+    await this.client.delete(
+      `/api/v1/layouts/${contextType}/${contextRef}/elements/${elementId}`
+    );
+  }
+
+  async batchUpdateElements(
+    contextType: LayoutContextType,
+    contextRef: string,
+    updates: BatchUpdateItem[]
+  ): Promise<BatchUpdateResponse> {
+    const response = await this.client.patch<BatchUpdateResponse>(
+      `/api/v1/layouts/${contextType}/${contextRef}/elements`,
+      { updates }
+    );
+    return response.data;
   }
 }
 

@@ -15,6 +15,7 @@ import (
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
+	viewlayoutsAPI "easi/backend/internal/viewlayouts/infrastructure/api"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -100,6 +101,11 @@ func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) htt
 		// Releases Context (system-wide, no tenancy)
 		if err := releasesAPI.SetupReleasesRoutes(r, db.DB()); err != nil {
 			log.Fatalf("Failed to setup releases routes: %v", err)
+		}
+
+		// ViewLayouts Context
+		if err := viewlayoutsAPI.SetupViewLayoutsRoutes(r, eventBus, db, hateoas); err != nil {
+			log.Fatalf("Failed to setup view layouts routes: %v", err)
 		}
 	})
 
