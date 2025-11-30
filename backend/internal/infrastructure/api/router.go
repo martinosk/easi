@@ -107,6 +107,9 @@ func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) htt
 		if err := viewlayoutsAPI.SetupViewLayoutsRoutes(r, eventBus, db, hateoas); err != nil {
 			log.Fatalf("Failed to setup view layouts routes: %v", err)
 		}
+
+		// Reference Documentation (static)
+		sharedAPI.SetupReferenceRoutes(r)
 	})
 
 	return r

@@ -1795,6 +1795,86 @@ const docTemplate = `{
                 }
             }
         },
+        "/reference/components": {
+            "get": {
+                "description": "Returns reference documentation for Application Components",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reference"
+                ],
+                "summary": "Get component reference documentation",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_shared_api.ReferenceDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/reference/relations/generic": {
+            "get": {
+                "description": "Returns reference documentation for generic relationships",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reference"
+                ],
+                "summary": "Get generic relationship reference documentation",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_shared_api.ReferenceDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/reference/relations/serving": {
+            "get": {
+                "description": "Returns reference documentation for Serving relationships",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reference"
+                ],
+                "summary": "Get serving relationship reference documentation",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_shared_api.ReferenceDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/reference/relations/triggering": {
+            "get": {
+                "description": "Returns reference documentation for Triggering relationships",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reference"
+                ],
+                "summary": "Get triggering relationship reference documentation",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_shared_api.ReferenceDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/relations": {
             "get": {
                 "description": "Retrieves all component relations with cursor-based pagination",
@@ -3563,6 +3643,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "realizationLevel": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_shared_api.ReferenceDoc": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "title": {
                     "type": "string"
                 }
             }

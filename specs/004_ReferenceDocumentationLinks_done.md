@@ -75,6 +75,46 @@ When retrieving Component Relations, the response should include:
 | Serving Relations | `/api/v1/reference/relations/serving` |
 | Generic Relations | `/api/v1/reference/relations/generic` |
 
+## Reference Documentation API
+
+The reference documentation endpoints return simple JSON with title and description.
+
+### GET /api/v1/reference/components
+**Response:** 200 OK
+```json
+{
+  "title": "Application Component",
+  "description": "An Application Component represents a modular, deployable, and replaceable part of a software system that encapsulates its contents and exposes its functionality through a set of interfaces."
+}
+```
+
+### GET /api/v1/reference/relations/triggering
+**Response:** 200 OK
+```json
+{
+  "title": "Triggering Relationship",
+  "description": "A Triggering relationship represents a temporal or causal dependency between two elements. The source element initiates or triggers the behavior of the target element."
+}
+```
+
+### GET /api/v1/reference/relations/serving
+**Response:** 200 OK
+```json
+{
+  "title": "Serving Relationship",
+  "description": "A Serving relationship represents that an element provides its functionality to another element. The source element serves or provides services to the target element."
+}
+```
+
+### GET /api/v1/reference/relations/generic
+**Response:** 200 OK
+```json
+{
+  "title": "Relationship",
+  "description": "A relationship represents a connection or dependency between two architectural elements. Relationships define how elements interact with or depend on each other."
+}
+```
+
 ## Implementation Considerations
 
 ### Read Model Extensions
@@ -95,11 +135,22 @@ This implementation achieves REST Level 3 (Hypermedia Controls) by:
 - Supporting discoverability of related resources
 
 ## Checklist
+
+### Phase 1: HATEOAS Links (Complete)
 - [x] Specification ready
 - [x] Read models extended with _links property
 - [x] Projections updated to include links
 - [x] API endpoints return responses with HATEOAS links
 - [x] OpenAPI specification updated
-- [ ] Unit tests for link generation (covered implicitly in integration tests)
 - [x] Integration tests verify links in responses
+
+### Phase 2: Reference Documentation API (Complete)
+- [x] Create reference handlers in shared/api or new reference package
+- [x] Implement GET /api/v1/reference/components endpoint
+- [x] Implement GET /api/v1/reference/relations/triggering endpoint
+- [x] Implement GET /api/v1/reference/relations/serving endpoint
+- [x] Implement GET /api/v1/reference/relations/generic endpoint
+- [x] Register routes in router
+- [x] Add Swagger documentation for reference endpoints
+- [x] Regenerate OpenAPI spec
 - [ ] User sign-off
