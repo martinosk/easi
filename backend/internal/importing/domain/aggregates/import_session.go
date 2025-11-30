@@ -318,138 +318,126 @@ func serializeRelationships(rels []ParsedRelationship) []map[string]interface{} 
 	return result
 }
 
+func getInt(m map[string]interface{}, key string) int {
+	if v, ok := m[key].(int); ok {
+		return v
+	}
+	if v, ok := m[key].(float64); ok {
+		return int(v)
+	}
+	return 0
+}
+
+func getIntMap(m map[string]interface{}, key string) map[string]int {
+	result := make(map[string]int)
+	raw, ok := m[key].(map[string]interface{})
+	if !ok {
+		return result
+	}
+	for k, v := range raw {
+		result[k] = getInt(map[string]interface{}{k: v}, k)
+	}
+	return result
+}
+
+func deserializeSupportedCounts(data map[string]interface{}) valueobjects.SupportedCounts {
+	s, ok := data["supported"].(map[string]interface{})
+	if !ok {
+		return valueobjects.SupportedCounts{}
+	}
+	return valueobjects.SupportedCounts{
+		Capabilities:             getInt(s, "capabilities"),
+		Components:               getInt(s, "components"),
+		ParentChildRelationships: getInt(s, "parentChildRelationships"),
+		Realizations:             getInt(s, "realizations"),
+	}
+}
+
+func deserializeUnsupportedCounts(data map[string]interface{}) valueobjects.UnsupportedCounts {
+	u, ok := data["unsupported"].(map[string]interface{})
+	if !ok {
+		return valueobjects.UnsupportedCounts{
+			Elements:      make(map[string]int),
+			Relationships: make(map[string]int),
+		}
+	}
+	return valueobjects.UnsupportedCounts{
+		Elements:      getIntMap(u, "elements"),
+		Relationships: getIntMap(u, "relationships"),
+	}
+}
+
 func deserializePreview(data map[string]interface{}) valueobjects.ImportPreview {
-	supported := valueobjects.SupportedCounts{}
-	unsupported := valueobjects.UnsupportedCounts{
-		Elements:      make(map[string]int),
-		Relationships: make(map[string]int),
-	}
-
-	if s, ok := data["supported"].(map[string]interface{}); ok {
-		if v, ok := s["capabilities"].(int); ok {
-			supported.Capabilities = v
-		}
-		if v, ok := s["capabilities"].(float64); ok {
-			supported.Capabilities = int(v)
-		}
-		if v, ok := s["components"].(int); ok {
-			supported.Components = v
-		}
-		if v, ok := s["components"].(float64); ok {
-			supported.Components = int(v)
-		}
-		if v, ok := s["parentChildRelationships"].(int); ok {
-			supported.ParentChildRelationships = v
-		}
-		if v, ok := s["parentChildRelationships"].(float64); ok {
-			supported.ParentChildRelationships = int(v)
-		}
-		if v, ok := s["realizations"].(int); ok {
-			supported.Realizations = v
-		}
-		if v, ok := s["realizations"].(float64); ok {
-			supported.Realizations = int(v)
-		}
-	}
-
-	if u, ok := data["unsupported"].(map[string]interface{}); ok {
-		if elems, ok := u["elements"].(map[string]interface{}); ok {
-			for k, v := range elems {
-				if count, ok := v.(int); ok {
-					unsupported.Elements[k] = count
-				}
-				if count, ok := v.(float64); ok {
-					unsupported.Elements[k] = int(count)
-				}
-			}
-		}
-		if rels, ok := u["relationships"].(map[string]interface{}); ok {
-			for k, v := range rels {
-				if count, ok := v.(int); ok {
-					unsupported.Relationships[k] = count
-				}
-				if count, ok := v.(float64); ok {
-					unsupported.Relationships[k] = int(count)
-				}
-			}
-		}
-	}
-
+	supported := deserializeSupportedCounts(data)
+	unsupported := deserializeUnsupportedCounts(data)
 	return valueobjects.NewImportPreview(supported, unsupported)
 }
 
-func deserializeParsedData(data map[string]interface{}) ParsedData {
-	result := ParsedData{}
-
-	if caps, ok := data["capabilities"].([]interface{}); ok {
-		for _, c := range caps {
-			if m, ok := c.(map[string]interface{}); ok {
-				result.Capabilities = append(result.Capabilities, ParsedElement{
-					SourceID:    getString(m, "sourceId"),
-					Name:        getString(m, "name"),
-					Description: getString(m, "description"),
-					ParentID:    getString(m, "parentId"),
-				})
+func toMapSlice(data interface{}) []map[string]interface{} {
+	if slice, ok := data.([]interface{}); ok {
+		result := make([]map[string]interface{}, 0, len(slice))
+		for _, item := range slice {
+			if m, ok := item.(map[string]interface{}); ok {
+				result = append(result, m)
 			}
 		}
-	} else if caps, ok := data["capabilities"].([]map[string]interface{}); ok {
-		for _, m := range caps {
-			result.Capabilities = append(result.Capabilities, ParsedElement{
-				SourceID:    getString(m, "sourceId"),
-				Name:        getString(m, "name"),
-				Description: getString(m, "description"),
-				ParentID:    getString(m, "parentId"),
-			})
-		}
+		return result
 	}
-
-	if comps, ok := data["components"].([]interface{}); ok {
-		for _, c := range comps {
-			if m, ok := c.(map[string]interface{}); ok {
-				result.Components = append(result.Components, ParsedElement{
-					SourceID:    getString(m, "sourceId"),
-					Name:        getString(m, "name"),
-					Description: getString(m, "description"),
-				})
-			}
-		}
-	} else if comps, ok := data["components"].([]map[string]interface{}); ok {
-		for _, m := range comps {
-			result.Components = append(result.Components, ParsedElement{
-				SourceID:    getString(m, "sourceId"),
-				Name:        getString(m, "name"),
-				Description: getString(m, "description"),
-			})
-		}
+	if slice, ok := data.([]map[string]interface{}); ok {
+		return slice
 	}
+	return nil
+}
 
-	if rels, ok := data["relationships"].([]interface{}); ok {
-		for _, r := range rels {
-			if m, ok := r.(map[string]interface{}); ok {
-				result.Relationships = append(result.Relationships, ParsedRelationship{
-					SourceID:      getString(m, "sourceId"),
-					Type:          getString(m, "type"),
-					SourceRef:     getString(m, "sourceRef"),
-					TargetRef:     getString(m, "targetRef"),
-					Name:          getString(m, "name"),
-					Documentation: getString(m, "documentation"),
-				})
-			}
-		}
-	} else if rels, ok := data["relationships"].([]map[string]interface{}); ok {
-		for _, m := range rels {
-			result.Relationships = append(result.Relationships, ParsedRelationship{
-				SourceID:      getString(m, "sourceId"),
-				Type:          getString(m, "type"),
-				SourceRef:     getString(m, "sourceRef"),
-				TargetRef:     getString(m, "targetRef"),
-				Name:          getString(m, "name"),
-				Documentation: getString(m, "documentation"),
-			})
-		}
+func deserializeCapabilities(data map[string]interface{}) []ParsedElement {
+	maps := toMapSlice(data["capabilities"])
+	result := make([]ParsedElement, 0, len(maps))
+	for _, m := range maps {
+		result = append(result, ParsedElement{
+			SourceID:    getString(m, "sourceId"),
+			Name:        getString(m, "name"),
+			Description: getString(m, "description"),
+			ParentID:    getString(m, "parentId"),
+		})
 	}
-
 	return result
+}
+
+func deserializeComponents(data map[string]interface{}) []ParsedElement {
+	maps := toMapSlice(data["components"])
+	result := make([]ParsedElement, 0, len(maps))
+	for _, m := range maps {
+		result = append(result, ParsedElement{
+			SourceID:    getString(m, "sourceId"),
+			Name:        getString(m, "name"),
+			Description: getString(m, "description"),
+		})
+	}
+	return result
+}
+
+func deserializeRelationships(data map[string]interface{}) []ParsedRelationship {
+	maps := toMapSlice(data["relationships"])
+	result := make([]ParsedRelationship, 0, len(maps))
+	for _, m := range maps {
+		result = append(result, ParsedRelationship{
+			SourceID:      getString(m, "sourceId"),
+			Type:          getString(m, "type"),
+			SourceRef:     getString(m, "sourceRef"),
+			TargetRef:     getString(m, "targetRef"),
+			Name:          getString(m, "name"),
+			Documentation: getString(m, "documentation"),
+		})
+	}
+	return result
+}
+
+func deserializeParsedData(data map[string]interface{}) ParsedData {
+	return ParsedData{
+		Capabilities:  deserializeCapabilities(data),
+		Components:    deserializeComponents(data),
+		Relationships: deserializeRelationships(data),
+	}
 }
 
 func deserializeErrors(errors []map[string]interface{}) []valueobjects.ImportError {
