@@ -8,9 +8,10 @@ import { useGridPositions } from '../hooks/useGridPositions';
 import { DomainFilter } from '../components/DomainFilter';
 import { DomainGrid } from '../components/DomainGrid';
 import { NestedCapabilityGrid } from '../components/NestedCapabilityGrid';
-import { DepthSelector, type DepthLevel } from '../components/DepthSelector';
+import { DepthSelector } from '../components/DepthSelector';
 import { CapabilityExplorer } from '../components/CapabilityExplorer';
 import { ReassignConfirmDialog } from '../components/ReassignConfirmDialog';
+import { usePersistedDepth } from '../hooks/usePersistedDepth';
 import { apiClient } from '../../../api/client';
 import type { BusinessDomainId, Capability, CapabilityId } from '../../../api/types';
 
@@ -27,7 +28,7 @@ export function DomainVisualizationPage({ initialDomainId }: DomainVisualization
   const [selectedDomainId, setSelectedDomainId] = useState<BusinessDomainId | null>(initialDomainId ?? null);
   const [selectedCapability, setSelectedCapability] = useState<Capability | null>(null);
   const [activeCapability, setActiveCapability] = useState<Capability | null>(null);
-  const [depth, setDepth] = useState<DepthLevel>(1);
+  const [depth, setDepth] = usePersistedDepth();
   const [pendingReassignment, setPendingReassignment] = useState<PendingReassignment | null>(null);
   const [isReassigning, setIsReassigning] = useState(false);
   const { domains, isLoading: domainsLoading } = useBusinessDomains();

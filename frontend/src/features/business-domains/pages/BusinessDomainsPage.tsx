@@ -6,7 +6,7 @@ import { DomainList } from '../components/DomainList';
 import { DomainForm } from '../components/DomainForm';
 import { DomainGrid } from '../components/DomainGrid';
 import { NestedCapabilityGrid } from '../components/NestedCapabilityGrid';
-import { DepthSelector, type DepthLevel } from '../components/DepthSelector';
+import { DepthSelector } from '../components/DepthSelector';
 import { CapabilityExplorer } from '../components/CapabilityExplorer';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import { ContextMenu, type ContextMenuItem } from '../../../components/shared/ContextMenu';
@@ -14,6 +14,7 @@ import { useBusinessDomains } from '../hooks/useBusinessDomains';
 import { useDomainCapabilities } from '../hooks/useDomainCapabilities';
 import { useCapabilityTree } from '../hooks/useCapabilityTree';
 import { useGridPositions } from '../hooks/useGridPositions';
+import { usePersistedDepth } from '../hooks/usePersistedDepth';
 import type { BusinessDomain, Capability, CapabilityId } from '../../../api/types';
 import '../components/visualization.css';
 
@@ -35,7 +36,7 @@ export function BusinessDomainsPage() {
   const [selectedCapability, setSelectedCapability] = useState<Capability | null>(null);
   const [activeCapability, setActiveCapability] = useState<Capability | null>(null);
   const [contextMenu, setContextMenu] = useState<DomainContextMenuState | null>(null);
-  const [depth, setDepth] = useState<DepthLevel>(1);
+  const [depth, setDepth] = usePersistedDepth();
   const [isDomainsSidebarCollapsed, setIsDomainsSidebarCollapsed] = useState(false);
   const [isExplorerSidebarCollapsed, setIsExplorerSidebarCollapsed] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
