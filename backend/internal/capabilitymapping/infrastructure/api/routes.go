@@ -144,9 +144,11 @@ func subscribeDomainAssignmentEvents(eventBus events.EventBus, projector *projec
 func setupCascadingDeleteHandlers(eventBus events.EventBus, commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels) {
 	onCapabilityDeletedHandler := handlers.NewOnCapabilityDeletedHandler(commandBus, rm.domainAssignment)
 	onBusinessDomainDeletedHandler := handlers.NewOnBusinessDomainDeletedHandler(commandBus, rm.domainAssignment)
+	onCapabilityParentChangedHandler := handlers.NewOnCapabilityParentChangedHandler(commandBus, rm.domainAssignment, rm.capability)
 
 	eventBus.Subscribe("CapabilityDeleted", onCapabilityDeletedHandler)
 	eventBus.Subscribe("BusinessDomainDeleted", onBusinessDomainDeletedHandler)
+	eventBus.Subscribe("CapabilityParentChanged", onCapabilityParentChangedHandler)
 }
 
 func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepositories, rm *routeReadModels) {
