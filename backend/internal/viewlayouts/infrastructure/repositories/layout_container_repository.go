@@ -26,6 +26,56 @@ func NewLayoutContainerRepository(db *database.TenantAwareDB) *LayoutContainerRe
 	return &LayoutContainerRepository{db: db}
 }
 
+type containerRow struct {
+	id          string
+	contextType string
+	contextRef  string
+	prefsJSON   string
+	version     int
+	createdAt   time.Time
+	updatedAt   time.Time
+}
+
+func (r *LayoutContainerRepository) reconstituteContainer(
+	ctx context.Context,
+	tx *sql.Tx,
+	row containerRow,
+	containerID valueobjects.LayoutContainerID,
+) (*aggregates.LayoutContainer, error) {
+	contextType, err := valueobjects.NewLayoutContextType(row.contextType)
+	if err != nil {
+		return nil, err
+	}
+
+	contextRef, err := valueobjects.NewContextRef(row.contextRef)
+	if err != nil {
+		return nil, err
+	}
+
+	var prefsData map[string]interface{}
+	if err := json.Unmarshal([]byte(row.prefsJSON), &prefsData); err != nil {
+		prefsData = make(map[string]interface{})
+	}
+
+	container := aggregates.NewLayoutContainerWithState(
+		containerID,
+		contextType,
+		contextRef,
+		valueobjects.NewLayoutPreferences(prefsData),
+		row.version,
+		row.createdAt,
+		row.updatedAt,
+	)
+
+	elements, err := r.loadElements(ctx, tx, containerID)
+	if err != nil {
+		return nil, err
+	}
+	container.SetElements(elements)
+
+	return container, nil
+}
+
 func (r *LayoutContainerRepository) GetByContext(
 	ctx context.Context,
 	contextType valueobjects.LayoutContextType,
@@ -39,16 +89,13 @@ func (r *LayoutContainerRepository) GetByContext(
 	var container *aggregates.LayoutContainer
 
 	err = r.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		var id, prefsJSON string
-		var version int
-		var createdAt, updatedAt time.Time
-
+		var row containerRow
 		err := tx.QueryRowContext(ctx,
-			`SELECT id, preferences, version, created_at, updated_at
+			`SELECT id, context_type, context_ref, preferences, version, created_at, updated_at
 			FROM layout_containers
 			WHERE tenant_id = $1 AND context_type = $2 AND context_ref = $3`,
 			tenantID.Value(), contextType.Value(), contextRef.Value(),
-		).Scan(&id, &prefsJSON, &version, &createdAt, &updatedAt)
+		).Scan(&row.id, &row.contextType, &row.contextRef, &row.prefsJSON, &row.version, &row.createdAt, &row.updatedAt)
 
 		if err == sql.ErrNoRows {
 			return ErrContainerNotFound
@@ -57,33 +104,13 @@ func (r *LayoutContainerRepository) GetByContext(
 			return err
 		}
 
-		containerID, err := valueobjects.NewLayoutContainerIDFromString(id)
+		containerID, err := valueobjects.NewLayoutContainerIDFromString(row.id)
 		if err != nil {
 			return err
 		}
 
-		var prefsData map[string]interface{}
-		if err := json.Unmarshal([]byte(prefsJSON), &prefsData); err != nil {
-			prefsData = make(map[string]interface{})
-		}
-
-		container = aggregates.NewLayoutContainerWithState(
-			containerID,
-			contextType,
-			contextRef,
-			valueobjects.NewLayoutPreferences(prefsData),
-			version,
-			createdAt,
-			updatedAt,
-		)
-
-		elements, err := r.loadElements(ctx, tx, containerID)
-		if err != nil {
-			return err
-		}
-		container.SetElements(elements)
-
-		return nil
+		container, err = r.reconstituteContainer(ctx, tx, row, containerID)
+		return err
 	})
 
 	if err != nil {
@@ -105,16 +132,13 @@ func (r *LayoutContainerRepository) GetByID(
 	var container *aggregates.LayoutContainer
 
 	err = r.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		var contextTypeStr, contextRefStr, prefsJSON string
-		var version int
-		var createdAt, updatedAt time.Time
-
+		row := containerRow{id: id.Value()}
 		err := tx.QueryRowContext(ctx,
 			`SELECT context_type, context_ref, preferences, version, created_at, updated_at
 			FROM layout_containers
 			WHERE tenant_id = $1 AND id = $2`,
 			tenantID.Value(), id.Value(),
-		).Scan(&contextTypeStr, &contextRefStr, &prefsJSON, &version, &createdAt, &updatedAt)
+		).Scan(&row.contextType, &row.contextRef, &row.prefsJSON, &row.version, &row.createdAt, &row.updatedAt)
 
 		if err == sql.ErrNoRows {
 			return ErrContainerNotFound
@@ -123,38 +147,8 @@ func (r *LayoutContainerRepository) GetByID(
 			return err
 		}
 
-		contextType, err := valueobjects.NewLayoutContextType(contextTypeStr)
-		if err != nil {
-			return err
-		}
-
-		contextRef, err := valueobjects.NewContextRef(contextRefStr)
-		if err != nil {
-			return err
-		}
-
-		var prefsData map[string]interface{}
-		if err := json.Unmarshal([]byte(prefsJSON), &prefsData); err != nil {
-			prefsData = make(map[string]interface{})
-		}
-
-		container = aggregates.NewLayoutContainerWithState(
-			id,
-			contextType,
-			contextRef,
-			valueobjects.NewLayoutPreferences(prefsData),
-			version,
-			createdAt,
-			updatedAt,
-		)
-
-		elements, err := r.loadElements(ctx, tx, id)
-		if err != nil {
-			return err
-		}
-		container.SetElements(elements)
-
-		return nil
+		container, err = r.reconstituteContainer(ctx, tx, row, id)
+		return err
 	})
 
 	if err != nil {
@@ -162,6 +156,45 @@ func (r *LayoutContainerRepository) GetByID(
 	}
 
 	return container, nil
+}
+
+type elementRow struct {
+	elementID   string
+	x, y        float64
+	width       sql.NullFloat64
+	height      sql.NullFloat64
+	customColor sql.NullString
+	sortOrder   sql.NullInt32
+}
+
+func (row elementRow) toElementPosition() (valueobjects.ElementPosition, error) {
+	elementID, err := valueobjects.NewElementID(row.elementID)
+	if err != nil {
+		return valueobjects.ElementPosition{}, err
+	}
+
+	var widthPtr, heightPtr *float64
+	var colorPtr *valueobjects.HexColor
+	var sortOrderPtr *int
+
+	if row.width.Valid {
+		widthPtr = &row.width.Float64
+	}
+	if row.height.Valid {
+		heightPtr = &row.height.Float64
+	}
+	if row.customColor.Valid {
+		if color, err := valueobjects.NewHexColor(row.customColor.String); err == nil {
+			colorPtr = &color
+		}
+	}
+	if row.sortOrder.Valid {
+		so := int(row.sortOrder.Int32)
+		sortOrderPtr = &so
+	}
+
+	pos, _ := valueobjects.NewElementPositionWithOptions(elementID, row.x, row.y, widthPtr, heightPtr, colorPtr, sortOrderPtr)
+	return pos, nil
 }
 
 func (r *LayoutContainerRepository) loadElements(ctx context.Context, tx *sql.Tx, containerID valueobjects.LayoutContainerID) ([]valueobjects.ElementPosition, error) {
@@ -183,43 +216,15 @@ func (r *LayoutContainerRepository) loadElements(ctx context.Context, tx *sql.Tx
 
 	var elements []valueobjects.ElementPosition
 	for rows.Next() {
-		var elementIDStr string
-		var x, y float64
-		var width, height sql.NullFloat64
-		var customColor sql.NullString
-		var sortOrder sql.NullInt32
-
-		if err := rows.Scan(&elementIDStr, &x, &y, &width, &height, &customColor, &sortOrder); err != nil {
+		var row elementRow
+		if err := rows.Scan(&row.elementID, &row.x, &row.y, &row.width, &row.height, &row.customColor, &row.sortOrder); err != nil {
 			return nil, err
 		}
 
-		elementID, err := valueobjects.NewElementID(elementIDStr)
+		pos, err := row.toElementPosition()
 		if err != nil {
 			return nil, err
 		}
-
-		var widthPtr, heightPtr *float64
-		var colorPtr *valueobjects.HexColor
-		var sortOrderPtr *int
-
-		if width.Valid {
-			widthPtr = &width.Float64
-		}
-		if height.Valid {
-			heightPtr = &height.Float64
-		}
-		if customColor.Valid {
-			color, err := valueobjects.NewHexColor(customColor.String)
-			if err == nil {
-				colorPtr = &color
-			}
-		}
-		if sortOrder.Valid {
-			so := int(sortOrder.Int32)
-			sortOrderPtr = &so
-		}
-
-		pos, _ := valueobjects.NewElementPositionWithOptions(elementID, x, y, widthPtr, heightPtr, colorPtr, sortOrderPtr)
 		elements = append(elements, pos)
 	}
 
@@ -287,6 +292,30 @@ func (r *LayoutContainerRepository) Delete(ctx context.Context, id valueobjects.
 	return tx.Commit()
 }
 
+type positionSQLParams struct {
+	width       sql.NullFloat64
+	height      sql.NullFloat64
+	customColor sql.NullString
+	sortOrder   sql.NullInt32
+}
+
+func buildPositionParams(position valueobjects.ElementPosition) positionSQLParams {
+	var params positionSQLParams
+	if position.Width() != nil {
+		params.width = sql.NullFloat64{Float64: *position.Width(), Valid: true}
+	}
+	if position.Height() != nil {
+		params.height = sql.NullFloat64{Float64: *position.Height(), Valid: true}
+	}
+	if position.CustomColor() != nil {
+		params.customColor = sql.NullString{String: position.CustomColor().Value(), Valid: true}
+	}
+	if position.SortOrder() != nil {
+		params.sortOrder = sql.NullInt32{Int32: int32(*position.SortOrder()), Valid: true}
+	}
+	return params
+}
+
 func (r *LayoutContainerRepository) UpsertElementPosition(
 	ctx context.Context,
 	containerID valueobjects.LayoutContainerID,
@@ -297,24 +326,8 @@ func (r *LayoutContainerRepository) UpsertElementPosition(
 		return err
 	}
 
+	params := buildPositionParams(position)
 	now := time.Now().UTC()
-
-	var width, height sql.NullFloat64
-	var customColor sql.NullString
-	var sortOrder sql.NullInt32
-
-	if position.Width() != nil {
-		width = sql.NullFloat64{Float64: *position.Width(), Valid: true}
-	}
-	if position.Height() != nil {
-		height = sql.NullFloat64{Float64: *position.Height(), Valid: true}
-	}
-	if position.CustomColor() != nil {
-		customColor = sql.NullString{String: position.CustomColor().Value(), Valid: true}
-	}
-	if position.SortOrder() != nil {
-		sortOrder = sql.NullInt32{Int32: int32(*position.SortOrder()), Valid: true}
-	}
 
 	_, err = r.db.ExecContext(ctx,
 		`INSERT INTO element_positions (container_id, tenant_id, element_id, x, y, width, height, custom_color, sort_order, updated_at)
@@ -326,10 +339,10 @@ func (r *LayoutContainerRepository) UpsertElementPosition(
 		position.ElementID().Value(),
 		position.X(),
 		position.Y(),
-		width,
-		height,
-		customColor,
-		sortOrder,
+		params.width,
+		params.height,
+		params.customColor,
+		params.sortOrder,
 		now,
 	)
 
@@ -376,23 +389,7 @@ func (r *LayoutContainerRepository) BatchUpdatePositions(
 
 	now := time.Now().UTC()
 	for _, position := range positions {
-		var width, height sql.NullFloat64
-		var customColor sql.NullString
-		var sortOrder sql.NullInt32
-
-		if position.Width() != nil {
-			width = sql.NullFloat64{Float64: *position.Width(), Valid: true}
-		}
-		if position.Height() != nil {
-			height = sql.NullFloat64{Float64: *position.Height(), Valid: true}
-		}
-		if position.CustomColor() != nil {
-			customColor = sql.NullString{String: position.CustomColor().Value(), Valid: true}
-		}
-		if position.SortOrder() != nil {
-			sortOrder = sql.NullInt32{Int32: int32(*position.SortOrder()), Valid: true}
-		}
-
+		params := buildPositionParams(position)
 		_, err := tx.ExecContext(ctx,
 			`INSERT INTO element_positions (container_id, tenant_id, element_id, x, y, width, height, custom_color, sort_order, updated_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -403,10 +400,10 @@ func (r *LayoutContainerRepository) BatchUpdatePositions(
 			position.ElementID().Value(),
 			position.X(),
 			position.Y(),
-			width,
-			height,
-			customColor,
-			sortOrder,
+			params.width,
+			params.height,
+			params.customColor,
+			params.sortOrder,
 			now,
 		)
 		if err != nil {
