@@ -86,12 +86,14 @@ export function useLayout(
     ) => {
       if (!contextRef || !layout) return;
 
-      const existingPosition = positions[elementId];
-
-      setPositions((prev) => ({
-        ...prev,
-        [elementId]: { x, y },
-      }));
+      let previousPosition: Position | undefined;
+      setPositions((prev) => {
+        previousPosition = prev[elementId];
+        return {
+          ...prev,
+          [elementId]: { x, y },
+        };
+      });
 
       try {
         await apiClient.upsertElementPosition(contextType, contextRef, elementId, {
@@ -100,30 +102,26 @@ export function useLayout(
           ...options,
         });
       } catch (err) {
-        if (existingPosition) {
-          setPositions((prev) => ({
-            ...prev,
-            [elementId]: existingPosition,
-          }));
-        } else {
-          setPositions((prev) => {
-            const { [elementId]: _, ...rest } = prev;
-            return rest;
-          });
-        }
+        setPositions((prev) => {
+          if (previousPosition) {
+            return { ...prev, [elementId]: previousPosition };
+          }
+          const { [elementId]: _, ...rest } = prev;
+          return rest;
+        });
         throw err;
       }
     },
-    [contextType, contextRef, layout, positions]
+    [contextType, contextRef, layout]
   );
 
   const batchUpdatePositions = useCallback(
     async (updates: BatchUpdateItem[]) => {
       if (!contextRef || !layout) return;
 
-      const previousPositions = { ...positions };
-
+      let previousPositions: PositionMap = {};
       setPositions((prev) => {
+        previousPositions = { ...prev };
         const next = { ...prev };
         for (const update of updates) {
           next[update.elementId] = { x: update.x, y: update.y };
@@ -138,7 +136,7 @@ export function useLayout(
         throw err;
       }
     },
-    [contextType, contextRef, layout, positions]
+    [contextType, contextRef, layout]
   );
 
   const updatePreferences = useCallback(
