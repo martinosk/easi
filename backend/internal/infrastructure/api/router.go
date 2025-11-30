@@ -8,6 +8,7 @@ import (
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
 	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
+	importingAPI "easi/backend/internal/importing/infrastructure/api"
 	"easi/backend/internal/infrastructure/api/middleware"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -106,6 +107,11 @@ func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) htt
 		// ViewLayouts Context
 		if err := viewlayoutsAPI.SetupViewLayoutsRoutes(r, eventBus, db, hateoas); err != nil {
 			log.Fatalf("Failed to setup view layouts routes: %v", err)
+		}
+
+		// Importing Context
+		if err := importingAPI.SetupImportingRoutes(r, commandBus, eventStore, eventBus, db); err != nil {
+			log.Fatalf("Failed to setup importing routes: %v", err)
 		}
 
 		// Reference Documentation (static)

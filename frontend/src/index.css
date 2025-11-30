@@ -1948,3 +1948,182 @@ body {
     border-bottom: 1px solid var(--color-gray-200);
   }
 }
+
+/* Import Dialog Styles */
+.import-dialog {
+  max-width: 600px;
+  width: 90vw;
+}
+
+.import-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.import-step h3 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  color: var(--color-gray-900);
+}
+
+.import-step-description {
+  color: var(--color-gray-600);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.file-info {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: var(--color-gray-100);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-700);
+}
+
+.field-help {
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-500);
+}
+
+/* Preview Styles */
+.import-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.import-section {
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  background: var(--color-gray-50);
+}
+
+.import-section h4 {
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: var(--font-size-lg);
+  color: var(--color-gray-900);
+}
+
+.import-section h5 {
+  margin: var(--spacing-md) 0 var(--spacing-sm) 0;
+  font-size: var(--font-size-base);
+  color: var(--color-gray-800);
+}
+
+.import-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.import-list li {
+  padding: var(--spacing-xs) 0;
+  font-size: var(--font-size-sm);
+}
+
+.import-list strong {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.import-warning {
+  border-color: var(--color-warning);
+  background: #fef3c7;
+}
+
+.import-warning-text {
+  color: var(--color-gray-700);
+  font-size: var(--font-size-sm);
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+/* Progress Styles */
+.import-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.progress-phase {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-gray-900);
+}
+
+.progress-stats {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-600);
+}
+
+.progress-bar {
+  height: 24px;
+  background: var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
+  transition: width 0.3s ease;
+}
+
+.progress-percentage {
+  text-align: center;
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+/* Results Styles */
+.import-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.import-errors {
+  border-color: var(--color-error);
+  background: #fee2e2;
+}
+
+.error-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.error-item {
+  padding: var(--spacing-sm);
+  background: white;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.error-element {
+  font-weight: 600;
+  color: var(--color-gray-900);
+  margin-bottom: var(--spacing-xs);
+}
+
+.error-message {
+  color: var(--color-error);
+  margin-bottom: var(--spacing-xs);
+}
+
+.error-action {
+  color: var(--color-gray-600);
+  font-style: italic;
+}
