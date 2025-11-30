@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import axios, { type AxiosInstance, type AxiosError } from 'axios';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import axios, { type AxiosError } from 'axios';
 import type { ImportSession, CreateImportSessionRequest, ImportSessionId } from '../types';
 
 interface UseImportSessionReturn {
@@ -14,43 +14,43 @@ interface UseImportSessionReturn {
 
 const POLL_INTERVAL = 2000;
 
+const client = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+client.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    const message = extractErrorMessage(error);
+    throw new Error(message);
+  }
+);
+
 export function useImportSession(): UseImportSessionReturn {
   const [session, setSession] = useState<ImportSession | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const clientRef = useRef<AxiosInstance | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
 
-  if (!clientRef.current) {
-    clientRef.current = axios.create({
-      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    clientRef.current.interceptors.response.use(
-      (response) => response,
-      (error: AxiosError) => {
-        const message = extractErrorMessage(error);
-        throw new Error(message);
-      }
-    );
-  }
-
-  const client = clientRef.current;
-
-  const stopPolling = () => {
+  const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
       clearTimeout(pollTimerRef.current);
       pollTimerRef.current = null;
     }
-  };
+  }, []);
 
-  const pollSession = async (sessionId: ImportSessionId) => {
+  const pollSession = useCallback(async (sessionId: ImportSessionId) => {
+    if (!isMountedRef.current) return;
+
     try {
       const response = await client.get<ImportSession>(`/api/v1/imports/${sessionId}`);
+      if (!isMountedRef.current) return;
+
       setSession(response.data);
 
       if (response.data.status === 'importing') {
@@ -59,10 +59,11 @@ export function useImportSession(): UseImportSessionReturn {
         stopPolling();
       }
     } catch (err) {
+      if (!isMountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Failed to fetch session status');
       stopPolling();
     }
-  };
+  }, [stopPolling]);
 
   const createSession = async (request: CreateImportSessionRequest): Promise<void> => {
     setIsLoading(true);
@@ -145,10 +146,12 @@ export function useImportSession(): UseImportSessionReturn {
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       stopPolling();
     };
-  }, []);
+  }, [stopPolling]);
 
   return {
     session,
@@ -161,18 +164,29 @@ export function useImportSession(): UseImportSessionReturn {
   };
 }
 
+interface ErrorResponseData {
+  message?: string;
+  error?: string;
+  details?: Record<string, string>;
+}
+
+function isErrorResponseData(data: unknown): data is ErrorResponseData {
+  return typeof data === 'object' && data !== null;
+}
+
+function extractDetailsMessage(details?: Record<string, string>): string | null {
+  if (!details) return null;
+  const messages = Object.values(details).filter(Boolean);
+  return messages.length > 0 ? messages.join(', ') : null;
+}
+
 function extractErrorMessage(error: AxiosError): string {
   const responseData = error.response?.data;
-
-  if (!responseData || typeof responseData !== 'object') {
+  if (!isErrorResponseData(responseData)) {
     return error.message || 'An unknown error occurred';
   }
-
-  const errorData = responseData as { message?: string; error?: string; details?: Record<string, string> };
-
-  if (errorData.message) return errorData.message;
-  if (errorData.error) return errorData.error;
-
-  const detailMessages = errorData.details ? Object.values(errorData.details).filter(Boolean) : [];
-  return detailMessages.length > 0 ? detailMessages.join(', ') : 'An error occurred';
+  return responseData.message
+    ?? responseData.error
+    ?? extractDetailsMessage(responseData.details)
+    ?? 'An error occurred';
 }
