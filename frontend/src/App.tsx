@@ -60,7 +60,10 @@ function App() {
 
   return (
     <AppLayout>
-      <AppNavigation onViewChange={setCurrentView} />
+      <AppNavigation
+        onViewChange={setCurrentView}
+        onOpenReleaseNotes={dialogState.releaseNotesBrowserDialog.onOpen}
+      />
 
       {currentView === 'canvas' ? (
         <>
@@ -79,7 +82,6 @@ function App() {
             onEditRelation={dialogActions.openEditRelationDialog}
             onEditCapability={dialogActions.openEditCapabilityDialog}
             onRemoveFromView={() => selectedNodeId && removeComponentFromView(selectedNodeId)}
-            onOpenReleaseNotes={dialogState.releaseNotesBrowserDialog.onOpen}
           />
 
           <DialogManager
