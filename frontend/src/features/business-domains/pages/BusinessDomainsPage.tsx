@@ -168,11 +168,17 @@ export function BusinessDomainsPage() {
 
       if (active.id !== over.id && !isDroppedOnGrid) {
         const l1Caps = capabilities.filter((c) => c.level === 'L1');
-        const oldIndex = l1Caps.findIndex((c) => c.id === active.id);
-        const newIndex = l1Caps.findIndex((c) => c.id === over.id);
+        const sortedL1Caps = [...l1Caps].sort((a, b) => {
+          const posA = positions[a.id]?.x ?? Infinity;
+          const posB = positions[b.id]?.x ?? Infinity;
+          return posA - posB;
+        });
+
+        const oldIndex = sortedL1Caps.findIndex((c) => c.id === active.id);
+        const newIndex = sortedL1Caps.findIndex((c) => c.id === over.id);
 
         if (oldIndex !== -1 && newIndex !== -1) {
-          const newOrder = arrayMove(l1Caps, oldIndex, newIndex);
+          const newOrder = arrayMove(sortedL1Caps, oldIndex, newIndex);
           newOrder.forEach((cap, index) => {
             updatePosition(cap.id, index, 0);
           });
@@ -194,7 +200,7 @@ export function BusinessDomainsPage() {
         console.error('Failed to assign capability:', err);
       }
     },
-    [visualizedDomain, associateCapability, refetchCapabilities, assignedCapabilityIds, capabilities, updatePosition]
+    [visualizedDomain, associateCapability, refetchCapabilities, assignedCapabilityIds, capabilities, positions, updatePosition]
   );
 
   const handleFormSubmit = async (name: string, description: string) => {
