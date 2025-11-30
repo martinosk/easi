@@ -42,9 +42,8 @@ The following components and features have been implemented:
 1. As an architect, I can view a business domain's capabilities in a nested grid layout
 2. As an architect, I can drag L1 capabilities from the explorer onto a domain to assign them
 3. As an architect, I can rearrange capabilities within the grid to organize the visualization
-4. As an architect, I can drag capabilities between parents with confirmation
-5. As an architect, I can control visualization depth (L1 only through L1-L4)
-6. As an architect, I can identify which L1 capabilities are assigned to multiple domains
+4. As an architect, I can control visualization depth (L1 only through L1-L4)
+5. As an architect, I can identify which L1 capabilities are assigned to multiple domains
 
 ### Success Criteria
 
@@ -62,6 +61,7 @@ The following components and features have been implemented:
 - Per-user custom layouts (design for future, but not implemented)
 - View-based layouts (architecture prepared with optional viewId field)
 - Cross-domain drag operations (use explorer menu only)
+- Drag-to-reassign capability parent (dragging is for layout only, not hierarchy changes)
 - Mobile/tablet support (desktop only)
 - Virtualization (not needed for expected data scale)
 - Role-based permissions (always editable, architect for later)
@@ -100,42 +100,32 @@ Right sidebar explorer showing all L1 capabilities for drag-and-drop assignment.
 
 Allow rearranging items within the grid with persisted positions.
 
-- [ ] Enable @dnd-kit sortable drag-within-grid functionality
-- [ ] Items shift to make space when dragging
-- [ ] Create BusinessDomainView on entering visualization (POST /api/v1/views)
-- [ ] Load view layout: GET /api/v1/views/{viewId}/layout
-- [ ] Save positions: PUT /api/v1/views/{viewId}/layout
-- [ ] Auto-save positions on drag end
-- [ ] Load persisted positions on page load
-- [ ] Last-write-wins conflict resolution
+- [x] Enable @dnd-kit sortable drag-within-grid functionality
+- [x] Items shift to make space when dragging
+- [x] Create BusinessDomainView on entering visualization (POST /api/v1/views)
+- [x] Load view layout: GET /api/v1/views/{viewId}/layout
+- [x] Save positions: PUT /api/v1/views/{viewId}/layout
+- [x] Auto-save positions on drag end
+- [x] Load persisted positions on page load
+- [x] Last-write-wins conflict resolution
 
 ### Slice 4: Nested Grids (L2, L3, L4) + Depth Control
 
 Render child capabilities inside parent grid cells with depth selector.
 
-- [ ] Create NestedCapabilityGrid component
-- [ ] L1 contains nested grid for L2 children
-- [ ] L2 contains nested grid for L3 children
-- [ ] L3 contains nested grid for L4 children
-- [ ] Fixed sizes: L2=3x3, L3=2x2, L4=1x1 grid units
-- [ ] Apply level colors (L2=Purple, L3=Pink, L4=Orange)
-- [ ] Overflow: scroll within parent cell if children exceed space
-- [ ] Add DepthSelector component (L1 | L1-L2 | L1-L2-L3 | L1-L2-L3-L4)
-- [ ] Depth applies globally to all L1s uniformly
-- [ ] Collapse/hide children smoothly when depth reduced
-- [ ] Preserve positions when depth changes
+- [x] Create NestedCapabilityGrid component
+- [x] L1 contains nested grid for L2 children
+- [x] L2 contains nested grid for L3 children
+- [x] L3 contains nested grid for L4 children
+- [x] Fixed sizes: L2=3x3, L3=2x2, L4=1x1 grid units
+- [x] Apply level colors (L2=Purple, L3=Pink, L4=Orange)
+- [x] Overflow: scroll within parent cell if children exceed space
+- [x] Add DepthSelector component (L1 | L1-L2 | L1-L2-L3 | L1-L2-L3-L4)
+- [x] Depth applies globally to all L1s uniformly
+- [x] Collapse/hide children smoothly when depth reduced
+- [x] Preserve positions when depth changes
 
-### Slice 5: Drag to Reassign Parent + Confirmation
-
-Allow dragging capabilities to different parents with confirmation dialog.
-
-- [ ] Enable dragging capability onto another capability (new parent)
-- [ ] Show simple confirmation dialog before reassignment
-- [ ] API call: change capability parent (existing endpoint)
-- [ ] Grid refreshes after parent change
-- [ ] Level auto-adjusts based on new parent (existing backend logic)
-
-### Slice 6: Detail Panel Integration
+### Slice 5: Detail Panel Integration
 
 Click capability to open existing detail panel.
 
@@ -144,15 +134,15 @@ Click capability to open existing detail panel.
 - [x] Panel shows capability information (name, level, description)
 - [x] Close panel returns focus to grid
 
-### Slice 7: Visual Polish
+### Slice 6: Visual Polish
 
 Final styling and animations.
 
 - [ ] Apply domain-specific background color to grid area
 - [x] Visual indicator for L1s assigned to other domains (badge in explorer)
-- [ ] Smooth animation for depth collapse/expand
+- [x] Smooth animation for depth collapse/expand
 - [x] DragOverlay for visual feedback during drag
-- [ ] Hover states on grid items
+- [x] Hover states on grid items
 - [x] Loading states during API calls
 
 ---
@@ -180,7 +170,6 @@ npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
 - DragOverlay: Visual feedback during drag operations
 - CapabilityExplorer: Right sidebar with draggable L1 tree
 - DepthSelector: Global depth control (1-4 levels)
-- ReassignConfirmDialog: Simple confirmation for parent changes
 
 **@dnd-kit Pattern (Multiple Containers):**
 - DndContext wraps entire grid
@@ -327,15 +316,14 @@ User Opens Visualization → Frontend
 
 - [x] Grid view mode added to existing toggle
 - [x] Domain selector switches between domain grids
-- [ ] BusinessDomainView created on entering visualization (Views API)
+- [x] BusinessDomainView created on entering visualization (Views API)
 - [x] L1 capabilities display in grid at 4x4 size
 - [x] Capability explorer shows full L1-L4 tree
 - [x] Drag L1 from explorer assigns to domain (CapabilityMapping API)
-- [ ] Drag within grid rearranges layout
-- [ ] Positions persist via Views API (organization-wide)
-- [ ] Nested grids show L2/L3/L4 inside parents
-- [ ] Depth selector controls visible levels
-- [ ] Drag between parents shows confirmation
+- [x] Drag within grid rearranges layout
+- [x] Positions persist via Views API (organization-wide)
+- [x] Nested grids show L2/L3/L4 inside parents
+- [x] Depth selector controls visible levels
 - [x] Click opens detail panel
 - [x] Level colors match existing scheme
 - [x] Multiple-domain indicator on L1s

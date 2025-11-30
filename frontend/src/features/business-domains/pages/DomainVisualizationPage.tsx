@@ -1,23 +1,38 @@
 import { useState, useMemo, useCallback } from 'react';
 import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
 import { useBusinessDomains } from '../hooks/useBusinessDomains';
 import { useDomainCapabilities } from '../hooks/useDomainCapabilities';
 import { useCapabilityTree } from '../hooks/useCapabilityTree';
+import { useGridPositions } from '../hooks/useGridPositions';
 import { DomainFilter } from '../components/DomainFilter';
 import { DomainGrid } from '../components/DomainGrid';
+import { NestedCapabilityGrid } from '../components/NestedCapabilityGrid';
+import { DepthSelector, type DepthLevel } from '../components/DepthSelector';
 import { CapabilityExplorer } from '../components/CapabilityExplorer';
+import { ReassignConfirmDialog } from '../components/ReassignConfirmDialog';
+import { apiClient } from '../../../api/client';
 import type { BusinessDomainId, Capability, CapabilityId } from '../../../api/types';
 
 interface DomainVisualizationPageProps {
   initialDomainId?: BusinessDomainId;
 }
 
+interface PendingReassignment {
+  capability: Capability;
+  newParent: Capability;
+}
+
 export function DomainVisualizationPage({ initialDomainId }: DomainVisualizationPageProps) {
   const [selectedDomainId, setSelectedDomainId] = useState<BusinessDomainId | null>(initialDomainId ?? null);
   const [selectedCapability, setSelectedCapability] = useState<Capability | null>(null);
   const [activeCapability, setActiveCapability] = useState<Capability | null>(null);
+  const [depth, setDepth] = useState<DepthLevel>(1);
+  const [pendingReassignment, setPendingReassignment] = useState<PendingReassignment | null>(null);
+  const [isReassigning, setIsReassigning] = useState(false);
   const { domains, isLoading: domainsLoading } = useBusinessDomains();
-  const { tree, isLoading: treeLoading } = useCapabilityTree();
+  const { tree, isLoading: treeLoading, refetch: refetchTree } = useCapabilityTree();
+  const { positions, updatePosition } = useGridPositions(selectedDomainId);
 
   const allCapabilities = useMemo(() => {
     const flatten = (nodes: typeof tree): Capability[] => {
@@ -65,9 +80,35 @@ export function DomainVisualizationPage({ initialDomainId }: DomainVisualization
     async (event: DragEndEvent) => {
       setActiveCapability(null);
 
-      if (!event.over || !selectedDomainId) return;
+      const { active, over } = event;
+      if (!over || !selectedDomainId) return;
 
-      const capability = event.active.data.current?.capability as Capability | undefined;
+      const droppedOnCapabilityId = over.id as string;
+      const isDroppedOnGrid = droppedOnCapabilityId === 'domain-grid-droppable' || droppedOnCapabilityId === 'nested-grid-droppable';
+
+      if (active.id !== over.id && !isDroppedOnGrid) {
+        const l1Caps = capabilities.filter((c) => c.level === 'L1');
+        const oldIndex = l1Caps.findIndex((c) => c.id === active.id);
+        const newIndex = l1Caps.findIndex((c) => c.id === over.id);
+
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newOrder = arrayMove(l1Caps, oldIndex, newIndex);
+          newOrder.forEach((cap, index) => {
+            updatePosition(cap.id, index, 0);
+          });
+          return;
+        }
+
+        const draggedCap = allCapabilities.find((c) => c.id === active.id);
+        const targetCap = allCapabilities.find((c) => c.id === over.id);
+
+        if (draggedCap && targetCap && draggedCap.id !== targetCap.id) {
+          setPendingReassignment({ capability: draggedCap, newParent: targetCap });
+          return;
+        }
+      }
+
+      const capability = active.data.current?.capability as Capability | undefined;
       if (!capability || capability.level !== 'L1') return;
 
       if (assignedCapabilityIds.has(capability.id)) return;
@@ -75,12 +116,34 @@ export function DomainVisualizationPage({ initialDomainId }: DomainVisualization
       try {
         await associateCapability(capability.id, capability);
         await refetchCapabilities();
+        const currentCount = capabilities.filter((c) => c.level === 'L1').length;
+        await updatePosition(capability.id, currentCount, 0);
       } catch (error) {
         console.error('Failed to assign capability:', error);
       }
     },
-    [selectedDomainId, associateCapability, refetchCapabilities, assignedCapabilityIds]
+    [selectedDomainId, associateCapability, refetchCapabilities, assignedCapabilityIds, capabilities, updatePosition, allCapabilities]
   );
+
+  const handleConfirmReassign = useCallback(async () => {
+    if (!pendingReassignment) return;
+
+    setIsReassigning(true);
+    try {
+      await apiClient.changeCapabilityParent(pendingReassignment.capability.id, pendingReassignment.newParent.id);
+      await refetchTree();
+      await refetchCapabilities();
+      setPendingReassignment(null);
+    } catch (error) {
+      console.error('Failed to reassign capability:', error);
+    } finally {
+      setIsReassigning(false);
+    }
+  }, [pendingReassignment, refetchTree, refetchCapabilities]);
+
+  const handleCancelReassign = useCallback(() => {
+    setPendingReassignment(null);
+  }, []);
 
   if (domainsLoading) {
     return (
@@ -114,8 +177,20 @@ export function DomainVisualizationPage({ initialDomainId }: DomainVisualization
             <div className="loading-message">Loading capabilities...</div>
           ) : (
             <div>
-              <h1 style={{ marginBottom: '1rem' }}>{selectedDomain?.name}</h1>
-              <DomainGrid capabilities={capabilities} onCapabilityClick={handleCapabilityClick} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h1>{selectedDomain?.name}</h1>
+                <DepthSelector value={depth} onChange={setDepth} />
+              </div>
+              {depth === 1 ? (
+                <DomainGrid capabilities={capabilities} onCapabilityClick={handleCapabilityClick} positions={positions} />
+              ) : (
+                <NestedCapabilityGrid
+                  capabilities={capabilities}
+                  depth={depth}
+                  onCapabilityClick={handleCapabilityClick}
+                  positions={positions}
+                />
+              )}
             </div>
           )}
         </main>
@@ -171,6 +246,15 @@ export function DomainVisualizationPage({ initialDomainId }: DomainVisualization
           </div>
         )}
       </DragOverlay>
+
+      <ReassignConfirmDialog
+        isOpen={pendingReassignment !== null}
+        capability={pendingReassignment?.capability ?? null}
+        newParent={pendingReassignment?.newParent ?? null}
+        onConfirm={handleConfirmReassign}
+        onCancel={handleCancelReassign}
+        isLoading={isReassigning}
+      />
     </DndContext>
   );
 }

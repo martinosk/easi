@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { DndContext } from '@dnd-kit/core';
 import { DomainGrid } from './DomainGrid';
-import type { Capability } from '../../../api/types';
+import type { Capability, Position } from '../../../api/types';
 
 const renderWithDnd = (component: React.ReactNode) => {
   return render(<DndContext>{component}</DndContext>);
@@ -20,6 +20,8 @@ describe('DomainGrid', () => {
     createdAt: '2024-01-01',
     _links: { self: { href: `/api/v1/capabilities/${id}` } },
   });
+
+  const createPosition = (x: number, y: number): Position => ({ x, y });
 
   const mockL1Capabilities: Capability[] = [
     createCapability('cap-1', 'Zebra Management', 'L1'),
@@ -111,5 +113,74 @@ describe('DomainGrid', () => {
     );
 
     expect(container.querySelector('[data-dnd-context]')).toBeInTheDocument();
+  });
+
+  describe('with positions', () => {
+    it('should order capabilities by position when provided', () => {
+      const onCapabilityClick = vi.fn();
+      const positions = {
+        'cap-1': createPosition(2, 0),
+        'cap-2': createPosition(0, 0),
+        'cap-3': createPosition(1, 0),
+      };
+
+      renderWithDnd(
+        <DomainGrid
+          capabilities={mockL1Capabilities}
+          onCapabilityClick={onCapabilityClick}
+          positions={positions}
+        />
+      );
+
+      const capabilityNames = screen
+        .getAllByRole('button')
+        .map((btn) => btn.textContent);
+
+      expect(capabilityNames).toEqual([
+        'Alpha Processing',
+        'Delta Analytics',
+        'Zebra Management',
+      ]);
+    });
+
+    it('should place capabilities without positions at the end', () => {
+      const onCapabilityClick = vi.fn();
+      const positions = {
+        'cap-1': createPosition(0, 0),
+      };
+
+      renderWithDnd(
+        <DomainGrid
+          capabilities={mockL1Capabilities}
+          onCapabilityClick={onCapabilityClick}
+          positions={positions}
+        />
+      );
+
+      const capabilityNames = screen
+        .getAllByRole('button')
+        .map((btn) => btn.textContent);
+
+      expect(capabilityNames[0]).toBe('Zebra Management');
+    });
+
+    it('should make items sortable when positions are provided', () => {
+      const onCapabilityClick = vi.fn();
+      const positions = {
+        'cap-1': createPosition(0, 0),
+        'cap-2': createPosition(1, 0),
+      };
+
+      const { container } = renderWithDnd(
+        <DomainGrid
+          capabilities={mockL1Capabilities}
+          onCapabilityClick={onCapabilityClick}
+          positions={positions}
+        />
+      );
+
+      const sortableItems = container.querySelectorAll('[data-sortable]');
+      expect(sortableItems.length).toBeGreaterThan(0);
+    });
   });
 });

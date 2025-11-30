@@ -1,16 +1,21 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
+import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
 import { DomainList } from '../components/DomainList';
 import { DomainForm } from '../components/DomainForm';
 import { DomainGrid } from '../components/DomainGrid';
+import { NestedCapabilityGrid } from '../components/NestedCapabilityGrid';
+import { DepthSelector, type DepthLevel } from '../components/DepthSelector';
 import { CapabilityExplorer } from '../components/CapabilityExplorer';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import { ContextMenu, type ContextMenuItem } from '../../../components/shared/ContextMenu';
 import { useBusinessDomains } from '../hooks/useBusinessDomains';
 import { useDomainCapabilities } from '../hooks/useDomainCapabilities';
 import { useCapabilityTree } from '../hooks/useCapabilityTree';
+import { useGridPositions } from '../hooks/useGridPositions';
 import type { BusinessDomain, Capability, CapabilityId } from '../../../api/types';
+import '../components/visualization.css';
 
 type DialogMode = 'create' | 'edit' | null;
 
@@ -30,7 +35,20 @@ export function BusinessDomainsPage() {
   const [selectedCapability, setSelectedCapability] = useState<Capability | null>(null);
   const [activeCapability, setActiveCapability] = useState<Capability | null>(null);
   const [contextMenu, setContextMenu] = useState<DomainContextMenuState | null>(null);
+  const [depth, setDepth] = useState<DepthLevel>(1);
+  const [isDomainsSidebarCollapsed, setIsDomainsSidebarCollapsed] = useState(false);
+  const [isExplorerSidebarCollapsed, setIsExplorerSidebarCollapsed] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
+
+  const { positions, updatePosition } = useGridPositions(visualizedDomain?.id ?? null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -63,6 +81,30 @@ export function BusinessDomainsPage() {
     () => new Set<CapabilityId>(capabilities.map((c) => c.id)),
     [capabilities]
   );
+
+  const capabilitiesWithDescendants = useMemo(() => {
+    if (capabilities.length === 0 || tree.length === 0) return capabilities;
+
+    const assignedL1Ids = new Set(capabilities.filter((c) => c.level === 'L1').map((c) => c.id));
+    const result: Capability[] = [];
+
+    const collectDescendants = (nodes: typeof tree) => {
+      for (const node of nodes) {
+        if (assignedL1Ids.has(node.capability.id)) {
+          const addAll = (n: typeof tree[0]) => {
+            result.push(n.capability);
+            n.children.forEach(addAll);
+          };
+          addAll(node);
+        } else {
+          collectDescendants(node.children);
+        }
+      }
+    };
+
+    collectDescendants(tree);
+    return result;
+  }, [capabilities, tree]);
 
   const handleCreateClick = () => {
     setSelectedDomain(null);
@@ -118,9 +160,27 @@ export function BusinessDomainsPage() {
     async (event: DragEndEvent) => {
       setActiveCapability(null);
 
-      if (!event.over || !visualizedDomain) return;
+      const { active, over } = event;
+      if (!over || !visualizedDomain) return;
 
-      const capability = event.active.data.current?.capability as Capability | undefined;
+      const droppedOnId = over.id as string;
+      const isDroppedOnGrid = droppedOnId === 'domain-grid-droppable' || droppedOnId === 'nested-grid-droppable';
+
+      if (active.id !== over.id && !isDroppedOnGrid) {
+        const l1Caps = capabilities.filter((c) => c.level === 'L1');
+        const oldIndex = l1Caps.findIndex((c) => c.id === active.id);
+        const newIndex = l1Caps.findIndex((c) => c.id === over.id);
+
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newOrder = arrayMove(l1Caps, oldIndex, newIndex);
+          newOrder.forEach((cap, index) => {
+            updatePosition(cap.id, index, 0);
+          });
+          return;
+        }
+      }
+
+      const capability = active.data.current?.capability as Capability | undefined;
       if (!capability || capability.level !== 'L1') return;
 
       if (assignedCapabilityIds.has(capability.id)) return;
@@ -128,11 +188,13 @@ export function BusinessDomainsPage() {
       try {
         await associateCapability(capability.id, capability);
         await refetchCapabilities();
+        const currentCount = capabilities.filter((c) => c.level === 'L1').length;
+        await updatePosition(capability.id, currentCount, 0);
       } catch (err) {
         console.error('Failed to assign capability:', err);
       }
     },
-    [visualizedDomain, associateCapability, refetchCapabilities, assignedCapabilityIds]
+    [visualizedDomain, associateCapability, refetchCapabilities, assignedCapabilityIds, capabilities, updatePosition]
   );
 
   const handleFormSubmit = async (name: string, description: string) => {
@@ -190,28 +252,54 @@ export function BusinessDomainsPage() {
   }
 
   return (
-    <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="business-domains-layout" data-testid="business-domains-page" style={{ display: 'flex', height: '100vh' }}>
-        <aside className="business-domains-sidebar" style={{ width: '320px', borderRight: '1px solid #e5e7eb', padding: '1rem', overflow: 'auto' }}>
-          <div className="page-header" style={{ marginBottom: '1rem' }}>
-            <h1 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Business Domains</h1>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleCreateClick}
-              data-testid="create-domain-button"
-            >
-              Create Domain
-            </button>
-          </div>
-
-          <DomainList
-            domains={domains}
-            onVisualize={handleVisualizeClick}
-            onContextMenu={handleContextMenu}
-            selectedDomainId={visualizedDomain?.id}
-          />
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div className="business-domains-layout" data-testid="business-domains-page" style={{ display: 'flex', height: '100vh', position: 'relative' }}>
+        <aside className={`collapsible-sidebar ${isDomainsSidebarCollapsed ? 'closed' : 'open'}`}>
+          {!isDomainsSidebarCollapsed && (
+            <div className="sidebar-content">
+              <div className="sidebar-header">
+                <h3>Business Domains</h3>
+                <button
+                  type="button"
+                  className="sidebar-toggle-btn"
+                  onClick={() => setIsDomainsSidebarCollapsed(true)}
+                  aria-label="Collapse sidebar"
+                >
+                  ‹
+                </button>
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleCreateClick}
+                  data-testid="create-domain-button"
+                >
+                  Create Domain
+                </button>
+              </div>
+              <div className="sidebar-scrollable">
+                <DomainList
+                  domains={domains}
+                  onVisualize={handleVisualizeClick}
+                  onContextMenu={handleContextMenu}
+                  selectedDomainId={visualizedDomain?.id}
+                />
+              </div>
+            </div>
+          )}
         </aside>
+
+        {isDomainsSidebarCollapsed && (
+          <button
+            type="button"
+            className="sidebar-toggle-btn-collapsed left"
+            onClick={() => setIsDomainsSidebarCollapsed(false)}
+            aria-label="Expand sidebar"
+          >
+            ›
+          </button>
+        )}
 
         <main className="business-domains-main" style={{ flex: 1, padding: '1rem', overflow: 'auto' }}>
           {!visualizedDomain ? (
@@ -225,25 +313,64 @@ export function BusinessDomainsPage() {
             <div className="loading-message">Loading capabilities...</div>
           ) : (
             <div>
-              <h2 style={{ marginBottom: '1rem' }}>{visualizedDomain.name}</h2>
-              <DomainGrid capabilities={capabilities} onCapabilityClick={handleCapabilityClick} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h2>{visualizedDomain.name}</h2>
+                <DepthSelector value={depth} onChange={setDepth} />
+              </div>
+              {depth === 1 ? (
+                <DomainGrid capabilities={capabilities} onCapabilityClick={handleCapabilityClick} positions={positions} />
+              ) : (
+                <NestedCapabilityGrid
+                  capabilities={capabilitiesWithDescendants}
+                  depth={depth}
+                  onCapabilityClick={handleCapabilityClick}
+                  positions={positions}
+                />
+              )}
             </div>
           )}
         </main>
 
-        <aside className="capability-explorer-sidebar" style={{ width: '300px', borderLeft: '1px solid #e5e7eb', padding: '1rem', overflow: 'auto' }}>
-          <h3 style={{ marginBottom: '1rem' }}>Capability Explorer</h3>
-          <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
-            {visualizedDomain
-              ? 'Drag L1 capabilities to the grid to assign them'
-              : 'Select a domain to visualize, then drag capabilities to assign them'}
-          </p>
-          <CapabilityExplorer
-            capabilities={allCapabilities}
-            assignedCapabilityIds={assignedCapabilityIds}
-            isLoading={treeLoading}
-          />
+        <aside className={`collapsible-sidebar right ${isExplorerSidebarCollapsed ? 'closed' : 'open narrow'}`}>
+          {!isExplorerSidebarCollapsed && (
+            <div className="sidebar-content">
+              <div className="sidebar-header">
+                <h3>Capability Explorer</h3>
+                <button
+                  type="button"
+                  className="sidebar-toggle-btn"
+                  onClick={() => setIsExplorerSidebarCollapsed(true)}
+                  aria-label="Collapse sidebar"
+                >
+                  ›
+                </button>
+              </div>
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+                {visualizedDomain
+                  ? 'Drag L1 capabilities to the grid to assign them'
+                  : 'Select a domain to visualize, then drag capabilities to assign them'}
+              </p>
+              <div className="sidebar-scrollable">
+                <CapabilityExplorer
+                  capabilities={allCapabilities}
+                  assignedCapabilityIds={assignedCapabilityIds}
+                  isLoading={treeLoading}
+                />
+              </div>
+            </div>
+          )}
         </aside>
+
+        {isExplorerSidebarCollapsed && (
+          <button
+            type="button"
+            className="sidebar-toggle-btn-collapsed right"
+            onClick={() => setIsExplorerSidebarCollapsed(false)}
+            aria-label="Expand sidebar"
+          >
+            ‹
+          </button>
+        )}
 
         {selectedCapability && (
           <aside style={{ width: '300px', borderLeft: '1px solid #e5e7eb', padding: '1rem', overflow: 'auto' }}>
@@ -316,6 +443,7 @@ export function BusinessDomainsPage() {
           onCancel={handleCancelDelete}
         />
       )}
+
     </DndContext>
   );
 }
