@@ -7,18 +7,22 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
+	"github.com/lib/pq"
 )
 
 type RealizationDTO struct {
-	ID                  string            `json:"id"`
-	CapabilityID        string            `json:"capabilityId"`
-	ComponentID         string            `json:"componentId"`
-	RealizationLevel    string            `json:"realizationLevel"`
-	Notes               string            `json:"notes,omitempty"`
-	Origin              string            `json:"origin"`
-	SourceRealizationID string            `json:"sourceRealizationId,omitempty"`
-	LinkedAt            time.Time         `json:"linkedAt"`
-	Links               map[string]string `json:"_links,omitempty"`
+	ID                   string            `json:"id"`
+	CapabilityID         string            `json:"capabilityId"`
+	ComponentID          string            `json:"componentId"`
+	ComponentName        string            `json:"componentName,omitempty"`
+	RealizationLevel     string            `json:"realizationLevel"`
+	Notes                string            `json:"notes,omitempty"`
+	Origin               string            `json:"origin"`
+	SourceRealizationID  string            `json:"sourceRealizationId,omitempty"`
+	SourceCapabilityID   string            `json:"sourceCapabilityId,omitempty"`
+	SourceCapabilityName string            `json:"sourceCapabilityName,omitempty"`
+	LinkedAt             time.Time         `json:"linkedAt"`
+	Links                map[string]string `json:"_links,omitempty"`
 }
 
 type RealizationReadModel struct {
@@ -174,4 +178,56 @@ func (rm *RealizationReadModel) toNullableString(s string) interface{} {
 		return nil
 	}
 	return s
+}
+
+func (rm *RealizationReadModel) GetByCapabilityIDs(ctx context.Context, capabilityIDs []string) ([]RealizationDTO, error) {
+	if len(capabilityIDs) == 0 {
+		return []RealizationDTO{}, nil
+	}
+
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var realizations []RealizationDTO
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		query := `
+			SELECT
+				cr.id, cr.capability_id, cr.component_id, cr.realization_level, cr.notes,
+				cr.origin, COALESCE(cr.source_realization_id, ''), cr.linked_at,
+				COALESCE(ac.name, ''),
+				COALESCE(source_r.capability_id, ''),
+				COALESCE(source_cap.name, '')
+			FROM capability_realizations cr
+			LEFT JOIN application_components ac ON cr.component_id = ac.id AND ac.tenant_id = cr.tenant_id AND ac.is_deleted = FALSE
+			LEFT JOIN capability_realizations source_r ON cr.source_realization_id = source_r.id AND source_r.tenant_id = cr.tenant_id
+			LEFT JOIN capabilities source_cap ON source_r.capability_id = source_cap.id AND source_cap.tenant_id = cr.tenant_id
+			WHERE cr.tenant_id = $1 AND cr.capability_id = ANY($2)
+			ORDER BY cr.linked_at DESC
+		`
+
+		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), pq.Array(capabilityIDs))
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var dto RealizationDTO
+			err := rows.Scan(
+				&dto.ID, &dto.CapabilityID, &dto.ComponentID, &dto.RealizationLevel, &dto.Notes,
+				&dto.Origin, &dto.SourceRealizationID, &dto.LinkedAt,
+				&dto.ComponentName, &dto.SourceCapabilityID, &dto.SourceCapabilityName,
+			)
+			if err != nil {
+				return err
+			}
+			realizations = append(realizations, dto)
+		}
+
+		return rows.Err()
+	})
+
+	return realizations, err
 }

@@ -7,7 +7,6 @@ import { useCapabilityTree } from '../hooks/useCapabilityTree';
 import { useGridPositions } from '../hooks/useGridPositions';
 import { useDragHandlers, type PendingReassignment } from '../hooks/useDragHandlers';
 import { DomainFilter } from '../components/DomainFilter';
-import { DomainGrid } from '../components/DomainGrid';
 import { NestedCapabilityGrid } from '../components/NestedCapabilityGrid';
 import { DepthSelector } from '../components/DepthSelector';
 import { CapabilityExplorer } from '../components/CapabilityExplorer';
@@ -133,16 +132,12 @@ export function DomainVisualizationPage({ initialDomainId }: DomainVisualization
                 <h1>{selectedDomain?.name}</h1>
                 <DepthSelector value={depth} onChange={setDepth} />
               </div>
-              {depth === 1 ? (
-                <DomainGrid capabilities={capabilities} onCapabilityClick={handleCapabilityClick} positions={positions} />
-              ) : (
-                <NestedCapabilityGrid
-                  capabilities={capabilities}
-                  depth={depth}
-                  onCapabilityClick={handleCapabilityClick}
-                  positions={positions}
-                />
-              )}
+              <NestedCapabilityGrid
+                capabilities={capabilities}
+                depth={depth}
+                onCapabilityClick={handleCapabilityClick}
+                positions={positions}
+              />
             </div>
           )}
         </main>

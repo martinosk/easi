@@ -1,28 +1,38 @@
-import type { BusinessDomain, Capability, CapabilityId } from '../../../api/types';
-import { DomainGrid } from './DomainGrid';
+import type { BusinessDomain, Capability, CapabilityId, CapabilityRealization, ComponentId } from '../../../api/types';
 import { NestedCapabilityGrid } from './NestedCapabilityGrid';
 import { DepthSelector, type DepthLevel } from './DepthSelector';
+import { ShowApplicationsToggle } from './ShowApplicationsToggle';
 
 interface VisualizationAreaProps {
   visualizedDomain: BusinessDomain | null;
   capabilities: Capability[];
-  capabilitiesWithDescendants: Capability[];
   capabilitiesLoading: boolean;
   depth: DepthLevel;
   positions: Record<CapabilityId, { x: number; y: number }>;
   onDepthChange: (depth: DepthLevel) => void;
   onCapabilityClick: (capability: Capability) => void;
+  showApplications: boolean;
+  showInherited: boolean;
+  onShowApplicationsChange: (value: boolean) => void;
+  onShowInheritedChange: (value: boolean) => void;
+  getRealizationsForCapability: (capabilityId: CapabilityId) => CapabilityRealization[];
+  onApplicationClick: (componentId: ComponentId) => void;
 }
 
 export function VisualizationArea({
   visualizedDomain,
   capabilities,
-  capabilitiesWithDescendants,
   capabilitiesLoading,
   depth,
   positions,
   onDepthChange,
   onCapabilityClick,
+  showApplications,
+  showInherited,
+  onShowApplicationsChange,
+  onShowInheritedChange,
+  getRealizationsForCapability,
+  onApplicationClick,
 }: VisualizationAreaProps) {
   if (!visualizedDomain) {
     return (
@@ -50,18 +60,26 @@ export function VisualizationArea({
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2>{visualizedDomain.name}</h2>
-          <DepthSelector value={depth} onChange={onDepthChange} />
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <ShowApplicationsToggle
+              showApplications={showApplications}
+              showInherited={showInherited}
+              onShowApplicationsChange={onShowApplicationsChange}
+              onShowInheritedChange={onShowInheritedChange}
+            />
+            <DepthSelector value={depth} onChange={onDepthChange} />
+          </div>
         </div>
-        {depth === 1 ? (
-          <DomainGrid capabilities={capabilities} onCapabilityClick={onCapabilityClick} positions={positions} />
-        ) : (
-          <NestedCapabilityGrid
-            capabilities={capabilitiesWithDescendants}
-            depth={depth}
-            onCapabilityClick={onCapabilityClick}
-            positions={positions}
-          />
-        )}
+        <NestedCapabilityGrid
+          capabilities={capabilities}
+          depth={depth}
+          onCapabilityClick={onCapabilityClick}
+          positions={positions}
+          showApplications={showApplications}
+          showInherited={showInherited}
+          getRealizationsForCapability={getRealizationsForCapability}
+          onApplicationClick={onApplicationClick}
+        />
       </div>
     </main>
   );

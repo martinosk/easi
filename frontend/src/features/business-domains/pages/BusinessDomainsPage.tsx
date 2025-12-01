@@ -3,6 +3,7 @@ import { DomainsSidebar } from '../components/DomainsSidebar';
 import { CapabilityExplorerSidebar } from '../components/CapabilityExplorerSidebar';
 import { VisualizationArea } from '../components/VisualizationArea';
 import { CapabilityDetailSidebar } from '../components/CapabilityDetailSidebar';
+import { ApplicationDetailSidebar } from '../components/ApplicationDetailSidebar';
 import { DomainDialogs } from '../components/DomainDialogs';
 import { DragOverlayContent } from '../components/DragOverlayContent';
 import { PageLoadingStates } from '../components/PageLoadingStates';
@@ -17,19 +18,26 @@ export function BusinessDomainsPage() {
     error,
     visualizedDomain,
     selectedCapability,
+    selectedComponentId,
     depth,
     setDepth,
+    showApplications,
+    showInherited,
+    setShowApplications,
+    setShowInherited,
     sidebarState,
     dialogManager,
     positions,
     sensors,
-    capabilities,
     capabilitiesLoading,
     filtering,
     dragHandlers,
     contextMenu,
     handleVisualizeClick,
     handleCapabilityClick,
+    getRealizationsForCapability,
+    handleApplicationClick,
+    clearSelectedComponent,
   } = useBusinessDomainsPage();
 
   return (
@@ -48,13 +56,18 @@ export function BusinessDomainsPage() {
 
           <VisualizationArea
             visualizedDomain={visualizedDomain}
-            capabilities={capabilities}
-            capabilitiesWithDescendants={filtering.capabilitiesWithDescendants}
+            capabilities={filtering.capabilitiesWithDescendants}
             capabilitiesLoading={capabilitiesLoading}
             depth={depth}
             positions={positions}
             onDepthChange={setDepth}
             onCapabilityClick={handleCapabilityClick}
+            showApplications={showApplications}
+            showInherited={showInherited}
+            onShowApplicationsChange={setShowApplications}
+            onShowInheritedChange={setShowInherited}
+            getRealizationsForCapability={getRealizationsForCapability}
+            onApplicationClick={handleApplicationClick}
           />
 
           <CapabilityExplorerSidebar
@@ -69,6 +82,11 @@ export function BusinessDomainsPage() {
           <CapabilityDetailSidebar
             capability={selectedCapability}
             onClose={() => handleCapabilityClick(null)}
+          />
+
+          <ApplicationDetailSidebar
+            componentId={selectedComponentId}
+            onClose={clearSelectedComponent}
           />
         </div>
 

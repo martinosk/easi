@@ -223,10 +223,13 @@ export interface CapabilityRealization {
   id: RealizationId;
   capabilityId: CapabilityId;
   componentId: ComponentId;
+  componentName?: string;
   realizationLevel: RealizationLevel;
   notes?: string;
-  origin: string;
+  origin: 'Direct' | 'Inherited';
   sourceRealizationId?: RealizationId;
+  sourceCapabilityId?: CapabilityId;
+  sourceCapabilityName?: string;
   linkedAt: string;
   _links: HATEOASLinks;
 }

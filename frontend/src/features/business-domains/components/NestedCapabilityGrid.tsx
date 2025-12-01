@@ -2,8 +2,9 @@ import { useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { Capability, CapabilityId, Position } from '../../../api/types';
+import type { Capability, CapabilityId, CapabilityRealization, ComponentId, Position } from '../../../api/types';
 import type { DepthLevel } from './DepthSelector';
+import { ApplicationChipList } from './ApplicationChipList';
 import './visualization.css';
 
 const LEVEL_COLORS = {
@@ -29,6 +30,10 @@ export interface NestedCapabilityGridProps {
   depth: DepthLevel;
   onCapabilityClick: (capability: Capability) => void;
   positions?: PositionMap;
+  showApplications?: boolean;
+  showInherited?: boolean;
+  getRealizationsForCapability?: (capabilityId: CapabilityId) => CapabilityRealization[];
+  onApplicationClick?: (componentId: ComponentId) => void;
 }
 
 interface CapabilityNode {
@@ -69,13 +74,29 @@ interface NestedCapabilityItemProps {
   depth: DepthLevel;
   onClick: (capability: Capability) => void;
   sortable?: boolean;
+  showApplications?: boolean;
+  showInherited?: boolean;
+  getRealizationsForCapability?: (capabilityId: CapabilityId) => CapabilityRealization[];
+  onApplicationClick?: (componentId: ComponentId) => void;
 }
 
-function NestedCapabilityItem({ node, depth, onClick, sortable = false }: NestedCapabilityItemProps) {
+function NestedCapabilityItem({
+  node,
+  depth,
+  onClick,
+  sortable = false,
+  showApplications = false,
+  showInherited = false,
+  getRealizationsForCapability,
+  onApplicationClick,
+}: NestedCapabilityItemProps) {
   const { capability, children } = node;
   const level = capability.level;
   const color = LEVEL_COLORS[level];
   const sizes = LEVEL_SIZES[level];
+  const realizations = showApplications && getRealizationsForCapability
+    ? getRealizationsForCapability(capability.id)
+    : [];
 
   const {
     attributes,
@@ -117,9 +138,19 @@ function NestedCapabilityItem({ node, depth, onClick, sortable = false }: Nested
       style={style}
       {...(sortable ? { ...attributes, ...listeners } : {})}
     >
-      <div style={{ fontWeight: 500, marginBottom: visibleChildren.length > 0 ? '0.5rem' : 0 }}>
+      <div style={{ fontWeight: 500, marginBottom: (visibleChildren.length > 0 || realizations.length > 0) ? '0.5rem' : 0 }}>
         {capability.name}
       </div>
+
+      {showApplications && realizations.length > 0 && onApplicationClick && (
+        <div style={{ marginBottom: visibleChildren.length > 0 ? '0.5rem' : 0 }}>
+          <ApplicationChipList
+            realizations={realizations}
+            showInherited={showInherited}
+            onApplicationClick={onApplicationClick}
+          />
+        </div>
+      )}
 
       {visibleChildren.length > 0 && (
         <div
@@ -139,6 +170,10 @@ function NestedCapabilityItem({ node, depth, onClick, sortable = false }: Nested
               node={child}
               depth={depth}
               onClick={onClick}
+              showApplications={showApplications}
+              showInherited={showInherited}
+              getRealizationsForCapability={getRealizationsForCapability}
+              onApplicationClick={onApplicationClick}
             />
           ))}
         </div>
@@ -167,6 +202,10 @@ export function NestedCapabilityGrid({
   depth,
   onCapabilityClick,
   positions,
+  showApplications = false,
+  showInherited = false,
+  getRealizationsForCapability,
+  onApplicationClick,
 }: NestedCapabilityGridProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: 'nested-grid-droppable',
@@ -227,6 +266,10 @@ export function NestedCapabilityGrid({
               depth={depth}
               onClick={onCapabilityClick}
               sortable={hasSortablePositions}
+              showApplications={showApplications}
+              showInherited={showInherited}
+              getRealizationsForCapability={getRealizationsForCapability}
+              onApplicationClick={onApplicationClick}
             />
           ))}
         </div>

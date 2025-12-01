@@ -274,3 +274,87 @@ func (h *RealizationHandlers) DeleteRealization(w http.ResponseWriter, r *http.R
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// GetRealizationsByCapabilityIds godoc
+// @Summary Get realizations for multiple capabilities
+// @Description Retrieves all realizations for the specified capability IDs, including component names and source capability info for inherited realizations
+// @Tags capability-realizations
+// @Produce json
+// @Param capabilityIds query string true "Comma-separated list of capability IDs"
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO}
+// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Router /capability-realizations [get]
+func (h *RealizationHandlers) GetRealizationsByCapabilityIds(w http.ResponseWriter, r *http.Request) {
+	capabilityIdsParam := r.URL.Query().Get("capabilityIds")
+	if capabilityIdsParam == "" {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "capabilityIds query parameter is required")
+		return
+	}
+
+	capabilityIDs := splitAndTrim(capabilityIdsParam)
+	if len(capabilityIDs) == 0 {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "capabilityIds must contain at least one ID")
+		return
+	}
+
+	realizations, err := h.readModel.GetByCapabilityIDs(r.Context(), capabilityIDs)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve realizations")
+		return
+	}
+
+	for i := range realizations {
+		realizations[i].Links = h.buildRealizationLinks(realizations[i])
+	}
+
+	links := map[string]string{
+		"self": "/api/v1/capability-realizations?capabilityIds=" + capabilityIdsParam,
+	}
+
+	sharedAPI.RespondCollection(w, http.StatusOK, realizations, links)
+}
+
+func (h *RealizationHandlers) buildRealizationLinks(r readmodels.RealizationDTO) map[string]string {
+	links := h.hateoas.RealizationLinks(r.ID, r.CapabilityID, r.ComponentID)
+	if r.Origin == "Inherited" && r.SourceCapabilityID != "" {
+		links["sourceCapability"] = "/api/v1/capabilities/" + r.SourceCapabilityID
+	}
+	return links
+}
+
+func splitAndTrim(s string) []string {
+	parts := make([]string, 0)
+	for _, p := range splitComma(s) {
+		trimmed := trimSpace(p)
+		if trimmed != "" {
+			parts = append(parts, trimmed)
+		}
+	}
+	return parts
+}
+
+func splitComma(s string) []string {
+	result := make([]string, 0)
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == ',' {
+			result = append(result, s[start:i])
+			start = i + 1
+		}
+	}
+	result = append(result, s[start:])
+	return result
+}
+
+func trimSpace(s string) string {
+	start := 0
+	end := len(s)
+	for start < end && (s[start] == ' ' || s[start] == '\t') {
+		start++
+	}
+	for end > start && (s[end-1] == ' ' || s[end-1] == '\t') {
+		end--
+	}
+	return s[start:end]
+}

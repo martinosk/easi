@@ -249,6 +249,7 @@ func registerDependencyRoutes(r chi.Router, h *routeHTTPHandlers) {
 
 func registerRealizationRoutes(r chi.Router, h *routeHTTPHandlers) {
 	r.Route("/capability-realizations", func(r chi.Router) {
+		r.Get("/", h.realization.GetRealizationsByCapabilityIds)
 		r.Put("/{id}", h.realization.UpdateRealization)
 		r.Delete("/{id}", h.realization.DeleteRealization)
 		r.Get("/by-component/{componentId}", h.realization.GetCapabilitiesByComponent)

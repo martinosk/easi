@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { useBusinessDomains } from './useBusinessDomains';
 import { useDomainCapabilities } from './useDomainCapabilities';
@@ -10,12 +10,21 @@ import { useDomainDialogManager } from './useDomainDialogManager';
 import { useDragHandlers } from './useDragHandlers';
 import { useCapabilityFiltering } from './useCapabilityFiltering';
 import { useDomainContextMenu } from './useDomainContextMenu';
-import type { BusinessDomain, Capability } from '../../../api/types';
+import { useApplicationSettings } from './useApplicationSettings';
+import { useCapabilityRealizations } from './useCapabilityRealizations';
+import type { BusinessDomain, Capability, ComponentId } from '../../../api/types';
 
 export function useBusinessDomainsPage() {
   const [visualizedDomain, setVisualizedDomain] = useState<BusinessDomain | null>(null);
   const [selectedCapability, setSelectedCapability] = useState<Capability | null>(null);
+  const [selectedComponentId, setSelectedComponentId] = useState<ComponentId | null>(null);
   const [depth, setDepth] = usePersistedDepth();
+  const {
+    showApplications,
+    showInherited,
+    setShowApplications,
+    setShowInherited,
+  } = useApplicationSettings();
 
   const { domains, isLoading, error, createDomain, updateDomain, deleteDomain } = useBusinessDomains();
   const { tree, isLoading: treeLoading } = useCapabilityTree();
@@ -54,6 +63,24 @@ export function useBusinessDomainsPage() {
 
   const filtering = useCapabilityFiltering(tree, capabilities);
 
+  const visibleCapabilityIds = useMemo(() => {
+    return filtering.capabilitiesWithDescendants.map(c => c.id);
+  }, [filtering.capabilitiesWithDescendants]);
+
+  const { getRealizationsForCapability } = useCapabilityRealizations(
+    visibleCapabilityIds,
+    showApplications
+  );
+
+  const handleApplicationClick = useCallback((componentId: ComponentId) => {
+    setSelectedComponentId(componentId);
+    setSelectedCapability(null);
+  }, []);
+
+  const clearSelectedComponent = useCallback(() => {
+    setSelectedComponentId(null);
+  }, []);
+
   const dragHandlers = useDragHandlers({
     domainId: visualizedDomain?.id ?? null,
     capabilities,
@@ -76,6 +103,7 @@ export function useBusinessDomainsPage() {
 
   const handleCapabilityClick = (capability: Capability | null) => {
     setSelectedCapability(capability);
+    setSelectedComponentId(null);
   };
 
   return {
@@ -86,8 +114,13 @@ export function useBusinessDomainsPage() {
     treeLoading,
     visualizedDomain,
     selectedCapability,
+    selectedComponentId,
     depth,
     setDepth,
+    showApplications,
+    showInherited,
+    setShowApplications,
+    setShowInherited,
     sidebarState,
     dialogManager,
     positions,
@@ -99,5 +132,8 @@ export function useBusinessDomainsPage() {
     contextMenu,
     handleVisualizeClick,
     handleCapabilityClick,
+    getRealizationsForCapability,
+    handleApplicationClick,
+    clearSelectedComponent,
   };
 }
