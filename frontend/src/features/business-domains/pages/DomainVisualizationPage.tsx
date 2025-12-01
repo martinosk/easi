@@ -1,10 +1,10 @@
 import { useState, useMemo, useCallback } from 'react';
-import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
+import { DndContext, DragOverlay } from '@dnd-kit/core';
 import { useBusinessDomains } from '../hooks/useBusinessDomains';
 import { useDomainCapabilities } from '../hooks/useDomainCapabilities';
 import { useCapabilityTree } from '../hooks/useCapabilityTree';
 import { useGridPositions } from '../hooks/useGridPositions';
+import { useDragHandlers, type PendingReassignment } from '../hooks/useDragHandlers';
 import { DomainFilter } from '../components/DomainFilter';
 import { DomainGrid } from '../components/DomainGrid';
 import { NestedCapabilityGrid } from '../components/NestedCapabilityGrid';
@@ -19,15 +19,9 @@ interface DomainVisualizationPageProps {
   initialDomainId?: BusinessDomainId;
 }
 
-interface PendingReassignment {
-  capability: Capability;
-  newParent: Capability;
-}
-
 export function DomainVisualizationPage({ initialDomainId }: DomainVisualizationPageProps) {
   const [selectedDomainId, setSelectedDomainId] = useState<BusinessDomainId | null>(initialDomainId ?? null);
   const [selectedCapability, setSelectedCapability] = useState<Capability | null>(null);
-  const [activeCapability, setActiveCapability] = useState<Capability | null>(null);
   const [depth, setDepth] = usePersistedDepth();
   const [pendingReassignment, setPendingReassignment] = useState<PendingReassignment | null>(null);
   const [isReassigning, setIsReassigning] = useState(false);
@@ -61,6 +55,18 @@ export function DomainVisualizationPage({ initialDomainId }: DomainVisualization
     [capabilities]
   );
 
+  const { activeCapability, handleDragStart, handleDragEnd } = useDragHandlers({
+    domainId: selectedDomainId,
+    capabilities,
+    assignedCapabilityIds,
+    positions,
+    updatePosition,
+    associateCapability,
+    refetchCapabilities,
+    allCapabilities,
+    onReassignment: setPendingReassignment,
+  });
+
   const handleDomainSelect = (domainId: BusinessDomainId | null) => {
     setSelectedDomainId(domainId);
     setSelectedCapability(null);
@@ -69,62 +75,6 @@ export function DomainVisualizationPage({ initialDomainId }: DomainVisualization
   const handleCapabilityClick = (capability: Capability) => {
     setSelectedCapability(capability);
   };
-
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    const capability = event.active.data.current?.capability as Capability | undefined;
-    if (capability) {
-      setActiveCapability(capability);
-    }
-  }, []);
-
-  const handleDragEnd = useCallback(
-    async (event: DragEndEvent) => {
-      setActiveCapability(null);
-
-      const { active, over } = event;
-      if (!over || !selectedDomainId) return;
-
-      const droppedOnCapabilityId = over.id as string;
-      const isDroppedOnGrid = droppedOnCapabilityId === 'domain-grid-droppable' || droppedOnCapabilityId === 'nested-grid-droppable';
-
-      if (active.id !== over.id && !isDroppedOnGrid) {
-        const l1Caps = capabilities.filter((c) => c.level === 'L1');
-        const oldIndex = l1Caps.findIndex((c) => c.id === active.id);
-        const newIndex = l1Caps.findIndex((c) => c.id === over.id);
-
-        if (oldIndex !== -1 && newIndex !== -1) {
-          const newOrder = arrayMove(l1Caps, oldIndex, newIndex);
-          newOrder.forEach((cap, index) => {
-            updatePosition(cap.id, index, 0);
-          });
-          return;
-        }
-
-        const draggedCap = allCapabilities.find((c) => c.id === active.id);
-        const targetCap = allCapabilities.find((c) => c.id === over.id);
-
-        if (draggedCap && targetCap && draggedCap.id !== targetCap.id) {
-          setPendingReassignment({ capability: draggedCap, newParent: targetCap });
-          return;
-        }
-      }
-
-      const capability = active.data.current?.capability as Capability | undefined;
-      if (!capability || capability.level !== 'L1') return;
-
-      if (assignedCapabilityIds.has(capability.id)) return;
-
-      try {
-        await associateCapability(capability.id, capability);
-        await refetchCapabilities();
-        const currentCount = capabilities.filter((c) => c.level === 'L1').length;
-        await updatePosition(capability.id, currentCount, 0);
-      } catch (error) {
-        console.error('Failed to assign capability:', error);
-      }
-    },
-    [selectedDomainId, associateCapability, refetchCapabilities, assignedCapabilityIds, capabilities, updatePosition, allCapabilities]
-  );
 
   const handleConfirmReassign = useCallback(async () => {
     if (!pendingReassignment) return;

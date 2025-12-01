@@ -55,7 +55,7 @@ export function useBusinessDomainsPage() {
   const filtering = useCapabilityFiltering(tree, capabilities);
 
   const dragHandlers = useDragHandlers({
-    visualizedDomain,
+    domainId: visualizedDomain?.id ?? null,
     capabilities,
     assignedCapabilityIds: filtering.assignedCapabilityIds,
     positions,
