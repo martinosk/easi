@@ -135,7 +135,7 @@ export function DomainGrid({ capabilities, onCapabilityClick, positions }: Domai
 
   const sortableIds = useMemo(() => l1Capabilities.map((c) => c.id), [l1Capabilities]);
 
-  const hasSortablePositions = positions && Object.keys(positions).length > 0;
+  const hasSortablePositions = !!(positions && Object.keys(positions).length > 0);
 
   return (
     <div

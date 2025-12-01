@@ -197,7 +197,7 @@ export function NestedCapabilityGrid({
     [sortedTree]
   );
 
-  const hasSortablePositions = positions && Object.keys(positions).length > 0;
+  const hasSortablePositions = !!(positions && Object.keys(positions).length > 0);
 
   return (
     <div
