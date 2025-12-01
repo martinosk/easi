@@ -67,7 +67,13 @@ func (o *ImportOrchestrator) Execute(ctx context.Context, session *aggregates.Im
 	o.repository.Save(ctx, session)
 
 	if session.BusinessDomainID() != "" {
-		domainAssignments, domainErrors := o.assignToDomain(ctx, session.BusinessDomainID(), parsedData.Capabilities, parsedData.Relationships, sourceToCapabilityID)
+		assignCtx := domainAssignmentContext{
+			domainID:             session.BusinessDomainID(),
+			capabilities:         parsedData.Capabilities,
+			relationships:        parsedData.Relationships,
+			sourceToCapabilityID: sourceToCapabilityID,
+		}
+		domainAssignments, domainErrors := o.assignToDomain(ctx, assignCtx)
 		result.DomainAssignments = domainAssignments
 		result.Errors = append(result.Errors, domainErrors...)
 	}
@@ -153,88 +159,115 @@ func (o *ImportOrchestrator) createCapabilities(ctx context.Context, capabilitie
 	return created, errors
 }
 
-func (o *ImportOrchestrator) createRealizations(ctx context.Context, relationships []aggregates.ParsedRelationship, sourceToComponentID, sourceToCapabilityID map[string]string) (int, []valueobjects.ImportError) {
+type relationshipContext struct {
+	rel       aggregates.ParsedRelationship
+	sourceID  string
+	targetID  string
+	notes     string
+}
+
+func buildNotes(name, documentation string) string {
+	if documentation == "" {
+		return name
+	}
+	if name == "" {
+		return documentation
+	}
+	return name + " - " + documentation
+}
+
+func (o *ImportOrchestrator) processRelationships(
+	ctx context.Context,
+	relationships []aggregates.ParsedRelationship,
+	typeFilter func(string) bool,
+	lookupRefs func(rel aggregates.ParsedRelationship) (sourceID, targetID string, sourceErr, targetErr string),
+	createCommand func(relCtx relationshipContext) cqrs.Command,
+) (int, []valueobjects.ImportError) {
 	var errors []valueobjects.ImportError
 	created := 0
 
 	for _, rel := range relationships {
-		if rel.Type != "Realization" {
+		if !typeFilter(rel.Type) {
 			continue
 		}
 
-		componentID, hasComponent := sourceToComponentID[rel.SourceRef]
-		capabilityID, hasCapability := sourceToCapabilityID[rel.TargetRef]
+		sourceID, targetID, sourceErr, targetErr := lookupRefs(rel)
 
-		if !hasComponent {
-			errors = append(errors, valueobjects.NewImportError(
-				rel.SourceID,
-				rel.Name,
-				"Source component not found",
-				"skipped",
-			))
+		if sourceErr != "" {
+			errors = append(errors, valueobjects.NewImportError(rel.SourceID, rel.Name, sourceErr, "skipped"))
+			continue
+		}
+		if targetErr != "" {
+			errors = append(errors, valueobjects.NewImportError(rel.SourceID, rel.Name, targetErr, "skipped"))
 			continue
 		}
 
-		if !hasCapability {
-			errors = append(errors, valueobjects.NewImportError(
-				rel.SourceID,
-				rel.Name,
-				"Target capability not found",
-				"skipped",
-			))
+		relCtx := relationshipContext{
+			rel:      rel,
+			sourceID: sourceID,
+			targetID: targetID,
+			notes:    buildNotes(rel.Name, rel.Documentation),
+		}
+
+		if err := o.commandBus.Dispatch(ctx, createCommand(relCtx)); err != nil {
+			errors = append(errors, valueobjects.NewImportError(rel.SourceID, rel.Name, err.Error(), "skipped"))
 			continue
 		}
-
-		notes := rel.Name
-		if rel.Documentation != "" {
-			if notes != "" {
-				notes += " - "
-			}
-			notes += rel.Documentation
-		}
-
-		cmd := &capabilityCommands.LinkSystemToCapability{
-			CapabilityID:     capabilityID,
-			ComponentID:      componentID,
-			RealizationLevel: "full",
-			Notes:            notes,
-		}
-
-		if err := o.commandBus.Dispatch(ctx, cmd); err != nil {
-			errors = append(errors, valueobjects.NewImportError(
-				rel.SourceID,
-				rel.Name,
-				err.Error(),
-				"skipped",
-			))
-			continue
-		}
-
 		created++
 	}
 
 	return created, errors
 }
 
-func (o *ImportOrchestrator) assignToDomain(ctx context.Context, domainID string, capabilities []aggregates.ParsedElement, relationships []aggregates.ParsedRelationship, sourceToCapabilityID map[string]string) (int, []valueobjects.ImportError) {
+func (o *ImportOrchestrator) createRealizations(ctx context.Context, relationships []aggregates.ParsedRelationship, sourceToComponentID, sourceToCapabilityID map[string]string) (int, []valueobjects.ImportError) {
+	return o.processRelationships(
+		ctx,
+		relationships,
+		func(t string) bool { return t == "Realization" },
+		func(rel aggregates.ParsedRelationship) (string, string, string, string) {
+			componentID, hasComponent := sourceToComponentID[rel.SourceRef]
+			capabilityID, hasCapability := sourceToCapabilityID[rel.TargetRef]
+			var sourceErr, targetErr string
+			if !hasComponent {
+				sourceErr = "Source component not found"
+			}
+			if !hasCapability {
+				targetErr = "Target capability not found"
+			}
+			return componentID, capabilityID, sourceErr, targetErr
+		},
+		func(relCtx relationshipContext) cqrs.Command {
+			return &capabilityCommands.LinkSystemToCapability{
+				CapabilityID:     relCtx.targetID,
+				ComponentID:      relCtx.sourceID,
+				RealizationLevel: "full",
+				Notes:            relCtx.notes,
+			}
+		},
+	)
+}
+
+type domainAssignmentContext struct {
+	domainID             string
+	capabilities         []aggregates.ParsedElement
+	relationships        []aggregates.ParsedRelationship
+	sourceToCapabilityID map[string]string
+}
+
+func (o *ImportOrchestrator) assignToDomain(ctx context.Context, assignCtx domainAssignmentContext) (int, []valueobjects.ImportError) {
 	var errors []valueobjects.ImportError
 	assigned := 0
 
-	l1CapabilityIDs := findL1Capabilities(capabilities, relationships, sourceToCapabilityID)
+	l1CapabilityIDs := findL1Capabilities(assignCtx.capabilities, assignCtx.relationships, assignCtx.sourceToCapabilityID)
 
 	for _, capID := range l1CapabilityIDs {
 		cmd := &capabilityCommands.AssignCapabilityToDomain{
 			CapabilityID:     capID,
-			BusinessDomainID: domainID,
+			BusinessDomainID: assignCtx.domainID,
 		}
 
 		if err := o.commandBus.Dispatch(ctx, cmd); err != nil {
-			errors = append(errors, valueobjects.NewImportError(
-				capID,
-				"",
-				err.Error(),
-				"skipped",
-			))
+			errors = append(errors, valueobjects.NewImportError(capID, "", err.Error(), "skipped"))
 			continue
 		}
 
@@ -245,72 +278,36 @@ func (o *ImportOrchestrator) assignToDomain(ctx context.Context, domainID string
 }
 
 func (o *ImportOrchestrator) createComponentRelations(ctx context.Context, relationships []aggregates.ParsedRelationship, sourceToComponentID map[string]string) (int, []valueobjects.ImportError) {
-	var errors []valueobjects.ImportError
-	created := 0
-
-	for _, rel := range relationships {
-		if rel.Type != "Triggering" && rel.Type != "Serving" {
-			continue
-		}
-
-		sourceComponentID, hasSource := sourceToComponentID[rel.SourceRef]
-		targetComponentID, hasTarget := sourceToComponentID[rel.TargetRef]
-
-		if !hasSource {
-			errors = append(errors, valueobjects.NewImportError(
-				rel.SourceID,
-				rel.Name,
-				"Source component not found",
-				"skipped",
-			))
-			continue
-		}
-
-		if !hasTarget {
-			errors = append(errors, valueobjects.NewImportError(
-				rel.SourceID,
-				rel.Name,
-				"Target component not found",
-				"skipped",
-			))
-			continue
-		}
-
-		relationType := "Triggers"
-		if rel.Type == "Serving" {
-			relationType = "Serves"
-		}
-
-		description := rel.Name
-		if rel.Documentation != "" {
-			if description != "" {
-				description += " - "
+	return o.processRelationships(
+		ctx,
+		relationships,
+		func(t string) bool { return t == "Triggering" || t == "Serving" },
+		func(rel aggregates.ParsedRelationship) (string, string, string, string) {
+			sourceComponentID, hasSource := sourceToComponentID[rel.SourceRef]
+			targetComponentID, hasTarget := sourceToComponentID[rel.TargetRef]
+			var sourceErr, targetErr string
+			if !hasSource {
+				sourceErr = "Source component not found"
 			}
-			description += rel.Documentation
-		}
-
-		cmd := &architectureCommands.CreateComponentRelation{
-			SourceComponentID: sourceComponentID,
-			TargetComponentID: targetComponentID,
-			RelationType:      relationType,
-			Name:              rel.Name,
-			Description:       description,
-		}
-
-		if err := o.commandBus.Dispatch(ctx, cmd); err != nil {
-			errors = append(errors, valueobjects.NewImportError(
-				rel.SourceID,
-				rel.Name,
-				err.Error(),
-				"skipped",
-			))
-			continue
-		}
-
-		created++
-	}
-
-	return created, errors
+			if !hasTarget {
+				targetErr = "Target component not found"
+			}
+			return sourceComponentID, targetComponentID, sourceErr, targetErr
+		},
+		func(relCtx relationshipContext) cqrs.Command {
+			relationType := "Triggers"
+			if relCtx.rel.Type == "Serving" {
+				relationType = "Serves"
+			}
+			return &architectureCommands.CreateComponentRelation{
+				SourceComponentID: relCtx.sourceID,
+				TargetComponentID: relCtx.targetID,
+				RelationType:      relationType,
+				Name:              relCtx.rel.Name,
+				Description:       relCtx.notes,
+			}
+		},
+	)
 }
 
 func buildParentMap(relationships []aggregates.ParsedRelationship) map[string]string {
@@ -323,39 +320,51 @@ func buildParentMap(relationships []aggregates.ParsedRelationship) map[string]st
 	return parentMap
 }
 
-func buildHierarchyLevels(capabilities []aggregates.ParsedElement, parentMap map[string]string) [][]string {
-	levels := make([][]string, 0)
-	processed := make(map[string]bool)
-
-	var level0 []string
+func findRootCapabilities(capabilities []aggregates.ParsedElement, parentMap map[string]string) []string {
+	var roots []string
 	for _, cap := range capabilities {
 		if _, hasParent := parentMap[cap.SourceID]; !hasParent {
-			level0 = append(level0, cap.SourceID)
-			processed[cap.SourceID] = true
+			roots = append(roots, cap.SourceID)
 		}
 	}
-	if len(level0) > 0 {
-		levels = append(levels, level0)
+	return roots
+}
+
+func findChildrenOfProcessed(capabilities []aggregates.ParsedElement, parentMap map[string]string, processed map[string]bool) []string {
+	var children []string
+	for _, cap := range capabilities {
+		if processed[cap.SourceID] {
+			continue
+		}
+		parentID, hasParent := parentMap[cap.SourceID]
+		if hasParent && processed[parentID] {
+			children = append(children, cap.SourceID)
+		}
+	}
+	return children
+}
+
+func buildHierarchyLevels(capabilities []aggregates.ParsedElement, parentMap map[string]string) [][]string {
+	roots := findRootCapabilities(capabilities, parentMap)
+	if len(roots) == 0 {
+		return nil
 	}
 
+	processed := make(map[string]bool)
+	for _, id := range roots {
+		processed[id] = true
+	}
+
+	levels := [][]string{roots}
 	for {
-		var nextLevel []string
-		for _, cap := range capabilities {
-			if processed[cap.SourceID] {
-				continue
-			}
-			parentID, hasParent := parentMap[cap.SourceID]
-			if hasParent && processed[parentID] {
-				nextLevel = append(nextLevel, cap.SourceID)
-			}
-		}
-		if len(nextLevel) == 0 {
+		children := findChildrenOfProcessed(capabilities, parentMap, processed)
+		if len(children) == 0 {
 			break
 		}
-		for _, sourceID := range nextLevel {
-			processed[sourceID] = true
+		levels = append(levels, children)
+		for _, id := range children {
+			processed[id] = true
 		}
-		levels = append(levels, nextLevel)
 	}
 
 	return levels
