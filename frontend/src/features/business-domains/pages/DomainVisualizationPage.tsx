@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
+import toast from 'react-hot-toast';
 import { useBusinessDomains } from '../hooks/useBusinessDomains';
 import { useDomainCapabilities } from '../hooks/useDomainCapabilities';
 import { useCapabilityTree } from '../hooks/useCapabilityTree';
@@ -85,8 +86,8 @@ export function DomainVisualizationPage({ initialDomainId }: DomainVisualization
       await refetchTree();
       await refetchCapabilities();
       setPendingReassignment(null);
-    } catch (error) {
-      console.error('Failed to reassign capability:', error);
+    } catch {
+      toast.error('Failed to reassign capability');
     } finally {
       setIsReassigning(false);
     }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ImportUploadStep } from './ImportUploadStep';
 import { ImportPreviewStep } from './ImportPreviewStep';
 import { ImportProgressStep } from './ImportProgressStep';
@@ -32,13 +32,20 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({
     reset,
   } = useImportSession();
 
+  const handleBackdropClick = useCallback((e: React.MouseEvent<HTMLDialogElement>) => {
+    if (e.target === dialogRef.current) {
+      reset();
+      onClose();
+    }
+  }, [reset, onClose]);
+
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
 
-    if (isOpen) {
+    if (isOpen && !dialog.open) {
       dialog.showModal();
-    } else {
+    } else if (!isOpen && dialog.open) {
       dialog.close();
     }
   }, [isOpen]);
@@ -128,7 +135,12 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({
   };
 
   return (
-    <dialog ref={dialogRef} className="dialog import-dialog" data-testid="import-dialog">
+    <dialog
+      ref={dialogRef}
+      className="dialog import-dialog"
+      data-testid="import-dialog"
+      onClick={handleBackdropClick}
+    >
       <div className="dialog-content">
         <h2 className="dialog-title">Import from ArchiMate</h2>
         {renderStep()}

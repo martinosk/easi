@@ -92,6 +92,21 @@ function StaticCapabilityItem({ capability, onClick }: StaticCapabilityItemProps
   );
 }
 
+interface ConditionalSortableWrapperProps {
+  enabled: boolean;
+  ids: string[];
+  children: React.ReactNode;
+}
+
+function ConditionalSortableWrapper({ enabled, ids, children }: ConditionalSortableWrapperProps) {
+  if (!enabled) return <>{children}</>;
+  return (
+    <SortableContext items={ids} strategy={rectSortingStrategy}>
+      {children}
+    </SortableContext>
+  );
+}
+
 export function DomainGrid({ capabilities, onCapabilityClick, positions }: DomainGridProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: 'domain-grid-droppable',
@@ -134,26 +149,7 @@ export function DomainGrid({ capabilities, onCapabilityClick, positions }: Domai
         transition: 'border-color 0.2s',
       }}
     >
-      {hasSortablePositions ? (
-        <SortableContext items={sortableIds} strategy={rectSortingStrategy}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-              gap: '1rem',
-              padding: '1rem',
-            }}
-          >
-            {l1Capabilities.map((capability) => (
-              <SortableCapabilityItem
-                key={capability.id}
-                capability={capability}
-                onClick={() => onCapabilityClick(capability)}
-              />
-            ))}
-          </div>
-        </SortableContext>
-      ) : (
+      <ConditionalSortableWrapper enabled={hasSortablePositions} ids={sortableIds}>
         <div
           style={{
             display: 'grid',
@@ -162,15 +158,23 @@ export function DomainGrid({ capabilities, onCapabilityClick, positions }: Domai
             padding: '1rem',
           }}
         >
-          {l1Capabilities.map((capability) => (
-            <StaticCapabilityItem
-              key={capability.id}
-              capability={capability}
-              onClick={() => onCapabilityClick(capability)}
-            />
-          ))}
+          {l1Capabilities.map((capability) =>
+            hasSortablePositions ? (
+              <SortableCapabilityItem
+                key={capability.id}
+                capability={capability}
+                onClick={() => onCapabilityClick(capability)}
+              />
+            ) : (
+              <StaticCapabilityItem
+                key={capability.id}
+                capability={capability}
+                onClick={() => onCapabilityClick(capability)}
+              />
+            )
+          )}
         </div>
-      )}
+      </ConditionalSortableWrapper>
     </div>
   );
 }

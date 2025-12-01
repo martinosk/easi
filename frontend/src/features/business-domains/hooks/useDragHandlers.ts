@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
+import toast from 'react-hot-toast';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import type { Capability, CapabilityId, BusinessDomainId } from '../../../api/types';
 
@@ -105,8 +106,8 @@ export function useDragHandlers({
         const currentCount = capabilities.filter((c) => c.level === 'L1').length;
         await updatePosition(capability.id, currentCount, 0);
         return true;
-      } catch (err) {
-        console.error('Failed to assign capability:', err);
+      } catch {
+        toast.error('Failed to assign capability');
         return false;
       }
     },

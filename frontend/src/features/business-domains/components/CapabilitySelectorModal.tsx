@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { useCapabilityTree, type CapabilityTreeNode } from '../hooks/useCapabilityTree';
 import type { Capability, CapabilityId } from '../../../api/types';
 
@@ -114,8 +115,8 @@ export function CapabilitySelectorModal({ isOpen, onClose, currentAssociations, 
       setSelectedIds(new Set());
       setSelectedCapabilities(new Map());
       onClose();
-    } catch (err) {
-      console.error('Failed to save:', err);
+    } catch {
+      toast.error('Failed to save capability associations');
     } finally {
       setIsSaving(false);
     }

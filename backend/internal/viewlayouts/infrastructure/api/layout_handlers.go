@@ -201,6 +201,25 @@ func (h *LayoutHandlers) GetLayout(w http.ResponseWriter, r *http.Request) {
 	sharedAPI.RespondJSON(w, http.StatusOK, dto)
 }
 
+func (h *LayoutHandlers) createLayout(
+	contextType valueobjects.LayoutContextType,
+	contextRef valueobjects.ContextRef,
+	prefs map[string]interface{},
+) (*aggregates.LayoutContainer, error) {
+	preferences := valueobjects.NewLayoutPreferences(prefs)
+	return aggregates.NewLayoutContainer(contextType, contextRef, preferences)
+}
+
+func (h *LayoutHandlers) updateLayout(
+	existing *aggregates.LayoutContainer,
+	prefs map[string]interface{},
+) *aggregates.LayoutContainer {
+	newPrefs := valueobjects.NewLayoutPreferences(prefs)
+	existing.UpdatePreferences(newPrefs)
+	existing.IncrementVersion()
+	return existing
+}
+
 func (h *LayoutHandlers) UpsertLayout(w http.ResponseWriter, r *http.Request) {
 	contextType, contextRef, err := h.getPathParams(r)
 	if err != nil {
@@ -224,17 +243,13 @@ func (h *LayoutHandlers) UpsertLayout(w http.ResponseWriter, r *http.Request) {
 
 	var container *aggregates.LayoutContainer
 	if isNew {
-		prefs := valueobjects.NewLayoutPreferences(req.Preferences)
-		container, err = aggregates.NewLayoutContainer(contextType, contextRef, prefs)
+		container, err = h.createLayout(contextType, contextRef, req.Preferences)
 		if err != nil {
 			sharedAPI.RespondError(w, http.StatusBadRequest, err, "Failed to create layout")
 			return
 		}
 	} else {
-		container = existing
-		newPrefs := valueobjects.NewLayoutPreferences(req.Preferences)
-		container.UpdatePreferences(newPrefs)
-		container.IncrementVersion()
+		container = h.updateLayout(existing, req.Preferences)
 	}
 
 	if err := h.repo.Save(r.Context(), container); err != nil {
@@ -445,6 +460,44 @@ func (h *LayoutHandlers) DeleteElementPosition(w http.ResponseWriter, r *http.Re
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func transformToPosition(update BatchUpdateItem) (valueobjects.ElementPosition, error) {
+	elementID, err := valueobjects.NewElementID(update.ElementID)
+	if err != nil {
+		return valueobjects.ElementPosition{}, fmt.Errorf("invalid element ID %s: %w", update.ElementID, err)
+	}
+
+	var customColor *valueobjects.HexColor
+	if update.CustomColor != nil {
+		color, err := valueobjects.NewHexColor(*update.CustomColor)
+		if err != nil {
+			return valueobjects.ElementPosition{}, fmt.Errorf("invalid color for element %s: %w", update.ElementID, err)
+		}
+		customColor = &color
+	}
+
+	position, _ := valueobjects.NewElementPositionWithOptions(
+		elementID, update.X, update.Y,
+		update.Width, update.Height, customColor, update.SortOrder,
+	)
+	return position, nil
+}
+
+func (h *LayoutHandlers) buildBatchResponse(positions []valueobjects.ElementPosition, basePath string) BatchUpdateResponse {
+	elements := make([]ElementPositionDTO, 0, len(positions))
+	for _, pos := range positions {
+		elements = append(elements, h.buildElementDTO(pos, basePath))
+	}
+
+	return BatchUpdateResponse{
+		Updated:  len(positions),
+		Elements: elements,
+		Links: map[string]LinkDTO{
+			"self":   {Href: basePath + "/elements"},
+			"layout": {Href: basePath},
+		},
+	}
+}
+
 func (h *LayoutHandlers) BatchUpdateElements(w http.ResponseWriter, r *http.Request) {
 	contextType, contextRef, err := h.getPathParams(r)
 	if err != nil {
@@ -475,26 +528,11 @@ func (h *LayoutHandlers) BatchUpdateElements(w http.ResponseWriter, r *http.Requ
 
 	positions := make([]valueobjects.ElementPosition, 0, len(req.Updates))
 	for _, update := range req.Updates {
-		elementID, err := valueobjects.NewElementID(update.ElementID)
+		position, err := transformToPosition(update)
 		if err != nil {
-			sharedAPI.RespondError(w, http.StatusBadRequest, err, fmt.Sprintf("Invalid element ID: %s", update.ElementID))
+			sharedAPI.RespondError(w, http.StatusBadRequest, err, err.Error())
 			return
 		}
-
-		var customColor *valueobjects.HexColor
-		if update.CustomColor != nil {
-			color, err := valueobjects.NewHexColor(*update.CustomColor)
-			if err != nil {
-				sharedAPI.RespondError(w, http.StatusBadRequest, err, fmt.Sprintf("Invalid custom color for element %s", update.ElementID))
-				return
-			}
-			customColor = &color
-		}
-
-		position, _ := valueobjects.NewElementPositionWithOptions(
-			elementID, update.X, update.Y,
-			update.Width, update.Height, customColor, update.SortOrder,
-		)
 		positions = append(positions, position)
 	}
 
@@ -504,21 +542,7 @@ func (h *LayoutHandlers) BatchUpdateElements(w http.ResponseWriter, r *http.Requ
 	}
 
 	basePath := fmt.Sprintf("/api/v1/layouts/%s/%s", contextType.Value(), contextRef.Value())
-	elements := make([]ElementPositionDTO, 0, len(positions))
-	for _, pos := range positions {
-		elements = append(elements, h.buildElementDTO(pos, basePath))
-	}
-
-	response := BatchUpdateResponse{
-		Updated:  len(positions),
-		Elements: elements,
-		Links: map[string]LinkDTO{
-			"self":   {Href: basePath + "/elements"},
-			"layout": {Href: basePath},
-		},
-	}
-
-	sharedAPI.RespondJSON(w, http.StatusOK, response)
+	sharedAPI.RespondJSON(w, http.StatusOK, h.buildBatchResponse(positions, basePath))
 }
 
 func parseETag(etag string) (int, error) {

@@ -13,12 +13,17 @@ export const useCanvasNodes = (): Node[] => {
   const loadRealizationsByComponent = useAppStore((state) => state.loadRealizationsByComponent);
   const { positions: layoutPositions } = useCanvasLayoutContext();
 
+  const viewComponentIds = useMemo(
+    () => currentView?.components.map((vc) => vc.componentId).join(',') ?? '',
+    [currentView?.components]
+  );
+
   useEffect(() => {
-    if (!currentView) return;
+    if (!currentView || !viewComponentIds) return;
     currentView.components.forEach((vc) => {
       loadRealizationsByComponent(vc.componentId);
     });
-  }, [currentView?.id, currentView?.components.length, loadRealizationsByComponent]);
+  }, [currentView?.id, viewComponentIds, loadRealizationsByComponent]);
 
   return useMemo(() => {
     if (!currentView) return [];

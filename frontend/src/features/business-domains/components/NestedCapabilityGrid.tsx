@@ -147,6 +147,21 @@ function NestedCapabilityItem({ node, depth, onClick, sortable = false }: Nested
   );
 }
 
+interface ConditionalSortableWrapperProps {
+  enabled: boolean;
+  ids: string[];
+  children: React.ReactNode;
+}
+
+function ConditionalSortableWrapper({ enabled, ids, children }: ConditionalSortableWrapperProps) {
+  if (!enabled) return <>{children}</>;
+  return (
+    <SortableContext items={ids} strategy={rectSortingStrategy}>
+      {children}
+    </SortableContext>
+  );
+}
+
 export function NestedCapabilityGrid({
   capabilities,
   depth,
@@ -196,28 +211,7 @@ export function NestedCapabilityGrid({
         transition: 'border-color 0.2s',
       }}
     >
-      {hasSortablePositions ? (
-        <SortableContext items={sortableIds} strategy={rectSortingStrategy}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-              gap: '1rem',
-              padding: '1rem',
-            }}
-          >
-            {sortedTree.map((node) => (
-              <NestedCapabilityItem
-                key={node.capability.id}
-                node={node}
-                depth={depth}
-                onClick={onCapabilityClick}
-                sortable
-              />
-            ))}
-          </div>
-        </SortableContext>
-      ) : (
+      <ConditionalSortableWrapper enabled={hasSortablePositions} ids={sortableIds}>
         <div
           style={{
             display: 'grid',
@@ -232,10 +226,11 @@ export function NestedCapabilityGrid({
               node={node}
               depth={depth}
               onClick={onCapabilityClick}
+              sortable={hasSortablePositions}
             />
           ))}
         </div>
-      )}
+      </ConditionalSortableWrapper>
     </div>
   );
 }

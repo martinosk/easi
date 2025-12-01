@@ -4,16 +4,18 @@
 Findings from code review of changes between release v0.10.0 and v0.12.0. This spec documents code smells, structural issues, and proposed refactorings.
 
 ## Code Health Summary
-| File | Score | Status |
-|------|-------|--------|
-| import_session.go | 8.4 | Needs attention |
-| import_orchestrator.go | 8.54 | Needs attention |
-| layout_handlers.go | 8.24 | Needs attention |
-| layout_container_repository.go | 8.01 | Needs attention |
-| BusinessDomainsPage.tsx | 7.94 | Needs attention |
-| useLayout.ts | 9.2 | Minor issues |
-| useImportSession.ts | 9.68 | Minor issues |
-| client.ts | 10.0 | Healthy |
+| File | Before | After | Status |
+|------|--------|-------|--------|
+| import_session.go | 8.4 | 10.0 | ✅ Healthy |
+| import_orchestrator.go | 8.54 | 10.0 | ✅ Healthy |
+| layout_handlers.go | 8.24 | 8.82 | Improved |
+| layout_container_repository.go | 8.01 | 9.38 | Improved |
+| BusinessDomainsPage.tsx | 7.94 | 10.0 | ✅ Healthy |
+| DomainVisualizationPage.tsx | 8.61 | 9.06 | Improved |
+| useLayout.ts | 9.2 | 9.2 | Maintained |
+| useImportSession.ts | 9.68 | 10.0 | ✅ Healthy |
+| useCanvasNodes.ts | 9.68 | 10.0 | ✅ Healthy |
+| client.ts | 10.0 | 10.0 | ✅ Healthy |
 
 ---
 
@@ -151,15 +153,15 @@ Findings from code review of changes between release v0.10.0 and v0.12.0. This s
 
 ### Backend
 - [x] BE-1: Extract deserialization helpers (8.4 → 10.0)
-- [ ] BE-2: Add value objects for parsed types
+- [ ] BE-2: Add value objects for parsed types (deferred - high effort, low priority)
 - [x] BE-3: Create relationship processing strategy (8.54 → 10.0)
 - [x] BE-4: Create DomainAssignmentContext VO (included in BE-3)
 - [x] BE-5: Simplify buildHierarchyLevels (included in BE-3)
 - [x] BE-6: Extract repository reconstitution (8.01 → 9.38)
 - [x] BE-7: Simplify loadElements (included in BE-6)
 - [x] BE-8: Unify element position persistence (included in BE-6)
-- [ ] BE-9: Split UpsertLayout handler
-- [ ] BE-10: Simplify BatchUpdateElements
+- [x] BE-9: Split UpsertLayout handler (8.24 → 8.82)
+- [x] BE-10: Simplify BatchUpdateElements (included in BE-9)
 - [x] BE-11: Move temporal tracking to repository (9.68 maintained)
 
 ### Frontend
@@ -168,8 +170,8 @@ Findings from code review of changes between release v0.10.0 and v0.12.0. This s
 - [x] FE-3: Create shared drag handling hook (DomainVisualizationPage 8.61 → 9.06)
 - [x] FE-4: Fix stale closure in useLayout (9.2 maintained)
 - [x] FE-5: Fix polling in useImportSession (9.68 → 10.0)
-- [ ] FE-6: Remove duplicate grid rendering
+- [x] FE-6: Remove duplicate grid rendering
 - [x] FE-7: Extract node factory functions (useCanvasNodes 9.68 → 10.0)
-- [ ] FE-8: Add user feedback for errors
-- [ ] FE-9: Convert to controlled dialog
-- [ ] FE-10: Fix useCanvasNodes dependencies
+- [x] FE-8: Add user feedback for errors
+- [x] FE-9: Convert to controlled dialog
+- [x] FE-10: Fix useCanvasNodes dependencies
