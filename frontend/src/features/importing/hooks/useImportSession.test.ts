@@ -1,15 +1,34 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { useImportSession } from './useImportSession';
-import axios from 'axios';
 import type { ImportSession, CreateImportSessionRequest } from '../types';
 
-vi.mock('axios');
-const mockedAxios = vi.mocked(axios);
+const { mockPost, mockGet, mockDelete } = vi.hoisted(() => ({
+  mockPost: vi.fn(),
+  mockGet: vi.fn(),
+  mockDelete: vi.fn(),
+}));
+
+vi.mock('axios', () => ({
+  default: {
+    create: vi.fn(() => ({
+      post: mockPost,
+      get: mockGet,
+      delete: mockDelete,
+      interceptors: {
+        response: { use: vi.fn() },
+      },
+    })),
+  },
+}));
+
+import { useImportSession } from './useImportSession';
 
 describe('useImportSession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPost.mockReset();
+    mockGet.mockReset();
+    mockDelete.mockReset();
   });
 
   afterEach(() => {
@@ -42,12 +61,7 @@ describe('useImportSession', () => {
         },
       };
 
-      mockedAxios.create.mockReturnValue({
-        post: vi.fn().mockResolvedValue({ data: mockSession }),
-        interceptors: {
-          response: { use: vi.fn() },
-        },
-      } as any);
+      mockPost.mockResolvedValue({ data: mockSession });
 
       const { result } = renderHook(() => useImportSession());
 
@@ -68,12 +82,7 @@ describe('useImportSession', () => {
 
     it('should handle API errors during session creation', async () => {
       const errorMessage = 'Invalid file format';
-      mockedAxios.create.mockReturnValue({
-        post: vi.fn().mockRejectedValue(new Error(errorMessage)),
-        interceptors: {
-          response: { use: vi.fn() },
-        },
-      } as any);
+      mockPost.mockRejectedValue(new Error(errorMessage));
 
       const { result } = renderHook(() => useImportSession());
 
@@ -113,16 +122,9 @@ describe('useImportSession', () => {
         },
       };
 
-      const mockPost = vi.fn()
+      mockPost
         .mockResolvedValueOnce({ data: pendingSession })
         .mockResolvedValueOnce({ data: importingSession });
-
-      mockedAxios.create.mockReturnValue({
-        post: mockPost,
-        interceptors: {
-          response: { use: vi.fn() },
-        },
-      } as any);
 
       const { result } = renderHook(() => useImportSession());
 
@@ -151,16 +153,9 @@ describe('useImportSession', () => {
       };
 
       const errorMessage = 'Import already started';
-      const mockPost = vi.fn()
+      mockPost
         .mockResolvedValueOnce({ data: mockSession })
         .mockRejectedValueOnce(new Error(errorMessage));
-
-      mockedAxios.create.mockReturnValue({
-        post: mockPost,
-        interceptors: {
-          response: { use: vi.fn() },
-        },
-      } as any);
 
       const { result } = renderHook(() => useImportSession());
 
@@ -192,13 +187,8 @@ describe('useImportSession', () => {
         },
       };
 
-      mockedAxios.create.mockReturnValue({
-        post: vi.fn().mockResolvedValue({ data: mockSession }),
-        delete: vi.fn().mockResolvedValue({}),
-        interceptors: {
-          response: { use: vi.fn() },
-        },
-      } as any);
+      mockPost.mockResolvedValue({ data: mockSession });
+      mockDelete.mockResolvedValue({});
 
       const { result } = renderHook(() => useImportSession());
 
@@ -243,19 +233,10 @@ describe('useImportSession', () => {
         completedAt: '2025-01-15T10:05:00Z',
       };
 
-      const mockGet = vi.fn()
+      mockPost.mockResolvedValue({ data: importingSession });
+      mockGet
         .mockResolvedValueOnce({ data: importingSession })
         .mockResolvedValueOnce({ data: completedSession });
-
-      const mockPost = vi.fn().mockResolvedValue({ data: importingSession });
-
-      mockedAxios.create.mockReturnValue({
-        post: mockPost,
-        get: mockGet,
-        interceptors: {
-          response: { use: vi.fn() },
-        },
-      } as any);
 
       const { result } = renderHook(() => useImportSession());
 
@@ -293,15 +274,7 @@ describe('useImportSession', () => {
         _links: { self: '/api/v1/imports/import-123' },
       };
 
-      const mockGet = vi.fn();
-
-      mockedAxios.create.mockReturnValue({
-        post: vi.fn().mockResolvedValue({ data: completedSession }),
-        get: mockGet,
-        interceptors: {
-          response: { use: vi.fn() },
-        },
-      } as any);
+      mockPost.mockResolvedValue({ data: completedSession });
 
       const { result } = renderHook(() => useImportSession());
 
@@ -328,12 +301,7 @@ describe('useImportSession', () => {
         _links: { self: '/api/v1/imports/import-123' },
       };
 
-      mockedAxios.create.mockReturnValue({
-        post: vi.fn().mockResolvedValue({ data: mockSession }),
-        interceptors: {
-          response: { use: vi.fn() },
-        },
-      } as any);
+      mockPost.mockResolvedValue({ data: mockSession });
 
       const { result } = renderHook(() => useImportSession());
 
