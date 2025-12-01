@@ -293,10 +293,15 @@ func (h *BusinessDomainHandlers) GetCapabilitiesInDomain(w http.ResponseWriter, 
 
 	capabilities := make([]CapabilityInDomainDTO, len(assignments))
 	for i, a := range assignments {
+		var description string
+		if cap, err := h.readModels.Capability.GetByID(r.Context(), a.CapabilityID); err == nil && cap != nil {
+			description = cap.Description
+		}
 		capabilities[i] = CapabilityInDomainDTO{
 			ID:          a.CapabilityID,
 			Code:        a.CapabilityCode,
 			Name:        a.CapabilityName,
+			Description: description,
 			Level:       a.CapabilityLevel,
 			AssignedAt:  a.AssignedAt.Format("2006-01-02T15:04:05Z07:00"),
 			Links:       h.hateoas.CapabilityInDomainLinks(a.CapabilityID, domainID),
