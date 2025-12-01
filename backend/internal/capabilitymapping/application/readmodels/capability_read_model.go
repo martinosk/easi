@@ -96,7 +96,15 @@ func (rm *CapabilityReadModel) UpdateMetadata(ctx context.Context, id string, me
 	return err
 }
 
-func (rm *CapabilityReadModel) AddExpert(ctx context.Context, capabilityID, expertName, expertRole, contactInfo string, addedAt time.Time) error {
+type ExpertInfo struct {
+	CapabilityID string
+	Name         string
+	Role         string
+	Contact      string
+	AddedAt      time.Time
+}
+
+func (rm *CapabilityReadModel) AddExpert(ctx context.Context, info ExpertInfo) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -104,7 +112,7 @@ func (rm *CapabilityReadModel) AddExpert(ctx context.Context, capabilityID, expe
 
 	_, err = rm.db.ExecContext(ctx,
 		"INSERT INTO capability_experts (capability_id, tenant_id, expert_name, expert_role, contact_info, added_at) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (tenant_id, capability_id, expert_name) DO NOTHING",
-		capabilityID, tenantID.Value(), expertName, expertRole, contactInfo, addedAt,
+		info.CapabilityID, tenantID.Value(), info.Name, info.Role, info.Contact, info.AddedAt,
 	)
 	return err
 }
@@ -188,17 +196,11 @@ func (rm *CapabilityReadModel) GetByID(ctx context.Context, id string) (*Capabil
 		return nil, err
 	}
 
-	var result capabilityScanResult
-	var notFound bool
-
+	var dto *CapabilityDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		found, err := rm.scanCapability(ctx, tx, tenantID.Value(), id, &result)
-		if err != nil {
+		result, found, err := scanCapabilityRow(ctx, tx, tenantID.Value(), id)
+		if err != nil || !found {
 			return err
-		}
-		if !found {
-			notFound = true
-			return nil
 		}
 
 		result.dto.Experts, err = rm.fetchExperts(ctx, tx, tenantID.Value(), id)
@@ -207,29 +209,29 @@ func (rm *CapabilityReadModel) GetByID(ctx context.Context, id string) (*Capabil
 		}
 
 		result.dto.Tags, err = rm.fetchTags(ctx, tx, tenantID.Value(), id)
-		return err
+		if err != nil {
+			return err
+		}
+		dto = result.toDTO()
+		return nil
 	})
-
-	if err != nil {
-		return nil, err
-	}
-	if notFound {
-		return nil, nil
-	}
-
-	return result.toDTO(), nil
+	return dto, err
 }
 
-func (rm *CapabilityReadModel) scanCapability(ctx context.Context, tx *sql.Tx, tenantID, id string, result *capabilityScanResult) (bool, error) {
+func scanCapabilityRow(ctx context.Context, tx *sql.Tx, tenantID, id string) (*capabilityScanResult, bool, error) {
+	var result capabilityScanResult
 	err := tx.QueryRowContext(ctx,
 		"SELECT id, name, description, parent_id, level, strategy_pillar, pillar_weight, maturity_level, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilities WHERE tenant_id = $1 AND id = $2",
 		tenantID, id,
 	).Scan(&result.dto.ID, &result.dto.Name, &result.dto.Description, &result.parentID, &result.dto.Level, &result.strategyPillar, &result.pillarWeight, &result.dto.MaturityLevel, &result.ownershipModel, &result.primaryOwner, &result.eaOwner, &result.dto.Status, &result.dto.CreatedAt)
 
 	if err == sql.ErrNoRows {
-		return false, nil
+		return nil, false, nil
 	}
-	return err == nil, err
+	if err != nil {
+		return nil, false, err
+	}
+	return &result, true, nil
 }
 
 func (rm *CapabilityReadModel) fetchExperts(ctx context.Context, tx *sql.Tx, tenantID, capabilityID string) ([]ExpertDTO, error) {
@@ -329,55 +331,63 @@ func (rm *CapabilityReadModel) queryCapabilityList(ctx context.Context, query st
 
 	var capabilities []CapabilityDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx, query, args...)
+		caps, err := rm.scanCapabilityRows(ctx, tx, query, args...)
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var result capabilityScanResult
-			if err := rows.Scan(
-				&result.dto.ID,
-				&result.dto.Name,
-				&result.dto.Description,
-				&result.parentID,
-				&result.dto.Level,
-				&result.strategyPillar,
-				&result.pillarWeight,
-				&result.dto.MaturityLevel,
-				&result.ownershipModel,
-				&result.primaryOwner,
-				&result.eaOwner,
-				&result.dto.Status,
-				&result.dto.CreatedAt,
-			); err != nil {
-				return err
-			}
-			capabilities = append(capabilities, *result.toDTO())
-		}
-		if err := rows.Err(); err != nil {
-			return err
-		}
+		capabilities = caps
 
 		if len(capabilities) == 0 {
 			return nil
 		}
 
-		capabilityIDs := make([]string, len(capabilities))
-		capabilityMap := make(map[string]*CapabilityDTO)
-		for i := range capabilities {
-			capabilityIDs[i] = capabilities[i].ID
-			capabilityMap[capabilities[i].ID] = &capabilities[i]
-		}
-
+		capabilityMap := buildCapabilityMap(capabilities)
 		if err := rm.fetchExpertsBatch(ctx, tx, tenantID.Value(), capabilityMap); err != nil {
 			return err
 		}
-
 		return rm.fetchTagsBatch(ctx, tx, tenantID.Value(), capabilityMap)
 	})
 	return capabilities, err
+}
+
+func (rm *CapabilityReadModel) scanCapabilityRows(ctx context.Context, tx *sql.Tx, query string, args ...interface{}) ([]CapabilityDTO, error) {
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var capabilities []CapabilityDTO
+	for rows.Next() {
+		var result capabilityScanResult
+		if err := rows.Scan(
+			&result.dto.ID, &result.dto.Name, &result.dto.Description, &result.parentID,
+			&result.dto.Level, &result.strategyPillar, &result.pillarWeight, &result.dto.MaturityLevel,
+			&result.ownershipModel, &result.primaryOwner, &result.eaOwner, &result.dto.Status, &result.dto.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		capabilities = append(capabilities, *result.toDTO())
+	}
+	return capabilities, rows.Err()
+}
+
+func buildCapabilityMap(capabilities []CapabilityDTO) map[string]*CapabilityDTO {
+	capabilityMap := make(map[string]*CapabilityDTO, len(capabilities))
+	for i := range capabilities {
+		capabilityMap[capabilities[i].ID] = &capabilities[i]
+	}
+	return capabilityMap
+}
+
+func buildInClause(ids []string) (placeholders string, args []interface{}) {
+	args = make([]interface{}, len(ids))
+	ph := make([]string, len(ids))
+	for i, id := range ids {
+		ph[i] = fmt.Sprintf("$%d", i+2)
+		args[i] = id
+	}
+	return strings.Join(ph, ", "), args
 }
 
 func (rm *CapabilityReadModel) fetchExpertsBatch(ctx context.Context, tx *sql.Tx, tenantID string, capabilityMap map[string]*CapabilityDTO) error {
@@ -385,23 +395,18 @@ func (rm *CapabilityReadModel) fetchExpertsBatch(ctx context.Context, tx *sql.Tx
 		return nil
 	}
 
-	ids := make([]interface{}, 0, len(capabilityMap))
+	ids := make([]string, 0, len(capabilityMap))
 	for id := range capabilityMap {
 		ids = append(ids, id)
 	}
 
-	placeholders := make([]string, len(ids))
-	for i := range ids {
-		placeholders[i] = fmt.Sprintf("$%d", i+2)
-	}
-
+	placeholders, idArgs := buildInClause(ids)
 	query := fmt.Sprintf(
 		"SELECT capability_id, expert_name, expert_role, contact_info, added_at FROM capability_experts WHERE tenant_id = $1 AND capability_id IN (%s)",
-		strings.Join(placeholders, ", "),
+		placeholders,
 	)
 
-	args := append([]interface{}{tenantID}, ids...)
-	rows, err := tx.QueryContext(ctx, query, args...)
+	rows, err := tx.QueryContext(ctx, query, append([]interface{}{tenantID}, idArgs...)...)
 	if err != nil {
 		return err
 	}
@@ -425,23 +430,18 @@ func (rm *CapabilityReadModel) fetchTagsBatch(ctx context.Context, tx *sql.Tx, t
 		return nil
 	}
 
-	ids := make([]interface{}, 0, len(capabilityMap))
+	ids := make([]string, 0, len(capabilityMap))
 	for id := range capabilityMap {
 		ids = append(ids, id)
 	}
 
-	placeholders := make([]string, len(ids))
-	for i := range ids {
-		placeholders[i] = fmt.Sprintf("$%d", i+2)
-	}
-
+	placeholders, idArgs := buildInClause(ids)
 	query := fmt.Sprintf(
 		"SELECT capability_id, tag FROM capability_tags WHERE tenant_id = $1 AND capability_id IN (%s) ORDER BY tag",
-		strings.Join(placeholders, ", "),
+		placeholders,
 	)
 
-	args := append([]interface{}{tenantID}, ids...)
-	rows, err := tx.QueryContext(ctx, query, args...)
+	rows, err := tx.QueryContext(ctx, query, append([]interface{}{tenantID}, idArgs...)...)
 	if err != nil {
 		return err
 	}

@@ -97,7 +97,13 @@ func (p *CapabilityProjector) handleCapabilityExpertAdded(ctx context.Context, e
 		log.Printf("Failed to unmarshal CapabilityExpertAdded event: %v", err)
 		return err
 	}
-	return p.readModel.AddExpert(ctx, event.CapabilityID, event.ExpertName, event.ExpertRole, event.ContactInfo, event.AddedAt)
+	return p.readModel.AddExpert(ctx, readmodels.ExpertInfo{
+		CapabilityID: event.CapabilityID,
+		Name:         event.ExpertName,
+		Role:         event.ExpertRole,
+		Contact:      event.ContactInfo,
+		AddedAt:      event.AddedAt,
+	})
 }
 
 func (p *CapabilityProjector) handleCapabilityTagAdded(ctx context.Context, eventData []byte) error {
