@@ -101,25 +101,21 @@ func (c *LayoutContainer) GetElement(elementID valueobjects.ElementID) *valueobj
 
 func (c *LayoutContainer) UpsertElement(position valueobjects.ElementPosition) error {
 	c.elements[position.ElementID().Value()] = position
-	c.updatedAt = time.Now().UTC()
 	return nil
 }
 
 func (c *LayoutContainer) RemoveElement(elementID valueobjects.ElementID) error {
 	delete(c.elements, elementID.Value())
-	c.updatedAt = time.Now().UTC()
 	return nil
 }
 
 func (c *LayoutContainer) UpdatePreferences(preferences valueobjects.LayoutPreferences) error {
 	c.preferences = preferences
-	c.updatedAt = time.Now().UTC()
 	return nil
 }
 
 func (c *LayoutContainer) IncrementVersion() {
 	c.version++
-	c.updatedAt = time.Now().UTC()
 }
 
 func (c *LayoutContainer) SetElements(elements []valueobjects.ElementPosition) {
