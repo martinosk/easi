@@ -367,4 +367,44 @@ describe('useCapabilityRealizations', () => {
       expect(result.current.realizations).toEqual([]);
     });
   });
+
+  describe('depth change race conditions', () => {
+    it('should keep inherited on L1 visible until L2 realizations are fetched', async () => {
+      let resolveL2Fetch: (value: CapabilityRealization[]) => void;
+      const l2FetchPromise = new Promise<CapabilityRealization[]>((resolve) => {
+        resolveL2Fetch = resolve;
+      });
+
+      vi.mocked(apiClient.getSystemsByCapability).mockImplementation((capabilityId) => {
+        if (capabilityId === 'cap-l1') {
+          return Promise.resolve([createRealization('real-inherited', 'cap-l1', 'Inherited', 'cap-l2')]);
+        }
+        return l2FetchPromise;
+      });
+
+      const { result, rerender } = renderHook(
+        ({ caps }) => useCapabilityRealizations(true, caps),
+        { initialProps: { caps: [cap('cap-l1', 'L1')] } }
+      );
+
+      await waitFor(() => {
+        expect(result.current.realizations).toHaveLength(1);
+      });
+
+      expect(result.current.realizations[0].id).toBe('real-inherited');
+      expect(result.current.realizations[0].capabilityId).toBe('cap-l1');
+
+      rerender({ caps: [cap('cap-l1', 'L1'), cap('cap-l2', 'L2')] });
+
+      expect(result.current.realizations).toHaveLength(1);
+      expect(result.current.realizations[0].id).toBe('real-inherited');
+
+      resolveL2Fetch!([createRealization('real-direct', 'cap-l2', 'Direct')]);
+
+      await waitFor(() => {
+        expect(result.current.realizations).toHaveLength(1);
+        expect(result.current.realizations[0].id).toBe('real-direct');
+      });
+    });
+  });
 });

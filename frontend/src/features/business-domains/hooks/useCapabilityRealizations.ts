@@ -87,6 +87,7 @@ export function useCapabilityRealizations(
 
   const filteredRealizations = useMemo(() => {
     const visibleSet = new Set(visibleCapabilityIds);
+    const fetchedSet = fetchedCapabilityIds.current;
 
     const directRealizations: CapabilityRealization[] = [];
     const inheritedByKey = new Map<string, CapabilityRealization>();
@@ -102,7 +103,7 @@ export function useCapabilityRealizations(
       }
 
       if (r.origin === 'Inherited' && r.sourceCapabilityId) {
-        if (visibleSet.has(r.sourceCapabilityId)) {
+        if (visibleSet.has(r.sourceCapabilityId) && fetchedSet.has(r.sourceCapabilityId)) {
           continue;
         }
 
