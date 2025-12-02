@@ -81,7 +81,6 @@ func (p *BusinessDomainAssignmentProjector) handleCapabilityAssignedToDomain(ctx
 		BusinessDomainID:   event.BusinessDomainID,
 		BusinessDomainName: domain.Name,
 		CapabilityID:       event.CapabilityID,
-		CapabilityCode:     capability.ID,
 		CapabilityName:     capability.Name,
 		CapabilityLevel:    capability.Level,
 		AssignedAt:         event.AssignedAt,

@@ -626,68 +626,16 @@ describe('CapabilitySlice Tests', () => {
       });
     });
 
-    describe('loadRealizationsByCapability', () => {
-      it('should load realizations for a capability', async () => {
-        const mockRealizations = [buildRealization()];
-
-        vi.mocked(apiClient.getSystemsByCapability).mockResolvedValueOnce(mockRealizations);
-
-        const result = await useStore.getState().loadRealizationsByCapability('cap-1');
-
-        expect(apiClient.getSystemsByCapability).toHaveBeenCalledWith('cap-1');
-        expect(result).toEqual(mockRealizations);
-        expect(useStore.getState().capabilityRealizations).toContainEqual(mockRealizations[0]);
-      });
-
-      it('should merge new realizations with existing ones', async () => {
-        const existingRealization = buildRealization({
-          id: 'real-existing',
-          capabilityId: 'cap-2',
-          componentId: 'comp-2',
-          realizationLevel: 'Partial',
-        });
-        useStore.setState({ capabilityRealizations: [existingRealization] });
-
-        const newRealizations = [buildRealization()];
-
-        vi.mocked(apiClient.getSystemsByCapability).mockResolvedValueOnce(newRealizations);
-
-        await useStore.getState().loadRealizationsByCapability('cap-1');
-
-        const state = useStore.getState();
-        expect(state.capabilityRealizations).toHaveLength(2);
-        expect(state.capabilityRealizations).toContainEqual(existingRealization);
-        expect(state.capabilityRealizations).toContainEqual(newRealizations[0]);
-      });
-
-      it('should replace existing realizations with same id', async () => {
-        const existingRealization = buildRealization({ realizationLevel: 'Partial' });
-        useStore.setState({ capabilityRealizations: [existingRealization] });
-
-        const updatedRealizations = [
-          buildRealization({ realizationLevel: 'Full', notes: 'Updated' }),
-        ];
-
-        vi.mocked(apiClient.getSystemsByCapability).mockResolvedValueOnce(updatedRealizations);
-
-        await useStore.getState().loadRealizationsByCapability('cap-1');
-
-        const state = useStore.getState();
-        expect(state.capabilityRealizations).toHaveLength(1);
-        expect(state.capabilityRealizations[0].realizationLevel).toBe('Full');
-      });
-    });
-
     describe('loadRealizationsByComponent', () => {
       it('should load realizations for a component', async () => {
         const mockRealizations = [
           buildRealization(),
-          buildRealization({ id: 'real-2', capabilityId: 'cap-2', realizationLevel: 'Partial' }),
+          buildRealization({ id: 'real-2' as CapabilityRealization['id'], capabilityId: 'cap-2' as CapabilityRealization['capabilityId'], realizationLevel: 'Partial' }),
         ];
 
         vi.mocked(apiClient.getCapabilitiesByComponent).mockResolvedValueOnce(mockRealizations);
 
-        const result = await useStore.getState().loadRealizationsByComponent('comp-1');
+        const result = await useStore.getState().loadRealizationsByComponent('comp-1' as CapabilityRealization['componentId']);
 
         expect(apiClient.getCapabilitiesByComponent).toHaveBeenCalledWith('comp-1');
         expect(result).toEqual(mockRealizations);

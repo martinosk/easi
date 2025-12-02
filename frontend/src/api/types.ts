@@ -441,3 +441,10 @@ export interface BatchUpdateResponse {
   elements: ElementPosition[];
   _links: LayoutLinks;
 }
+
+export interface CapabilityRealizationsGroup {
+  capabilityId: CapabilityId;
+  capabilityName: string;
+  level: CapabilityLevel;
+  realizations: CapabilityRealization[];
+}

@@ -130,7 +130,6 @@ func (p *testableBusinessDomainAssignmentProjector) handleCapabilityAssignedToDo
 		BusinessDomainID:   event.BusinessDomainID,
 		BusinessDomainName: domain.Name,
 		CapabilityID:       event.CapabilityID,
-		CapabilityCode:     capability.ID,
 		CapabilityName:     capability.Name,
 		CapabilityLevel:    capability.Level,
 		AssignedAt:         event.AssignedAt,
@@ -186,7 +185,6 @@ func TestBusinessDomainAssignmentProjector_HandleCapabilityAssignedToDomain(t *t
 	assert.Equal(t, "bd-456", assignmentMock.insertedAssignments[0].BusinessDomainID)
 	assert.Equal(t, "Finance", assignmentMock.insertedAssignments[0].BusinessDomainName)
 	assert.Equal(t, "cap-789", assignmentMock.insertedAssignments[0].CapabilityID)
-	assert.Equal(t, "cap-789", assignmentMock.insertedAssignments[0].CapabilityCode)
 	assert.Equal(t, "Financial Reporting", assignmentMock.insertedAssignments[0].CapabilityName)
 	assert.Equal(t, "L1", assignmentMock.insertedAssignments[0].CapabilityLevel)
 	assert.WithinDuration(t, time.Now().UTC(), assignmentMock.insertedAssignments[0].AssignedAt, time.Second)

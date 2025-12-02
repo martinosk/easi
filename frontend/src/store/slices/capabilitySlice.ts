@@ -51,7 +51,6 @@ export interface CapabilityActions {
   linkSystemToCapability: (capabilityId: CapabilityId, data: LinkSystemToCapabilityRequest) => Promise<CapabilityRealization>;
   updateRealization: (id: RealizationId, data: UpdateRealizationRequest) => Promise<CapabilityRealization>;
   deleteRealization: (id: RealizationId) => Promise<void>;
-  loadRealizationsByCapability: (capabilityId: CapabilityId) => Promise<CapabilityRealization[]>;
   loadRealizationsByComponent: (componentId: ComponentId) => Promise<CapabilityRealization[]>;
 }
 
@@ -201,15 +200,6 @@ export const createCapabilitySlice: StateCreator<
       ),
     });
     toast.success('Realization deleted');
-  },
-
-  loadRealizationsByCapability: async (capabilityId: CapabilityId) => {
-    const realizations = await handleApiCall(
-      () => apiClient.getSystemsByCapability(capabilityId),
-      'Failed to load realizations'
-    );
-    set({ capabilityRealizations: mergeRealizations(get().capabilityRealizations, realizations) });
-    return realizations;
   },
 
   loadRealizationsByComponent: async (componentId: ComponentId) => {

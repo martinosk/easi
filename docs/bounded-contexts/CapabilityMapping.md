@@ -121,6 +121,8 @@ Enable enterprise architects to model business capabilities and map them to IT s
 | **Capability Realization** | The linkage between a capability and the IT systems that implement it |
 | **Realization Level** | Degree to which a system realizes a capability (Partial, Full, Primary) |
 | **Primary Realizer** | The main IT system responsible for a capability |
+| **Inherited Realization** | Realization automatically propagated from parent capability to child capabilities |
+| **Direct Realization** | Realization explicitly created for a specific capability (origin: "direct") |
 | **Capability Maturity** | Assessment of how well-developed a capability is (Initial, Managed, Defined, Quantified, Optimized) |
 | **Capability Dependency** | A relationship where one capability requires or depends on another |
 | **Dependency Type** | Nature of dependency (Requires, Enables, Supports) |
@@ -245,6 +247,7 @@ Enable enterprise architects to model business capabilities and map them to IT s
 - REST Level 3 with HATEOAS
 - Hierarchical endpoint design (capabilities/{id}/children, capabilities/{id}/dependencies)
 - Graph query support for dependency analysis
+- Domain-scoped queries for performance (business-domains/{id}/capability-realizations)
 
 ### Cross-Context Integration
 - **Downstream of Architecture Modeling**: Listens to `ApplicationComponentDeleted` events
@@ -269,3 +272,4 @@ When Enterprise Strategy context is implemented:
 - Get business domains for a specific capability
 - Get orphaned L1 capabilities (not in any business domain)
 - Get business domain composition (L1 capabilities + their full L2/L3/L4 hierarchy + realizing systems)
+- Get all capability realizations for a business domain (filtered by depth, with inherited realizations)

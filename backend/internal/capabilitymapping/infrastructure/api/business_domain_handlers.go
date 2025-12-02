@@ -2,20 +2,25 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
+	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
+	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"github.com/go-chi/chi/v5"
 )
 
 type BusinessDomainReadModels struct {
-	Domain     *readmodels.BusinessDomainReadModel
-	Assignment *readmodels.DomainCapabilityAssignmentReadModel
-	Capability *readmodels.CapabilityReadModel
+	Domain      *readmodels.BusinessDomainReadModel
+	Assignment  *readmodels.DomainCapabilityAssignmentReadModel
+	Capability  *readmodels.CapabilityReadModel
+	Realization *readmodels.RealizationReadModel
 }
 
 type BusinessDomainHandlers struct {
@@ -59,7 +64,6 @@ type AssignmentResponse struct {
 
 type CapabilityInDomainDTO struct {
 	ID          string            `json:"id"`
-	Code        string            `json:"code"`
 	Name        string            `json:"name"`
 	Description string            `json:"description,omitempty"`
 	Level       string            `json:"level"`
@@ -190,6 +194,14 @@ func (h *BusinessDomainHandlers) UpdateBusinessDomain(w http.ResponseWriter, r *
 	}
 
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		if errors.Is(err, handlers.ErrBusinessDomainNameExists) {
+			sharedAPI.RespondError(w, http.StatusConflict, err, "Business domain with this name already exists")
+			return
+		}
+		if errors.Is(err, valueobjects.ErrDomainNameEmpty) || errors.Is(err, valueobjects.ErrDomainNameTooLong) {
+			sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+			return
+		}
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "")
 		return
 	}
@@ -254,6 +266,10 @@ func (h *BusinessDomainHandlers) DeleteBusinessDomain(w http.ResponseWriter, r *
 	}
 
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		if errors.Is(err, handlers.ErrBusinessDomainHasAssignments) {
+			sharedAPI.RespondError(w, http.StatusConflict, err, "Cannot delete domain with assigned capabilities")
+			return
+		}
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "")
 		return
 	}
@@ -299,7 +315,6 @@ func (h *BusinessDomainHandlers) GetCapabilitiesInDomain(w http.ResponseWriter, 
 		}
 		capabilities[i] = CapabilityInDomainDTO{
 			ID:          a.CapabilityID,
-			Code:        a.CapabilityCode,
 			Name:        a.CapabilityName,
 			Description: description,
 			Level:       a.CapabilityLevel,
@@ -314,6 +329,27 @@ func (h *BusinessDomainHandlers) GetCapabilitiesInDomain(w http.ResponseWriter, 
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, capabilities, links)
+}
+
+var assignmentErrorMappings = []struct {
+	err     error
+	status  int
+	message string
+}{
+	{handlers.ErrCapabilityNotFound, http.StatusNotFound, "Capability not found"},
+	{handlers.ErrBusinessDomainNotFound, http.StatusNotFound, "Business domain not found"},
+	{handlers.ErrOnlyL1CapabilitiesCanBeAssigned, http.StatusBadRequest, "Only L1 capabilities can be assigned to business domains"},
+	{handlers.ErrAssignmentAlreadyExists, http.StatusConflict, "Capability is already assigned to this domain"},
+}
+
+func handleAssignmentError(w http.ResponseWriter, err error) bool {
+	for _, m := range assignmentErrorMappings {
+		if errors.Is(err, m.err) {
+			sharedAPI.RespondError(w, m.status, err, m.message)
+			return true
+		}
+	}
+	return false
 }
 
 // AssignCapabilityToDomain godoc
@@ -345,11 +381,17 @@ func (h *BusinessDomainHandlers) AssignCapabilityToDomain(w http.ResponseWriter,
 	}
 
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "")
+		if !handleAssignmentError(w, err) {
+			sharedAPI.RespondError(w, http.StatusInternalServerError, err, "")
+		}
 		return
 	}
 
-	assignment, err := h.readModels.Assignment.GetByDomainAndCapability(r.Context(), domainID, req.CapabilityID)
+	h.respondWithAssignment(w, r, domainID, req.CapabilityID)
+}
+
+func (h *BusinessDomainHandlers) respondWithAssignment(w http.ResponseWriter, r *http.Request, domainID, capabilityID string) {
+	assignment, err := h.readModels.Assignment.GetByDomainAndCapability(r.Context(), domainID, capabilityID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve assignment")
 		return
@@ -362,14 +404,14 @@ func (h *BusinessDomainHandlers) AssignCapabilityToDomain(w http.ResponseWriter,
 		return
 	}
 
-	location := fmt.Sprintf("/api/v1/business-domains/%s/capabilities/%s", domainID, req.CapabilityID)
+	location := fmt.Sprintf("/api/v1/business-domains/%s/capabilities/%s", domainID, capabilityID)
 	w.Header().Set("Location", location)
 
 	response := AssignmentResponse{
 		BusinessDomainID: assignment.BusinessDomainID,
 		CapabilityID:     assignment.CapabilityID,
 		AssignedAt:       assignment.AssignedAt.Format("2006-01-02T15:04:05Z07:00"),
-		Links:            h.hateoas.AssignmentLinks(domainID, req.CapabilityID),
+		Links:            h.hateoas.AssignmentLinks(domainID, capabilityID),
 	}
 
 	sharedAPI.RespondJSON(w, http.StatusCreated, response)
@@ -458,4 +500,90 @@ func (h *BusinessDomainHandlers) GetDomainsForCapability(w http.ResponseWriter, 
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, domains, links)
+}
+
+type CapabilityRealizationsGroupDTO struct {
+	CapabilityID   string                      `json:"capabilityId"`
+	CapabilityName string                      `json:"capabilityName"`
+	Level          string                      `json:"level"`
+	Realizations   []readmodels.RealizationDTO `json:"realizations"`
+}
+
+func parseDepthParam(r *http.Request) (int, error) {
+	depthStr := r.URL.Query().Get("depth")
+	if depthStr == "" {
+		return 4, nil
+	}
+	depth, err := strconv.Atoi(depthStr)
+	if err != nil || depth < 1 || depth > 4 {
+		return 0, fmt.Errorf("depth must be between 1 and 4")
+	}
+	return depth, nil
+}
+
+func (h *BusinessDomainHandlers) toRealizationGroupDTOs(groups []readmodels.CapabilityRealizationsGroup) []CapabilityRealizationsGroupDTO {
+	result := make([]CapabilityRealizationsGroupDTO, len(groups))
+	for i, g := range groups {
+		result[i] = CapabilityRealizationsGroupDTO{
+			CapabilityID:   g.CapabilityID,
+			CapabilityName: g.CapabilityName,
+			Level:          g.Level,
+			Realizations:   h.addRealizationLinks(g.Realizations),
+		}
+	}
+	return result
+}
+
+func (h *BusinessDomainHandlers) addRealizationLinks(realizations []readmodels.RealizationDTO) []readmodels.RealizationDTO {
+	result := make([]readmodels.RealizationDTO, len(realizations))
+	for i, r := range realizations {
+		r.Links = h.hateoas.RealizationLinks(r.ID, r.CapabilityID, r.ComponentID)
+		result[i] = r
+	}
+	return result
+}
+
+// GetCapabilityRealizationsByDomain godoc
+// @Summary Get all capability realizations for a business domain
+// @Description Returns all application components that realize capabilities in a business domain, up to the specified depth level
+// @Tags business-domains
+// @Produce json
+// @Param id path string true "Business Domain ID"
+// @Param depth query int false "Maximum capability depth level (1-4)" default(4)
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]api.CapabilityRealizationsGroupDTO}
+// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Router /business-domains/{id}/capability-realizations [get]
+func (h *BusinessDomainHandlers) GetCapabilityRealizationsByDomain(w http.ResponseWriter, r *http.Request) {
+	domainID := chi.URLParam(r, "id")
+
+	domain, err := h.readModels.Domain.GetByID(r.Context(), domainID)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve domain")
+		return
+	}
+	if domain == nil {
+		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Domain not found")
+		return
+	}
+
+	depth, err := parseDepthParam(r)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, err.Error())
+		return
+	}
+
+	groups, err := h.readModels.Realization.GetByBusinessDomainAndDepth(r.Context(), domainID, depth)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve realizations")
+		return
+	}
+
+	links := map[string]string{
+		"self":   fmt.Sprintf("/api/v1/business-domains/%s/capability-realizations?depth=%d", domainID, depth),
+		"domain": fmt.Sprintf("/api/v1/business-domains/%s", domainID),
+	}
+
+	sharedAPI.RespondCollection(w, http.StatusOK, h.toRealizationGroupDTOs(groups), links)
 }

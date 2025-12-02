@@ -24,6 +24,7 @@ import type {
   CapabilityDependency,
   CapabilityDependencyId,
   CapabilityRealization,
+  CapabilityRealizationsGroup,
   RealizationId,
   CreateCapabilityRequest,
   UpdateCapabilityRequest,
@@ -444,6 +445,16 @@ class ApiClient {
 
   async dissociateCapabilityFromDomain(dissociateLink: string): Promise<void> {
     await this.client.delete(dissociateLink);
+  }
+
+  async getCapabilityRealizationsByDomain(
+    domainId: BusinessDomainId,
+    depth: number = 4
+  ): Promise<CapabilityRealizationsGroup[]> {
+    const response = await this.client.get<CollectionResponse<CapabilityRealizationsGroup>>(
+      `/api/v1/business-domains/${domainId}/capability-realizations?depth=${depth}`
+    );
+    return response.data.data || [];
   }
 
   async getLayout(contextType: LayoutContextType, contextRef: string): Promise<LayoutContainer | null> {

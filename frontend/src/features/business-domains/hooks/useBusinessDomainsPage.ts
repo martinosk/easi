@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { useBusinessDomains } from './useBusinessDomains';
 import { useDomainCapabilities } from './useDomainCapabilities';
@@ -12,7 +12,7 @@ import { useCapabilityFiltering } from './useCapabilityFiltering';
 import { useDomainContextMenu } from './useDomainContextMenu';
 import { useApplicationSettings } from './useApplicationSettings';
 import { useCapabilityRealizations } from './useCapabilityRealizations';
-import type { BusinessDomain, Capability, ComponentId } from '../../../api/types';
+import type { BusinessDomain, BusinessDomainId, Capability, ComponentId } from '../../../api/types';
 
 export function useBusinessDomainsPage() {
   const [visualizedDomain, setVisualizedDomain] = useState<BusinessDomain | null>(null);
@@ -61,18 +61,10 @@ export function useBusinessDomainsPage() {
 
   const filtering = useCapabilityFiltering(tree, capabilities);
 
-  const visibleCapabilities = useMemo(() => {
-    return filtering.capabilitiesWithDescendants
-      .filter(c => {
-        const levelNum = parseInt(c.level.substring(1), 10);
-        return levelNum <= depth;
-      })
-      .map(c => ({ id: c.id, level: c.level }));
-  }, [filtering.capabilitiesWithDescendants, depth]);
-
   const { getRealizationsForCapability } = useCapabilityRealizations(
     showApplications,
-    visibleCapabilities
+    visualizedDomain?.id as BusinessDomainId | null,
+    depth
   );
 
   const handleApplicationClick = useCallback((componentId: ComponentId) => {

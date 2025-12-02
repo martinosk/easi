@@ -96,14 +96,42 @@ func (ctx *businessDomainTestContext) createTestDomain(t *testing.T, id, name, d
 	ctx.trackDomainID(id)
 }
 
-func (ctx *businessDomainTestContext) createTestCapability(t *testing.T, id, code, name, level string) {
+func (ctx *businessDomainTestContext) createTestCapability(t *testing.T, id, name, level string) {
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
-		"INSERT INTO capabilities (id, code, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
-		id, code, name, "", level, testTenantID(), "Genesis", "Active",
+		"INSERT INTO capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		id, name, "", level, testTenantID(), "Genesis", "Active",
 	)
 	require.NoError(t, err)
 	ctx.trackCapabilityID(id)
+}
+
+func (ctx *businessDomainTestContext) createTestCapabilityWithParent(t *testing.T, id, name, level, parentID string) {
+	ctx.setTenantContext(t)
+	_, err := ctx.db.Exec(
+		"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+		id, name, "", level, parentID, testTenantID(), "Genesis", "Active",
+	)
+	require.NoError(t, err)
+	ctx.trackCapabilityID(id)
+}
+
+func (ctx *businessDomainTestContext) createTestRealization(t *testing.T, id, capabilityID, componentID, componentName, level, origin string) {
+	ctx.setTenantContext(t)
+	_, err := ctx.db.Exec(
+		"INSERT INTO capability_realizations (id, capability_id, component_id, component_name, realization_level, origin, tenant_id, linked_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		id, capabilityID, componentID, componentName, level, origin, testTenantID(),
+	)
+	require.NoError(t, err)
+}
+
+func (ctx *businessDomainTestContext) createTestComponent(t *testing.T, id, name string) {
+	ctx.setTenantContext(t)
+	_, err := ctx.db.Exec(
+		"INSERT INTO application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
+		id, name, "", testTenantID(),
+	)
+	require.NoError(t, err)
 }
 
 func setupBusinessDomainHandlers(db *sql.DB) *BusinessDomainHandlers {
@@ -140,10 +168,13 @@ func setupBusinessDomainHandlers(db *sql.DB) *BusinessDomainHandlers {
 	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(assignmentRepo, domainRM, capabilityRM, assignmentRM))
 	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(assignmentRepo))
 
+	realizationRM := readmodels.NewRealizationReadModel(tenantDB)
+
 	readModels := &BusinessDomainReadModels{
-		Domain:     domainRM,
-		Assignment: assignmentRM,
-		Capability: capabilityRM,
+		Domain:      domainRM,
+		Assignment:  assignmentRM,
+		Capability:  capabilityRM,
+		Realization: realizationRM,
 	}
 
 	return NewBusinessDomainHandlers(commandBus, readModels, hateoas)
@@ -422,7 +453,7 @@ func TestDeleteBusinessDomain_HasCapabilities_Integration(t *testing.T) {
 	capID := fmt.Sprintf("test-cap-%d", time.Now().UnixNano())
 
 	testCtx.createTestDomain(t, domainID, "Test Domain", "Description")
-	testCtx.createTestCapability(t, capID, "BIZ-001", "Test Capability", "L1")
+	testCtx.createTestCapability(t, capID, "Test Capability", "L1")
 
 	testCtx.setTenantContext(t)
 	assignmentID := fmt.Sprintf("test-assignment-%d", time.Now().UnixNano())
@@ -455,8 +486,8 @@ func TestGetCapabilitiesInDomain_Integration(t *testing.T) {
 	cap2ID := fmt.Sprintf("test-cap-2-%d", time.Now().UnixNano())
 
 	testCtx.createTestDomain(t, domainID, "Test Domain", "Description")
-	testCtx.createTestCapability(t, cap1ID, "BIZ-001", "Capability 1", "L1")
-	testCtx.createTestCapability(t, cap2ID, "BIZ-002", "Capability 2", "L1")
+	testCtx.createTestCapability(t, cap1ID, "Capability 1", "L1")
+	testCtx.createTestCapability(t, cap2ID, "Capability 2", "L1")
 
 	testCtx.setTenantContext(t)
 	assignment1ID := fmt.Sprintf("test-assignment-1-%d", time.Now().UnixNano())
@@ -515,7 +546,7 @@ func TestAssignCapabilityToDomain_Integration(t *testing.T) {
 	capID := fmt.Sprintf("test-cap-%d", time.Now().UnixNano())
 
 	testCtx.createTestDomain(t, domainID, "Test Domain", "Description")
-	testCtx.createTestCapability(t, capID, "BIZ-001", "Test Capability", "L1")
+	testCtx.createTestCapability(t, capID, "Test Capability", "L1")
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -573,7 +604,7 @@ func TestRemoveCapabilityFromDomain_Integration(t *testing.T) {
 	capID := fmt.Sprintf("test-cap-%d", time.Now().UnixNano())
 
 	testCtx.createTestDomain(t, domainID, "Test Domain", "Description")
-	testCtx.createTestCapability(t, capID, "BIZ-001", "Test Capability", "L1")
+	testCtx.createTestCapability(t, capID, "Test Capability", "L1")
 
 	testCtx.setTenantContext(t)
 	assignmentID := fmt.Sprintf("test-assignment-%d", time.Now().UnixNano())
@@ -610,7 +641,7 @@ func TestRemoveCapabilityFromDomain_NotFound_Integration(t *testing.T) {
 	capID := fmt.Sprintf("test-cap-%d", time.Now().UnixNano())
 
 	testCtx.createTestDomain(t, domainID, "Test Domain", "Description")
-	testCtx.createTestCapability(t, capID, "BIZ-001", "Test Capability", "L1")
+	testCtx.createTestCapability(t, capID, "Test Capability", "L1")
 
 	w, req := makeRequest(t, http.MethodDelete, fmt.Sprintf("/api/v1/business-domains/%s/capabilities/%s", domainID, capID), nil, map[string]string{"domainId": domainID, "capabilityId": capID})
 	handler.RemoveCapabilityFromDomain(w, req)
@@ -630,7 +661,7 @@ func TestGetDomainsForCapability_Integration(t *testing.T) {
 
 	testCtx.createTestDomain(t, domain1ID, "Domain 1", "Description 1")
 	testCtx.createTestDomain(t, domain2ID, "Domain 2", "Description 2")
-	testCtx.createTestCapability(t, capID, "BIZ-001", "Test Capability", "L1")
+	testCtx.createTestCapability(t, capID, "Test Capability", "L1")
 
 	testCtx.setTenantContext(t)
 	assignment1ID := fmt.Sprintf("test-assignment-1-%d", time.Now().UnixNano())
@@ -675,6 +706,100 @@ func TestGetDomainsForCapability_CapabilityNotFound_Integration(t *testing.T) {
 	w, req := makeRequest(t, http.MethodGet, "/api/v1/capabilities/"+nonExistentID+"/business-domains", nil, map[string]string{"id": nonExistentID})
 
 	handler.GetDomainsForCapability(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestGetCapabilityRealizationsByDomain_Integration(t *testing.T) {
+	testCtx, cleanup := setupBusinessDomainTestDB(t)
+	defer cleanup()
+
+	handler := setupBusinessDomainHandlers(testCtx.db)
+
+	domainID := fmt.Sprintf("test-domain-%d", time.Now().UnixNano())
+	capL1ID := fmt.Sprintf("test-cap-l1-%d", time.Now().UnixNano())
+	capL2ID := fmt.Sprintf("test-cap-l2-%d", time.Now().UnixNano())
+	componentID := fmt.Sprintf("test-comp-%d", time.Now().UnixNano())
+	realizationID := fmt.Sprintf("test-real-%d", time.Now().UnixNano())
+
+	testCtx.createTestDomain(t, domainID, "Test Domain", "Description")
+	testCtx.createTestCapability(t, capL1ID, "L1 Capability", "L1")
+	testCtx.createTestCapabilityWithParent(t, capL2ID, "L2 Capability", "L2", capL1ID)
+	testCtx.createTestComponent(t, componentID, "Test System")
+	testCtx.createTestRealization(t, realizationID, capL2ID, componentID, "Test System", "Full", "Direct")
+
+	testCtx.setTenantContext(t)
+	assignmentID := fmt.Sprintf("test-assignment-%d", time.Now().UnixNano())
+	_, err := testCtx.db.Exec(
+		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		assignmentID, domainID, "Test Domain", capL1ID, "L1 Capability", "L1", testTenantID(),
+	)
+	require.NoError(t, err)
+
+	w, req := makeRequest(t, http.MethodGet, "/api/v1/business-domains/"+domainID+"/capability-realizations?depth=2", nil, map[string]string{"id": domainID})
+	handler.GetCapabilityRealizationsByDomain(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response sharedAPI.CollectionResponse
+	err = json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+
+	dataBytes, _ := json.Marshal(response.Data)
+	var groups []CapabilityRealizationsGroupDTO
+	json.Unmarshal(dataBytes, &groups)
+
+	assert.GreaterOrEqual(t, len(groups), 1)
+
+	var foundL2 bool
+	for _, group := range groups {
+		if group.CapabilityID == capL2ID {
+			foundL2 = true
+			assert.Equal(t, "L2", group.Level)
+			assert.Equal(t, 1, len(group.Realizations))
+			if len(group.Realizations) > 0 {
+				assert.Equal(t, componentID, group.Realizations[0].ComponentID)
+			}
+		}
+	}
+	assert.True(t, foundL2, "L2 capability should be included in results")
+}
+
+func TestGetCapabilityRealizationsByDomain_EmptyDomain_Integration(t *testing.T) {
+	testCtx, cleanup := setupBusinessDomainTestDB(t)
+	defer cleanup()
+
+	handler := setupBusinessDomainHandlers(testCtx.db)
+
+	domainID := fmt.Sprintf("test-domain-%d", time.Now().UnixNano())
+	testCtx.createTestDomain(t, domainID, "Empty Domain", "No capabilities assigned")
+
+	w, req := makeRequest(t, http.MethodGet, "/api/v1/business-domains/"+domainID+"/capability-realizations", nil, map[string]string{"id": domainID})
+	handler.GetCapabilityRealizationsByDomain(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response sharedAPI.CollectionResponse
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+
+	dataBytes, _ := json.Marshal(response.Data)
+	var groups []CapabilityRealizationsGroupDTO
+	json.Unmarshal(dataBytes, &groups)
+
+	assert.Equal(t, 0, len(groups))
+}
+
+func TestGetCapabilityRealizationsByDomain_DomainNotFound_Integration(t *testing.T) {
+	testCtx, cleanup := setupBusinessDomainTestDB(t)
+	defer cleanup()
+
+	handler := setupBusinessDomainHandlers(testCtx.db)
+
+	nonExistentID := fmt.Sprintf("non-existent-%d", time.Now().UnixNano())
+	w, req := makeRequest(t, http.MethodGet, "/api/v1/business-domains/"+nonExistentID+"/capability-realizations", nil, map[string]string{"id": nonExistentID})
+
+	handler.GetCapabilityRealizationsByDomain(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }

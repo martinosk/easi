@@ -1,11 +1,6 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiClient } from '../../../api/client';
-import type { CapabilityId, CapabilityLevel, CapabilityRealization } from '../../../api/types';
-
-export interface VisibleCapability {
-  id: CapabilityId;
-  level: CapabilityLevel;
-}
+import type { BusinessDomainId, CapabilityId, CapabilityLevel, CapabilityRealization } from '../../../api/types';
 
 export interface UseCapabilityRealizationsResult {
   realizations: CapabilityRealization[];
@@ -18,36 +13,73 @@ function getLevelNumber(level: CapabilityLevel): number {
   return parseInt(level.substring(1), 10);
 }
 
-export function useCapabilityRealizations(
-  enabled: boolean,
-  visibleCapabilities: VisibleCapability[]
-): UseCapabilityRealizationsResult {
-  const [allRealizations, setAllRealizations] = useState<CapabilityRealization[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const fetchedCapabilityIds = useRef<Set<CapabilityId>>(new Set());
+function isDirectRealization(r: CapabilityRealization): boolean {
+  return r.origin === 'Direct';
+}
 
-  const visibleCapabilityIds = useMemo(
-    () => visibleCapabilities.map((c) => c.id),
-    [visibleCapabilities]
-  );
+function isInheritedWithHiddenSource(
+  r: CapabilityRealization,
+  visibleCapabilityIds: Set<CapabilityId>
+): boolean {
+  return r.origin === 'Inherited' &&
+         !!r.sourceCapabilityId &&
+         !visibleCapabilityIds.has(r.sourceCapabilityId);
+}
 
-  const capabilityLevelMap = useMemo(() => {
-    const map = new Map<CapabilityId, number>();
-    visibleCapabilities.forEach((c) => map.set(c.id, getLevelNumber(c.level)));
-    return map;
-  }, [visibleCapabilities]);
+function selectDeepestInherited(
+  existing: CapabilityRealization,
+  candidate: CapabilityRealization,
+  levelMap: Map<CapabilityId, number>
+): CapabilityRealization {
+  const existingLevel = levelMap.get(existing.capabilityId) ?? 0;
+  const candidateLevel = levelMap.get(candidate.capabilityId) ?? 0;
+  return candidateLevel > existingLevel ? candidate : existing;
+}
 
-  useEffect(() => {
-    if (!enabled || visibleCapabilityIds.length === 0) {
-      return;
+export function filterVisibleRealizations(
+  realizations: CapabilityRealization[],
+  capabilityLevels: Map<CapabilityId, number>
+): CapabilityRealization[] {
+  const visibleCapabilityIds = new Set(capabilityLevels.keys());
+  const directRealizations: CapabilityRealization[] = [];
+  const inheritedByKey = new Map<string, CapabilityRealization>();
+
+  for (const r of realizations) {
+    if (!visibleCapabilityIds.has(r.capabilityId)) {
+      continue;
     }
 
-    const newCapabilityIds = visibleCapabilityIds.filter(
-      (id) => !fetchedCapabilityIds.current.has(id)
-    );
+    if (isDirectRealization(r)) {
+      directRealizations.push(r);
+      continue;
+    }
 
-    if (newCapabilityIds.length === 0) {
+    if (isInheritedWithHiddenSource(r, visibleCapabilityIds)) {
+      const key = `${r.componentId}:${r.sourceCapabilityId}`;
+      const existing = inheritedByKey.get(key);
+      const selected = existing ? selectDeepestInherited(existing, r, capabilityLevels) : r;
+      inheritedByKey.set(key, selected);
+    }
+  }
+
+  return [...directRealizations, ...inheritedByKey.values()];
+}
+
+export function useCapabilityRealizations(
+  enabled: boolean,
+  domainId: BusinessDomainId | null,
+  depth: number
+): UseCapabilityRealizationsResult {
+  const [allRealizations, setAllRealizations] = useState<CapabilityRealization[]>([]);
+  const [capabilityLevels, setCapabilityLevels] = useState<Map<CapabilityId, number>>(new Map());
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (!enabled || !domainId) {
+      setAllRealizations([]);
+      setCapabilityLevels(new Map());
+      setError(null);
       return;
     }
 
@@ -55,18 +87,17 @@ export function useCapabilityRealizations(
       setIsLoading(true);
       setError(null);
       try {
-        const results = await Promise.all(
-          newCapabilityIds.map((capabilityId) => apiClient.getSystemsByCapability(capabilityId))
-        );
+        const groups = await apiClient.getCapabilityRealizationsByDomain(domainId, depth);
+        const levelMap = new Map<CapabilityId, number>();
+        const realizations: CapabilityRealization[] = [];
 
-        newCapabilityIds.forEach((id) => fetchedCapabilityIds.current.add(id));
+        for (const group of groups) {
+          levelMap.set(group.capabilityId as CapabilityId, getLevelNumber(group.level));
+          realizations.push(...group.realizations);
+        }
 
-        const newRealizations = results.flat();
-        setAllRealizations((prev) => {
-          const existingIds = new Set(prev.map((r) => r.id));
-          const uniqueNew = newRealizations.filter((r) => !existingIds.has(r.id));
-          return [...prev, ...uniqueNew];
-        });
+        setCapabilityLevels(levelMap);
+        setAllRealizations(realizations);
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to fetch capability realizations'));
       } finally {
@@ -75,55 +106,12 @@ export function useCapabilityRealizations(
     };
 
     fetchRealizations();
-  }, [enabled, visibleCapabilityIds]);
+  }, [enabled, domainId, depth]);
 
-  useEffect(() => {
-    if (!enabled) {
-      setAllRealizations([]);
-      fetchedCapabilityIds.current.clear();
-      setError(null);
-    }
-  }, [enabled]);
-
-  const filteredRealizations = useMemo(() => {
-    const visibleSet = new Set(visibleCapabilityIds);
-    const fetchedSet = fetchedCapabilityIds.current;
-
-    const directRealizations: CapabilityRealization[] = [];
-    const inheritedByKey = new Map<string, CapabilityRealization>();
-
-    for (const r of allRealizations) {
-      if (!visibleSet.has(r.capabilityId)) {
-        continue;
-      }
-
-      if (r.origin === 'Direct') {
-        directRealizations.push(r);
-        continue;
-      }
-
-      if (r.origin === 'Inherited' && r.sourceCapabilityId) {
-        if (visibleSet.has(r.sourceCapabilityId) && fetchedSet.has(r.sourceCapabilityId)) {
-          continue;
-        }
-
-        const key = `${r.componentId}:${r.sourceCapabilityId}`;
-        const existing = inheritedByKey.get(key);
-
-        if (!existing) {
-          inheritedByKey.set(key, r);
-        } else {
-          const existingLevel = capabilityLevelMap.get(existing.capabilityId) ?? 0;
-          const currentLevel = capabilityLevelMap.get(r.capabilityId) ?? 0;
-          if (currentLevel > existingLevel) {
-            inheritedByKey.set(key, r);
-          }
-        }
-      }
-    }
-
-    return [...directRealizations, ...inheritedByKey.values()];
-  }, [allRealizations, visibleCapabilityIds, capabilityLevelMap]);
+  const filteredRealizations = useMemo(
+    () => filterVisibleRealizations(allRealizations, capabilityLevels),
+    [allRealizations, capabilityLevels]
+  );
 
   const getRealizationsForCapability = useCallback(
     (capabilityId: CapabilityId): CapabilityRealization[] => {

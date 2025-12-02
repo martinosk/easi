@@ -194,9 +194,10 @@ func registerDomainAssignmentCommands(commandBus *cqrs.InMemoryCommandBus, assig
 
 func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels, hateoas *sharedAPI.HATEOASLinks) *routeHTTPHandlers {
 	businessDomainReadModels := &BusinessDomainReadModels{
-		Domain:     rm.businessDomain,
-		Assignment: rm.domainAssignment,
-		Capability: rm.capability,
+		Domain:      rm.businessDomain,
+		Assignment:  rm.domainAssignment,
+		Capability:  rm.capability,
+		Realization: rm.realization,
 	}
 
 	return &routeHTTPHandlers{
@@ -265,6 +266,7 @@ func registerBusinessDomainRoutes(r chi.Router, h *routeHTTPHandlers) {
 		r.Delete("/{id}", h.businessDomain.DeleteBusinessDomain)
 		r.Get("/{id}/capabilities", h.businessDomain.GetCapabilitiesInDomain)
 		r.Post("/{id}/capabilities", h.businessDomain.AssignCapabilityToDomain)
+		r.Get("/{id}/capability-realizations", h.businessDomain.GetCapabilityRealizationsByDomain)
 		r.Delete("/{domainId}/capabilities/{capabilityId}", h.businessDomain.RemoveCapabilityFromDomain)
 	})
 }

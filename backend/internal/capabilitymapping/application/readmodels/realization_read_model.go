@@ -59,25 +59,17 @@ func (rm *RealizationReadModel) Delete(ctx context.Context, id string) error {
 	return err
 }
 
+const realizationSelectColumns = `id, capability_id, component_id, realization_level, notes, origin,
+	source_realization_id, source_capability_id, linked_at,
+	component_name, source_capability_name`
+
 func (rm *RealizationReadModel) GetByCapabilityID(ctx context.Context, capabilityID string) ([]RealizationDTO, error) {
-	query := `
-		SELECT id, capability_id, component_id, realization_level, notes, origin,
-			source_realization_id, source_capability_id, linked_at,
-			component_name, source_capability_name
-		FROM capability_realizations
-		WHERE tenant_id = $1 AND capability_id = $2
-		ORDER BY linked_at DESC`
+	query := `SELECT ` + realizationSelectColumns + ` FROM capability_realizations WHERE tenant_id = $1 AND capability_id = $2 ORDER BY linked_at DESC`
 	return rm.queryRealizations(ctx, query, capabilityID)
 }
 
 func (rm *RealizationReadModel) GetByComponentID(ctx context.Context, componentID string) ([]RealizationDTO, error) {
-	query := `
-		SELECT id, capability_id, component_id, realization_level, notes, origin,
-			source_realization_id, source_capability_id, linked_at,
-			component_name, source_capability_name
-		FROM capability_realizations
-		WHERE tenant_id = $1 AND component_id = $2
-		ORDER BY linked_at DESC`
+	query := `SELECT ` + realizationSelectColumns + ` FROM capability_realizations WHERE tenant_id = $1 AND component_id = $2 ORDER BY linked_at DESC`
 	return rm.queryRealizations(ctx, query, componentID)
 }
 
@@ -138,12 +130,7 @@ func (rm *RealizationReadModel) GetByID(ctx context.Context, id string) (*Realiz
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := `
-			SELECT id, capability_id, component_id, realization_level, notes, origin,
-				source_realization_id, source_capability_id, linked_at,
-				component_name, source_capability_name
-			FROM capability_realizations
-			WHERE tenant_id = $1 AND id = $2`
+		query := `SELECT ` + realizationSelectColumns + ` FROM capability_realizations WHERE tenant_id = $1 AND id = $2`
 		err := tx.QueryRowContext(ctx, query, tenantID.Value(), id).Scan(
 			&dto.ID, &dto.CapabilityID, &dto.ComponentID, &dto.RealizationLevel, &dto.Notes, &dto.Origin,
 			&sourceRealizationID, &sourceCapabilityID, &dto.LinkedAt,
@@ -270,4 +257,137 @@ func (rm *RealizationReadModel) GetSourceCapabilityID(ctx context.Context, sourc
 		return "", nil
 	}
 	return capabilityID, err
+}
+
+type CapabilityRealizationsGroup struct {
+	CapabilityID   string           `json:"capabilityId"`
+	CapabilityName string           `json:"capabilityName"`
+	Level          string           `json:"level"`
+	Realizations   []RealizationDTO `json:"realizations"`
+}
+
+type domainRealizationRow struct {
+	capID, capName, capLevel                                                   string
+	realizationID, realCapID, componentID, realizationLevel, notes, origin     sql.NullString
+	sourceRealizationID, sourceCapabilityID, componentName, sourceCapabilityName sql.NullString
+	linkedAt                                                                   sql.NullTime
+}
+
+func (r *domainRealizationRow) toDTO() RealizationDTO {
+	return RealizationDTO{
+		ID:                   r.realizationID.String,
+		CapabilityID:         r.realCapID.String,
+		ComponentID:          r.componentID.String,
+		RealizationLevel:     r.realizationLevel.String,
+		Notes:                r.notes.String,
+		Origin:               r.origin.String,
+		SourceRealizationID:  r.sourceRealizationID.String,
+		SourceCapabilityID:   r.sourceCapabilityID.String,
+		LinkedAt:             r.linkedAt.Time,
+		ComponentName:        r.componentName.String,
+		SourceCapabilityName: r.sourceCapabilityName.String,
+	}
+}
+
+type realizationGroupBuilder struct {
+	groupMap map[string]*CapabilityRealizationsGroup
+	order    []string
+}
+
+func newRealizationGroupBuilder() *realizationGroupBuilder {
+	return &realizationGroupBuilder{
+		groupMap: make(map[string]*CapabilityRealizationsGroup),
+		order:    make([]string, 0),
+	}
+}
+
+func (b *realizationGroupBuilder) addRow(row domainRealizationRow) {
+	group, exists := b.groupMap[row.capID]
+	if !exists {
+		group = &CapabilityRealizationsGroup{
+			CapabilityID:   row.capID,
+			CapabilityName: row.capName,
+			Level:          row.capLevel,
+			Realizations:   []RealizationDTO{},
+		}
+		b.groupMap[row.capID] = group
+		b.order = append(b.order, row.capID)
+	}
+
+	if row.realizationID.Valid {
+		group.Realizations = append(group.Realizations, row.toDTO())
+	}
+}
+
+func (b *realizationGroupBuilder) build() []CapabilityRealizationsGroup {
+	groups := make([]CapabilityRealizationsGroup, 0, len(b.order))
+	for _, capID := range b.order {
+		groups = append(groups, *b.groupMap[capID])
+	}
+	return groups
+}
+
+const domainRealizationsQuery = `
+	WITH RECURSIVE domain_capabilities AS (
+		SELECT c.id, c.name, c.level, dca.capability_name as root_name
+		FROM capabilities c
+		INNER JOIN domain_capability_assignments dca
+			ON c.id = dca.capability_id AND c.tenant_id = dca.tenant_id
+		WHERE dca.tenant_id = $1
+			AND dca.business_domain_id = $2
+
+		UNION ALL
+
+		SELECT c.id, c.name, c.level, dc.root_name
+		FROM capabilities c
+		INNER JOIN domain_capabilities dc ON c.parent_id = dc.id
+		WHERE c.tenant_id = $1
+	)
+	SELECT dc.id, dc.name, dc.level,
+		cr.id as realization_id, cr.capability_id, cr.component_id,
+		cr.realization_level, cr.notes, cr.origin,
+		cr.source_realization_id, cr.source_capability_id, cr.linked_at,
+		cr.component_name, cr.source_capability_name
+	FROM domain_capabilities dc
+	LEFT JOIN capability_realizations cr
+		ON dc.id = cr.capability_id AND cr.tenant_id = $1
+	WHERE CAST(SUBSTRING(dc.level FROM 2) AS INTEGER) <= $3
+	ORDER BY dc.root_name, dc.level, dc.name, cr.linked_at DESC`
+
+func (rm *RealizationReadModel) GetByBusinessDomainAndDepth(ctx context.Context, domainID string, maxDepth int) ([]CapabilityRealizationsGroup, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	builder := newRealizationGroupBuilder()
+
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, domainRealizationsQuery, tenantID.Value(), domainID, maxDepth)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var row domainRealizationRow
+			err := rows.Scan(
+				&row.capID, &row.capName, &row.capLevel,
+				&row.realizationID, &row.realCapID, &row.componentID,
+				&row.realizationLevel, &row.notes, &row.origin,
+				&row.sourceRealizationID, &row.sourceCapabilityID, &row.linkedAt,
+				&row.componentName, &row.sourceCapabilityName,
+			)
+			if err != nil {
+				return err
+			}
+			builder.addRow(row)
+		}
+		return rows.Err()
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return builder.build(), nil
 }

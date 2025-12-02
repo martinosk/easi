@@ -413,6 +413,75 @@ const docTemplate = `{
                 }
             }
         },
+        "/business-domains/{id}/capability-realizations": {
+            "get": {
+                "description": "Returns all application components that realize capabilities in a business domain, up to the specified depth level",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "business-domains"
+                ],
+                "summary": "Get all capability realizations for a business domain",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Business Domain ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 4,
+                        "description": "Maximum capability depth level (1-4)",
+                        "name": "depth",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.CapabilityRealizationsGroupDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/capabilities": {
             "get": {
                 "description": "Retrieves all business capabilities in the capability map",
@@ -3147,6 +3216,9 @@ const docTemplate = `{
                 "componentId": {
                     "type": "string"
                 },
+                "componentName": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -3160,6 +3232,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "realizationLevel": {
+                    "type": "string"
+                },
+                "sourceCapabilityId": {
+                    "type": "string"
+                },
+                "sourceCapabilityName": {
                     "type": "string"
                 },
                 "sourceRealizationId": {
@@ -3428,6 +3506,29 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.CapabilityRealizationsGroupDTO": {
+            "type": "object",
+            "properties": {
+                "capabilityCode": {
+                    "type": "string"
+                },
+                "capabilityId": {
+                    "type": "string"
+                },
+                "capabilityName": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "realizations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO"
+                    }
                 }
             }
         },
