@@ -44,64 +44,44 @@ Core domain for enterprise capability modeling. Uses CQRS with event sourcing.
 **API Endpoints:**
  OpenAPI spec is available at backend/docs/docs.go and served on the backend at http://localhost:8080/swagger/index.html
 
-### ArchitectureAnalysis
+### Architecture Overview
 
-┌─────────────────────────────────────────────────────────┐
-│                      Browser                            │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │         React Frontend (Port 5173)              │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐     │   │
-│  │  │ Canvas   │  │ Dialogs  │  │ Details  │     │   │
-│  │  │ (React   │  │ (Create) │  │ (View)   │     │   │
-│  │  │  Flow)   │  └──────────┘  └──────────┘     │   │
-│  │  └────┬─────┘                                  │   │
-│  │       │ API Client (Axios)                     │   │
-│  └───────┼────────────────────────────────────────┘   │
-│          │                                             │
-└──────────┼─────────────────────────────────────────────┘
-           │ HTTP/JSON
-           │
-┌──────────▼─────────────────────────────────────────────┐
-│              Go Backend (Port 8080)                    │
-│  ┌─────────────────────────────────────────────────┐  │
-│  │            RESTful API Layer                    │  │
-│  │  (Chi Router, CORS, Middleware)                 │  │
-│  └────────┬────────────────────────────────────────┘  │
-│           │                                            │
-│  ┌────────▼────────────────────────────────────────┐  │
-│  │         CQRS Command/Query Buses                │  │
-│  └────────┬────────────────────────────────────────┘  │
-│           │                                            │
-│  ┌────────▼────────────────────────────────────────┐  │
-│  │        Bounded Contexts (DDD)                   │  │
-│  │  ┌──────────────┐  ┌──────────────┐            │  │
-│  │  │Architecture  │  │Architecture  │            │  │
-│  │  │Modeling      │  │Views         │            │  │
-│  │  │(Components,  │  │(Positions)   │            │  │
-│  │  │ Relations)   │  │              │            │  │
-│  │  └──────┬───────┘  └──────┬───────┘            │  │
-│  │                                                 │  │
-│  │  ┌──────────────────────────────────┐          │  │
-│  │  │CapabilityMapping                 │          │  │
-│  │  │(Capabilities, Dependencies,      │          │  │
-│  │  │ Metadata, Experts, Tags)         │          │  │
-│  │  └──────┬───────────────────────────┘          │  │
-│  └─────────┼──────────────────┼───────────────────┘  │
-│            │                  │                       │
-│  ┌─────────▼──────────────────▼───────────────────┐  │
-│  │         Event Store (PostgreSQL)               │  │
-│  │  - All events (audit trail)                    │  │
-│  │  - Event sourcing                              │  │
-│  └────────────────────────────────────────────────┘  │
-│                                                       │
-│  ┌────────────────────────────────────────────────┐  │
-│  │         Read Models (PostgreSQL)               │  │
-│  │  - Components, Relations                       │  │
-│  │  - Views, Positions                            │  │
-│  │  - Capabilities, Dependencies                  │  │
-│  │  - Capability Metadata, Experts, Tags          │  │
-│  └────────────────────────────────────────────────┘  │
-└───────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Browser
+        subgraph Frontend["React Frontend (Port 5173)"]
+            Canvas["Canvas<br/>(React Flow)"]
+            Dialogs["Dialogs<br/>(Create)"]
+            Details["Details<br/>(View)"]
+        end
+        API["API Client (Axios)"]
+    end
+
+    subgraph Backend["Go Backend (Port 8080)"]
+        REST["RESTful API Layer<br/>(Chi Router, CORS, Middleware)"]
+        CQRS["CQRS Command/Query Buses"]
+
+        subgraph Contexts["Bounded Contexts (DDD)"]
+            Modeling["ArchitectureModeling<br/>(Components, Relations)"]
+            Views["ArchitectureViews<br/>(Positions)"]
+            Capability["CapabilityMapping<br/>(Capabilities, Dependencies,<br/>Metadata, Experts, Tags)"]
+        end
+
+        EventStore[("Event Store (PostgreSQL)<br/>All events, audit trail,<br/>event sourcing")]
+        ReadModels[("Read Models (PostgreSQL)<br/>Components, Relations,<br/>Views, Positions,<br/>Capabilities, Dependencies")]
+    end
+
+    Canvas --> API
+    Dialogs --> API
+    Details --> API
+    API -->|HTTP/JSON| REST
+    REST --> CQRS
+    CQRS --> Contexts
+    Modeling --> EventStore
+    Views --> EventStore
+    Capability --> EventStore
+    EventStore --> ReadModels
+```
 
 ## Tech Stack
 - **Backend**: Go
