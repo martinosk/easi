@@ -32,7 +32,7 @@ The system uses event sourcing for core aggregates, REST Level 3 APIs with HATEO
 See [detailed bounded context documentation](docs/bounded-contexts/README.md).
 
 #### ArchitectureModeling
-This is the core domain that supports and enforces best practices for architecture modelling and documentation.
+This is a supporting domain that manages the IT application landscape - what systems exist and how they interact.
 
 #### ArchitectureViews
 This is a supporting domain that allows for visualisations of the architecture model.
@@ -64,7 +64,6 @@ flowchart TB
 
         subgraph CQRS["CQRS Infrastructure"]
             CommandBus["Command Bus"]
-            QueryBus["Query Bus"]
             EventBus["Event Bus"]
         end
 
@@ -90,11 +89,10 @@ flowchart TB
     Frontend --> ApiClient
     ApiClient --> Store
     ApiClient -->|HTTP/JSON| REST
-    REST --> CommandBus
-    REST --> QueryBus
+    REST -->|Commands| CommandBus
+    REST -->|Queries| ReadModels
     CommandBus --> CoreDomain
     CommandBus --> SupportingDomains
-    QueryBus --> ReadModels
 
     CoreDomain --> EventStore
     SupportingDomains --> EventStore
