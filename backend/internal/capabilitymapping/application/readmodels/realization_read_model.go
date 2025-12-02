@@ -7,7 +7,6 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
-	"github.com/lib/pq"
 )
 
 type RealizationDTO struct {
@@ -34,7 +33,7 @@ func NewRealizationReadModel(db *database.TenantAwareDB) *RealizationReadModel {
 }
 
 func (rm *RealizationReadModel) Insert(ctx context.Context, dto RealizationDTO) error {
-	return rm.insertRealization(ctx, dto, "INSERT INTO capability_realizations (id, tenant_id, capability_id, component_id, realization_level, notes, origin, source_realization_id, linked_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)", true)
+	return rm.insertRealization(ctx, dto, "INSERT INTO capability_realizations (id, tenant_id, capability_id, component_id, realization_level, notes, origin, source_realization_id, source_capability_id, linked_at, component_name, source_capability_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)", true)
 }
 
 func (rm *RealizationReadModel) Update(ctx context.Context, id, realizationLevel, notes string) error {
@@ -61,11 +60,25 @@ func (rm *RealizationReadModel) Delete(ctx context.Context, id string) error {
 }
 
 func (rm *RealizationReadModel) GetByCapabilityID(ctx context.Context, capabilityID string) ([]RealizationDTO, error) {
-	return rm.queryRealizations(ctx, "SELECT id, capability_id, component_id, realization_level, notes, origin, COALESCE(source_realization_id, ''), linked_at FROM capability_realizations WHERE tenant_id = $1 AND capability_id = $2 ORDER BY linked_at DESC", capabilityID)
+	query := `
+		SELECT id, capability_id, component_id, realization_level, notes, origin,
+			source_realization_id, source_capability_id, linked_at,
+			component_name, source_capability_name
+		FROM capability_realizations
+		WHERE tenant_id = $1 AND capability_id = $2
+		ORDER BY linked_at DESC`
+	return rm.queryRealizations(ctx, query, capabilityID)
 }
 
 func (rm *RealizationReadModel) GetByComponentID(ctx context.Context, componentID string) ([]RealizationDTO, error) {
-	return rm.queryRealizations(ctx, "SELECT id, capability_id, component_id, realization_level, notes, origin, COALESCE(source_realization_id, ''), linked_at FROM capability_realizations WHERE tenant_id = $1 AND component_id = $2 ORDER BY linked_at DESC", componentID)
+	query := `
+		SELECT id, capability_id, component_id, realization_level, notes, origin,
+			source_realization_id, source_capability_id, linked_at,
+			component_name, source_capability_name
+		FROM capability_realizations
+		WHERE tenant_id = $1 AND component_id = $2
+		ORDER BY linked_at DESC`
+	return rm.queryRealizations(ctx, query, componentID)
 }
 
 func (rm *RealizationReadModel) queryRealizations(ctx context.Context, query, param string) ([]RealizationDTO, error) {
@@ -98,8 +111,20 @@ func (rm *RealizationReadModel) queryRealizations(ctx context.Context, query, pa
 
 func (rm *RealizationReadModel) scanRealizationRow(rows *sql.Rows) (RealizationDTO, error) {
 	var dto RealizationDTO
-	err := rows.Scan(&dto.ID, &dto.CapabilityID, &dto.ComponentID, &dto.RealizationLevel, &dto.Notes, &dto.Origin, &dto.SourceRealizationID, &dto.LinkedAt)
-	return dto, err
+	var sourceRealizationID, sourceCapabilityID, componentName, sourceCapabilityName sql.NullString
+	err := rows.Scan(
+		&dto.ID, &dto.CapabilityID, &dto.ComponentID, &dto.RealizationLevel, &dto.Notes, &dto.Origin,
+		&sourceRealizationID, &sourceCapabilityID, &dto.LinkedAt,
+		&componentName, &sourceCapabilityName,
+	)
+	if err != nil {
+		return dto, err
+	}
+	dto.SourceRealizationID = sourceRealizationID.String
+	dto.SourceCapabilityID = sourceCapabilityID.String
+	dto.ComponentName = componentName.String
+	dto.SourceCapabilityName = sourceCapabilityName.String
+	return dto, nil
 }
 
 func (rm *RealizationReadModel) GetByID(ctx context.Context, id string) (*RealizationDTO, error) {
@@ -109,13 +134,21 @@ func (rm *RealizationReadModel) GetByID(ctx context.Context, id string) (*Realiz
 	}
 
 	var dto RealizationDTO
+	var sourceRealizationID, sourceCapabilityID, componentName, sourceCapabilityName sql.NullString
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		err := tx.QueryRowContext(ctx,
-			"SELECT id, capability_id, component_id, realization_level, notes, origin, COALESCE(source_realization_id, ''), linked_at FROM capability_realizations WHERE tenant_id = $1 AND id = $2",
-			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.CapabilityID, &dto.ComponentID, &dto.RealizationLevel, &dto.Notes, &dto.Origin, &dto.SourceRealizationID, &dto.LinkedAt)
+		query := `
+			SELECT id, capability_id, component_id, realization_level, notes, origin,
+				source_realization_id, source_capability_id, linked_at,
+				component_name, source_capability_name
+			FROM capability_realizations
+			WHERE tenant_id = $1 AND id = $2`
+		err := tx.QueryRowContext(ctx, query, tenantID.Value(), id).Scan(
+			&dto.ID, &dto.CapabilityID, &dto.ComponentID, &dto.RealizationLevel, &dto.Notes, &dto.Origin,
+			&sourceRealizationID, &sourceCapabilityID, &dto.LinkedAt,
+			&componentName, &sourceCapabilityName,
+		)
 
 		if err == sql.ErrNoRows {
 			notFound = true
@@ -131,6 +164,11 @@ func (rm *RealizationReadModel) GetByID(ctx context.Context, id string) (*Realiz
 		return nil, nil
 	}
 
+	dto.SourceRealizationID = sourceRealizationID.String
+	dto.SourceCapabilityID = sourceCapabilityID.String
+	dto.ComponentName = componentName.String
+	dto.SourceCapabilityName = sourceCapabilityName.String
+
 	return &dto, nil
 }
 
@@ -145,8 +183,8 @@ func (rm *RealizationReadModel) DeleteBySourceRealizationID(ctx context.Context,
 }
 
 func (rm *RealizationReadModel) InsertInherited(ctx context.Context, dto RealizationDTO) error {
-	return rm.insertRealization(ctx, dto, `INSERT INTO capability_realizations (id, tenant_id, capability_id, component_id, realization_level, notes, origin, source_realization_id, linked_at)
-		 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8)
+	return rm.insertRealization(ctx, dto, `INSERT INTO capability_realizations (id, tenant_id, capability_id, component_id, realization_level, notes, origin, source_realization_id, source_capability_id, linked_at, component_name, source_capability_name)
+		 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		 ON CONFLICT (tenant_id, capability_id, component_id) DO NOTHING`, false)
 }
 
@@ -164,7 +202,9 @@ func (rm *RealizationReadModel) insertRealization(ctx context.Context, dto Reali
 func (rm *RealizationReadModel) buildInsertArgs(tenantID string, dto RealizationDTO, includeID bool) []interface{} {
 	commonArgs := []interface{}{
 		tenantID, dto.CapabilityID, dto.ComponentID, dto.RealizationLevel,
-		dto.Notes, dto.Origin, rm.toNullableString(dto.SourceRealizationID), dto.LinkedAt,
+		dto.Notes, dto.Origin, rm.toNullableString(dto.SourceRealizationID),
+		rm.toNullableString(dto.SourceCapabilityID), dto.LinkedAt,
+		rm.toNullableString(dto.ComponentName), rm.toNullableString(dto.SourceCapabilityName),
 	}
 
 	if includeID {
@@ -180,54 +220,54 @@ func (rm *RealizationReadModel) toNullableString(s string) interface{} {
 	return s
 }
 
-func (rm *RealizationReadModel) GetByCapabilityIDs(ctx context.Context, capabilityIDs []string) ([]RealizationDTO, error) {
-	if len(capabilityIDs) == 0 {
-		return []RealizationDTO{}, nil
-	}
-
+func (rm *RealizationReadModel) UpdateComponentName(ctx context.Context, componentID, componentName string) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var realizations []RealizationDTO
+	_, err = rm.db.ExecContext(ctx,
+		"UPDATE capability_realizations SET component_name = $1 WHERE tenant_id = $2 AND component_id = $3",
+		componentName, tenantID.Value(), componentID,
+	)
+	return err
+}
+
+func (rm *RealizationReadModel) UpdateSourceCapabilityName(ctx context.Context, capabilityID, capabilityName string) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`UPDATE capability_realizations cr
+		 SET source_capability_name = $1
+		 FROM capability_realizations source_r
+		 WHERE cr.tenant_id = $2
+		   AND cr.source_realization_id = source_r.id
+		   AND source_r.tenant_id = cr.tenant_id
+		   AND source_r.capability_id = $3`,
+		capabilityName, tenantID.Value(), capabilityID,
+	)
+	return err
+}
+
+func (rm *RealizationReadModel) GetSourceCapabilityID(ctx context.Context, sourceRealizationID string) (string, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	var capabilityID string
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := `
-			SELECT
-				cr.id, cr.capability_id, cr.component_id, cr.realization_level, cr.notes,
-				cr.origin, COALESCE(cr.source_realization_id, ''), cr.linked_at,
-				COALESCE(ac.name, ''),
-				COALESCE(source_r.capability_id, ''),
-				COALESCE(source_cap.name, '')
-			FROM capability_realizations cr
-			LEFT JOIN application_components ac ON cr.component_id = ac.id AND ac.tenant_id = cr.tenant_id AND ac.is_deleted = FALSE
-			LEFT JOIN capability_realizations source_r ON cr.source_realization_id = source_r.id AND source_r.tenant_id = cr.tenant_id
-			LEFT JOIN capabilities source_cap ON source_r.capability_id = source_cap.id AND source_cap.tenant_id = cr.tenant_id
-			WHERE cr.tenant_id = $1 AND cr.capability_id = ANY($2)
-			ORDER BY cr.linked_at DESC
-		`
-
-		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), pq.Array(capabilityIDs))
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var dto RealizationDTO
-			err := rows.Scan(
-				&dto.ID, &dto.CapabilityID, &dto.ComponentID, &dto.RealizationLevel, &dto.Notes,
-				&dto.Origin, &dto.SourceRealizationID, &dto.LinkedAt,
-				&dto.ComponentName, &dto.SourceCapabilityID, &dto.SourceCapabilityName,
-			)
-			if err != nil {
-				return err
-			}
-			realizations = append(realizations, dto)
-		}
-
-		return rows.Err()
+		return tx.QueryRowContext(ctx,
+			"SELECT capability_id FROM capability_realizations WHERE tenant_id = $1 AND id = $2",
+			tenantID.Value(), sourceRealizationID,
+		).Scan(&capabilityID)
 	})
 
-	return realizations, err
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return capabilityID, err
 }

@@ -31,7 +31,6 @@ export interface NestedCapabilityGridProps {
   onCapabilityClick: (capability: Capability) => void;
   positions?: PositionMap;
   showApplications?: boolean;
-  showInherited?: boolean;
   getRealizationsForCapability?: (capabilityId: CapabilityId) => CapabilityRealization[];
   onApplicationClick?: (componentId: ComponentId) => void;
 }
@@ -75,7 +74,6 @@ interface NestedCapabilityItemProps {
   onClick: (capability: Capability) => void;
   sortable?: boolean;
   showApplications?: boolean;
-  showInherited?: boolean;
   getRealizationsForCapability?: (capabilityId: CapabilityId) => CapabilityRealization[];
   onApplicationClick?: (componentId: ComponentId) => void;
 }
@@ -86,7 +84,6 @@ function NestedCapabilityItem({
   onClick,
   sortable = false,
   showApplications = false,
-  showInherited = false,
   getRealizationsForCapability,
   onApplicationClick,
 }: NestedCapabilityItemProps) {
@@ -146,7 +143,6 @@ function NestedCapabilityItem({
         <div style={{ marginBottom: visibleChildren.length > 0 ? '0.5rem' : 0 }}>
           <ApplicationChipList
             realizations={realizations}
-            showInherited={showInherited}
             onApplicationClick={onApplicationClick}
           />
         </div>
@@ -171,7 +167,6 @@ function NestedCapabilityItem({
               depth={depth}
               onClick={onClick}
               showApplications={showApplications}
-              showInherited={showInherited}
               getRealizationsForCapability={getRealizationsForCapability}
               onApplicationClick={onApplicationClick}
             />
@@ -203,7 +198,6 @@ export function NestedCapabilityGrid({
   onCapabilityClick,
   positions,
   showApplications = false,
-  showInherited = false,
   getRealizationsForCapability,
   onApplicationClick,
 }: NestedCapabilityGridProps) {
@@ -267,7 +261,6 @@ export function NestedCapabilityGrid({
               onClick={onCapabilityClick}
               sortable={hasSortablePositions}
               showApplications={showApplications}
-              showInherited={showInherited}
               getRealizationsForCapability={getRealizationsForCapability}
               onApplicationClick={onApplicationClick}
             />

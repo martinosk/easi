@@ -13,9 +13,9 @@ import (
 )
 
 type BusinessDomainReadModels struct {
-	Domain      *readmodels.BusinessDomainReadModel
-	Assignment  *readmodels.DomainCapabilityAssignmentReadModel
-	Capability  *readmodels.CapabilityReadModel
+	Domain     *readmodels.BusinessDomainReadModel
+	Assignment *readmodels.DomainCapabilityAssignmentReadModel
+	Capability *readmodels.CapabilityReadModel
 }
 
 type BusinessDomainHandlers struct {

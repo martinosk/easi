@@ -353,13 +353,6 @@ class ApiClient {
     await this.client.delete(`/api/v1/capability-realizations/${id}`);
   }
 
-  async getCapabilityRealizations(capabilityIds: CapabilityId[]): Promise<CollectionResponse<CapabilityRealization>> {
-    const response = await this.client.get<CollectionResponse<CapabilityRealization>>(
-      `/api/v1/capability-realizations?capabilityIds=${capabilityIds.join(',')}`
-    );
-    return response.data;
-  }
-
   async getMaturityLevels(): Promise<string[]> {
     const response = await this.client.get<MaturityLevelsResponse>(
       '/api/v1/capabilities/metadata/maturity-levels'

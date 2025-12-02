@@ -10,6 +10,9 @@ Enterprise architects visualizing business domains need to see which application
 - Spec 058: Business Domain Visualization UI (grid visualization)
 - Spec 026: Capability System Realization (application-capability links)
 
+## Superseded By
+- **Spec 064: Business Domain Realizations API** - The API design in this spec (passing capabilityIds as query parameters) is superseded by spec 064, which uses a semantic endpoint accepting domainId instead.
+
 ---
 
 ## User Stories

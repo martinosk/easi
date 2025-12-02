@@ -1,10 +1,8 @@
-import { useMemo } from 'react';
 import { ApplicationChip } from './ApplicationChip';
 import type { CapabilityRealization, ComponentId } from '../../../api/types';
 
 export interface ApplicationChipListProps {
   realizations: CapabilityRealization[];
-  showInherited: boolean;
   onApplicationClick: (componentId: ComponentId) => void;
 }
 
@@ -12,20 +10,12 @@ const MAX_VISIBLE_CHIPS = 5;
 
 export function ApplicationChipList({
   realizations,
-  showInherited,
   onApplicationClick,
 }: ApplicationChipListProps) {
-  const filteredRealizations = useMemo(() => {
-    if (showInherited) {
-      return realizations;
-    }
-    return realizations.filter((r) => r.origin === 'Direct');
-  }, [realizations, showInherited]);
+  const visibleRealizations = realizations.slice(0, MAX_VISIBLE_CHIPS);
+  const overflowCount = realizations.length - MAX_VISIBLE_CHIPS;
 
-  const visibleRealizations = filteredRealizations.slice(0, MAX_VISIBLE_CHIPS);
-  const overflowCount = filteredRealizations.length - MAX_VISIBLE_CHIPS;
-
-  if (filteredRealizations.length === 0) {
+  if (realizations.length === 0) {
     return null;
   }
 

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log"
 
+	archEvents "easi/backend/internal/architecturemodeling/domain/events"
+	archReadmodels "easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/events"
 	"easi/backend/internal/shared/domain"
@@ -13,15 +15,18 @@ import (
 type RealizationProjector struct {
 	readModel           *readmodels.RealizationReadModel
 	capabilityReadModel *readmodels.CapabilityReadModel
+	componentReadModel  *archReadmodels.ApplicationComponentReadModel
 }
 
 func NewRealizationProjector(
 	readModel *readmodels.RealizationReadModel,
 	capabilityReadModel *readmodels.CapabilityReadModel,
+	componentReadModel *archReadmodels.ApplicationComponentReadModel,
 ) *RealizationProjector {
 	return &RealizationProjector{
 		readModel:           readModel,
 		capabilityReadModel: capabilityReadModel,
+		componentReadModel:  componentReadModel,
 	}
 }
 
@@ -44,6 +49,10 @@ func (p *RealizationProjector) ProjectEvent(ctx context.Context, eventType strin
 		return p.handleRealizationDeleted(ctx, eventData)
 	case "CapabilityParentChanged":
 		return p.handleCapabilityParentChanged(ctx, eventData)
+	case "CapabilityUpdated":
+		return p.handleCapabilityUpdated(ctx, eventData)
+	case "ApplicationComponentUpdated":
+		return p.handleApplicationComponentUpdated(ctx, eventData)
 	}
 	return nil
 }
@@ -54,10 +63,13 @@ func (p *RealizationProjector) handleSystemLinked(ctx context.Context, eventData
 		return err
 	}
 
+	componentName := p.lookupComponentName(ctx, event.ComponentID)
+
 	dto := readmodels.RealizationDTO{
 		ID:               event.ID,
 		CapabilityID:     event.CapabilityID,
 		ComponentID:      event.ComponentID,
+		ComponentName:    componentName,
 		RealizationLevel: event.RealizationLevel,
 		Notes:            event.Notes,
 		Origin:           "Direct",
@@ -69,6 +81,17 @@ func (p *RealizationProjector) handleSystemLinked(ctx context.Context, eventData
 	}
 
 	return p.createInheritedRealizationsForAncestors(ctx, dto)
+}
+
+func (p *RealizationProjector) lookupComponentName(ctx context.Context, componentID string) string {
+	if p.componentReadModel == nil {
+		return ""
+	}
+	component, err := p.componentReadModel.GetByID(ctx, componentID)
+	if err != nil || component == nil {
+		return ""
+	}
+	return component.Name
 }
 
 func (p *RealizationProjector) handleRealizationUpdated(ctx context.Context, eventData []byte) error {
@@ -107,6 +130,8 @@ func (p *RealizationProjector) createInheritedRealizationsForAncestors(ctx conte
 		return nil
 	}
 
+	source.SourceCapabilityID = source.CapabilityID
+	source.SourceCapabilityName = capability.Name
 	nextSource := source
 	nextSource.CapabilityID = capability.ParentID
 	return p.propagateInheritedRealizations(ctx, nextSource)
@@ -158,12 +183,15 @@ func (p *RealizationProjector) propagateInheritedRealizations(ctx context.Contex
 	}
 
 	inheritedDTO := readmodels.RealizationDTO{
-		CapabilityID:        source.CapabilityID,
-		ComponentID:         source.ComponentID,
-		RealizationLevel:    "Full",
-		Origin:              "Inherited",
-		SourceRealizationID: source.ID,
-		LinkedAt:            source.LinkedAt,
+		CapabilityID:         source.CapabilityID,
+		ComponentID:          source.ComponentID,
+		ComponentName:        source.ComponentName,
+		RealizationLevel:     "Full",
+		Origin:               "Inherited",
+		SourceRealizationID:  source.ID,
+		SourceCapabilityID:   source.SourceCapabilityID,
+		SourceCapabilityName: source.SourceCapabilityName,
+		LinkedAt:             source.LinkedAt,
 	}
 
 	if err := p.readModel.InsertInherited(ctx, inheritedDTO); err != nil {
@@ -177,4 +205,20 @@ func (p *RealizationProjector) propagateInheritedRealizations(ctx context.Contex
 	nextSource := source
 	nextSource.CapabilityID = capability.ParentID
 	return p.propagateInheritedRealizations(ctx, nextSource)
+}
+
+func (p *RealizationProjector) handleCapabilityUpdated(ctx context.Context, eventData []byte) error {
+	var event events.CapabilityUpdated
+	if err := unmarshalEvent(eventData, &event, "CapabilityUpdated"); err != nil {
+		return err
+	}
+	return p.readModel.UpdateSourceCapabilityName(ctx, event.ID, event.Name)
+}
+
+func (p *RealizationProjector) handleApplicationComponentUpdated(ctx context.Context, eventData []byte) error {
+	var event archEvents.ApplicationComponentUpdated
+	if err := unmarshalEvent(eventData, &event, "ApplicationComponentUpdated"); err != nil {
+		return err
+	}
+	return p.readModel.UpdateComponentName(ctx, event.ID, event.Name)
 }

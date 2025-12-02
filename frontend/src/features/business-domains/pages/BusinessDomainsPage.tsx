@@ -22,9 +22,7 @@ export function BusinessDomainsPage() {
     depth,
     setDepth,
     showApplications,
-    showInherited,
     setShowApplications,
-    setShowInherited,
     sidebarState,
     dialogManager,
     positions,
@@ -63,9 +61,7 @@ export function BusinessDomainsPage() {
             onDepthChange={setDepth}
             onCapabilityClick={handleCapabilityClick}
             showApplications={showApplications}
-            showInherited={showInherited}
             onShowApplicationsChange={setShowApplications}
-            onShowInheritedChange={setShowInherited}
             getRealizationsForCapability={getRealizationsForCapability}
             onApplicationClick={handleApplicationClick}
           />

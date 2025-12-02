@@ -21,9 +21,7 @@ export function useBusinessDomainsPage() {
   const [depth, setDepth] = usePersistedDepth();
   const {
     showApplications,
-    showInherited,
     setShowApplications,
-    setShowInherited,
   } = useApplicationSettings();
 
   const { domains, isLoading, error, createDomain, updateDomain, deleteDomain } = useBusinessDomains();
@@ -63,13 +61,18 @@ export function useBusinessDomainsPage() {
 
   const filtering = useCapabilityFiltering(tree, capabilities);
 
-  const visibleCapabilityIds = useMemo(() => {
-    return filtering.capabilitiesWithDescendants.map(c => c.id);
-  }, [filtering.capabilitiesWithDescendants]);
+  const visibleCapabilities = useMemo(() => {
+    return filtering.capabilitiesWithDescendants
+      .filter(c => {
+        const levelNum = parseInt(c.level.substring(1), 10);
+        return levelNum <= depth;
+      })
+      .map(c => ({ id: c.id, level: c.level }));
+  }, [filtering.capabilitiesWithDescendants, depth]);
 
   const { getRealizationsForCapability } = useCapabilityRealizations(
-    visibleCapabilityIds,
-    showApplications
+    showApplications,
+    visibleCapabilities
   );
 
   const handleApplicationClick = useCallback((componentId: ComponentId) => {
@@ -118,9 +121,7 @@ export function useBusinessDomainsPage() {
     depth,
     setDepth,
     showApplications,
-    showInherited,
     setShowApplications,
-    setShowInherited,
     sidebarState,
     dialogManager,
     positions,

@@ -193,6 +193,8 @@ func (p *testableRealizationProjector) createInheritedRealizationsForAncestors(c
 		return nil
 	}
 
+	source.SourceCapabilityID = source.CapabilityID
+	source.SourceCapabilityName = capability.Name
 	nextSource := source
 	nextSource.CapabilityID = capability.ParentID
 	return p.propagateInheritedRealizations(ctx, nextSource)
@@ -244,12 +246,15 @@ func (p *testableRealizationProjector) propagateInheritedRealizations(ctx contex
 	}
 
 	inheritedDTO := readmodels.RealizationDTO{
-		CapabilityID:        source.CapabilityID,
-		ComponentID:         source.ComponentID,
-		RealizationLevel:    "Full",
-		Origin:              "Inherited",
-		SourceRealizationID: source.ID,
-		LinkedAt:            source.LinkedAt,
+		CapabilityID:         source.CapabilityID,
+		ComponentID:          source.ComponentID,
+		ComponentName:        source.ComponentName,
+		RealizationLevel:     "Full",
+		Origin:               "Inherited",
+		SourceRealizationID:  source.ID,
+		SourceCapabilityID:   source.SourceCapabilityID,
+		SourceCapabilityName: source.SourceCapabilityName,
+		LinkedAt:             source.LinkedAt,
 	}
 
 	if err := p.readModel.InsertInherited(ctx, inheritedDTO); err != nil {
@@ -338,6 +343,8 @@ func TestRealizationProjector_HandleSystemLinked_CreatesInheritedRealizationsFor
 	assert.Equal(t, "Full", l2Inherited.RealizationLevel, "Inherited realizations should always be Full")
 	assert.Equal(t, "Inherited", l2Inherited.Origin)
 	assert.Equal(t, "real-1", l2Inherited.SourceRealizationID)
+	assert.Equal(t, "cap-l3", l2Inherited.SourceCapabilityID, "Should track source capability ID")
+	assert.Equal(t, "L3 Capability", l2Inherited.SourceCapabilityName, "Should track source capability name")
 
 	l1Inherited := mockRealRM.insertedInheritedRealizations[1]
 	assert.Equal(t, "cap-l1", l1Inherited.CapabilityID)
@@ -345,6 +352,8 @@ func TestRealizationProjector_HandleSystemLinked_CreatesInheritedRealizationsFor
 	assert.Equal(t, "Full", l1Inherited.RealizationLevel)
 	assert.Equal(t, "Inherited", l1Inherited.Origin)
 	assert.Equal(t, "real-1", l1Inherited.SourceRealizationID)
+	assert.Equal(t, "cap-l3", l1Inherited.SourceCapabilityID, "All inherited should track same source capability")
+	assert.Equal(t, "L3 Capability", l1Inherited.SourceCapabilityName)
 }
 
 func TestRealizationProjector_HandleSystemLinked_FourLevelHierarchy(t *testing.T) {

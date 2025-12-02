@@ -12,9 +12,7 @@ interface VisualizationAreaProps {
   onDepthChange: (depth: DepthLevel) => void;
   onCapabilityClick: (capability: Capability) => void;
   showApplications: boolean;
-  showInherited: boolean;
   onShowApplicationsChange: (value: boolean) => void;
-  onShowInheritedChange: (value: boolean) => void;
   getRealizationsForCapability: (capabilityId: CapabilityId) => CapabilityRealization[];
   onApplicationClick: (componentId: ComponentId) => void;
 }
@@ -28,9 +26,7 @@ export function VisualizationArea({
   onDepthChange,
   onCapabilityClick,
   showApplications,
-  showInherited,
   onShowApplicationsChange,
-  onShowInheritedChange,
   getRealizationsForCapability,
   onApplicationClick,
 }: VisualizationAreaProps) {
@@ -63,9 +59,7 @@ export function VisualizationArea({
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
             <ShowApplicationsToggle
               showApplications={showApplications}
-              showInherited={showInherited}
               onShowApplicationsChange={onShowApplicationsChange}
-              onShowInheritedChange={onShowInheritedChange}
             />
             <DepthSelector value={depth} onChange={onDepthChange} />
           </div>
@@ -76,7 +70,6 @@ export function VisualizationArea({
           onCapabilityClick={onCapabilityClick}
           positions={positions}
           showApplications={showApplications}
-          showInherited={showInherited}
           getRealizationsForCapability={getRealizationsForCapability}
           onApplicationClick={onApplicationClick}
         />

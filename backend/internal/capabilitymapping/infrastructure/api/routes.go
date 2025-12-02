@@ -94,7 +94,7 @@ func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels) {
 	capabilityProjector := projectors.NewCapabilityProjector(rm.capability)
 	dependencyProjector := projectors.NewDependencyProjector(rm.dependency)
-	realizationProjector := projectors.NewRealizationProjector(rm.realization, rm.capability)
+	realizationProjector := projectors.NewRealizationProjector(rm.realization, rm.capability, rm.component)
 	businessDomainProjector := projectors.NewBusinessDomainProjector(rm.businessDomain)
 	domainAssignmentProjector := projectors.NewBusinessDomainAssignmentProjector(rm.domainAssignment, rm.businessDomain, rm.capability)
 
@@ -120,7 +120,8 @@ func subscribeDependencyEvents(eventBus events.EventBus, projector *projectors.D
 
 func subscribeRealizationEvents(eventBus events.EventBus, projector *projectors.RealizationProjector) {
 	events := []string{"SystemLinkedToCapability", "SystemRealizationUpdated",
-		"SystemRealizationDeleted", "CapabilityParentChanged"}
+		"SystemRealizationDeleted", "CapabilityParentChanged", "CapabilityUpdated",
+		"ApplicationComponentUpdated"}
 	for _, event := range events {
 		eventBus.Subscribe(event, projector)
 	}
@@ -249,7 +250,6 @@ func registerDependencyRoutes(r chi.Router, h *routeHTTPHandlers) {
 
 func registerRealizationRoutes(r chi.Router, h *routeHTTPHandlers) {
 	r.Route("/capability-realizations", func(r chi.Router) {
-		r.Get("/", h.realization.GetRealizationsByCapabilityIds)
 		r.Put("/{id}", h.realization.UpdateRealization)
 		r.Delete("/{id}", h.realization.DeleteRealization)
 		r.Get("/by-component/{componentId}", h.realization.GetCapabilitiesByComponent)
