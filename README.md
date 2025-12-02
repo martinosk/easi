@@ -48,39 +48,62 @@ Core domain for enterprise capability modeling. Uses CQRS with event sourcing.
 
 ```mermaid
 flowchart TB
-    subgraph Browser
+    subgraph Browser["Browser"]
         subgraph Frontend["React Frontend (Port 5173)"]
-            Canvas["Canvas<br/>(React Flow)"]
-            Dialogs["Dialogs<br/>(Create)"]
-            Details["Details<br/>(View)"]
+            direction LR
+            CanvasFeature["Canvas<br/>(React Flow)"]
+            CapabilityUI["Capability<br/>Mapping"]
+            ImportUI["Import<br/>Wizard"]
         end
-        API["API Client (Axios)"]
+        ApiClient["API Client (Axios)"]
+        Store["Zustand Store"]
     end
 
     subgraph Backend["Go Backend (Port 8080)"]
-        REST["RESTful API Layer<br/>(Chi Router, CORS, Middleware)"]
-        CQRS["CQRS Command/Query Buses"]
+        REST["REST API Layer (Chi Router)"]
 
-        subgraph Contexts["Bounded Contexts (DDD)"]
-            Modeling["ArchitectureModeling<br/>(Components, Relations)"]
-            Views["ArchitectureViews<br/>(Positions)"]
-            Capability["CapabilityMapping<br/>(Capabilities, Dependencies,<br/>Metadata, Experts, Tags)"]
+        subgraph CQRS["CQRS Infrastructure"]
+            CommandBus["Command Bus"]
+            QueryBus["Query Bus"]
+            EventBus["Event Bus"]
         end
 
-        EventStore[("Event Store (PostgreSQL)<br/>All events, audit trail,<br/>event sourcing")]
-        ReadModels[("Read Models (PostgreSQL)<br/>Components, Relations,<br/>Views, Positions,<br/>Capabilities, Dependencies")]
+        subgraph CoreDomain["Core Domain"]
+            Capability["CapabilityMapping<br/>(Capabilities, Business Domains,<br/>Dependencies, Realizations)"]
+        end
+
+        subgraph SupportingDomains["Supporting Domains"]
+            Modeling["ArchitectureModeling<br/>(Components, Relations)"]
+            Views["ArchitectureViews<br/>(Visual Layouts)"]
+            Layouts["ViewLayouts<br/>(Positioning)"]
+            Importing["Importing<br/>(ArchiMate Parser)"]
+        end
+
+        subgraph GenericDomains["Generic Subdomain"]
+            Releases["Releases<br/>(Version Info)"]
+        end
+
+        EventStore[("Event Store<br/>(PostgreSQL)")]
+        ReadModels[("Read Models<br/>(PostgreSQL + RLS)")]
     end
 
-    Canvas --> API
-    Dialogs --> API
-    Details --> API
-    API -->|HTTP/JSON| REST
-    REST --> CQRS
-    CQRS --> Contexts
-    Modeling --> EventStore
-    Views --> EventStore
-    Capability --> EventStore
+    Frontend --> ApiClient
+    ApiClient --> Store
+    ApiClient -->|HTTP/JSON| REST
+    REST --> CommandBus
+    REST --> QueryBus
+    CommandBus --> CoreDomain
+    CommandBus --> SupportingDomains
+    QueryBus --> ReadModels
+
+    CoreDomain --> EventStore
+    SupportingDomains --> EventStore
+    EventStore --> EventBus
+    EventBus -.->|Cross-context events| SupportingDomains
+    EventBus -.->|Cross-context events| CoreDomain
     EventStore --> ReadModels
+
+    Releases --> ReadModels
 ```
 
 ## Tech Stack
