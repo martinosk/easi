@@ -3,14 +3,69 @@
 **Depends on:** [065_TenantProvisioning](065_TenantProvisioning_pending.md) (database schema)
 
 ## Description
-Complete end-to-end login flow for single tenant. User enters email, is redirected to IdP, authenticates, and receives a session. Includes LOCAL_DEV_MODE for development without IdP.
+Complete end-to-end login flow for single tenant using Authorization Code flow with PKCE. User enters email, is redirected to IdP, authenticates, and receives a session. Backend handles all token operations - access tokens and refresh tokens never reach the browser.
 
 ## Libraries
 | Library | Purpose | License |
 |---------|---------|---------|
 | [coreos/go-oidc](https://github.com/coreos/go-oidc) | OIDC discovery, ID token validation, JWKS caching | Apache 2.0 |
 | [alexedwards/scs](https://github.com/alexedwards/scs) | Session management with PostgreSQL store | MIT |
-| [golang.org/x/oauth2](https://github.com/golang/oauth2) | OAuth2 authorization code exchange | BSD 3-Clause |
+| [golang.org/x/oauth2](https://github.com/golang/oauth2) | OAuth2 authorization code + PKCE exchange | BSD 3-Clause |
+
+## OIDC Flow: Authorization Code with PKCE
+
+### Why PKCE?
+- Protects against authorization code interception attacks
+- Required by OAuth 2.1 for all clients (including confidential)
+- Defense-in-depth even with client secret
+
+### Token Architecture
+```
+Browser                     Backend                      IdP
+   │                           │                          │
+   │ POST /auth/sessions       │                          │
+   │   {email}                 │                          │
+   ├──────────────────────────►│                          │
+   │                           │ Generate:                │
+   │                           │  - state (CSRF)          │
+   │                           │  - nonce (replay)        │
+   │                           │  - code_verifier (PKCE)  │
+   │                           │  - code_challenge        │
+   │                           │ Store in session         │
+   │                           │                          │
+   │ ◄─────────────────────────│                          │
+   │   {authorizationUrl}      │                          │
+   │                           │                          │
+   │ ─────────────────────────────────────────────────────►
+   │   Redirect to IdP with code_challenge                │
+   │                           │                          │
+   │ ◄─────────────────────────────────────────────────────
+   │   Redirect with authorization code                   │
+   │                           │                          │
+   │ GET /auth/callback?code=  │                          │
+   ├──────────────────────────►│                          │
+   │                           │ Exchange code + verifier │
+   │                           ├─────────────────────────►│
+   │                           │                          │
+   │                           │ ◄────────────────────────│
+   │                           │  id_token                │
+   │                           │  access_token            │
+   │                           │  refresh_token           │
+   │                           │                          │
+   │                           │ Validate id_token        │
+   │                           │ Store tokens in session  │
+   │                           │ Create user session      │
+   │                           │                          │
+   │ ◄─────────────────────────│                          │
+   │   Set-Cookie: easi_session (httpOnly, Secure)        │
+   │   302 redirect to /       │                          │
+```
+
+### Security Properties
+- **Tokens never reach browser**: Access and refresh tokens stored server-side only
+- **Session cookie**: httpOnly, Secure, SameSite=Lax - cannot be read by JavaScript
+- **PKCE**: Prevents code interception even if attacker sees authorization URL
+- **Tenant isolation**: Tenant context derived from validated session, never from request
 
 ## Login Flow
 ```
@@ -18,18 +73,22 @@ Complete end-to-end login flow for single tenant. User enters email, is redirect
 2. User enters email (e.g., john@acme.com)
 3. App extracts domain "acme.com"
 4. App queries tenant_domains table → finds tenant "acme"
-5. App loads OIDC config from environment variables
-6. App stores tenant_id + state in session, redirects to IdP
-7. User authenticates with their company IdP
-8. IdP redirects to /auth/callback with authorization code
-9. App exchanges code for tokens using client credentials
-10. App validates ID token against JWKS
-11. App looks up user by (tenant_id, external_id OR email)
-12. If no user exists and no pending invitation → block with 403
-13. If invitation exists → accept invitation, create user, set status=active
-14. If user exists but status != active → block with 403
-15. App creates session cookie with user_id
-16. App redirects to dashboard
+5. App loads OIDC config from database (tenant-specific)
+6. App generates state, nonce, and PKCE code_verifier/code_challenge
+7. App stores tenant_id, state, nonce, code_verifier in pre-auth session
+8. App redirects to IdP authorization endpoint with code_challenge
+9. User authenticates with their company IdP
+10. IdP redirects to /auth/callback with authorization code
+11. App validates state parameter matches session
+12. App exchanges code + code_verifier for tokens (id, access, refresh)
+13. App validates ID token (signature, issuer, audience, nonce, expiry)
+14. App looks up user by (tenant_id, external_id OR email)
+15. If no user exists and no pending invitation → block with 403
+16. If invitation exists → accept invitation, create user, set status=active
+17. If user exists but status != active → block with 403
+18. App stores access_token and refresh_token in session
+19. App creates authenticated session with user_id
+20. App redirects to dashboard
 ```
 
 ## API Endpoints
@@ -94,22 +153,61 @@ Handles OIDC callback after user authenticates with IdP.
 
 ## OIDC Configuration
 
-Environment variables (stored in K8s secrets):
+OIDC configuration is stored per-tenant in the database (see spec 065). This enables multi-tenant support where each tenant uses their own Identity Provider.
+
+**Loaded from database:**
+- `discovery_url`: Tenant's IdP discovery endpoint
+- `client_id`: OAuth client ID registered with tenant's IdP
+- `client_secret`: OAuth client secret (encrypted at rest)
+- `scopes`: Requested scopes (default: `openid email profile offline_access`)
+
+**Environment variable:**
 ```bash
-OIDC_DISCOVERY_URL=https://login.microsoftonline.com/{tenant}/v2.0/.well-known/openid-configuration
-OIDC_CLIENT_ID=your-client-id
-OIDC_CLIENT_SECRET=your-client-secret
 OIDC_REDIRECT_URL=https://easi.example.com/auth/callback
 ```
+
+**Note:** The `offline_access` scope is required to receive refresh tokens. Most IdPs require this scope explicitly.
 
 ## Session Management
 
 Using SCS with PostgreSQL store:
-- Session lifetime: 24 hours
+- Session lifetime: 8 hours (access token lifetime)
+- Refresh extends session up to 7 days (refresh token lifetime)
 - Cookie name: `easi_session`
 - HTTP-only: true
 - Secure: true (production)
 - SameSite: Lax
+
+### Session Data Structure
+```go
+type SessionData struct {
+    // Pre-auth (before callback)
+    TenantID      string
+    State         string
+    Nonce         string
+    CodeVerifier  string
+
+    // Post-auth (after successful login)
+    UserID        uuid.UUID
+    AccessToken   string
+    RefreshToken  string
+    TokenExpiry   time.Time
+}
+```
+
+### Token Refresh Flow
+```
+1. API request arrives with session cookie
+2. Middleware checks session validity
+3. If access token expired but refresh token valid:
+   a. Exchange refresh token for new tokens at IdP
+   b. Update session with new access_token, refresh_token, expiry
+   c. Continue processing request
+4. If refresh token expired or invalid:
+   a. Destroy session
+   b. Return 401 Unauthorized
+   c. Frontend redirects to login
+```
 
 ## Local Development Mode
 
@@ -129,11 +227,29 @@ curl -H "X-Tenant-ID: acme" \
 ```
 
 ## Token Validation
-- Validate signature against JWKS (cache keys, refresh periodically)
-- Validate issuer matches OIDC discovery
-- Validate audience matches client ID
-- Validate expiration with 5-minute clock skew tolerance
-- Validate nonce matches session state
+
+### ID Token Validation (on login)
+- Validate signature against JWKS (cache keys, refresh on unknown kid)
+- Validate `iss` (issuer) matches OIDC discovery issuer
+- Validate `aud` (audience) matches client ID
+- Validate `exp` (expiration) with 5-minute clock skew tolerance
+- Validate `nonce` matches value stored in pre-auth session
+- Extract `sub` as external_id, `email`, and `name` claims
+
+### PKCE Validation (by IdP)
+- IdP validates `code_verifier` matches `code_challenge` from authorization request
+- Uses S256 challenge method: `BASE64URL(SHA256(code_verifier))`
+
+### Access Token Usage
+- Access token stored in session, used for potential downstream API calls
+- Not validated by EASI backend (session cookie is the auth mechanism)
+- Token expiry tracked to trigger refresh
+
+### Refresh Token Handling
+- Stored encrypted in session
+- Used to obtain new access/refresh tokens when access token expires
+- Refresh token rotation: new refresh token issued on each refresh (if IdP supports)
+- On refresh failure, session is invalidated (user must re-authenticate)
 
 ## Frontend Components
 
@@ -150,12 +266,17 @@ curl -H "X-Tenant-ID: acme" \
 
 ## Checklist
 - [ ] Add dependencies: coreos/go-oidc, alexedwards/scs, golang.org/x/oauth2
-- [ ] OIDC config from environment variables (K8s secret)
+- [ ] OIDC config loading from database (per-tenant)
+- [ ] PKCE code_verifier/code_challenge generation (S256)
 - [ ] Session manager with SCS PostgreSQL store
-- [ ] POST /auth/sessions endpoint (initiate login)
-- [ ] GET /auth/callback endpoint (complete login)
+- [ ] POST /auth/sessions endpoint (initiate login with PKCE)
+- [ ] GET /auth/callback endpoint (complete login, exchange with code_verifier)
+- [ ] ID token validation (signature, issuer, audience, nonce, expiry)
+- [ ] Store access_token and refresh_token in session
+- [ ] Token refresh middleware (refresh on access token expiry)
 - [ ] Session middleware with LOCAL_DEV_MODE support
 - [ ] Login page with email input (frontend)
 - [ ] OIDC redirect handling (frontend)
 - [ ] Integration test: complete login flow with mock OIDC
+- [ ] Integration test: token refresh flow
 - [ ] User sign-off

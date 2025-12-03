@@ -98,6 +98,14 @@ For security-sensitive operations, detailed audit records are created within han
 - [ ] Authorization code cannot be reused
 - [ ] ID token nonce validated
 - [ ] Discovery URL validated before use
+- [ ] PKCE code_verifier required for token exchange
+- [ ] PKCE code_challenge uses S256 method
+
+### Token Refresh Security Tests
+- [ ] Refresh token obtains new access token
+- [ ] Expired refresh token returns 401
+- [ ] Refresh token rotation works (if IdP supports)
+- [ ] Invalid refresh token destroys session
 
 ## E2E Test Scenarios
 

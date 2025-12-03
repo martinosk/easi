@@ -33,7 +33,11 @@ Provide these values to EASI platform admin:
 - **Client Secret**: The secret value copied earlier
 
 ### Required Permissions
-No additional API permissions needed. Default scopes (`openid`, `email`, `profile`) are sufficient.
+No additional API permissions needed. Required scopes:
+- `openid` - Required for OIDC
+- `email` - User's email address
+- `profile` - User's name
+- `offline_access` - **Required for refresh tokens** (enables long-lived sessions)
 
 ---
 
@@ -53,6 +57,11 @@ No additional API permissions needed. Default scopes (`openid`, `email`, `profil
 4. Controlled access: Select appropriate assignment
 5. Click "Save"
 
+### Configure Scopes
+Ensure the following scopes are enabled:
+- `openid`, `email`, `profile` - Standard OIDC scopes
+- `offline_access` - Required for refresh tokens
+
 ### Gather Configuration
 Provide these values to EASI platform admin:
 - **Discovery URL**: `https://{your-domain}.okta.com/.well-known/openid-configuration`
@@ -69,7 +78,8 @@ Provide these values to EASI platform admin:
 3. If prompted, configure OAuth consent screen first:
    - User type: Internal (for Google Workspace)
    - App name, support email, developer contact
-   - Scopes: `email`, `profile`, `openid`
+   - Scopes: `openid`, `email`, `profile`
+   - Note: Google uses `access_type=offline` parameter instead of `offline_access` scope
 4. Application type: Web application
 5. Name: "EASI"
 
@@ -102,7 +112,8 @@ Your OIDC provider must support:
 1. Create a new OIDC client/application in your IdP
 2. Configure as "Web Application" or "Confidential Client"
 3. Set redirect URI: `https://easi.example.com/auth/callback`
-4. Enable scopes: `openid`, `email`, `profile`
+4. Enable scopes: `openid`, `email`, `profile`, `offline_access`
+   - `offline_access` is required for refresh tokens (long-lived sessions)
 
 ### Gather Configuration
 Provide these values to EASI platform admin:
