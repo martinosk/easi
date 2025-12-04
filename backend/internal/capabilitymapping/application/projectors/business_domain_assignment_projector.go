@@ -77,13 +77,14 @@ func (p *BusinessDomainAssignmentProjector) handleCapabilityAssignedToDomain(ctx
 	}
 
 	dto := readmodels.AssignmentDTO{
-		AssignmentID:       event.ID,
-		BusinessDomainID:   event.BusinessDomainID,
-		BusinessDomainName: domain.Name,
-		CapabilityID:       event.CapabilityID,
-		CapabilityName:     capability.Name,
-		CapabilityLevel:    capability.Level,
-		AssignedAt:         event.AssignedAt,
+		AssignmentID:          event.ID,
+		BusinessDomainID:      event.BusinessDomainID,
+		BusinessDomainName:    domain.Name,
+		CapabilityID:          event.CapabilityID,
+		CapabilityName:        capability.Name,
+		CapabilityDescription: capability.Description,
+		CapabilityLevel:       capability.Level,
+		AssignedAt:            event.AssignedAt,
 	}
 	return p.assignmentReadModel.Insert(ctx, dto)
 }
