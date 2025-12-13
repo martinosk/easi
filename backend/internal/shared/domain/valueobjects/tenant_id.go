@@ -7,8 +7,15 @@ import (
 )
 
 var (
-	// tenantIDPattern matches lowercase alphanumeric and hyphens, 3-50 characters
-	tenantIDPattern = regexp.MustCompile(`^[a-z0-9-]{3,50}$`)
+	// tenantIDPattern matches tenant IDs with specific rules:
+	// - Must start with alphanumeric character
+	// - Must end with alphanumeric character (for 4+ char IDs)
+	// - Can contain lowercase alphanumeric and hyphens in the middle
+	// - Length: 3-50 characters total
+	// Pattern breakdown:
+	// - [a-z0-9]{3}                : Matches exactly 3 alphanumeric chars OR
+	// - [a-z0-9][a-z0-9-]{2,48}[a-z0-9] : Matches 4-50 chars with alphanumeric start/end
+	tenantIDPattern = regexp.MustCompile(`^([a-z0-9]{3}|[a-z0-9][a-z0-9-]{2,48}[a-z0-9])$`)
 
 	// reservedTenantIDs are IDs that cannot be used for regular tenants
 	reservedTenantIDs = map[string]bool{
@@ -18,7 +25,7 @@ var (
 	}
 
 	// ErrInvalidTenantIDFormat is returned when tenant ID doesn't match required pattern
-	ErrInvalidTenantIDFormat = fmt.Errorf("%w: tenant ID must be lowercase alphanumeric with hyphens, 3-50 characters", domain.ErrInvalidValue)
+	ErrInvalidTenantIDFormat = fmt.Errorf("%w: tenant ID must be 3-50 chars, start/end with alphanumeric, contain only lowercase letters, digits, and hyphens", domain.ErrInvalidValue)
 
 	// ErrReservedTenantID is returned when trying to use a reserved tenant ID
 	ErrReservedTenantID = fmt.Errorf("%w: tenant ID is reserved for system use", domain.ErrInvalidValue)

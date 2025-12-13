@@ -143,12 +143,12 @@ Apply RLS policies to: events, snapshots, application_components, component_rela
 - [x] API middleware extracts and injects tenant context (LOCAL_DEV_MODE support)
 - [x] Migration script tested
 - [x] Unit tests for TenantId value object
-- [ ] Integration tests with multiple tenants
-- [ ] Backend integration tests verify tenant isolation
-- [ ] Security tests prevent cross-tenant access at application layer
-- [ ] Security tests verify RLS policies enforce isolation at database layer
-- [ ] Test that missing tenant context fails safely
-- [ ] Verify index usage in query plans with tenant_id filters
-- [ ] Performance testing with RLS enabled
-- [ ] Security audit of RLS implementation (attack vectors, connection pool, SQL injection)
-- [ ] User sign-off
+- [x] Integration tests with multiple tenants
+- [x] Backend integration tests verify tenant isolation
+- [x] Security tests prevent cross-tenant access at application layer
+- [x] Security tests verify RLS policies enforce isolation at database layer
+- [x] Test that missing tenant context fails safely
+- [x] Verify index usage in query plans with tenant_id filters
+- [x] Performance testing with RLS enabled
+- [x] Security audit of RLS implementation (attack vectors, connection pool, SQL injection)
+- [x] User sign-off
