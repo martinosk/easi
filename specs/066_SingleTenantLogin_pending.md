@@ -232,6 +232,70 @@ curl -H "X-Tenant-ID: acme" \
      http://localhost:8080/api/v1/components
 ```
 
+## Integration Testing with Dex
+
+Integration tests use [Dex](https://dexidp.io/) as a lightweight OIDC provider running in Docker Compose.
+
+### Docker Compose Service
+```yaml
+dex:
+  image: ghcr.io/dexidp/dex:v2.38.0
+  ports:
+    - "5556:5556"
+  volumes:
+    - ./dex-config.yaml:/etc/dex/config.docker.yaml
+  command: ["dex", "serve", "/etc/dex/config.docker.yaml"]
+```
+
+### Dex Configuration (dex-config.yaml)
+```yaml
+issuer: http://localhost:5556/dex
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:5556
+oauth2:
+  skipApprovalScreen: true
+staticClients:
+  - id: easi-test
+    secret: easi-test-secret
+    redirectURIs:
+      - http://localhost:8080/auth/callback
+    name: EASI Test
+enablePasswordDB: true
+staticPasswords:
+  - email: testuser@acme.com
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"  # "password"
+    username: testuser
+```
+
+### Test Tenant Configuration
+Integration tests configure a test tenant pointing to Dex:
+- Discovery URL: `http://localhost:5556/dex/.well-known/openid-configuration`
+- Client ID: `easi-test`
+- Client Secret: `easi-test-secret`
+
+### Test Scenarios
+| Scenario | Setup | Verification |
+|----------|-------|--------------|
+| Successful login | Use static user credentials | Session created, redirect to dashboard |
+| PKCE validation | Default flow | Code exchange succeeds with valid verifier |
+| Invalid state | Tamper with state param | 400 Bad Request |
+| Invalid credentials | Wrong password at Dex | Dex rejects, no callback |
+| Invalid nonce | Modify nonce in session | 401 Unauthorized |
+
+### Running Integration Tests
+```bash
+./test_integration.sh
+```
+
+### Unit Tests
+Unit tests do NOT require Dex or any external dependencies. They test individual components in isolation:
+- Token validation logic (with test JWTs signed by test keys)
+- PKCE code_challenge generation
+- Session data serialization
+- State/nonce generation
+
 ## Token Validation
 
 ### ID Token Validation (on login)
@@ -283,6 +347,10 @@ curl -H "X-Tenant-ID: acme" \
 - [ ] Session middleware with LOCAL_DEV_MODE support
 - [ ] Login page with email input (frontend)
 - [ ] OIDC redirect handling (frontend)
-- [ ] Integration test: complete login flow with mock OIDC
-- [ ] Integration test: token refresh flow
+- [ ] Add Dex service to docker-compose for integration tests
+- [ ] Integration test with Dex: successful login flow
+- [ ] Integration test with Dex: PKCE validation
+- [ ] Integration test with Dex: invalid state rejection
+- [ ] Integration test with Dex: token refresh on expiry
+- [ ] Unit tests: token validation, PKCE generation, session serialization
 - [ ] User sign-off
