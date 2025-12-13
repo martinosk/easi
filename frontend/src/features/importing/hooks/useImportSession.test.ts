@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import type { ImportSession, CreateImportSessionRequest } from '../types';
 
 const { mockPost, mockGet, mockDelete } = vi.hoisted(() => ({
@@ -71,7 +71,9 @@ describe('useImportSession', () => {
         sourceFormat: 'archimate-openexchange',
       };
 
-      await result.current.createSession(request);
+      await act(async () => {
+        await result.current.createSession(request);
+      });
 
       await waitFor(() => {
         expect(result.current.session).toEqual(mockSession);
@@ -92,7 +94,9 @@ describe('useImportSession', () => {
         sourceFormat: 'archimate-openexchange',
       };
 
-      await result.current.createSession(request);
+      await act(async () => {
+        await result.current.createSession(request);
+      });
 
       await waitFor(() => {
         expect(result.current.error).toBe(errorMessage);
@@ -129,13 +133,17 @@ describe('useImportSession', () => {
       const { result } = renderHook(() => useImportSession());
 
       const file = new File(['test'], 'test.xml', { type: 'application/xml' });
-      await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
+      await act(async () => {
+        await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
+      });
 
       await waitFor(() => {
         expect(result.current.session?.status).toBe('pending');
       });
 
-      await result.current.confirmSession();
+      await act(async () => {
+        await result.current.confirmSession();
+      });
 
       await waitFor(() => {
         expect(result.current.session?.status).toBe('importing');
@@ -160,13 +168,17 @@ describe('useImportSession', () => {
       const { result } = renderHook(() => useImportSession());
 
       const file = new File(['test'], 'test.xml', { type: 'application/xml' });
-      await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
+      await act(async () => {
+        await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
+      });
 
       await waitFor(() => {
         expect(result.current.session?.status).toBe('pending');
       });
 
-      await result.current.confirmSession();
+      await act(async () => {
+        await result.current.confirmSession();
+      });
 
       await waitFor(() => {
         expect(result.current.error).toBe(errorMessage);
@@ -193,9 +205,13 @@ describe('useImportSession', () => {
       const { result } = renderHook(() => useImportSession());
 
       const file = new File(['test'], 'test.xml', { type: 'application/xml' });
-      await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
+      await act(async () => {
+        await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
+      });
 
-      await result.current.cancelSession();
+      await act(async () => {
+        await result.current.cancelSession();
+      });
 
       await waitFor(() => {
         expect(result.current.session).toBeNull();
@@ -241,7 +257,9 @@ describe('useImportSession', () => {
       const { result } = renderHook(() => useImportSession());
 
       const file = new File(['test'], 'test.xml', { type: 'application/xml' });
-      await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
+      await act(async () => {
+        await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
+      });
 
       await waitFor(() => {
         expect(result.current.session?.status).toBe('importing');
@@ -279,13 +297,17 @@ describe('useImportSession', () => {
       const { result } = renderHook(() => useImportSession());
 
       const file = new File(['test'], 'test.xml', { type: 'application/xml' });
-      await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
+      await act(async () => {
+        await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
+      });
 
       await waitFor(() => {
         expect(result.current.session?.status).toBe('completed');
       });
 
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      });
 
       expect(mockGet).not.toHaveBeenCalled();
     }, 10000);
@@ -306,13 +328,15 @@ describe('useImportSession', () => {
       const { result } = renderHook(() => useImportSession());
 
       const file = new File(['test'], 'test.xml', { type: 'application/xml' });
-      await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
+      await act(async () => {
+        await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
+      });
 
       await waitFor(() => {
         expect(result.current.session).toEqual(mockSession);
       });
 
-      await waitFor(() => {
+      act(() => {
         result.current.reset();
       });
 

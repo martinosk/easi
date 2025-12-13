@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { DomainFilter } from './DomainFilter';
 import type { BusinessDomain } from '../../../api/types';
@@ -82,14 +82,15 @@ describe('DomainFilter', () => {
     expect(onSelect).toHaveBeenCalledWith(null);
   });
 
-  it('should filter domains by search term', () => {
+  it('should filter domains by search term', async () => {
     const onSelect = vi.fn();
     render(<DomainFilter domains={mockDomains} selected={null} onSelect={onSelect} />);
 
     const searchInput = screen.getByPlaceholderText('Search domains...');
-    searchInput.setAttribute('value', 'Customer');
-    searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+    fireEvent.change(searchInput, { target: { value: 'Customer' } });
 
-    expect(screen.getByText('Customer Management')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Customer Management')).toBeInTheDocument();
+    });
   });
 });
