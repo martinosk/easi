@@ -63,6 +63,8 @@ import type {
 } from './types';
 import { ApiError } from './types';
 
+let isRedirectingToLogin = false;
+
 class ApiClient {
   private client: AxiosInstance;
 
@@ -72,13 +74,22 @@ class ApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
+      withCredentials: true,
     });
 
     this.client.interceptors.response.use(
       (response) => response,
       (error: AxiosError) => {
-        const message = this.extractErrorMessage(error);
         const statusCode = error.response?.status || 500;
+
+        if (statusCode === 401 && !window.location.pathname.endsWith('/login') && !isRedirectingToLogin) {
+          isRedirectingToLogin = true;
+          const basePath = import.meta.env.BASE_URL || '/';
+          window.location.href = `${basePath}login`;
+          return Promise.reject(error);
+        }
+
+        const message = this.extractErrorMessage(error);
         throw new ApiError(message, statusCode, error.response?.data);
       }
     );
