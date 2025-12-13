@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"easi/backend/internal/shared/config"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
 )
@@ -56,12 +58,15 @@ func NewOIDCProvider(ctx context.Context, discoveryURL, clientID, clientSecret, 
 	return NewOIDCProviderWithIssuer(ctx, discoveryURL, "", clientID, clientSecret, redirectURL)
 }
 
+var ErrInsecureIssuerNotAllowed = errors.New("insecure issuer URL override requires AUTH_MODE=local_oidc or AUTH_MODE=bypass")
+
 func NewOIDCProviderWithIssuer(ctx context.Context, discoveryURL, issuerURL, clientID, clientSecret, redirectURL string) (*OIDCProvider, error) {
 	var httpClient *http.Client
 
-	// When discovery URL differs from issuer URL (e.g., Docker internal vs external),
-	// create a custom HTTP client that rewrites URLs from issuer to discovery URL
 	if issuerURL != "" && issuerURL != discoveryURL {
+		if !config.IsHTTPAllowed() {
+			return nil, ErrInsecureIssuerNotAllowed
+		}
 		ctx = oidc.InsecureIssuerURLContext(ctx, issuerURL)
 		httpClient = &http.Client{
 			Transport: &urlRewriteTransport{

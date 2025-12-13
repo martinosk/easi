@@ -11,40 +11,47 @@ import (
 	sharedvo "easi/backend/internal/shared/domain/valueobjects"
 )
 
+const tokenExpiryBuffer = 5 * time.Minute
+
 type AuthSession struct {
-	tenantID      string
-	state         string
-	nonce         string
-	codeVerifier  string
-	returnURL     string
-	userID        uuid.UUID
-	accessToken   string
-	refreshToken  string
-	tokenExpiry   time.Time
-	authenticated bool
+	tenantID            string
+	state               string
+	nonce               string
+	codeVerifier        string
+	expectedEmailDomain string
+	returnURL           string
+	userID              uuid.UUID
+	userEmail           string
+	accessToken         string
+	refreshToken        string
+	tokenExpiry         time.Time
+	authenticated       bool
 }
 
 type authSessionJSON struct {
-	TenantID      string    `json:"tenantId"`
-	State         string    `json:"state"`
-	Nonce         string    `json:"nonce"`
-	CodeVerifier  string    `json:"codeVerifier"`
-	ReturnURL     string    `json:"returnUrl"`
-	UserID        string    `json:"userId"`
-	AccessToken   string    `json:"accessToken"`
-	RefreshToken  string    `json:"refreshToken"`
-	TokenExpiry   time.Time `json:"tokenExpiry"`
-	Authenticated bool      `json:"authenticated"`
+	TenantID            string    `json:"tenantId"`
+	State               string    `json:"state"`
+	Nonce               string    `json:"nonce"`
+	CodeVerifier        string    `json:"codeVerifier"`
+	ExpectedEmailDomain string    `json:"expectedEmailDomain"`
+	ReturnURL           string    `json:"returnUrl"`
+	UserID              string    `json:"userId"`
+	UserEmail           string    `json:"userEmail"`
+	AccessToken         string    `json:"accessToken"`
+	RefreshToken        string    `json:"refreshToken"`
+	TokenExpiry         time.Time `json:"tokenExpiry"`
+	Authenticated       bool      `json:"authenticated"`
 }
 
-func NewPreAuthSession(tenantID sharedvo.TenantID, returnURL string) AuthSession {
+func NewPreAuthSession(tenantID sharedvo.TenantID, expectedEmailDomain string, returnURL string) AuthSession {
 	return AuthSession{
-		tenantID:      tenantID.Value(),
-		state:         valueobjects.NewAuthState().Value(),
-		nonce:         valueobjects.NewNonce().Value(),
-		codeVerifier:  oauth2.GenerateVerifier(),
-		returnURL:     returnURL,
-		authenticated: false,
+		tenantID:            tenantID.Value(),
+		state:               valueobjects.NewAuthState().Value(),
+		nonce:               valueobjects.NewNonce().Value(),
+		codeVerifier:        oauth2.GenerateVerifier(),
+		expectedEmailDomain: expectedEmailDomain,
+		returnURL:           returnURL,
+		authenticated:       false,
 	}
 }
 
@@ -64,12 +71,20 @@ func (s AuthSession) CodeVerifier() string {
 	return s.codeVerifier
 }
 
+func (s AuthSession) ExpectedEmailDomain() string {
+	return s.expectedEmailDomain
+}
+
 func (s AuthSession) ReturnURL() string {
 	return s.returnURL
 }
 
 func (s AuthSession) UserID() uuid.UUID {
 	return s.userID
+}
+
+func (s AuthSession) UserEmail() string {
+	return s.userEmail
 }
 
 func (s AuthSession) AccessToken() string {
@@ -89,26 +104,29 @@ func (s AuthSession) IsAuthenticated() bool {
 }
 
 func (s AuthSession) IsTokenExpired() bool {
-	return time.Now().After(s.tokenExpiry)
+	return time.Now().Add(tokenExpiryBuffer).After(s.tokenExpiry)
 }
 
 func (s AuthSession) UpgradeToAuthenticated(
 	userID uuid.UUID,
+	userEmail string,
 	accessToken string,
 	refreshToken string,
 	tokenExpiry time.Time,
 ) AuthSession {
 	return AuthSession{
-		tenantID:      s.tenantID,
-		state:         s.state,
-		nonce:         s.nonce,
-		codeVerifier:  s.codeVerifier,
-		returnURL:     s.returnURL,
-		userID:        userID,
-		accessToken:   accessToken,
-		refreshToken:  refreshToken,
-		tokenExpiry:   tokenExpiry,
-		authenticated: true,
+		tenantID:            s.tenantID,
+		state:               "",
+		nonce:               "",
+		codeVerifier:        "",
+		expectedEmailDomain: "",
+		returnURL:           "",
+		userID:              userID,
+		userEmail:           userEmail,
+		accessToken:         accessToken,
+		refreshToken:        refreshToken,
+		tokenExpiry:         tokenExpiry,
+		authenticated:       true,
 	}
 }
 
@@ -118,31 +136,35 @@ func (s AuthSession) UpdateTokens(
 	tokenExpiry time.Time,
 ) AuthSession {
 	return AuthSession{
-		tenantID:      s.tenantID,
-		state:         s.state,
-		nonce:         s.nonce,
-		codeVerifier:  s.codeVerifier,
-		returnURL:     s.returnURL,
-		userID:        s.userID,
-		accessToken:   accessToken,
-		refreshToken:  refreshToken,
-		tokenExpiry:   tokenExpiry,
-		authenticated: s.authenticated,
+		tenantID:            s.tenantID,
+		state:               "",
+		nonce:               "",
+		codeVerifier:        "",
+		expectedEmailDomain: "",
+		returnURL:           "",
+		userID:              s.userID,
+		userEmail:           s.userEmail,
+		accessToken:         accessToken,
+		refreshToken:        refreshToken,
+		tokenExpiry:         tokenExpiry,
+		authenticated:       s.authenticated,
 	}
 }
 
 func (s AuthSession) Marshal() ([]byte, error) {
 	data := authSessionJSON{
-		TenantID:      s.tenantID,
-		State:         s.state,
-		Nonce:         s.nonce,
-		CodeVerifier:  s.codeVerifier,
-		ReturnURL:     s.returnURL,
-		UserID:        s.userID.String(),
-		AccessToken:   s.accessToken,
-		RefreshToken:  s.refreshToken,
-		TokenExpiry:   s.tokenExpiry,
-		Authenticated: s.authenticated,
+		TenantID:            s.tenantID,
+		State:               s.state,
+		Nonce:               s.nonce,
+		CodeVerifier:        s.codeVerifier,
+		ExpectedEmailDomain: s.expectedEmailDomain,
+		ReturnURL:           s.returnURL,
+		UserID:              s.userID.String(),
+		UserEmail:           s.userEmail,
+		AccessToken:         s.accessToken,
+		RefreshToken:        s.refreshToken,
+		TokenExpiry:         s.tokenExpiry,
+		Authenticated:       s.authenticated,
 	}
 	return json.Marshal(data)
 }
@@ -163,15 +185,17 @@ func UnmarshalAuthSession(data []byte) (AuthSession, error) {
 	}
 
 	return AuthSession{
-		tenantID:      j.TenantID,
-		state:         j.State,
-		nonce:         j.Nonce,
-		codeVerifier:  j.CodeVerifier,
-		returnURL:     j.ReturnURL,
-		userID:        userID,
-		accessToken:   j.AccessToken,
-		refreshToken:  j.RefreshToken,
-		tokenExpiry:   j.TokenExpiry,
-		authenticated: j.Authenticated,
+		tenantID:            j.TenantID,
+		state:               j.State,
+		nonce:               j.Nonce,
+		codeVerifier:        j.CodeVerifier,
+		expectedEmailDomain: j.ExpectedEmailDomain,
+		returnURL:           j.ReturnURL,
+		userID:              userID,
+		userEmail:           j.UserEmail,
+		accessToken:         j.AccessToken,
+		refreshToken:        j.RefreshToken,
+		tokenExpiry:         j.TokenExpiry,
+		authenticated:       j.Authenticated,
 	}, nil
 }

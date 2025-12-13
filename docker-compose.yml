@@ -40,11 +40,13 @@ services:
     container_name: easi-backend
     environment:
       DB_CONN_STRING: ${DB_CONN_STRING:-host=postgres port=5432 user=easi_app password=localdev dbname=easi sslmode=disable}
-      LOCAL_DEV_MODE: ${LOCAL_DEV_MODE:-false}
+      AUTH_MODE: ${AUTH_MODE:-local_oidc}
       PORT: 8080
       PLATFORM_ADMIN_API_KEY: ${PLATFORM_ADMIN_API_KEY:-localdev}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-easi-test-secret}
       OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-http://localhost:8080/auth/callback}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173/easi/}
     ports:
       - "8080:8080"
     networks:

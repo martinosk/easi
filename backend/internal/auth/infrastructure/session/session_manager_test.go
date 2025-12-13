@@ -29,7 +29,7 @@ func TestSessionManager_StoreAndLoadPreAuthSession(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-		preAuth := NewPreAuthSession(tenantID, "")
+		preAuth := NewPreAuthSession(tenantID, "acme.com", "")
 		err := sm.StorePreAuthSession(ctx, preAuth)
 		require.NoError(t, err)
 
@@ -40,6 +40,7 @@ func TestSessionManager_StoreAndLoadPreAuthSession(t *testing.T) {
 		assert.Equal(t, preAuth.State(), loaded.State())
 		assert.Equal(t, preAuth.Nonce(), loaded.Nonce())
 		assert.Equal(t, preAuth.CodeVerifier(), loaded.CodeVerifier())
+		assert.Equal(t, preAuth.ExpectedEmailDomain(), loaded.ExpectedEmailDomain())
 		assert.False(t, loaded.IsAuthenticated())
 	})
 
@@ -57,12 +58,12 @@ func TestSessionManager_UpgradeAndLoadAuthenticatedSession(t *testing.T) {
 	setupHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-		preAuth := NewPreAuthSession(tenantID, "")
+		preAuth := NewPreAuthSession(tenantID, "acme.com", "")
 		err := sm.StorePreAuthSession(ctx, preAuth)
 		require.NoError(t, err)
 
 		userID := uuid.New()
-		authenticated := preAuth.UpgradeToAuthenticated(userID, "access", "refresh", time.Now().Add(time.Hour))
+		authenticated := preAuth.UpgradeToAuthenticated(userID, "user@acme.com", "access", "refresh", time.Now().Add(time.Hour))
 		err = sm.StoreAuthenticatedSession(ctx, authenticated)
 		require.NoError(t, err)
 
@@ -70,6 +71,7 @@ func TestSessionManager_UpgradeAndLoadAuthenticatedSession(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, loaded.IsAuthenticated())
 		assert.Equal(t, userID, loaded.UserID())
+		assert.Equal(t, "user@acme.com", loaded.UserEmail())
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -105,7 +107,7 @@ func TestSessionManager_ClearSession(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-		preAuth := NewPreAuthSession(tenantID, "")
+		preAuth := NewPreAuthSession(tenantID, "acme.com", "")
 		_ = sm.StorePreAuthSession(ctx, preAuth)
 
 		err := sm.ClearSession(ctx)

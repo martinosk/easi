@@ -58,7 +58,8 @@ func setupTestHandler(t *testing.T, idpServer *httptest.Server) (*AuthHandlers, 
 		},
 	}
 
-	handlers := NewAuthHandlers(sessionManager, mockRepo, "test-secret", idpServer.URL+"/callback")
+	allowedOrigins := []string{"http://localhost:3000", "http://localhost:5173"}
+	handlers := NewAuthHandlers(sessionManager, mockRepo, "test-secret", idpServer.URL+"/callback", allowedOrigins)
 
 	return handlers, scsManager
 }
@@ -158,7 +159,8 @@ func TestPostSessions_DomainNotFound(t *testing.T) {
 		err: repositories.ErrDomainNotFound,
 	}
 
-	handlers := NewAuthHandlers(sessionManager, mockRepo, "test-secret", idpServer.URL+"/callback")
+	allowedOrigins := []string{"http://localhost:3000"}
+	handlers := NewAuthHandlers(sessionManager, mockRepo, "test-secret", idpServer.URL+"/callback", allowedOrigins)
 
 	body := map[string]string{"email": "user@unknown.com"}
 	jsonBody, _ := json.Marshal(body)
@@ -172,7 +174,7 @@ func TestPostSessions_DomainNotFound(t *testing.T) {
 	router.Post("/auth/sessions", handlers.PostSessions)
 	router.ServeHTTP(rec, req)
 
-	assert.Equal(t, http.StatusNotFound, rec.Code)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestPostSessions_AuthURLContainsPKCE(t *testing.T) {
@@ -335,7 +337,8 @@ func TestGetCallback_SuccessfulExchange(t *testing.T) {
 		},
 	}
 
-	handlers := NewAuthHandlers(sessionManager, mockRepo, "test-secret", idpServer.URL+"/callback")
+	allowedOrigins := []string{"http://localhost:3000", "http://localhost:5173"}
+	handlers := NewAuthHandlers(sessionManager, mockRepo, "test-secret", idpServer.URL+"/callback", allowedOrigins)
 
 	router := chi.NewRouter()
 	router.Use(scsManager.LoadAndSave)

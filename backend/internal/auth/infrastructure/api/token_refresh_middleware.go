@@ -3,12 +3,12 @@ package api
 import (
 	"context"
 	"net/http"
-	"os"
 	"sync"
 
 	"easi/backend/internal/auth/infrastructure/oidc"
 	"easi/backend/internal/auth/infrastructure/repositories"
 	"easi/backend/internal/auth/infrastructure/session"
+	"easi/backend/internal/shared/config"
 )
 
 type TokenRefreshMiddleware struct {
@@ -36,7 +36,7 @@ func NewTokenRefreshMiddleware(
 func (m *TokenRefreshMiddleware) RefreshIfNeeded() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if os.Getenv("LOCAL_DEV_MODE") == "true" {
+			if config.IsAuthBypassed() {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -104,5 +104,5 @@ func (m *TokenRefreshMiddleware) refreshTokens(ctx context.Context, authSession 
 }
 
 func (m *TokenRefreshMiddleware) lookupTenantConfig(ctx context.Context, tenantID string) (*repositories.TenantOIDCConfig, error) {
-	return m.tenantRepo.GetByEmailDomain(ctx, tenantID)
+	return m.tenantRepo.GetByTenantID(ctx, tenantID)
 }

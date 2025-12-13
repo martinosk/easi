@@ -2,9 +2,9 @@ package api
 
 import (
 	"net/http"
-	"os"
 
 	"easi/backend/internal/auth/infrastructure/session"
+	"easi/backend/internal/shared/config"
 	sharedctx "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/domain/valueobjects"
 
@@ -24,7 +24,7 @@ func NewAuthMiddleware(sessionManager *session.SessionManager) *AuthMiddleware {
 func (m *AuthMiddleware) RequireAuth() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if os.Getenv("LOCAL_DEV_MODE") == "true" {
+			if config.IsAuthBypassed() {
 				next.ServeHTTP(w, r)
 				return
 			}

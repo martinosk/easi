@@ -4,10 +4,12 @@ import (
 	"database/sql"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"easi/backend/internal/auth/infrastructure/repositories"
 	"easi/backend/internal/auth/infrastructure/session"
+	"easi/backend/internal/shared/config"
 
 	"github.com/alexedwards/scs/postgresstore"
 	"github.com/alexedwards/scs/v2"
@@ -26,8 +28,8 @@ func SetupAuthDependencies(db *sql.DB) (*AuthDependencies, error) {
 	scsManager.Lifetime = 24 * time.Hour
 	scsManager.Cookie.Name = "easi_session"
 	scsManager.Cookie.HttpOnly = true
-	scsManager.Cookie.Secure = os.Getenv("LOCAL_DEV_MODE") != "true"
-	scsManager.Cookie.SameSite = http.SameSiteLaxMode
+	scsManager.Cookie.Secure = config.IsProduction()
+	scsManager.Cookie.SameSite = http.SameSiteStrictMode
 
 	sessionManager := session.NewSessionManager(scsManager)
 	authMiddleware := NewAuthMiddleware(sessionManager)
@@ -41,8 +43,8 @@ func SetupAuthDependencies(db *sql.DB) (*AuthDependencies, error) {
 
 func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies) error {
 	clientSecret := os.Getenv("OIDC_CLIENT_SECRET")
-	if clientSecret == "" && os.Getenv("LOCAL_DEV_MODE") == "true" {
-		clientSecret = "easi-test-secret"
+	if clientSecret == "" {
+		panic("OIDC_CLIENT_SECRET environment variable is required")
 	}
 
 	redirectURL := os.Getenv("OIDC_REDIRECT_URL")
@@ -50,8 +52,17 @@ func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies) error {
 		redirectURL = "http://localhost:8080/auth/callback"
 	}
 
+	allowedOriginsStr := os.Getenv("ALLOWED_ORIGINS")
+	var allowedOrigins []string
+	if allowedOriginsStr != "" {
+		allowedOrigins = strings.Split(allowedOriginsStr, ",")
+		for i, origin := range allowedOrigins {
+			allowedOrigins[i] = strings.TrimSpace(origin)
+		}
+	}
+
 	tenantRepo := repositories.NewTenantOIDCRepository(db)
-	handlers := NewAuthHandlers(deps.SessionManager, tenantRepo, clientSecret, redirectURL)
+	handlers := NewAuthHandlers(deps.SessionManager, tenantRepo, clientSecret, redirectURL, allowedOrigins)
 
 	r.Route("/auth", func(r chi.Router) {
 		r.Post("/sessions", handlers.PostSessions)

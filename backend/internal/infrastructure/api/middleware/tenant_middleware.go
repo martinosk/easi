@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 
 	"easi/backend/internal/auth/infrastructure/session"
+	"easi/backend/internal/shared/config"
 	sharedctx "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/domain/valueobjects"
 )
 
 // TenantMiddleware extracts tenant context from request and injects it into context
-// Supports two modes:
-// 1. Local Development Mode: Uses X-Tenant-ID header
-// 2. Production Mode: Extracts from authenticated session
+// Supports two modes based on AUTH_MODE:
+// 1. Bypass Mode (AUTH_MODE=bypass): Uses X-Tenant-ID header
+// 2. Authenticated Mode (AUTH_MODE=production or local_oidc): Extracts from authenticated session
 func TenantMiddleware() func(http.Handler) http.Handler {
 	return TenantMiddlewareWithSession(nil)
 }
@@ -24,13 +24,11 @@ func TenantMiddleware() func(http.Handler) http.Handler {
 func TenantMiddlewareWithSession(sessionManager *session.SessionManager) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			localDevMode := os.Getenv("LOCAL_DEV_MODE") == "true"
-
 			var tenantID sharedvo.TenantID
 			var err error
 
-			if localDevMode {
-				// Local Development Mode: Extract from X-Tenant-ID header
+			if config.IsAuthBypassed() {
+				// Bypass Mode: Extract from X-Tenant-ID header
 				tenantIDStr := r.Header.Get("X-Tenant-ID")
 
 				if tenantIDStr == "" {
@@ -45,9 +43,9 @@ func TenantMiddlewareWithSession(sessionManager *session.SessionManager) func(ht
 					}
 				}
 
-				log.Printf("Local dev mode: Using tenant '%s' from X-Tenant-ID header", tenantID.Value())
+				log.Printf("AUTH_MODE=bypass: Using tenant '%s' from X-Tenant-ID header", tenantID.Value())
 			} else {
-				// Production Mode: Extract from authenticated session
+				// Authenticated Mode: Extract from authenticated session
 				if sessionManager == nil {
 					http.Error(w, "Authentication required", http.StatusUnauthorized)
 					return
@@ -66,7 +64,7 @@ func TenantMiddlewareWithSession(sessionManager *session.SessionManager) func(ht
 					return
 				}
 
-				log.Printf("Production mode: Using tenant '%s' from session", tenantID.Value())
+				log.Printf("AUTH_MODE=%s: Using tenant '%s' from session", config.GetAuthMode(), tenantID.Value())
 			}
 
 			ctx := sharedctx.WithTenant(r.Context(), tenantID)
