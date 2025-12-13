@@ -10,14 +10,15 @@ import (
 )
 
 type AssignmentDTO struct {
-	AssignmentID       string            `json:"assignmentId"`
-	BusinessDomainID   string            `json:"businessDomainId"`
-	BusinessDomainName string            `json:"businessDomainName"`
-	CapabilityID       string            `json:"capabilityId"`
-	CapabilityName     string            `json:"capabilityName"`
-	CapabilityLevel    string            `json:"capabilityLevel"`
-	AssignedAt         time.Time         `json:"assignedAt"`
-	Links              map[string]string `json:"_links,omitempty"`
+	AssignmentID          string            `json:"assignmentId"`
+	BusinessDomainID      string            `json:"businessDomainId"`
+	BusinessDomainName    string            `json:"businessDomainName"`
+	CapabilityID          string            `json:"capabilityId"`
+	CapabilityName        string            `json:"capabilityName"`
+	CapabilityDescription string            `json:"capabilityDescription"`
+	CapabilityLevel       string            `json:"capabilityLevel"`
+	AssignedAt            time.Time         `json:"assignedAt"`
+	Links                 map[string]string `json:"_links,omitempty"`
 }
 
 type DomainCapabilityAssignmentReadModel struct {
@@ -35,8 +36,8 @@ func (rm *DomainCapabilityAssignmentReadModel) Insert(ctx context.Context, dto A
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-		dto.AssignmentID, tenantID.Value(), dto.BusinessDomainID, dto.BusinessDomainName, dto.CapabilityID, dto.CapabilityName, dto.CapabilityLevel, dto.AssignedAt,
+		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_description, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+		dto.AssignmentID, tenantID.Value(), dto.BusinessDomainID, dto.BusinessDomainName, dto.CapabilityID, dto.CapabilityName, dto.CapabilityDescription, dto.CapabilityLevel, dto.AssignedAt,
 	)
 	return err
 }
@@ -54,7 +55,20 @@ func (rm *DomainCapabilityAssignmentReadModel) Delete(ctx context.Context, assig
 	return err
 }
 
-const assignmentSelectColumns = "assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, assigned_at"
+func (rm *DomainCapabilityAssignmentReadModel) UpdateCapabilityInfo(ctx context.Context, capabilityID, name, description, level string) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"UPDATE domain_capability_assignments SET capability_name = $1, capability_description = $2, capability_level = $3 WHERE tenant_id = $4 AND capability_id = $5",
+		name, description, level, tenantID.Value(), capabilityID,
+	)
+	return err
+}
+
+const assignmentSelectColumns = "assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_description, capability_level, assigned_at"
 
 func (rm *DomainCapabilityAssignmentReadModel) GetByDomainID(ctx context.Context, domainID string) ([]AssignmentDTO, error) {
 	query := "SELECT " + assignmentSelectColumns + " FROM domain_capability_assignments WHERE tenant_id = $1 AND business_domain_id = $2 ORDER BY capability_name"
@@ -82,7 +96,7 @@ func (rm *DomainCapabilityAssignmentReadModel) queryAssignments(ctx context.Cont
 
 		for rows.Next() {
 			var dto AssignmentDTO
-			if err := rows.Scan(&dto.AssignmentID, &dto.BusinessDomainID, &dto.BusinessDomainName, &dto.CapabilityID, &dto.CapabilityName, &dto.CapabilityLevel, &dto.AssignedAt); err != nil {
+			if err := rows.Scan(&dto.AssignmentID, &dto.BusinessDomainID, &dto.BusinessDomainName, &dto.CapabilityID, &dto.CapabilityName, &dto.CapabilityDescription, &dto.CapabilityLevel, &dto.AssignedAt); err != nil {
 				return err
 			}
 			assignments = append(assignments, dto)
@@ -106,7 +120,7 @@ func (rm *DomainCapabilityAssignmentReadModel) GetByDomainAndCapability(ctx cont
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		query := "SELECT " + assignmentSelectColumns + " FROM domain_capability_assignments WHERE tenant_id = $1 AND business_domain_id = $2 AND capability_id = $3"
 		err := tx.QueryRowContext(ctx, query, tenantID.Value(), domainID, capabilityID).Scan(
-			&dto.AssignmentID, &dto.BusinessDomainID, &dto.BusinessDomainName, &dto.CapabilityID, &dto.CapabilityName, &dto.CapabilityLevel, &dto.AssignedAt,
+			&dto.AssignmentID, &dto.BusinessDomainID, &dto.BusinessDomainName, &dto.CapabilityID, &dto.CapabilityName, &dto.CapabilityDescription, &dto.CapabilityLevel, &dto.AssignedAt,
 		)
 
 		if err == sql.ErrNoRows {

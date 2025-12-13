@@ -11,12 +11,14 @@ import (
 )
 
 type CapabilityProjector struct {
-	readModel *readmodels.CapabilityReadModel
+	readModel           *readmodels.CapabilityReadModel
+	assignmentReadModel *readmodels.DomainCapabilityAssignmentReadModel
 }
 
-func NewCapabilityProjector(readModel *readmodels.CapabilityReadModel) *CapabilityProjector {
+func NewCapabilityProjector(readModel *readmodels.CapabilityReadModel, assignmentReadModel *readmodels.DomainCapabilityAssignmentReadModel) *CapabilityProjector {
 	return &CapabilityProjector{
-		readModel: readModel,
+		readModel:           readModel,
+		assignmentReadModel: assignmentReadModel,
 	}
 }
 
@@ -70,7 +72,27 @@ func (p *CapabilityProjector) handleCapabilityUpdated(ctx context.Context, event
 		log.Printf("Failed to unmarshal CapabilityUpdated event: %v", err)
 		return err
 	}
-	return p.readModel.Update(ctx, event.ID, event.Name, event.Description)
+
+	if err := p.readModel.Update(ctx, event.ID, event.Name, event.Description); err != nil {
+		return err
+	}
+
+	capability, err := p.readModel.GetByID(ctx, event.ID)
+	if err != nil {
+		log.Printf("Failed to get capability %s after update: %v", event.ID, err)
+		return err
+	}
+	if capability == nil {
+		log.Printf("Capability not found after update: %s", event.ID)
+		return nil
+	}
+
+	if err := p.assignmentReadModel.UpdateCapabilityInfo(ctx, event.ID, capability.Name, capability.Description, capability.Level); err != nil {
+		log.Printf("Failed to update assignments for capability %s: %v", event.ID, err)
+		return err
+	}
+
+	return nil
 }
 
 func (p *CapabilityProjector) handleCapabilityMetadataUpdated(ctx context.Context, eventData []byte) error {

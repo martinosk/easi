@@ -92,7 +92,7 @@ func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 }
 
 func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels) {
-	capabilityProjector := projectors.NewCapabilityProjector(rm.capability)
+	capabilityProjector := projectors.NewCapabilityProjector(rm.capability, rm.domainAssignment)
 	dependencyProjector := projectors.NewDependencyProjector(rm.dependency)
 	realizationProjector := projectors.NewRealizationProjector(rm.realization, rm.capability, rm.component)
 	businessDomainProjector := projectors.NewBusinessDomainProjector(rm.businessDomain)
