@@ -5,6 +5,8 @@
 ## Description
 Minimum viable tenant provisioning. Platform admin can create a new tenant with OIDC configuration, email domain, and first admin invitation.
 
+OIDC credentials (client secrets or certificates) are stored in AWS Secrets Manager and synced to Kubernetes via External Secrets Operator. The database only stores a reference to the secret location.
+
 ## API Endpoints
 
 ### Authentication
@@ -30,18 +32,25 @@ Creates new tenant with OIDC configuration.
   "oidcConfig": {
     "discoveryUrl": "https://login.microsoftonline.com/xxx/v2.0/.well-known/openid-configuration",
     "clientId": "client-id-here",
-    "clientSecret": "client-secret-here",
-    "scopes": "openid email profile"
+    "authMethod": "private_key_jwt",
+    "scopes": "openid email profile offline_access"
   },
   "firstAdminEmail": "john.doe@acme.com"
 }
 ```
 
+**OIDC Auth Methods:**
+| Method | Description | Secret Required in Vault |
+|--------|-------------|-------------------------|
+| `client_secret` | Traditional client secret authentication | `client_secret` property |
+| `private_key_jwt` | Certificate-based authentication (RFC 7523) | `private_key` and `certificate` properties |
+
 **Behavior:**
-- Validates OIDC discovery URL is reachable
-- Creates tenant, domains, OIDC config
+- Validates tenant ID, name, domains, OIDC config
+- Creates tenant, domains, OIDC config (no secrets stored in DB)
 - Creates first admin invitation (status=pending, role=admin)
 - Returns 201 Created with Location header
+- Includes warning if OIDC secret is not yet provisioned in vault
 
 **Response (201):**
 ```json
@@ -53,7 +62,9 @@ Creates new tenant with OIDC configuration.
   "oidcConfig": {
     "discoveryUrl": "...",
     "clientId": "...",
-    "scopes": "openid email profile"
+    "authMethod": "private_key_jwt",
+    "scopes": "openid email profile offline_access",
+    "secretProvisioned": false
   },
   "createdAt": "2025-12-02T10:00:00Z",
   "_links": {
@@ -62,7 +73,10 @@ Creates new tenant with OIDC configuration.
     "oidcConfig": "/api/platform/v1/tenants/acme/oidc-config",
     "suspend": "/api/platform/v1/tenants/acme/suspend",
     "users": "/api/v1/users?tenant=acme"
-  }
+  },
+  "_warnings": [
+    "OIDC secret not provisioned. Users cannot authenticate until secret is created at: easi/tenants/acme/oidc"
+  ]
 }
 ```
 
@@ -71,7 +85,7 @@ Creates new tenant with OIDC configuration.
 |--------|-------|-------------|
 | 400 | Invalid tenant ID | ID doesn't match pattern `^[a-z0-9-]{3,50}$` |
 | 400 | Invalid domain format | Domain format invalid |
-| 400 | Invalid OIDC config | Discovery URL unreachable or invalid |
+| 400 | Invalid auth method | Must be `client_secret` or `private_key_jwt` |
 | 409 | Tenant already exists | Duplicate tenant ID |
 | 409 | Domain already registered | Domain belongs to another tenant |
 
@@ -101,10 +115,129 @@ Returns paginated list of all tenants.
 ```
 
 ### GET /api/platform/v1/tenants/{id}
-Returns tenant details. Client secret is masked in response.
+Returns tenant details including OIDC configuration (no secrets).
 
-**Response (200):** Same as POST response
+**Response (200):** Same as POST response (includes `secretProvisioned` status)
 **Errors:** 404 if not found
+
+## Secret Provisioning (Manual)
+
+OIDC credentials are stored in AWS Secrets Manager and synced to Kubernetes via External Secrets Operator. After creating a tenant, the platform admin must manually provision the OIDC secret.
+
+### Secret Location Convention
+```
+easi/tenants/{tenant-id}/oidc
+```
+
+### Secret Structure (JSON)
+
+**For `client_secret` auth method:**
+```json
+{
+  "auth_method": "client_secret",
+  "client_secret": "your-client-secret-here",
+  "private_key": null,
+  "certificate": null
+}
+```
+
+**For `private_key_jwt` auth method:**
+```json
+{
+  "auth_method": "private_key_jwt",
+  "client_secret": null,
+  "private_key": "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----",
+  "certificate": "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
+}
+```
+
+### AWS CLI Commands
+
+**Create secret for client_secret auth:**
+```bash
+aws secretsmanager create-secret \
+  --name "easi/tenants/acme-corp/oidc" \
+  --secret-string '{
+    "auth_method": "client_secret",
+    "client_secret": "your-secret-here",
+    "private_key": null,
+    "certificate": null
+  }'
+```
+
+**Create secret for private_key_jwt auth:**
+```bash
+# First, prepare the certificate and key (escape newlines for JSON)
+PRIVATE_KEY=$(cat private-key.pem | awk '{printf "%s\\n", $0}')
+CERTIFICATE=$(cat certificate.pem | awk '{printf "%s\\n", $0}')
+
+aws secretsmanager create-secret \
+  --name "easi/tenants/acme-corp/oidc" \
+  --secret-string "{
+    \"auth_method\": \"private_key_jwt\",
+    \"client_secret\": null,
+    \"private_key\": \"$PRIVATE_KEY\",
+    \"certificate\": \"$CERTIFICATE\"
+  }"
+```
+
+**Update existing secret:**
+```bash
+aws secretsmanager put-secret-value \
+  --secret-id "easi/tenants/acme-corp/oidc" \
+  --secret-string '{ ... }'
+```
+
+### Kubernetes ExternalSecret
+
+Create one ExternalSecret per tenant, or use regex pattern for all tenants:
+
+**Per-tenant ExternalSecret:**
+```yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: tenant-oidc-acme-corp
+  namespace: easi
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: secrets-manager
+    kind: SecretStore
+  target:
+    name: tenant-oidc-acme-corp
+    creationPolicy: Owner
+  data:
+  - secretKey: auth-method
+    remoteRef:
+      key: "easi/tenants/acme-corp/oidc"
+      property: "auth_method"
+  - secretKey: client-secret
+    remoteRef:
+      key: "easi/tenants/acme-corp/oidc"
+      property: "client_secret"
+  - secretKey: private-key
+    remoteRef:
+      key: "easi/tenants/acme-corp/oidc"
+      property: "private_key"
+  - secretKey: certificate
+    remoteRef:
+      key: "easi/tenants/acme-corp/oidc"
+      property: "certificate"
+```
+
+**Force sync after provisioning:**
+```bash
+kubectl annotate es tenant-oidc-acme-corp -n easi force-sync=$(date +%s) --overwrite
+```
+
+### Verifying Secret Provisioned
+
+The application checks for secret availability by reading from the mounted K8s secret path:
+- Path: `/secrets/oidc/{tenant-id}/`
+- Files: `auth-method`, `client-secret`, `private-key`, `certificate`
+
+The `secretProvisioned` field in API responses indicates whether the secret is available.
 
 ## Database Schema
 
@@ -131,6 +264,20 @@ CREATE TABLE tenant_domains (
 );
 
 CREATE INDEX idx_tenant_domains_tenant ON tenant_domains(tenant_id);
+
+CREATE TABLE tenant_oidc_configs (
+    tenant_id VARCHAR(50) PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+    discovery_url TEXT NOT NULL,
+    client_id VARCHAR(255) NOT NULL,
+    auth_method VARCHAR(20) NOT NULL DEFAULT 'client_secret',
+    scopes TEXT NOT NULL DEFAULT 'openid email profile',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT chk_auth_method CHECK (auth_method IN ('client_secret', 'private_key_jwt'))
+);
+-- Note: Actual secrets (client_secret, private_key, certificate) are stored in
+-- AWS Secrets Manager at path: easi/tenants/{tenant_id}/oidc
 ```
 
 ### Tenant-Scoped Tables (With RLS)
@@ -213,15 +360,25 @@ CREATE POLICY tenant_isolation_policy ON sessions
 ```
 
 ## Checklist
-- [ ] Database migration for platform tables (tenants, tenant_domains)
-- [ ] Database migration for tenant-scoped tables (invitations, users, sessions)
-- [ ] TenantID value object with validation
-- [ ] TenantName value object
-- [ ] EmailDomain value object
-- [ ] Tenant aggregate
-- [ ] Platform admin authentication middleware (API key)
-- [ ] POST /api/platform/v1/tenants (create tenant with first admin invitation)
-- [ ] GET /api/platform/v1/tenants/{id}
-- [ ] GET /api/platform/v1/tenants
-- [ ] Integration test: create tenant and verify in database
-- [ ] User sign-off
+- [x] Database migration for platform tables (tenants, tenant_domains)
+- [x] Database migration for tenant-scoped tables (invitations, users, sessions)
+- [x] TenantID value object with validation
+- [x] TenantName value object
+- [x] EmailDomain value object
+- [x] Tenant aggregate
+- [x] Platform admin authentication middleware (API key)
+- [x] POST /api/platform/v1/tenants (create tenant with first admin invitation)
+- [x] GET /api/platform/v1/tenants/{id}
+- [x] GET /api/platform/v1/tenants
+- [x] Integration test: create tenant and verify in database
+
+### Security Hardening (from security review)
+- [x] Update OIDCConfig to support auth_method (client_secret | private_key_jwt)
+- [x] Remove client_secret from API request/database (secrets in vault only)
+- [x] Database migration: replace client_secret_encrypted with auth_method
+- [x] SecretProvider interface for reading OIDC credentials from mounted K8s secrets
+- [x] FileSecretProvider implementation (reads from /secrets/oidc/{tenant-id}/)
+- [x] Check secretProvisioned status in tenant responses
+- [x] Fix SQL injection in RLS tenant context (defense in depth escaping)
+- [x] Add rate limiting to platform admin API (100 requests/minute per IP)
+- [x] User sign-off

@@ -4,9 +4,26 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	sharedctx "easi/backend/internal/shared/context"
 )
+
+// escapeTenantID escapes single quotes in tenant ID for safe SQL interpolation
+// This is defense in depth - TenantID validation already prevents special characters
+func escapeTenantID(tenantID string) string {
+	return strings.ReplaceAll(tenantID, "'", "''")
+}
+
+// buildSetTenantSQL builds a safe SET command for tenant context
+func buildSetTenantSQL(tenantID string) string {
+	return fmt.Sprintf("SET app.current_tenant = '%s'", escapeTenantID(tenantID))
+}
+
+// buildSetLocalTenantSQL builds a safe SET LOCAL command for transaction-scoped tenant context
+func buildSetLocalTenantSQL(tenantID string) string {
+	return fmt.Sprintf("SET LOCAL app.current_tenant = '%s'", escapeTenantID(tenantID))
+}
 
 // TenantAwareDB wraps a database connection and automatically sets tenant context
 // for Row-Level Security (RLS) policies
@@ -34,8 +51,8 @@ func (t *TenantAwareDB) setTenantContext(ctx context.Context, conn *sql.Conn) er
 	}
 
 	// Set PostgreSQL session variable for RLS policies
-	// Note: SET command doesn't support parameter placeholders, so we use format
-	_, err = conn.ExecContext(ctx, fmt.Sprintf("SET app.current_tenant = '%s'", tenantID.Value()))
+	// Using safe builder with escaping for defense in depth
+	_, err = conn.ExecContext(ctx, buildSetTenantSQL(tenantID.Value()))
 	if err != nil {
 		return fmt.Errorf("failed to set tenant context: %w", err)
 	}
@@ -114,8 +131,8 @@ func (t *TenantAwareDB) BeginTxWithTenant(ctx context.Context, opts *sql.TxOptio
 		return nil, fmt.Errorf("failed to get tenant from context: %w", err)
 	}
 
-	// Note: SET command doesn't support parameter placeholders, so we use format
-	_, err = tx.ExecContext(ctx, fmt.Sprintf("SET LOCAL app.current_tenant = '%s'", tenantID.Value()))
+	// Using safe builder with escaping for defense in depth
+	_, err = tx.ExecContext(ctx, buildSetLocalTenantSQL(tenantID.Value()))
 	if err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("failed to set tenant context in transaction: %w", err)

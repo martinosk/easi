@@ -12,6 +12,7 @@ import (
 	"easi/backend/internal/infrastructure/api/middleware"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
+	platformAPI "easi/backend/internal/platform/infrastructure/api"
 	releasesAPI "easi/backend/internal/releases/infrastructure/api"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
@@ -46,13 +47,11 @@ func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) htt
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:*", "http://127.0.0.1:*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID", "X-Tenant-ID"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID", "X-Tenant-ID", "X-Platform-Admin-Key"},
 		ExposedHeaders:   []string{"Link", "Location"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
-	// Tenant context middleware - injects tenant from header (dev) or OAuth (prod)
-	r.Use(middleware.TenantMiddleware())
 
 	// Health check
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -72,6 +71,11 @@ func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) htt
 		httpSwagger.URL("doc.json"),
 	))
 
+	// Platform API routes (no tenant context - uses API key authentication)
+	if err := platformAPI.SetupPlatformRoutes(r, db.DB()); err != nil {
+		log.Fatalf("Failed to setup platform routes: %v", err)
+	}
+
 	// Initialize CQRS buses and event bus
 	commandBus := cqrs.NewInMemoryCommandBus()
 	eventBus := events.NewInMemoryEventBus()
@@ -82,8 +86,10 @@ func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) htt
 		pgStore.SetEventBus(eventBus)
 	}
 
-	// API routes
+	// Tenant-scoped API routes
 	r.Route("/api/v1", func(r chi.Router) {
+		// Tenant context middleware - injects tenant from header (dev) or OAuth (prod)
+		r.Use(middleware.TenantMiddleware())
 		// Architecture Modeling Context
 		if err := architectureAPI.SetupArchitectureModelingRoutes(r, commandBus, eventStore, eventBus, db, hateoas); err != nil {
 			log.Fatalf("Failed to setup architecture modeling routes: %v", err)

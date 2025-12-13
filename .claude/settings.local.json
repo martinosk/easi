@@ -19,7 +19,9 @@
       "Bash(npx tsc:*)",
       "Bash(go vet:*)",
       "Bash(npm run test:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs"
     ],
     "deny": [],
     "ask": []
