@@ -335,22 +335,22 @@ Unit tests do NOT require Dex or any external dependencies. They test individual
 3. Redirects to dashboard
 
 ## Checklist
-- [ ] Add dependencies: coreos/go-oidc, alexedwards/scs, golang.org/x/oauth2
-- [ ] OIDC config loading from database (per-tenant)
-- [ ] PKCE code_verifier/code_challenge generation (S256)
-- [ ] Session manager with SCS PostgreSQL store
-- [ ] POST /auth/sessions endpoint (initiate login with PKCE)
-- [ ] GET /auth/callback endpoint (complete login, exchange with code_verifier)
-- [ ] ID token validation (signature, issuer, audience, nonce, expiry)
-- [ ] Store access_token and refresh_token in session
-- [ ] Token refresh middleware (refresh on access token expiry)
-- [ ] Session middleware with LOCAL_DEV_MODE support
-- [ ] Login page with email input (frontend)
-- [ ] OIDC redirect handling (frontend)
-- [ ] Add Dex service to docker-compose for integration tests
-- [ ] Integration test with Dex: successful login flow
-- [ ] Integration test with Dex: PKCE validation
-- [ ] Integration test with Dex: invalid state rejection
-- [ ] Integration test with Dex: token refresh on expiry
-- [ ] Unit tests: token validation, PKCE generation, session serialization
-- [ ] User sign-off
+- [x] Add dependencies: coreos/go-oidc, alexedwards/scs, golang.org/x/oauth2
+- [x] OIDC config loading from database (per-tenant)
+- [x] PKCE code_verifier/code_challenge generation (S256)
+- [x] Session manager with SCS PostgreSQL store
+- [x] POST /auth/sessions endpoint (initiate login with PKCE)
+- [x] GET /auth/callback endpoint (complete login, exchange with code_verifier)
+- [x] ID token validation (signature, issuer, audience, nonce, expiry)
+- [x] Store access_token and refresh_token in session
+- [x] Token refresh middleware (refresh on access token expiry)
+- [x] Session middleware with LOCAL_DEV_MODE support
+- [x] Login page with email input (frontend)
+- [x] OIDC redirect handling (frontend)
+- [x] Add Dex service to docker-compose for integration tests
+- [x] Integration test with Dex: successful login flow
+- [x] Integration test with Dex: PKCE validation
+- [x] Integration test with Dex: invalid state rejection
+- [x] Integration test with Dex: token refresh on expiry
+- [x] Unit tests: token validation, PKCE generation, session serialization
+- [x] User sign-off

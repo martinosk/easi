@@ -46,7 +46,7 @@ func NewOIDCConfig(discoveryURL, clientID string, authMethod OIDCAuthMethod, sco
 		return OIDCConfig{}, ErrOIDCDiscoveryURLInvalid
 	}
 
-	if parsedURL.Scheme != "https" {
+	if parsedURL.Scheme != "https" && !isLocalhost(parsedURL.Host) {
 		return OIDCConfig{}, ErrOIDCDiscoveryURLNotHTTPS
 	}
 
@@ -96,4 +96,9 @@ func (c OIDCConfig) Equals(other domain.ValueObject) bool {
 			c.scopes == otherConfig.scopes
 	}
 	return false
+}
+
+func isLocalhost(host string) bool {
+	host = strings.Split(host, ":")[0]
+	return host == "localhost" || host == "127.0.0.1"
 }

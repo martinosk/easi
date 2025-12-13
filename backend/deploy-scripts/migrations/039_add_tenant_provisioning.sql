@@ -1,6 +1,6 @@
 -- Migration: Tenant Provisioning
--- Spec: 065_TenantProvisioning_pending.md
--- Description: Creates all tables required for multi-tenant provisioning
+-- Spec: 065_TenantProvisioning, 066_SingleTenantLogin
+-- Description: Creates all tables required for multi-tenant provisioning and authentication
 
 -- ============================================================================
 -- Platform Tables (no RLS - managed by platform admin API)
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS tenants (
     suspended_at TIMESTAMP,
     suspended_reason TEXT,
 
-    CONSTRAINT chk_tenant_id CHECK (id ~ '^[a-z0-9-]{3,50}$'),
+    CONSTRAINT chk_tenant_id CHECK (id ~ '^([a-z0-9]{3}|[a-z0-9][a-z0-9-]{2,48}[a-z0-9])$'),
     CONSTRAINT chk_tenant_status CHECK (status IN ('active', 'suspended', 'archived'))
 );
 
@@ -32,6 +32,7 @@ CREATE INDEX IF NOT EXISTS idx_tenant_domains_tenant ON tenant_domains(tenant_id
 CREATE TABLE IF NOT EXISTS tenant_oidc_configs (
     tenant_id VARCHAR(50) PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
     discovery_url TEXT NOT NULL,
+    issuer_url TEXT,
     client_id VARCHAR(255) NOT NULL,
     auth_method VARCHAR(20) NOT NULL DEFAULT 'client_secret',
     scopes VARCHAR(255) NOT NULL DEFAULT 'openid email profile',
@@ -98,27 +99,6 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS tenant_isolation_policy ON users;
 CREATE POLICY tenant_isolation_policy ON users
-    FOR ALL TO easi_app
-    USING (tenant_id = current_setting('app.current_tenant', true))
-    WITH CHECK (tenant_id = current_setting('app.current_tenant', true));
-
-CREATE TABLE IF NOT EXISTS sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    tenant_id VARCHAR(50) NOT NULL REFERENCES tenants(id),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP NOT NULL,
-    user_agent TEXT,
-    ip_address VARCHAR(45)
-);
-
-CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
-
-ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS tenant_isolation_policy ON sessions;
-CREATE POLICY tenant_isolation_policy ON sessions
     FOR ALL TO easi_app
     USING (tenant_id = current_setting('app.current_tenant', true))
     WITH CHECK (tenant_id = current_setting('app.current_tenant', true));

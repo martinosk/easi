@@ -1,15 +1,20 @@
 module easi/backend
 
-go 1.21
+go 1.24.0
 
 require (
+	github.com/alexedwards/scs/postgresstore v0.0.0-20251002162104-209de6e426de
+	github.com/alexedwards/scs/v2 v2.9.0
+	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-chi/cors v1.2.1
+	github.com/go-jose/go-jose/v4 v4.1.3
 	github.com/google/uuid v1.5.0
 	github.com/lib/pq v1.10.9
 	github.com/stretchr/testify v1.8.4
 	github.com/swaggo/http-swagger v1.3.4
 	github.com/swaggo/swag v1.16.2
+	golang.org/x/oauth2 v0.34.0
 )
 
 require (

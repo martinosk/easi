@@ -7,6 +7,7 @@ import (
 
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
+	authAPI "easi/backend/internal/auth/infrastructure/api"
 	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
 	importingAPI "easi/backend/internal/importing/infrastructure/api"
 	"easi/backend/internal/infrastructure/api/middleware"
@@ -39,7 +40,13 @@ func getEnv(key, defaultValue string) string {
 func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) http.Handler {
 	r := chi.NewRouter()
 
-	// Middleware
+	// Auth dependencies (must be set up before middleware)
+	authDeps, err := authAPI.SetupAuthDependencies(db.DB())
+	if err != nil {
+		log.Fatalf("Failed to setup auth dependencies: %v", err)
+	}
+
+	// Middleware (must all be defined before any routes)
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.RequestID)
@@ -52,6 +59,7 @@ func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) htt
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+	r.Use(authDeps.SCSManager.LoadAndSave)
 
 	// Health check
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -76,6 +84,11 @@ func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) htt
 		log.Fatalf("Failed to setup platform routes: %v", err)
 	}
 
+	// Auth routes (outside tenant context)
+	if err := authAPI.SetupAuthRoutes(r, db.DB(), authDeps); err != nil {
+		log.Fatalf("Failed to setup auth routes: %v", err)
+	}
+
 	// Initialize CQRS buses and event bus
 	commandBus := cqrs.NewInMemoryCommandBus()
 	eventBus := events.NewInMemoryEventBus()
@@ -88,8 +101,8 @@ func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) htt
 
 	// Tenant-scoped API routes
 	r.Route("/api/v1", func(r chi.Router) {
-		// Tenant context middleware - injects tenant from header (dev) or OAuth (prod)
-		r.Use(middleware.TenantMiddleware())
+		// Tenant context middleware - injects tenant from header (dev) or session (prod)
+		r.Use(middleware.TenantMiddlewareWithSession(authDeps.SessionManager))
 		// Architecture Modeling Context
 		if err := architectureAPI.SetupArchitectureModelingRoutes(r, commandBus, eventStore, eventBus, db, hateoas); err != nil {
 			log.Fatalf("Failed to setup architecture modeling routes: %v", err)

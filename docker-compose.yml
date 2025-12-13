@@ -40,8 +40,11 @@ services:
     container_name: easi-backend
     environment:
       DB_CONN_STRING: ${DB_CONN_STRING:-host=postgres port=5432 user=easi_app password=localdev dbname=easi sslmode=disable}
-      LOCAL_DEV_MODE: ${LOCAL_DEV_MODE:-true}
+      LOCAL_DEV_MODE: ${LOCAL_DEV_MODE:-false}
       PORT: 8080
+      PLATFORM_ADMIN_API_KEY: ${PLATFORM_ADMIN_API_KEY:-localdev}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-easi-test-secret}
+      OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-http://localhost:8080/auth/callback}
     ports:
       - "8080:8080"
     networks:
@@ -49,6 +52,17 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+
+  dex:
+    image: ghcr.io/dexidp/dex:v2.38.0
+    container_name: easi-dex
+    command: ["dex", "serve", "/etc/dex/config.docker.yaml"]
+    volumes:
+      - ./dex-config.yaml:/etc/dex/config.docker.yaml
+    ports:
+      - "5556:5556"
+    networks:
+      - easi-network
 
   pgadmin:
     image: dpage/pgadmin4:latest

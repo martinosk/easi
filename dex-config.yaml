@@ -1,0 +1,27 @@
+issuer: http://localhost:5556/dex
+
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556
+
+oauth2:
+  skipApprovalScreen: true
+
+staticClients:
+  - id: easi-test
+    secret: easi-test-secret
+    redirectURIs:
+      - http://localhost:8080/auth/callback
+    name: EASI Test
+
+enablePasswordDB: true
+
+staticPasswords:
+  - email: testuser@acme.com
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: testuser
+  - email: admin@acme.com
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: admin
