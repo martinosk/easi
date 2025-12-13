@@ -62,7 +62,11 @@ func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies) error {
 	}
 
 	tenantRepo := repositories.NewTenantOIDCRepository(db)
-	handlers := NewAuthHandlers(deps.SessionManager, tenantRepo, clientSecret, redirectURL, allowedOrigins)
+	handlers := NewAuthHandlers(deps.SessionManager, tenantRepo, AuthHandlersConfig{
+		ClientSecret:   clientSecret,
+		RedirectURL:    redirectURL,
+		AllowedOrigins: allowedOrigins,
+	})
 
 	r.Route("/auth", func(r chi.Router) {
 		r.Post("/sessions", handlers.PostSessions)

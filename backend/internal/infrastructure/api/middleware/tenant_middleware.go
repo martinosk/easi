@@ -24,47 +24,10 @@ func TenantMiddleware() func(http.Handler) http.Handler {
 func TenantMiddlewareWithSession(sessionManager *session.SessionManager) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			var tenantID sharedvo.TenantID
-			var err error
-
-			if config.IsAuthBypassed() {
-				// Bypass Mode: Extract from X-Tenant-ID header
-				tenantIDStr := r.Header.Get("X-Tenant-ID")
-
-				if tenantIDStr == "" {
-					log.Println("No X-Tenant-ID header found, using default tenant")
-					tenantID = sharedvo.DefaultTenantID()
-				} else {
-					tenantID, err = sharedvo.NewTenantID(tenantIDStr)
-					if err != nil {
-						log.Printf("Invalid tenant ID in header: %v", err)
-						http.Error(w, "Invalid tenant ID", http.StatusBadRequest)
-						return
-					}
-				}
-
-				log.Printf("AUTH_MODE=bypass: Using tenant '%s' from X-Tenant-ID header", tenantID.Value())
-			} else {
-				// Authenticated Mode: Extract from authenticated session
-				if sessionManager == nil {
-					http.Error(w, "Authentication required", http.StatusUnauthorized)
-					return
-				}
-
-				authSession, err := sessionManager.LoadAuthenticatedSession(r.Context())
-				if err != nil {
-					http.Error(w, "Authentication required", http.StatusUnauthorized)
-					return
-				}
-
-				tenantID, err = sharedvo.NewTenantID(authSession.TenantID())
-				if err != nil {
-					log.Printf("Invalid tenant ID in session: %v", err)
-					http.Error(w, "Invalid session", http.StatusUnauthorized)
-					return
-				}
-
-				log.Printf("AUTH_MODE=%s: Using tenant '%s' from session", config.GetAuthMode(), tenantID.Value())
+			tenantID, err := extractTenantFromRequest(r, sessionManager)
+			if err != nil {
+				handleTenantError(w, err)
+				return
 			}
 
 			ctx := sharedctx.WithTenant(r.Context(), tenantID)
@@ -72,6 +35,65 @@ func TenantMiddlewareWithSession(sessionManager *session.SessionManager) func(ht
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+type tenantError struct {
+	message    string
+	statusCode int
+}
+
+func (e tenantError) Error() string { return e.message }
+
+func extractTenantFromRequest(r *http.Request, sessionManager *session.SessionManager) (sharedvo.TenantID, error) {
+	if config.IsAuthBypassed() {
+		return extractTenantFromHeader(r)
+	}
+	return extractTenantFromSession(r, sessionManager)
+}
+
+func extractTenantFromHeader(r *http.Request) (sharedvo.TenantID, error) {
+	tenantIDStr := r.Header.Get("X-Tenant-ID")
+	if tenantIDStr == "" {
+		log.Println("No X-Tenant-ID header found, using default tenant")
+		return sharedvo.DefaultTenantID(), nil
+	}
+
+	tenantID, err := sharedvo.NewTenantID(tenantIDStr)
+	if err != nil {
+		log.Printf("Invalid tenant ID in header: %v", err)
+		return sharedvo.TenantID{}, tenantError{"Invalid tenant ID", http.StatusBadRequest}
+	}
+
+	log.Printf("AUTH_MODE=bypass: Using tenant '%s' from X-Tenant-ID header", tenantID.Value())
+	return tenantID, nil
+}
+
+func extractTenantFromSession(r *http.Request, sessionManager *session.SessionManager) (sharedvo.TenantID, error) {
+	if sessionManager == nil {
+		return sharedvo.TenantID{}, tenantError{"Authentication required", http.StatusUnauthorized}
+	}
+
+	authSession, err := sessionManager.LoadAuthenticatedSession(r.Context())
+	if err != nil {
+		return sharedvo.TenantID{}, tenantError{"Authentication required", http.StatusUnauthorized}
+	}
+
+	tenantID, err := sharedvo.NewTenantID(authSession.TenantID())
+	if err != nil {
+		log.Printf("Invalid tenant ID in session: %v", err)
+		return sharedvo.TenantID{}, tenantError{"Invalid session", http.StatusUnauthorized}
+	}
+
+	log.Printf("AUTH_MODE=%s: Using tenant '%s' from session", config.GetAuthMode(), tenantID.Value())
+	return tenantID, nil
+}
+
+func handleTenantError(w http.ResponseWriter, err error) {
+	if te, ok := err.(tenantError); ok {
+		http.Error(w, te.message, te.statusCode)
+		return
+	}
+	http.Error(w, "Internal server error", http.StatusInternalServerError)
 }
 
 // logTenantContext logs tenant context operations for audit trail

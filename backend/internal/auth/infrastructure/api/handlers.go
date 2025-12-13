@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/mail"
@@ -27,27 +28,27 @@ type TenantOIDCRepository interface {
 	GetByTenantID(ctx context.Context, tenantID string) (*repositories.TenantOIDCConfig, error)
 }
 
+type AuthHandlersConfig struct {
+	ClientSecret   string
+	RedirectURL    string
+	AllowedOrigins []string
+}
+
 type AuthHandlers struct {
 	sessionManager *session.SessionManager
 	tenantRepo     TenantOIDCRepository
-	clientSecret   string
-	redirectURL    string
-	allowedOrigins []string
+	config         AuthHandlersConfig
 }
 
 func NewAuthHandlers(
 	sessionManager *session.SessionManager,
 	tenantRepo TenantOIDCRepository,
-	clientSecret string,
-	redirectURL string,
-	allowedOrigins []string,
+	config AuthHandlersConfig,
 ) *AuthHandlers {
 	return &AuthHandlers{
 		sessionManager: sessionManager,
 		tenantRepo:     tenantRepo,
-		clientSecret:   clientSecret,
-		redirectURL:    redirectURL,
-		allowedOrigins: allowedOrigins,
+		config:         config,
 	}
 }
 
@@ -84,14 +85,7 @@ func (h *AuthHandlers) PostSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	provider, err := oidc.NewOIDCProviderWithIssuer(
-		r.Context(),
-		tenantConfig.DiscoveryURL,
-		tenantConfig.IssuerURL,
-		tenantConfig.ClientID,
-		h.clientSecret,
-		h.redirectURL,
-	)
+	provider, err := h.createOIDCProvider(r.Context(), tenantConfig)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusServiceUnavailable, err, "IdP unavailable")
 		return
@@ -119,7 +113,44 @@ func (h *AuthHandlers) PostSessions(w http.ResponseWriter, r *http.Request) {
 	sharedAPI.RespondJSON(w, http.StatusOK, response)
 }
 
+type callbackParams struct {
+	code  string
+	state string
+}
+
 func (h *AuthHandlers) GetCallback(w http.ResponseWriter, r *http.Request) {
+	params, err := h.extractCallbackParams(r)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, err.Error())
+		return
+	}
+
+	preAuth, err := h.validateCallbackState(r.Context(), params.state)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, err.Error())
+		return
+	}
+
+	result, err := h.exchangeCodeForTokens(r.Context(), preAuth, params.code)
+	if err != nil {
+		h.handleTokenExchangeError(w, err)
+		return
+	}
+
+	if err := h.validateEmailDomain(result.Email, preAuth.ExpectedEmailDomain()); err != nil {
+		sharedAPI.RespondError(w, http.StatusForbidden, err, "Authentication failed")
+		return
+	}
+
+	if err := h.createAuthenticatedSession(r.Context(), preAuth, result); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create session")
+		return
+	}
+
+	http.Redirect(w, r, h.getSafeRedirectURL(preAuth.ReturnURL()), http.StatusFound)
+}
+
+func (h *AuthHandlers) extractCallbackParams(r *http.Request) (callbackParams, error) {
 	code := r.URL.Query().Get("code")
 	state := r.URL.Query().Get("state")
 
@@ -128,78 +159,80 @@ func (h *AuthHandlers) GetCallback(w http.ResponseWriter, r *http.Request) {
 		if errorDesc == "" {
 			errorDesc = "Missing authorization code or state"
 		}
-		sharedAPI.RespondError(w, http.StatusBadRequest, errors.New(errorDesc), errorDesc)
-		return
+		return callbackParams{}, errors.New(errorDesc)
 	}
+	return callbackParams{code: code, state: state}, nil
+}
 
-	preAuth, err := h.sessionManager.LoadPreAuthSession(r.Context())
+func (h *AuthHandlers) validateCallbackState(ctx context.Context, state string) (session.AuthSession, error) {
+	preAuth, err := h.sessionManager.LoadPreAuthSession(ctx)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid session")
-		return
+		return session.AuthSession{}, errors.New("Invalid session")
 	}
 
 	if subtle.ConstantTimeCompare([]byte(preAuth.State()), []byte(state)) != 1 {
-		sharedAPI.RespondError(w, http.StatusBadRequest, errors.New("state mismatch"), "Invalid state parameter")
-		return
+		return session.AuthSession{}, errors.New("Invalid state parameter")
 	}
+	return preAuth, nil
+}
 
-	tenantConfig, err := h.tenantRepo.GetByTenantID(r.Context(), preAuth.TenantID())
+func (h *AuthHandlers) exchangeCodeForTokens(ctx context.Context, preAuth session.AuthSession, code string) (*oidc.TokenResult, error) {
+	tenantConfig, err := h.tenantRepo.GetByTenantID(ctx, preAuth.TenantID())
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to load tenant configuration")
-		return
+		return nil, fmt.Errorf("tenant config: %w", err)
 	}
 
-	provider, err := oidc.NewOIDCProviderWithIssuer(
-		r.Context(),
-		tenantConfig.DiscoveryURL,
-		tenantConfig.IssuerURL,
-		tenantConfig.ClientID,
-		h.clientSecret,
-		h.redirectURL,
-	)
+	provider, err := h.createOIDCProvider(ctx, tenantConfig)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadGateway, err, "IdP unavailable")
-		return
+		return nil, fmt.Errorf("provider: %w", err)
 	}
 
-	result, err := provider.ExchangeCode(r.Context(), code, preAuth.CodeVerifier(), preAuth.Nonce())
+	return provider.ExchangeCode(ctx, code, preAuth.CodeVerifier(), preAuth.Nonce())
+}
+
+func (h *AuthHandlers) handleTokenExchangeError(w http.ResponseWriter, err error) {
+	log.Printf("Token exchange failed: %v", err)
+	if errors.Is(err, oidc.ErrNonceMismatch) {
+		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Token validation failed")
+		return
+	}
+	sharedAPI.RespondError(w, http.StatusBadGateway, err, "Token exchange failed")
+}
+
+func (h *AuthHandlers) validateEmailDomain(email, expectedDomain string) error {
+	authenticatedDomain, err := extractEmailDomain(email)
 	if err != nil {
-		log.Printf("Token exchange failed: %v", err)
-		if errors.Is(err, oidc.ErrNonceMismatch) {
-			sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Token validation failed")
-			return
-		}
-		sharedAPI.RespondError(w, http.StatusBadGateway, err, "Token exchange failed")
-		return
+		log.Printf("Email domain extraction failed: %v", err)
+		return errors.New("email domain mismatch")
 	}
-
-	authenticatedEmailDomain, err := extractEmailDomain(result.Email)
-	if err != nil || authenticatedEmailDomain != preAuth.ExpectedEmailDomain() {
-		log.Printf("Email domain mismatch: expected %s, got %s", preAuth.ExpectedEmailDomain(), authenticatedEmailDomain)
-		sharedAPI.RespondError(w, http.StatusForbidden, errors.New("email domain mismatch"), "Authentication failed")
-		return
+	if authenticatedDomain != expectedDomain {
+		log.Printf("Email domain mismatch: expected %s, got %s", expectedDomain, authenticatedDomain)
+		return errors.New("email domain mismatch")
 	}
+	return nil
+}
 
-	if err := h.sessionManager.RenewToken(r.Context()); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create session")
-		return
+func (h *AuthHandlers) createAuthenticatedSession(ctx context.Context, preAuth session.AuthSession, result *oidc.TokenResult) error {
+	if err := h.sessionManager.RenewToken(ctx); err != nil {
+		return err
 	}
 
 	authenticatedSession := preAuth.UpgradeToAuthenticated(
-		uuid.Nil,
-		result.Email,
-		result.AccessToken,
-		result.RefreshToken,
-		result.TokenExpiry,
+		session.UserInfo{ID: uuid.Nil, Email: result.Email},
+		session.TokenInfo{AccessToken: result.AccessToken, RefreshToken: result.RefreshToken, Expiry: result.TokenExpiry},
 	)
 
-	if err := h.sessionManager.StoreAuthenticatedSession(r.Context(), authenticatedSession); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to store session")
-		return
-	}
+	return h.sessionManager.StoreAuthenticatedSession(ctx, authenticatedSession)
+}
 
-	redirectURL := h.getSafeRedirectURL(preAuth.ReturnURL())
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+func (h *AuthHandlers) createOIDCProvider(ctx context.Context, tenantConfig *repositories.TenantOIDCConfig) (*oidc.OIDCProvider, error) {
+	return oidc.NewOIDCProviderFromConfig(ctx, oidc.ProviderConfig{
+		DiscoveryURL: tenantConfig.DiscoveryURL,
+		IssuerURL:    tenantConfig.IssuerURL,
+		ClientID:     tenantConfig.ClientID,
+		ClientSecret: h.config.ClientSecret,
+		RedirectURL:  h.config.RedirectURL,
+	})
 }
 
 func extractEmailDomain(email string) (string, error) {
@@ -208,56 +241,58 @@ func extractEmailDomain(email string) (string, error) {
 		return "", errors.New("invalid email format")
 	}
 	parts := strings.Split(addr.Address, "@")
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+	if !isValidEmailParts(parts) {
 		return "", errors.New("invalid email format")
 	}
 	return strings.ToLower(parts[1]), nil
+}
+
+func isValidEmailParts(parts []string) bool {
+	return len(parts) == 2 && parts[0] != "" && parts[1] != ""
 }
 
 func (h *AuthHandlers) validateReturnURL(origin string) string {
 	if origin == "" {
 		return ""
 	}
-
-	parsedURL, err := url.Parse(origin)
-	if err != nil {
+	if !h.isAllowedOrigin(origin) {
 		return ""
 	}
+	return origin + "/easi/"
+}
 
-	originHost := strings.ToLower(parsedURL.Host)
-	for _, allowed := range h.allowedOrigins {
+func (h *AuthHandlers) isAllowedOrigin(targetURL string) bool {
+	parsedURL, err := url.Parse(targetURL)
+	if err != nil {
+		return false
+	}
+	targetHost := strings.ToLower(parsedURL.Host)
+	return h.matchesAllowedHost(targetHost)
+}
+
+func (h *AuthHandlers) matchesAllowedHost(targetHost string) bool {
+	for _, allowed := range h.config.AllowedOrigins {
 		allowedURL, err := url.Parse(allowed)
 		if err != nil {
 			continue
 		}
-		if strings.ToLower(allowedURL.Host) == originHost {
-			return origin + "/easi/"
+		if strings.ToLower(allowedURL.Host) == targetHost {
+			return true
 		}
 	}
-
-	return ""
+	return false
 }
 
 func (h *AuthHandlers) getSafeRedirectURL(returnURL string) string {
-	if returnURL != "" {
-		parsedURL, err := url.Parse(returnURL)
-		if err == nil {
-			returnHost := strings.ToLower(parsedURL.Host)
-			for _, allowed := range h.allowedOrigins {
-				allowedURL, err := url.Parse(allowed)
-				if err != nil {
-					continue
-				}
-				if strings.ToLower(allowedURL.Host) == returnHost {
-					return returnURL
-				}
-			}
-		}
+	if returnURL != "" && h.isAllowedOrigin(returnURL) {
+		return returnURL
 	}
+	return h.getDefaultRedirectURL()
+}
 
+func (h *AuthHandlers) getDefaultRedirectURL() string {
 	if frontendURL := os.Getenv("FRONTEND_URL"); frontendURL != "" {
 		return frontendURL
 	}
-
 	return "/easi/"
 }

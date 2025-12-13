@@ -36,17 +36,51 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+type routerDependencies struct {
+	eventStore eventstore.EventStore
+	db         *database.TenantAwareDB
+	authDeps   *authAPI.AuthDependencies
+	commandBus *cqrs.InMemoryCommandBus
+	eventBus   *events.InMemoryEventBus
+	hateoas    *sharedAPI.HATEOASLinks
+}
+
 // NewRouter creates and configures the HTTP router
 func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) http.Handler {
 	r := chi.NewRouter()
 
-	// Auth dependencies (must be set up before middleware)
+	deps := initializeDependencies(eventStore, db)
+	configureMiddleware(r, deps.authDeps)
+	registerPublicRoutes(r, db, deps.authDeps)
+	registerTenantRoutes(r, deps)
+
+	return r
+}
+
+func initializeDependencies(eventStore eventstore.EventStore, db *database.TenantAwareDB) routerDependencies {
 	authDeps, err := authAPI.SetupAuthDependencies(db.DB())
 	if err != nil {
 		log.Fatalf("Failed to setup auth dependencies: %v", err)
 	}
 
-	// Middleware (must all be defined before any routes)
+	commandBus := cqrs.NewInMemoryCommandBus()
+	eventBus := events.NewInMemoryEventBus()
+
+	if pgStore, ok := eventStore.(*eventstore.PostgresEventStore); ok {
+		pgStore.SetEventBus(eventBus)
+	}
+
+	return routerDependencies{
+		eventStore: eventStore,
+		db:         db,
+		authDeps:   authDeps,
+		commandBus: commandBus,
+		eventBus:   eventBus,
+		hateoas:    sharedAPI.NewHATEOASLinks("/api/v1"),
+	}
+}
+
+func configureMiddleware(r chi.Router, authDeps *authAPI.AuthDependencies) {
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.RequestID)
@@ -60,82 +94,43 @@ func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) htt
 		MaxAge:           300,
 	}))
 	r.Use(authDeps.SCSManager.LoadAndSave)
+}
 
-	// Health check
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	})
+func registerPublicRoutes(r chi.Router, db *database.TenantAwareDB, authDeps *authAPI.AuthDependencies) {
+	r.Get("/health", healthHandler)
+	r.Get("/api/v1/version", versionHandler)
+	r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("doc.json")))
 
-	// Version endpoint (outside /api/v1 to avoid tenant middleware)
-	r.Get("/api/v1/version", func(w http.ResponseWriter, r *http.Request) {
-		sharedAPI.RespondJSON(w, http.StatusOK, map[string]string{
-			"version": appVersion,
-		})
-	})
+	mustSetup(platformAPI.SetupPlatformRoutes(r, db.DB()), "platform routes")
+	mustSetup(authAPI.SetupAuthRoutes(r, db.DB(), authDeps), "auth routes")
+}
 
-	// Swagger documentation
-	r.Get("/swagger/*", httpSwagger.Handler(
-		httpSwagger.URL("doc.json"),
-	))
-
-	// Platform API routes (no tenant context - uses API key authentication)
-	if err := platformAPI.SetupPlatformRoutes(r, db.DB()); err != nil {
-		log.Fatalf("Failed to setup platform routes: %v", err)
-	}
-
-	// Auth routes (outside tenant context)
-	if err := authAPI.SetupAuthRoutes(r, db.DB(), authDeps); err != nil {
-		log.Fatalf("Failed to setup auth routes: %v", err)
-	}
-
-	// Initialize CQRS buses and event bus
-	commandBus := cqrs.NewInMemoryCommandBus()
-	eventBus := events.NewInMemoryEventBus()
-	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
-
-	// Wire event store to event bus
-	if pgStore, ok := eventStore.(*eventstore.PostgresEventStore); ok {
-		pgStore.SetEventBus(eventBus)
-	}
-
-	// Tenant-scoped API routes
+func registerTenantRoutes(r chi.Router, deps routerDependencies) {
 	r.Route("/api/v1", func(r chi.Router) {
-		// Tenant context middleware - injects tenant from header (dev) or session (prod)
-		r.Use(middleware.TenantMiddlewareWithSession(authDeps.SessionManager))
-		// Architecture Modeling Context
-		if err := architectureAPI.SetupArchitectureModelingRoutes(r, commandBus, eventStore, eventBus, db, hateoas); err != nil {
-			log.Fatalf("Failed to setup architecture modeling routes: %v", err)
-		}
+		r.Use(middleware.TenantMiddlewareWithSession(deps.authDeps.SessionManager))
 
-		// Architecture Views Context
-		if err := viewsAPI.SetupArchitectureViewsRoutes(r, commandBus, eventStore, eventBus, db, hateoas); err != nil {
-			log.Fatalf("Failed to setup architecture views routes: %v", err)
-		}
+		mustSetup(architectureAPI.SetupArchitectureModelingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas), "architecture modeling routes")
+		mustSetup(viewsAPI.SetupArchitectureViewsRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas), "architecture views routes")
+		mustSetup(capabilityAPI.SetupCapabilityMappingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas), "capability mapping routes")
+		mustSetup(releasesAPI.SetupReleasesRoutes(r, deps.db.DB()), "releases routes")
+		mustSetup(viewlayoutsAPI.SetupViewLayoutsRoutes(r, deps.eventBus, deps.db, deps.hateoas), "view layouts routes")
+		mustSetup(importingAPI.SetupImportingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db), "importing routes")
 
-		// Capability Mapping Context
-		if err := capabilityAPI.SetupCapabilityMappingRoutes(r, commandBus, eventStore, eventBus, db, hateoas); err != nil {
-			log.Fatalf("Failed to setup capability mapping routes: %v", err)
-		}
-
-		// Releases Context (system-wide, no tenancy)
-		if err := releasesAPI.SetupReleasesRoutes(r, db.DB()); err != nil {
-			log.Fatalf("Failed to setup releases routes: %v", err)
-		}
-
-		// ViewLayouts Context
-		if err := viewlayoutsAPI.SetupViewLayoutsRoutes(r, eventBus, db, hateoas); err != nil {
-			log.Fatalf("Failed to setup view layouts routes: %v", err)
-		}
-
-		// Importing Context
-		if err := importingAPI.SetupImportingRoutes(r, commandBus, eventStore, eventBus, db); err != nil {
-			log.Fatalf("Failed to setup importing routes: %v", err)
-		}
-
-		// Reference Documentation (static)
 		sharedAPI.SetupReferenceRoutes(r)
 	})
+}
 
-	return r
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
+}
+
+func versionHandler(w http.ResponseWriter, r *http.Request) {
+	sharedAPI.RespondJSON(w, http.StatusOK, map[string]string{"version": appVersion})
+}
+
+func mustSetup(err error, name string) {
+	if err != nil {
+		log.Fatalf("Failed to setup %s: %v", name, err)
+	}
 }

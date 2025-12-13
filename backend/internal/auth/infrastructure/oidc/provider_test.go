@@ -51,7 +51,12 @@ func TestNewOIDCProvider_Discovery(t *testing.T) {
 		json.NewEncoder(w).Encode(jwks)
 	})
 
-	provider, err := NewOIDCProvider(context.Background(), server.URL, "test-client-id", "test-client-secret", server.URL+"/callback")
+	provider, err := NewOIDCProviderFromConfig(context.Background(), ProviderConfig{
+		DiscoveryURL: server.URL,
+		ClientID:     "test-client-id",
+		ClientSecret: "test-client-secret",
+		RedirectURL:  server.URL + "/callback",
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, provider)
 }
@@ -89,7 +94,12 @@ func TestOIDCProvider_AuthCodeURL(t *testing.T) {
 		json.NewEncoder(w).Encode(jwks)
 	})
 
-	provider, err := NewOIDCProvider(context.Background(), server.URL, "test-client-id", "test-client-secret", server.URL+"/callback")
+	provider, err := NewOIDCProviderFromConfig(context.Background(), ProviderConfig{
+		DiscoveryURL: server.URL,
+		ClientID:     "test-client-id",
+		ClientSecret: "test-client-secret",
+		RedirectURL:  server.URL + "/callback",
+	})
 	require.NoError(t, err)
 
 	state := "test-state"
@@ -178,7 +188,12 @@ func TestOIDCProvider_ExchangeCode(t *testing.T) {
 		json.NewEncoder(w).Encode(response)
 	})
 
-	provider, err := NewOIDCProvider(context.Background(), server.URL, "test-client-id", "test-client-secret", server.URL+"/callback")
+	provider, err := NewOIDCProviderFromConfig(context.Background(), ProviderConfig{
+		DiscoveryURL: server.URL,
+		ClientID:     "test-client-id",
+		ClientSecret: "test-client-secret",
+		RedirectURL:  server.URL + "/callback",
+	})
 	require.NoError(t, err)
 
 	codeVerifier := oauth2.GenerateVerifier()

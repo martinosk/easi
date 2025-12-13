@@ -36,40 +36,60 @@ type OIDCConfig struct {
 }
 
 func NewOIDCConfig(discoveryURL, clientID string, authMethod OIDCAuthMethod, scopes string) (OIDCConfig, error) {
-	discoveryURL = strings.TrimSpace(discoveryURL)
-	if discoveryURL == "" {
-		return OIDCConfig{}, ErrOIDCDiscoveryURLEmpty
+	validatedURL, err := validateDiscoveryURL(discoveryURL)
+	if err != nil {
+		return OIDCConfig{}, err
 	}
 
-	parsedURL, err := url.Parse(discoveryURL)
-	if err != nil || parsedURL.Host == "" {
-		return OIDCConfig{}, ErrOIDCDiscoveryURLInvalid
-	}
-
-	if parsedURL.Scheme != "https" && !isLocalhost(parsedURL.Host) {
-		return OIDCConfig{}, ErrOIDCDiscoveryURLNotHTTPS
-	}
-
-	clientID = strings.TrimSpace(clientID)
-	if clientID == "" {
-		return OIDCConfig{}, ErrOIDCClientIDEmpty
+	validatedClientID, err := validateClientID(clientID)
+	if err != nil {
+		return OIDCConfig{}, err
 	}
 
 	if !authMethod.IsValid() {
 		return OIDCConfig{}, ErrOIDCAuthMethodInvalid
 	}
 
-	scopes = strings.TrimSpace(scopes)
-	if scopes == "" {
-		scopes = defaultScopes
+	return OIDCConfig{
+		discoveryURL: validatedURL,
+		clientID:     validatedClientID,
+		authMethod:   authMethod,
+		scopes:       normalizeScopes(scopes),
+	}, nil
+}
+
+func validateDiscoveryURL(discoveryURL string) (string, error) {
+	discoveryURL = strings.TrimSpace(discoveryURL)
+	if discoveryURL == "" {
+		return "", ErrOIDCDiscoveryURLEmpty
 	}
 
-	return OIDCConfig{
-		discoveryURL: discoveryURL,
-		clientID:     clientID,
-		authMethod:   authMethod,
-		scopes:       scopes,
-	}, nil
+	parsedURL, err := url.Parse(discoveryURL)
+	if err != nil || parsedURL.Host == "" {
+		return "", ErrOIDCDiscoveryURLInvalid
+	}
+
+	if parsedURL.Scheme != "https" && !isLocalhost(parsedURL.Host) {
+		return "", ErrOIDCDiscoveryURLNotHTTPS
+	}
+
+	return discoveryURL, nil
+}
+
+func validateClientID(clientID string) (string, error) {
+	clientID = strings.TrimSpace(clientID)
+	if clientID == "" {
+		return "", ErrOIDCClientIDEmpty
+	}
+	return clientID, nil
+}
+
+func normalizeScopes(scopes string) string {
+	scopes = strings.TrimSpace(scopes)
+	if scopes == "" {
+		return defaultScopes
+	}
+	return scopes
 }
 
 func (c OIDCConfig) DiscoveryURL() string {

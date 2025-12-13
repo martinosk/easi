@@ -58,8 +58,11 @@ func setupTestHandler(t *testing.T, idpServer *httptest.Server) (*AuthHandlers, 
 		},
 	}
 
-	allowedOrigins := []string{"http://localhost:3000", "http://localhost:5173"}
-	handlers := NewAuthHandlers(sessionManager, mockRepo, "test-secret", idpServer.URL+"/callback", allowedOrigins)
+	handlers := NewAuthHandlers(sessionManager, mockRepo, AuthHandlersConfig{
+		ClientSecret:   "test-secret",
+		RedirectURL:    idpServer.URL + "/callback",
+		AllowedOrigins: []string{"http://localhost:3000", "http://localhost:5173"},
+	})
 
 	return handlers, scsManager
 }
@@ -159,8 +162,11 @@ func TestPostSessions_DomainNotFound(t *testing.T) {
 		err: repositories.ErrDomainNotFound,
 	}
 
-	allowedOrigins := []string{"http://localhost:3000"}
-	handlers := NewAuthHandlers(sessionManager, mockRepo, "test-secret", idpServer.URL+"/callback", allowedOrigins)
+	handlers := NewAuthHandlers(sessionManager, mockRepo, AuthHandlersConfig{
+		ClientSecret:   "test-secret",
+		RedirectURL:    idpServer.URL + "/callback",
+		AllowedOrigins: []string{"http://localhost:3000"},
+	})
 
 	body := map[string]string{"email": "user@unknown.com"}
 	jsonBody, _ := json.Marshal(body)
@@ -337,8 +343,11 @@ func TestGetCallback_SuccessfulExchange(t *testing.T) {
 		},
 	}
 
-	allowedOrigins := []string{"http://localhost:3000", "http://localhost:5173"}
-	handlers := NewAuthHandlers(sessionManager, mockRepo, "test-secret", idpServer.URL+"/callback", allowedOrigins)
+	handlers := NewAuthHandlers(sessionManager, mockRepo, AuthHandlersConfig{
+		ClientSecret:   "test-secret",
+		RedirectURL:    idpServer.URL + "/callback",
+		AllowedOrigins: []string{"http://localhost:3000", "http://localhost:5173"},
+	})
 
 	router := chi.NewRouter()
 	router.Use(scsManager.LoadAndSave)

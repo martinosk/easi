@@ -84,13 +84,12 @@ func (m *TokenRefreshMiddleware) refreshTokens(ctx context.Context, authSession 
 		return session.AuthSession{}, err
 	}
 
-	provider, err := oidc.NewOIDCProvider(
-		ctx,
-		tenantConfig.DiscoveryURL,
-		tenantConfig.ClientID,
-		m.clientSecret,
-		m.redirectURL,
-	)
+	provider, err := oidc.NewOIDCProviderFromConfig(ctx, oidc.ProviderConfig{
+		DiscoveryURL: tenantConfig.DiscoveryURL,
+		ClientID:     tenantConfig.ClientID,
+		ClientSecret: m.clientSecret,
+		RedirectURL:  m.redirectURL,
+	})
 	if err != nil {
 		return session.AuthSession{}, err
 	}
@@ -100,7 +99,11 @@ func (m *TokenRefreshMiddleware) refreshTokens(ctx context.Context, authSession 
 		return session.AuthSession{}, err
 	}
 
-	return authSession.UpdateTokens(result.AccessToken, result.RefreshToken, result.TokenExpiry), nil
+	return authSession.UpdateTokens(session.TokenInfo{
+		AccessToken:  result.AccessToken,
+		RefreshToken: result.RefreshToken,
+		Expiry:       result.TokenExpiry,
+	}), nil
 }
 
 func (m *TokenRefreshMiddleware) lookupTenantConfig(ctx context.Context, tenantID string) (*repositories.TenantOIDCConfig, error) {

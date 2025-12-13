@@ -34,7 +34,10 @@ func TestAuthSession_UpgradeToAuthenticated(t *testing.T) {
 	refreshToken := "refresh-token-456"
 	expiry := time.Now().Add(time.Hour)
 
-	authenticated := preAuth.UpgradeToAuthenticated(userID, userEmail, accessToken, refreshToken, expiry)
+	authenticated := preAuth.UpgradeToAuthenticated(
+		UserInfo{ID: userID, Email: userEmail},
+		TokenInfo{AccessToken: accessToken, RefreshToken: refreshToken, Expiry: expiry},
+	)
 
 	assert.True(t, authenticated.IsAuthenticated())
 	assert.Equal(t, userID, authenticated.UserID())
@@ -48,23 +51,31 @@ func TestAuthSession_UpgradeToAuthenticated(t *testing.T) {
 	assert.Empty(t, authenticated.CodeVerifier(), "code verifier should be cleared after authentication")
 }
 
+func testTokenInfo(expiry time.Time) TokenInfo {
+	return TokenInfo{AccessToken: "access", RefreshToken: "refresh", Expiry: expiry}
+}
+
+func testUserInfo(userID uuid.UUID) UserInfo {
+	return UserInfo{ID: userID, Email: "user@acme.com"}
+}
+
 func TestAuthSession_IsTokenExpired(t *testing.T) {
 	tenantID, _ := sharedvo.NewTenantID("acme")
 	preAuth := NewPreAuthSession(tenantID, "acme.com", "")
 	userID := uuid.New()
 
 	t.Run("not expired with buffer", func(t *testing.T) {
-		session := preAuth.UpgradeToAuthenticated(userID, "user@acme.com", "access", "refresh", time.Now().Add(time.Hour))
+		session := preAuth.UpgradeToAuthenticated(testUserInfo(userID), testTokenInfo(time.Now().Add(time.Hour)))
 		assert.False(t, session.IsTokenExpired())
 	})
 
 	t.Run("expired", func(t *testing.T) {
-		session := preAuth.UpgradeToAuthenticated(userID, "user@acme.com", "access", "refresh", time.Now().Add(-time.Hour))
+		session := preAuth.UpgradeToAuthenticated(testUserInfo(userID), testTokenInfo(time.Now().Add(-time.Hour)))
 		assert.True(t, session.IsTokenExpired())
 	})
 
 	t.Run("expires within buffer window", func(t *testing.T) {
-		session := preAuth.UpgradeToAuthenticated(userID, "user@acme.com", "access", "refresh", time.Now().Add(3*time.Minute))
+		session := preAuth.UpgradeToAuthenticated(testUserInfo(userID), testTokenInfo(time.Now().Add(3*time.Minute)))
 		assert.True(t, session.IsTokenExpired(), "token expiring in 3 minutes should be considered expired due to 5 minute buffer")
 	})
 }
@@ -73,10 +84,13 @@ func TestAuthSession_UpdateTokens(t *testing.T) {
 	tenantID, _ := sharedvo.NewTenantID("acme")
 	preAuth := NewPreAuthSession(tenantID, "acme.com", "")
 	userID := uuid.New()
-	session := preAuth.UpgradeToAuthenticated(userID, "user@acme.com", "old-access", "old-refresh", time.Now().Add(-time.Hour))
+	session := preAuth.UpgradeToAuthenticated(
+		testUserInfo(userID),
+		TokenInfo{AccessToken: "old-access", RefreshToken: "old-refresh", Expiry: time.Now().Add(-time.Hour)},
+	)
 
 	newExpiry := time.Now().Add(time.Hour)
-	updated := session.UpdateTokens("new-access", "new-refresh", newExpiry)
+	updated := session.UpdateTokens(TokenInfo{AccessToken: "new-access", RefreshToken: "new-refresh", Expiry: newExpiry})
 
 	assert.Equal(t, "new-access", updated.AccessToken())
 	assert.Equal(t, "new-refresh", updated.RefreshToken())
@@ -90,7 +104,10 @@ func TestAuthSession_Serialization(t *testing.T) {
 	preAuth := NewPreAuthSession(tenantID, "acme.com", "")
 	userID := uuid.New()
 	expiry := time.Now().Add(time.Hour).Truncate(time.Second)
-	session := preAuth.UpgradeToAuthenticated(userID, "user@acme.com", "access", "refresh", expiry)
+	session := preAuth.UpgradeToAuthenticated(
+		testUserInfo(userID),
+		TokenInfo{AccessToken: "access", RefreshToken: "refresh", Expiry: expiry},
+	)
 
 	data, err := session.Marshal()
 	require.NoError(t, err)

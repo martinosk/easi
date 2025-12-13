@@ -54,81 +54,79 @@ type OIDCProvider struct {
 	httpClient   *http.Client
 }
 
-func NewOIDCProvider(ctx context.Context, discoveryURL, clientID, clientSecret, redirectURL string) (*OIDCProvider, error) {
-	return NewOIDCProviderWithIssuer(ctx, discoveryURL, "", clientID, clientSecret, redirectURL)
+type ProviderConfig struct {
+	DiscoveryURL string
+	IssuerURL    string
+	ClientID     string
+	ClientSecret string
+	RedirectURL  string
+	Scopes       []string
 }
+
+var defaultScopes = []string{oidc.ScopeOpenID, "email", "profile", "offline_access"}
 
 var ErrInsecureIssuerNotAllowed = errors.New("insecure issuer URL override requires AUTH_MODE=local_oidc or AUTH_MODE=bypass")
 
-func NewOIDCProviderWithIssuer(ctx context.Context, discoveryURL, issuerURL, clientID, clientSecret, redirectURL string) (*OIDCProvider, error) {
-	var httpClient *http.Client
-
-	if issuerURL != "" && issuerURL != discoveryURL {
-		if !config.IsHTTPAllowed() {
-			return nil, ErrInsecureIssuerNotAllowed
-		}
-		ctx = oidc.InsecureIssuerURLContext(ctx, issuerURL)
-		httpClient = &http.Client{
-			Transport: &urlRewriteTransport{
-				base:    http.DefaultTransport,
-				fromURL: issuerURL,
-				toURL:   discoveryURL,
-			},
-		}
-		ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
-	}
-
-	provider, err := oidc.NewProvider(ctx, discoveryURL)
+func NewOIDCProviderFromConfig(ctx context.Context, cfg ProviderConfig) (*OIDCProvider, error) {
+	httpClient, ctx, err := setupHTTPClient(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	endpoint := provider.Endpoint()
-
-	// Also rewrite the token endpoint URL
-	if issuerURL != "" && issuerURL != discoveryURL {
-		endpoint.TokenURL = strings.Replace(endpoint.TokenURL, issuerURL, discoveryURL, 1)
+	provider, err := oidc.NewProvider(ctx, cfg.DiscoveryURL)
+	if err != nil {
+		return nil, err
 	}
 
-	oauth2Config := oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		RedirectURL:  redirectURL,
-		Endpoint:     endpoint,
-		Scopes:       []string{oidc.ScopeOpenID, "email", "profile", "offline_access"},
+	endpoint := adjustEndpoint(provider.Endpoint(), cfg)
+	scopes := cfg.Scopes
+	if len(scopes) == 0 {
+		scopes = defaultScopes
 	}
-
-	verifier := provider.Verifier(&oidc.Config{ClientID: clientID})
 
 	return &OIDCProvider{
-		provider:     provider,
-		oauth2Config: oauth2Config,
-		verifier:     verifier,
-		httpClient:   httpClient,
+		provider: provider,
+		oauth2Config: oauth2.Config{
+			ClientID:     cfg.ClientID,
+			ClientSecret: cfg.ClientSecret,
+			RedirectURL:  cfg.RedirectURL,
+			Endpoint:     endpoint,
+			Scopes:       scopes,
+		},
+		verifier:   provider.Verifier(&oidc.Config{ClientID: cfg.ClientID}),
+		httpClient: httpClient,
 	}, nil
 }
 
-func NewOIDCProviderWithScopes(ctx context.Context, discoveryURL, clientID, clientSecret, redirectURL string, scopes []string) (*OIDCProvider, error) {
-	provider, err := oidc.NewProvider(ctx, discoveryURL)
-	if err != nil {
-		return nil, err
+func setupHTTPClient(ctx context.Context, cfg ProviderConfig) (*http.Client, context.Context, error) {
+	if !needsIssuerOverride(cfg) {
+		return nil, ctx, nil
 	}
 
-	oauth2Config := oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		RedirectURL:  redirectURL,
-		Endpoint:     provider.Endpoint(),
-		Scopes:       scopes,
+	if !config.IsHTTPAllowed() {
+		return nil, ctx, ErrInsecureIssuerNotAllowed
 	}
 
-	verifier := provider.Verifier(&oidc.Config{ClientID: clientID})
+	ctx = oidc.InsecureIssuerURLContext(ctx, cfg.IssuerURL)
+	httpClient := &http.Client{
+		Transport: &urlRewriteTransport{
+			base:    http.DefaultTransport,
+			fromURL: cfg.IssuerURL,
+			toURL:   cfg.DiscoveryURL,
+		},
+	}
+	return httpClient, context.WithValue(ctx, oauth2.HTTPClient, httpClient), nil
+}
 
-	return &OIDCProvider{
-		provider:     provider,
-		oauth2Config: oauth2Config,
-		verifier:     verifier,
-	}, nil
+func needsIssuerOverride(cfg ProviderConfig) bool {
+	return cfg.IssuerURL != "" && cfg.IssuerURL != cfg.DiscoveryURL
+}
+
+func adjustEndpoint(endpoint oauth2.Endpoint, cfg ProviderConfig) oauth2.Endpoint {
+	if needsIssuerOverride(cfg) {
+		endpoint.TokenURL = strings.Replace(endpoint.TokenURL, cfg.IssuerURL, cfg.DiscoveryURL, 1)
+	}
+	return endpoint
 }
 
 func (p *OIDCProvider) AuthCodeURL(state, nonce, codeVerifier string) string {

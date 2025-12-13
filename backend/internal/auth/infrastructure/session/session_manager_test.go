@@ -63,7 +63,10 @@ func TestSessionManager_UpgradeAndLoadAuthenticatedSession(t *testing.T) {
 		require.NoError(t, err)
 
 		userID := uuid.New()
-		authenticated := preAuth.UpgradeToAuthenticated(userID, "user@acme.com", "access", "refresh", time.Now().Add(time.Hour))
+		authenticated := preAuth.UpgradeToAuthenticated(
+			UserInfo{ID: userID, Email: "user@acme.com"},
+			TokenInfo{AccessToken: "access", RefreshToken: "refresh", Expiry: time.Now().Add(time.Hour)},
+		)
 		err = sm.StoreAuthenticatedSession(ctx, authenticated)
 		require.NoError(t, err)
 

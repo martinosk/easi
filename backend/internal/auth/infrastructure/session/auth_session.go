@@ -107,34 +107,26 @@ func (s AuthSession) IsTokenExpired() bool {
 	return time.Now().Add(tokenExpiryBuffer).After(s.tokenExpiry)
 }
 
-func (s AuthSession) UpgradeToAuthenticated(
-	userID uuid.UUID,
-	userEmail string,
-	accessToken string,
-	refreshToken string,
-	tokenExpiry time.Time,
-) AuthSession {
-	return AuthSession{
-		tenantID:            s.tenantID,
-		state:               "",
-		nonce:               "",
-		codeVerifier:        "",
-		expectedEmailDomain: "",
-		returnURL:           "",
-		userID:              userID,
-		userEmail:           userEmail,
-		accessToken:         accessToken,
-		refreshToken:        refreshToken,
-		tokenExpiry:         tokenExpiry,
-		authenticated:       true,
-	}
+type TokenInfo struct {
+	AccessToken  string
+	RefreshToken string
+	Expiry       time.Time
 }
 
-func (s AuthSession) UpdateTokens(
-	accessToken string,
-	refreshToken string,
-	tokenExpiry time.Time,
-) AuthSession {
+type UserInfo struct {
+	ID    uuid.UUID
+	Email string
+}
+
+func (s AuthSession) UpgradeToAuthenticated(user UserInfo, tokens TokenInfo) AuthSession {
+	return s.toAuthenticatedSession(user, tokens)
+}
+
+func (s AuthSession) UpdateTokens(tokens TokenInfo) AuthSession {
+	return s.toAuthenticatedSession(UserInfo{ID: s.userID, Email: s.userEmail}, tokens)
+}
+
+func (s AuthSession) toAuthenticatedSession(user UserInfo, tokens TokenInfo) AuthSession {
 	return AuthSession{
 		tenantID:            s.tenantID,
 		state:               "",
@@ -142,12 +134,12 @@ func (s AuthSession) UpdateTokens(
 		codeVerifier:        "",
 		expectedEmailDomain: "",
 		returnURL:           "",
-		userID:              s.userID,
-		userEmail:           s.userEmail,
-		accessToken:         accessToken,
-		refreshToken:        refreshToken,
-		tokenExpiry:         tokenExpiry,
-		authenticated:       s.authenticated,
+		userID:              user.ID,
+		userEmail:           user.Email,
+		accessToken:         tokens.AccessToken,
+		refreshToken:        tokens.RefreshToken,
+		tokenExpiry:         tokens.Expiry,
+		authenticated:       true,
 	}
 }
 
