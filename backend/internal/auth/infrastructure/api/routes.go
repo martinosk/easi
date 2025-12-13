@@ -42,6 +42,10 @@ func SetupAuthDependencies(db *sql.DB) (*AuthDependencies, error) {
 }
 
 func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies) error {
+	if config.IsAuthBypassed() {
+		return nil
+	}
+
 	clientSecret := os.Getenv("OIDC_CLIENT_SECRET")
 	if clientSecret == "" {
 		panic("OIDC_CLIENT_SECRET environment variable is required")
