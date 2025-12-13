@@ -69,7 +69,8 @@ For security-sensitive operations, detailed audit records are created within han
 - [ ] Session cookie has Secure flag (HTTPS)
 - [ ] Session cookie has SameSite=Lax
 - [ ] Session ID regenerated on login (fixation prevention)
-- [ ] Session expires after 24 hours
+- [ ] Access token expires after 8 hours (triggers refresh)
+- [ ] Session expires after 7 days without activity (refresh token expiry)
 - [ ] Logged-out session cannot be reused
 
 ### Tenant Isolation Tests

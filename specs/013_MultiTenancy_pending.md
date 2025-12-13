@@ -148,4 +148,7 @@ Apply RLS policies to: events, snapshots, application_components, component_rela
 - [ ] Security tests prevent cross-tenant access at application layer
 - [ ] Security tests verify RLS policies enforce isolation at database layer
 - [ ] Test that missing tenant context fails safely
+- [ ] Verify index usage in query plans with tenant_id filters
+- [ ] Performance testing with RLS enabled
+- [ ] Security audit of RLS implementation (attack vectors, connection pool, SQL injection)
 - [ ] User sign-off

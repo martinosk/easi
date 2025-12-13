@@ -1,6 +1,6 @@
 # 072 - Tenant Lifecycle
 
-**Depends on:** [065_TenantProvisioning](065_TenantProvisioning_pending.md)
+**Depends on:** [065_TenantProvisioning](065_TenantProvisioning_done.md)
 
 ## Description
 Manage tenant lifecycle: update tenant name, suspend/activate tenants, and archive (soft delete) tenants.
@@ -88,21 +88,24 @@ Archives tenant (soft delete).
 | 409 | Cannot archive with active users | Disable all users first |
 
 ### PATCH /api/platform/v1/tenants/{id}/oidc-config
-Updates OIDC configuration.
+Updates OIDC configuration (non-secret fields only).
 
 **Request:**
 ```json
 {
   "discoveryUrl": "https://...",
   "clientId": "new-client-id",
-  "clientSecret": "new-secret",
+  "authMethod": "private_key_jwt",
   "scopes": "openid email profile"
 }
 ```
 
+**Note:** OIDC secrets (client_secret, private_key, certificate) are managed exclusively via AWS Secrets Manager. See spec 065 for secret provisioning instructions. This endpoint only updates non-secret configuration stored in the database.
+
 **Behavior:**
 - Validates discovery URL before accepting
 - All fields optional (partial update)
+- Does NOT handle secrets - those must be updated in AWS Secrets Manager
 
 **Response (200):** Updated tenant resource
 
@@ -110,6 +113,7 @@ Updates OIDC configuration.
 | Status | Error | Description |
 |--------|-------|-------------|
 | 400 | Invalid OIDC config | Discovery URL unreachable or invalid |
+| 400 | Invalid auth method | Must be `client_secret` or `private_key_jwt` |
 | 404 | Tenant not found | Tenant ID doesn't exist |
 
 ## Audit Events

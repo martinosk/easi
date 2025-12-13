@@ -1,6 +1,6 @@
 # 071 - Domain Management
 
-**Depends on:** [065_TenantProvisioning](065_TenantProvisioning_pending.md)
+**Depends on:** [065_TenantProvisioning](065_TenantProvisioning_done.md)
 
 ## Description
 Add and remove email domains from tenants. Email domains are used for tenant discovery during login.

@@ -1,6 +1,6 @@
 # 073 - Platform Audit Logging
 
-**Depends on:** [065_TenantProvisioning](065_TenantProvisioning_pending.md)
+**Depends on:** [065_TenantProvisioning](065_TenantProvisioning_done.md)
 
 ## Description
 Audit trail for all platform administration operations. Provides visibility into tenant lifecycle events for compliance and debugging.

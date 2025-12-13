@@ -140,7 +140,7 @@ Revokes a pending invitation.
 
 ## Login Flow with Invitation Checking
 
-Modified callback flow (from Slice 015a):
+Modified callback flow (from spec 066):
 ```
 ...
 10. App validates ID token against JWKS

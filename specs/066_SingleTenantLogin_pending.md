@@ -1,6 +1,6 @@
 # 066 - Single-Tenant Login with Dev Mode
 
-**Depends on:** [065_TenantProvisioning](065_TenantProvisioning_pending.md) (database schema)
+**Depends on:** [065_TenantProvisioning](065_TenantProvisioning_done.md) (database schema, secret management)
 
 ## Description
 Complete end-to-end login flow for single tenant using Authorization Code flow with PKCE. User enters email, is redirected to IdP, authenticates, and receives a session. Backend handles all token operations - access tokens and refresh tokens never reach the browser.
@@ -158,8 +158,14 @@ OIDC configuration is stored per-tenant in the database (see spec 065). This ena
 **Loaded from database:**
 - `discovery_url`: Tenant's IdP discovery endpoint
 - `client_id`: OAuth client ID registered with tenant's IdP
-- `client_secret`: OAuth client secret (encrypted at rest)
+- `auth_method`: Authentication method (`client_secret` or `private_key_jwt`)
 - `scopes`: Requested scopes (default: `openid email profile offline_access`)
+
+**Loaded from SecretProvider (see spec 065):**
+- OIDC credentials are stored in AWS Secrets Manager, synced to K8s via External Secrets Operator
+- The `SecretProvider` interface reads credentials from mounted K8s secrets at `/secrets/oidc/{tenant-id}/`
+- Credentials include: `client_secret` (for client_secret auth) or `private_key`/`certificate` (for private_key_jwt auth)
+- The `secretProvisioned` flag in tenant responses indicates whether credentials are available
 
 **Environment variable:**
 ```bash
