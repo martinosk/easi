@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import type { InitiateLoginRequest, InitiateLoginResponse } from '../types';
+import type { InitiateLoginRequest, InitiateLoginResponse, CurrentSessionResponse } from '../types';
 
 interface ApiErrorResponse {
   message?: string;
@@ -36,6 +36,21 @@ class AuthApiClient {
       }
       throw error;
     }
+  }
+
+  async getCurrentSession(): Promise<CurrentSessionResponse> {
+    const response = await axios.get<CurrentSessionResponse>(
+      `${this.baseURL}/auth/sessions/current`,
+      { withCredentials: true }
+    );
+    return response.data;
+  }
+
+  async logout(): Promise<void> {
+    await axios.delete(
+      `${this.baseURL}/auth/sessions/current`,
+      { withCredentials: true }
+    );
   }
 }
 

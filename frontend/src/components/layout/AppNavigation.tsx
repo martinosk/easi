@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import logo from '../../assets/logo.svg';
+import { UserMenu } from './UserMenu';
 
 type AppView = 'canvas' | 'business-domains';
 
@@ -96,6 +97,7 @@ export function AppNavigation({ onViewChange, onOpenReleaseNotes }: AppNavigatio
             What's New
           </button>
         )}
+        <UserMenu />
       </div>
     </header>
   );

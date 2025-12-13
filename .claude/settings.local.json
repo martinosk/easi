@@ -21,7 +21,8 @@
       "Bash(npm run test:*)",
       "Bash(npx vitest:*)",
       "mcp__context7__resolve-library-id",
-      "mcp__context7__get-library-docs"
+      "mcp__context7__get-library-docs",
+      "mcp__codescene__pre_commit_code_health_safeguard"
     ],
     "deny": [],
     "ask": []

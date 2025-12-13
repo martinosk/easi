@@ -22,10 +22,14 @@ type AuthDependencies struct {
 	AuthMiddleware *AuthMiddleware
 }
 
+const (
+	SessionLifetime = 7 * 24 * time.Hour // 7 days - matches refresh token lifetime
+)
+
 func SetupAuthDependencies(db *sql.DB) (*AuthDependencies, error) {
 	scsManager := scs.New()
 	scsManager.Store = postgresstore.New(db)
-	scsManager.Lifetime = 24 * time.Hour
+	scsManager.Lifetime = SessionLifetime
 	scsManager.Cookie.Name = "easi_session"
 	scsManager.Cookie.HttpOnly = true
 	scsManager.Cookie.Secure = config.IsProduction()
@@ -65,16 +69,22 @@ func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies) error {
 		}
 	}
 
-	tenantRepo := repositories.NewTenantOIDCRepository(db)
-	handlers := NewAuthHandlers(deps.SessionManager, tenantRepo, AuthHandlersConfig{
+	tenantOIDCRepo := repositories.NewTenantOIDCRepository(db)
+	handlers := NewAuthHandlers(deps.SessionManager, tenantOIDCRepo, AuthHandlersConfig{
 		ClientSecret:   clientSecret,
 		RedirectURL:    redirectURL,
 		AllowedOrigins: allowedOrigins,
 	})
 
+	userRepo := NewUserRepositoryAdapter(repositories.NewUserRepository(db))
+	tenantRepo := NewTenantRepositoryAdapter(repositories.NewTenantRepository(db))
+	sessionHandlers := NewSessionHandlers(deps.SessionManager, userRepo, tenantRepo)
+
 	r.Route("/auth", func(r chi.Router) {
 		r.Post("/sessions", handlers.PostSessions)
 		r.Get("/callback", handlers.GetCallback)
+		r.Get("/sessions/current", sessionHandlers.GetCurrentSession)
+		r.Delete("/sessions/current", sessionHandlers.DeleteCurrentSession)
 	})
 
 	return nil

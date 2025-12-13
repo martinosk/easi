@@ -1,4 +1,5 @@
 import axios, { type AxiosError, type AxiosInstance } from 'axios';
+import { useUserStore } from '../store/userStore';
 import type {
   Component,
   ComponentId,
@@ -84,8 +85,10 @@ class ApiClient {
 
         if (statusCode === 401 && !window.location.pathname.endsWith('/login') && !isRedirectingToLogin) {
           isRedirectingToLogin = true;
+          useUserStore.getState().clearUser();
           const basePath = import.meta.env.BASE_URL || '/';
-          window.location.href = `${basePath}login`;
+          const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+          window.location.href = `${basePath}login?returnUrl=${returnUrl}`;
           return Promise.reject(error);
         }
 

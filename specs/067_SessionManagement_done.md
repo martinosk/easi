@@ -1,6 +1,6 @@
 # 067 - Session Management
 
-**Depends on:** [066_SingleTenantLogin](066_SingleTenantLogin_pending.md)
+**Depends on:** [066_SingleTenantLogin](066_SingleTenantLogin_done.md)
 
 ## Description
 Session introspection and logout. Users can check their current session status and log out.
@@ -157,20 +157,29 @@ interface UserContext {
 }
 ```
 
+### User Menu Component
+Header dropdown showing:
+- User's initials (avatar)
+- Name and email
+- Organization name
+- Role badge
+- Sign out button
+
 ### Logout Flow
 1. Call DELETE /auth/sessions/current
 2. Clear local user context
 3. Redirect to /login
 
 ## Checklist
-- [ ] GET /auth/sessions/current endpoint
-- [ ] DELETE /auth/sessions/current endpoint
-- [ ] Automatic token refresh in session middleware
-- [ ] Session check on app load (frontend)
-- [ ] Global 401 interceptor with redirect (frontend)
-- [ ] User context provider (frontend)
-- [ ] Unit tests for session validation
-- [ ] Unit tests for role/permission mapping
-- [ ] Integration test: transparent token refresh
-- [ ] Integration test: session expiry after refresh token expires
-- [ ] User sign-off
+- [x] GET /auth/sessions/current endpoint
+- [x] DELETE /auth/sessions/current endpoint
+- [x] Automatic token refresh in session middleware
+- [x] Session check on app load (frontend)
+- [x] Global 401 interceptor with redirect (frontend)
+- [x] User context provider (frontend)
+- [x] User menu in header with account info and logout
+- [x] Unit tests for session validation
+- [x] Unit tests for role/permission mapping
+- [x] Integration test: transparent token refresh
+- [x] Integration test: session expiry after refresh token expires
+- [x] User sign-off

@@ -1,6 +1,6 @@
 -- Migration: Seed test tenant for local development
--- Spec: 066_SingleTenantLogin
--- Description: Creates a test tenant with Dex OIDC configuration for local development and testing
+-- Spec: 066_SingleTenantLogin, 067_SessionManagement
+-- Description: Creates a test tenant with Dex OIDC configuration and test users for local development
 
 INSERT INTO tenants (id, name, status)
 VALUES ('acme', 'ACME Corporation', 'active')
@@ -27,3 +27,13 @@ ON CONFLICT (tenant_id) DO UPDATE SET
     client_id = EXCLUDED.client_id,
     auth_method = EXCLUDED.auth_method,
     scopes = EXCLUDED.scopes;
+
+-- Seed test users (must bypass RLS for seeding)
+INSERT INTO users (id, tenant_id, email, name, role, status)
+VALUES
+    ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'acme', 'testuser@acme.com', 'Test User', 'architect', 'active'),
+    ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12', 'acme', 'admin@acme.com', 'Admin User', 'admin', 'active')
+ON CONFLICT (tenant_id, email) DO UPDATE SET
+    name = EXCLUDED.name,
+    role = EXCLUDED.role,
+    status = EXCLUDED.status;
