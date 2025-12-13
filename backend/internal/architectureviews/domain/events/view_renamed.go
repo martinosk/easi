@@ -34,9 +34,9 @@ func (e ViewRenamed) EventType() string {
 // EventData returns the event data as a map for serialization
 func (e ViewRenamed) EventData() map[string]interface{} {
 	return map[string]interface{}{
-		"viewId":     e.ViewID,
-		"oldName":    e.OldName,
-		"newName":    e.NewName,
-		"renamedAt":  e.RenamedAt,
+		"viewId":    e.ViewID,
+		"oldName":   e.OldName,
+		"newName":   e.NewName,
+		"renamedAt": e.RenamedAt,
 	}
 }

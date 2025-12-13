@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package api
@@ -23,6 +24,7 @@ import (
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
+
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
@@ -818,7 +820,7 @@ func TestUpdateElementColor_Integration(t *testing.T) {
 			body, _ := json.Marshal(reqBody)
 
 			w, req := testCtx.makeRequest(t, http.MethodPatch, "/api/v1/views/"+viewID+"/"+tc.urlPath+"/"+elementID+"/color", body, map[string]string{
-				"id":       viewID,
+				"id":        viewID,
 				tc.urlParam: elementID,
 			})
 
@@ -914,7 +916,7 @@ func TestClearElementColor_Integration(t *testing.T) {
 			require.NoError(t, err)
 
 			w, req := testCtx.makeRequest(t, http.MethodDelete, "/api/v1/views/"+viewID+"/"+tc.urlPath+"/"+elementID+"/color", nil, map[string]string{
-				"id":       viewID,
+				"id":        viewID,
 				tc.urlParam: elementID,
 			})
 
@@ -940,9 +942,9 @@ func TestClearElementColor_Integration(t *testing.T) {
 
 func TestGetViewByID_ReturnsCustomColorForElements_Integration(t *testing.T) {
 	testCases := []struct {
-		elementType    string
-		color          string
-		checkResponse  func(*testing.T, readmodels.ArchitectureViewDTO, string, string)
+		elementType   string
+		color         string
+		checkResponse func(*testing.T, readmodels.ArchitectureViewDTO, string, string)
 	}{
 		{
 			"component",

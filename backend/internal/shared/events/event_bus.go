@@ -35,9 +35,9 @@ type EventBus interface {
 
 // InMemoryEventBus is an in-memory implementation of EventBus
 type InMemoryEventBus struct {
-	mu              sync.RWMutex
-	handlers        map[string][]EventHandler // Handlers by event type
-	globalHandlers  []EventHandler            // Handlers that receive all events
+	mu             sync.RWMutex
+	handlers       map[string][]EventHandler // Handlers by event type
+	globalHandlers []EventHandler            // Handlers that receive all events
 }
 
 // NewInMemoryEventBus creates a new in-memory event bus

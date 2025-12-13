@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"easi/backend/internal/shared/domain"
+
 	"github.com/stretchr/testify/assert"
 )
 

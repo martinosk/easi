@@ -160,10 +160,10 @@ func (o *ImportOrchestrator) createCapabilities(ctx context.Context, capabilitie
 }
 
 type relationshipContext struct {
-	rel       aggregates.ParsedRelationship
-	sourceID  string
-	targetID  string
-	notes     string
+	rel      aggregates.ParsedRelationship
+	sourceID string
+	targetID string
+	notes    string
 }
 
 func buildNotes(name, documentation string) string {

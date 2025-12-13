@@ -11,6 +11,7 @@ import (
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
+
 	"github.com/go-chi/chi/v5"
 )
 
@@ -352,4 +353,3 @@ func (h *RelationHandlers) DeleteComponentRelation(w http.ResponseWriter, r *htt
 
 	w.WriteHeader(http.StatusNoContent)
 }
-

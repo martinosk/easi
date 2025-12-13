@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"log"
 
-	archEvents "easi/backend/internal/architecturemodeling/domain/events"
 	archReadmodels "easi/backend/internal/architecturemodeling/application/readmodels"
+	archEvents "easi/backend/internal/architecturemodeling/domain/events"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/events"
 	"easi/backend/internal/shared/domain"

@@ -13,10 +13,10 @@ import (
 )
 
 var (
-	ErrBusinessDomainNotFound           = errors.New("business domain not found")
-	ErrCapabilityNotFound               = errors.New("capability not found")
-	ErrOnlyL1CapabilitiesCanBeAssigned  = errors.New("only L1 capabilities can be assigned to business domains")
-	ErrAssignmentAlreadyExists          = errors.New("this capability is already assigned to this business domain")
+	ErrBusinessDomainNotFound          = errors.New("business domain not found")
+	ErrCapabilityNotFound              = errors.New("capability not found")
+	ErrOnlyL1CapabilitiesCanBeAssigned = errors.New("only L1 capabilities can be assigned to business domains")
+	ErrAssignmentAlreadyExists         = errors.New("this capability is already assigned to this business domain")
 )
 
 type AssignCapabilityToDomainHandler struct {

@@ -124,8 +124,8 @@ func TestCreateTenant_Integration(t *testing.T) {
 	ctx.trackTenant(tenantID)
 
 	reqBody := CreateTenantRequest{
-		ID:   tenantID,
-		Name: "Acme Corporation",
+		ID:      tenantID,
+		Name:    "Acme Corporation",
 		Domains: []string{tenantID + ".com"},
 		OIDCConfig: OIDCConfigRequest{
 			DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0/.well-known/openid-configuration",
@@ -182,8 +182,8 @@ func TestCreateTenant_DuplicateID_Integration(t *testing.T) {
 	ctx.trackTenant(tenantID)
 
 	reqBody := CreateTenantRequest{
-		ID:   tenantID,
-		Name: "First Tenant",
+		ID:      tenantID,
+		Name:    "First Tenant",
 		Domains: []string{tenantID + ".com"},
 		OIDCConfig: OIDCConfigRequest{
 			DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0/.well-known/openid-configuration",
@@ -211,8 +211,8 @@ func TestGetTenantByID_Integration(t *testing.T) {
 	ctx.trackTenant(tenantID)
 
 	reqBody := CreateTenantRequest{
-		ID:   tenantID,
-		Name: "Get Test Corp",
+		ID:      tenantID,
+		Name:    "Get Test Corp",
 		Domains: []string{tenantID + ".com"},
 		OIDCConfig: OIDCConfigRequest{
 			DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0/.well-known/openid-configuration",
@@ -257,8 +257,8 @@ func TestListTenants_Integration(t *testing.T) {
 	ctx.trackTenant(tenantID)
 
 	reqBody := CreateTenantRequest{
-		ID:   tenantID,
-		Name: "List Test Corp",
+		ID:      tenantID,
+		Name:    "List Test Corp",
 		Domains: []string{tenantID + ".com"},
 		OIDCConfig: OIDCConfigRequest{
 			DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0/.well-known/openid-configuration",

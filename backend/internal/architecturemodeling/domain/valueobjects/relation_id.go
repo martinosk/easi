@@ -2,6 +2,7 @@ package valueobjects
 
 import (
 	"easi/backend/internal/shared/domain"
+
 	"github.com/google/uuid"
 )
 

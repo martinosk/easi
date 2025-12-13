@@ -70,12 +70,12 @@ func (h *HATEOASLinks) CapabilityLinks(capabilityID, parentID string) map[string
 
 func (h *HATEOASLinks) buildCapabilityBaseLinks(capabilityID string) map[string]string {
 	return map[string]string{
-		"self":                  fmt.Sprintf("%s/capabilities/%s", h.baseURL, capabilityID),
-		"children":              fmt.Sprintf("%s/capabilities/%s/children", h.baseURL, capabilityID),
-		"systems":               fmt.Sprintf("%s/capabilities/%s/systems", h.baseURL, capabilityID),
-		"outgoingDependencies":  fmt.Sprintf("%s/capabilities/%s/dependencies/outgoing", h.baseURL, capabilityID),
-		"incomingDependencies":  fmt.Sprintf("%s/capabilities/%s/dependencies/incoming", h.baseURL, capabilityID),
-		"collection":            fmt.Sprintf("%s/capabilities", h.baseURL),
+		"self":                 fmt.Sprintf("%s/capabilities/%s", h.baseURL, capabilityID),
+		"children":             fmt.Sprintf("%s/capabilities/%s/children", h.baseURL, capabilityID),
+		"systems":              fmt.Sprintf("%s/capabilities/%s/systems", h.baseURL, capabilityID),
+		"outgoingDependencies": fmt.Sprintf("%s/capabilities/%s/dependencies/outgoing", h.baseURL, capabilityID),
+		"incomingDependencies": fmt.Sprintf("%s/capabilities/%s/dependencies/incoming", h.baseURL, capabilityID),
+		"collection":           fmt.Sprintf("%s/capabilities", h.baseURL),
 	}
 }
 
@@ -116,10 +116,10 @@ func (h *HATEOASLinks) BusinessDomainLinks(domainID string, hasCapabilities bool
 
 func (h *HATEOASLinks) CapabilityInDomainLinks(capabilityID, domainID string) map[string]string {
 	return map[string]string{
-		"self":              fmt.Sprintf("%s/capabilities/%s", h.baseURL, capabilityID),
-		"children":          fmt.Sprintf("%s/capabilities/%s/children", h.baseURL, capabilityID),
-		"businessDomains":   fmt.Sprintf("%s/capabilities/%s/business-domains", h.baseURL, capabilityID),
-		"removeFromDomain":  fmt.Sprintf("%s/business-domains/%s/capabilities/%s", h.baseURL, domainID, capabilityID),
+		"self":             fmt.Sprintf("%s/capabilities/%s", h.baseURL, capabilityID),
+		"children":         fmt.Sprintf("%s/capabilities/%s/children", h.baseURL, capabilityID),
+		"businessDomains":  fmt.Sprintf("%s/capabilities/%s/business-domains", h.baseURL, capabilityID),
+		"removeFromDomain": fmt.Sprintf("%s/business-domains/%s/capabilities/%s", h.baseURL, domainID, capabilityID),
 	}
 }
 

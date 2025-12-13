@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package api
@@ -17,6 +18,7 @@ import (
 	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
+
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

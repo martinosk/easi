@@ -8,25 +8,25 @@ import (
 
 type ImportCompleted struct {
 	domain.BaseEvent
-	ID                   string
-	CapabilitiesCreated  int
-	ComponentsCreated    int
-	RealizationsCreated  int
-	DomainAssignments    int
-	Errors               []map[string]interface{}
-	CompletedAt          time.Time
+	ID                  string
+	CapabilitiesCreated int
+	ComponentsCreated   int
+	RealizationsCreated int
+	DomainAssignments   int
+	Errors              []map[string]interface{}
+	CompletedAt         time.Time
 }
 
 func NewImportCompleted(id string, capabilitiesCreated, componentsCreated, realizationsCreated, domainAssignments int, errors []map[string]interface{}) ImportCompleted {
 	return ImportCompleted{
-		BaseEvent:            domain.NewBaseEvent(id),
-		ID:                   id,
-		CapabilitiesCreated:  capabilitiesCreated,
-		ComponentsCreated:    componentsCreated,
-		RealizationsCreated:  realizationsCreated,
-		DomainAssignments:    domainAssignments,
-		Errors:               errors,
-		CompletedAt:          time.Now().UTC(),
+		BaseEvent:           domain.NewBaseEvent(id),
+		ID:                  id,
+		CapabilitiesCreated: capabilitiesCreated,
+		ComponentsCreated:   componentsCreated,
+		RealizationsCreated: realizationsCreated,
+		DomainAssignments:   domainAssignments,
+		Errors:              errors,
+		CompletedAt:         time.Now().UTC(),
 	}
 }
 

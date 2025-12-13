@@ -15,7 +15,6 @@ type ErrorResponse struct {
 	Details map[string]string `json:"details,omitempty"`
 }
 
-
 // CollectionResponse represents a collection of resources
 type CollectionResponse struct {
 	Data  interface{}       `json:"data"`

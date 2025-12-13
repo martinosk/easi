@@ -11,6 +11,7 @@ import (
 	"easi/backend/internal/architectureviews/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
+
 	"github.com/go-chi/chi/v5"
 )
 
@@ -118,7 +119,7 @@ func (h *ViewHandlers) decodeValidateAndDispatch(w http.ResponseWriter, r *http.
 	h.dispatchCommand(w, r, createCmd())
 }
 
-type CreateViewRequest struct{
+type CreateViewRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 }

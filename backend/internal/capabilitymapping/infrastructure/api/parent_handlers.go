@@ -11,6 +11,7 @@ import (
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/domain"
+
 	"github.com/go-chi/chi/v5"
 )
 

@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package api
@@ -19,15 +20,16 @@ import (
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
+
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type businessDomainTestContext struct {
-	db                 *sql.DB
-	testID             string
-	createdDomainIDs   []string
+	db                   *sql.DB
+	testID               string
+	createdDomainIDs     []string
 	createdCapabilityIDs []string
 }
 

@@ -12,14 +12,15 @@ import (
 	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
+
 	"github.com/go-chi/chi/v5"
 )
 
 type ComponentHandlers struct {
-	commandBus        cqrs.CommandBus
-	readModel         *readmodels.ApplicationComponentReadModel
-	hateoas           *sharedAPI.HATEOASLinks
-	paginationHelper  *sharedAPI.PaginationHelper
+	commandBus       cqrs.CommandBus
+	readModel        *readmodels.ApplicationComponentReadModel
+	hateoas          *sharedAPI.HATEOASLinks
+	paginationHelper *sharedAPI.PaginationHelper
 }
 
 func NewComponentHandlers(
@@ -146,7 +147,6 @@ func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Requ
 	})
 }
 
-
 // GetComponentByID godoc
 // @Summary Get an application component by ID
 // @Description Retrieves a specific application component by its ID
@@ -249,4 +249,3 @@ func (h *ComponentHandlers) DeleteApplicationComponent(w http.ResponseWriter, r 
 
 	w.WriteHeader(http.StatusNoContent)
 }
-

@@ -189,10 +189,10 @@ func TestImportOrchestrator_Execute_CapsDeepLevelsToL4(t *testing.T) {
 	}
 
 	expectedLevels := map[string]string{
-		"L1 Capability":                        "L1",
-		"L2 Capability":                        "L2",
-		"L3 Capability":                        "L3",
-		"L4 Capability":                        "L4",
+		"L1 Capability":                          "L1",
+		"L2 Capability":                          "L2",
+		"L3 Capability":                          "L3",
+		"L4 Capability":                          "L4",
 		"L5 Capability (should be capped to L4)": "L4",
 		"L6 Capability (should be capped to L4)": "L4",
 	}

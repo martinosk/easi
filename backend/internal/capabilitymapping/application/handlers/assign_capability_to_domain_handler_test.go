@@ -29,8 +29,8 @@ func (m *mockAssignmentRepository) Save(ctx context.Context, assignment *aggrega
 }
 
 type mockBusinessDomainReadModelForAssign struct {
-	domain   *readmodels.BusinessDomainDTO
-	getErr   error
+	domain *readmodels.BusinessDomainDTO
+	getErr error
 }
 
 func (m *mockBusinessDomainReadModelForAssign) GetByID(ctx context.Context, id string) (*readmodels.BusinessDomainDTO, error) {

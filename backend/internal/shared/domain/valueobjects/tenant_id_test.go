@@ -168,9 +168,9 @@ func TestTenantID_String(t *testing.T) {
 
 func TestTenantID_IsDefault(t *testing.T) {
 	tests := []struct {
-		name    string
-		value   string
-		want    bool
+		name  string
+		value string
+		want  bool
 	}{
 		{
 			name:  "default tenant",
@@ -196,9 +196,9 @@ func TestTenantID_IsDefault(t *testing.T) {
 
 func TestTenantID_IsSpecial(t *testing.T) {
 	tests := []struct {
-		name    string
-		value   string
-		want    bool
+		name  string
+		value string
+		want  bool
 	}{
 		{
 			name:  "default tenant",

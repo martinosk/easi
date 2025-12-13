@@ -19,9 +19,9 @@ var (
 )
 
 type urlRewriteTransport struct {
-	base      http.RoundTripper
-	fromURL   string
-	toURL     string
+	base    http.RoundTripper
+	fromURL string
+	toURL   string
 }
 
 func (t *urlRewriteTransport) RoundTrip(req *http.Request) (*http.Response, error) {

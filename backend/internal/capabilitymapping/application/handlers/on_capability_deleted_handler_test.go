@@ -9,6 +9,7 @@ import (
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/events"
 	"easi/backend/internal/shared/cqrs"
+
 	"github.com/stretchr/testify/assert"
 )
 

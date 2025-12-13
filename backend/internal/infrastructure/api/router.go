@@ -19,6 +19,7 @@ import (
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
 	viewlayoutsAPI "easi/backend/internal/viewlayouts/infrastructure/api"
+
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"

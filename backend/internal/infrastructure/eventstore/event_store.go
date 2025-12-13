@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"easi/backend/internal/infrastructure/database"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/domain"
 	sharedvo "easi/backend/internal/shared/domain/valueobjects"
 	"easi/backend/internal/shared/events"
-	sharedctx "easi/backend/internal/shared/context"
 )
 
 // EventStore defines the interface for event storage
@@ -44,13 +44,13 @@ func (s *PostgresEventStore) SetEventBus(eventBus events.EventBus) {
 
 // StoredEvent represents an event as stored in the database
 type StoredEvent struct {
-	ID            int64
-	AggregateID   string
-	EventType     string
-	EventData     string
-	Version       int
-	OccurredAt    time.Time
-	CreatedAt     time.Time
+	ID          int64
+	AggregateID string
+	EventType   string
+	EventData   string
+	Version     int
+	OccurredAt  time.Time
+	CreatedAt   time.Time
 }
 
 // SaveEvents saves events to the event store

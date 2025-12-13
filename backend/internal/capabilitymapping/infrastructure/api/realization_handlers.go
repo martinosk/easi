@@ -13,6 +13,7 @@ import (
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
+
 	"github.com/go-chi/chi/v5"
 )
 
@@ -274,4 +275,3 @@ func (h *RealizationHandlers) DeleteRealization(w http.ResponseWriter, r *http.R
 
 	w.WriteHeader(http.StatusNoContent)
 }
-

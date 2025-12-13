@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"easi/backend/internal/releases/infrastructure/repository"
+
 	"github.com/go-chi/chi/v5"
 )
 

@@ -36,21 +36,21 @@ var (
 )
 
 var validPermissions = map[string]Permission{
-	"components:read":    PermComponentsRead,
-	"components:write":   PermComponentsWrite,
-	"components:delete":  PermComponentsDelete,
-	"views:read":         PermViewsRead,
-	"views:write":        PermViewsWrite,
-	"views:delete":       PermViewsDelete,
-	"capabilities:read":  PermCapabilitiesRead,
-	"capabilities:write": PermCapabilitiesWrite,
+	"components:read":     PermComponentsRead,
+	"components:write":    PermComponentsWrite,
+	"components:delete":   PermComponentsDelete,
+	"views:read":          PermViewsRead,
+	"views:write":         PermViewsWrite,
+	"views:delete":        PermViewsDelete,
+	"capabilities:read":   PermCapabilitiesRead,
+	"capabilities:write":  PermCapabilitiesWrite,
 	"capabilities:delete": PermCapabilitiesDelete,
-	"domains:read":       PermDomainsRead,
-	"domains:write":      PermDomainsWrite,
-	"domains:delete":     PermDomainsDelete,
-	"users:read":         PermUsersRead,
-	"users:manage":       PermUsersManage,
-	"invitations:manage": PermInvitationsManage,
+	"domains:read":        PermDomainsRead,
+	"domains:write":       PermDomainsWrite,
+	"domains:delete":      PermDomainsDelete,
+	"users:read":          PermUsersRead,
+	"users:manage":        PermUsersManage,
+	"invitations:manage":  PermInvitationsManage,
 }
 
 func PermissionFromString(s string) (Permission, error) {

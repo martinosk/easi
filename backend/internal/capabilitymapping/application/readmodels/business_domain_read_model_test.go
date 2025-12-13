@@ -12,6 +12,7 @@ import (
 	"easi/backend/internal/infrastructure/database"
 	sharedcontext "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/domain/valueobjects"
+
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

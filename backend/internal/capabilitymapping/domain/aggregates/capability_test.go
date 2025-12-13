@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -502,4 +503,3 @@ func TestCapability_Delete_PreservesAggregateState(t *testing.T) {
 	assert.Equal(t, originalID, capability.ID())
 	assert.Equal(t, originalName, capability.Name().Value())
 }
-

@@ -8,6 +8,7 @@ import (
 	"easi/backend/internal/architectureviews/application/commands"
 	"easi/backend/internal/architectureviews/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
+
 	"github.com/stretchr/testify/assert"
 )
 

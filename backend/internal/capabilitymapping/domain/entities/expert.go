@@ -13,10 +13,10 @@ var (
 )
 
 type Expert struct {
-	name      string
-	role      string
-	contact   string
-	addedAt   time.Time
+	name    string
+	role    string
+	contact string
+	addedAt time.Time
 }
 
 func NewExpert(name, role, contact string) (*Expert, error) {

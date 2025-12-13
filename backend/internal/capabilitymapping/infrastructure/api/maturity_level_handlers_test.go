@@ -122,8 +122,8 @@ func TestGetStatuses_ReturnsAllStatuses(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	var response struct {
-		Data  []StatusDTO        `json:"data"`
-		Links map[string]string  `json:"_links"`
+		Data  []StatusDTO       `json:"data"`
+		Links map[string]string `json:"_links"`
 	}
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)

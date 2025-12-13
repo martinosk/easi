@@ -267,10 +267,10 @@ type CapabilityRealizationsGroup struct {
 }
 
 type domainRealizationRow struct {
-	capID, capName, capLevel                                                   string
-	realizationID, realCapID, componentID, realizationLevel, notes, origin     sql.NullString
+	capID, capName, capLevel                                                     string
+	realizationID, realCapID, componentID, realizationLevel, notes, origin       sql.NullString
 	sourceRealizationID, sourceCapabilityID, componentName, sourceCapabilityName sql.NullString
-	linkedAt                                                                   sql.NullTime
+	linkedAt                                                                     sql.NullTime
 }
 
 func (r *domainRealizationRow) toDTO() RealizationDTO {

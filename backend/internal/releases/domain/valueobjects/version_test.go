@@ -6,9 +6,9 @@ import (
 
 func TestNewVersion_ValidVersions(t *testing.T) {
 	tests := []struct {
-		name    string
-		input   string
-		want    string
+		name  string
+		input string
+		want  string
 	}{
 		{
 			name:  "standard semver version",

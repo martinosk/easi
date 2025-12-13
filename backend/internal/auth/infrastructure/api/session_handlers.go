@@ -53,11 +53,11 @@ func NewSessionHandlers(
 }
 
 type CurrentSessionResponse struct {
-	ID        string                 `json:"id"`
-	User      CurrentSessionUser     `json:"user"`
-	Tenant    CurrentSessionTenant   `json:"tenant"`
-	ExpiresAt time.Time              `json:"expiresAt"`
-	Links     map[string]string      `json:"_links"`
+	ID        string               `json:"id"`
+	User      CurrentSessionUser   `json:"user"`
+	Tenant    CurrentSessionTenant `json:"tenant"`
+	ExpiresAt time.Time            `json:"expiresAt"`
+	Links     map[string]string    `json:"_links"`
 }
 
 type CurrentSessionUser struct {

@@ -6,11 +6,11 @@ import (
 
 func TestNewImportStatus_ValidStatuses(t *testing.T) {
 	testCases := []struct {
-		status   string
-		isPending    bool
-		isImporting  bool
-		isCompleted  bool
-		isFailed     bool
+		status      string
+		isPending   bool
+		isImporting bool
+		isCompleted bool
+		isFailed    bool
 	}{
 		{"pending", true, false, false, false},
 		{"importing", false, true, false, false},

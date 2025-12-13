@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"easi/backend/internal/shared/domain"
+
 	"github.com/google/uuid"
 )
 

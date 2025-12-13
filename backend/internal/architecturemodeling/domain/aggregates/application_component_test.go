@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

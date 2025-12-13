@@ -145,7 +145,7 @@ func TestRelease_WithMarkdownNotes(t *testing.T) {
 	releaseDate := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
 	markdownNotes := `## Major Features
 - **New Dashboard**: Complete redesign of the main dashboard
-- Added `+"`dark mode`"+` support
+- Added ` + "`dark mode`" + ` support
 
 ## Bug Fixes
 - Fixed authentication timeout issue

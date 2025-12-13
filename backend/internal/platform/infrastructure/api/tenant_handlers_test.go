@@ -19,8 +19,8 @@ func TestCreateTenantRequest_Validation(t *testing.T) {
 		{
 			name: "valid request",
 			request: CreateTenantRequest{
-				ID:   "acme",
-				Name: "Acme Corporation",
+				ID:      "acme",
+				Name:    "Acme Corporation",
 				Domains: []string{"acme.com"},
 				OIDCConfig: OIDCConfigRequest{
 					DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0/.well-known/openid-configuration",
@@ -35,8 +35,8 @@ func TestCreateTenantRequest_Validation(t *testing.T) {
 		{
 			name: "empty id",
 			request: CreateTenantRequest{
-				ID:   "",
-				Name: "Acme Corporation",
+				ID:      "",
+				Name:    "Acme Corporation",
 				Domains: []string{"acme.com"},
 				OIDCConfig: OIDCConfigRequest{
 					DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0/.well-known/openid-configuration",
@@ -50,8 +50,8 @@ func TestCreateTenantRequest_Validation(t *testing.T) {
 		{
 			name: "empty domains",
 			request: CreateTenantRequest{
-				ID:   "acme",
-				Name: "Acme Corporation",
+				ID:      "acme",
+				Name:    "Acme Corporation",
 				Domains: []string{},
 				OIDCConfig: OIDCConfigRequest{
 					DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0/.well-known/openid-configuration",

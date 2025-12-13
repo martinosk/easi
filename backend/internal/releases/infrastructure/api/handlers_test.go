@@ -11,6 +11,7 @@ import (
 
 	"easi/backend/internal/releases/domain/aggregates"
 	"easi/backend/internal/releases/domain/valueobjects"
+
 	"github.com/go-chi/chi/v5"
 )
 

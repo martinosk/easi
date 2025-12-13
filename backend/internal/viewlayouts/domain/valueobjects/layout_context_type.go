@@ -15,8 +15,8 @@ var (
 type LayoutContextType string
 
 const (
-	ContextTypeArchitectureCanvas  LayoutContextType = "architecture-canvas"
-	ContextTypeBusinessDomainGrid  LayoutContextType = "business-domain-grid"
+	ContextTypeArchitectureCanvas LayoutContextType = "architecture-canvas"
+	ContextTypeBusinessDomainGrid LayoutContextType = "business-domain-grid"
 )
 
 func NewLayoutContextType(value string) (LayoutContextType, error) {

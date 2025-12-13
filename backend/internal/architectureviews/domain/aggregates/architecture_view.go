@@ -25,12 +25,12 @@ var (
 
 type ArchitectureView struct {
 	domain.AggregateRoot
-	name            valueobjects.ViewName
-	description     valueobjects.ViewDescription
-	components      valueobjects.ComponentMembership
-	isDefault       bool
-	isDeleted       bool
-	createdAt       time.Time
+	name        valueobjects.ViewName
+	description valueobjects.ViewDescription
+	components  valueobjects.ComponentMembership
+	isDefault   bool
+	isDeleted   bool
+	createdAt   time.Time
 }
 
 func NewArchitectureView(name valueobjects.ViewName, description string, isDefault bool) (*ArchitectureView, error) {
@@ -141,7 +141,6 @@ func (v *ArchitectureView) setDefaultStatus(makeDefault bool) error {
 	v.applyAndRaise(events.NewDefaultViewChanged(v.ID(), makeDefault))
 	return nil
 }
-
 
 func LoadArchitectureViewFromHistory(events []domain.DomainEvent) (*ArchitectureView, error) {
 	aggregate := &ArchitectureView{

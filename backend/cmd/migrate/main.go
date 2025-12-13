@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"easi/backend/internal/infrastructure/migrations"
+
 	_ "github.com/lib/pq"
 )
 

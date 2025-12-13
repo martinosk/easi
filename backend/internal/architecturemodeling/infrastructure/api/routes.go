@@ -10,6 +10,7 @@ import (
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
+
 	"github.com/go-chi/chi/v5"
 )
 

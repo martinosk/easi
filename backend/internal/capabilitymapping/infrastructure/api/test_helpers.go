@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package api
@@ -11,9 +12,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/go-chi/chi/v5"
 	sharedcontext "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/domain/valueobjects"
+
+	"github.com/go-chi/chi/v5"
 )
 
 func getEnv(key, defaultValue string) string {

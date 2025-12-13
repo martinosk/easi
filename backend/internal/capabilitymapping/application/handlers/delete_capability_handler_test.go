@@ -10,6 +10,7 @@ import (
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,7 +35,7 @@ func (m *mockCapabilityRepository) Save(ctx context.Context, capability *aggrega
 }
 
 type mockCapabilityReadModel struct {
-	children      []readmodels.CapabilityDTO
+	children       []readmodels.CapabilityDTO
 	getChildrenErr error
 }
 

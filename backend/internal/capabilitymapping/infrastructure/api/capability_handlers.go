@@ -12,9 +12,9 @@ import (
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
+
 	"github.com/go-chi/chi/v5"
 )
-
 
 type CapabilityHandlers struct {
 	commandBus cqrs.CommandBus

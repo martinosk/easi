@@ -24,10 +24,10 @@ type ParsedRelationship struct {
 }
 
 type ParseResult struct {
-	Capabilities           []ParsedElement
-	Components             []ParsedElement
-	Relationships          []ParsedRelationship
-	UnsupportedElements    map[string]int
+	Capabilities             []ParsedElement
+	Components               []ParsedElement
+	Relationships            []ParsedRelationship
+	UnsupportedElements      map[string]int
 	UnsupportedRelationships map[string]int
 }
 
@@ -68,8 +68,8 @@ func NewArchiMateParser() *ArchiMateParser {
 }
 
 type archiMateModel struct {
-	XMLName       xml.Name              `xml:"model"`
-	Elements      archiMateElements     `xml:"elements"`
+	XMLName       xml.Name               `xml:"model"`
+	Elements      archiMateElements      `xml:"elements"`
 	Relationships archiMateRelationships `xml:"relationships"`
 }
 
@@ -104,11 +104,11 @@ var supportedElementTypes = map[string]bool{
 }
 
 var supportedRelationshipTypes = map[string]bool{
-	"Aggregation":  true,
-	"Composition":  true,
-	"Realization":  true,
-	"Triggering":   true,
-	"Serving":      true,
+	"Aggregation": true,
+	"Composition": true,
+	"Realization": true,
+	"Triggering":  true,
+	"Serving":     true,
 }
 
 func (p *ArchiMateParser) Parse(reader io.Reader) (*ParseResult, error) {

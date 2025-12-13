@@ -8,9 +8,9 @@ import (
 
 type ImportFailed struct {
 	domain.BaseEvent
-	ID        string
-	Reason    string
-	FailedAt  time.Time
+	ID       string
+	Reason   string
+	FailedAt time.Time
 }
 
 func NewImportFailed(id, reason string) ImportFailed {

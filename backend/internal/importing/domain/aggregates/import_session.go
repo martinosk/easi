@@ -10,10 +10,10 @@ import (
 )
 
 var (
-	ErrImportAlreadyStarted       = errors.New("import has already been started")
-	ErrImportNotStarted           = errors.New("import has not been started")
-	ErrCannotCancelStartedImport  = errors.New("cannot cancel import that has already started")
-	ErrImportAlreadyCompleted     = errors.New("import has already completed")
+	ErrImportAlreadyStarted      = errors.New("import has already been started")
+	ErrImportNotStarted          = errors.New("import has not been started")
+	ErrCannotCancelStartedImport = errors.New("cannot cancel import that has already started")
+	ErrImportAlreadyCompleted    = errors.New("import has already completed")
 )
 
 type ParsedElement struct {
@@ -24,11 +24,11 @@ type ParsedElement struct {
 }
 
 type ParsedRelationship struct {
-	SourceID   string
-	Type       string
-	SourceRef  string
-	TargetRef  string
-	Name       string
+	SourceID      string
+	Type          string
+	SourceRef     string
+	TargetRef     string
+	Name          string
 	Documentation string
 }
 
