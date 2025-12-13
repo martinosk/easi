@@ -7,7 +7,7 @@ import (
 )
 
 func TestArchiMateParser_ParseSampleModel(t *testing.T) {
-	sampleFilePath := filepath.Join("..", "..", "..", "..", "..", "docs", "Sample Model.xml")
+	sampleFilePath := filepath.Join("..", "..", "..", "..", "..", "docs", "sample-model.xml")
 
 	file, err := os.Open(sampleFilePath)
 	if err != nil {
