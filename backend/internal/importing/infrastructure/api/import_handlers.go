@@ -38,6 +38,22 @@ func NewImportHandlers(
 	}
 }
 
+// CreateImportSession godoc
+// @Summary Create an import session
+// @Description Uploads an ArchiMate Open Exchange XML file and creates a new import session for preview
+// @Tags imports
+// @Accept multipart/form-data
+// @Produce json
+// @Param file formData file true "ArchiMate XML file"
+// @Param sourceFormat formData string true "Source format (e.g., 'archimate')"
+// @Param businessDomainId formData string false "Target business domain ID"
+// @Success 201 {object} readmodels.ImportSessionDTO "Import session created"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid request or missing required fields"
+// @Failure 413 {object} sharedAPI.ErrorResponse "File exceeds maximum size"
+// @Failure 415 {object} sharedAPI.ErrorResponse "Unsupported media type"
+// @Failure 422 {object} sharedAPI.ErrorResponse "Invalid ArchiMate format"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/v1/imports [post]
 func (h *ImportHandlers) CreateImportSession(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(maxFileSize); err != nil {
 		if strings.Contains(err.Error(), "request body too large") {
@@ -109,6 +125,17 @@ func (h *ImportHandlers) CreateImportSession(w http.ResponseWriter, r *http.Requ
 	sharedAPI.RespondJSON(w, http.StatusCreated, session)
 }
 
+// GetImportSession godoc
+// @Summary Get an import session
+// @Description Retrieves the details of an import session by ID
+// @Tags imports
+// @Produce json
+// @Param id path string true "Import session ID"
+// @Success 200 {object} readmodels.ImportSessionDTO "Import session details"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Missing import session ID"
+// @Failure 404 {object} sharedAPI.ErrorResponse "Import session not found"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/v1/imports/{id} [get]
 func (h *ImportHandlers) GetImportSession(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if id == "" {
@@ -123,7 +150,9 @@ func (h *ImportHandlers) GetImportSession(w http.ResponseWriter, r *http.Request
 	}
 
 	if session == nil {
-		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Import session not found")
+		sharedAPI.RespondErrorWithLinks(w, http.StatusNotFound, nil, "Import session not found", map[string]sharedAPI.Link{
+			"create": {Href: "/api/v1/imports", Method: "POST"},
+		})
 		return
 	}
 
@@ -131,6 +160,18 @@ func (h *ImportHandlers) GetImportSession(w http.ResponseWriter, r *http.Request
 	sharedAPI.RespondJSON(w, http.StatusOK, session)
 }
 
+// ConfirmImport godoc
+// @Summary Confirm an import session
+// @Description Confirms and starts processing an import session
+// @Tags imports
+// @Produce json
+// @Param id path string true "Import session ID"
+// @Success 202 {object} readmodels.ImportSessionDTO "Import confirmed and processing started"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Missing import session ID"
+// @Failure 404 {object} sharedAPI.ErrorResponse "Import session not found"
+// @Failure 409 {object} sharedAPI.ErrorResponse "Import already started or completed"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/v1/imports/{id}/confirm [post]
 func (h *ImportHandlers) ConfirmImport(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if id == "" {
@@ -145,12 +186,17 @@ func (h *ImportHandlers) ConfirmImport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if session == nil {
-		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Import session not found")
+		sharedAPI.RespondErrorWithLinks(w, http.StatusNotFound, nil, "Import session not found", map[string]sharedAPI.Link{
+			"create": {Href: "/api/v1/imports", Method: "POST"},
+		})
 		return
 	}
 
+	baseURL := fmt.Sprintf("/api/v1/imports/%s", id)
 	if session.Status != "pending" {
-		sharedAPI.RespondError(w, http.StatusConflict, aggregates.ErrImportAlreadyStarted, "Import session has already been started or completed")
+		sharedAPI.RespondErrorWithLinks(w, http.StatusConflict, aggregates.ErrImportAlreadyStarted, "Import session has already been started or completed", map[string]sharedAPI.Link{
+			"self": {Href: baseURL},
+		})
 		return
 	}
 
@@ -176,6 +222,17 @@ func (h *ImportHandlers) ConfirmImport(w http.ResponseWriter, r *http.Request) {
 	sharedAPI.RespondJSON(w, http.StatusAccepted, session)
 }
 
+// DeleteImportSession godoc
+// @Summary Cancel an import session
+// @Description Cancels a pending import session. Cannot cancel imports that have already started or completed.
+// @Tags imports
+// @Param id path string true "Import session ID"
+// @Success 204 "Import session cancelled"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Missing import session ID"
+// @Failure 404 {object} sharedAPI.ErrorResponse "Import session not found"
+// @Failure 409 {object} sharedAPI.ErrorResponse "Cannot cancel import that has already started or completed"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/v1/imports/{id} [delete]
 func (h *ImportHandlers) DeleteImportSession(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if id == "" {
@@ -190,12 +247,17 @@ func (h *ImportHandlers) DeleteImportSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	if session == nil {
-		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Import session not found")
+		sharedAPI.RespondErrorWithLinks(w, http.StatusNotFound, nil, "Import session not found", map[string]sharedAPI.Link{
+			"create": {Href: "/api/v1/imports", Method: "POST"},
+		})
 		return
 	}
 
+	baseURL := fmt.Sprintf("/api/v1/imports/%s", id)
 	if session.Status != "pending" {
-		sharedAPI.RespondError(w, http.StatusConflict, nil, "Cannot cancel import that has already started or completed")
+		sharedAPI.RespondErrorWithLinks(w, http.StatusConflict, nil, "Cannot cancel import that has already started or completed", map[string]sharedAPI.Link{
+			"self": {Href: baseURL},
+		})
 		return
 	}
 
@@ -212,15 +274,15 @@ func (h *ImportHandlers) DeleteImportSession(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *ImportHandlers) getLinksForStatus(id, status string) map[string]string {
+func (h *ImportHandlers) getLinksForStatus(id, status string) map[string]sharedAPI.Link {
 	baseURL := fmt.Sprintf("/api/v1/imports/%s", id)
-	links := map[string]string{
-		"self": baseURL,
+	links := map[string]sharedAPI.Link{
+		"self": {Href: baseURL},
 	}
 
 	if status == "pending" {
-		links["confirm"] = baseURL + "/confirm"
-		links["delete"] = baseURL
+		links["confirm"] = sharedAPI.Link{Href: baseURL + "/confirm", Method: "POST"}
+		links["delete"] = sharedAPI.Link{Href: baseURL, Method: "DELETE"}
 	}
 
 	return links

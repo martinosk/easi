@@ -24,6 +24,372 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/platform/v1/tenants": {
+            "get": {
+                "description": "Retrieves a list of all tenants with optional filtering",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tenants"
+                ],
+                "summary": "List all tenants",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by status (e.g., 'active', 'suspended')",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by email domain",
+                        "name": "domain",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of tenants",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_platform_infrastructure_api.TenantListItem"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a new tenant with OIDC configuration for SSO authentication",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tenants"
+                ],
+                "summary": "Create a new tenant",
+                "parameters": [
+                    {
+                        "description": "Tenant configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_platform_infrastructure_api.CreateTenantRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Tenant created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/internal_platform_infrastructure_api.TenantResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Tenant or domain already exists",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/platform/v1/tenants/{id}": {
+            "get": {
+                "description": "Retrieves detailed information about a specific tenant",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tenants"
+                ],
+                "summary": "Get a tenant by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tenant details",
+                        "schema": {
+                            "$ref": "#/definitions/internal_platform_infrastructure_api.TenantResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/imports": {
+            "post": {
+                "description": "Uploads an ArchiMate Open Exchange XML file and creates a new import session for preview",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "imports"
+                ],
+                "summary": "Create an import session",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "ArchiMate XML file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Source format (e.g., 'archimate')",
+                        "name": "sourceFormat",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Target business domain ID",
+                        "name": "businessDomainId",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Import session created",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_importing_application_readmodels.ImportSessionDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or missing required fields",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "File exceeds maximum size",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported media type",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid ArchiMate format",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/imports/{id}": {
+            "get": {
+                "description": "Retrieves the details of an import session by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "imports"
+                ],
+                "summary": "Get an import session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Import session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Import session details",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_importing_application_readmodels.ImportSessionDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing import session ID",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Import session not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Cancels a pending import session. Cannot cancel imports that have already started or completed.",
+                "tags": [
+                    "imports"
+                ],
+                "summary": "Cancel an import session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Import session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Import session cancelled"
+                    },
+                    "400": {
+                        "description": "Missing import session ID",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Import session not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Cannot cancel import that has already started or completed",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/imports/{id}/confirm": {
+            "post": {
+                "description": "Confirms and starts processing an import session",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "imports"
+                ],
+                "summary": "Confirm an import session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Import session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Import confirmed and processing started",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_importing_application_readmodels.ImportSessionDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing import session ID",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Import session not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Import already started or completed",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/invitations": {
             "get": {
                 "description": "Returns a paginated list of all invitations for the current tenant",
@@ -202,6 +568,449 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Invitation already revoked or not pending",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/layouts/{contextType}/{contextRef}": {
+            "get": {
+                "description": "Retrieves a layout container with all element positions for a specific context",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "layouts"
+                ],
+                "summary": "Get a layout container",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Context type (e.g., 'view', 'dashboard')",
+                        "name": "contextType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Context reference ID",
+                        "name": "contextRef",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Layout container with elements",
+                        "schema": {
+                            "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.LayoutContainerDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid path parameters",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Layout not found (includes create link)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Creates a new layout container or updates an existing one with preferences",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "layouts"
+                ],
+                "summary": "Create or update a layout container",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Context type (e.g., 'view', 'dashboard')",
+                        "name": "contextType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Context reference ID",
+                        "name": "contextRef",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Layout preferences",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.UpsertLayoutRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Layout updated",
+                        "schema": {
+                            "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.LayoutContainerDTO"
+                        }
+                    },
+                    "201": {
+                        "description": "Layout created",
+                        "schema": {
+                            "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.LayoutContainerDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Deletes a layout container and all its element positions",
+                "tags": [
+                    "layouts"
+                ],
+                "summary": "Delete a layout container",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Context type (e.g., 'view', 'dashboard')",
+                        "name": "contextType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Context reference ID",
+                        "name": "contextRef",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Layout deleted"
+                    },
+                    "400": {
+                        "description": "Invalid path parameters",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/layouts/{contextType}/{contextRef}/elements": {
+            "patch": {
+                "description": "Updates multiple element positions in a single request",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "layouts"
+                ],
+                "summary": "Batch update element positions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Context type (e.g., 'view', 'dashboard')",
+                        "name": "contextType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Context reference ID",
+                        "name": "contextRef",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Batch update items",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.BatchUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Elements updated",
+                        "schema": {
+                            "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.BatchUpdateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Layout not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/layouts/{contextType}/{contextRef}/elements/{elementId}": {
+            "put": {
+                "description": "Creates a new element position or updates an existing one within a layout",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "layouts"
+                ],
+                "summary": "Create or update an element position",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Context type (e.g., 'view', 'dashboard')",
+                        "name": "contextType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Context reference ID",
+                        "name": "contextRef",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Element ID",
+                        "name": "elementId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Element position data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.ElementPositionInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Element position updated",
+                        "schema": {
+                            "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.ElementPositionDTO"
+                        }
+                    },
+                    "201": {
+                        "description": "Element position created",
+                        "schema": {
+                            "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.ElementPositionDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Layout not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Removes an element position from a layout",
+                "tags": [
+                    "layouts"
+                ],
+                "summary": "Delete an element position",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Context type (e.g., 'view', 'dashboard')",
+                        "name": "contextType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Context reference ID",
+                        "name": "contextRef",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Element ID",
+                        "name": "elementId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Element position deleted"
+                    },
+                    "400": {
+                        "description": "Invalid path parameters",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Layout not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/layouts/{contextType}/{contextRef}/preferences": {
+            "patch": {
+                "description": "Updates the preferences of an existing layout container with optimistic locking",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "layouts"
+                ],
+                "summary": "Update layout preferences",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Context type (e.g., 'view', 'dashboard')",
+                        "name": "contextType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Context reference ID",
+                        "name": "contextRef",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ETag for optimistic locking",
+                        "name": "If-Match",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Preferences to update",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.UpdatePreferencesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Preferences updated",
+                        "schema": {
+                            "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.LayoutContainerSummaryDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or ETag format",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Layout not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "412": {
+                        "description": "Version conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "428": {
+                        "description": "If-Match header required",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -3639,6 +4448,149 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_importing_application_readmodels.ImportErrorDTO": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "sourceElement": {
+                    "type": "string"
+                },
+                "sourceName": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_importing_application_readmodels.ImportSessionDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/easi_backend_internal_shared_api.Link"
+                    }
+                },
+                "businessDomainId": {
+                    "type": "string"
+                },
+                "completedAt": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "preview": {
+                    "$ref": "#/definitions/easi_backend_internal_importing_application_readmodels.PreviewDTO"
+                },
+                "progress": {
+                    "$ref": "#/definitions/easi_backend_internal_importing_application_readmodels.ProgressDTO"
+                },
+                "result": {
+                    "$ref": "#/definitions/easi_backend_internal_importing_application_readmodels.ResultDTO"
+                },
+                "sourceFormat": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_importing_application_readmodels.PreviewDTO": {
+            "type": "object",
+            "properties": {
+                "supported": {
+                    "$ref": "#/definitions/easi_backend_internal_importing_application_readmodels.SupportedCountsDTO"
+                },
+                "unsupported": {
+                    "$ref": "#/definitions/easi_backend_internal_importing_application_readmodels.UnsupportedCountsDTO"
+                }
+            }
+        },
+        "easi_backend_internal_importing_application_readmodels.ProgressDTO": {
+            "type": "object",
+            "properties": {
+                "completedItems": {
+                    "type": "integer"
+                },
+                "phase": {
+                    "type": "string"
+                },
+                "totalItems": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_importing_application_readmodels.ResultDTO": {
+            "type": "object",
+            "properties": {
+                "capabilitiesCreated": {
+                    "type": "integer"
+                },
+                "componentRelationsCreated": {
+                    "type": "integer"
+                },
+                "componentsCreated": {
+                    "type": "integer"
+                },
+                "domainAssignments": {
+                    "type": "integer"
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_importing_application_readmodels.ImportErrorDTO"
+                    }
+                },
+                "realizationsCreated": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_importing_application_readmodels.SupportedCountsDTO": {
+            "type": "object",
+            "properties": {
+                "capabilities": {
+                    "type": "integer"
+                },
+                "componentRelationships": {
+                    "type": "integer"
+                },
+                "components": {
+                    "type": "integer"
+                },
+                "parentChildRelationships": {
+                    "type": "integer"
+                },
+                "realizations": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_importing_application_readmodels.UnsupportedCountsDTO": {
+            "type": "object",
+            "properties": {
+                "elements": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "relationships": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
         "easi_backend_internal_shared_api.CollectionMeta": {
             "type": "object",
             "properties": {
@@ -3666,6 +4618,12 @@ const docTemplate = `{
         "easi_backend_internal_shared_api.ErrorResponse": {
             "type": "object",
             "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/easi_backend_internal_shared_api.Link"
+                    }
+                },
                 "details": {
                     "type": "object",
                     "additionalProperties": {
@@ -3676,6 +4634,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_shared_api.Link": {
+            "type": "object",
+            "properties": {
+                "href": {
+                    "type": "string"
+                },
+                "method": {
                     "type": "string"
                 }
             }
@@ -4223,6 +5192,133 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_platform_infrastructure_api.CreateTenantRequest": {
+            "type": "object",
+            "properties": {
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "firstAdminEmail": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "oidcConfig": {
+                    "$ref": "#/definitions/internal_platform_infrastructure_api.OIDCConfigRequest"
+                }
+            }
+        },
+        "internal_platform_infrastructure_api.OIDCConfigRequest": {
+            "type": "object",
+            "properties": {
+                "authMethod": {
+                    "type": "string"
+                },
+                "clientId": {
+                    "type": "string"
+                },
+                "discoveryUrl": {
+                    "type": "string"
+                },
+                "scopes": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_platform_infrastructure_api.OIDCConfigResponse": {
+            "type": "object",
+            "properties": {
+                "authMethod": {
+                    "type": "string"
+                },
+                "clientId": {
+                    "type": "string"
+                },
+                "discoveryUrl": {
+                    "type": "string"
+                },
+                "scopes": {
+                    "type": "string"
+                },
+                "secretProvisioned": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_platform_infrastructure_api.TenantListItem": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/easi_backend_internal_shared_api.Link"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_platform_infrastructure_api.TenantResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/easi_backend_internal_shared_api.Link"
+                    }
+                },
+                "_warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "oidcConfig": {
+                    "$ref": "#/definitions/internal_platform_infrastructure_api.OIDCConfigResponse"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_shared_api.ReferenceDoc": {
             "type": "object",
             "properties": {
@@ -4231,6 +5327,213 @@ const docTemplate = `{
                 },
                 "title": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_viewlayouts_infrastructure_api.BatchUpdateItem": {
+            "type": "object",
+            "properties": {
+                "customColor": {
+                    "type": "string"
+                },
+                "elementId": {
+                    "type": "string"
+                },
+                "height": {
+                    "type": "number"
+                },
+                "sortOrder": {
+                    "type": "integer"
+                },
+                "width": {
+                    "type": "number"
+                },
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
+        "internal_viewlayouts_infrastructure_api.BatchUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "updates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.BatchUpdateItem"
+                    }
+                }
+            }
+        },
+        "internal_viewlayouts_infrastructure_api.BatchUpdateResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.LinkDTO"
+                    }
+                },
+                "elements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.ElementPositionDTO"
+                    }
+                },
+                "updated": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_viewlayouts_infrastructure_api.ElementPositionDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.LinkDTO"
+                    }
+                },
+                "customColor": {
+                    "type": "string"
+                },
+                "elementId": {
+                    "type": "string"
+                },
+                "height": {
+                    "type": "number"
+                },
+                "sortOrder": {
+                    "type": "integer"
+                },
+                "width": {
+                    "type": "number"
+                },
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
+        "internal_viewlayouts_infrastructure_api.ElementPositionInput": {
+            "type": "object",
+            "properties": {
+                "customColor": {
+                    "type": "string"
+                },
+                "height": {
+                    "type": "number"
+                },
+                "sortOrder": {
+                    "type": "integer"
+                },
+                "width": {
+                    "type": "number"
+                },
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
+        "internal_viewlayouts_infrastructure_api.LayoutContainerDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.LinkDTO"
+                    }
+                },
+                "contextRef": {
+                    "type": "string"
+                },
+                "contextType": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "elements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.ElementPositionDTO"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "preferences": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_viewlayouts_infrastructure_api.LayoutContainerSummaryDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/internal_viewlayouts_infrastructure_api.LinkDTO"
+                    }
+                },
+                "contextRef": {
+                    "type": "string"
+                },
+                "contextType": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "preferences": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_viewlayouts_infrastructure_api.LinkDTO": {
+            "type": "object",
+            "properties": {
+                "href": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_viewlayouts_infrastructure_api.UpdatePreferencesRequest": {
+            "type": "object",
+            "properties": {
+                "preferences": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "internal_viewlayouts_infrastructure_api.UpsertLayoutRequest": {
+            "type": "object",
+            "properties": {
+                "preferences": {
+                    "type": "object",
+                    "additionalProperties": true
                 }
             }
         }

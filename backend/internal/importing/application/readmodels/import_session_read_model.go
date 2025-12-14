@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"easi/backend/internal/infrastructure/database"
+	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 )
 
@@ -51,16 +52,16 @@ type ResultDTO struct {
 }
 
 type ImportSessionDTO struct {
-	ID               string            `json:"id"`
-	SourceFormat     string            `json:"sourceFormat"`
-	BusinessDomainID string            `json:"businessDomainId,omitempty"`
-	Status           string            `json:"status"`
-	Preview          *PreviewDTO       `json:"preview,omitempty"`
-	Progress         *ProgressDTO      `json:"progress,omitempty"`
-	Result           *ResultDTO        `json:"result,omitempty"`
-	CreatedAt        time.Time         `json:"createdAt"`
-	CompletedAt      *time.Time        `json:"completedAt,omitempty"`
-	Links            map[string]string `json:"_links,omitempty"`
+	ID               string                   `json:"id"`
+	SourceFormat     string                   `json:"sourceFormat"`
+	BusinessDomainID string                   `json:"businessDomainId,omitempty"`
+	Status           string                   `json:"status"`
+	Preview          *PreviewDTO              `json:"preview,omitempty"`
+	Progress         *ProgressDTO             `json:"progress,omitempty"`
+	Result           *ResultDTO               `json:"result,omitempty"`
+	CreatedAt        time.Time                `json:"createdAt"`
+	CompletedAt      *time.Time               `json:"completedAt,omitempty"`
+	Links            map[string]sharedAPI.Link `json:"_links,omitempty"`
 }
 
 type ImportSessionReadModel struct {

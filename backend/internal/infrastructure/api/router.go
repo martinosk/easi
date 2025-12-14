@@ -89,8 +89,8 @@ func configureMiddleware(r chi.Router, authDeps *authAPI.AuthDependencies) {
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:*", "http://127.0.0.1:*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID", "X-Tenant-ID", "X-Platform-Admin-Key"},
-		ExposedHeaders:   []string{"Link", "Location"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID", "X-Tenant-ID", "X-Platform-Admin-Key", "If-Match"},
+		ExposedHeaders:   []string{"Link", "Location", "X-Request-Id", "ETag", "Retry-After"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))

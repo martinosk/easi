@@ -55,9 +55,9 @@ describe('useImportSession', () => {
         },
         createdAt: '2025-01-15T10:00:00Z',
         _links: {
-          self: '/api/v1/imports/import-123',
-          confirm: '/api/v1/imports/import-123/confirm',
-          delete: '/api/v1/imports/import-123',
+          self: { href: '/api/v1/imports/import-123' },
+          confirm: { href: '/api/v1/imports/import-123/confirm', method: 'POST' },
+          delete: { href: '/api/v1/imports/import-123', method: 'DELETE' },
         },
       };
 
@@ -113,7 +113,7 @@ describe('useImportSession', () => {
         status: 'pending',
         sourceFormat: 'archimate-openexchange',
         createdAt: '2025-01-15T10:00:00Z',
-        _links: { self: '/api/v1/imports/import-123', confirm: '/api/v1/imports/import-123/confirm' },
+        _links: { self: { href: '/api/v1/imports/import-123' }, confirm: { href: '/api/v1/imports/import-123/confirm', method: 'POST' } },
       };
 
       const importingSession: ImportSession = {
@@ -157,7 +157,7 @@ describe('useImportSession', () => {
         status: 'pending',
         sourceFormat: 'archimate-openexchange',
         createdAt: '2025-01-15T10:00:00Z',
-        _links: { self: '/api/v1/imports/import-123', confirm: '/api/v1/imports/import-123/confirm' },
+        _links: { self: { href: '/api/v1/imports/import-123' }, confirm: { href: '/api/v1/imports/import-123/confirm', method: 'POST' } },
       };
 
       const errorMessage = 'Import already started';
@@ -194,8 +194,8 @@ describe('useImportSession', () => {
         sourceFormat: 'archimate-openexchange',
         createdAt: '2025-01-15T10:00:00Z',
         _links: {
-          self: '/api/v1/imports/import-123',
-          delete: '/api/v1/imports/import-123',
+          self: { href: '/api/v1/imports/import-123' },
+          delete: { href: '/api/v1/imports/import-123', method: 'DELETE' },
         },
       };
 
@@ -232,7 +232,7 @@ describe('useImportSession', () => {
           completedItems: 5,
         },
         createdAt: '2025-01-15T10:00:00Z',
-        _links: { self: '/api/v1/imports/import-123' },
+        _links: { self: { href: '/api/v1/imports/import-123' } },
       };
 
       const completedSession: ImportSession = {
@@ -289,7 +289,7 @@ describe('useImportSession', () => {
         },
         createdAt: '2025-01-15T10:00:00Z',
         completedAt: '2025-01-15T10:05:00Z',
-        _links: { self: '/api/v1/imports/import-123' },
+        _links: { self: { href: '/api/v1/imports/import-123' } },
       };
 
       mockPost.mockResolvedValue({ data: completedSession });
@@ -320,7 +320,7 @@ describe('useImportSession', () => {
         status: 'pending',
         sourceFormat: 'archimate-openexchange',
         createdAt: '2025-01-15T10:00:00Z',
-        _links: { self: '/api/v1/imports/import-123' },
+        _links: { self: { href: '/api/v1/imports/import-123' } },
       };
 
       mockPost.mockResolvedValue({ data: mockSession });

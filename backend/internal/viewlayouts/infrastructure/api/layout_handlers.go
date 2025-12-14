@@ -171,6 +171,18 @@ func (h *LayoutHandlers) buildElementDTO(elem valueobjects.ElementPosition, base
 	return dto
 }
 
+// GetLayout godoc
+// @Summary Get a layout container
+// @Description Retrieves a layout container with all element positions for a specific context
+// @Tags layouts
+// @Produce json
+// @Param contextType path string true "Context type (e.g., 'view', 'dashboard')"
+// @Param contextRef path string true "Context reference ID"
+// @Success 200 {object} LayoutContainerDTO "Layout container with elements"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid path parameters"
+// @Failure 404 {object} map[string]interface{} "Layout not found (includes create link)"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/v1/layouts/{contextType}/{contextRef} [get]
 func (h *LayoutHandlers) GetLayout(w http.ResponseWriter, r *http.Request) {
 	contextType, contextRef, err := h.getPathParams(r)
 	if err != nil {
@@ -220,6 +232,20 @@ func (h *LayoutHandlers) updateLayout(
 	return existing
 }
 
+// UpsertLayout godoc
+// @Summary Create or update a layout container
+// @Description Creates a new layout container or updates an existing one with preferences
+// @Tags layouts
+// @Accept json
+// @Produce json
+// @Param contextType path string true "Context type (e.g., 'view', 'dashboard')"
+// @Param contextRef path string true "Context reference ID"
+// @Param request body UpsertLayoutRequest true "Layout preferences"
+// @Success 200 {object} LayoutContainerDTO "Layout updated"
+// @Success 201 {object} LayoutContainerDTO "Layout created"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid request"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/v1/layouts/{contextType}/{contextRef} [put]
 func (h *LayoutHandlers) UpsertLayout(w http.ResponseWriter, r *http.Request) {
 	contextType, contextRef, err := h.getPathParams(r)
 	if err != nil {
@@ -275,6 +301,16 @@ func (h *LayoutHandlers) UpsertLayout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// DeleteLayout godoc
+// @Summary Delete a layout container
+// @Description Deletes a layout container and all its element positions
+// @Tags layouts
+// @Param contextType path string true "Context type (e.g., 'view', 'dashboard')"
+// @Param contextRef path string true "Context reference ID"
+// @Success 204 "Layout deleted"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid path parameters"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/v1/layouts/{contextType}/{contextRef} [delete]
 func (h *LayoutHandlers) DeleteLayout(w http.ResponseWriter, r *http.Request) {
 	contextType, contextRef, err := h.getPathParams(r)
 	if err != nil {
@@ -290,6 +326,23 @@ func (h *LayoutHandlers) DeleteLayout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// UpdatePreferences godoc
+// @Summary Update layout preferences
+// @Description Updates the preferences of an existing layout container with optimistic locking
+// @Tags layouts
+// @Accept json
+// @Produce json
+// @Param contextType path string true "Context type (e.g., 'view', 'dashboard')"
+// @Param contextRef path string true "Context reference ID"
+// @Param If-Match header string true "ETag for optimistic locking"
+// @Param request body UpdatePreferencesRequest true "Preferences to update"
+// @Success 200 {object} LayoutContainerSummaryDTO "Preferences updated"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid request or ETag format"
+// @Failure 404 {object} sharedAPI.ErrorResponse "Layout not found"
+// @Failure 412 {object} map[string]interface{} "Version conflict"
+// @Failure 428 {object} sharedAPI.ErrorResponse "If-Match header required"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/v1/layouts/{contextType}/{contextRef}/preferences [patch]
 func (h *LayoutHandlers) UpdatePreferences(w http.ResponseWriter, r *http.Request) {
 	contextType, contextRef, err := h.getPathParams(r)
 	if err != nil {
@@ -364,6 +417,22 @@ func (h *LayoutHandlers) UpdatePreferences(w http.ResponseWriter, r *http.Reques
 	sharedAPI.RespondJSON(w, http.StatusOK, summary)
 }
 
+// UpsertElementPosition godoc
+// @Summary Create or update an element position
+// @Description Creates a new element position or updates an existing one within a layout
+// @Tags layouts
+// @Accept json
+// @Produce json
+// @Param contextType path string true "Context type (e.g., 'view', 'dashboard')"
+// @Param contextRef path string true "Context reference ID"
+// @Param elementId path string true "Element ID"
+// @Param request body ElementPositionInput true "Element position data"
+// @Success 200 {object} ElementPositionDTO "Element position updated"
+// @Success 201 {object} ElementPositionDTO "Element position created"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid request"
+// @Failure 404 {object} sharedAPI.ErrorResponse "Layout not found"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/v1/layouts/{contextType}/{contextRef}/elements/{elementId} [put]
 func (h *LayoutHandlers) UpsertElementPosition(w http.ResponseWriter, r *http.Request) {
 	contextType, contextRef, err := h.getPathParams(r)
 	if err != nil {
@@ -428,6 +497,18 @@ func (h *LayoutHandlers) UpsertElementPosition(w http.ResponseWriter, r *http.Re
 	}
 }
 
+// DeleteElementPosition godoc
+// @Summary Delete an element position
+// @Description Removes an element position from a layout
+// @Tags layouts
+// @Param contextType path string true "Context type (e.g., 'view', 'dashboard')"
+// @Param contextRef path string true "Context reference ID"
+// @Param elementId path string true "Element ID"
+// @Success 204 "Element position deleted"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid path parameters"
+// @Failure 404 {object} sharedAPI.ErrorResponse "Layout not found"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/v1/layouts/{contextType}/{contextRef}/elements/{elementId} [delete]
 func (h *LayoutHandlers) DeleteElementPosition(w http.ResponseWriter, r *http.Request) {
 	contextType, contextRef, err := h.getPathParams(r)
 	if err != nil {
@@ -498,6 +579,20 @@ func (h *LayoutHandlers) buildBatchResponse(positions []valueobjects.ElementPosi
 	}
 }
 
+// BatchUpdateElements godoc
+// @Summary Batch update element positions
+// @Description Updates multiple element positions in a single request
+// @Tags layouts
+// @Accept json
+// @Produce json
+// @Param contextType path string true "Context type (e.g., 'view', 'dashboard')"
+// @Param contextRef path string true "Context reference ID"
+// @Param request body BatchUpdateRequest true "Batch update items"
+// @Success 200 {object} BatchUpdateResponse "Elements updated"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid request"
+// @Failure 404 {object} sharedAPI.ErrorResponse "Layout not found"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/v1/layouts/{contextType}/{contextRef}/elements [patch]
 func (h *LayoutHandlers) BatchUpdateElements(w http.ResponseWriter, r *http.Request) {
 	contextType, contextRef, err := h.getPathParams(r)
 	if err != nil {

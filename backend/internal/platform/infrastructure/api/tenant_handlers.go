@@ -75,14 +75,14 @@ func (r *CreateTenantRequest) Validate() error {
 }
 
 type TenantResponse struct {
-	ID         string              `json:"id"`
-	Name       string              `json:"name"`
-	Status     string              `json:"status"`
-	Domains    []string            `json:"domains"`
-	OIDCConfig *OIDCConfigResponse `json:"oidcConfig,omitempty"`
-	CreatedAt  time.Time           `json:"createdAt"`
-	Links      map[string]string   `json:"_links,omitempty"`
-	Warnings   []string            `json:"_warnings,omitempty"`
+	ID         string                   `json:"id"`
+	Name       string                   `json:"name"`
+	Status     string                   `json:"status"`
+	Domains    []string                 `json:"domains"`
+	OIDCConfig *OIDCConfigResponse      `json:"oidcConfig,omitempty"`
+	CreatedAt  time.Time                `json:"createdAt"`
+	Links      map[string]sharedAPI.Link `json:"_links,omitempty"`
+	Warnings   []string                 `json:"_warnings,omitempty"`
 }
 
 type OIDCConfigResponse struct {
@@ -94,14 +94,26 @@ type OIDCConfigResponse struct {
 }
 
 type TenantListItem struct {
-	ID        string            `json:"id"`
-	Name      string            `json:"name"`
-	Status    string            `json:"status"`
-	Domains   []string          `json:"domains"`
-	CreatedAt time.Time         `json:"createdAt"`
-	Links     map[string]string `json:"_links,omitempty"`
+	ID        string                   `json:"id"`
+	Name      string                   `json:"name"`
+	Status    string                   `json:"status"`
+	Domains   []string                 `json:"domains"`
+	CreatedAt time.Time                `json:"createdAt"`
+	Links     map[string]sharedAPI.Link `json:"_links,omitempty"`
 }
 
+// CreateTenant godoc
+// @Summary Create a new tenant
+// @Description Creates a new tenant with OIDC configuration for SSO authentication
+// @Tags tenants
+// @Accept json
+// @Produce json
+// @Param request body CreateTenantRequest true "Tenant configuration"
+// @Success 201 {object} TenantResponse "Tenant created successfully"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid request or validation error"
+// @Failure 409 {object} sharedAPI.ErrorResponse "Tenant or domain already exists"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/platform/v1/tenants [post]
 func (h *TenantHandlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
 	var req CreateTenantRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -144,13 +156,26 @@ func (h *TenantHandlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
 	sharedAPI.RespondJSON(w, http.StatusCreated, response)
 }
 
+// GetTenantByID godoc
+// @Summary Get a tenant by ID
+// @Description Retrieves detailed information about a specific tenant
+// @Tags tenants
+// @Produce json
+// @Param id path string true "Tenant ID"
+// @Success 200 {object} TenantResponse "Tenant details"
+// @Failure 404 {object} sharedAPI.ErrorResponse "Tenant not found"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/platform/v1/tenants/{id} [get]
 func (h *TenantHandlers) GetTenantByID(w http.ResponseWriter, r *http.Request) {
 	tenantID := chi.URLParam(r, "id")
 
 	record, err := h.repository.GetByID(r.Context(), tenantID)
 	if err != nil {
 		if errors.Is(err, repositories.ErrTenantNotFound) {
-			sharedAPI.RespondError(w, http.StatusNotFound, err, "Tenant not found")
+			sharedAPI.RespondErrorWithLinks(w, http.StatusNotFound, err, "Tenant not found", map[string]sharedAPI.Link{
+				"list":   {Href: "/api/platform/v1/tenants"},
+				"create": {Href: "/api/platform/v1/tenants", Method: "POST"},
+			})
 			return
 		}
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve tenant")
@@ -161,6 +186,16 @@ func (h *TenantHandlers) GetTenantByID(w http.ResponseWriter, r *http.Request) {
 	sharedAPI.RespondJSON(w, http.StatusOK, response)
 }
 
+// ListTenants godoc
+// @Summary List all tenants
+// @Description Retrieves a list of all tenants with optional filtering
+// @Tags tenants
+// @Produce json
+// @Param status query string false "Filter by status (e.g., 'active', 'suspended')"
+// @Param domain query string false "Filter by email domain"
+// @Success 200 {object} sharedAPI.CollectionResponse{data=[]TenantListItem} "List of tenants"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/platform/v1/tenants [get]
 func (h *TenantHandlers) ListTenants(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	domain := r.URL.Query().Get("domain")
@@ -179,20 +214,14 @@ func (h *TenantHandlers) ListTenants(w http.ResponseWriter, r *http.Request) {
 			Status:    record.Status,
 			Domains:   record.Domains,
 			CreatedAt: record.CreatedAt,
-			Links: map[string]string{
-				"self": fmt.Sprintf("/api/platform/v1/tenants/%s", record.ID),
+			Links: map[string]sharedAPI.Link{
+				"self": {Href: fmt.Sprintf("/api/platform/v1/tenants/%s", record.ID)},
 			},
 		}
 	}
 
-	sharedAPI.RespondPaginated(w, sharedAPI.PaginatedResponseParams{
-		StatusCode: http.StatusOK,
-		Data:       items,
-		HasMore:    false,
-		NextCursor: "",
-		Limit:      50,
-		SelfLink:   "/api/platform/v1/tenants",
-		BaseLink:   "/api/platform/v1/tenants",
+	sharedAPI.RespondCollection(w, http.StatusOK, items, map[string]string{
+		"self": "/api/platform/v1/tenants",
 	})
 }
 
@@ -204,6 +233,7 @@ func (h *TenantHandlers) mapRecordToResponse(ctx context.Context, record *reposi
 		warnings = append(warnings, "OIDC secret not provisioned")
 	}
 
+	basePath := fmt.Sprintf("/api/platform/v1/tenants/%s", record.ID)
 	return TenantResponse{
 		ID:      record.ID,
 		Name:    record.Name,
@@ -217,12 +247,12 @@ func (h *TenantHandlers) mapRecordToResponse(ctx context.Context, record *reposi
 			SecretProvisioned: secretProvisioned,
 		},
 		CreatedAt: record.CreatedAt,
-		Links: map[string]string{
-			"self":       fmt.Sprintf("/api/platform/v1/tenants/%s", record.ID),
-			"domains":    fmt.Sprintf("/api/platform/v1/tenants/%s/domains", record.ID),
-			"oidcConfig": fmt.Sprintf("/api/platform/v1/tenants/%s/oidc-config", record.ID),
-			"suspend":    fmt.Sprintf("/api/platform/v1/tenants/%s/suspend", record.ID),
-			"users":      fmt.Sprintf("/api/v1/users?tenant=%s", record.ID),
+		Links: map[string]sharedAPI.Link{
+			"self":       {Href: basePath},
+			"domains":    {Href: basePath + "/domains"},
+			"oidcConfig": {Href: basePath + "/oidc-config", Method: "PATCH"},
+			"suspend":    {Href: basePath + "/suspend", Method: "POST"},
+			"users":      {Href: fmt.Sprintf("/api/v1/users?tenant=%s", record.ID)},
 		},
 		Warnings: warnings,
 	}

@@ -41,6 +41,11 @@ export interface ImportResult {
   errors: ImportError[];
 }
 
+export interface Link {
+  href: string;
+  method?: string;
+}
+
 export interface ImportSession {
   id: ImportSessionId;
   status: ImportStatus;
@@ -52,9 +57,9 @@ export interface ImportSession {
   createdAt: string;
   completedAt?: string;
   _links: {
-    self: string;
-    confirm?: string;
-    delete?: string;
+    self: Link;
+    confirm?: Link;
+    delete?: Link;
   };
 }
 

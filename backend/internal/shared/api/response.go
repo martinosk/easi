@@ -8,11 +8,18 @@ import (
 	"easi/backend/internal/shared/domain"
 )
 
+// Link represents a HATEOAS link with optional HTTP method hint
+type Link struct {
+	Href   string `json:"href"`
+	Method string `json:"method,omitempty"`
+}
+
 // ErrorResponse represents an API error response
 type ErrorResponse struct {
 	Error   string            `json:"error"`
 	Message string            `json:"message,omitempty"`
 	Details map[string]string `json:"details,omitempty"`
+	Links   map[string]Link   `json:"_links,omitempty"`
 }
 
 // CollectionResponse represents a collection of resources
@@ -57,6 +64,25 @@ func RespondError(w http.ResponseWriter, statusCode int, err error, message stri
 		response.Details = map[string]string{
 			valErr.Field: valErr.Message,
 		}
+	}
+
+	RespondJSON(w, statusCode, response)
+}
+
+// RespondErrorWithLinks sends an error response with HATEOAS links for recovery
+func RespondErrorWithLinks(w http.ResponseWriter, statusCode int, err error, message string, links map[string]Link) {
+	// Override status code based on error type if applicable
+	if err != nil {
+		statusCode = MapErrorToStatusCode(err, statusCode)
+	}
+
+	response := ErrorResponse{
+		Error:   http.StatusText(statusCode),
+		Message: message,
+		Links:   links,
+	}
+	if err != nil && message == "" {
+		response.Message = err.Error()
 	}
 
 	RespondJSON(w, statusCode, response)

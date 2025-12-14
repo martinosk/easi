@@ -105,7 +105,7 @@ export function useImportSession(): UseImportSessionReturn {
     setError(null);
 
     try {
-      const response = await client.post<ImportSession>(session._links.confirm);
+      const response = await client.post<ImportSession>(session._links.confirm.href);
       setSession(response.data);
 
       if (response.data.status === 'importing') {
@@ -128,7 +128,7 @@ export function useImportSession(): UseImportSessionReturn {
     setError(null);
 
     try {
-      await client.delete(session._links.delete);
+      await client.delete(session._links.delete.href);
       setSession(null);
       stopPolling();
     } catch (err) {
