@@ -215,17 +215,33 @@ func (p *testableRealizationProjector) handleCapabilityParentChanged(ctx context
 		return err
 	}
 
+	capability, err := p.capabilityReadModel.GetByID(ctx, event.CapabilityID)
+	if err != nil {
+		return err
+	}
+
 	for _, realization := range realizations {
 		sourceID := realization.ID
+		sourceCapabilityID := event.CapabilityID
+		sourceCapabilityName := ""
+		if capability != nil {
+			sourceCapabilityName = capability.Name
+		}
+
 		if realization.Origin == "Inherited" && realization.SourceRealizationID != "" {
 			sourceID = realization.SourceRealizationID
+			sourceCapabilityID = realization.SourceCapabilityID
+			sourceCapabilityName = realization.SourceCapabilityName
 		}
 
 		source := readmodels.RealizationDTO{
-			ID:           sourceID,
-			CapabilityID: event.NewParentID,
-			ComponentID:  realization.ComponentID,
-			LinkedAt:     realization.LinkedAt,
+			ID:                   sourceID,
+			CapabilityID:         event.NewParentID,
+			ComponentID:          realization.ComponentID,
+			ComponentName:        realization.ComponentName,
+			SourceCapabilityID:   sourceCapabilityID,
+			SourceCapabilityName: sourceCapabilityName,
+			LinkedAt:             realization.LinkedAt,
 		}
 
 		if err := p.propagateInheritedRealizations(ctx, source); err != nil {
@@ -755,4 +771,8 @@ func TestRealizationProjector_HandleCapabilityParentChanged_HandlesDirectRealiza
 	assert.Equal(t, "comp-Y", mockRealRM.insertedInheritedRealizations[0].ComponentID)
 	assert.Equal(t, "real-direct-A", mockRealRM.insertedInheritedRealizations[0].SourceRealizationID,
 		"Should reference the direct realization's own ID")
+	assert.Equal(t, "cap-A", mockRealRM.insertedInheritedRealizations[0].SourceCapabilityID,
+		"Should set SourceCapabilityID to the capability where the direct realization exists")
+	assert.Equal(t, "A", mockRealRM.insertedInheritedRealizations[0].SourceCapabilityName,
+		"Should set SourceCapabilityName")
 }

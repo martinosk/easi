@@ -152,17 +152,33 @@ func (p *RealizationProjector) handleCapabilityParentChanged(ctx context.Context
 		return err
 	}
 
+	capability, err := p.capabilityReadModel.GetByID(ctx, event.CapabilityID)
+	if err != nil {
+		return err
+	}
+
 	for _, realization := range realizations {
 		sourceID := realization.ID
+		sourceCapabilityID := event.CapabilityID
+		sourceCapabilityName := ""
+		if capability != nil {
+			sourceCapabilityName = capability.Name
+		}
+
 		if realization.Origin == "Inherited" && realization.SourceRealizationID != "" {
 			sourceID = realization.SourceRealizationID
+			sourceCapabilityID = realization.SourceCapabilityID
+			sourceCapabilityName = realization.SourceCapabilityName
 		}
 
 		source := readmodels.RealizationDTO{
-			ID:           sourceID,
-			CapabilityID: event.NewParentID,
-			ComponentID:  realization.ComponentID,
-			LinkedAt:     realization.LinkedAt,
+			ID:                   sourceID,
+			CapabilityID:         event.NewParentID,
+			ComponentID:          realization.ComponentID,
+			ComponentName:        realization.ComponentName,
+			SourceCapabilityID:   sourceCapabilityID,
+			SourceCapabilityName: sourceCapabilityName,
+			LinkedAt:             realization.LinkedAt,
 		}
 
 		if err := p.propagateInheritedRealizations(ctx, source); err != nil {
