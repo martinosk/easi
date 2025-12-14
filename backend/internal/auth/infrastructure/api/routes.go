@@ -16,6 +16,7 @@ import (
 	"easi/backend/internal/auth/infrastructure/session"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
+	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/config"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
@@ -57,6 +58,12 @@ func SetupAuthDependencies(db *sql.DB) (*AuthDependencies, error) {
 
 func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies) error {
 	if config.IsAuthBypassed() {
+		r.Route("/auth", func(r chi.Router) {
+			r.Get("/sessions/current", handleBypassSession)
+			r.Delete("/sessions/current", func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusNoContent)
+			})
+		})
 		return nil
 	}
 
@@ -173,4 +180,28 @@ func registerInvitationRoutes(r chi.Router, authMiddleware *AuthMiddleware, h *I
 		r.Get("/{id}", h.GetInvitationByID)
 		r.Post("/{id}/revoke", h.RevokeInvitation)
 	})
+}
+
+func handleBypassSession(w http.ResponseWriter, r *http.Request) {
+	permissions := valueobjects.PermissionsToStrings(valueobjects.RoleAdmin.Permissions())
+	response := CurrentSessionResponse{
+		ID: "acme",
+		User: CurrentSessionUser{
+			ID:          "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12",
+			Email:       "admin@acme.com",
+			Name:        "Admin User (Bypass)",
+			Role:        "admin",
+			Permissions: permissions,
+		},
+		Tenant: CurrentSessionTenant{
+			ID:   "acme",
+			Name: "ACME Corporation",
+		},
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+		Links: map[string]string{
+			"self":   "/auth/sessions/current",
+			"logout": "/auth/sessions/current",
+		},
+	}
+	sharedAPI.RespondJSON(w, http.StatusOK, response)
 }
