@@ -38,10 +38,9 @@ class InvitationApiClient {
     }
   }
 
-  async listInvitations(status?: string, limit: number = 50, after?: string): Promise<InvitationsListResponse> {
+  async listInvitations(limit: number = 50, after?: string): Promise<InvitationsListResponse> {
     try {
       const params = new URLSearchParams();
-      if (status) params.append('status', status);
       params.append('limit', limit.toString());
       if (after) params.append('after', after);
 

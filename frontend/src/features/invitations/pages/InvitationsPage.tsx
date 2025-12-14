@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { invitationApi } from '../api/invitationApi';
 import { InviteUserModal } from '../components/InviteUserModal';
@@ -16,13 +16,11 @@ export function InvitationsPage() {
 
   const canManageInvitations = hasPermission('invitations:manage');
 
-  const loadInvitations = async () => {
+  const loadInvitations = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await invitationApi.listInvitations(
-        statusFilter === 'all' ? undefined : statusFilter
-      );
+      const response = await invitationApi.listInvitations();
       setInvitations(response.data ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load invitations');
@@ -30,13 +28,20 @@ export function InvitationsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (canManageInvitations) {
       loadInvitations();
     }
-  }, [statusFilter, canManageInvitations]);
+  }, [canManageInvitations, loadInvitations]);
+
+  const filteredInvitations = useMemo(() => {
+    if (statusFilter === 'all') {
+      return invitations;
+    }
+    return invitations.filter((inv) => inv.status === statusFilter);
+  }, [invitations, statusFilter]);
 
   const handleCreateInvitation = async (request: CreateInvitationRequest) => {
     await invitationApi.createInvitation(request);
@@ -149,7 +154,7 @@ export function InvitationsPage() {
           </div>
         )}
 
-        {!isLoading && !error && (!invitations || invitations.length === 0) && (
+        {!isLoading && !error && filteredInvitations.length === 0 && (
           <div className="empty-state">
             <svg className="empty-state-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -157,17 +162,19 @@ export function InvitationsPage() {
             <p className="empty-state-text">
               {statusFilter === 'all' ? 'No invitations found' : `No ${statusFilter} invitations`}
             </p>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => setIsModalOpen(true)}
-            >
-              Create your first invitation
-            </button>
+            {statusFilter === 'all' && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setIsModalOpen(true)}
+              >
+                Create your first invitation
+              </button>
+            )}
           </div>
         )}
 
-        {!isLoading && !error && invitations && invitations.length > 0 && (
+        {!isLoading && !error && filteredInvitations.length > 0 && (
           <div className="invitations-table-container">
             <table className="invitations-table" data-testid="invitations-table">
               <thead>
@@ -182,7 +189,7 @@ export function InvitationsPage() {
                 </tr>
               </thead>
               <tbody>
-                {invitations.map((invitation) => (
+                {filteredInvitations.map((invitation) => (
                   <tr key={invitation.id} data-testid={`invitation-row-${invitation.id}`}>
                     <td className="invitation-email">{invitation.email}</td>
                     <td>
