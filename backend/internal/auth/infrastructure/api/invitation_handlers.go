@@ -40,20 +40,22 @@ type CreateInvitationRequest struct {
 	Role  string `json:"role"`
 }
 
-func (req *CreateInvitationRequest) Validate() error {
-	if _, err := valueobjects.NewEmail(req.Email); err != nil {
-		return err
-	}
-	if _, err := valueobjects.RoleFromString(req.Role); err != nil {
-		return err
-	}
-	return nil
-}
-
+// CreateInvitation godoc
+// @Summary Create a new invitation
+// @Description Creates a new user invitation for the specified email address with the given role
+// @Tags invitations
+// @Accept json
+// @Produce json
+// @Param request body CreateInvitationRequest true "Invitation details"
+// @Success 201 {object} readmodels.InvitationDTO "Created invitation with HATEOAS links"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid email format or role"
+// @Failure 409 {object} sharedAPI.ErrorResponse "Pending invitation already exists for this email"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/v1/invitations [post]
 func (h *InvitationHandlers) CreateInvitation(w http.ResponseWriter, r *http.Request) {
-	req, err := h.parseAndValidateRequest(r)
+	req, err := h.parseRequest(r)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request")
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
 		return
 	}
 
@@ -69,6 +71,10 @@ func (h *InvitationHandlers) CreateInvitation(w http.ResponseWriter, r *http.Req
 
 	cmd := &commands.CreateInvitation{Email: req.Email, Role: req.Role}
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		if errors.Is(err, valueobjects.ErrInvalidEmailFormat) || errors.Is(err, valueobjects.ErrInvalidRole) {
+			sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request")
+			return
+		}
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create invitation")
 		return
 	}
@@ -76,12 +82,9 @@ func (h *InvitationHandlers) CreateInvitation(w http.ResponseWriter, r *http.Req
 	h.respondCreated(w, r, cmd.ID)
 }
 
-func (h *InvitationHandlers) parseAndValidateRequest(r *http.Request) (*CreateInvitationRequest, error) {
+func (h *InvitationHandlers) parseRequest(r *http.Request) (*CreateInvitationRequest, error) {
 	var req CreateInvitationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, err
-	}
-	if err := req.Validate(); err != nil {
 		return nil, err
 	}
 	return &req, nil
@@ -101,6 +104,17 @@ func (h *InvitationHandlers) respondCreated(w http.ResponseWriter, r *http.Reque
 	sharedAPI.RespondJSON(w, http.StatusCreated, invitation)
 }
 
+// GetAllInvitations godoc
+// @Summary List all invitations
+// @Description Returns a paginated list of all invitations for the current tenant
+// @Tags invitations
+// @Produce json
+// @Param after query string false "Pagination cursor for next page"
+// @Param limit query int false "Maximum number of items to return (default 50, max 100)"
+// @Success 200 {object} sharedAPI.PaginatedResponse{data=[]readmodels.InvitationDTO} "Paginated list of invitations"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid pagination cursor"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/v1/invitations [get]
 func (h *InvitationHandlers) GetAllInvitations(w http.ResponseWriter, r *http.Request) {
 	params := sharedAPI.ParsePaginationParams(r)
 
@@ -139,6 +153,16 @@ func (h *InvitationHandlers) addLinksToInvitations(invitations []readmodels.Invi
 	}
 }
 
+// GetInvitationByID godoc
+// @Summary Get invitation by ID
+// @Description Returns a single invitation by its ID with HATEOAS links
+// @Tags invitations
+// @Produce json
+// @Param id path string true "Invitation ID"
+// @Success 200 {object} readmodels.InvitationDTO "Invitation details with HATEOAS links"
+// @Failure 404 {object} sharedAPI.ErrorResponse "Invitation not found"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/v1/invitations/{id} [get]
 func (h *InvitationHandlers) GetInvitationByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
@@ -157,6 +181,16 @@ func (h *InvitationHandlers) GetInvitationByID(w http.ResponseWriter, r *http.Re
 	sharedAPI.RespondJSON(w, http.StatusOK, invitation)
 }
 
+// RevokeInvitation godoc
+// @Summary Revoke an invitation
+// @Description Revokes a pending invitation, preventing it from being accepted
+// @Tags invitations
+// @Param id path string true "Invitation ID"
+// @Success 204 "Invitation revoked successfully"
+// @Failure 404 {object} sharedAPI.ErrorResponse "Invitation not found"
+// @Failure 409 {object} sharedAPI.ErrorResponse "Invitation already revoked or not pending"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /api/v1/invitations/{id} [delete]
 func (h *InvitationHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	cmd := &commands.RevokeInvitation{ID: id}

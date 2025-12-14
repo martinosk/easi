@@ -124,8 +124,11 @@ func TestPostSessions_ValidEmail(t *testing.T) {
 
 	var response map[string]interface{}
 	json.NewDecoder(rec.Body).Decode(&response)
-	assert.Contains(t, response, "authorizationUrl")
-	assert.Contains(t, response["authorizationUrl"].(string), idpServer.URL+"/authorize")
+	assert.Contains(t, response, "_links")
+	links := response["_links"].(map[string]interface{})
+	assert.Contains(t, links, "self")
+	assert.Contains(t, links, "authorize")
+	assert.Contains(t, links["authorize"].(string), idpServer.URL+"/authorize")
 }
 
 func TestPostSessions_InvalidEmail(t *testing.T) {
@@ -203,7 +206,8 @@ func TestPostSessions_AuthURLContainsPKCE(t *testing.T) {
 
 	var response map[string]interface{}
 	json.NewDecoder(rec.Body).Decode(&response)
-	authURL := response["authorizationUrl"].(string)
+	links := response["_links"].(map[string]interface{})
+	authURL := links["authorize"].(string)
 
 	assert.Contains(t, authURL, "code_challenge=")
 	assert.Contains(t, authURL, "code_challenge_method=S256")
@@ -364,7 +368,8 @@ func TestGetCallback_SuccessfulExchange(t *testing.T) {
 
 	var initResponse map[string]interface{}
 	json.NewDecoder(rec1.Body).Decode(&initResponse)
-	authURL := initResponse["authorizationUrl"].(string)
+	links := initResponse["_links"].(map[string]interface{})
+	authURL := links["authorize"].(string)
 
 	storedState = extractQueryParam(authURL, "state")
 	storedNonce = extractQueryParam(authURL, "nonce")

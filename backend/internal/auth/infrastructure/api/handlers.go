@@ -63,10 +63,21 @@ type PostSessionsRequest struct {
 }
 
 type PostSessionsResponse struct {
-	AuthorizationURL string            `json:"authorizationUrl"`
-	Links            map[string]string `json:"_links"`
+	Links map[string]string `json:"_links"`
 }
 
+// PostSessions godoc
+// @Summary Initiate OIDC login
+// @Description Initiates the OIDC authentication flow by resolving the tenant from the email domain and returning an authorization URL
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body PostSessionsRequest true "Login request with email"
+// @Success 200 {object} PostSessionsResponse "Authorization URL for OIDC login"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid email format or unregistered domain"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Failure 503 {object} sharedAPI.ErrorResponse "Identity provider unavailable"
+// @Router /auth/sessions [post]
 func (h *AuthHandlers) PostSessions(w http.ResponseWriter, r *http.Request) {
 	var req PostSessionsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -76,7 +87,8 @@ func (h *AuthHandlers) PostSessions(w http.ResponseWriter, r *http.Request) {
 
 	domain, err := extractEmailDomain(req.Email)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid email format")
+		log.Printf("Invalid email format in login attempt: %v", err)
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Unable to process login request")
 		return
 	}
 
@@ -84,10 +96,10 @@ func (h *AuthHandlers) PostSessions(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, repositories.ErrDomainNotFound) || errors.Is(err, repositories.ErrTenantInactive) {
 			log.Printf("Login attempt for unregistered or inactive domain: %s", domain)
-			sharedAPI.RespondError(w, http.StatusBadRequest, err, "Login failed")
-			return
+		} else {
+			log.Printf("Unexpected error during domain lookup: %v", err)
 		}
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Login failed")
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Unable to process login request")
 		return
 	}
 
@@ -110,8 +122,8 @@ func (h *AuthHandlers) PostSessions(w http.ResponseWriter, r *http.Request) {
 	authURL := provider.AuthCodeURL(preAuth.State(), preAuth.Nonce(), preAuth.CodeVerifier())
 
 	response := PostSessionsResponse{
-		AuthorizationURL: authURL,
 		Links: map[string]string{
+			"self":      "/auth/sessions",
 			"authorize": authURL,
 		},
 	}
@@ -124,6 +136,20 @@ type callbackParams struct {
 	state string
 }
 
+// GetCallback godoc
+// @Summary OIDC callback handler
+// @Description Handles the OIDC callback after user authentication, exchanges the authorization code for tokens, and creates an authenticated session
+// @Tags auth
+// @Produce json
+// @Param code query string true "Authorization code from OIDC provider"
+// @Param state query string true "State parameter for CSRF protection"
+// @Success 302 "Redirect to frontend application"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Missing code/state or invalid session"
+// @Failure 401 {object} sharedAPI.ErrorResponse "Token validation failed"
+// @Failure 403 {object} sharedAPI.ErrorResponse "Email domain mismatch"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Failed to create session"
+// @Failure 502 {object} sharedAPI.ErrorResponse "Token exchange with IdP failed"
+// @Router /auth/callback [get]
 func (h *AuthHandlers) GetCallback(w http.ResponseWriter, r *http.Request) {
 	params, err := h.extractCallbackParams(r)
 	if err != nil {

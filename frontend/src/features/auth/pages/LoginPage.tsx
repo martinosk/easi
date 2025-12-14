@@ -19,7 +19,7 @@ export const LoginPage: FC = () => {
 
     try {
       const response = await authApi.initiateLogin(email);
-      window.location.href = response.authorizationUrl;
+      window.location.href = response._links.authorize;
     } catch (err) {
       setLoading(false);
       if (err instanceof Error) {

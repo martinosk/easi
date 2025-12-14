@@ -3,8 +3,8 @@ export interface InitiateLoginRequest {
 }
 
 export interface InitiateLoginResponse {
-  authorizationUrl: string;
   _links: {
+    self: string;
     authorize: string;
   };
 }

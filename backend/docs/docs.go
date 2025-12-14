@@ -24,6 +24,362 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/invitations": {
+            "get": {
+                "description": "Returns a paginated list of all invitations for the current tenant",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "List all invitations",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pagination cursor for next page",
+                        "name": "after",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Maximum number of items to return (default 50, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated list of invitations",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.PaginatedResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/easi_backend_internal_auth_application_readmodels.InvitationDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid pagination cursor",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a new user invitation for the specified email address with the given role",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "Create a new invitation",
+                "parameters": [
+                    {
+                        "description": "Invitation details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth_infrastructure_api.CreateInvitationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created invitation with HATEOAS links",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_auth_application_readmodels.InvitationDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid email format or role",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Pending invitation already exists for this email",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/invitations/{id}": {
+            "get": {
+                "description": "Returns a single invitation by its ID with HATEOAS links",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "Get invitation by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Invitation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Invitation details with HATEOAS links",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_auth_application_readmodels.InvitationDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Invitation not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Revokes a pending invitation, preventing it from being accepted",
+                "tags": [
+                    "invitations"
+                ],
+                "summary": "Revoke an invitation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Invitation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Invitation revoked successfully"
+                    },
+                    "404": {
+                        "description": "Invitation not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Invitation already revoked or not pending",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/callback": {
+            "get": {
+                "description": "Handles the OIDC callback after user authentication, exchanges the authorization code for tokens, and creates an authenticated session",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "OIDC callback handler",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization code from OIDC provider",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "State parameter for CSRF protection",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to frontend application"
+                    },
+                    "400": {
+                        "description": "Missing code/state or invalid session",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Token validation failed",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Email domain mismatch",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to create session",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Token exchange with IdP failed",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/sessions": {
+            "post": {
+                "description": "Initiates the OIDC authentication flow by resolving the tenant from the email domain and returning an authorization URL",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Initiate OIDC login",
+                "parameters": [
+                    {
+                        "description": "Login request with email",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth_infrastructure_api.PostSessionsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Authorization URL for OIDC login",
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth_infrastructure_api.PostSessionsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid email format or unregistered domain",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Identity provider unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/sessions/current": {
+            "get": {
+                "description": "Returns information about the currently authenticated user's session including user details, tenant, and permissions",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Get current session",
+                "responses": {
+                    "200": {
+                        "description": "Current session information",
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth_infrastructure_api.CurrentSessionResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "No valid session or user not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Terminates the current user session and clears the session cookie",
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Logout",
+                "responses": {
+                    "204": {
+                        "description": "Session terminated successfully"
+                    },
+                    "500": {
+                        "description": "Failed to logout",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/business-domains": {
             "get": {
                 "description": "Returns all business domains with their capability counts",
@@ -3064,6 +3420,44 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_auth_application_readmodels.InvitationDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "acceptedAt": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "expiresAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "invitedBy": {
+                    "type": "string"
+                },
+                "revokedAt": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "easi_backend_internal_capabilitymapping_application_readmodels.BusinessDomainDTO": {
             "type": "object",
             "properties": {
@@ -3430,6 +3824,93 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_auth_infrastructure_api.CreateInvitationRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_auth_infrastructure_api.CurrentSessionResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "expiresAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "tenant": {
+                    "$ref": "#/definitions/internal_auth_infrastructure_api.CurrentSessionTenant"
+                },
+                "user": {
+                    "$ref": "#/definitions/internal_auth_infrastructure_api.CurrentSessionUser"
+                }
+            }
+        },
+        "internal_auth_infrastructure_api.CurrentSessionTenant": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_auth_infrastructure_api.CurrentSessionUser": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_auth_infrastructure_api.PostSessionsRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_auth_infrastructure_api.PostSessionsResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "internal_capabilitymapping_infrastructure_api.AddCapabilityExpertRequest": {
             "type": "object",
             "properties": {
@@ -3492,9 +3973,6 @@ const docTemplate = `{
                 "assignedAt": {
                     "type": "string"
                 },
-                "code": {
-                    "type": "string"
-                },
                 "description": {
                     "type": "string"
                 },
@@ -3512,9 +3990,6 @@ const docTemplate = `{
         "internal_capabilitymapping_infrastructure_api.CapabilityRealizationsGroupDTO": {
             "type": "object",
             "properties": {
-                "capabilityCode": {
-                    "type": "string"
-                },
                 "capabilityId": {
                     "type": "string"
                 },

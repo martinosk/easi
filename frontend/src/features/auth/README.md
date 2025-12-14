@@ -45,18 +45,17 @@ import { authApi } from './features/auth';
 
 // Initiate login
 const response = await authApi.initiateLogin('john@acme.com');
-// Returns: { authorizationUrl: string, _links: { authorize: string } }
+// Returns: { _links: { self: string, authorize: string } }
 
-// Redirect to IdP
-window.location.href = response.authorizationUrl;
+// Redirect to IdP (using HATEOAS link)
+window.location.href = response._links.authorize;
 ```
 
 ### Error Handling
 
 The login page handles these error scenarios:
 
-- **400 Bad Request**: Invalid email format
-- **404 Not Found**: Email domain not registered
+- **400 Bad Request**: Invalid email format or domain not registered
 - **503 Service Unavailable**: IdP temporarily unavailable
 
 Errors are displayed inline in the form.
@@ -84,16 +83,16 @@ The frontend calls these backend endpoints:
 
 // Response (200 OK)
 {
-  "authorizationUrl": "https://login.microsoftonline.com/...",
   "_links": {
+    "self": "/auth/sessions",
     "authorize": "https://login.microsoftonline.com/..."
   }
 }
 
-// Error (404 Not Found)
+// Error (400 Bad Request)
 {
-  "error": "Not Found",
-  "message": "Domain not registered"
+  "error": "Bad Request",
+  "message": "Unable to process login request"
 }
 ```
 
