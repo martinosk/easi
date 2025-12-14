@@ -35,6 +35,7 @@ interface UseDragHandlersProps {
   updatePosition: (capabilityId: CapabilityId, x: number, y: number) => Promise<void>;
   associateCapability: (capabilityId: CapabilityId, capability: Capability) => Promise<void>;
   refetchCapabilities: () => Promise<void>;
+  refetchRealizations: () => Promise<void>;
   allCapabilities?: Capability[];
   onReassignment?: (reassignment: PendingReassignment) => void;
 }
@@ -47,6 +48,7 @@ export function useDragHandlers({
   updatePosition,
   associateCapability,
   refetchCapabilities,
+  refetchRealizations,
   allCapabilities,
   onReassignment,
 }: UseDragHandlersProps) {
@@ -103,6 +105,7 @@ export function useDragHandlers({
       try {
         await associateCapability(capability.id, capability);
         await refetchCapabilities();
+        await refetchRealizations();
         const currentCount = capabilities.filter((c) => c.level === 'L1').length;
         await updatePosition(capability.id, currentCount, 0);
         return true;
@@ -111,7 +114,7 @@ export function useDragHandlers({
         return false;
       }
     },
-    [domainId, assignedCapabilityIds, associateCapability, refetchCapabilities, capabilities, updatePosition]
+    [domainId, assignedCapabilityIds, associateCapability, refetchCapabilities, refetchRealizations, capabilities, updatePosition]
   );
 
   const handleDragEnd = useCallback(

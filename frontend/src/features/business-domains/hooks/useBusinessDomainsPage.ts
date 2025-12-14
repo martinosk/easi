@@ -61,7 +61,7 @@ export function useBusinessDomainsPage() {
 
   const filtering = useCapabilityFiltering(tree, capabilities);
 
-  const { getRealizationsForCapability } = useCapabilityRealizations(
+  const { getRealizationsForCapability, refetch: refetchRealizations } = useCapabilityRealizations(
     showApplications,
     visualizedDomain?.id as BusinessDomainId | null,
     depth
@@ -84,6 +84,7 @@ export function useBusinessDomainsPage() {
     updatePosition,
     associateCapability,
     refetchCapabilities,
+    refetchRealizations,
   });
 
   const contextMenu = useDomainContextMenu({

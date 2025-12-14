@@ -7,6 +7,7 @@ export interface UseCapabilityRealizationsResult {
   isLoading: boolean;
   error: Error | null;
   getRealizationsForCapability: (capabilityId: CapabilityId) => CapabilityRealization[];
+  refetch: () => Promise<void>;
 }
 
 function getLevelNumber(level: CapabilityLevel): number {
@@ -75,7 +76,7 @@ export function useCapabilityRealizations(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  useEffect(() => {
+  const fetchRealizations = useCallback(async () => {
     if (!enabled || !domainId) {
       setAllRealizations([]);
       setCapabilityLevels(new Map());
@@ -83,30 +84,30 @@ export function useCapabilityRealizations(
       return;
     }
 
-    const fetchRealizations = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const groups = await apiClient.getCapabilityRealizationsByDomain(domainId, depth);
-        const levelMap = new Map<CapabilityId, number>();
-        const realizations: CapabilityRealization[] = [];
+    setIsLoading(true);
+    setError(null);
+    try {
+      const groups = await apiClient.getCapabilityRealizationsByDomain(domainId, depth);
+      const levelMap = new Map<CapabilityId, number>();
+      const realizations: CapabilityRealization[] = [];
 
-        for (const group of groups) {
-          levelMap.set(group.capabilityId as CapabilityId, getLevelNumber(group.level));
-          realizations.push(...group.realizations);
-        }
-
-        setCapabilityLevels(levelMap);
-        setAllRealizations(realizations);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch capability realizations'));
-      } finally {
-        setIsLoading(false);
+      for (const group of groups) {
+        levelMap.set(group.capabilityId as CapabilityId, getLevelNumber(group.level));
+        realizations.push(...group.realizations);
       }
-    };
 
-    fetchRealizations();
+      setCapabilityLevels(levelMap);
+      setAllRealizations(realizations);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to fetch capability realizations'));
+    } finally {
+      setIsLoading(false);
+    }
   }, [enabled, domainId, depth]);
+
+  useEffect(() => {
+    fetchRealizations();
+  }, [fetchRealizations]);
 
   const filteredRealizations = useMemo(
     () => filterVisibleRealizations(allRealizations, capabilityLevels),
@@ -125,5 +126,6 @@ export function useCapabilityRealizations(
     isLoading,
     error,
     getRealizationsForCapability,
+    refetch: fetchRealizations,
   };
 }
