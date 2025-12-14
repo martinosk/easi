@@ -44,6 +44,9 @@ func (h *DeleteBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Comma
 
 	domain, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
+		if errors.Is(err, repositories.ErrBusinessDomainNotFound) {
+			return ErrBusinessDomainNotFound
+		}
 		return err
 	}
 

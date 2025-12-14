@@ -69,7 +69,9 @@ func (h *DeleteApplicationComponentHandler) Handle(ctx context.Context, cmd cqrs
 		return err
 	}
 
-	allRelations := append(relationsAsSource, relationsAsTarget...)
+	allRelations := make([]readmodels.ComponentRelationDTO, 0, len(relationsAsSource)+len(relationsAsTarget))
+	allRelations = append(allRelations, relationsAsSource...)
+	allRelations = append(allRelations, relationsAsTarget...)
 	log.Printf("Found %d relations to cascade delete for component %s", len(allRelations), componentID.Value())
 
 	for _, relation := range allRelations {

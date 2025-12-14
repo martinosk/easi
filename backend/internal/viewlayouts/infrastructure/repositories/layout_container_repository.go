@@ -271,7 +271,7 @@ func (r *LayoutContainerRepository) Delete(ctx context.Context, id valueobjects.
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	_, err = tx.ExecContext(ctx,
 		"DELETE FROM element_positions WHERE tenant_id = $1 AND container_id = $2",
@@ -385,7 +385,7 @@ func (r *LayoutContainerRepository) BatchUpdatePositions(
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	now := time.Now().UTC()
 	for _, position := range positions {
@@ -428,7 +428,7 @@ func (r *LayoutContainerRepository) DeleteByContextRef(
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var containerID string
 	err = tx.QueryRowContext(ctx,

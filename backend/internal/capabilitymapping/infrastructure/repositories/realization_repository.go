@@ -50,15 +50,12 @@ func (r *RealizationRepository) GetByID(ctx context.Context, id string) (*aggreg
 		return nil, ErrRealizationNotFound
 	}
 
-	domainEvents, err := r.deserializeEvents(storedEvents)
-	if err != nil {
-		return nil, err
-	}
+	domainEvents := r.deserializeEvents(storedEvents)
 
 	return aggregates.LoadCapabilityRealizationFromHistory(domainEvents)
 }
 
-func (r *RealizationRepository) deserializeEvents(storedEvents []domain.DomainEvent) ([]domain.DomainEvent, error) {
+func (r *RealizationRepository) deserializeEvents(storedEvents []domain.DomainEvent) []domain.DomainEvent {
 	var domainEvents []domain.DomainEvent
 
 	for _, event := range storedEvents {
@@ -100,5 +97,5 @@ func (r *RealizationRepository) deserializeEvents(storedEvents []domain.DomainEv
 		}
 	}
 
-	return domainEvents, nil
+	return domainEvents
 }

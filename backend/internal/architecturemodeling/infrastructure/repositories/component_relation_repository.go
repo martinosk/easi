@@ -57,16 +57,13 @@ func (r *ComponentRelationRepository) GetByID(ctx context.Context, id string) (*
 	}
 
 	// Deserialize events (simplified)
-	domainEvents, err := r.deserializeEvents(storedEvents)
-	if err != nil {
-		return nil, err
-	}
+	domainEvents := r.deserializeEvents(storedEvents)
 
 	return aggregates.LoadComponentRelationFromHistory(domainEvents)
 }
 
 // deserializeEvents converts stored events to domain events
-func (r *ComponentRelationRepository) deserializeEvents(storedEvents []domain.DomainEvent) ([]domain.DomainEvent, error) {
+func (r *ComponentRelationRepository) deserializeEvents(storedEvents []domain.DomainEvent) []domain.DomainEvent {
 	// Convert generic events back to concrete event types
 	var domainEvents []domain.DomainEvent
 
@@ -112,5 +109,5 @@ func (r *ComponentRelationRepository) deserializeEvents(storedEvents []domain.Do
 		}
 	}
 
-	return domainEvents, nil
+	return domainEvents
 }

@@ -50,15 +50,12 @@ func (r *BusinessDomainRepository) GetByID(ctx context.Context, id string) (*agg
 		return nil, ErrBusinessDomainNotFound
 	}
 
-	domainEvents, err := r.deserializeEvents(storedEvents)
-	if err != nil {
-		return nil, err
-	}
+	domainEvents := r.deserializeEvents(storedEvents)
 
 	return aggregates.LoadBusinessDomainFromHistory(domainEvents)
 }
 
-func (r *BusinessDomainRepository) deserializeEvents(storedEvents []domain.DomainEvent) ([]domain.DomainEvent, error) {
+func (r *BusinessDomainRepository) deserializeEvents(storedEvents []domain.DomainEvent) []domain.DomainEvent {
 	var domainEvents []domain.DomainEvent
 
 	for _, event := range storedEvents {
@@ -95,5 +92,5 @@ func (r *BusinessDomainRepository) deserializeEvents(storedEvents []domain.Domai
 		}
 	}
 
-	return domainEvents, nil
+	return domainEvents
 }

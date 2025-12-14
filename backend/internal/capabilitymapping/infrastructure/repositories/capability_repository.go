@@ -50,15 +50,12 @@ func (r *CapabilityRepository) GetByID(ctx context.Context, id string) (*aggrega
 		return nil, ErrCapabilityNotFound
 	}
 
-	domainEvents, err := r.deserializeEvents(storedEvents)
-	if err != nil {
-		return nil, err
-	}
+	domainEvents := r.deserializeEvents(storedEvents)
 
 	return aggregates.LoadCapabilityFromHistory(domainEvents)
 }
 
-func (r *CapabilityRepository) deserializeEvents(storedEvents []domain.DomainEvent) ([]domain.DomainEvent, error) {
+func (r *CapabilityRepository) deserializeEvents(storedEvents []domain.DomainEvent) []domain.DomainEvent {
 	var domainEvents []domain.DomainEvent
 
 	for _, event := range storedEvents {
@@ -131,5 +128,5 @@ func (r *CapabilityRepository) deserializeEvents(storedEvents []domain.DomainEve
 		}
 	}
 
-	return domainEvents, nil
+	return domainEvents
 }

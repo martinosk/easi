@@ -5,6 +5,9 @@ import (
 	"strings"
 
 	"easi/backend/internal/shared/domain"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 var (
@@ -20,7 +23,8 @@ const (
 )
 
 func NewDependencyType(value string) (DependencyType, error) {
-	normalized := strings.Title(strings.ToLower(strings.TrimSpace(value)))
+	caser := cases.Title(language.English)
+	normalized := caser.String(strings.ToLower(strings.TrimSpace(value)))
 
 	switch DependencyType(normalized) {
 	case DependencyRequires, DependencyEnables, DependencySupports:

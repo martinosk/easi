@@ -40,7 +40,7 @@ func (r *TenantRepository) Create(ctx context.Context, record TenantRecord) erro
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var exists bool
 	err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM tenants WHERE id = $1)", record.ID).Scan(&exists)

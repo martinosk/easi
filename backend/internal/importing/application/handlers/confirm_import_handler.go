@@ -59,7 +59,7 @@ func (h *ConfirmImportHandler) executeImport(ctx context.Context, sessionID stri
 	_, err = h.orchestrator.Execute(ctx, session)
 	if err != nil {
 		log.Printf("Import execution failed for session %s: %v", sessionID, err)
-		session.Fail(err.Error())
+		_ = session.Fail(err.Error())
 	}
 
 	if err := h.repository.Save(ctx, session); err != nil {

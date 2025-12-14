@@ -257,7 +257,7 @@ func TestAddCapabilityExpert_Integration(t *testing.T) {
 
 	handlers.AddCapabilityExpert(expertW, expertReq)
 
-	assert.Equal(t, http.StatusCreated, expertW.Code)
+	assert.Equal(t, http.StatusNoContent, expertW.Code)
 
 	testCtx.setTenantContext(t)
 	var expertEventData string
@@ -319,7 +319,7 @@ func TestAddCapabilityTag_Integration(t *testing.T) {
 
 	handlers.AddCapabilityTag(tagW, tagReq)
 
-	assert.Equal(t, http.StatusCreated, tagW.Code)
+	assert.Equal(t, http.StatusNoContent, tagW.Code)
 
 	testCtx.setTenantContext(t)
 	var tagEventData string

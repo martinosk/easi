@@ -53,14 +53,14 @@ func (m *TokenRefreshMiddleware) RefreshIfNeeded() func(http.Handler) http.Handl
 			}
 
 			if authSession.RefreshToken() == "" {
-				m.sessionManager.ClearSession(r.Context())
+				_ = m.sessionManager.ClearSession(r.Context())
 				http.Error(w, "Session expired", http.StatusUnauthorized)
 				return
 			}
 
 			newSession, err := m.refreshTokens(r.Context(), authSession)
 			if err != nil {
-				m.sessionManager.ClearSession(r.Context())
+				_ = m.sessionManager.ClearSession(r.Context())
 				http.Error(w, "Session expired", http.StatusUnauthorized)
 				return
 			}

@@ -57,16 +57,13 @@ func (r *ApplicationComponentRepository) GetByID(ctx context.Context, id string)
 	}
 
 	// Deserialize events (simplified - would use event registry in production)
-	domainEvents, err := r.deserializeEvents(storedEvents)
-	if err != nil {
-		return nil, err
-	}
+	domainEvents := r.deserializeEvents(storedEvents)
 
 	return aggregates.LoadApplicationComponentFromHistory(domainEvents)
 }
 
 // deserializeEvents converts stored events to domain events
-func (r *ApplicationComponentRepository) deserializeEvents(storedEvents []domain.DomainEvent) ([]domain.DomainEvent, error) {
+func (r *ApplicationComponentRepository) deserializeEvents(storedEvents []domain.DomainEvent) []domain.DomainEvent {
 	// Convert generic events back to concrete event types
 	var domainEvents []domain.DomainEvent
 
@@ -112,5 +109,5 @@ func (r *ApplicationComponentRepository) deserializeEvents(storedEvents []domain
 		}
 	}
 
-	return domainEvents, nil
+	return domainEvents
 }

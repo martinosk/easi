@@ -162,7 +162,7 @@ func (r *Runner) executeMigration(filename string) error {
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Execute migration SQL
 	if _, err := tx.Exec(string(content)); err != nil {
@@ -235,7 +235,7 @@ func (r *Runner) executeAlwaysScript(scriptsPath, filename string) error {
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if _, err := tx.Exec(sqlContent); err != nil {
 		return fmt.Errorf("failed to execute script SQL: %w", err)

@@ -123,7 +123,7 @@ func registerTenantRoutes(r chi.Router, deps routerDependencies) {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	_, _ = w.Write([]byte("OK"))
 }
 
 func versionHandler(w http.ResponseWriter, r *http.Request) {

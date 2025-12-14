@@ -14,6 +14,12 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatalf("Migration error: %v", err)
+	}
+}
+
+func run() error {
 	log.Println("Starting database migration...")
 
 	// Database connection using admin credentials
@@ -26,23 +32,23 @@ func main() {
 	// Extract target database name from connection string
 	targetDB, err := extractDatabaseName(connStr)
 	if err != nil {
-		log.Fatalf("Failed to extract database name: %v", err)
+		return fmt.Errorf("failed to extract database name: %w", err)
 	}
 
 	// Ensure the target database exists
 	if err := ensureDatabaseExists(connStr, targetDB); err != nil {
-		log.Fatalf("Failed to ensure database exists: %v", err)
+		return fmt.Errorf("failed to ensure database exists: %w", err)
 	}
 
 	// Connect to the target database
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	defer db.Close()
 
 	if err := db.Ping(); err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
+		return fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	log.Println("Connected to database successfully")
@@ -50,18 +56,19 @@ func main() {
 	migrationRunner := migrations.NewRunner(db, "./deploy-scripts/migrations")
 
 	if err := migrationRunner.RunAlwaysScripts("./deploy-scripts/pre"); err != nil {
-		log.Fatalf("Pre-migration scripts failed: %v", err)
+		return fmt.Errorf("pre-migration scripts failed: %w", err)
 	}
 
 	if err := migrationRunner.Run(); err != nil {
-		log.Fatalf("Migration failed: %v", err)
+		return fmt.Errorf("migration failed: %w", err)
 	}
 
 	if err := migrationRunner.RunAlwaysScripts("./deploy-scripts/post"); err != nil {
-		log.Fatalf("Post-migration scripts failed: %v", err)
+		return fmt.Errorf("post-migration scripts failed: %w", err)
 	}
 
 	log.Println("All migrations completed successfully")
+	return nil
 }
 
 // extractDatabaseName extracts the database name from a PostgreSQL connection string

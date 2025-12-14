@@ -50,15 +50,12 @@ func (r *ImportSessionRepository) GetByID(ctx context.Context, id string) (*aggr
 		return nil, ErrImportSessionNotFound
 	}
 
-	domainEvents, err := r.deserializeEvents(storedEvents)
-	if err != nil {
-		return nil, err
-	}
+	domainEvents := r.deserializeEvents(storedEvents)
 
 	return aggregates.LoadImportSessionFromHistory(domainEvents)
 }
 
-func (r *ImportSessionRepository) deserializeEvents(storedEvents []domain.DomainEvent) ([]domain.DomainEvent, error) {
+func (r *ImportSessionRepository) deserializeEvents(storedEvents []domain.DomainEvent) []domain.DomainEvent {
 	var domainEvents []domain.DomainEvent
 
 	for _, event := range storedEvents {
@@ -144,7 +141,7 @@ func (r *ImportSessionRepository) deserializeEvents(storedEvents []domain.Domain
 		}
 	}
 
-	return domainEvents, nil
+	return domainEvents
 }
 
 func getInt(data map[string]interface{}, key string) int {

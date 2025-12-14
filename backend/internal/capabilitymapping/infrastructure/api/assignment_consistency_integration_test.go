@@ -19,6 +19,7 @@ import (
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
 
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,7 +64,7 @@ func setupAssignmentConsistencyTestDB(t *testing.T) (*assignmentConsistencyTestC
 	domainRM := readmodels.NewBusinessDomainReadModel(tenantDB)
 	assignmentRM := readmodels.NewDomainCapabilityAssignmentReadModel(tenantDB)
 
-	capabilityProjector := projectors.NewCapabilityProjector(capabilityRM)
+	capabilityProjector := projectors.NewCapabilityProjector(capabilityRM, assignmentRM)
 	eventBus.Subscribe("CapabilityCreated", capabilityProjector)
 	eventBus.Subscribe("CapabilityUpdated", capabilityProjector)
 	eventBus.Subscribe("CapabilityParentChanged", capabilityProjector)
@@ -147,10 +148,37 @@ func (ctx *assignmentConsistencyTestContext) createCapability(t *testing.T, name
 	return id
 }
 
+func (ctx *assignmentConsistencyTestContext) createCapabilityWithEvents(t *testing.T, name, level, parentID string) string {
+	ctx.setTenantContext(t)
+
+	id := uuid.New().String()
+
+	_, err := ctx.db.Exec(
+		"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+		id, name, "", level, nullString(parentID), testTenantID(), "Genesis", "Active",
+	)
+	require.NoError(t, err)
+
+	var parentIDJSON string
+	if parentID != "" {
+		parentIDJSON = fmt.Sprintf(`,"parentId":"%s"`, parentID)
+	}
+	eventData := fmt.Sprintf(`{"id":"%s","name":"%s","description":"","level":"%s"%s,"createdAt":"%s"}`,
+		id, name, level, parentIDJSON, time.Now().Format(time.RFC3339Nano))
+	_, err = ctx.db.Exec(
+		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5, NOW())",
+		testTenantID(), id, "CapabilityCreated", eventData, 1,
+	)
+	require.NoError(t, err)
+
+	ctx.trackCapabilityID(id)
+	return id
+}
+
 func (ctx *assignmentConsistencyTestContext) createDomain(t *testing.T, name string) string {
 	ctx.setTenantContext(t)
 
-	id := fmt.Sprintf("dom-%s-%d", name, time.Now().UnixNano())
+	id := uuid.New().String()
 
 	_, err := ctx.db.Exec(
 		"INSERT INTO business_domains (id, name, description, capability_count, tenant_id, created_at) VALUES ($1, $2, $3, 0, $4, NOW())",
@@ -175,14 +203,50 @@ func (ctx *assignmentConsistencyTestContext) assignCapabilityToDomain(t *testing
 	assignmentID := fmt.Sprintf("assign-%d", time.Now().UnixNano())
 
 	_, err = ctx.db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_code, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
-		assignmentID, domainID, dom.Name, capabilityID, "", cap.Name, cap.Level, testTenantID(),
+		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		assignmentID, domainID, dom.Name, capabilityID, cap.Name, cap.Level, testTenantID(),
 	)
 	require.NoError(t, err)
 
 	_, err = ctx.db.Exec(
 		"UPDATE business_domains SET capability_count = capability_count + 1 WHERE id = $1 AND tenant_id = $2",
 		domainID, testTenantID(),
+	)
+	require.NoError(t, err)
+
+	return assignmentID
+}
+
+func (ctx *assignmentConsistencyTestContext) assignCapabilityToDomainWithEvents(t *testing.T, domainID, capabilityID string) string {
+	ctx.setTenantContext(t)
+
+	cap, err := ctx.capabilityRM.GetByID(tenantContext(), capabilityID)
+	require.NoError(t, err)
+	require.NotNil(t, cap)
+
+	dom, err := ctx.domainRM.GetByID(tenantContext(), domainID)
+	require.NoError(t, err)
+	require.NotNil(t, dom)
+
+	assignmentID := fmt.Sprintf("assign-%d", time.Now().UnixNano())
+
+	_, err = ctx.db.Exec(
+		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		assignmentID, domainID, dom.Name, capabilityID, cap.Name, cap.Level, testTenantID(),
+	)
+	require.NoError(t, err)
+
+	_, err = ctx.db.Exec(
+		"UPDATE business_domains SET capability_count = capability_count + 1 WHERE id = $1 AND tenant_id = $2",
+		domainID, testTenantID(),
+	)
+	require.NoError(t, err)
+
+	eventData := fmt.Sprintf(`{"id":"%s","businessDomainId":"%s","capabilityId":"%s","assignedAt":"%s"}`,
+		assignmentID, domainID, capabilityID, time.Now().Format(time.RFC3339Nano))
+	_, err = ctx.db.Exec(
+		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5, NOW())",
+		testTenantID(), assignmentID, "CapabilityAssignedToDomain", eventData, 1,
 	)
 	require.NoError(t, err)
 
@@ -200,11 +264,11 @@ func TestL1ToL2_ReassignsToDomain_Integration(t *testing.T) {
 	testCtx, cleanup := setupAssignmentConsistencyTestDB(t)
 	defer cleanup()
 
-	l1Child := testCtx.createCapability(t, "ChildCap", "L1", "")
-	l1Parent := testCtx.createCapability(t, "ParentCap", "L1", "")
+	l1Child := testCtx.createCapabilityWithEvents(t, "ChildCap", "L1", "")
+	l1Parent := testCtx.createCapabilityWithEvents(t, "ParentCap", "L1", "")
 	domainID := testCtx.createDomain(t, "TestDomain")
 
-	testCtx.assignCapabilityToDomain(t, domainID, l1Child)
+	testCtx.assignCapabilityToDomainWithEvents(t, domainID, l1Child)
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -225,7 +289,7 @@ func TestL1ToL2_ReassignsToDomain_Integration(t *testing.T) {
 	eventBus := events.NewInMemoryEventBus()
 	eventStore.SetEventBus(eventBus)
 
-	capabilityProjector := projectors.NewCapabilityProjector(testCtx.capabilityRM)
+	capabilityProjector := projectors.NewCapabilityProjector(testCtx.capabilityRM, testCtx.assignmentRM)
 	eventBus.Subscribe("CapabilityParentChanged", capabilityProjector)
 
 	domainProjector := projectors.NewBusinessDomainProjector(testCtx.domainRM)
@@ -268,12 +332,12 @@ func TestL1ToL3_FindsL1Ancestor_Integration(t *testing.T) {
 	testCtx, cleanup := setupAssignmentConsistencyTestDB(t)
 	defer cleanup()
 
-	l1Root := testCtx.createCapability(t, "L1Root", "L1", "")
-	l2Middle := testCtx.createCapability(t, "L2Middle", "L2", l1Root)
-	l1Child := testCtx.createCapability(t, "ChildCap", "L1", "")
+	l1Root := testCtx.createCapabilityWithEvents(t, "L1Root", "L1", "")
+	l2Middle := testCtx.createCapabilityWithEvents(t, "L2Middle", "L2", l1Root)
+	l1Child := testCtx.createCapabilityWithEvents(t, "ChildCap", "L1", "")
 	domainID := testCtx.createDomain(t, "TestDomain")
 
-	testCtx.assignCapabilityToDomain(t, domainID, l1Child)
+	testCtx.assignCapabilityToDomainWithEvents(t, domainID, l1Child)
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -294,7 +358,7 @@ func TestL1ToL3_FindsL1Ancestor_Integration(t *testing.T) {
 	eventBus := events.NewInMemoryEventBus()
 	eventStore.SetEventBus(eventBus)
 
-	capabilityProjector := projectors.NewCapabilityProjector(testCtx.capabilityRM)
+	capabilityProjector := projectors.NewCapabilityProjector(testCtx.capabilityRM, testCtx.assignmentRM)
 	eventBus.Subscribe("CapabilityParentChanged", capabilityProjector)
 
 	domainProjector := projectors.NewBusinessDomainProjector(testCtx.domainRM)
@@ -337,12 +401,12 @@ func TestL1ToL2_ParentAlreadyAssigned_NoDuplicate_Integration(t *testing.T) {
 	testCtx, cleanup := setupAssignmentConsistencyTestDB(t)
 	defer cleanup()
 
-	l1Child := testCtx.createCapability(t, "ChildCap", "L1", "")
-	l1Parent := testCtx.createCapability(t, "ParentCap", "L1", "")
+	l1Child := testCtx.createCapabilityWithEvents(t, "ChildCap", "L1", "")
+	l1Parent := testCtx.createCapabilityWithEvents(t, "ParentCap", "L1", "")
 	domainID := testCtx.createDomain(t, "TestDomain")
 
-	testCtx.assignCapabilityToDomain(t, domainID, l1Child)
-	testCtx.assignCapabilityToDomain(t, domainID, l1Parent)
+	testCtx.assignCapabilityToDomainWithEvents(t, domainID, l1Child)
+	testCtx.assignCapabilityToDomainWithEvents(t, domainID, l1Parent)
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -362,7 +426,7 @@ func TestL1ToL2_ParentAlreadyAssigned_NoDuplicate_Integration(t *testing.T) {
 	eventBus := events.NewInMemoryEventBus()
 	eventStore.SetEventBus(eventBus)
 
-	capabilityProjector := projectors.NewCapabilityProjector(testCtx.capabilityRM)
+	capabilityProjector := projectors.NewCapabilityProjector(testCtx.capabilityRM, testCtx.assignmentRM)
 	eventBus.Subscribe("CapabilityParentChanged", capabilityProjector)
 
 	domainProjector := projectors.NewBusinessDomainProjector(testCtx.domainRM)

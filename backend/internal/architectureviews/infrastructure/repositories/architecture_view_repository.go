@@ -61,10 +61,7 @@ func (r *ArchitectureViewRepository) GetByID(ctx context.Context, id string) (*a
 	}
 
 	// Deserialize events (simplified)
-	domainEvents, err := r.deserializeEvents(storedEvents)
-	if err != nil {
-		return nil, err
-	}
+	domainEvents := r.deserializeEvents(storedEvents)
 
 	return aggregates.LoadArchitectureViewFromHistory(domainEvents)
 }
@@ -99,7 +96,7 @@ var eventDeserializers = map[string]eventDeserializer{
 	"DefaultViewChanged":       deserializeDefaultViewChanged,
 }
 
-func (r *ArchitectureViewRepository) deserializeEvents(storedEvents []domain.DomainEvent) ([]domain.DomainEvent, error) {
+func (r *ArchitectureViewRepository) deserializeEvents(storedEvents []domain.DomainEvent) []domain.DomainEvent {
 	domainEvents := make([]domain.DomainEvent, 0, len(storedEvents))
 
 	for _, event := range storedEvents {
@@ -111,7 +108,7 @@ func (r *ArchitectureViewRepository) deserializeEvents(storedEvents []domain.Dom
 		domainEvents = append(domainEvents, deserializer(event.EventData()))
 	}
 
-	return domainEvents, nil
+	return domainEvents
 }
 
 func deserializeViewCreated(data map[string]interface{}) domain.DomainEvent {
@@ -128,7 +125,7 @@ func deserializeViewCreated(data map[string]interface{}) domain.DomainEvent {
 
 	if createdAtStr, ok := data["createdAt"].(string); ok {
 		if createdAt, err := json.Marshal(createdAtStr); err == nil {
-			json.Unmarshal(createdAt, &evt.CreatedAt)
+			_ = json.Unmarshal(createdAt, &evt.CreatedAt)
 		}
 	}
 

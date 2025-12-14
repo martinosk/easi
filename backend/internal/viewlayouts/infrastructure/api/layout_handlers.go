@@ -215,7 +215,7 @@ func (h *LayoutHandlers) updateLayout(
 	prefs map[string]interface{},
 ) *aggregates.LayoutContainer {
 	newPrefs := valueobjects.NewLayoutPreferences(prefs)
-	existing.UpdatePreferences(newPrefs)
+	_ = existing.UpdatePreferences(newPrefs)
 	existing.IncrementVersion()
 	return existing
 }
@@ -340,7 +340,7 @@ func (h *LayoutHandlers) UpdatePreferences(w http.ResponseWriter, r *http.Reques
 	}
 
 	newPrefs := container.Preferences().WithUpdated(req.Preferences)
-	container.UpdatePreferences(newPrefs)
+	_ = container.UpdatePreferences(newPrefs)
 	container.IncrementVersion()
 
 	if err := h.repo.Save(r.Context(), container); err != nil {

@@ -101,8 +101,9 @@ func setupHandlers(db *sql.DB) *CapabilityHandlers {
 	eventStore.SetEventBus(eventBus)
 
 	readModel := readmodels.NewCapabilityReadModel(tenantDB)
+	assignmentReadModel := readmodels.NewDomainCapabilityAssignmentReadModel(tenantDB)
 
-	projector := projectors.NewCapabilityProjector(readModel)
+	projector := projectors.NewCapabilityProjector(readModel, assignmentReadModel)
 	eventBus.Subscribe("CapabilityCreated", projector)
 	eventBus.Subscribe("CapabilityUpdated", projector)
 	eventBus.Subscribe("CapabilityMetadataUpdated", projector)

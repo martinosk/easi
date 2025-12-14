@@ -92,7 +92,7 @@ func (t *TenantAwareDB) WithReadOnlyTx(ctx context.Context, fn func(*sql.Tx) err
 	// Execute function
 	err = fn(tx)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return err
 	}
 
@@ -127,14 +127,14 @@ func (t *TenantAwareDB) BeginTxWithTenant(ctx context.Context, opts *sql.TxOptio
 	// Set tenant context within transaction
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return nil, fmt.Errorf("failed to get tenant from context: %w", err)
 	}
 
 	// Using safe builder with escaping for defense in depth
 	_, err = tx.ExecContext(ctx, buildSetLocalTenantSQL(tenantID.Value()))
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return nil, fmt.Errorf("failed to set tenant context in transaction: %w", err)
 	}
 

@@ -39,8 +39,9 @@ func setupParentHandlers(db *sql.DB) *CapabilityHandlers {
 	eventStore.SetEventBus(eventBus)
 
 	readModel := readmodels.NewCapabilityReadModel(tenantDB)
+	assignmentReadModel := readmodels.NewDomainCapabilityAssignmentReadModel(tenantDB)
 
-	projector := projectors.NewCapabilityProjector(readModel)
+	projector := projectors.NewCapabilityProjector(readModel, assignmentReadModel)
 	eventBus.Subscribe("CapabilityCreated", projector)
 	eventBus.Subscribe("CapabilityUpdated", projector)
 	eventBus.Subscribe("CapabilityMetadataUpdated", projector)
@@ -166,12 +167,11 @@ func TestChangeCapabilityParent_LevelAutoCalculation_Integration(t *testing.T) {
 
 	h := setupParentHandlers(testCtx.db)
 
+	// Create a capability without children so it can be moved to L4
 	l1ID := createCapabilityViaAPI(t, h, "L1 Capability", "L1", "")
 	testCtx.trackID(l1ID)
 
-	l2ID := createCapabilityViaAPI(t, h, "L2 Capability", "L2", l1ID)
-	testCtx.trackID(l2ID)
-
+	// Create another hierarchy to move under
 	anotherL1ID := createCapabilityViaAPI(t, h, "Another L1", "L1", "")
 	testCtx.trackID(anotherL1ID)
 
@@ -183,6 +183,7 @@ func TestChangeCapabilityParent_LevelAutoCalculation_Integration(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
+	// Move l1ID under anotherL3ID - should become L4
 	reqBody := ChangeCapabilityParentRequest{
 		ParentID: anotherL3ID,
 	}
@@ -366,7 +367,8 @@ func TestChangeCapabilityParent_NonExistentParent_Integration(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	nonExistentParentID := fmt.Sprintf("non-existent-parent-%d", time.Now().UnixNano())
+	// Use a valid UUID format that doesn't exist in the database
+	nonExistentParentID := "00000000-0000-0000-0000-000000000000"
 
 	reqBody := ChangeCapabilityParentRequest{
 		ParentID: nonExistentParentID,

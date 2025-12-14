@@ -39,32 +39,48 @@ func (o *ImportOrchestrator) Execute(ctx context.Context, session *aggregates.Im
 	result.Errors = append(result.Errors, componentErrors...)
 
 	progress, _ := valueobjects.NewImportProgress(valueobjects.PhaseCreatingComponents, len(parsedData.Components), componentsCreated)
-	session.UpdateProgress(progress)
-	o.repository.Save(ctx, session)
+	if err := session.UpdateProgress(progress); err != nil {
+		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to update progress: "+err.Error(), "warning"))
+	}
+	if err := o.repository.Save(ctx, session); err != nil {
+		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to save progress: "+err.Error(), "warning"))
+	}
 
 	capabilitiesCreated, capabilityErrors := o.createCapabilities(ctx, parsedData.Capabilities, parsedData.Relationships, sourceToCapabilityID)
 	result.CapabilitiesCreated = capabilitiesCreated
 	result.Errors = append(result.Errors, capabilityErrors...)
 
 	progress, _ = valueobjects.NewImportProgress(valueobjects.PhaseCreatingCapabilities, len(parsedData.Capabilities), capabilitiesCreated)
-	session.UpdateProgress(progress)
-	o.repository.Save(ctx, session)
+	if err := session.UpdateProgress(progress); err != nil {
+		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to update progress: "+err.Error(), "warning"))
+	}
+	if err := o.repository.Save(ctx, session); err != nil {
+		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to save progress: "+err.Error(), "warning"))
+	}
 
 	realizationsCreated, realizationErrors := o.createRealizations(ctx, parsedData.Relationships, sourceToComponentID, sourceToCapabilityID)
 	result.RealizationsCreated = realizationsCreated
 	result.Errors = append(result.Errors, realizationErrors...)
 
 	progress, _ = valueobjects.NewImportProgress(valueobjects.PhaseCreatingRealizations, countRealizations(parsedData.Relationships), realizationsCreated)
-	session.UpdateProgress(progress)
-	o.repository.Save(ctx, session)
+	if err := session.UpdateProgress(progress); err != nil {
+		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to update progress: "+err.Error(), "warning"))
+	}
+	if err := o.repository.Save(ctx, session); err != nil {
+		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to save progress: "+err.Error(), "warning"))
+	}
 
 	componentRelationsCreated, componentRelationErrors := o.createComponentRelations(ctx, parsedData.Relationships, sourceToComponentID)
 	result.ComponentRelationsCreated = componentRelationsCreated
 	result.Errors = append(result.Errors, componentRelationErrors...)
 
 	progress, _ = valueobjects.NewImportProgress(valueobjects.PhaseCreatingComponentRelations, countComponentRelations(parsedData.Relationships), componentRelationsCreated)
-	session.UpdateProgress(progress)
-	o.repository.Save(ctx, session)
+	if err := session.UpdateProgress(progress); err != nil {
+		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to update progress: "+err.Error(), "warning"))
+	}
+	if err := o.repository.Save(ctx, session); err != nil {
+		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to save progress: "+err.Error(), "warning"))
+	}
 
 	if session.BusinessDomainID() != "" {
 		assignCtx := domainAssignmentContext{
@@ -78,7 +94,9 @@ func (o *ImportOrchestrator) Execute(ctx context.Context, session *aggregates.Im
 		result.Errors = append(result.Errors, domainErrors...)
 	}
 
-	session.Complete(result)
+	if err := session.Complete(result); err != nil {
+		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to mark session complete: "+err.Error(), "warning"))
+	}
 
 	return result, nil
 }

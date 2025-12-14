@@ -79,8 +79,7 @@ func LoadTenantFromHistory(evts []domain.DomainEvent) (*Tenant, error) {
 }
 
 func (t *Tenant) apply(event domain.DomainEvent) {
-	switch e := event.(type) {
-	case events.TenantCreated:
+	if e, ok := event.(events.TenantCreated); ok {
 		t.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
 		t.name, _ = valueobjects.NewTenantName(e.Name)
 		t.status, _ = valueobjects.NewTenantStatus(e.Status)

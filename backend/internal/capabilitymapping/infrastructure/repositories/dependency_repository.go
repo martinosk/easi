@@ -50,15 +50,12 @@ func (r *DependencyRepository) GetByID(ctx context.Context, id string) (*aggrega
 		return nil, ErrDependencyNotFound
 	}
 
-	domainEvents, err := r.deserializeEvents(storedEvents)
-	if err != nil {
-		return nil, err
-	}
+	domainEvents := r.deserializeEvents(storedEvents)
 
 	return aggregates.LoadCapabilityDependencyFromHistory(domainEvents)
 }
 
-func (r *DependencyRepository) deserializeEvents(storedEvents []domain.DomainEvent) ([]domain.DomainEvent, error) {
+func (r *DependencyRepository) deserializeEvents(storedEvents []domain.DomainEvent) []domain.DomainEvent {
 	var domainEvents []domain.DomainEvent
 
 	for _, event := range storedEvents {
@@ -92,5 +89,5 @@ func (r *DependencyRepository) deserializeEvents(storedEvents []domain.DomainEve
 		}
 	}
 
-	return domainEvents, nil
+	return domainEvents
 }

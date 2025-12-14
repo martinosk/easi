@@ -68,13 +68,13 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if err := s.checkVersionConflict(ctx, tx, tenantID, aggregateID, expectedVersion); err != nil {
 		return err
 	}
 
-	if err := s.insertEvents(ctx, tx, tenantID, aggregateID, events, expectedVersion); err != nil {
+	if err := s.insertEvents(ctx, tx, tenantID, events, expectedVersion); err != nil {
 		return err
 	}
 
@@ -105,7 +105,7 @@ func (s *PostgresEventStore) checkVersionConflict(ctx context.Context, tx *sql.T
 	return nil
 }
 
-func (s *PostgresEventStore) insertEvents(ctx context.Context, tx *sql.Tx, tenantID sharedvo.TenantID, aggregateID string, events []domain.DomainEvent, expectedVersion int) error {
+func (s *PostgresEventStore) insertEvents(ctx context.Context, tx *sql.Tx, tenantID sharedvo.TenantID, events []domain.DomainEvent, expectedVersion int) error {
 	stmt, err := tx.PrepareContext(ctx,
 		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5, $6)",
 	)

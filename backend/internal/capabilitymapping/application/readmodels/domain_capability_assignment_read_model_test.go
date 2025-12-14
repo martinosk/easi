@@ -29,7 +29,6 @@ func TestDomainCapabilityAssignmentReadModel_Insert(t *testing.T) {
 		BusinessDomainID:   domainID,
 		BusinessDomainName: "Finance",
 		CapabilityID:       capabilityID,
-		CapabilityCode:     "FIN-01",
 		CapabilityName:     "Financial Reporting",
 		CapabilityLevel:    "L1",
 		AssignedAt:         time.Now().UTC(),
@@ -67,8 +66,8 @@ func TestDomainCapabilityAssignmentReadModel_Delete(t *testing.T) {
 
 	setTenantContext(t, db)
 	_, err := db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_code, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-		assignmentID, "default", domainID, "Finance", capabilityID, "FIN-01", "Financial Reporting", "L1", time.Now().UTC(),
+		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		assignmentID, "default", domainID, "Finance", capabilityID, "Financial Reporting", "L1", time.Now().UTC(),
 	)
 	require.NoError(t, err)
 
@@ -98,13 +97,13 @@ func TestDomainCapabilityAssignmentReadModel_GetByDomainID(t *testing.T) {
 
 	setTenantContext(t, db)
 	_, err := db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_code, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-		assignment1ID, "default", domainID, "Finance", cap1ID, "FIN-01", "Financial Reporting", "L1", time.Now().UTC(),
+		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		assignment1ID, "default", domainID, "Finance", cap1ID, "Financial Reporting", "L1", time.Now().UTC(),
 	)
 	require.NoError(t, err)
 	_, err = db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_code, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-		assignment2ID, "default", domainID, "Finance", cap2ID, "FIN-02", "Budget Planning", "L1", time.Now().UTC(),
+		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		assignment2ID, "default", domainID, "Finance", cap2ID, "Budget Planning", "L1", time.Now().UTC(),
 	)
 	require.NoError(t, err)
 
@@ -147,13 +146,13 @@ func TestDomainCapabilityAssignmentReadModel_GetByCapabilityID(t *testing.T) {
 
 	setTenantContext(t, db)
 	_, err := db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_code, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-		assignment1ID, "default", domain1ID, "Finance", capabilityID, "FIN-01", "Financial Reporting", "L1", time.Now().UTC(),
+		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		assignment1ID, "default", domain1ID, "Finance", capabilityID, "Financial Reporting", "L1", time.Now().UTC(),
 	)
 	require.NoError(t, err)
 	_, err = db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_code, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-		assignment2ID, "default", domain2ID, "Operations", capabilityID, "FIN-01", "Financial Reporting", "L1", time.Now().UTC(),
+		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		assignment2ID, "default", domain2ID, "Operations", capabilityID, "Financial Reporting", "L1", time.Now().UTC(),
 	)
 	require.NoError(t, err)
 
@@ -194,8 +193,8 @@ func TestDomainCapabilityAssignmentReadModel_GetByDomainAndCapability(t *testing
 
 	setTenantContext(t, db)
 	_, err := db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_code, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-		assignmentID, "default", domainID, "Finance", capabilityID, "FIN-01", "Financial Reporting", "L1", time.Now().UTC(),
+		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		assignmentID, "default", domainID, "Finance", capabilityID, "Financial Reporting", "L1", time.Now().UTC(),
 	)
 	require.NoError(t, err)
 
@@ -238,8 +237,8 @@ func TestDomainCapabilityAssignmentReadModel_AssignmentExists(t *testing.T) {
 
 	setTenantContext(t, db)
 	_, err := db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_code, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-		assignmentID, "default", domainID, "Finance", capabilityID, "FIN-01", "Financial Reporting", "L1", time.Now().UTC(),
+		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		assignmentID, "default", domainID, "Finance", capabilityID, "Financial Reporting", "L1", time.Now().UTC(),
 	)
 	require.NoError(t, err)
 

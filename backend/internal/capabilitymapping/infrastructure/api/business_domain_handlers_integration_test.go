@@ -21,6 +21,7 @@ import (
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
 
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -98,6 +99,25 @@ func (ctx *businessDomainTestContext) createTestDomain(t *testing.T, id, name, d
 	ctx.trackDomainID(id)
 }
 
+func (ctx *businessDomainTestContext) createTestDomainWithEvents(t *testing.T, id, name, description string) {
+	ctx.setTenantContext(t)
+	_, err := ctx.db.Exec(
+		"INSERT INTO business_domains (id, name, description, capability_count, tenant_id, created_at) VALUES ($1, $2, $3, 0, $4, NOW())",
+		id, name, description, testTenantID(),
+	)
+	require.NoError(t, err)
+
+	eventData := fmt.Sprintf(`{"id":"%s","name":"%s","description":"%s","createdAt":"%s"}`,
+		id, name, description, time.Now().Format(time.RFC3339Nano))
+	_, err = ctx.db.Exec(
+		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5, NOW())",
+		testTenantID(), id, "BusinessDomainCreated", eventData, 1,
+	)
+	require.NoError(t, err)
+
+	ctx.trackDomainID(id)
+}
+
 func (ctx *businessDomainTestContext) createTestCapability(t *testing.T, id, name, level string) {
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
@@ -132,6 +152,23 @@ func (ctx *businessDomainTestContext) createTestComponent(t *testing.T, id, name
 	_, err := ctx.db.Exec(
 		"INSERT INTO application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
 		id, name, "", testTenantID(),
+	)
+	require.NoError(t, err)
+}
+
+func (ctx *businessDomainTestContext) createTestAssignmentWithEvents(t *testing.T, assignmentID, domainID, domainName, capID, capName, capLevel string) {
+	ctx.setTenantContext(t)
+	_, err := ctx.db.Exec(
+		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		assignmentID, domainID, domainName, capID, capName, capLevel, testTenantID(),
+	)
+	require.NoError(t, err)
+
+	eventData := fmt.Sprintf(`{"id":"%s","businessDomainId":"%s","capabilityId":"%s","assignedAt":"%s"}`,
+		assignmentID, domainID, capID, time.Now().Format(time.RFC3339Nano))
+	_, err = ctx.db.Exec(
+		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5, NOW())",
+		testTenantID(), assignmentID, "CapabilityAssignedToDomain", eventData, 1,
 	)
 	require.NoError(t, err)
 }
@@ -355,7 +392,7 @@ func TestUpdateBusinessDomain_ValidationError_Integration(t *testing.T) {
 	handler := setupBusinessDomainHandlers(testCtx.db)
 
 	domainID := fmt.Sprintf("test-domain-%d", time.Now().UnixNano())
-	testCtx.createTestDomain(t, domainID, "Test Domain", "Description")
+	testCtx.createTestDomainWithEvents(t, domainID, "Test Domain", "Description")
 
 	updateReqBody := UpdateBusinessDomainRequest{
 		Name:        "",
@@ -377,8 +414,8 @@ func TestUpdateBusinessDomain_DuplicateName_Integration(t *testing.T) {
 
 	id1 := fmt.Sprintf("test-domain-1-%d", time.Now().UnixNano())
 	id2 := fmt.Sprintf("test-domain-2-%d", time.Now().UnixNano())
-	testCtx.createTestDomain(t, id1, "Existing Domain", "Description 1")
-	testCtx.createTestDomain(t, id2, "Other Domain", "Description 2")
+	testCtx.createTestDomainWithEvents(t, id1, "Existing Domain", "Description 1")
+	testCtx.createTestDomainWithEvents(t, id2, "Other Domain", "Description 2")
 
 	updateReqBody := UpdateBusinessDomainRequest{
 		Name:        "Existing Domain",
@@ -460,8 +497,8 @@ func TestDeleteBusinessDomain_HasCapabilities_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	assignmentID := fmt.Sprintf("test-assignment-%d", time.Now().UnixNano())
 	_, err := testCtx.db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_code, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
-		assignmentID, domainID, "Test Domain", capID, "BIZ-001", "Test Capability", "L1", testTenantID(),
+		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		assignmentID, domainID, "Test Domain", capID, "Test Capability", "L1", testTenantID(),
 	)
 	require.NoError(t, err)
 
@@ -494,15 +531,15 @@ func TestGetCapabilitiesInDomain_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	assignment1ID := fmt.Sprintf("test-assignment-1-%d", time.Now().UnixNano())
 	_, err := testCtx.db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_code, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
-		assignment1ID, domainID, "Test Domain", cap1ID, "BIZ-001", "Capability 1", "L1", testTenantID(),
+		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		assignment1ID, domainID, "Test Domain", cap1ID, "Capability 1", "L1", testTenantID(),
 	)
 	require.NoError(t, err)
 
 	assignment2ID := fmt.Sprintf("test-assignment-2-%d", time.Now().UnixNano())
 	_, err = testCtx.db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_code, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
-		assignment2ID, domainID, "Test Domain", cap2ID, "BIZ-002", "Capability 2", "L1", testTenantID(),
+		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		assignment2ID, domainID, "Test Domain", cap2ID, "Capability 2", "L1", testTenantID(),
 	)
 	require.NoError(t, err)
 
@@ -544,8 +581,8 @@ func TestAssignCapabilityToDomain_Integration(t *testing.T) {
 
 	handler := setupBusinessDomainHandlers(testCtx.db)
 
-	domainID := fmt.Sprintf("test-domain-%d", time.Now().UnixNano())
-	capID := fmt.Sprintf("test-cap-%d", time.Now().UnixNano())
+	domainID := uuid.New().String()
+	capID := uuid.New().String()
 
 	testCtx.createTestDomain(t, domainID, "Test Domain", "Description")
 	testCtx.createTestCapability(t, capID, "Test Capability", "L1")
@@ -604,17 +641,11 @@ func TestRemoveCapabilityFromDomain_Integration(t *testing.T) {
 
 	domainID := fmt.Sprintf("test-domain-%d", time.Now().UnixNano())
 	capID := fmt.Sprintf("test-cap-%d", time.Now().UnixNano())
+	assignmentID := fmt.Sprintf("test-assignment-%d", time.Now().UnixNano())
 
 	testCtx.createTestDomain(t, domainID, "Test Domain", "Description")
 	testCtx.createTestCapability(t, capID, "Test Capability", "L1")
-
-	testCtx.setTenantContext(t)
-	assignmentID := fmt.Sprintf("test-assignment-%d", time.Now().UnixNano())
-	_, err := testCtx.db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_code, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
-		assignmentID, domainID, "Test Domain", capID, "BIZ-001", "Test Capability", "L1", testTenantID(),
-	)
-	require.NoError(t, err)
+	testCtx.createTestAssignmentWithEvents(t, assignmentID, domainID, "Test Domain", capID, "Test Capability", "L1")
 
 	w, req := makeRequest(t, http.MethodDelete, fmt.Sprintf("/api/v1/business-domains/%s/capabilities/%s", domainID, capID), nil, map[string]string{"domainId": domainID, "capabilityId": capID})
 	handler.RemoveCapabilityFromDomain(w, req)
@@ -625,7 +656,7 @@ func TestRemoveCapabilityFromDomain_Integration(t *testing.T) {
 
 	testCtx.setTenantContext(t)
 	var count int
-	err = testCtx.db.QueryRow(
+	err := testCtx.db.QueryRow(
 		"SELECT COUNT(*) FROM domain_capability_assignments WHERE assignment_id = $1",
 		assignmentID,
 	).Scan(&count)
@@ -668,15 +699,15 @@ func TestGetDomainsForCapability_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	assignment1ID := fmt.Sprintf("test-assignment-1-%d", time.Now().UnixNano())
 	_, err := testCtx.db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_code, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
-		assignment1ID, domain1ID, "Domain 1", capID, "BIZ-001", "Test Capability", "L1", testTenantID(),
+		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		assignment1ID, domain1ID, "Domain 1", capID, "Test Capability", "L1", testTenantID(),
 	)
 	require.NoError(t, err)
 
 	assignment2ID := fmt.Sprintf("test-assignment-2-%d", time.Now().UnixNano())
 	_, err = testCtx.db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_code, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
-		assignment2ID, domain2ID, "Domain 2", capID, "BIZ-001", "Test Capability", "L1", testTenantID(),
+		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		assignment2ID, domain2ID, "Domain 2", capID, "Test Capability", "L1", testTenantID(),
 	)
 	require.NoError(t, err)
 

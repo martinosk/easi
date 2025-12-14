@@ -18,4 +18,34 @@ echo "Running architecture views integration tests..."
 go test -v -tags=integration ./internal/architectureviews/infrastructure/api/... -count=1
 
 echo ""
+
+# Run integration tests for capability mapping
+echo "Running capability mapping integration tests..."
+go test -v -tags=integration ./internal/capabilitymapping/infrastructure/api/... -count=1
+
+echo ""
+
+# Run integration tests for auth
+echo "Running auth integration tests..."
+go test -v -tags=integration ./internal/auth/infrastructure/api/... -count=1
+
+echo ""
+
+# Run integration tests for platform (tenant management)
+echo "Running platform integration tests..."
+go test -v -tags=integration ./internal/platform/infrastructure/api/... -count=1
+
+echo ""
+
+# Run integration tests for importing
+echo "Running importing integration tests..."
+go test -v -tags=integration ./internal/importing/application/parsers/... -count=1
+
+echo ""
+
+# Run integration tests for database tenant isolation
+echo "Running database tenant isolation integration tests..."
+go test -v -tags=integration ./internal/infrastructure/database/... -count=1
+
+echo ""
 echo "✓ All integration tests complete!"

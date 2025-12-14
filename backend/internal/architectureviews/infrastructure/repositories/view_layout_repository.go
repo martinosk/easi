@@ -69,7 +69,7 @@ func (r *ViewLayoutRepository) UpdateMultiplePositions(ctx context.Context, view
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	now := time.Now().UTC()
 	for _, pos := range positions {

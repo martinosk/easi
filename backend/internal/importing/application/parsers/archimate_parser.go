@@ -36,11 +36,12 @@ func (pr *ParseResult) GetPreview() valueobjects.ImportPreview {
 	realizationCount := 0
 	componentRelationCount := 0
 	for _, rel := range pr.Relationships {
-		if rel.Type == "Aggregation" || rel.Type == "Composition" {
+		switch rel.Type {
+		case "Aggregation", "Composition":
 			parentChildCount++
-		} else if rel.Type == "Realization" {
+		case "Realization":
 			realizationCount++
-		} else if rel.Type == "Triggering" || rel.Type == "Serving" {
+		case "Triggering", "Serving":
 			componentRelationCount++
 		}
 	}

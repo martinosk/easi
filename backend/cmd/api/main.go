@@ -31,17 +31,23 @@ import (
 // @host localhost:8080
 // @BasePath /api/v1
 func main() {
+	if err := run(); err != nil {
+		log.Fatalf("Application error: %v", err)
+	}
+}
+
+func run() error {
 	// Database connection using app credentials
 	connStr := getEnv("DB_CONN_STRING", "")
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	defer db.Close()
 
 	if err := db.Ping(); err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
+		return fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	log.Println("Connected to database successfully")
@@ -60,8 +66,10 @@ func main() {
 
 	log.Printf("Server starting on %s", addr)
 	if err := http.ListenAndServe(addr, router); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+		return fmt.Errorf("server failed to start: %w", err)
 	}
+
+	return nil
 }
 
 func getEnv(key, defaultValue string) string {
