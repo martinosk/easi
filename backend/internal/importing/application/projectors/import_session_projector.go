@@ -149,7 +149,7 @@ func (p *ImportSessionProjector) handleImportCompleted(ctx context.Context, even
 		return err
 	}
 
-	var errors []readmodels.ImportErrorDTO
+	errors := make([]readmodels.ImportErrorDTO, 0, len(data.Errors))
 	for _, e := range data.Errors {
 		errors = append(errors, readmodels.ImportErrorDTO{
 			SourceElement: getString(e, "sourceElement"),
