@@ -210,4 +210,4 @@ Middleware behavior:
 - [x] Integration tests: invitation lifecycle (create → accept)
 - [x] Integration test: invitation expiration
 - [x] Integration test: uninvited user blocked
-- [ ] User sign-off
+- [x] User sign-off
