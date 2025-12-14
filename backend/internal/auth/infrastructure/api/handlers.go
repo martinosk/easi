@@ -13,9 +13,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/google/uuid"
-
+	"easi/backend/internal/auth/application/services"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/domain/valueobjects"
 
 	"easi/backend/internal/auth/infrastructure/oidc"
@@ -38,6 +38,7 @@ type AuthHandlers struct {
 	sessionManager *session.SessionManager
 	tenantRepo     TenantOIDCRepository
 	config         AuthHandlersConfig
+	loginService   *services.LoginService
 }
 
 func NewAuthHandlers(
@@ -50,6 +51,11 @@ func NewAuthHandlers(
 		tenantRepo:     tenantRepo,
 		config:         config,
 	}
+}
+
+func (h *AuthHandlers) WithLoginService(loginService *services.LoginService) *AuthHandlers {
+	h.loginService = loginService
+	return h
 }
 
 type PostSessionsRequest struct {
@@ -217,8 +223,29 @@ func (h *AuthHandlers) createAuthenticatedSession(ctx context.Context, preAuth s
 		return err
 	}
 
+	tenantID, err := sharedvo.NewTenantID(preAuth.TenantID())
+	if err != nil {
+		return err
+	}
+	tenantCtx := sharedctx.WithTenant(ctx, tenantID)
+
+	var userInfo session.UserInfo
+
+	if h.loginService != nil {
+		loginResult, err := h.loginService.ProcessLogin(tenantCtx, result.Email)
+		if err != nil {
+			if errors.Is(err, services.ErrNoValidInvitation) {
+				return fmt.Errorf("no valid invitation for email %s", result.Email)
+			}
+			return err
+		}
+		userInfo = session.UserInfo{ID: loginResult.UserID, Email: loginResult.Email}
+	} else {
+		userInfo = session.UserInfo{ID: [16]byte{}, Email: result.Email}
+	}
+
 	authenticatedSession := preAuth.UpgradeToAuthenticated(
-		session.UserInfo{ID: uuid.Nil, Email: result.Email},
+		userInfo,
 		session.TokenInfo{AccessToken: result.AccessToken, RefreshToken: result.RefreshToken, Expiry: result.TokenExpiry},
 	)
 

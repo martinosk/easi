@@ -117,6 +117,17 @@ func registerTenantRoutes(r chi.Router, deps routerDependencies) {
 		mustSetup(viewlayoutsAPI.SetupViewLayoutsRoutes(r, deps.eventBus, deps.db, deps.hateoas), "view layouts routes")
 		mustSetup(importingAPI.SetupImportingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db), "importing routes")
 
+		invDeps, err := authAPI.SetupInvitationRoutes(authAPI.InvitationRoutesDeps{
+			Router:     r,
+			CommandBus: deps.commandBus,
+			EventStore: deps.eventStore,
+			EventBus:   deps.eventBus,
+			DB:         deps.db,
+			AuthDeps:   deps.authDeps,
+		})
+		mustSetup(err, "invitation routes")
+		authAPI.WireLoginService(deps.authDeps, invDeps)
+
 		sharedAPI.SetupReferenceRoutes(r)
 	})
 }

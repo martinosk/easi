@@ -1,6 +1,6 @@
 # 068 - Invitation System
 
-**Depends on:** [067_SessionManagement](067_SessionManagement_pending.md)
+**Depends on:** [067_SessionManagement](067_SessionManagement_done.md)
 
 ## Description
 Admin can invite users, users can accept invitations via login. User onboarding is modeled as a long-running process via the Invitation resource.
@@ -199,15 +199,15 @@ Middleware behavior:
 | INVITATION_EXPIRED | Invitation TTL elapsed (on login attempt) |
 
 ## Checklist
-- [ ] POST /api/v1/invitations endpoint
-- [ ] GET /api/v1/invitations endpoint
-- [ ] GET /api/v1/invitations/{id} endpoint
-- [ ] POST /api/v1/invitations/{id}/revoke endpoint
-- [ ] Login flow with invitation checking (accept on first login)
-- [ ] Invitation expiration handling (lazy evaluation)
-- [ ] Authorization middleware (RequirePermission)
+- [x] POST /api/v1/invitations endpoint
+- [x] GET /api/v1/invitations endpoint
+- [x] GET /api/v1/invitations/{id} endpoint
+- [x] POST /api/v1/invitations/{id}/revoke endpoint
+- [x] Login flow with invitation checking (accept on first login)
+- [x] Invitation expiration handling (lazy evaluation)
+- [x] Authorization middleware (RequirePermission)
 - [ ] Invitation management page (frontend, admin only)
-- [ ] Integration tests: invitation lifecycle (create → accept)
+- [x] Integration tests: invitation lifecycle (create → accept)
 - [ ] Integration test: invitation expiration
 - [ ] Integration test: uninvited user blocked
 - [ ] User sign-off

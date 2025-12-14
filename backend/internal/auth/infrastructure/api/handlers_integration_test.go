@@ -292,7 +292,7 @@ func createMockIdPWithTokenRefresh(t *testing.T, refreshShouldSucceed bool) *htt
 	return server
 }
 
-func createAuthenticatedSession(tenantID string, tokenExpired bool) session.AuthSession {
+func createTestAuthSession(tenantID string, tokenExpired bool) session.AuthSession {
 	var tokenExpiry time.Time
 	var accessToken string
 	if tokenExpired {
@@ -415,7 +415,7 @@ func TestIntegration_TokenRefreshMiddleware_TransparentRefresh_WhenAccessTokenEx
 		w.WriteHeader(http.StatusOK)
 	})
 
-	expiredSession := createAuthenticatedSession(fixture.tenantID, true)
+	expiredSession := createTestAuthSession(fixture.tenantID, true)
 	router := fixture.createRouterWithSession(expiredSession, testHandler)
 	cookies := fixture.setupSessionAndGetCookies(t, router)
 	rec := fixture.executeTestRequest(router, cookies)
@@ -437,7 +437,7 @@ func TestIntegration_TokenRefreshMiddleware_Returns401_WhenRefreshTokenExpired(t
 		w.WriteHeader(http.StatusOK)
 	})
 
-	expiredSession := createAuthenticatedSession(fixture.tenantID, true)
+	expiredSession := createTestAuthSession(fixture.tenantID, true)
 	router := fixture.createRouterWithSession(expiredSession, testHandler)
 	cookies := fixture.setupSessionAndGetCookies(t, router)
 	rec := fixture.executeTestRequest(router, cookies)
@@ -461,7 +461,7 @@ func TestIntegration_TokenRefreshMiddleware_NoRefresh_WhenTokenValid(t *testing.
 		w.WriteHeader(http.StatusOK)
 	})
 
-	validSession := createAuthenticatedSession(fixture.tenantID, false)
+	validSession := createTestAuthSession(fixture.tenantID, false)
 	router := fixture.createRouterWithSession(validSession, testHandler)
 	cookies := fixture.setupSessionAndGetCookies(t, router)
 	rec := fixture.executeTestRequest(router, cookies)
