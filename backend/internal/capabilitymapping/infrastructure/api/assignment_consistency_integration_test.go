@@ -134,6 +134,71 @@ func (ctx *assignmentConsistencyTestContext) trackDomainID(id string) {
 	ctx.createdDomainIDs = append(ctx.createdDomainIDs, id)
 }
 
+func (ctx *assignmentConsistencyTestContext) setupParentChangeHandlers() cqrs.CommandBus {
+	tenantDB := database.NewTenantAwareDB(ctx.db)
+	eventStore := eventstore.NewPostgresEventStore(tenantDB)
+	eventBus := events.NewInMemoryEventBus()
+	eventStore.SetEventBus(eventBus)
+
+	capabilityProjector := projectors.NewCapabilityProjector(ctx.capabilityRM, ctx.assignmentRM)
+	eventBus.Subscribe("CapabilityParentChanged", capabilityProjector)
+
+	domainProjector := projectors.NewBusinessDomainProjector(ctx.domainRM)
+	eventBus.Subscribe("CapabilityAssignedToDomain", domainProjector)
+	eventBus.Subscribe("CapabilityUnassignedFromDomain", domainProjector)
+
+	assignmentProjector := projectors.NewBusinessDomainAssignmentProjector(ctx.assignmentRM, ctx.domainRM, ctx.capabilityRM)
+	eventBus.Subscribe("CapabilityAssignedToDomain", assignmentProjector)
+	eventBus.Subscribe("CapabilityUnassignedFromDomain", assignmentProjector)
+
+	commandBus := cqrs.NewInMemoryCommandBus()
+	assignmentRepo := repositories.NewBusinessDomainAssignmentRepository(eventStore)
+	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(assignmentRepo, ctx.domainRM, ctx.capabilityRM, ctx.assignmentRM))
+	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(assignmentRepo))
+
+	onParentChangedHandler := handlers.NewOnCapabilityParentChangedHandler(commandBus, ctx.assignmentRM, ctx.capabilityRM)
+	eventBus.Subscribe("CapabilityParentChanged", onParentChangedHandler)
+
+	capabilityRepo := repositories.NewCapabilityRepository(eventStore)
+	changeParentHandler := handlers.NewChangeCapabilityParentHandler(capabilityRepo, ctx.capabilityRM)
+	commandBus.Register("ChangeCapabilityParent", changeParentHandler)
+
+	return commandBus
+}
+
+type parentChangeTestParams struct {
+	childID        string
+	newParentID    string
+	newLevel       string
+	domainID       string
+	expectedCount  int
+	expectedCapID  string
+	expectedReason string
+}
+
+func (ctx *assignmentConsistencyTestContext) executeParentChangeAndVerify(t *testing.T, p parentChangeTestParams) {
+	ctx.setTenantContext(t)
+	_, err := ctx.db.Exec(
+		"UPDATE capabilities SET parent_id = $1, level = $2 WHERE id = $3 AND tenant_id = $4",
+		p.newParentID, p.newLevel, p.childID, testTenantID(),
+	)
+	require.NoError(t, err)
+
+	commandBus := ctx.setupParentChangeHandlers()
+	err = commandBus.Dispatch(tenantContext(), &commands.ChangeCapabilityParent{CapabilityID: p.childID, NewParentID: p.newParentID})
+	require.NoError(t, err)
+
+	time.Sleep(200 * time.Millisecond)
+
+	assignments, err := ctx.assignmentRM.GetByDomainID(tenantContext(), p.domainID)
+	require.NoError(t, err)
+
+	assert.Len(t, assignments, p.expectedCount, p.expectedReason)
+	if p.expectedCount > 0 {
+		assert.Equal(t, p.expectedCapID, assignments[0].CapabilityID, p.expectedReason)
+	}
+}
+
 func (ctx *assignmentConsistencyTestContext) createCapability(t *testing.T, name, level, parentID string) string {
 	ctx.setTenantContext(t)
 
@@ -260,207 +325,51 @@ func nullString(s string) interface{} {
 	return s
 }
 
-func TestL1ToL2_ReassignsToDomain_Integration(t *testing.T) {
-	testCtx, cleanup := setupAssignmentConsistencyTestDB(t)
-	defer cleanup()
+func TestParentChangeReassignment_Integration(t *testing.T) {
+	t.Run("L1ToL2_ReassignsToDomain", func(t *testing.T) {
+		testCtx, cleanup := setupAssignmentConsistencyTestDB(t)
+		defer cleanup()
 
-	l1Child := testCtx.createCapabilityWithEvents(t, "ChildCap", "L1", "")
-	l1Parent := testCtx.createCapabilityWithEvents(t, "ParentCap", "L1", "")
-	domainID := testCtx.createDomain(t, "TestDomain")
+		child := testCtx.createCapabilityWithEvents(t, "ChildCap", "L1", "")
+		parent := testCtx.createCapabilityWithEvents(t, "ParentCap", "L1", "")
+		domainID := testCtx.createDomain(t, "TestDomain")
+		testCtx.assignCapabilityToDomainWithEvents(t, domainID, child)
 
-	testCtx.assignCapabilityToDomainWithEvents(t, domainID, l1Child)
+		testCtx.executeParentChangeAndVerify(t, parentChangeTestParams{
+			childID: child, newParentID: parent, newLevel: "L2", domainID: domainID,
+			expectedCount: 1, expectedCapID: parent, expectedReason: "L1 parent should now be assigned",
+		})
+	})
 
-	time.Sleep(100 * time.Millisecond)
+	t.Run("L1ToL3_FindsL1Ancestor", func(t *testing.T) {
+		testCtx, cleanup := setupAssignmentConsistencyTestDB(t)
+		defer cleanup()
 
-	assignmentsBefore, err := testCtx.assignmentRM.GetByDomainID(tenantContext(), domainID)
-	require.NoError(t, err)
-	assert.Len(t, assignmentsBefore, 1)
-	assert.Equal(t, l1Child, assignmentsBefore[0].CapabilityID)
+		l1Root := testCtx.createCapabilityWithEvents(t, "L1Root", "L1", "")
+		l2Middle := testCtx.createCapabilityWithEvents(t, "L2Middle", "L2", l1Root)
+		child := testCtx.createCapabilityWithEvents(t, "ChildCap", "L1", "")
+		domainID := testCtx.createDomain(t, "TestDomain")
+		testCtx.assignCapabilityToDomainWithEvents(t, domainID, child)
 
-	testCtx.setTenantContext(t)
-	_, err = testCtx.db.Exec(
-		"UPDATE capabilities SET parent_id = $1, level = 'L2' WHERE id = $2 AND tenant_id = $3",
-		l1Parent, l1Child, testTenantID(),
-	)
-	require.NoError(t, err)
+		testCtx.executeParentChangeAndVerify(t, parentChangeTestParams{
+			childID: child, newParentID: l2Middle, newLevel: "L3", domainID: domainID,
+			expectedCount: 1, expectedCapID: l1Root, expectedReason: "L1 root ancestor should now be assigned",
+		})
+	})
 
-	tenantDB := database.NewTenantAwareDB(testCtx.db)
-	eventStore := eventstore.NewPostgresEventStore(tenantDB)
-	eventBus := events.NewInMemoryEventBus()
-	eventStore.SetEventBus(eventBus)
+	t.Run("L1ToL2_ParentAlreadyAssigned_NoDuplicate", func(t *testing.T) {
+		testCtx, cleanup := setupAssignmentConsistencyTestDB(t)
+		defer cleanup()
 
-	capabilityProjector := projectors.NewCapabilityProjector(testCtx.capabilityRM, testCtx.assignmentRM)
-	eventBus.Subscribe("CapabilityParentChanged", capabilityProjector)
+		child := testCtx.createCapabilityWithEvents(t, "ChildCap", "L1", "")
+		parent := testCtx.createCapabilityWithEvents(t, "ParentCap", "L1", "")
+		domainID := testCtx.createDomain(t, "TestDomain")
+		testCtx.assignCapabilityToDomainWithEvents(t, domainID, child)
+		testCtx.assignCapabilityToDomainWithEvents(t, domainID, parent)
 
-	domainProjector := projectors.NewBusinessDomainProjector(testCtx.domainRM)
-	eventBus.Subscribe("CapabilityAssignedToDomain", domainProjector)
-	eventBus.Subscribe("CapabilityUnassignedFromDomain", domainProjector)
-
-	assignmentProjector := projectors.NewBusinessDomainAssignmentProjector(testCtx.assignmentRM, testCtx.domainRM, testCtx.capabilityRM)
-	eventBus.Subscribe("CapabilityAssignedToDomain", assignmentProjector)
-	eventBus.Subscribe("CapabilityUnassignedFromDomain", assignmentProjector)
-
-	commandBus := cqrs.NewInMemoryCommandBus()
-	assignmentRepo := repositories.NewBusinessDomainAssignmentRepository(eventStore)
-	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(assignmentRepo, testCtx.domainRM, testCtx.capabilityRM, testCtx.assignmentRM))
-	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(assignmentRepo))
-
-	onCapabilityParentChangedHandler := handlers.NewOnCapabilityParentChangedHandler(commandBus, testCtx.assignmentRM, testCtx.capabilityRM)
-	eventBus.Subscribe("CapabilityParentChanged", onCapabilityParentChangedHandler)
-
-	capabilityRepo := repositories.NewCapabilityRepository(eventStore)
-	changeParentHandler := handlers.NewChangeCapabilityParentHandler(capabilityRepo, testCtx.capabilityRM)
-	commandBus.Register("ChangeCapabilityParent", changeParentHandler)
-
-	cmd := &commands.ChangeCapabilityParent{
-		CapabilityID: l1Child,
-		NewParentID:  l1Parent,
-	}
-	err = commandBus.Dispatch(tenantContext(), cmd)
-	require.NoError(t, err)
-
-	time.Sleep(200 * time.Millisecond)
-
-	assignmentsAfter, err := testCtx.assignmentRM.GetByDomainID(tenantContext(), domainID)
-	require.NoError(t, err)
-
-	assert.Len(t, assignmentsAfter, 1, "Should have exactly 1 assignment")
-	assert.Equal(t, l1Parent, assignmentsAfter[0].CapabilityID, "The L1 parent should now be assigned")
-}
-
-func TestL1ToL3_FindsL1Ancestor_Integration(t *testing.T) {
-	testCtx, cleanup := setupAssignmentConsistencyTestDB(t)
-	defer cleanup()
-
-	l1Root := testCtx.createCapabilityWithEvents(t, "L1Root", "L1", "")
-	l2Middle := testCtx.createCapabilityWithEvents(t, "L2Middle", "L2", l1Root)
-	l1Child := testCtx.createCapabilityWithEvents(t, "ChildCap", "L1", "")
-	domainID := testCtx.createDomain(t, "TestDomain")
-
-	testCtx.assignCapabilityToDomainWithEvents(t, domainID, l1Child)
-
-	time.Sleep(100 * time.Millisecond)
-
-	assignmentsBefore, err := testCtx.assignmentRM.GetByDomainID(tenantContext(), domainID)
-	require.NoError(t, err)
-	assert.Len(t, assignmentsBefore, 1)
-	assert.Equal(t, l1Child, assignmentsBefore[0].CapabilityID)
-
-	testCtx.setTenantContext(t)
-	_, err = testCtx.db.Exec(
-		"UPDATE capabilities SET parent_id = $1, level = 'L3' WHERE id = $2 AND tenant_id = $3",
-		l2Middle, l1Child, testTenantID(),
-	)
-	require.NoError(t, err)
-
-	tenantDB := database.NewTenantAwareDB(testCtx.db)
-	eventStore := eventstore.NewPostgresEventStore(tenantDB)
-	eventBus := events.NewInMemoryEventBus()
-	eventStore.SetEventBus(eventBus)
-
-	capabilityProjector := projectors.NewCapabilityProjector(testCtx.capabilityRM, testCtx.assignmentRM)
-	eventBus.Subscribe("CapabilityParentChanged", capabilityProjector)
-
-	domainProjector := projectors.NewBusinessDomainProjector(testCtx.domainRM)
-	eventBus.Subscribe("CapabilityAssignedToDomain", domainProjector)
-	eventBus.Subscribe("CapabilityUnassignedFromDomain", domainProjector)
-
-	assignmentProjector := projectors.NewBusinessDomainAssignmentProjector(testCtx.assignmentRM, testCtx.domainRM, testCtx.capabilityRM)
-	eventBus.Subscribe("CapabilityAssignedToDomain", assignmentProjector)
-	eventBus.Subscribe("CapabilityUnassignedFromDomain", assignmentProjector)
-
-	commandBus := cqrs.NewInMemoryCommandBus()
-	assignmentRepo := repositories.NewBusinessDomainAssignmentRepository(eventStore)
-	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(assignmentRepo, testCtx.domainRM, testCtx.capabilityRM, testCtx.assignmentRM))
-	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(assignmentRepo))
-
-	onCapabilityParentChangedHandler := handlers.NewOnCapabilityParentChangedHandler(commandBus, testCtx.assignmentRM, testCtx.capabilityRM)
-	eventBus.Subscribe("CapabilityParentChanged", onCapabilityParentChangedHandler)
-
-	capabilityRepo := repositories.NewCapabilityRepository(eventStore)
-	changeParentHandler := handlers.NewChangeCapabilityParentHandler(capabilityRepo, testCtx.capabilityRM)
-	commandBus.Register("ChangeCapabilityParent", changeParentHandler)
-
-	cmd := &commands.ChangeCapabilityParent{
-		CapabilityID: l1Child,
-		NewParentID:  l2Middle,
-	}
-	err = commandBus.Dispatch(tenantContext(), cmd)
-	require.NoError(t, err)
-
-	time.Sleep(200 * time.Millisecond)
-
-	assignmentsAfter, err := testCtx.assignmentRM.GetByDomainID(tenantContext(), domainID)
-	require.NoError(t, err)
-
-	assert.Len(t, assignmentsAfter, 1, "Should have exactly 1 assignment")
-	assert.Equal(t, l1Root, assignmentsAfter[0].CapabilityID, "The L1 root ancestor should now be assigned")
-}
-
-func TestL1ToL2_ParentAlreadyAssigned_NoDuplicate_Integration(t *testing.T) {
-	testCtx, cleanup := setupAssignmentConsistencyTestDB(t)
-	defer cleanup()
-
-	l1Child := testCtx.createCapabilityWithEvents(t, "ChildCap", "L1", "")
-	l1Parent := testCtx.createCapabilityWithEvents(t, "ParentCap", "L1", "")
-	domainID := testCtx.createDomain(t, "TestDomain")
-
-	testCtx.assignCapabilityToDomainWithEvents(t, domainID, l1Child)
-	testCtx.assignCapabilityToDomainWithEvents(t, domainID, l1Parent)
-
-	time.Sleep(100 * time.Millisecond)
-
-	assignmentsBefore, err := testCtx.assignmentRM.GetByDomainID(tenantContext(), domainID)
-	require.NoError(t, err)
-	assert.Len(t, assignmentsBefore, 2)
-
-	testCtx.setTenantContext(t)
-	_, err = testCtx.db.Exec(
-		"UPDATE capabilities SET parent_id = $1, level = 'L2' WHERE id = $2 AND tenant_id = $3",
-		l1Parent, l1Child, testTenantID(),
-	)
-	require.NoError(t, err)
-
-	tenantDB := database.NewTenantAwareDB(testCtx.db)
-	eventStore := eventstore.NewPostgresEventStore(tenantDB)
-	eventBus := events.NewInMemoryEventBus()
-	eventStore.SetEventBus(eventBus)
-
-	capabilityProjector := projectors.NewCapabilityProjector(testCtx.capabilityRM, testCtx.assignmentRM)
-	eventBus.Subscribe("CapabilityParentChanged", capabilityProjector)
-
-	domainProjector := projectors.NewBusinessDomainProjector(testCtx.domainRM)
-	eventBus.Subscribe("CapabilityAssignedToDomain", domainProjector)
-	eventBus.Subscribe("CapabilityUnassignedFromDomain", domainProjector)
-
-	assignmentProjector := projectors.NewBusinessDomainAssignmentProjector(testCtx.assignmentRM, testCtx.domainRM, testCtx.capabilityRM)
-	eventBus.Subscribe("CapabilityAssignedToDomain", assignmentProjector)
-	eventBus.Subscribe("CapabilityUnassignedFromDomain", assignmentProjector)
-
-	commandBus := cqrs.NewInMemoryCommandBus()
-	assignmentRepo := repositories.NewBusinessDomainAssignmentRepository(eventStore)
-	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(assignmentRepo, testCtx.domainRM, testCtx.capabilityRM, testCtx.assignmentRM))
-	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(assignmentRepo))
-
-	onCapabilityParentChangedHandler := handlers.NewOnCapabilityParentChangedHandler(commandBus, testCtx.assignmentRM, testCtx.capabilityRM)
-	eventBus.Subscribe("CapabilityParentChanged", onCapabilityParentChangedHandler)
-
-	capabilityRepo := repositories.NewCapabilityRepository(eventStore)
-	changeParentHandler := handlers.NewChangeCapabilityParentHandler(capabilityRepo, testCtx.capabilityRM)
-	commandBus.Register("ChangeCapabilityParent", changeParentHandler)
-
-	cmd := &commands.ChangeCapabilityParent{
-		CapabilityID: l1Child,
-		NewParentID:  l1Parent,
-	}
-	err = commandBus.Dispatch(tenantContext(), cmd)
-	require.NoError(t, err)
-
-	time.Sleep(200 * time.Millisecond)
-
-	assignmentsAfter, err := testCtx.assignmentRM.GetByDomainID(tenantContext(), domainID)
-	require.NoError(t, err)
-
-	assert.Len(t, assignmentsAfter, 1, "Should have exactly 1 assignment (parent was already assigned)")
-	assert.Equal(t, l1Parent, assignmentsAfter[0].CapabilityID, "Only the L1 parent should remain assigned")
+		testCtx.executeParentChangeAndVerify(t, parentChangeTestParams{
+			childID: child, newParentID: parent, newLevel: "L2", domainID: domainID,
+			expectedCount: 1, expectedCapID: parent, expectedReason: "parent already assigned, no duplicate",
+		})
+	})
 }

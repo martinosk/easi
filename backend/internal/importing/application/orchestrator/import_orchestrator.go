@@ -27,78 +27,93 @@ func NewImportOrchestrator(commandBus cqrs.CommandBus, repository ImportSessionR
 	}
 }
 
+type importExecutionContext struct {
+	ctx                  context.Context
+	session              *aggregates.ImportSession
+	result               *aggregates.ImportResult
+	sourceToComponentID  map[string]string
+	sourceToCapabilityID map[string]string
+}
+
 func (o *ImportOrchestrator) Execute(ctx context.Context, session *aggregates.ImportSession) (aggregates.ImportResult, error) {
 	result := aggregates.ImportResult{}
 	parsedData := session.ParsedData()
 
-	sourceToComponentID := make(map[string]string)
-	sourceToCapabilityID := make(map[string]string)
-
-	componentsCreated, componentErrors := o.createComponents(ctx, parsedData.Components, sourceToComponentID)
-	result.ComponentsCreated = componentsCreated
-	result.Errors = append(result.Errors, componentErrors...)
-
-	progress, _ := valueobjects.NewImportProgress(valueobjects.PhaseCreatingComponents, len(parsedData.Components), componentsCreated)
-	if err := session.UpdateProgress(progress); err != nil {
-		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to update progress: "+err.Error(), "warning"))
-	}
-	if err := o.repository.Save(ctx, session); err != nil {
-		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to save progress: "+err.Error(), "warning"))
+	execCtx := &importExecutionContext{
+		ctx:                  ctx,
+		session:              session,
+		result:               &result,
+		sourceToComponentID:  make(map[string]string),
+		sourceToCapabilityID: make(map[string]string),
 	}
 
-	capabilitiesCreated, capabilityErrors := o.createCapabilities(ctx, parsedData.Capabilities, parsedData.Relationships, sourceToCapabilityID)
-	result.CapabilitiesCreated = capabilitiesCreated
-	result.Errors = append(result.Errors, capabilityErrors...)
-
-	progress, _ = valueobjects.NewImportProgress(valueobjects.PhaseCreatingCapabilities, len(parsedData.Capabilities), capabilitiesCreated)
-	if err := session.UpdateProgress(progress); err != nil {
-		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to update progress: "+err.Error(), "warning"))
-	}
-	if err := o.repository.Save(ctx, session); err != nil {
-		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to save progress: "+err.Error(), "warning"))
-	}
-
-	realizationsCreated, realizationErrors := o.createRealizations(ctx, parsedData.Relationships, sourceToComponentID, sourceToCapabilityID)
-	result.RealizationsCreated = realizationsCreated
-	result.Errors = append(result.Errors, realizationErrors...)
-
-	progress, _ = valueobjects.NewImportProgress(valueobjects.PhaseCreatingRealizations, countRealizations(parsedData.Relationships), realizationsCreated)
-	if err := session.UpdateProgress(progress); err != nil {
-		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to update progress: "+err.Error(), "warning"))
-	}
-	if err := o.repository.Save(ctx, session); err != nil {
-		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to save progress: "+err.Error(), "warning"))
-	}
-
-	componentRelationsCreated, componentRelationErrors := o.createComponentRelations(ctx, parsedData.Relationships, sourceToComponentID)
-	result.ComponentRelationsCreated = componentRelationsCreated
-	result.Errors = append(result.Errors, componentRelationErrors...)
-
-	progress, _ = valueobjects.NewImportProgress(valueobjects.PhaseCreatingComponentRelations, countComponentRelations(parsedData.Relationships), componentRelationsCreated)
-	if err := session.UpdateProgress(progress); err != nil {
-		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to update progress: "+err.Error(), "warning"))
-	}
-	if err := o.repository.Save(ctx, session); err != nil {
-		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to save progress: "+err.Error(), "warning"))
-	}
-
-	if session.BusinessDomainID() != "" {
-		assignCtx := domainAssignmentContext{
-			domainID:             session.BusinessDomainID(),
-			capabilities:         parsedData.Capabilities,
-			relationships:        parsedData.Relationships,
-			sourceToCapabilityID: sourceToCapabilityID,
-		}
-		domainAssignments, domainErrors := o.assignToDomain(ctx, assignCtx)
-		result.DomainAssignments = domainAssignments
-		result.Errors = append(result.Errors, domainErrors...)
-	}
-
-	if err := session.Complete(result); err != nil {
-		result.Errors = append(result.Errors, valueobjects.NewImportError("", "", "failed to mark session complete: "+err.Error(), "warning"))
-	}
+	o.executeComponentPhase(execCtx, parsedData)
+	o.executeCapabilityPhase(execCtx, parsedData)
+	o.executeRealizationPhase(execCtx, parsedData)
+	o.executeComponentRelationPhase(execCtx, parsedData)
+	o.executeDomainAssignmentPhase(execCtx, parsedData)
+	o.completeSession(execCtx)
 
 	return result, nil
+}
+
+func (o *ImportOrchestrator) executeComponentPhase(execCtx *importExecutionContext, parsedData aggregates.ParsedData) {
+	created, errors := o.createComponents(execCtx.ctx, parsedData.Components, execCtx.sourceToComponentID)
+	execCtx.result.ComponentsCreated = created
+	execCtx.result.Errors = append(execCtx.result.Errors, errors...)
+	o.saveProgress(execCtx, valueobjects.PhaseCreatingComponents, len(parsedData.Components), created)
+}
+
+func (o *ImportOrchestrator) executeCapabilityPhase(execCtx *importExecutionContext, parsedData aggregates.ParsedData) {
+	created, errors := o.createCapabilities(execCtx.ctx, parsedData.Capabilities, parsedData.Relationships, execCtx.sourceToCapabilityID)
+	execCtx.result.CapabilitiesCreated = created
+	execCtx.result.Errors = append(execCtx.result.Errors, errors...)
+	o.saveProgress(execCtx, valueobjects.PhaseCreatingCapabilities, len(parsedData.Capabilities), created)
+}
+
+func (o *ImportOrchestrator) executeRealizationPhase(execCtx *importExecutionContext, parsedData aggregates.ParsedData) {
+	created, errors := o.createRealizations(execCtx.ctx, parsedData.Relationships, execCtx.sourceToComponentID, execCtx.sourceToCapabilityID)
+	execCtx.result.RealizationsCreated = created
+	execCtx.result.Errors = append(execCtx.result.Errors, errors...)
+	o.saveProgress(execCtx, valueobjects.PhaseCreatingRealizations, countRealizations(parsedData.Relationships), created)
+}
+
+func (o *ImportOrchestrator) executeComponentRelationPhase(execCtx *importExecutionContext, parsedData aggregates.ParsedData) {
+	created, errors := o.createComponentRelations(execCtx.ctx, parsedData.Relationships, execCtx.sourceToComponentID)
+	execCtx.result.ComponentRelationsCreated = created
+	execCtx.result.Errors = append(execCtx.result.Errors, errors...)
+	o.saveProgress(execCtx, valueobjects.PhaseCreatingComponentRelations, countComponentRelations(parsedData.Relationships), created)
+}
+
+func (o *ImportOrchestrator) executeDomainAssignmentPhase(execCtx *importExecutionContext, parsedData aggregates.ParsedData) {
+	if execCtx.session.BusinessDomainID() == "" {
+		return
+	}
+	assignCtx := domainAssignmentContext{
+		domainID:             execCtx.session.BusinessDomainID(),
+		capabilities:         parsedData.Capabilities,
+		relationships:        parsedData.Relationships,
+		sourceToCapabilityID: execCtx.sourceToCapabilityID,
+	}
+	assigned, errors := o.assignToDomain(execCtx.ctx, assignCtx)
+	execCtx.result.DomainAssignments = assigned
+	execCtx.result.Errors = append(execCtx.result.Errors, errors...)
+}
+
+func (o *ImportOrchestrator) completeSession(execCtx *importExecutionContext) {
+	if err := execCtx.session.Complete(*execCtx.result); err != nil {
+		execCtx.result.Errors = append(execCtx.result.Errors, valueobjects.NewImportError("", "", "failed to mark session complete: "+err.Error(), "warning"))
+	}
+}
+
+func (o *ImportOrchestrator) saveProgress(execCtx *importExecutionContext, phase string, total, completed int) {
+	progress, _ := valueobjects.NewImportProgress(phase, total, completed)
+	if err := execCtx.session.UpdateProgress(progress); err != nil {
+		execCtx.result.Errors = append(execCtx.result.Errors, valueobjects.NewImportError("", "", "failed to update progress: "+err.Error(), "warning"))
+	}
+	if err := o.repository.Save(execCtx.ctx, execCtx.session); err != nil {
+		execCtx.result.Errors = append(execCtx.result.Errors, valueobjects.NewImportError("", "", "failed to save progress: "+err.Error(), "warning"))
+	}
 }
 
 func (o *ImportOrchestrator) createComponents(ctx context.Context, components []aggregates.ParsedElement, sourceToID map[string]string) (int, []valueobjects.ImportError) {
