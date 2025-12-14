@@ -57,11 +57,22 @@ func (s *LoginService) ProcessLogin(ctx context.Context, email string) (*LoginRe
 		}, nil
 	}
 
-	invitation, err := s.invitationReadModel.GetPendingByEmail(ctx, email)
+	invitation, err := s.invitationReadModel.GetAnyPendingByEmail(ctx, email)
 	if err != nil {
 		return nil, err
 	}
 	if invitation == nil {
+		return nil, ErrNoValidInvitation
+	}
+
+	now := time.Now().UTC()
+	if invitation.ExpiresAt.Before(now) {
+		expireCmd := &commands.MarkInvitationExpired{
+			ID: invitation.ID,
+		}
+		if err := s.commandBus.Dispatch(ctx, expireCmd); err != nil {
+			return nil, err
+		}
 		return nil, ErrNoValidInvitation
 	}
 
@@ -73,7 +84,6 @@ func (s *LoginService) ProcessLogin(ctx context.Context, email string) (*LoginRe
 	}
 
 	newUserID := uuid.New()
-	now := time.Now().UTC()
 
 	userDTO := readmodels.UserDTO{
 		ID:           newUserID,

@@ -93,6 +93,15 @@ func (rm *InvitationReadModel) GetPendingByEmail(ctx context.Context, email stri
 		 LIMIT 1`, email)
 }
 
+func (rm *InvitationReadModel) GetAnyPendingByEmail(ctx context.Context, email string) (*InvitationDTO, error) {
+	return rm.queryOneWithTenant(ctx,
+		`SELECT id, email, role, status, invited_by, created_at, expires_at, accepted_at, revoked_at
+		 FROM invitations
+		 WHERE tenant_id = $1 AND email = $2 AND status = 'pending'
+		 ORDER BY created_at DESC
+		 LIMIT 1`, email)
+}
+
 func (rm *InvitationReadModel) queryOneWithTenant(ctx context.Context, query string, extraArgs ...interface{}) (*InvitationDTO, error) {
 	tenantID, err := rm.getTenantID(ctx)
 	if err != nil {

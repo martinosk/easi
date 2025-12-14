@@ -21,16 +21,19 @@ import (
 type InvitationHandlers struct {
 	commandBus       cqrs.CommandBus
 	readModel        *readmodels.InvitationReadModel
+	domainChecker    *readmodels.TenantDomainChecker
 	paginationHelper *sharedAPI.PaginationHelper
 }
 
 func NewInvitationHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.InvitationReadModel,
+	domainChecker *readmodels.TenantDomainChecker,
 ) *InvitationHandlers {
 	return &InvitationHandlers{
 		commandBus:       commandBus,
 		readModel:        readModel,
+		domainChecker:    domainChecker,
 		paginationHelper: sharedAPI.NewPaginationHelper("/api/v1/invitations"),
 	}
 }
@@ -56,6 +59,16 @@ func (h *InvitationHandlers) CreateInvitation(w http.ResponseWriter, r *http.Req
 	req, err := h.parseRequest(r)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+
+	allowed, err := h.domainChecker.IsDomainAllowed(r.Context(), req.Email)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to validate email domain")
+		return
+	}
+	if !allowed {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Email domain is not registered to this tenant")
 		return
 	}
 

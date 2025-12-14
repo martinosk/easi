@@ -79,56 +79,98 @@ type PostSessionsResponse struct {
 // @Failure 503 {object} sharedAPI.ErrorResponse "Identity provider unavailable"
 // @Router /auth/sessions [post]
 func (h *AuthHandlers) PostSessions(w http.ResponseWriter, r *http.Request) {
-	var req PostSessionsRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	req, err := h.parseLoginRequest(r)
+	if err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
 		return
 	}
 
-	domain, err := extractEmailDomain(req.Email)
+	domain, tenantConfig, err := h.resolveEmailDomain(r.Context(), req.Email)
+	if err != nil {
+		h.handleDomainResolutionError(w, err)
+		return
+	}
+
+	authURL, err := h.initiateOIDCFlow(r, domain, tenantConfig)
+	if err != nil {
+		h.handleOIDCFlowError(w, err)
+		return
+	}
+
+	sharedAPI.RespondJSON(w, http.StatusOK, PostSessionsResponse{
+		Links: map[string]string{"self": "/auth/sessions", "authorize": authURL},
+	})
+}
+
+func (h *AuthHandlers) parseLoginRequest(r *http.Request) (*PostSessionsRequest, error) {
+	var req PostSessionsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+	return &req, nil
+}
+
+func (h *AuthHandlers) resolveEmailDomain(ctx context.Context, email string) (string, *repositories.TenantOIDCConfig, error) {
+	domain, err := extractEmailDomain(email)
 	if err != nil {
 		log.Printf("Invalid email format in login attempt: %v", err)
-		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Unable to process login request")
-		return
+		return "", nil, fmt.Errorf("invalid email: %w", err)
 	}
 
-	tenantConfig, err := h.tenantRepo.GetByEmailDomain(r.Context(), domain)
+	tenantConfig, err := h.tenantRepo.GetByEmailDomain(ctx, domain)
 	if err != nil {
-		if errors.Is(err, repositories.ErrDomainNotFound) || errors.Is(err, repositories.ErrTenantInactive) {
-			log.Printf("Login attempt for unregistered or inactive domain: %s", domain)
-		} else {
-			log.Printf("Unexpected error during domain lookup: %v", err)
-		}
-		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Unable to process login request")
-		return
+		h.logDomainLookupError(domain, err)
+		return "", nil, fmt.Errorf("domain lookup failed: %w", err)
 	}
 
+	return domain, tenantConfig, nil
+}
+
+func (h *AuthHandlers) logDomainLookupError(domain string, err error) {
+	if errors.Is(err, repositories.ErrDomainNotFound) || errors.Is(err, repositories.ErrTenantInactive) {
+		log.Printf("Login attempt for unregistered or inactive domain: %s", domain)
+	} else {
+		log.Printf("Unexpected error during domain lookup: %v", err)
+	}
+}
+
+func (h *AuthHandlers) handleDomainResolutionError(w http.ResponseWriter, err error) {
+	sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Unable to process login request")
+}
+
+type oidcFlowError struct {
+	statusCode int
+	message    string
+	err        error
+}
+
+func (e *oidcFlowError) Error() string {
+	return e.message
+}
+
+func (h *AuthHandlers) initiateOIDCFlow(r *http.Request, domain string, tenantConfig *repositories.TenantOIDCConfig) (string, error) {
 	provider, err := h.createOIDCProvider(r.Context(), tenantConfig)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusServiceUnavailable, err, "IdP unavailable")
-		return
+		return "", &oidcFlowError{http.StatusServiceUnavailable, "IdP unavailable", err}
 	}
 
 	tenantID, _ := sharedvo.NewTenantID(tenantConfig.TenantID)
-
 	returnURL := h.validateReturnURL(r.Header.Get("Origin"))
 	preAuth := session.NewPreAuthSession(tenantID, domain, returnURL)
 
 	if err := h.sessionManager.StorePreAuthSession(r.Context(), preAuth); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create session")
+		return "", &oidcFlowError{http.StatusInternalServerError, "Failed to create session", err}
+	}
+
+	return provider.AuthCodeURL(preAuth.State(), preAuth.Nonce(), preAuth.CodeVerifier()), nil
+}
+
+func (h *AuthHandlers) handleOIDCFlowError(w http.ResponseWriter, err error) {
+	if flowErr, ok := err.(*oidcFlowError); ok {
+		sharedAPI.RespondError(w, flowErr.statusCode, flowErr.err, flowErr.message)
 		return
 	}
-
-	authURL := provider.AuthCodeURL(preAuth.State(), preAuth.Nonce(), preAuth.CodeVerifier())
-
-	response := PostSessionsResponse{
-		Links: map[string]string{
-			"self":      "/auth/sessions",
-			"authorize": authURL,
-		},
-	}
-
-	sharedAPI.RespondJSON(w, http.StatusOK, response)
+	sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to initiate login")
 }
 
 type callbackParams struct {
@@ -175,6 +217,11 @@ func (h *AuthHandlers) GetCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.createAuthenticatedSession(r.Context(), preAuth, result); err != nil {
+		if strings.Contains(err.Error(), "no valid invitation") {
+			redirectURL := h.buildErrorRedirectURL(preAuth.ReturnURL(), "no_invitation", "You need an invitation to access this application. Please contact your administrator.")
+			http.Redirect(w, r, redirectURL, http.StatusFound)
+			return
+		}
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create session")
 		return
 	}
@@ -348,4 +395,19 @@ func (h *AuthHandlers) getDefaultRedirectURL() string {
 		return frontendURL
 	}
 	return "/easi/"
+}
+
+func (h *AuthHandlers) buildErrorRedirectURL(returnURL, errorCode, errorMessage string) string {
+	baseURL := h.getSafeRedirectURL(returnURL)
+	parsedURL, err := url.Parse(baseURL)
+	if err != nil {
+		return baseURL
+	}
+
+	q := parsedURL.Query()
+	q.Set("auth_error", errorCode)
+	q.Set("auth_error_message", errorMessage)
+	parsedURL.RawQuery = q.Encode()
+
+	return parsedURL.String()
 }

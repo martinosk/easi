@@ -206,8 +206,8 @@ Middleware behavior:
 - [x] Login flow with invitation checking (accept on first login)
 - [x] Invitation expiration handling (lazy evaluation)
 - [x] Authorization middleware (RequirePermission)
-- [ ] Invitation management page (frontend, admin only)
+- [x] Invitation management page (frontend, admin only)
 - [x] Integration tests: invitation lifecycle (create → accept)
-- [ ] Integration test: invitation expiration
-- [ ] Integration test: uninvited user blocked
+- [x] Integration test: invitation expiration
+- [x] Integration test: uninvited user blocked
 - [ ] User sign-off

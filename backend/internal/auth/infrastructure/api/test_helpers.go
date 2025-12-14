@@ -19,15 +19,19 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+func testTenantIDValue() sharedvo.TenantID {
+	return sharedvo.MustNewTenantID("acme")
+}
+
 func withTestTenant(req *http.Request) *http.Request {
-	ctx := sharedcontext.WithTenant(req.Context(), sharedvo.DefaultTenantID())
+	ctx := sharedcontext.WithTenant(req.Context(), testTenantIDValue())
 	return req.WithContext(ctx)
 }
 
 func testTenantID() string {
-	return "default"
+	return "acme"
 }
 
 func tenantContext() context.Context {
-	return sharedcontext.WithTenant(context.Background(), sharedvo.DefaultTenantID())
+	return sharedcontext.WithTenant(context.Background(), testTenantIDValue())
 }

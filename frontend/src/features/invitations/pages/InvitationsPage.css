@@ -1,0 +1,201 @@
+.invitations-page {
+  width: 100%;
+  height: 100vh;
+  background: var(--color-gray-50);
+  overflow: auto;
+}
+
+.invitations-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--spacing-2xl);
+}
+
+.invitations-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-2xl);
+}
+
+.invitations-title {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--color-gray-900);
+  margin-bottom: var(--spacing-xs);
+}
+
+.invitations-subtitle {
+  font-size: var(--font-size-base);
+  color: var(--color-gray-600);
+}
+
+.btn-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.invitations-filters {
+  margin-bottom: var(--spacing-xl);
+  display: flex;
+  gap: var(--spacing-lg);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.filter-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-gray-700);
+}
+
+.filter-select {
+  padding: 0.5rem 0.75rem;
+  font-size: var(--font-size-sm);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  background: white;
+  cursor: pointer;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl);
+  gap: var(--spacing-lg);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl);
+  gap: var(--spacing-lg);
+}
+
+.empty-state-icon {
+  width: 64px;
+  height: 64px;
+  color: var(--color-gray-400);
+  stroke-width: 1.5;
+}
+
+.empty-state-text {
+  font-size: var(--font-size-lg);
+  color: var(--color-gray-600);
+}
+
+.invitations-table-container {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.invitations-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.invitations-table thead {
+  background: var(--color-gray-100);
+}
+
+.invitations-table th {
+  padding: var(--spacing-md) var(--spacing-lg);
+  text-align: left;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-gray-700);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.invitations-table tbody tr {
+  border-bottom: 1px solid var(--color-gray-200);
+  transition: background-color 0.15s ease;
+}
+
+.invitations-table tbody tr:hover {
+  background: var(--color-gray-50);
+}
+
+.invitations-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.invitations-table td {
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-900);
+}
+
+.invitation-email {
+  font-weight: 500;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-badge-pending {
+  background: rgba(249, 115, 22, 0.1);
+  color: var(--color-warning);
+}
+
+.status-badge-accepted {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--color-success);
+}
+
+.status-badge-expired {
+  background: rgba(107, 114, 128, 0.1);
+  color: var(--color-gray-600);
+}
+
+.status-badge-revoked {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-error);
+}
+
+.invited-by {
+  color: var(--color-gray-600);
+}
+
+.date-cell {
+  color: var(--color-gray-600);
+  font-size: var(--font-size-xs);
+}
+
+.actions-cell {
+  text-align: right;
+}

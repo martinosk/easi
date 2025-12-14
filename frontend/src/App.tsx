@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useAppStore } from './store/appStore';
 import { AppLayout } from './components/layout/AppLayout';
 import { AppNavigation } from './components/layout/AppNavigation';
@@ -9,6 +10,7 @@ import { DialogManager } from './components/shared/DialogManager';
 import { ReleaseNotesOverlay } from './contexts/releases/components/ReleaseNotesOverlay';
 import { ReleaseNotesBrowser } from './contexts/releases/components/ReleaseNotesBrowser';
 import { BusinessDomainsRouter } from './features/business-domains';
+import { InvitationsPage } from './features/invitations';
 import type { ComponentCanvasRef } from './features/canvas/components/ComponentCanvas';
 import { useDialogManagement } from './hooks/useDialogManagement';
 import { useViewOperations } from './hooks/useViewOperations';
@@ -17,6 +19,28 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useReleaseNotes } from './hooks/useReleaseNotes';
 import { useSessionCheck } from './hooks/useSessionCheck';
 import type { Release } from './api/types';
+
+function useAuthErrorHandler() {
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorCode = params.get('auth_error');
+    const errorMessage = params.get('auth_error_message');
+
+    if (errorCode && errorMessage) {
+      setAuthError(errorMessage);
+      toast.error(errorMessage, { duration: 10000 });
+
+      const url = new URL(window.location.href);
+      url.searchParams.delete('auth_error');
+      url.searchParams.delete('auth_error_message');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, []);
+
+  return { authError, clearAuthError: () => setAuthError(null) };
+}
 
 interface CanvasViewProps {
   canvasRef: React.RefObject<ComponentCanvasRef | null>;
@@ -99,8 +123,9 @@ function ReleaseNotesDisplay({ showOverlay, release, onDismiss, browserIsOpen, o
 
 function App() {
   const canvasRef = useRef<ComponentCanvasRef>(null);
-  const [currentView, setCurrentView] = useState<'canvas' | 'business-domains'>('canvas');
+  const [currentView, setCurrentView] = useState<'canvas' | 'business-domains' | 'invitations'>('canvas');
 
+  const { authError } = useAuthErrorHandler();
   const { isLoading: isSessionLoading, isAuthenticated } = useSessionCheck();
 
   const loadData = useAppStore((state) => state.loadData);
@@ -135,6 +160,19 @@ function App() {
   const showLoadingScreen = isInitializing || isLoadingInitialData;
   const showErrorScreen = error && hasNoData;
 
+  if (authError && !isAuthenticated) {
+    return (
+      <AppLayout>
+        <ErrorScreen
+          title="Access Denied"
+          error={authError}
+          onRetry={() => window.location.href = '/easi/login'}
+          retryLabel="Back to Login"
+        />
+      </AppLayout>
+    );
+  }
+
   if (showLoadingScreen) {
     return <AppLayout><LoadingScreen /></AppLayout>;
   }
@@ -144,6 +182,7 @@ function App() {
   }
 
   const isCanvasView = currentView === 'canvas';
+  const isInvitationsView = currentView === 'invitations';
 
   return (
     <AppLayout>
@@ -161,6 +200,8 @@ function App() {
           navigateToCapability={navigateToCapability}
           onRemoveFromView={handleRemoveFromView}
         />
+      ) : isInvitationsView ? (
+        <InvitationsPage />
       ) : (
         <BusinessDomainsRouter />
       )}

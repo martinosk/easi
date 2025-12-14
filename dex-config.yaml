@@ -21,7 +21,13 @@ enablePasswordDB: true
 staticPasswords:
   - email: testuser@acme.com
     hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
-    username: testuser
+    username: Mr. Testuser
   - email: admin@acme.com
     hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
-    username: admin
+    username: Mr. Admin
+  - email: stakeholder@acme.com
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: Mr. Stakeholder
+  - email: nono@acme.com
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: Mr. Persona Non Grata

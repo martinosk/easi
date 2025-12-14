@@ -141,13 +141,14 @@ func SetupInvitationRoutes(deps InvitationRoutesDeps) (*InvitationDependencies, 
 	invitationRepo := repositories.NewInvitationRepository(deps.EventStore)
 	invitationReadModel := readmodels.NewInvitationReadModel(deps.DB)
 	userReadModel := readmodels.NewUserReadModel(deps.DB)
+	domainChecker := readmodels.NewTenantDomainChecker(deps.DB)
 
 	registerCommandHandlers(deps.CommandBus, invitationRepo, invitationReadModel)
 	registerEventSubscriptions(deps.EventBus, invitationReadModel)
 
 	deps.AuthDeps.AuthMiddleware.WithUserReadModel(userReadModel)
 
-	invitationHandlers := NewInvitationHandlers(deps.CommandBus, invitationReadModel)
+	invitationHandlers := NewInvitationHandlers(deps.CommandBus, invitationReadModel, domainChecker)
 	registerInvitationRoutes(deps.Router, deps.AuthDeps.AuthMiddleware, invitationHandlers)
 
 	return &InvitationDependencies{
