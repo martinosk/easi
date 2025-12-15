@@ -28,7 +28,7 @@ import (
 // @license.name MIT
 // @license.url https://opensource.org/licenses/MIT
 
-// @host localhost:8080
+// @schemes http https
 // @BasePath /api/v1
 func main() {
 	if err := run(); err != nil {

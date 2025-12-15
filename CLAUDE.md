@@ -34,6 +34,19 @@ ReadModel → Screen: ReadModel(OUTBOUND) → Screen(INBOUND)
 ```
 
 # API principles
+
+## API Versioning
+- **ALL API routes MUST be under `/api/v1/` prefix** (except `/health`)
+- Never use hardcoded hosts in swagger - use relative URLs with schemes
+- Examples:
+  - ✅ `/api/v1/capabilities`
+  - ✅ `/api/v1/platform/tenants`
+  - ✅ `/api/v1/auth/sessions`
+  - ❌ `/capabilities` (missing version)
+  - ❌ `/api/platform/v1/tenants` (wrong structure)
+  - ❌ `/auth/sessions` (missing version)
+
+## General API Standards
 - Create restful API's with maturity level 3
 - Document the API endpoints using OpenApi specifications
 - Use opaque tokens for paging

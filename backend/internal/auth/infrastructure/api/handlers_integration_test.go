@@ -108,14 +108,14 @@ func setupAuthHandlers(t *testing.T, db *sql.DB, dexBaseURL string) (*AuthHandle
 
 	handlers := NewAuthHandlers(sessionManager, tenantRepo, AuthHandlersConfig{
 		ClientSecret:   "easi-test-secret",
-		RedirectURL:    "http://localhost:8080/auth/callback",
+		RedirectURL:    "http://localhost:8080/api/v1/auth/callback",
 		AllowedOrigins: []string{"http://localhost:3000", "http://localhost:5173"},
 	})
 
 	r := chi.NewRouter()
 	r.Use(scsManager.LoadAndSave)
-	r.Post("/auth/sessions", handlers.PostSessions)
-	r.Get("/auth/callback", handlers.GetCallback)
+	r.Post("/api/v1/auth/sessions", handlers.PostSessions)
+	r.Get("/api/v1/auth/callback", handlers.GetCallback)
 
 	return handlers, scsManager, r
 }

@@ -32,7 +32,7 @@ func SetupPlatformRoutes(r chi.Router, db *sql.DB) error {
 
 	rateLimiter := NewRateLimiter(100, 60)
 
-	r.Route("/api/platform/v1", func(r chi.Router) {
+	r.Route("/api/v1/platform", func(r chi.Router) {
 		r.Use(RateLimitMiddleware(rateLimiter))
 		r.Use(PlatformAdminMiddleware(platformAdminKey))
 

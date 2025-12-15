@@ -24,50 +24,142 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/platform/v1/tenants": {
+        "/api/v1/auth/callback": {
             "get": {
-                "description": "Retrieves a list of all tenants with optional filtering",
+                "description": "Handles the OIDC callback after user authentication, exchanges the authorization code for tokens, and creates an authenticated session",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "tenants"
+                    "auth"
                 ],
-                "summary": "List all tenants",
+                "summary": "OIDC callback handler",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Filter by status (e.g., 'active', 'suspended')",
-                        "name": "status",
-                        "in": "query"
+                        "description": "Authorization code from OIDC provider",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Filter by email domain",
-                        "name": "domain",
-                        "in": "query"
+                        "description": "State parameter for CSRF protection",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to frontend application"
+                    },
+                    "400": {
+                        "description": "Missing code/state or invalid session",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Token validation failed",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Email domain mismatch",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to create session",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Token exchange with IdP failed",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/sessions": {
+            "post": {
+                "description": "Initiates the OIDC authentication flow by resolving the tenant from the email domain and returning an authorization URL",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Initiate OIDC login",
+                "parameters": [
+                    {
+                        "description": "Login request with email",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth_infrastructure_api.PostSessionsRequest"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of tenants",
+                        "description": "Authorization URL for OIDC login",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/internal_platform_infrastructure_api.TenantListItem"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/internal_auth_infrastructure_api.PostSessionsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid email format or unregistered domain",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Identity provider unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/sessions/current": {
+            "get": {
+                "description": "Returns information about the currently authenticated user's session including user details, tenant, and permissions",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Get current session",
+                "responses": {
+                    "200": {
+                        "description": "Current session information",
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth_infrastructure_api.CurrentSessionResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "No valid session or user not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "500": {
@@ -78,91 +170,18 @@ const docTemplate = `{
                     }
                 }
             },
-            "post": {
-                "description": "Creates a new tenant with OIDC configuration for SSO authentication",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
+            "delete": {
+                "description": "Terminates the current user session and clears the session cookie",
                 "tags": [
-                    "tenants"
+                    "auth"
                 ],
-                "summary": "Create a new tenant",
-                "parameters": [
-                    {
-                        "description": "Tenant configuration",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_platform_infrastructure_api.CreateTenantRequest"
-                        }
-                    }
-                ],
+                "summary": "Logout",
                 "responses": {
-                    "201": {
-                        "description": "Tenant created successfully",
-                        "schema": {
-                            "$ref": "#/definitions/internal_platform_infrastructure_api.TenantResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request or validation error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Tenant or domain already exists",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
+                    "204": {
+                        "description": "Session terminated successfully"
                     },
                     "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/platform/v1/tenants/{id}": {
-            "get": {
-                "description": "Retrieves detailed information about a specific tenant",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "tenants"
-                ],
-                "summary": "Get a tenant by ID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Tenant ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Tenant details",
-                        "schema": {
-                            "$ref": "#/definitions/internal_platform_infrastructure_api.TenantResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Tenant not found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Failed to logout",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -1024,142 +1043,50 @@ const docTemplate = `{
                 }
             }
         },
-        "/auth/callback": {
+        "/api/v1/platform/tenants": {
             "get": {
-                "description": "Handles the OIDC callback after user authentication, exchanges the authorization code for tokens, and creates an authenticated session",
+                "description": "Retrieves a list of all tenants with optional filtering",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "tenants"
                 ],
-                "summary": "OIDC callback handler",
+                "summary": "List all tenants",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Authorization code from OIDC provider",
-                        "name": "code",
-                        "in": "query",
-                        "required": true
+                        "description": "Filter by status (e.g., 'active', 'suspended')",
+                        "name": "status",
+                        "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "State parameter for CSRF protection",
-                        "name": "state",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "302": {
-                        "description": "Redirect to frontend application"
-                    },
-                    "400": {
-                        "description": "Missing code/state or invalid session",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Token validation failed",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Email domain mismatch",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to create session",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "502": {
-                        "description": "Token exchange with IdP failed",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/sessions": {
-            "post": {
-                "description": "Initiates the OIDC authentication flow by resolving the tenant from the email domain and returning an authorization URL",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Initiate OIDC login",
-                "parameters": [
-                    {
-                        "description": "Login request with email",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_auth_infrastructure_api.PostSessionsRequest"
-                        }
+                        "description": "Filter by email domain",
+                        "name": "domain",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Authorization URL for OIDC login",
+                        "description": "List of tenants",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth_infrastructure_api.PostSessionsResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid email format or unregistered domain",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "503": {
-                        "description": "Identity provider unavailable",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/sessions/current": {
-            "get": {
-                "description": "Returns information about the currently authenticated user's session including user details, tenant, and permissions",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Get current session",
-                "responses": {
-                    "200": {
-                        "description": "Current session information",
-                        "schema": {
-                            "$ref": "#/definitions/internal_auth_infrastructure_api.CurrentSessionResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "No valid session or user not found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_platform_infrastructure_api.TenantListItem"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
@@ -1170,18 +1097,91 @@ const docTemplate = `{
                     }
                 }
             },
-            "delete": {
-                "description": "Terminates the current user session and clears the session cookie",
-                "tags": [
-                    "auth"
+            "post": {
+                "description": "Creates a new tenant with OIDC configuration for SSO authentication",
+                "consumes": [
+                    "application/json"
                 ],
-                "summary": "Logout",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tenants"
+                ],
+                "summary": "Create a new tenant",
+                "parameters": [
+                    {
+                        "description": "Tenant configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_platform_infrastructure_api.CreateTenantRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "204": {
-                        "description": "Session terminated successfully"
+                    "201": {
+                        "description": "Tenant created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/internal_platform_infrastructure_api.TenantResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Tenant or domain already exists",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
                     },
                     "500": {
-                        "description": "Failed to logout",
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/platform/tenants/{id}": {
+            "get": {
+                "description": "Retrieves detailed information about a specific tenant",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tenants"
+                ],
+                "summary": "Get a tenant by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tenant details",
+                        "schema": {
+                            "$ref": "#/definitions/internal_platform_infrastructure_api.TenantResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -5543,9 +5543,9 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:8080",
+	Host:             "",
 	BasePath:         "/api/v1",
-	Schemes:          []string{},
+	Schemes:          []string{"http", "https"},
 	Title:            "EASI Architecture Modeling API",
 	Description:      "API for Enterprise Architecture System Integration - Component Modeling",
 	InfoInstanceName: "swagger",

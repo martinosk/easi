@@ -13,7 +13,7 @@ staticClients:
   - id: easi-test
     secret: easi-test-secret
     redirectURIs:
-      - http://localhost:8080/auth/callback
+      - http://localhost:8080/api/v1/auth/callback
     name: EASI Test
 
 enablePasswordDB: true
