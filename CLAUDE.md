@@ -38,13 +38,16 @@ ReadModel → Screen: ReadModel(OUTBOUND) → Screen(INBOUND)
 ## API Versioning
 - **ALL API routes MUST be under `/api/v1/` prefix** (except `/health`)
 - Never use hardcoded hosts in swagger - use relative URLs with schemes
-- Examples:
-  - ✅ `/api/v1/capabilities`
-  - ✅ `/api/v1/platform/tenants`
-  - ✅ `/api/v1/auth/sessions`
-  - ❌ `/capabilities` (missing version)
+- Swagger `@Router` annotations must use **relative paths** without `/api/v1/` prefix
+  - ✅ `@Router /capabilities [get]` (basePath will be prepended)
+  - ❌ `@Router /api/v1/capabilities [get]` (creates double prefix)
+- Route registration examples:
+  - ✅ `/api/v1/capabilities` (in routes.go)
+  - ✅ `/api/v1/platform/tenants` (in routes.go)
+  - ✅ `/api/v1/auth/sessions` (in routes.go)
+  - ❌ `/capabilities` (missing version in routes.go)
   - ❌ `/api/platform/v1/tenants` (wrong structure)
-  - ❌ `/auth/sessions` (missing version)
+  - ❌ `/auth/sessions` (missing version in routes.go)
 
 ## General API Standards
 - Create restful API's with maturity level 3

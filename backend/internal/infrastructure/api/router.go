@@ -9,6 +9,7 @@ import (
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
 	authAPI "easi/backend/internal/auth/infrastructure/api"
 	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
+	"easi/backend/docs"
 	importingAPI "easi/backend/internal/importing/infrastructure/api"
 	"easi/backend/internal/infrastructure/api/middleware"
 	"easi/backend/internal/infrastructure/database"
@@ -100,10 +101,22 @@ func configureMiddleware(r chi.Router, authDeps *authAPI.AuthDependencies) {
 func registerPublicRoutes(r chi.Router, db *database.TenantAwareDB, authDeps *authAPI.AuthDependencies) {
 	r.Get("/health", healthHandler)
 	r.Get("/api/v1/version", versionHandler)
-	r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("doc.json")))
+	r.Get("/swagger/*", swaggerHandlerWithDynamicBasePath())
 
 	mustSetup(platformAPI.SetupPlatformRoutes(r, db.DB()), "platform routes")
 	mustSetup(authAPI.SetupAuthRoutes(r, db.DB(), authDeps), "auth routes")
+}
+
+func swaggerHandlerWithDynamicBasePath() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		forwardedPrefix := r.Header.Get("X-Forwarded-Prefix")
+		if forwardedPrefix != "" {
+			docs.SwaggerInfo.BasePath = forwardedPrefix + "/api/v1"
+		} else {
+			docs.SwaggerInfo.BasePath = "/api/v1"
+		}
+		httpSwagger.Handler(httpSwagger.URL("doc.json"))(w, r)
+	}
 }
 
 func registerTenantRoutes(r chi.Router, deps routerDependencies) {
