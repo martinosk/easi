@@ -81,7 +81,7 @@ type CurrentSessionTenant struct {
 // @Success 200 {object} CurrentSessionResponse "Current session information"
 // @Failure 401 {object} sharedAPI.ErrorResponse "No valid session or user not found"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/auth/sessions/current [get]
+// @Router /auth/sessions/current [get]
 func (h *SessionHandlers) GetCurrentSession(w http.ResponseWriter, r *http.Request) {
 	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
 	if err != nil || !authSession.IsAuthenticated() {
@@ -140,7 +140,7 @@ func (h *SessionHandlers) GetCurrentSession(w http.ResponseWriter, r *http.Reque
 // @Tags auth
 // @Success 204 "Session terminated successfully"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Failed to logout"
-// @Router /api/v1/auth/sessions/current [delete]
+// @Router /auth/sessions/current [delete]
 func (h *SessionHandlers) DeleteCurrentSession(w http.ResponseWriter, r *http.Request) {
 	if err := h.sessionManager.ClearSession(r.Context()); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to logout")

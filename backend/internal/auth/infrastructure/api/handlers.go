@@ -77,7 +77,7 @@ type PostSessionsResponse struct {
 // @Failure 400 {object} sharedAPI.ErrorResponse "Invalid email format or unregistered domain"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
 // @Failure 503 {object} sharedAPI.ErrorResponse "Identity provider unavailable"
-// @Router /api/v1/auth/sessions [post]
+// @Router /auth/sessions [post]
 func (h *AuthHandlers) PostSessions(w http.ResponseWriter, r *http.Request) {
 	req, err := h.parseLoginRequest(r)
 	if err != nil {
@@ -191,7 +191,7 @@ type callbackParams struct {
 // @Failure 403 {object} sharedAPI.ErrorResponse "Email domain mismatch"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Failed to create session"
 // @Failure 502 {object} sharedAPI.ErrorResponse "Token exchange with IdP failed"
-// @Router /api/v1/auth/callback [get]
+// @Router /auth/callback [get]
 func (h *AuthHandlers) GetCallback(w http.ResponseWriter, r *http.Request) {
 	params, err := h.extractCallbackParams(r)
 	if err != nil {

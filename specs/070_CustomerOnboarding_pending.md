@@ -16,7 +16,7 @@ Documentation guides for customers to configure their Identity Provider (IdP) fo
 
 ### Configure Redirect URI
 1. Go to Authentication → Add a platform → Web
-2. Set redirect URI: `https://easi.example.com/auth/callback`
+2. Set redirect URI: `https://easi.example.com/api/v1/auth/callback`
 3. Click "Configure"
 
 ### Create Client Secret

@@ -113,7 +113,7 @@ type TenantListItem struct {
 // @Failure 400 {object} sharedAPI.ErrorResponse "Invalid request or validation error"
 // @Failure 409 {object} sharedAPI.ErrorResponse "Tenant or domain already exists"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/platform/tenants [post]
+// @Router /platform/tenants [post]
 func (h *TenantHandlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
 	var req CreateTenantRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -165,7 +165,7 @@ func (h *TenantHandlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} TenantResponse "Tenant details"
 // @Failure 404 {object} sharedAPI.ErrorResponse "Tenant not found"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/platform/tenants/{id} [get]
+// @Router /platform/tenants/{id} [get]
 func (h *TenantHandlers) GetTenantByID(w http.ResponseWriter, r *http.Request) {
 	tenantID := chi.URLParam(r, "id")
 
@@ -195,7 +195,7 @@ func (h *TenantHandlers) GetTenantByID(w http.ResponseWriter, r *http.Request) {
 // @Param domain query string false "Filter by email domain"
 // @Success 200 {object} sharedAPI.CollectionResponse{data=[]TenantListItem} "List of tenants"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/platform/tenants [get]
+// @Router /platform/tenants [get]
 func (h *TenantHandlers) ListTenants(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	domain := r.URL.Query().Get("domain")

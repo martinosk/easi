@@ -53,7 +53,7 @@ func NewImportHandlers(
 // @Failure 415 {object} sharedAPI.ErrorResponse "Unsupported media type"
 // @Failure 422 {object} sharedAPI.ErrorResponse "Invalid ArchiMate format"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/imports [post]
+// @Router /imports [post]
 func (h *ImportHandlers) CreateImportSession(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(maxFileSize); err != nil {
 		if strings.Contains(err.Error(), "request body too large") {
@@ -135,7 +135,7 @@ func (h *ImportHandlers) CreateImportSession(w http.ResponseWriter, r *http.Requ
 // @Failure 400 {object} sharedAPI.ErrorResponse "Missing import session ID"
 // @Failure 404 {object} sharedAPI.ErrorResponse "Import session not found"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/imports/{id} [get]
+// @Router /imports/{id} [get]
 func (h *ImportHandlers) GetImportSession(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if id == "" {
@@ -171,7 +171,7 @@ func (h *ImportHandlers) GetImportSession(w http.ResponseWriter, r *http.Request
 // @Failure 404 {object} sharedAPI.ErrorResponse "Import session not found"
 // @Failure 409 {object} sharedAPI.ErrorResponse "Import already started or completed"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/imports/{id}/confirm [post]
+// @Router /imports/{id}/confirm [post]
 func (h *ImportHandlers) ConfirmImport(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if id == "" {
@@ -232,7 +232,7 @@ func (h *ImportHandlers) ConfirmImport(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} sharedAPI.ErrorResponse "Import session not found"
 // @Failure 409 {object} sharedAPI.ErrorResponse "Cannot cancel import that has already started or completed"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/imports/{id} [delete]
+// @Router /imports/{id} [delete]
 func (h *ImportHandlers) DeleteImportSession(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if id == "" {

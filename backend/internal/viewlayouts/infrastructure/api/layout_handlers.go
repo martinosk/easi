@@ -182,7 +182,7 @@ func (h *LayoutHandlers) buildElementDTO(elem valueobjects.ElementPosition, base
 // @Failure 400 {object} sharedAPI.ErrorResponse "Invalid path parameters"
 // @Failure 404 {object} map[string]interface{} "Layout not found (includes create link)"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/layouts/{contextType}/{contextRef} [get]
+// @Router /layouts/{contextType}/{contextRef} [get]
 func (h *LayoutHandlers) GetLayout(w http.ResponseWriter, r *http.Request) {
 	contextType, contextRef, err := h.getPathParams(r)
 	if err != nil {
@@ -245,7 +245,7 @@ func (h *LayoutHandlers) updateLayout(
 // @Success 201 {object} LayoutContainerDTO "Layout created"
 // @Failure 400 {object} sharedAPI.ErrorResponse "Invalid request"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/layouts/{contextType}/{contextRef} [put]
+// @Router /layouts/{contextType}/{contextRef} [put]
 func (h *LayoutHandlers) UpsertLayout(w http.ResponseWriter, r *http.Request) {
 	contextType, contextRef, err := h.getPathParams(r)
 	if err != nil {
@@ -310,7 +310,7 @@ func (h *LayoutHandlers) UpsertLayout(w http.ResponseWriter, r *http.Request) {
 // @Success 204 "Layout deleted"
 // @Failure 400 {object} sharedAPI.ErrorResponse "Invalid path parameters"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/layouts/{contextType}/{contextRef} [delete]
+// @Router /layouts/{contextType}/{contextRef} [delete]
 func (h *LayoutHandlers) DeleteLayout(w http.ResponseWriter, r *http.Request) {
 	contextType, contextRef, err := h.getPathParams(r)
 	if err != nil {
@@ -342,7 +342,7 @@ func (h *LayoutHandlers) DeleteLayout(w http.ResponseWriter, r *http.Request) {
 // @Failure 412 {object} map[string]interface{} "Version conflict"
 // @Failure 428 {object} sharedAPI.ErrorResponse "If-Match header required"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/layouts/{contextType}/{contextRef}/preferences [patch]
+// @Router /layouts/{contextType}/{contextRef}/preferences [patch]
 func (h *LayoutHandlers) UpdatePreferences(w http.ResponseWriter, r *http.Request) {
 	contextType, contextRef, err := h.getPathParams(r)
 	if err != nil {
@@ -432,7 +432,7 @@ func (h *LayoutHandlers) UpdatePreferences(w http.ResponseWriter, r *http.Reques
 // @Failure 400 {object} sharedAPI.ErrorResponse "Invalid request"
 // @Failure 404 {object} sharedAPI.ErrorResponse "Layout not found"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/layouts/{contextType}/{contextRef}/elements/{elementId} [put]
+// @Router /layouts/{contextType}/{contextRef}/elements/{elementId} [put]
 func (h *LayoutHandlers) UpsertElementPosition(w http.ResponseWriter, r *http.Request) {
 	contextType, contextRef, err := h.getPathParams(r)
 	if err != nil {
@@ -508,7 +508,7 @@ func (h *LayoutHandlers) UpsertElementPosition(w http.ResponseWriter, r *http.Re
 // @Failure 400 {object} sharedAPI.ErrorResponse "Invalid path parameters"
 // @Failure 404 {object} sharedAPI.ErrorResponse "Layout not found"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/layouts/{contextType}/{contextRef}/elements/{elementId} [delete]
+// @Router /layouts/{contextType}/{contextRef}/elements/{elementId} [delete]
 func (h *LayoutHandlers) DeleteElementPosition(w http.ResponseWriter, r *http.Request) {
 	contextType, contextRef, err := h.getPathParams(r)
 	if err != nil {
@@ -592,7 +592,7 @@ func (h *LayoutHandlers) buildBatchResponse(positions []valueobjects.ElementPosi
 // @Failure 400 {object} sharedAPI.ErrorResponse "Invalid request"
 // @Failure 404 {object} sharedAPI.ErrorResponse "Layout not found"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/layouts/{contextType}/{contextRef}/elements [patch]
+// @Router /layouts/{contextType}/{contextRef}/elements [patch]
 func (h *LayoutHandlers) BatchUpdateElements(w http.ResponseWriter, r *http.Request) {
 	contextType, contextRef, err := h.getPathParams(r)
 	if err != nil {
