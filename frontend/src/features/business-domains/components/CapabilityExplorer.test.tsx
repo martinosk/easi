@@ -1,6 +1,5 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { DndContext } from '@dnd-kit/core';
 import { CapabilityExplorer } from './CapabilityExplorer';
 import type { Capability, CapabilityId } from '../../../api/types';
 
@@ -27,12 +26,8 @@ describe('CapabilityExplorer', () => {
     createCapability('cap-5', 'Order Validation', 'L2', 'cap-4'),
   ];
 
-  const renderWithDnd = (component: React.ReactNode) => {
-    return render(<DndContext>{component}</DndContext>);
-  };
-
   it('should render all L1 capabilities as top-level items', () => {
-    renderWithDnd(
+    render(
       <CapabilityExplorer
         capabilities={mockCapabilities}
         assignedCapabilityIds={new Set()}
@@ -45,7 +40,7 @@ describe('CapabilityExplorer', () => {
   });
 
   it('should render L2 capabilities nested under their L1 parent', () => {
-    renderWithDnd(
+    render(
       <CapabilityExplorer
         capabilities={mockCapabilities}
         assignedCapabilityIds={new Set()}
@@ -58,7 +53,7 @@ describe('CapabilityExplorer', () => {
   });
 
   it('should render L3 capabilities nested under their L2 parent', () => {
-    renderWithDnd(
+    render(
       <CapabilityExplorer
         capabilities={mockCapabilities}
         assignedCapabilityIds={new Set()}
@@ -72,7 +67,7 @@ describe('CapabilityExplorer', () => {
   it('should mark L1 capabilities that are assigned to other domains', () => {
     const assignedIds = new Set<CapabilityId>(['cap-1' as CapabilityId]);
 
-    renderWithDnd(
+    render(
       <CapabilityExplorer
         capabilities={mockCapabilities}
         assignedCapabilityIds={assignedIds}
@@ -85,7 +80,7 @@ describe('CapabilityExplorer', () => {
   });
 
   it('should not show assigned indicator for unassigned L1 capabilities', () => {
-    renderWithDnd(
+    render(
       <CapabilityExplorer
         capabilities={mockCapabilities}
         assignedCapabilityIds={new Set()}
@@ -98,7 +93,7 @@ describe('CapabilityExplorer', () => {
   });
 
   it('should make L1 items draggable', () => {
-    renderWithDnd(
+    render(
       <CapabilityExplorer
         capabilities={mockCapabilities}
         assignedCapabilityIds={new Set()}
@@ -109,10 +104,11 @@ describe('CapabilityExplorer', () => {
     const l1Item = screen.getByTestId('draggable-cap-1');
     expect(l1Item).toBeInTheDocument();
     expect(l1Item).toHaveAttribute('data-draggable', 'true');
+    expect(l1Item).toHaveAttribute('draggable', 'true');
   });
 
   it('should not make non-L1 items draggable', () => {
-    renderWithDnd(
+    render(
       <CapabilityExplorer
         capabilities={mockCapabilities}
         assignedCapabilityIds={new Set()}
@@ -125,7 +121,7 @@ describe('CapabilityExplorer', () => {
   });
 
   it('should display loading state', () => {
-    renderWithDnd(
+    render(
       <CapabilityExplorer
         capabilities={[]}
         assignedCapabilityIds={new Set()}
@@ -137,7 +133,7 @@ describe('CapabilityExplorer', () => {
   });
 
   it('should display empty state when no capabilities', () => {
-    renderWithDnd(
+    render(
       <CapabilityExplorer
         capabilities={[]}
         assignedCapabilityIds={new Set()}
@@ -155,7 +151,7 @@ describe('CapabilityExplorer', () => {
       createCapability('cap-m', 'Middle', 'L1'),
     ];
 
-    renderWithDnd(
+    render(
       <CapabilityExplorer
         capabilities={unsortedCapabilities}
         assignedCapabilityIds={new Set()}
@@ -167,5 +163,18 @@ describe('CapabilityExplorer', () => {
     expect(items[0]).toHaveTextContent('Alpha');
     expect(items[1]).toHaveTextContent('Middle');
     expect(items[2]).toHaveTextContent('Zebra');
+  });
+
+  it('should have cursor grab style on draggable items', () => {
+    render(
+      <CapabilityExplorer
+        capabilities={mockCapabilities}
+        assignedCapabilityIds={new Set()}
+        isLoading={false}
+      />
+    );
+
+    const draggableItem = screen.getByTestId('draggable-cap-1');
+    expect(draggableItem).toHaveStyle({ cursor: 'grab' });
   });
 });

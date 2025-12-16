@@ -8,6 +8,8 @@ interface CapabilityExplorerSidebarProps {
   assignedCapabilityIds: Set<CapabilityId>;
   isLoading: boolean;
   onToggle: () => void;
+  onDragStart?: (capability: Capability) => void;
+  onDragEnd?: () => void;
 }
 
 export function CapabilityExplorerSidebar({
@@ -17,6 +19,8 @@ export function CapabilityExplorerSidebar({
   assignedCapabilityIds,
   isLoading,
   onToggle,
+  onDragStart,
+  onDragEnd,
 }: CapabilityExplorerSidebarProps) {
   if (isCollapsed) {
     return (
@@ -55,6 +59,8 @@ export function CapabilityExplorerSidebar({
             capabilities={capabilities}
             assignedCapabilityIds={assignedCapabilityIds}
             isLoading={isLoading}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
           />
         </div>
       </div>

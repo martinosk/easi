@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { useBusinessDomains } from './useBusinessDomains';
 import { useDomainCapabilities } from './useDomainCapabilities';
 import { useCapabilityTree } from './useCapabilityTree';
@@ -41,14 +40,6 @@ export function useBusinessDomainsPage() {
   });
 
   const { positions, updatePosition } = useGridPositions(visualizedDomain?.id ?? null);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
 
   const capabilitiesLink = visualizedDomain?._links.capabilities;
 
@@ -118,7 +109,6 @@ export function useBusinessDomainsPage() {
     sidebarState,
     dialogManager,
     positions,
-    sensors,
     capabilities,
     capabilitiesLoading,
     filtering,

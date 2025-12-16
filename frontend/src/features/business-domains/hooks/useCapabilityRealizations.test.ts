@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useCapabilityRealizations } from './useCapabilityRealizations';
 import { apiClient } from '../../../api/client';
@@ -320,6 +320,52 @@ describe('useCapabilityRealizations', () => {
 
       expect(result.current.realizations).toHaveLength(2);
       expect(result.current.realizations.every((r) => r.capabilityId === 'cap-l2')).toBe(true);
+    });
+  });
+
+  describe('refetch', () => {
+    it('should re-fetch realizations when refetch is called', async () => {
+      vi.mocked(apiClient.getCapabilityRealizationsByDomain).mockResolvedValue([
+        createGroup('cap-1', 'L1', [createRealization('real-1', 'cap-1', 'Direct')]),
+      ]);
+
+      const { result } = renderHook(() =>
+        useCapabilityRealizations(true, domainId, 4)
+      );
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(apiClient.getCapabilityRealizationsByDomain).toHaveBeenCalledTimes(1);
+
+      vi.mocked(apiClient.getCapabilityRealizationsByDomain).mockResolvedValue([
+        createGroup('cap-1', 'L1', [createRealization('real-1', 'cap-1', 'Direct')]),
+        createGroup('cap-2', 'L1', [createRealization('real-2', 'cap-2', 'Direct')]),
+      ]);
+
+      await act(async () => {
+        await result.current.refetch();
+      });
+
+      await waitFor(() => {
+        expect(result.current.realizations).toHaveLength(2);
+      });
+
+      expect(apiClient.getCapabilityRealizationsByDomain).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not fetch when refetch is called but hook is disabled', async () => {
+      const { result } = renderHook(() =>
+        useCapabilityRealizations(false, domainId, 4)
+      );
+
+      await act(async () => {
+        await result.current.refetch();
+      });
+
+      expect(apiClient.getCapabilityRealizationsByDomain).not.toHaveBeenCalled();
+      expect(result.current.realizations).toEqual([]);
     });
   });
 

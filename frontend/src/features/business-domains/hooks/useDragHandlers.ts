@@ -1,30 +1,10 @@
 import { useCallback, useState } from 'react';
-import { arrayMove } from '@dnd-kit/sortable';
 import toast from 'react-hot-toast';
-import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import type { Capability, CapabilityId, BusinessDomainId } from '../../../api/types';
 
 export interface PendingReassignment {
   capability: Capability;
   newParent: Capability;
-}
-
-const GRID_DROPPABLE_IDS = ['domain-grid-droppable', 'nested-grid-droppable'];
-
-function isGridDropTarget(id: string): boolean {
-  return GRID_DROPPABLE_IDS.includes(id);
-}
-
-function findReassignmentPair(
-  allCapabilities: Capability[],
-  activeId: string,
-  targetId: string
-): PendingReassignment | null {
-  if (activeId === targetId) return null;
-  const draggedCap = allCapabilities.find((c) => c.id === activeId);
-  const targetCap = allCapabilities.find((c) => c.id === targetId);
-  if (!draggedCap || !targetCap) return null;
-  return { capability: draggedCap, newParent: targetCap };
 }
 
 interface UseDragHandlersProps {
@@ -35,116 +15,77 @@ interface UseDragHandlersProps {
   updatePosition: (capabilityId: CapabilityId, x: number, y: number) => Promise<void>;
   associateCapability: (capabilityId: CapabilityId, capability: Capability) => Promise<void>;
   refetchCapabilities: () => Promise<void>;
-  refetchRealizations: () => Promise<void>;
-  allCapabilities?: Capability[];
-  onReassignment?: (reassignment: PendingReassignment) => void;
+  refetchRealizations?: () => Promise<void>;
 }
 
-export function useDragHandlers({
-  domainId,
-  capabilities,
-  assignedCapabilityIds,
-  positions,
-  updatePosition,
-  associateCapability,
-  refetchCapabilities,
-  refetchRealizations,
-  allCapabilities,
-  onReassignment,
-}: UseDragHandlersProps) {
+export function useDragHandlers(props: UseDragHandlersProps) {
   const [activeCapability, setActiveCapability] = useState<Capability | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    const capability = event.active.data.current?.capability as Capability | undefined;
-    if (capability) {
-      setActiveCapability(capability);
-    }
+  const handleDragStart = useCallback((capability: Capability) => {
+    setActiveCapability(capability);
   }, []);
 
-  const handleSortDrag = useCallback(
-    (activeId: string, overId: string): boolean => {
-      const l1Caps = capabilities.filter((c) => c.level === 'L1');
-      const sortedL1Caps = [...l1Caps].sort((a, b) => {
-        const posA = positions[a.id]?.x ?? Infinity;
-        const posB = positions[b.id]?.x ?? Infinity;
-        return posA - posB;
-      });
+  const handleDragEnd = useCallback(() => {
+    setActiveCapability(null);
+    setIsDragOver(false);
+  }, []);
 
-      const oldIndex = sortedL1Caps.findIndex((c) => c.id === activeId);
-      const newIndex = sortedL1Caps.findIndex((c) => c.id === overId);
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setIsDragOver(true);
+  }, []);
 
-      if (oldIndex === -1 || newIndex === -1) return false;
+  const handleDragLeave = useCallback(() => {
+    setIsDragOver(false);
+  }, []);
 
-      const newOrder = arrayMove(sortedL1Caps, oldIndex, newIndex);
-      newOrder.forEach((cap, index) => {
-        updatePosition(cap.id, index, 0);
-      });
-      return true;
-    },
-    [capabilities, positions, updatePosition]
-  );
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
 
-  const handleReassignDrag = useCallback(
-    (activeId: string, overId: string): boolean => {
-      if (!allCapabilities || !onReassignment) return false;
-
-      const pair = findReassignmentPair(allCapabilities, activeId, overId);
-      if (!pair) return false;
-
-      onReassignment(pair);
-      return true;
-    },
-    [allCapabilities, onReassignment]
-  );
-
-  const handleAssociateDrag = useCallback(
-    async (capability: Capability): Promise<boolean> => {
-      if (!domainId || capability.level !== 'L1') return false;
-      if (assignedCapabilityIds.has(capability.id)) return false;
-
-      try {
-        await associateCapability(capability.id, capability);
-        await refetchCapabilities();
-        await refetchRealizations();
-        const currentCount = capabilities.filter((c) => c.level === 'L1').length;
-        await updatePosition(capability.id, currentCount, 0);
-        return true;
-      } catch {
-        toast.error('Failed to assign capability');
-        return false;
-      }
-    },
-    [domainId, assignedCapabilityIds, associateCapability, refetchCapabilities, refetchRealizations, capabilities, updatePosition]
-  );
-
-  const handleDragEnd = useCallback(
-    async (event: DragEndEvent) => {
-      setActiveCapability(null);
-
-      const { active, over } = event;
-      if (!over || !domainId) return;
-
-      const activeId = active.id as string;
-      const overId = over.id as string;
-      const isDifferentTarget = activeId !== overId && !isGridDropTarget(overId);
-
-      if (isDifferentTarget) {
-        if (handleSortDrag(activeId, overId)) return;
-        handleReassignDrag(activeId, overId);
+      const capabilityJson = e.dataTransfer.getData('application/json');
+      if (!capabilityJson || !props.domainId) {
+        setActiveCapability(null);
         return;
       }
 
-      const capability = active.data.current?.capability as Capability | undefined;
-      if (!capability) return;
+      try {
+        const capability = JSON.parse(capabilityJson) as Capability;
 
-      await handleAssociateDrag(capability);
+        if (capability.level !== 'L1') {
+          setActiveCapability(null);
+          return;
+        }
+
+        if (props.assignedCapabilityIds.has(capability.id)) {
+          setActiveCapability(null);
+          return;
+        }
+
+        await props.associateCapability(capability.id, capability);
+        await props.refetchCapabilities();
+        await props.refetchRealizations?.();
+        const currentCount = props.capabilities.filter((c) => c.level === 'L1').length;
+        await props.updatePosition(capability.id, currentCount, 0);
+      } catch {
+        toast.error('Failed to assign capability');
+      } finally {
+        setActiveCapability(null);
+      }
     },
-    [domainId, handleSortDrag, handleReassignDrag, handleAssociateDrag]
+    [props]
   );
 
   return {
     activeCapability,
+    isDragOver,
     handleDragStart,
     handleDragEnd,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
   };
 }

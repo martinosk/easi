@@ -15,6 +15,10 @@ interface VisualizationAreaProps {
   onShowApplicationsChange: (value: boolean) => void;
   getRealizationsForCapability: (capabilityId: CapabilityId) => CapabilityRealization[];
   onApplicationClick: (componentId: ComponentId) => void;
+  isDragOver?: boolean;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDragLeave?: () => void;
+  onDrop?: (e: React.DragEvent) => void;
 }
 
 export function VisualizationArea({
@@ -29,6 +33,10 @@ export function VisualizationArea({
   onShowApplicationsChange,
   getRealizationsForCapability,
   onApplicationClick,
+  isDragOver = false,
+  onDragOver,
+  onDragLeave,
+  onDrop,
 }: VisualizationAreaProps) {
   if (!visualizedDomain) {
     return (
@@ -72,6 +80,10 @@ export function VisualizationArea({
           showApplications={showApplications}
           getRealizationsForCapability={getRealizationsForCapability}
           onApplicationClick={onApplicationClick}
+          isDragOver={isDragOver}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
         />
       </div>
     </main>

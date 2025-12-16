@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { useDraggable } from '@dnd-kit/core';
 import type { Capability, CapabilityId } from '../../../api/types';
 
 interface TreeNode {
@@ -11,6 +10,8 @@ export interface CapabilityExplorerProps {
   capabilities: Capability[];
   assignedCapabilityIds: Set<CapabilityId>;
   isLoading: boolean;
+  onDragStart?: (capability: Capability) => void;
+  onDragEnd?: () => void;
 }
 
 function buildTree(capabilities: Capability[]): TreeNode[] {
@@ -39,28 +40,36 @@ interface DraggableL1ItemProps {
   capability: Capability;
   isAssigned: boolean;
   children: TreeNode[];
+  onDragStart?: (capability: Capability) => void;
+  onDragEnd?: () => void;
 }
 
-function DraggableL1Item({ capability, isAssigned, children }: DraggableL1ItemProps) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: capability.id,
-    data: { capability },
-  });
+function DraggableL1Item({ capability, isAssigned, children, onDragStart, onDragEnd }: DraggableL1ItemProps) {
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    e.dataTransfer.setData('application/json', JSON.stringify(capability));
+    e.dataTransfer.effectAllowed = 'move';
+    onDragStart?.(capability);
+  };
+
+  const handleDragEnd = () => {
+    onDragEnd?.();
+  };
 
   return (
     <div
-      ref={setNodeRef}
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
       data-testid={`draggable-${capability.id}`}
       data-draggable="true"
-      {...listeners}
-      {...attributes}
       style={{
         padding: '0.5rem',
         marginBottom: '0.25rem',
-        backgroundColor: isDragging ? '#e0e7ff' : '#f3f4f6',
+        backgroundColor: '#f3f4f6',
         borderRadius: '0.25rem',
         cursor: 'grab',
-        opacity: isDragging ? 0.5 : 1,
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -81,7 +90,12 @@ function DraggableL1Item({ capability, isAssigned, children }: DraggableL1ItemPr
         )}
       </div>
       {children.length > 0 && (
-        <div style={{ marginLeft: '1rem', marginTop: '0.5rem' }}>
+        <div
+          style={{
+            marginLeft: '1rem',
+            marginTop: '0.5rem',
+          }}
+        >
           {children.map((child) => (
             <CapabilityTreeItem key={child.capability.id} node={child} />
           ))}
@@ -127,6 +141,8 @@ export function CapabilityExplorer({
   capabilities,
   assignedCapabilityIds,
   isLoading,
+  onDragStart,
+  onDragEnd,
 }: CapabilityExplorerProps) {
   const tree = useMemo(() => buildTree(capabilities), [capabilities]);
 
@@ -150,6 +166,8 @@ export function CapabilityExplorer({
           capability={node.capability}
           isAssigned={assignedCapabilityIds.has(node.capability.id)}
           children={node.children}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
         />
       ))}
     </div>

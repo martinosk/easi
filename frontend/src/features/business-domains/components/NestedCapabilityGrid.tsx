@@ -1,7 +1,4 @@
 import { useMemo } from 'react';
-import { useDroppable } from '@dnd-kit/core';
-import { SortableContext, useSortable, rectSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import type { Capability, CapabilityId, CapabilityRealization, ComponentId, Position } from '../../../api/types';
 import type { DepthLevel } from './DepthSelector';
 import { ApplicationChipList } from './ApplicationChipList';
@@ -21,6 +18,17 @@ const LEVEL_SIZES = {
   L4: { minHeight: '50px', padding: '0.375rem' },
 };
 
+const GRID_COLUMNS = {
+  L1: 'repeat(auto-fill, minmax(150px, 1fr))',
+  L2: 'repeat(auto-fill, minmax(120px, 1fr))',
+  L3: 'repeat(auto-fill, minmax(100px, 1fr))',
+  L4: 'repeat(auto-fill, minmax(100px, 1fr))',
+};
+
+function getGridColumns(level: Capability['level']): string {
+  return GRID_COLUMNS[level] || GRID_COLUMNS.L3;
+}
+
 export interface PositionMap {
   [capabilityId: string]: Position;
 }
@@ -33,6 +41,10 @@ export interface NestedCapabilityGridProps {
   showApplications?: boolean;
   getRealizationsForCapability?: (capabilityId: CapabilityId) => CapabilityRealization[];
   onApplicationClick?: (componentId: ComponentId) => void;
+  isDragOver?: boolean;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDragLeave?: () => void;
+  onDrop?: (e: React.DragEvent) => void;
 }
 
 interface CapabilityNode {
@@ -68,127 +80,148 @@ function levelToNumber(level: Capability['level']): number {
   return parseInt(level.substring(1), 10);
 }
 
+function compareNodesByPosition(
+  a: CapabilityNode,
+  b: CapabilityNode,
+  positions: PositionMap
+): number {
+  const posA = positions[a.capability.id];
+  const posB = positions[b.capability.id];
+
+  if (posA && posB) {
+    if (posA.y !== posB.y) return posA.y - posB.y;
+    return posA.x - posB.x;
+  }
+  if (posA) return -1;
+  if (posB) return 1;
+  return a.capability.name.localeCompare(b.capability.name);
+}
+
 interface NestedCapabilityItemProps {
   node: CapabilityNode;
   depth: DepthLevel;
   onClick: (capability: Capability) => void;
-  sortable?: boolean;
   showApplications?: boolean;
   getRealizationsForCapability?: (capabilityId: CapabilityId) => CapabilityRealization[];
   onApplicationClick?: (componentId: ComponentId) => void;
+}
+
+interface ChildrenGridProps {
+  children: CapabilityNode[];
+  level: Capability['level'];
+  depth: DepthLevel;
+  onClick: (capability: Capability) => void;
+  showApplications: boolean;
+  getRealizationsForCapability?: (capabilityId: CapabilityId) => CapabilityRealization[];
+  onApplicationClick?: (componentId: ComponentId) => void;
+}
+
+function ChildrenGrid({
+  children,
+  level,
+  depth,
+  onClick,
+  showApplications,
+  getRealizationsForCapability,
+  onApplicationClick,
+}: ChildrenGridProps) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: getGridColumns(level),
+        gap: '0.5rem',
+        flex: 1,
+        overflow: 'auto',
+      }}
+    >
+      {children.map((child) => (
+        <NestedCapabilityItem
+          key={child.capability.id}
+          node={child}
+          depth={depth}
+          onClick={onClick}
+          showApplications={showApplications}
+          getRealizationsForCapability={getRealizationsForCapability}
+          onApplicationClick={onApplicationClick}
+        />
+      ))}
+    </div>
+  );
+}
+
+function getVisibleChildren(children: CapabilityNode[], depth: DepthLevel): CapabilityNode[] {
+  return children.filter((child) => levelToNumber(child.capability.level) <= depth);
+}
+
+function getCapabilityRealizations(
+  showApplications: boolean,
+  getRealizationsForCapability: ((id: CapabilityId) => CapabilityRealization[]) | undefined,
+  capabilityId: CapabilityId
+): CapabilityRealization[] {
+  if (!showApplications || !getRealizationsForCapability) return [];
+  return getRealizationsForCapability(capabilityId);
 }
 
 function NestedCapabilityItem({
   node,
   depth,
   onClick,
-  sortable = false,
   showApplications = false,
   getRealizationsForCapability,
   onApplicationClick,
 }: NestedCapabilityItemProps) {
   const { capability, children } = node;
-  const level = capability.level;
-  const color = LEVEL_COLORS[level];
-  const sizes = LEVEL_SIZES[level];
-  const realizations = showApplications && getRealizationsForCapability
-    ? getRealizationsForCapability(capability.id)
-    : [];
+  const realizations = getCapabilityRealizations(showApplications, getRealizationsForCapability, capability.id);
+  const visibleChildren = getVisibleChildren(children, depth);
+  const hasContent = visibleChildren.length > 0 || realizations.length > 0;
+  const sizes = LEVEL_SIZES[capability.level];
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: capability.id, disabled: !sortable });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    backgroundColor: color,
-    color: 'white',
-    padding: sizes.padding,
-    borderRadius: '0.5rem',
-    minHeight: sizes.minHeight,
-    opacity: isDragging ? 0.5 : 1,
-    cursor: sortable ? 'grab' : 'pointer',
-    display: 'flex',
-    flexDirection: 'column' as const,
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onClick(capability);
   };
 
-  const visibleChildren = children.filter((child) => {
-    const childLevel = levelToNumber(child.capability.level);
-    return childLevel <= depth;
-  });
+  const showRealizations = realizations.length > 0 && onApplicationClick;
 
   return (
     <div
-      ref={setNodeRef}
       className="capability-item"
       data-testid={`capability-${capability.id}`}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick(capability);
+      onClick={handleClick}
+      style={{
+        backgroundColor: LEVEL_COLORS[capability.level],
+        color: 'white',
+        padding: sizes.padding,
+        borderRadius: '0.5rem',
+        minHeight: sizes.minHeight,
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column',
       }}
-      style={style}
-      {...(sortable ? { ...attributes, ...listeners } : {})}
     >
-      <div style={{ fontWeight: 500, marginBottom: (visibleChildren.length > 0 || realizations.length > 0) ? '0.5rem' : 0 }}>
+      <div style={{ fontWeight: 500, marginBottom: hasContent ? '0.5rem' : 0 }}>
         {capability.name}
       </div>
 
-      {showApplications && realizations.length > 0 && onApplicationClick && (
+      {showRealizations && (
         <div style={{ marginBottom: visibleChildren.length > 0 ? '0.5rem' : 0 }}>
-          <ApplicationChipList
-            realizations={realizations}
-            onApplicationClick={onApplicationClick}
-          />
+          <ApplicationChipList realizations={realizations} onApplicationClick={onApplicationClick!} />
         </div>
       )}
 
       {visibleChildren.length > 0 && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: level === 'L1' ? 'repeat(auto-fill, minmax(150px, 1fr))' :
-                                level === 'L2' ? 'repeat(auto-fill, minmax(120px, 1fr))' :
-                                'repeat(auto-fill, minmax(100px, 1fr))',
-            gap: '0.5rem',
-            flex: 1,
-            overflow: 'auto',
-          }}
-        >
-          {visibleChildren.map((child) => (
-            <NestedCapabilityItem
-              key={child.capability.id}
-              node={child}
-              depth={depth}
-              onClick={onClick}
-              showApplications={showApplications}
-              getRealizationsForCapability={getRealizationsForCapability}
-              onApplicationClick={onApplicationClick}
-            />
-          ))}
-        </div>
+        <ChildrenGrid
+          children={visibleChildren}
+          level={capability.level}
+          depth={depth}
+          onClick={onClick}
+          showApplications={showApplications}
+          getRealizationsForCapability={getRealizationsForCapability}
+          onApplicationClick={onApplicationClick}
+        />
       )}
     </div>
-  );
-}
-
-interface ConditionalSortableWrapperProps {
-  enabled: boolean;
-  ids: string[];
-  children: React.ReactNode;
-}
-
-function ConditionalSortableWrapper({ enabled, ids, children }: ConditionalSortableWrapperProps) {
-  if (!enabled) return <>{children}</>;
-  return (
-    <SortableContext items={ids} strategy={rectSortingStrategy}>
-      {children}
-    </SortableContext>
   );
 }
 
@@ -200,73 +233,54 @@ export function NestedCapabilityGrid({
   showApplications = false,
   getRealizationsForCapability,
   onApplicationClick,
+  isDragOver = false,
+  onDragOver,
+  onDragLeave,
+  onDrop,
 }: NestedCapabilityGridProps) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: 'nested-grid-droppable',
-  });
-
   const tree = useMemo(() => buildTree(capabilities), [capabilities]);
 
   const sortedTree = useMemo(() => {
     if (positions && Object.keys(positions).length > 0) {
-      return [...tree].sort((a, b) => {
-        const posA = positions[a.capability.id];
-        const posB = positions[b.capability.id];
-
-        if (posA && posB) {
-          if (posA.y !== posB.y) return posA.y - posB.y;
-          return posA.x - posB.x;
-        }
-        if (posA) return -1;
-        if (posB) return 1;
-        return a.capability.name.localeCompare(b.capability.name);
-      });
+      return [...tree].sort((a, b) => compareNodesByPosition(a, b, positions));
     }
     return tree;
   }, [tree, positions]);
 
-  const sortableIds = useMemo(
-    () => sortedTree.map((n) => n.capability.id),
-    [sortedTree]
-  );
-
-  const hasSortablePositions = !!(positions && Object.keys(positions).length > 0);
-
   return (
     <div
-      ref={setNodeRef}
       className="nested-capability-grid"
-      data-dnd-context="true"
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
       style={{
         minHeight: '200px',
-        border: isOver ? '2px dashed #3b82f6' : '2px dashed transparent',
+        border: isDragOver ? '2px dashed #3b82f6' : '2px dashed transparent',
         borderRadius: '0.5rem',
-        transition: 'border-color 0.2s',
+        transition: 'border-color 0.2s, background-color 0.2s',
+        backgroundColor: isDragOver ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
       }}
     >
-      <ConditionalSortableWrapper enabled={hasSortablePositions} ids={sortableIds}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-            gap: '1rem',
-            padding: '1rem',
-          }}
-        >
-          {sortedTree.map((node) => (
-            <NestedCapabilityItem
-              key={node.capability.id}
-              node={node}
-              depth={depth}
-              onClick={onCapabilityClick}
-              sortable={hasSortablePositions}
-              showApplications={showApplications}
-              getRealizationsForCapability={getRealizationsForCapability}
-              onApplicationClick={onApplicationClick}
-            />
-          ))}
-        </div>
-      </ConditionalSortableWrapper>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+          gap: '1rem',
+          padding: '1rem',
+        }}
+      >
+        {sortedTree.map((node) => (
+          <NestedCapabilityItem
+            key={node.capability.id}
+            node={node}
+            depth={depth}
+            onClick={onCapabilityClick}
+            showApplications={showApplications}
+            getRealizationsForCapability={getRealizationsForCapability}
+            onApplicationClick={onApplicationClick}
+          />
+        ))}
+      </div>
     </div>
   );
 }
