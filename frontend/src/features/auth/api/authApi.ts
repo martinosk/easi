@@ -25,7 +25,7 @@ class AuthApiClient {
   async initiateLogin(email: string): Promise<InitiateLoginResponse> {
     try {
       const response = await axios.post<InitiateLoginResponse>(
-        `${this.baseURL}/auth/sessions`,
+        `${this.baseURL}/api/v1/auth/sessions`,
         { email } as InitiateLoginRequest,
         { headers: { 'Content-Type': 'application/json' }, withCredentials: true }
       );
@@ -40,7 +40,7 @@ class AuthApiClient {
 
   async getCurrentSession(): Promise<CurrentSessionResponse> {
     const response = await axios.get<CurrentSessionResponse>(
-      `${this.baseURL}/auth/sessions/current`,
+      `${this.baseURL}/api/v1/auth/sessions/current`,
       { withCredentials: true }
     );
     return response.data;
@@ -48,7 +48,7 @@ class AuthApiClient {
 
   async logout(): Promise<void> {
     await axios.delete(
-      `${this.baseURL}/auth/sessions/current`,
+      `${this.baseURL}/api/v1/auth/sessions/current`,
       { withCredentials: true }
     );
   }

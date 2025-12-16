@@ -140,7 +140,7 @@ func TestCreateTenant_Integration(t *testing.T) {
 	w := ctx.makeRequest("POST", "/tenants", body, router)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
-	assert.Contains(t, w.Header().Get("Location"), "/api/platform/v1/tenants/"+tenantID)
+	assert.Contains(t, w.Header().Get("Location"), "/api/v1/platform/tenants/"+tenantID)
 
 	var response TenantResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)

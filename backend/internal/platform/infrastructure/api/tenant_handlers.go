@@ -113,7 +113,7 @@ type TenantListItem struct {
 // @Failure 400 {object} sharedAPI.ErrorResponse "Invalid request or validation error"
 // @Failure 409 {object} sharedAPI.ErrorResponse "Tenant or domain already exists"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/platform/v1/tenants [post]
+// @Router /platform/tenants [post]
 func (h *TenantHandlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
 	var req CreateTenantRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -151,7 +151,7 @@ func (h *TenantHandlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
 
 	response := h.mapRecordToResponse(r.Context(), record)
 
-	location := fmt.Sprintf("/api/platform/v1/tenants/%s", req.ID)
+	location := fmt.Sprintf("/api/v1/platform/tenants/%s", req.ID)
 	w.Header().Set("Location", location)
 	sharedAPI.RespondJSON(w, http.StatusCreated, response)
 }
@@ -165,7 +165,7 @@ func (h *TenantHandlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} TenantResponse "Tenant details"
 // @Failure 404 {object} sharedAPI.ErrorResponse "Tenant not found"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/platform/v1/tenants/{id} [get]
+// @Router /platform/tenants/{id} [get]
 func (h *TenantHandlers) GetTenantByID(w http.ResponseWriter, r *http.Request) {
 	tenantID := chi.URLParam(r, "id")
 
@@ -173,8 +173,8 @@ func (h *TenantHandlers) GetTenantByID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, repositories.ErrTenantNotFound) {
 			sharedAPI.RespondErrorWithLinks(w, http.StatusNotFound, err, "Tenant not found", map[string]sharedAPI.Link{
-				"list":   {Href: "/api/platform/v1/tenants"},
-				"create": {Href: "/api/platform/v1/tenants", Method: "POST"},
+				"list":   {Href: "/api/v1/platform/tenants"},
+				"create": {Href: "/api/v1/platform/tenants", Method: "POST"},
 			})
 			return
 		}
@@ -195,7 +195,7 @@ func (h *TenantHandlers) GetTenantByID(w http.ResponseWriter, r *http.Request) {
 // @Param domain query string false "Filter by email domain"
 // @Success 200 {object} sharedAPI.CollectionResponse{data=[]TenantListItem} "List of tenants"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/platform/v1/tenants [get]
+// @Router /platform/tenants [get]
 func (h *TenantHandlers) ListTenants(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	domain := r.URL.Query().Get("domain")
@@ -215,13 +215,13 @@ func (h *TenantHandlers) ListTenants(w http.ResponseWriter, r *http.Request) {
 			Domains:   record.Domains,
 			CreatedAt: record.CreatedAt,
 			Links: map[string]sharedAPI.Link{
-				"self": {Href: fmt.Sprintf("/api/platform/v1/tenants/%s", record.ID)},
+				"self": {Href: fmt.Sprintf("/api/v1/platform/tenants/%s", record.ID)},
 			},
 		}
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, items, map[string]string{
-		"self": "/api/platform/v1/tenants",
+		"self": "/api/v1/platform/tenants",
 	})
 }
 
@@ -233,7 +233,7 @@ func (h *TenantHandlers) mapRecordToResponse(ctx context.Context, record *reposi
 		warnings = append(warnings, "OIDC secret not provisioned")
 	}
 
-	basePath := fmt.Sprintf("/api/platform/v1/tenants/%s", record.ID)
+	basePath := fmt.Sprintf("/api/v1/platform/tenants/%s", record.ID)
 	return TenantResponse{
 		ID:      record.ID,
 		Name:    record.Name,

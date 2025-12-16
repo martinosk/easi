@@ -58,7 +58,7 @@ func SetupAuthDependencies(db *sql.DB) (*AuthDependencies, error) {
 
 func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies) error {
 	if config.IsAuthBypassed() {
-		r.Route("/auth", func(r chi.Router) {
+		r.Route("/api/v1/auth", func(r chi.Router) {
 			r.Get("/sessions/current", handleBypassSession)
 			r.Delete("/sessions/current", func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusNoContent)
@@ -74,7 +74,7 @@ func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies) error {
 
 	redirectURL := os.Getenv("OIDC_REDIRECT_URL")
 	if redirectURL == "" {
-		redirectURL = "http://localhost:8080/auth/callback"
+		redirectURL = "http://localhost:8080/api/v1/auth/callback"
 	}
 
 	allowedOriginsStr := os.Getenv("ALLOWED_ORIGINS")
@@ -99,7 +99,7 @@ func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies) error {
 	tenantRepo := NewTenantRepositoryAdapter(repositories.NewTenantRepository(db))
 	sessionHandlers := NewSessionHandlers(deps.SessionManager, userRepo, tenantRepo)
 
-	r.Route("/auth", func(r chi.Router) {
+	r.Route("/api/v1/auth", func(r chi.Router) {
 		r.Post("/sessions", authHandlers.PostSessions)
 		r.Get("/callback", authHandlers.GetCallback)
 		r.Get("/sessions/current", sessionHandlers.GetCurrentSession)
@@ -200,8 +200,8 @@ func handleBypassSession(w http.ResponseWriter, r *http.Request) {
 		},
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 		Links: map[string]string{
-			"self":   "/auth/sessions/current",
-			"logout": "/auth/sessions/current",
+			"self":   "/api/v1/auth/sessions/current",
+			"logout": "/api/v1/auth/sessions/current",
 		},
 	}
 	sharedAPI.RespondJSON(w, http.StatusOK, response)

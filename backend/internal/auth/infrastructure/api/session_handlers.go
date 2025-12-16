@@ -124,8 +124,8 @@ func (h *SessionHandlers) GetCurrentSession(w http.ResponseWriter, r *http.Reque
 		},
 		ExpiresAt: authSession.TokenExpiry(),
 		Links: map[string]string{
-			"self":   "/auth/sessions/current",
-			"logout": "/auth/sessions/current",
+			"self":   "/api/v1/auth/sessions/current",
+			"logout": "/api/v1/auth/sessions/current",
 			"user":   fmt.Sprintf("/api/v1/users/%s", user.ID),
 			"tenant": "/api/v1/tenants/current",
 		},

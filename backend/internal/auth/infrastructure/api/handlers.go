@@ -98,7 +98,7 @@ func (h *AuthHandlers) PostSessions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sharedAPI.RespondJSON(w, http.StatusOK, PostSessionsResponse{
-		Links: map[string]string{"self": "/auth/sessions", "authorize": authURL},
+		Links: map[string]string{"self": "/api/v1/auth/sessions", "authorize": authURL},
 	})
 }
 

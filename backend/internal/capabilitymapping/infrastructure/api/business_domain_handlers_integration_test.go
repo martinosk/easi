@@ -781,7 +781,7 @@ func TestGetCapabilityRealizationsByDomain_Integration(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	var response sharedAPI.CollectionResponse
-	err = json.NewDecoder(w.Body).Decode(&response)
+	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
 
 	dataBytes, _ := json.Marshal(response.Data)

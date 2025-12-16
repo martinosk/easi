@@ -54,7 +54,7 @@ type CreateInvitationRequest struct {
 // @Failure 400 {object} sharedAPI.ErrorResponse "Invalid email format or role"
 // @Failure 409 {object} sharedAPI.ErrorResponse "Pending invitation already exists for this email"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/invitations [post]
+// @Router /invitations [post]
 func (h *InvitationHandlers) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 	req, err := h.parseRequest(r)
 	if err != nil {
@@ -127,7 +127,7 @@ func (h *InvitationHandlers) respondCreated(w http.ResponseWriter, r *http.Reque
 // @Success 200 {object} sharedAPI.PaginatedResponse{data=[]readmodels.InvitationDTO} "Paginated list of invitations"
 // @Failure 400 {object} sharedAPI.ErrorResponse "Invalid pagination cursor"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/invitations [get]
+// @Router /invitations [get]
 func (h *InvitationHandlers) GetAllInvitations(w http.ResponseWriter, r *http.Request) {
 	params := sharedAPI.ParsePaginationParams(r)
 
@@ -175,7 +175,7 @@ func (h *InvitationHandlers) addLinksToInvitations(invitations []readmodels.Invi
 // @Success 200 {object} readmodels.InvitationDTO "Invitation details with HATEOAS links"
 // @Failure 404 {object} sharedAPI.ErrorResponse "Invitation not found"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/invitations/{id} [get]
+// @Router /invitations/{id} [get]
 func (h *InvitationHandlers) GetInvitationByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
@@ -203,7 +203,7 @@ func (h *InvitationHandlers) GetInvitationByID(w http.ResponseWriter, r *http.Re
 // @Failure 404 {object} sharedAPI.ErrorResponse "Invitation not found"
 // @Failure 409 {object} sharedAPI.ErrorResponse "Invitation already revoked or not pending"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /api/v1/invitations/{id} [delete]
+// @Router /invitations/{id}/revoke [post]
 func (h *InvitationHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	cmd := &commands.RevokeInvitation{ID: id}
