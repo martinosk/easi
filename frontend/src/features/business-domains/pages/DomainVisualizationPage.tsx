@@ -1,14 +1,11 @@
-import { useState, useMemo } from 'react';
-import { useBusinessDomains } from '../hooks/useBusinessDomains';
-import { useDomainCapabilities } from '../hooks/useDomainCapabilities';
-import { useCapabilityTree } from '../hooks/useCapabilityTree';
-import { useGridPositions } from '../hooks/useGridPositions';
+import { useDomainVisualization } from '../hooks/useDomainVisualization';
 import { useDragHandlers } from '../hooks/useDragHandlers';
 import { DomainFilter } from '../components/DomainFilter';
 import { NestedCapabilityGrid } from '../components/NestedCapabilityGrid';
 import { DepthSelector, type DepthLevel } from '../components/DepthSelector';
 import { CapabilityExplorer } from '../components/CapabilityExplorer';
-import { usePersistedDepth } from '../hooks/usePersistedDepth';
+import { ContextMenu } from '../../../components/shared/ContextMenu';
+import { DeleteCapabilityDialog } from '../../capabilities/components/DeleteCapabilityDialog';
 import type { BusinessDomain, BusinessDomainId, Capability, CapabilityId } from '../../../api/types';
 
 interface DomainVisualizationPageProps {
@@ -53,7 +50,9 @@ interface MainContentProps {
   setDepth: (depth: DepthLevel) => void;
   positions: Record<CapabilityId, { x: number; y: number }>;
   dragHandlers: ReturnType<typeof useDragHandlers>;
-  onCapabilityClick: (capability: Capability) => void;
+  onCapabilityClick: (capability: Capability, event: React.MouseEvent) => void;
+  onCapabilityContextMenu: (capability: Capability, event: React.MouseEvent) => void;
+  selectedCapabilities: Set<CapabilityId>;
 }
 
 function MainContent({
@@ -66,14 +65,14 @@ function MainContent({
   positions,
   dragHandlers,
   onCapabilityClick,
+  onCapabilityContextMenu,
+  selectedCapabilities,
 }: MainContentProps) {
   if (!selectedDomainId) {
     return (
       <div style={{ textAlign: 'center', marginTop: '4rem' }}>
         <h1>Grid Visualization</h1>
-        <p style={{ color: '#6b7280', marginTop: '1rem' }}>
-          Select a domain from the left sidebar
-        </p>
+        <p style={{ color: '#6b7280', marginTop: '1rem' }}>Select a domain from the left sidebar</p>
       </div>
     );
   }
@@ -92,59 +91,22 @@ function MainContent({
         capabilities={capabilities}
         depth={depth}
         onCapabilityClick={onCapabilityClick}
+        onContextMenu={onCapabilityContextMenu}
         positions={positions}
         isDragOver={dragHandlers.isDragOver}
         onDragOver={dragHandlers.handleDragOver}
         onDragLeave={dragHandlers.handleDragLeave}
         onDrop={dragHandlers.handleDrop}
+        selectedCapabilities={selectedCapabilities}
       />
     </div>
   );
 }
 
 export function DomainVisualizationPage({ initialDomainId }: DomainVisualizationPageProps) {
-  const [selectedDomainId, setSelectedDomainId] = useState<BusinessDomainId | null>(initialDomainId ?? null);
-  const [selectedCapability, setSelectedCapability] = useState<Capability | null>(null);
-  const [depth, setDepth] = usePersistedDepth();
-  const { domains, isLoading: domainsLoading } = useBusinessDomains();
-  const { tree, isLoading: treeLoading } = useCapabilityTree();
-  const { positions, updatePosition } = useGridPositions(selectedDomainId);
+  const state = useDomainVisualization(initialDomainId);
 
-  const allCapabilities = useMemo(() => {
-    const flatten = (nodes: typeof tree): Capability[] => {
-      return nodes.flatMap((node) => [node.capability, ...flatten(node.children)]);
-    };
-    return flatten(tree);
-  }, [tree]);
-
-  const selectedDomain = useMemo(
-    () => domains.find((d) => d.id === selectedDomainId),
-    [domains, selectedDomainId]
-  );
-
-  const {
-    capabilities,
-    isLoading: capabilitiesLoading,
-    associateCapability,
-    refetch: refetchCapabilities,
-  } = useDomainCapabilities(selectedDomain?._links.capabilities);
-
-  const assignedCapabilityIds = useMemo(
-    () => new Set<CapabilityId>(capabilities.map((c) => c.id)),
-    [capabilities]
-  );
-
-  const dragHandlers = useDragHandlers({
-    domainId: selectedDomainId,
-    capabilities,
-    assignedCapabilityIds,
-    positions,
-    updatePosition,
-    associateCapability,
-    refetchCapabilities,
-  });
-
-  if (domainsLoading) {
+  if (state.domainsLoading) {
     return (
       <div className="page-container">
         <div className="loading-message">Loading domains...</div>
@@ -156,24 +118,22 @@ export function DomainVisualizationPage({ initialDomainId }: DomainVisualization
     <div className="visualization-container" style={{ display: 'flex', height: '100vh' }}>
       <aside style={{ width: '250px', borderRight: '1px solid #e5e7eb', padding: '1rem' }}>
         <h2 style={{ marginBottom: '1rem' }}>Business Domains</h2>
-        <DomainFilter
-          domains={domains}
-          selected={selectedDomainId}
-          onSelect={(id) => { setSelectedDomainId(id); setSelectedCapability(null); }}
-        />
+        <DomainFilter domains={state.domains} selected={state.selectedDomainId} onSelect={state.handleDomainSelect} />
       </aside>
 
       <main style={{ flex: 1, padding: '1rem', overflow: 'auto' }}>
         <MainContent
-          selectedDomainId={selectedDomainId}
-          selectedDomain={selectedDomain}
-          capabilitiesLoading={capabilitiesLoading}
-          capabilities={capabilities}
-          depth={depth}
-          setDepth={setDepth}
-          positions={positions}
-          dragHandlers={dragHandlers}
-          onCapabilityClick={setSelectedCapability}
+          selectedDomainId={state.selectedDomainId}
+          selectedDomain={state.selectedDomain}
+          capabilitiesLoading={state.capabilitiesLoading}
+          capabilities={state.capabilities}
+          depth={state.depth}
+          setDepth={state.setDepth}
+          positions={state.positions}
+          dragHandlers={state.dragHandlers}
+          onCapabilityClick={state.handleCapabilityClick}
+          onCapabilityContextMenu={state.handleCapabilityContextMenu}
+          selectedCapabilities={state.selectedCapabilities}
         />
       </main>
 
@@ -183,20 +143,34 @@ export function DomainVisualizationPage({ initialDomainId }: DomainVisualization
           Drag L1 capabilities to the grid to assign them to the selected domain
         </p>
         <CapabilityExplorer
-          capabilities={allCapabilities}
-          assignedCapabilityIds={assignedCapabilityIds}
-          isLoading={treeLoading}
-          onDragStart={dragHandlers.handleDragStart}
-          onDragEnd={dragHandlers.handleDragEnd}
+          capabilities={state.allCapabilities}
+          assignedCapabilityIds={state.assignedCapabilityIds}
+          isLoading={state.treeLoading}
+          onDragStart={state.dragHandlers.handleDragStart}
+          onDragEnd={state.dragHandlers.handleDragEnd}
         />
       </aside>
 
-      {selectedCapability && (
-        <CapabilityDetailPanel
-          capability={selectedCapability}
-          onClose={() => setSelectedCapability(null)}
+      {state.selectedCapability && (
+        <CapabilityDetailPanel capability={state.selectedCapability} onClose={state.closeCapabilityDetails} />
+      )}
+
+      {state.contextMenu && (
+        <ContextMenu
+          x={state.contextMenu.x}
+          y={state.contextMenu.y}
+          items={state.contextMenuItems}
+          onClose={state.closeContextMenu}
         />
       )}
+
+      <DeleteCapabilityDialog
+        isOpen={state.capabilityToDelete !== null}
+        onClose={state.closeDeleteDialog}
+        capability={state.capabilityToDelete}
+        onConfirm={state.handleDeleteConfirm}
+        capabilitiesToDelete={state.capabilitiesToDelete}
+      />
     </div>
   );
 }

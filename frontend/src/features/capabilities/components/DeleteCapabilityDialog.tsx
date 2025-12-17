@@ -7,6 +7,7 @@ interface DeleteCapabilityDialogProps {
   onClose: () => void;
   capability: Capability | null;
   onConfirm?: () => void;
+  capabilitiesToDelete?: Capability[];
 }
 
 export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
@@ -14,6 +15,7 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
   onClose,
   capability,
   onConfirm,
+  capabilitiesToDelete = [],
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
@@ -44,7 +46,8 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
     setBackendError(null);
 
     try {
-      await deleteCapability(capability.id);
+      const capsToDelete = capabilitiesToDelete.length > 0 ? capabilitiesToDelete : [capability];
+      await Promise.all(capsToDelete.map(cap => deleteCapability(cap.id)));
       onConfirm?.();
       handleClose();
     } catch (err) {
@@ -69,6 +72,9 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
 
   if (!capability) return null;
 
+  const isMultiDelete = capabilitiesToDelete.length > 1;
+  const deleteCount = capabilitiesToDelete.length > 0 ? capabilitiesToDelete.length : 1;
+
   return (
     <dialog
       ref={dialogRef}
@@ -79,8 +85,16 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
       <div className="dialog-content">
         <h2 className="dialog-title">Delete Capability?</h2>
 
-        <p>Are you sure you want to delete</p>
-        <p className="dialog-item-name">"{capability.name}"</p>
+        {isMultiDelete ? (
+          <>
+            <p>Are you sure you want to delete {deleteCount} capabilities?</p>
+          </>
+        ) : (
+          <>
+            <p>Are you sure you want to delete</p>
+            <p className="dialog-item-name">"{capability.name}"</p>
+          </>
+        )}
         <p className="dialog-warning">This action cannot be undone.</p>
 
         {backendError && (

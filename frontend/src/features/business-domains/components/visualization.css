@@ -12,6 +12,11 @@
   transform: translateY(0);
 }
 
+.capability-item.selected {
+  border: 3px solid #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
 .nested-children {
   transition: opacity 0.2s ease, max-height 0.3s ease;
 }

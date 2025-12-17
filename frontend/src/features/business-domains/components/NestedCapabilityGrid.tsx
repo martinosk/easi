@@ -36,7 +36,8 @@ export interface PositionMap {
 export interface NestedCapabilityGridProps {
   capabilities: Capability[];
   depth: DepthLevel;
-  onCapabilityClick: (capability: Capability) => void;
+  onCapabilityClick: (capability: Capability, event: React.MouseEvent) => void;
+  onContextMenu?: (capability: Capability, event: React.MouseEvent) => void;
   positions?: PositionMap;
   showApplications?: boolean;
   getRealizationsForCapability?: (capabilityId: CapabilityId) => CapabilityRealization[];
@@ -45,6 +46,7 @@ export interface NestedCapabilityGridProps {
   onDragOver?: (e: React.DragEvent) => void;
   onDragLeave?: () => void;
   onDrop?: (e: React.DragEvent) => void;
+  selectedCapabilities?: Set<CapabilityId>;
 }
 
 interface CapabilityNode {
@@ -100,20 +102,24 @@ function compareNodesByPosition(
 interface NestedCapabilityItemProps {
   node: CapabilityNode;
   depth: DepthLevel;
-  onClick: (capability: Capability) => void;
+  onClick: (capability: Capability, event: React.MouseEvent) => void;
+  onContextMenu?: (capability: Capability, event: React.MouseEvent) => void;
   showApplications?: boolean;
   getRealizationsForCapability?: (capabilityId: CapabilityId) => CapabilityRealization[];
   onApplicationClick?: (componentId: ComponentId) => void;
+  selectedCapabilities?: Set<CapabilityId>;
 }
 
 interface ChildrenGridProps {
   children: CapabilityNode[];
   level: Capability['level'];
   depth: DepthLevel;
-  onClick: (capability: Capability) => void;
+  onClick: (capability: Capability, event: React.MouseEvent) => void;
+  onContextMenu?: (capability: Capability, event: React.MouseEvent) => void;
   showApplications: boolean;
   getRealizationsForCapability?: (capabilityId: CapabilityId) => CapabilityRealization[];
   onApplicationClick?: (componentId: ComponentId) => void;
+  selectedCapabilities?: Set<CapabilityId>;
 }
 
 function ChildrenGrid({
@@ -121,9 +127,11 @@ function ChildrenGrid({
   level,
   depth,
   onClick,
+  onContextMenu,
   showApplications,
   getRealizationsForCapability,
   onApplicationClick,
+  selectedCapabilities,
 }: ChildrenGridProps) {
   return (
     <div
@@ -141,9 +149,11 @@ function ChildrenGrid({
           node={child}
           depth={depth}
           onClick={onClick}
+          onContextMenu={onContextMenu}
           showApplications={showApplications}
           getRealizationsForCapability={getRealizationsForCapability}
           onApplicationClick={onApplicationClick}
+          selectedCapabilities={selectedCapabilities}
         />
       ))}
     </div>
@@ -163,32 +173,89 @@ function getCapabilityRealizations(
   return getRealizationsForCapability(capabilityId);
 }
 
+function isCapabilitySelected(
+  selectedCapabilities: Set<CapabilityId> | undefined,
+  capabilityId: CapabilityId
+): boolean {
+  return selectedCapabilities?.has(capabilityId) ?? false;
+}
+
+function getSelectionStyles(isSelected: boolean): { border?: string; boxShadow?: string } {
+  if (!isSelected) return {};
+  return {
+    border: '3px solid #2563eb',
+    boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.2)',
+  };
+}
+
+function getClassName(isSelected: boolean): string {
+  return isSelected ? 'capability-item selected' : 'capability-item';
+}
+
 function NestedCapabilityItem({
   node,
   depth,
   onClick,
+  onContextMenu,
   showApplications = false,
   getRealizationsForCapability,
   onApplicationClick,
+  selectedCapabilities,
 }: NestedCapabilityItemProps) {
   const { capability, children } = node;
   const realizations = getCapabilityRealizations(showApplications, getRealizationsForCapability, capability.id);
   const visibleChildren = getVisibleChildren(children, depth);
   const hasContent = visibleChildren.length > 0 || realizations.length > 0;
   const sizes = LEVEL_SIZES[capability.level];
+  const isSelected = isCapabilitySelected(selectedCapabilities, capability.id);
+  const selectionStyles = getSelectionStyles(isSelected);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onClick(capability);
+    onClick(capability, e);
   };
 
-  const showRealizations = realizations.length > 0 && onApplicationClick;
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onContextMenu?.(capability, e);
+  };
+
+  const canShowRealizations = realizations.length > 0 && onApplicationClick;
+
+  const renderRealizations = () => {
+    if (!canShowRealizations) return null;
+    const marginBottom = visibleChildren.length > 0 ? '0.5rem' : 0;
+    return (
+      <div style={{ marginBottom }}>
+        <ApplicationChipList realizations={realizations} onApplicationClick={onApplicationClick!} />
+      </div>
+    );
+  };
+
+  const renderChildren = () => {
+    if (visibleChildren.length === 0) return null;
+    return (
+      <ChildrenGrid
+        children={visibleChildren}
+        level={capability.level}
+        depth={depth}
+        onClick={onClick}
+        onContextMenu={onContextMenu}
+        showApplications={showApplications}
+        getRealizationsForCapability={getRealizationsForCapability}
+        onApplicationClick={onApplicationClick}
+        selectedCapabilities={selectedCapabilities}
+      />
+    );
+  };
 
   return (
     <div
-      className="capability-item"
+      className={getClassName(isSelected)}
       data-testid={`capability-${capability.id}`}
       onClick={handleClick}
+      onContextMenu={handleContextMenu}
       style={{
         backgroundColor: LEVEL_COLORS[capability.level],
         color: 'white',
@@ -198,29 +265,14 @@ function NestedCapabilityItem({
         cursor: 'pointer',
         display: 'flex',
         flexDirection: 'column',
+        ...selectionStyles,
       }}
     >
       <div style={{ fontWeight: 500, marginBottom: hasContent ? '0.5rem' : 0 }}>
         {capability.name}
       </div>
-
-      {showRealizations && (
-        <div style={{ marginBottom: visibleChildren.length > 0 ? '0.5rem' : 0 }}>
-          <ApplicationChipList realizations={realizations} onApplicationClick={onApplicationClick!} />
-        </div>
-      )}
-
-      {visibleChildren.length > 0 && (
-        <ChildrenGrid
-          children={visibleChildren}
-          level={capability.level}
-          depth={depth}
-          onClick={onClick}
-          showApplications={showApplications}
-          getRealizationsForCapability={getRealizationsForCapability}
-          onApplicationClick={onApplicationClick}
-        />
-      )}
+      {renderRealizations()}
+      {renderChildren()}
     </div>
   );
 }
@@ -229,6 +281,7 @@ export function NestedCapabilityGrid({
   capabilities,
   depth,
   onCapabilityClick,
+  onContextMenu,
   positions,
   showApplications = false,
   getRealizationsForCapability,
@@ -237,6 +290,7 @@ export function NestedCapabilityGrid({
   onDragOver,
   onDragLeave,
   onDrop,
+  selectedCapabilities,
 }: NestedCapabilityGridProps) {
   const tree = useMemo(() => buildTree(capabilities), [capabilities]);
 
@@ -275,9 +329,11 @@ export function NestedCapabilityGrid({
             node={node}
             depth={depth}
             onClick={onCapabilityClick}
+            onContextMenu={onContextMenu}
             showApplications={showApplications}
             getRealizationsForCapability={getRealizationsForCapability}
             onApplicationClick={onApplicationClick}
+            selectedCapabilities={selectedCapabilities}
           />
         ))}
       </div>
