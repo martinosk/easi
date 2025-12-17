@@ -37,7 +37,10 @@ export function ApplicationChip({ realization, onClick }: ApplicationChipProps) 
   return (
     <button
       type="button"
-      onClick={() => onClick(realization.componentId)}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick(realization.componentId);
+      }}
       title={tooltipText}
       style={{
         ...REALIZATION_LEVEL_STYLES[realization.realizationLevel],

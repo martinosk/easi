@@ -1,8 +1,7 @@
 import { DomainsSidebar } from '../components/DomainsSidebar';
 import { CapabilityExplorerSidebar } from '../components/CapabilityExplorerSidebar';
 import { VisualizationArea } from '../components/VisualizationArea';
-import { CapabilityDetailSidebar } from '../components/CapabilityDetailSidebar';
-import { ApplicationDetailSidebar } from '../components/ApplicationDetailSidebar';
+import { DetailsSidebar } from '../components/DetailsSidebar';
 import { DomainDialogs } from '../components/DomainDialogs';
 import { PageLoadingStates } from '../components/PageLoadingStates';
 import { ContextMenu } from '../../../components/shared/ContextMenu';
@@ -83,14 +82,11 @@ export function BusinessDomainsPage() {
           onDragEnd={dragHandlers.handleDragEnd}
         />
 
-        <CapabilityDetailSidebar
-          capability={selectedCapability}
-          onClose={clearCapabilityDetails}
-        />
-
-        <ApplicationDetailSidebar
-          componentId={selectedComponentId}
-          onClose={clearSelectedComponent}
+        <DetailsSidebar
+          selectedCapability={selectedCapability}
+          selectedComponentId={selectedComponentId}
+          onCloseCapability={clearCapabilityDetails}
+          onCloseApplication={clearSelectedComponent}
         />
       </div>
 

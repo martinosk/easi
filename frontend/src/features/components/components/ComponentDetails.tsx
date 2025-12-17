@@ -10,6 +10,20 @@ interface ComponentDetailsProps {
   onRemoveFromView?: () => void;
 }
 
+export interface ComponentDetailsContentProps {
+  component: Component;
+  realizations: CapabilityRealization[];
+  capabilities: Capability[];
+  onEdit: (componentId: string) => void;
+  onClose: () => void;
+  componentInView?: ViewComponent;
+  currentView?: View | null;
+  isInCurrentView?: boolean;
+  onRemoveFromView?: () => void;
+  onColorChange?: (color: string) => void;
+  onClearColor?: () => void;
+}
+
 const getLevelBadge = (level: string): string => {
   const badges: Record<string, string> = {
     Full: '100%',
@@ -158,7 +172,7 @@ interface ComponentContentProps {
   onRemoveFromView?: () => void;
 }
 
-const ComponentContent: React.FC<ComponentContentProps> = ({
+const ComponentContentInternal: React.FC<ComponentContentProps> = ({
   component,
   componentInView,
   currentView,
@@ -191,7 +205,7 @@ const ComponentContent: React.FC<ComponentContentProps> = ({
 
       <ReferenceLinkField href={component._links.reference} />
 
-      {componentInView && currentView && (
+      {componentInView && currentView && onColorChange && onClearColor && (
         <ColorPickerField
           componentInView={componentInView}
           colorScheme={currentView.colorScheme || 'maturity'}
@@ -201,6 +215,42 @@ const ComponentContent: React.FC<ComponentContentProps> = ({
       )}
 
       <RealizationsField realizations={realizations} capabilities={capabilities} />
+    </div>
+  );
+};
+
+export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = ({
+  component,
+  realizations,
+  capabilities,
+  onEdit,
+  onClose,
+  componentInView,
+  currentView,
+  isInCurrentView = false,
+  onRemoveFromView,
+  onColorChange,
+  onClearColor,
+}) => {
+  return (
+    <div className="detail-panel">
+      <div className="detail-header">
+        <h3 className="detail-title">Application Details</h3>
+        <button className="detail-close" onClick={onClose} aria-label="Close details">x</button>
+      </div>
+
+      <ComponentContentInternal
+        component={component}
+        componentInView={componentInView}
+        currentView={currentView ?? null}
+        realizations={realizations}
+        capabilities={capabilities}
+        isInCurrentView={isInCurrentView}
+        onColorChange={onColorChange ?? (() => {})}
+        onClearColor={onClearColor ?? (() => {})}
+        onEdit={onEdit}
+        onRemoveFromView={onRemoveFromView}
+      />
     </div>
   );
 };
@@ -242,24 +292,18 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
   };
 
   return (
-    <div className="detail-panel">
-      <div className="detail-header">
-        <h3 className="detail-title">Application Details</h3>
-        <button className="detail-close" onClick={clearSelection} aria-label="Close details">x</button>
-      </div>
-
-      <ComponentContent
-        component={component}
-        componentInView={componentInView}
-        currentView={currentView}
-        realizations={componentRealizations}
-        capabilities={capabilities}
-        isInCurrentView={isInCurrentView}
-        onColorChange={handleColorChange}
-        onClearColor={handleClearColor}
-        onEdit={onEdit}
-        onRemoveFromView={onRemoveFromView}
-      />
-    </div>
+    <ComponentDetailsContent
+      component={component}
+      realizations={componentRealizations}
+      capabilities={capabilities}
+      onEdit={onEdit}
+      onClose={clearSelection}
+      componentInView={componentInView}
+      currentView={currentView}
+      isInCurrentView={isInCurrentView}
+      onRemoveFromView={onRemoveFromView}
+      onColorChange={handleColorChange}
+      onClearColor={handleClearColor}
+    />
   );
 };
