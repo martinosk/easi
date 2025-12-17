@@ -138,7 +138,8 @@ describe('NestedCapabilityGrid', () => {
       screen.getByText('Accounting').click();
 
       expect(onCapabilityClick).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'l2-1', name: 'Accounting' })
+        expect.objectContaining({ id: 'l2-1', name: 'Accounting' }),
+        expect.anything()
       );
     });
   });
