@@ -52,7 +52,7 @@ export function useDomainCapabilities(
   );
 
   const dissociateCapability = useCallback(async (capability: Capability) => {
-    const dissociateLink = capability._links.dissociate;
+    const dissociateLink = capability._links.removeFromDomain;
     if (!dissociateLink) {
       throw new Error('Dissociate link not available');
     }

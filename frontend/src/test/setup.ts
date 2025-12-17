@@ -34,25 +34,6 @@ beforeAll(() => {
       dispatchEvent: () => true,
     }),
   });
-
-  const originalGetComputedStyle = window.getComputedStyle;
-  window.getComputedStyle = function(element: Element) {
-    const styles = originalGetComputedStyle.call(this, element);
-    const htmlElement = element as HTMLElement;
-
-    if (htmlElement.style && htmlElement.style.border) {
-      return new Proxy(styles, {
-        get(target, prop) {
-          if (prop === 'border') {
-            return htmlElement.style.border;
-          }
-          return target[prop as any];
-        }
-      });
-    }
-
-    return styles;
-  };
 });
 
 afterEach(() => {

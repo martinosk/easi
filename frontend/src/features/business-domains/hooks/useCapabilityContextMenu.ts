@@ -10,6 +10,7 @@ interface CapabilityContextMenuState {
 
 interface UseCapabilityContextMenuProps {
   capabilities: Capability[];
+  domainCapabilities: Capability[];
   dissociateCapability: (capability: Capability) => Promise<void>;
   refetch: () => Promise<void>;
   selectedCapabilities: Set<CapabilityId>;
@@ -30,8 +31,28 @@ function findL1Ancestor(capability: Capability, capabilities: Capability[]): Cap
   return current.level === 'L1' ? current : undefined;
 }
 
+function getTargetL1Capabilities(
+  contextCapability: Capability,
+  selectedCapabilities: Set<CapabilityId>,
+  capabilities: Capability[]
+): Capability[] {
+  const isContextSelected = selectedCapabilities.has(contextCapability.id);
+  const targetCapabilities = (selectedCapabilities.size > 0 && isContextSelected)
+    ? Array.from(selectedCapabilities)
+        .map(id => capabilities.find(c => c.id === id))
+        .filter((c): c is Capability => c !== undefined)
+    : [contextCapability];
+
+  const l1Ancestors = targetCapabilities
+    .map(c => findL1Ancestor(c, capabilities))
+    .filter((c): c is Capability => c !== undefined);
+
+  return Array.from(new Map(l1Ancestors.map(c => [c.id, c])).values());
+}
+
 export function useCapabilityContextMenu({
   capabilities,
+  domainCapabilities,
   dissociateCapability,
   refetch,
   selectedCapabilities,
@@ -51,37 +72,21 @@ export function useCapabilityContextMenu({
   const handleRemoveFromDomain = useCallback(async () => {
     if (!contextMenu) return;
 
-    const isContextCapabilitySelected = selectedCapabilities.has(contextMenu.capability.id);
-    const capabilitiesToDissociate = (selectedCapabilities.size > 0 && isContextCapabilitySelected)
-      ? Array.from(selectedCapabilities)
-          .map(id => capabilities.find(c => c.id === id))
-          .filter((c): c is Capability => c !== undefined)
-          .map(c => findL1Ancestor(c, capabilities))
-          .filter((c): c is Capability => c !== undefined)
-      : [contextMenu.capability].map(c => findL1Ancestor(c, capabilities)).filter((c): c is Capability => c !== undefined);
+    const uniqueL1s = getTargetL1Capabilities(contextMenu.capability, selectedCapabilities, capabilities);
+    const domainL1s = uniqueL1s
+      .map(l1 => domainCapabilities.find(c => c.id === l1.id))
+      .filter((c): c is Capability => c !== undefined);
 
-    const uniqueL1s = Array.from(new Map(capabilitiesToDissociate.map(c => [c.id, c])).values());
-
-    await Promise.all(uniqueL1s.map(l1 => dissociateCapability(l1)));
+    await Promise.all(domainL1s.map(l1 => dissociateCapability(l1)));
     await refetch();
     setSelectedCapabilities(new Set());
     closeContextMenu();
-  }, [contextMenu, capabilities, dissociateCapability, refetch, closeContextMenu, selectedCapabilities, setSelectedCapabilities]);
+  }, [contextMenu, capabilities, domainCapabilities, dissociateCapability, refetch, closeContextMenu, selectedCapabilities, setSelectedCapabilities]);
 
   const handleDeleteFromModel = useCallback(() => {
     if (!contextMenu) return;
 
-    const isContextCapabilitySelected = selectedCapabilities.has(contextMenu.capability.id);
-    const capabilitiesToDeleteList = (selectedCapabilities.size > 0 && isContextCapabilitySelected)
-      ? Array.from(selectedCapabilities)
-          .map(id => capabilities.find(c => c.id === id))
-          .filter((c): c is Capability => c !== undefined)
-          .map(c => findL1Ancestor(c, capabilities))
-          .filter((c): c is Capability => c !== undefined)
-      : [contextMenu.capability].map(c => findL1Ancestor(c, capabilities)).filter((c): c is Capability => c !== undefined);
-
-    const uniqueL1s = Array.from(new Map(capabilitiesToDeleteList.map(c => [c.id, c])).values());
-
+    const uniqueL1s = getTargetL1Capabilities(contextMenu.capability, selectedCapabilities, capabilities);
     if (uniqueL1s.length > 0) {
       setCapabilityToDelete(uniqueL1s[0]);
       setCapabilitiesToDelete(uniqueL1s);

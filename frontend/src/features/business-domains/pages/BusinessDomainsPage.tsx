@@ -6,6 +6,7 @@ import { ApplicationDetailSidebar } from '../components/ApplicationDetailSidebar
 import { DomainDialogs } from '../components/DomainDialogs';
 import { PageLoadingStates } from '../components/PageLoadingStates';
 import { ContextMenu } from '../../../components/shared/ContextMenu';
+import { DeleteCapabilityDialog } from '../../capabilities/components/DeleteCapabilityDialog';
 import { useBusinessDomainsPage } from '../hooks/useBusinessDomainsPage';
 import '../components/visualization.css';
 
@@ -27,9 +28,12 @@ export function BusinessDomainsPage() {
     capabilitiesLoading,
     filtering,
     dragHandlers,
-    contextMenu,
+    domainContextMenu,
+    capabilityContextMenu,
+    selectedCapabilities,
     handleVisualizeClick,
     handleCapabilityClick,
+    clearCapabilityDetails,
     getRealizationsForCapability,
     handleApplicationClick,
     clearSelectedComponent,
@@ -45,7 +49,7 @@ export function BusinessDomainsPage() {
           onToggle={() => sidebarState.setIsDomainsSidebarCollapsed(!sidebarState.isDomainsSidebarCollapsed)}
           onCreateClick={dialogManager.handleCreateClick}
           onVisualize={handleVisualizeClick}
-          onContextMenu={contextMenu.handleContextMenu}
+          onContextMenu={domainContextMenu.handleContextMenu}
         />
 
         <VisualizationArea
@@ -56,6 +60,8 @@ export function BusinessDomainsPage() {
           positions={positions}
           onDepthChange={setDepth}
           onCapabilityClick={handleCapabilityClick}
+          onContextMenu={capabilityContextMenu.handleCapabilityContextMenu}
+          selectedCapabilities={selectedCapabilities}
           showApplications={showApplications}
           onShowApplicationsChange={setShowApplications}
           getRealizationsForCapability={getRealizationsForCapability}
@@ -79,7 +85,7 @@ export function BusinessDomainsPage() {
 
         <CapabilityDetailSidebar
           capability={selectedCapability}
-          onClose={() => handleCapabilityClick(null)}
+          onClose={clearCapabilityDetails}
         />
 
         <ApplicationDetailSidebar
@@ -88,14 +94,31 @@ export function BusinessDomainsPage() {
         />
       </div>
 
-      {contextMenu.contextMenu && (
+      {domainContextMenu.contextMenu && (
         <ContextMenu
-          x={contextMenu.contextMenu.x}
-          y={contextMenu.contextMenu.y}
-          items={contextMenu.getContextMenuItems(contextMenu.contextMenu)}
-          onClose={contextMenu.closeContextMenu}
+          x={domainContextMenu.contextMenu.x}
+          y={domainContextMenu.contextMenu.y}
+          items={domainContextMenu.getContextMenuItems(domainContextMenu.contextMenu)}
+          onClose={domainContextMenu.closeContextMenu}
         />
       )}
+
+      {capabilityContextMenu.contextMenu && (
+        <ContextMenu
+          x={capabilityContextMenu.contextMenu.x}
+          y={capabilityContextMenu.contextMenu.y}
+          items={capabilityContextMenu.contextMenuItems}
+          onClose={capabilityContextMenu.closeContextMenu}
+        />
+      )}
+
+      <DeleteCapabilityDialog
+        isOpen={capabilityContextMenu.capabilityToDelete !== null}
+        onClose={() => capabilityContextMenu.setCapabilityToDelete(null)}
+        capability={capabilityContextMenu.capabilityToDelete}
+        onConfirm={capabilityContextMenu.handleDeleteConfirm}
+        capabilitiesToDelete={capabilityContextMenu.capabilitiesToDelete}
+      />
 
       <DomainDialogs
         dialogMode={dialogManager.dialogMode}

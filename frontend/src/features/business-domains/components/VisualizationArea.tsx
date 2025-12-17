@@ -10,7 +10,9 @@ interface VisualizationAreaProps {
   depth: DepthLevel;
   positions: Record<CapabilityId, { x: number; y: number }>;
   onDepthChange: (depth: DepthLevel) => void;
-  onCapabilityClick: (capability: Capability) => void;
+  onCapabilityClick: (capability: Capability, event: React.MouseEvent) => void;
+  onContextMenu: (capability: Capability, event: React.MouseEvent) => void;
+  selectedCapabilities: Set<CapabilityId>;
   showApplications: boolean;
   onShowApplicationsChange: (value: boolean) => void;
   getRealizationsForCapability: (capabilityId: CapabilityId) => CapabilityRealization[];
@@ -29,6 +31,8 @@ export function VisualizationArea({
   positions,
   onDepthChange,
   onCapabilityClick,
+  onContextMenu,
+  selectedCapabilities,
   showApplications,
   onShowApplicationsChange,
   getRealizationsForCapability,
@@ -76,6 +80,8 @@ export function VisualizationArea({
           capabilities={capabilities}
           depth={depth}
           onCapabilityClick={onCapabilityClick}
+          onContextMenu={onContextMenu}
+          selectedCapabilities={selectedCapabilities}
           positions={positions}
           showApplications={showApplications}
           getRealizationsForCapability={getRealizationsForCapability}

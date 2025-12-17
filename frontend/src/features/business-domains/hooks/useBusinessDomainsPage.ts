@@ -11,6 +11,9 @@ import { useCapabilityFiltering } from './useCapabilityFiltering';
 import { useDomainContextMenu } from './useDomainContextMenu';
 import { useApplicationSettings } from './useApplicationSettings';
 import { useCapabilityRealizations } from './useCapabilityRealizations';
+import { useCapabilitySelection } from './useCapabilitySelection';
+import { useCapabilityContextMenu } from './useCapabilityContextMenu';
+import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import type { BusinessDomain, BusinessDomainId, Capability, ComponentId } from '../../../api/types';
 
 export function useBusinessDomainsPage() {
@@ -47,6 +50,7 @@ export function useBusinessDomainsPage() {
     capabilities,
     isLoading: capabilitiesLoading,
     associateCapability,
+    dissociateCapability,
     refetch: refetchCapabilities,
   } = useDomainCapabilities(capabilitiesLink);
 
@@ -78,7 +82,7 @@ export function useBusinessDomainsPage() {
     refetchRealizations,
   });
 
-  const contextMenu = useDomainContextMenu({
+  const domainContextMenu = useDomainContextMenu({
     onEdit: dialogManager.handleEditClick,
     onDelete: dialogManager.handleDeleteClick,
   });
@@ -88,10 +92,37 @@ export function useBusinessDomainsPage() {
     setSelectedCapability(null);
   };
 
-  const handleCapabilityClick = (capability: Capability | null) => {
+  const onRegularCapabilityClick = useCallback((capability: Capability) => {
     setSelectedCapability(capability);
     setSelectedComponentId(null);
-  };
+  }, []);
+
+  const clearCapabilityDetails = useCallback(() => {
+    setSelectedCapability(null);
+  }, []);
+
+  const {
+    selectedCapabilities,
+    handleCapabilityClick,
+    selectAllL1Capabilities,
+    clearSelection,
+    setSelectedCapabilities,
+  } = useCapabilitySelection(filtering.capabilitiesWithDescendants, onRegularCapabilityClick);
+
+  const capabilityContextMenu = useCapabilityContextMenu({
+    capabilities: filtering.capabilitiesWithDescendants,
+    domainCapabilities: capabilities,
+    dissociateCapability,
+    refetch: refetchCapabilities,
+    selectedCapabilities,
+    setSelectedCapabilities,
+  });
+
+  useKeyboardShortcuts({
+    hasSelection: selectedCapabilities.size > 0,
+    onSelectAll: selectAllL1Capabilities,
+    onClearSelection: clearSelection,
+  });
 
   return {
     domains,
@@ -113,9 +144,12 @@ export function useBusinessDomainsPage() {
     capabilitiesLoading,
     filtering,
     dragHandlers,
-    contextMenu,
+    domainContextMenu,
+    capabilityContextMenu,
+    selectedCapabilities,
     handleVisualizeClick,
     handleCapabilityClick,
+    clearCapabilityDetails,
     getRealizationsForCapability,
     handleApplicationClick,
     clearSelectedComponent,
