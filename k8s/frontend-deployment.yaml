@@ -21,7 +21,7 @@ spec:
         runAsUser: 10001
         fsGroup: 10001
       containers:
-      - image: ${ECR_REPO}/easi-frontend:$(Build.BuildNumber)
+      - image: $(ECR_REPO)/easi-frontend:$(Build.BuildNumber)
         imagePullPolicy: Always
         name: easi-frontend
         securityContext:
