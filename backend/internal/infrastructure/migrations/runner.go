@@ -30,21 +30,12 @@ func NewRunner(db *sql.DB, migrationsPath string) *Runner {
 	}
 }
 
+var validFilenamePattern = regexp.MustCompile(`^[a-zA-Z0-9._]+\.sql$`)
+
 func validateMigrationFilename(filename string) error {
-	if !strings.HasSuffix(filename, ".sql") {
-		return errors.New("migration filename must end with .sql")
+	if !validFilenamePattern.MatchString(filename) {
+		return errors.New("migration filename must end with .sql and contain only alphanumeric, dot, and underscore characters")
 	}
-
-	for _, char := range filename {
-		if !(char >= 'a' && char <= 'z') &&
-			!(char >= 'A' && char <= 'Z') &&
-			!(char >= '0' && char <= '9') &&
-			char != '.' &&
-			char != '_' {
-			return errors.New("migration filename contains invalid characters (only alphanumeric, dot, and underscore allowed)")
-		}
-	}
-
 	return nil
 }
 
@@ -99,29 +90,30 @@ func (r *Runner) createMigrationsTable() error {
 	return err
 }
 
-// getMigrationFiles returns a sorted list of migration files
+func getSortedSQLFiles(dirPath string) ([]string, error) {
+	files, err := os.ReadDir(dirPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read directory: %w", err)
+	}
+
+	var sqlFiles []string
+	for _, file := range files {
+		if file.IsDir() || !strings.HasSuffix(file.Name(), ".sql") {
+			continue
+		}
+		sqlFiles = append(sqlFiles, file.Name())
+	}
+
+	sort.Strings(sqlFiles)
+	return sqlFiles, nil
+}
+
 func (r *Runner) getMigrationFiles() ([]string, error) {
-	files, err := os.ReadDir(r.migrationsPath)
+	files, err := getSortedSQLFiles(r.migrationsPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read migrations directory: %w", err)
 	}
-
-	var migrationFiles []string
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-
-		// Only process .sql files
-		if strings.HasSuffix(file.Name(), ".sql") {
-			migrationFiles = append(migrationFiles, file.Name())
-		}
-	}
-
-	// Sort files to ensure they run in order
-	sort.Strings(migrationFiles)
-
-	return migrationFiles, nil
+	return files, nil
 }
 
 // getExecutedMigrations returns a map of already executed migration names
@@ -191,22 +183,10 @@ func (r *Runner) RunAlwaysScripts(scriptsPath string) error {
 		return nil
 	}
 
-	files, err := os.ReadDir(scriptsPath)
+	scriptFiles, err := getSortedSQLFiles(scriptsPath)
 	if err != nil {
 		return fmt.Errorf("failed to read scripts directory: %w", err)
 	}
-
-	var scriptFiles []string
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-		if strings.HasSuffix(file.Name(), ".sql") {
-			scriptFiles = append(scriptFiles, file.Name())
-		}
-	}
-
-	sort.Strings(scriptFiles)
 
 	for _, file := range scriptFiles {
 		if err := r.executeAlwaysScript(scriptsPath, file); err != nil {
