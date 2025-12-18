@@ -21,7 +21,7 @@ spec:
         fsGroup: 10001
       initContainers:
       - name: migrate
-        image: 579478677147.dkr.ecr.eu-central-1.amazonaws.com/architecture/easi-migrate:$(Build.BuildNumber)
+        image: ${ECR_REPO}/easi-migrate:$(Build.BuildNumber)
         imagePullPolicy: Always
         securityContext:
           allowPrivilegeEscalation: false
@@ -53,7 +53,7 @@ spec:
             cpu: "200m"
       containers:
       - name: easi-backend
-        image: 579478677147.dkr.ecr.eu-central-1.amazonaws.com/architecture/easi-backend:$(Build.BuildNumber)
+        image: ${ECR_REPO}/easi-backend:$(Build.BuildNumber)
         imagePullPolicy: Always
         securityContext:
           allowPrivilegeEscalation: false

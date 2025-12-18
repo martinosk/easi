@@ -296,6 +296,10 @@ _NCrunch_*
 *.out
 go.work
 
+# Go compiled binaries
+backend/main
+backend/migrate
+
 # Swagger/OpenAPI auto-generated files
 backend/docs/swagger.json
 backend/docs/swagger.yaml
