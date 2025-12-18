@@ -1,0 +1,179 @@
+THIRD-PARTY SOFTWARE NOTICES AND INFORMATION
+
+This project incorporates components from the projects listed below. The original copyright notices and the licenses are set forth below. 
+
+================================================================================
+
+FRONTEND DEPENDENCIES (MIT License)
+================================================================================
+
+The following frontend dependencies are licensed under the MIT License:
+
+- @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities
+  Copyright (c) 2021, Claudéric Demers
+
+- @mantine/core, @mantine/hooks
+  Copyright (c) 2021-present Vitaly Rtishchev
+  https://github.com/mantinedev/mantine
+
+- @xyflow/react (React Flow)
+  Copyright (c) 2019-present webkid GmbH
+  https://github.com/xyflow/xyflow
+
+- axios
+  Copyright (c) 2014-present Matt Zabriskie
+  https://github.com/axios/axios
+
+- dagre
+  Copyright (c) 2012-2014 Chris Pettitt
+  https://github.com/dagrejs/dagre
+
+- dockview
+  Copyright (c) Matthew Stevenson
+  https://github.com/mathuo/dockview
+
+- react, react-dom
+  Copyright (c) Meta Platforms, Inc. and affiliates
+  https://github.com/facebook/react
+
+- react-colorful
+  Copyright (c) 2020 Vlad Shilov
+  https://github.com/omgovich/react-colorful
+
+- react-hot-toast
+  Copyright (c) 2020 Timo Lins
+  https://github.com/timolins/react-hot-toast
+
+- react-router-dom
+  Copyright (c) Remix Software Inc.
+  https://github.com/remix-run/react-router
+
+- zustand
+  Copyright (c) 2019 Paul Henschel
+  https://github.com/pmndrs/zustand
+
+MIT License text:
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+
+BACKEND DEPENDENCIES (MIT License)
+================================================================================
+
+The following backend dependencies are licensed under the MIT License:
+
+- github.com/alexedwards/scs/v2, github.com/alexedwards/scs/postgresstore
+  Copyright (c) 2016 Alex Edwards
+  https://github.com/alexedwards/scs
+
+- github.com/go-chi/chi/v5
+  Copyright (c) 2015-present Peter Kieltyka, Google Inc.
+  https://github.com/go-chi/chi
+
+- github.com/go-chi/cors
+  Copyright (c) 2014 Olivier Poitrey
+  Copyright (c) 2016-Present https://github.com/go-chi authors
+  https://github.com/go-chi/cors
+
+- github.com/lib/pq
+  Copyright (c) 2011-2013 'pq' Contributors
+  Portions Copyright (c) 2011 Blake Mizerany
+  https://github.com/lib/pq
+
+- github.com/stretchr/testify
+  Copyright (c) 2012-2020 Mat Ryer, Tyler Bunnell and contributors
+  https://github.com/stretchr/testify
+
+- github.com/swaggo/swag, github.com/swaggo/http-swagger
+  Copyright (c) 2017 Eason Lin
+  https://github.com/swaggo/swag
+
+(MIT License text as above)
+
+================================================================================
+
+BACKEND DEPENDENCIES (BSD-3-Clause License)
+================================================================================
+
+- github.com/google/uuid
+  Copyright (c) 2009, 2014 Google Inc. All rights reserved.
+  https://github.com/google/uuid
+
+- golang.org/x/oauth2, golang.org/x/text
+  Copyright (c) 2009 The Go Authors
+  https://cs.opensource.google/go/x/oauth2
+  https://cs.opensource.google/go/x/text
+
+BSD-3-Clause License text:
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+   * Redistributions of source code must retain the above copyright notice,
+     this list of conditions and the following disclaimer.
+   * Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+   * Neither the name of Google Inc. nor the names of its contributors may
+     be used to endorse or promote products derived from this software
+     without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+================================================================================
+
+BACKEND DEPENDENCIES (Apache License 2.0)
+================================================================================
+
+- github.com/coreos/go-oidc/v3
+  https://github.com/coreos/go-oidc
+
+- github.com/go-jose/go-jose/v4
+  https://github.com/go-jose/go-jose
+  (Note: Contains components under both Apache 2.0 and BSD-3-Clause)
+
+Apache License 2.0:
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+The full Apache License 2.0 text can be found at:
+http://www.apache.org/licenses/LICENSE-2.0
+
+================================================================================
+
+All third-party software components are the property of their respective
+owners and are used in compliance with their respective license terms.
