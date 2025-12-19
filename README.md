@@ -49,6 +49,7 @@ Core domain for enterprise capability modeling. Uses CQRS with event sourcing.
 ```mermaid
 flowchart TB
     subgraph Browser["Browser"]
+        direction LR
         subgraph Frontend["React Frontend (Port 5173)"]
             direction LR
             CanvasFeature["Canvas<br/>(React Flow)"]
@@ -57,51 +58,45 @@ flowchart TB
         end
         ApiClient["API Client (Axios)"]
         Store["Zustand Store"]
+        Frontend --> ApiClient
+        ApiClient --> Store
     end
 
     subgraph Backend["Go Backend (Port 8080)"]
         REST["REST API Layer (Chi Router)"]
 
-        subgraph CQRS["CQRS Infrastructure"]
+        subgraph CommandSide["Command Side"]
+            direction TB
             CommandBus["Command Bus"]
+            subgraph Domains["Domains"]
+                direction LR
+                CoreDomain["CapabilityMapping<br/>(Core Domain)"]
+                SupportingDomains["ArchitectureModeling<br/>ArchitectureViews<br/>ViewLayouts<br/>Importing"]
+            end
+            EventStore[("Event Store<br/>(PostgreSQL)")]
+        end
+
+        subgraph QuerySide["Query Side"]
+            direction TB
             EventBus["Event Bus"]
+            Projectors["Projectors"]
+            ReadModels[("Read Models<br/>(PostgreSQL + RLS)")]
         end
 
-        subgraph CoreDomain["Core Domain"]
-            Capability["CapabilityMapping<br/>(Capabilities, Business Domains,<br/>Dependencies, Realizations)"]
-        end
-
-        subgraph SupportingDomains["Supporting Domains"]
-            Modeling["ArchitectureModeling<br/>(Components, Relations)"]
-            Views["ArchitectureViews<br/>(Visual Layouts)"]
-            Layouts["ViewLayouts<br/>(Positioning)"]
-            Importing["Importing<br/>(ArchiMate Parser)"]
-        end
-
-        subgraph GenericDomains["Generic Subdomain"]
-            Releases["Releases<br/>(Version Info)"]
-        end
-
-        EventStore[("Event Store<br/>(PostgreSQL)")]
-        ReadModels[("Read Models<br/>(PostgreSQL + RLS)")]
+        REST -->|Commands| CommandBus
+        REST -->|Queries| ReadModels
+        CommandBus --> CoreDomain
+        CommandBus --> SupportingDomains
+        CoreDomain --> EventStore
+        SupportingDomains --> EventStore
+        EventStore --> EventBus
+        EventBus --> Projectors
+        Projectors --> ReadModels
+        EventBus -.->|Cross-context<br/>events| CoreDomain
+        EventBus -.->|Cross-context<br/>events| SupportingDomains
     end
 
-    Frontend --> ApiClient
-    ApiClient --> Store
     ApiClient -->|HTTP/JSON| REST
-    REST -->|Commands| CommandBus
-    REST -->|Queries| ReadModels
-    CommandBus --> CoreDomain
-    CommandBus --> SupportingDomains
-
-    CoreDomain --> EventStore
-    SupportingDomains --> EventStore
-    EventStore --> EventBus
-    EventBus -.->|Cross-context events| SupportingDomains
-    EventBus -.->|Cross-context events| CoreDomain
-    EventStore --> ReadModels
-
-    Releases --> ReadModels
 ```
 
 ## Tech Stack
