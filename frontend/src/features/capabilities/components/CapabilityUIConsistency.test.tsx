@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
+import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 
 vi.mock('../../../store/appStore', () => ({
   useAppStore: vi.fn(),
@@ -102,8 +103,6 @@ const createMockStore = (overrides: Record<string, unknown> = {}) => ({
 describe('Capability UI Consistency', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    HTMLDialogElement.prototype.showModal = vi.fn();
-    HTMLDialogElement.prototype.close = vi.fn();
   });
 
   describe('Dialog Management', () => {
@@ -114,13 +113,21 @@ describe('Capability UI Consistency', () => {
           selector(mockStore)
         );
 
+        const { apiClient } = await import('../../../api/client');
+        vi.mocked(apiClient.getMaturityLevels).mockResolvedValue(['Genesis', 'Custom Build', 'Product', 'Commodity']);
+        vi.mocked(apiClient.getStatuses).mockResolvedValue([
+          { value: 'Active', displayName: 'Active', sortOrder: 1 },
+        ]);
+        vi.mocked(apiClient.getOwnershipModels).mockResolvedValue([]);
+        vi.mocked(apiClient.getStrategyPillars).mockResolvedValue([]);
+
         const { EditCapabilityDialog } = await import('./EditCapabilityDialog');
         const capability = mockCapabilities[0];
 
-        render(<EditCapabilityDialog isOpen={true} onClose={vi.fn()} capability={capability} />);
+        render(<EditCapabilityDialog isOpen={true} onClose={vi.fn()} capability={capability} />, { wrapper: MantineTestWrapper });
 
         await waitFor(() => {
-          expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+          expect(screen.getByText('Edit Capability')).toBeInTheDocument();
         });
       });
 
@@ -132,9 +139,9 @@ describe('Capability UI Consistency', () => {
 
         const { EditCapabilityDialog } = await import('./EditCapabilityDialog');
 
-        render(<EditCapabilityDialog isOpen={false} onClose={vi.fn()} capability={null} />);
+        render(<EditCapabilityDialog isOpen={false} onClose={vi.fn()} capability={null} />, { wrapper: MantineTestWrapper });
 
-        expect(HTMLDialogElement.prototype.showModal).not.toHaveBeenCalled();
+        expect(screen.queryByText('Edit Capability')).not.toBeInTheDocument();
       });
 
       it('should call onClose when cancel button is clicked', async () => {
@@ -155,7 +162,7 @@ describe('Capability UI Consistency', () => {
         const mockOnClose = vi.fn();
         const capability = mockCapabilities[0];
 
-        render(<EditCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />);
+        render(<EditCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />, { wrapper: MantineTestWrapper });
 
         await waitFor(() => {
           expect(screen.getByTestId('edit-capability-cancel')).toBeInTheDocument();
@@ -172,28 +179,35 @@ describe('Capability UI Consistency', () => {
           selector(mockStore)
         );
 
+        const { apiClient } = await import('../../../api/client');
+        vi.mocked(apiClient.getMaturityLevels).mockResolvedValue(['Genesis', 'Custom Build', 'Product', 'Commodity']);
+        vi.mocked(apiClient.getStatuses).mockResolvedValue([
+          { value: 'Active', displayName: 'Active', sortOrder: 1 },
+        ]);
+        vi.mocked(apiClient.getOwnershipModels).mockResolvedValue([]);
+        vi.mocked(apiClient.getStrategyPillars).mockResolvedValue([]);
+
         const { EditComponentDialog } = await import('../../components/components/EditComponentDialog');
         const { EditCapabilityDialog } = await import('./EditCapabilityDialog');
         const component = mockComponents[0];
         const capability = mockCapabilities[0];
 
         const { rerender } = render(
-          <EditComponentDialog isOpen={true} onClose={vi.fn()} component={component} />
+          <EditComponentDialog isOpen={true} onClose={vi.fn()} component={component} />,
+          { wrapper: MantineTestWrapper }
         );
 
         await waitFor(() => {
-          expect((HTMLDialogElement.prototype.showModal as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0);
+          expect(screen.getByText('Edit Application')).toBeInTheDocument();
         });
-
-        const componentShowModalCalls = (HTMLDialogElement.prototype.showModal as ReturnType<typeof vi.fn>).mock.calls.length;
 
         rerender(
           <EditCapabilityDialog isOpen={true} onClose={vi.fn()} capability={capability} />
         );
 
         await waitFor(() => {
-          const capabilityShowModalCalls = (HTMLDialogElement.prototype.showModal as ReturnType<typeof vi.fn>).mock.calls.length;
-          expect(capabilityShowModalCalls).toBeGreaterThan(componentShowModalCalls);
+          expect(screen.getByText('Edit Capability')).toBeInTheDocument();
+          expect(screen.queryByText('Edit Application')).not.toBeInTheDocument();
         });
       });
     });
@@ -513,8 +527,6 @@ describe('Capability UI Consistency', () => {
 describe('Capability Tree Item Selection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    HTMLDialogElement.prototype.showModal = vi.fn();
-    HTMLDialogElement.prototype.close = vi.fn();
   });
 
   it('should apply selected class when capability is selected', async () => {
@@ -538,8 +550,6 @@ describe('Capability Tree Item Selection', () => {
 describe('Capability Expand/Collapse in Tree', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    HTMLDialogElement.prototype.showModal = vi.fn();
-    HTMLDialogElement.prototype.close = vi.fn();
   });
 
   it('should show expand button for capabilities with children', async () => {

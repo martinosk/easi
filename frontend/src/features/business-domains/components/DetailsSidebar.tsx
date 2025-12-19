@@ -148,8 +148,8 @@ export function DetailsSidebar({
   return (
     <aside
       style={{
-        width: '350px',
-        borderLeft: '1px solid var(--color-gray-200)',
+        width: '100%',
+        height: '100%',
         backgroundColor: 'white',
         overflow: 'auto',
       }}

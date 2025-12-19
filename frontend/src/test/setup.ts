@@ -34,6 +34,12 @@ beforeAll(() => {
       dispatchEvent: () => true,
     }),
   });
+
+  global.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
 });
 
 afterEach(() => {

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
 import { useAppStore } from '../../../store/appStore';
 import type { Component } from '../../../api/types';
 
@@ -18,7 +19,6 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const updateComponent = useAppStore((state) => state.updateComponent);
 
   useEffect(() => {
@@ -27,17 +27,6 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
       setDescription(component.description || '');
     }
   }, [component]);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (isOpen) {
-      dialog.showModal();
-    } else {
-      dialog.close();
-    }
-  }, [isOpen]);
 
   const handleClose = () => {
     setName('');
@@ -76,63 +65,58 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
   };
 
   return (
-    <dialog ref={dialogRef} className="dialog" onClose={handleClose}>
-      <div className="dialog-content">
-        <h2 className="dialog-title">Edit Application</h2>
+    <Modal
+      opened={isOpen}
+      onClose={handleClose}
+      title="Edit Application"
+      centered
+    >
+      <form onSubmit={handleSubmit}>
+        <Stack gap="md">
+          <TextInput
+            label="Name"
+            placeholder="Enter application name"
+            value={name}
+            onChange={(e) => setName(e.currentTarget.value)}
+            required
+            withAsterisk
+            autoFocus
+            disabled={isUpdating}
+          />
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="component-name" className="form-label">
-              Name <span className="required">*</span>
-            </label>
-            <input
-              id="component-name"
-              type="text"
-              className="form-input"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter application name"
-              disabled={isUpdating}
-              autoFocus
-            />
-          </div>
+          <Textarea
+            label="Description"
+            placeholder="Enter application description (optional)"
+            value={description}
+            onChange={(e) => setDescription(e.currentTarget.value)}
+            rows={3}
+            disabled={isUpdating}
+          />
 
-          <div className="form-group">
-            <label htmlFor="component-description" className="form-label">
-              Description
-            </label>
-            <textarea
-              id="component-description"
-              className="form-textarea"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter application description (optional)"
-              rows={4}
-              disabled={isUpdating}
-            />
-          </div>
+          {error && (
+            <Alert color="red">
+              {error}
+            </Alert>
+          )}
 
-          {error && <div className="error-message">{error}</div>}
-
-          <div className="dialog-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
               onClick={handleClose}
               disabled={isUpdating}
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="btn btn-primary"
-              disabled={isUpdating || !name.trim()}
+              loading={isUpdating}
+              disabled={!name.trim()}
             >
-              {isUpdating ? 'Updating...' : 'Update Application'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </dialog>
+              Save Changes
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Modal>
   );
 };

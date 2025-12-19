@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Modal, TextInput, Textarea, Select, Button, Group, Stack, Alert } from '@mantine/core';
 import { useAppStore } from '../../../store/appStore';
 import { apiClient } from '../../../api/client';
 import type { StatusOption } from '../../../api/types';
@@ -61,19 +62,12 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
   const [statuses, setStatuses] = useState<StatusOption[]>([]);
   const [isLoadingStatuses, setIsLoadingStatuses] = useState(false);
 
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const createCapability = useAppStore((state) => state.createCapability);
   const updateCapabilityMetadata = useAppStore((state) => state.updateCapabilityMetadata);
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
     if (isOpen) {
-      dialog.showModal();
       fetchMetadata();
-    } else {
-      dialog.close();
     }
   }, [isOpen]);
 
@@ -168,135 +162,89 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
     }
   };
 
+  const statusOptions = statuses.map((s) => ({
+    value: s.value,
+    label: s.displayName,
+  }));
+
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog"
+    <Modal
+      opened={isOpen}
       onClose={handleClose}
+      title="Create Capability"
+      centered
       data-testid="create-capability-dialog"
     >
-      <div className="dialog-content">
-        <h2 className="dialog-title">Create Capability</h2>
+      <form onSubmit={handleSubmit}>
+        <Stack gap="md">
+          <TextInput
+            label="Name"
+            placeholder="Enter capability name"
+            value={form.name}
+            onChange={(e) => handleFieldChange('name', e.currentTarget.value)}
+            required
+            withAsterisk
+            autoFocus
+            disabled={isCreating}
+            error={errors.name}
+            data-testid="capability-name-input"
+          />
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="capability-name" className="form-label">
-              Name <span className="required">*</span>
-            </label>
-            <input
-              id="capability-name"
-              type="text"
-              className={`form-input ${errors.name ? 'form-input-error' : ''}`}
-              value={form.name}
-              onChange={(e) => handleFieldChange('name', e.target.value)}
-              placeholder="Enter capability name"
-              autoFocus
-              disabled={isCreating}
-              data-testid="capability-name-input"
-            />
-            {errors.name && (
-              <div className="field-error" data-testid="capability-name-error">
-                {errors.name}
-              </div>
-            )}
-          </div>
+          <Textarea
+            label="Description"
+            placeholder="Enter capability description (optional)"
+            value={form.description}
+            onChange={(e) => handleFieldChange('description', e.currentTarget.value)}
+            rows={3}
+            disabled={isCreating}
+            error={errors.description}
+            data-testid="capability-description-input"
+          />
 
-          <div className="form-group">
-            <label htmlFor="capability-description" className="form-label">
-              Description
-            </label>
-            <textarea
-              id="capability-description"
-              className={`form-textarea ${errors.description ? 'form-input-error' : ''}`}
-              value={form.description}
-              onChange={(e) => handleFieldChange('description', e.target.value)}
-              placeholder="Enter capability description (optional)"
-              rows={3}
-              disabled={isCreating}
-              data-testid="capability-description-input"
-            />
-            {errors.description && (
-              <div className="field-error" data-testid="capability-description-error">
-                {errors.description}
-              </div>
-            )}
-          </div>
+          <Select
+            label="Status"
+            value={form.status}
+            onChange={(value) => handleFieldChange('status', value || 'Active')}
+            data={isLoadingStatuses ? [] : statusOptions}
+            disabled={isCreating || isLoadingStatuses}
+            data-testid="capability-status-select"
+          />
 
-          <div className="form-group">
-            <label htmlFor="capability-status" className="form-label">
-              Status
-            </label>
-            <select
-              id="capability-status"
-              className="form-select"
-              value={form.status}
-              onChange={(e) => handleFieldChange('status', e.target.value)}
-              disabled={isCreating || isLoadingStatuses}
-              data-testid="capability-status-select"
-            >
-              {isLoadingStatuses ? (
-                <option value="">Loading...</option>
-              ) : (
-                statuses.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.displayName}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="capability-maturity" className="form-label">
-              Maturity Level
-            </label>
-            <select
-              id="capability-maturity"
-              className="form-select"
-              value={form.maturityLevel}
-              onChange={(e) => handleFieldChange('maturityLevel', e.target.value)}
-              disabled={isCreating || isLoadingMaturityLevels}
-              data-testid="capability-maturity-select"
-            >
-              {isLoadingMaturityLevels ? (
-                <option value="">Loading...</option>
-              ) : (
-                maturityLevels.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
+          <Select
+            label="Maturity Level"
+            value={form.maturityLevel}
+            onChange={(value) => handleFieldChange('maturityLevel', value || '')}
+            data={isLoadingMaturityLevels ? [] : maturityLevels}
+            disabled={isCreating || isLoadingMaturityLevels}
+            data-testid="capability-maturity-select"
+          />
 
           {backendError && (
-            <div className="error-message" data-testid="create-capability-error">
+            <Alert color="red" data-testid="create-capability-error">
               {backendError}
-            </div>
+            </Alert>
           )}
 
-          <div className="dialog-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
               onClick={handleClose}
               disabled={isCreating}
               data-testid="create-capability-cancel"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="btn btn-primary"
-              disabled={isCreating || isLoadingMaturityLevels || isLoadingStatuses || !form.name.trim()}
+              loading={isCreating}
+              disabled={isLoadingMaturityLevels || isLoadingStatuses || !form.name.trim()}
               data-testid="create-capability-submit"
             >
-              {isCreating ? 'Creating...' : 'Create'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </dialog>
+              Create
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Modal>
   );
 };

@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CapabilityDetails } from './CapabilityDetails';
 import type { Capability, View } from '../../../api/types';
 import { Toaster } from 'react-hot-toast';
+import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 
 vi.mock('../../../store/appStore', () => ({
   useAppStore: vi.fn(),
@@ -64,7 +65,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       const mockStore = createMockStore(mockView);
       vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: MantineTestWrapper });
 
       expect(screen.getByTestId('color-picker')).toBeInTheDocument();
     });
@@ -74,7 +75,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       const mockStore = createMockStore(mockView);
       vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: MantineTestWrapper });
 
       expect(screen.getByText('Custom Color')).toBeInTheDocument();
     });
@@ -86,7 +87,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       const mockStore = createMockStore(mockView);
       vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: MantineTestWrapper });
 
       const colorPickerButton = screen.getByTestId('color-picker-button');
       expect(colorPickerButton).not.toBeDisabled();
@@ -97,7 +98,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       const mockStore = createMockStore(mockView);
       vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: MantineTestWrapper });
 
       const colorPickerButton = screen.getByTestId('color-picker-button');
       expect(colorPickerButton).toBeDisabled();
@@ -108,7 +109,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       const mockStore = createMockStore(mockView);
       vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: MantineTestWrapper });
 
       const colorPickerButton = screen.getByTestId('color-picker-button');
       expect(colorPickerButton).toBeDisabled();
@@ -119,7 +120,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       const mockStore = createMockStore(mockView);
       vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: MantineTestWrapper });
 
       const colorPickerButton = screen.getByTestId('color-picker-button');
       fireEvent.mouseOver(colorPickerButton);
@@ -134,7 +135,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       const mockStore = createMockStore(mockView);
       vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: MantineTestWrapper });
 
       const colorDisplay = screen.getByTestId('color-picker-display');
       expect(colorDisplay).toHaveStyle({ backgroundColor: '#FF5733' });
@@ -145,7 +146,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       const mockStore = createMockStore(mockView);
       vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: MantineTestWrapper });
 
       const colorDisplay = screen.getByTestId('color-picker-display');
       expect(colorDisplay).toHaveStyle({ backgroundColor: '#E0E0E0' });
@@ -156,7 +157,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       const mockStore = createMockStore(mockView);
       vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: MantineTestWrapper });
 
       expect(screen.getByText('#FF5733')).toBeInTheDocument();
     });
@@ -172,7 +173,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
       vi.mocked(apiClient.updateCapabilityColor).mockResolvedValue(undefined);
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: MantineTestWrapper });
 
       const colorPickerButton = screen.getByTestId('color-picker-button');
       fireEvent.click(colorPickerButton);
@@ -193,7 +194,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
 
       vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: MantineTestWrapper });
 
       const colorPickerButton = screen.getByTestId('color-picker-button');
       fireEvent.click(colorPickerButton);
@@ -218,7 +219,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
 
       vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
 
-      const { rerender } = render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      const { rerender } = render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: MantineTestWrapper });
 
       const colorPickerButton = screen.getByTestId('color-picker-button');
       fireEvent.click(colorPickerButton);
@@ -259,7 +260,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       mockStore.updateCapabilityColor = mockUpdateCapabilityColor;
       vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: MantineTestWrapper });
 
       const colorPickerButton = screen.getByTestId('color-picker-button');
       fireEvent.click(colorPickerButton);
@@ -289,7 +290,8 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
         <>
           <CapabilityDetails onRemoveFromView={vi.fn()} />
           <Toaster />
-        </>
+        </>,
+        { wrapper: MantineTestWrapper }
       );
 
       const colorPickerButton = screen.getByTestId('color-picker-button');
@@ -309,7 +311,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       const mockStore = createMockStore(null);
       vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: MantineTestWrapper });
 
       expect(screen.queryByTestId('color-picker')).not.toBeInTheDocument();
     });
@@ -328,7 +330,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       const mockStore = createMockStore(mockView);
       vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: MantineTestWrapper });
 
       expect(screen.queryByTestId('color-picker')).not.toBeInTheDocument();
     });

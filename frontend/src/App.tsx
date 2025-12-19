@@ -5,7 +5,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { AppNavigation } from './components/layout/AppNavigation';
 import { LoadingScreen } from './components/shared/LoadingScreen';
 import { ErrorScreen } from './components/shared/ErrorScreen';
-import { MainLayout } from './components/layout/MainLayout';
+import { DockviewLayout } from './components/layout/DockviewLayout';
 import { DialogManager } from './components/shared/DialogManager';
 import { ReleaseNotesOverlay } from './contexts/releases/components/ReleaseNotesOverlay';
 import { ReleaseNotesBrowser } from './contexts/releases/components/ReleaseNotesBrowser';
@@ -69,7 +69,7 @@ function CanvasView({
 }: CanvasViewProps) {
   return (
     <>
-      <MainLayout
+      <DockviewLayout
         canvasRef={canvasRef}
         selectedNodeId={selectedNodeId}
         selectedEdgeId={selectedEdgeId}

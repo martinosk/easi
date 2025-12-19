@@ -188,6 +188,7 @@ body {
 /* Toolbar */
 .toolbar {
   height: 48px;
+  flex-shrink: 0;
   background: var(--color-gray-50);
   border-bottom: 1px solid var(--color-gray-200);
   display: flex;
@@ -264,13 +265,18 @@ body {
 }
 
 .canvas-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
   height: 100%;
-  flex: 1;
 }
 
 /* View Selector */
 .view-selector {
+  flex-shrink: 0;
   background: white;
   border-bottom: 1px solid var(--color-gray-200);
   padding: var(--spacing-xs) var(--spacing-md);
@@ -909,6 +915,12 @@ body {
 }
 
 /* React Flow customization */
+/* React Flow container must fill parent */
+.react-flow {
+  width: 100%;
+  height: 100%;
+}
+
 .react-flow__node {
   cursor: pointer;
 }
@@ -986,12 +998,11 @@ body {
 
 /* Navigation Tree */
 .navigation-tree {
-  width: 280px;
+  width: 100%;
+  min-width: 0;
   background: white;
-  border-right: 1px solid var(--color-gray-200);
   display: flex;
   flex-direction: column;
-  transition: width 0.3s ease, margin-left 0.3s ease;
   position: relative;
   z-index: 10;
 }
@@ -2343,4 +2354,40 @@ body {
 
 .user-menu-logout:hover {
   background: rgba(239, 68, 68, 0.05);
+}
+
+/* Dockview panel content must fill container */
+.dockview-theme-light .dv-groupview-panel > div {
+  height: 100%;
+  width: 100%;
+}
+
+/* Dockview Light Theme Overrides */
+.dockview-theme-light {
+  --dv-group-view-background-color: white;
+  --dv-tabs-and-actions-container-background-color: var(--color-gray-100);
+  --dv-activegroup-visiblepanel-tab-background-color: white;
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--color-gray-50);
+  --dv-inactivegroup-visiblepanel-tab-background-color: white;
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--color-gray-50);
+  --dv-tab-divider-color: var(--color-gray-200);
+  --dv-activegroup-visiblepanel-tab-color: var(--color-gray-900);
+  --dv-activegroup-hiddenpanel-tab-color: var(--color-gray-600);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--color-gray-700);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--color-gray-500);
+  --dv-separator-border: var(--color-gray-200);
+  --dv-paneview-header-border-color: var(--color-gray-300);
+}
+
+.dockview-theme-light .dv-default-tab {
+  border-bottom: 2px solid transparent;
+}
+
+.dockview-theme-light .dv-default-tab.dv-active-tab {
+  border-bottom-color: var(--color-primary);
+}
+
+/* Ensure panel content backgrounds are white */
+.dockview-theme-light .dv-groupview-panel {
+  background-color: white;
 }

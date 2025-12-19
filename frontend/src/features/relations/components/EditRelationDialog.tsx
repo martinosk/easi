@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
 import { useAppStore } from '../../../store/appStore';
 import type { Relation } from '../../../api/types';
 
@@ -18,7 +19,6 @@ export const EditRelationDialog: React.FC<EditRelationDialogProps> = ({
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const updateRelation = useAppStore((state) => state.updateRelation);
 
   useEffect(() => {
@@ -27,17 +27,6 @@ export const EditRelationDialog: React.FC<EditRelationDialogProps> = ({
       setDescription(relation.description || '');
     }
   }, [relation]);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (isOpen) {
-      dialog.showModal();
-    } else {
-      dialog.close();
-    }
-  }, [isOpen]);
 
   const handleClose = () => {
     setName('');
@@ -71,63 +60,55 @@ export const EditRelationDialog: React.FC<EditRelationDialogProps> = ({
   };
 
   return (
-    <dialog ref={dialogRef} className="dialog" onClose={handleClose}>
-      <div className="dialog-content">
-        <h2 className="dialog-title">Edit Relation</h2>
+    <Modal
+      opened={isOpen}
+      onClose={handleClose}
+      title="Edit Relation"
+      centered
+    >
+      <form onSubmit={handleSubmit}>
+        <Stack gap="md">
+          <TextInput
+            label="Name"
+            placeholder="Enter relation name (optional)"
+            value={name}
+            onChange={(e) => setName(e.currentTarget.value)}
+            disabled={isUpdating}
+            autoFocus
+          />
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="relation-name" className="form-label">
-              Name
-            </label>
-            <input
-              id="relation-name"
-              type="text"
-              className="form-input"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter relation name (optional)"
-              disabled={isUpdating}
-              autoFocus
-            />
-          </div>
+          <Textarea
+            label="Description"
+            placeholder="Enter relation description (optional)"
+            value={description}
+            onChange={(e) => setDescription(e.currentTarget.value)}
+            rows={3}
+            disabled={isUpdating}
+          />
 
-          <div className="form-group">
-            <label htmlFor="relation-description" className="form-label">
-              Description
-            </label>
-            <textarea
-              id="relation-description"
-              className="form-textarea"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter relation description (optional)"
-              rows={4}
-              disabled={isUpdating}
-            />
-          </div>
+          {error && (
+            <Alert color="red">
+              {error}
+            </Alert>
+          )}
 
-          {error && <div className="error-message">{error}</div>}
-
-          <div className="dialog-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
               onClick={handleClose}
               disabled={isUpdating}
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="btn btn-primary"
-              disabled={isUpdating}
+              loading={isUpdating}
             >
-              {isUpdating ? 'Updating...' : 'Update Relation'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </dialog>
+              Save Changes
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Modal>
   );
 };

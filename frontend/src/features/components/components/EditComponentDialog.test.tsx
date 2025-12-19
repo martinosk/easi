@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 
 vi.mock('../../../store/appStore', () => ({
@@ -9,12 +9,7 @@ vi.mock('../../../store/appStore', () => ({
 import { useAppStore } from '../../../store/appStore';
 import { EditComponentDialog } from './EditComponentDialog';
 import type { Component } from '../../../api/types';
-
-const getDialog = () => {
-  const dialog = document.querySelector('dialog');
-  if (!dialog) throw new Error('Dialog not found');
-  return within(dialog);
-};
+import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 
 const mockComponent: Component = {
   id: 'comp-1',
@@ -32,8 +27,6 @@ const createMockStore = (overrides: Record<string, unknown> = {}) => ({
 describe('EditComponentDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    HTMLDialogElement.prototype.showModal = vi.fn();
-    HTMLDialogElement.prototype.close = vi.fn();
   });
 
   describe('Dialog rendering', () => {
@@ -43,10 +36,10 @@ describe('EditComponentDialog', () => {
         selector(mockStore)
       );
 
-      render(<EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponent} />);
+      render(<EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponent} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
-        expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+        expect(screen.getByText('Edit Application')).toBeInTheDocument();
       });
     });
 
@@ -56,9 +49,9 @@ describe('EditComponentDialog', () => {
         selector(mockStore)
       );
 
-      render(<EditComponentDialog isOpen={false} onClose={vi.fn()} component={mockComponent} />);
+      render(<EditComponentDialog isOpen={false} onClose={vi.fn()} component={mockComponent} />, { wrapper: MantineTestWrapper });
 
-      expect(HTMLDialogElement.prototype.showModal).not.toHaveBeenCalled();
+      expect(screen.queryByText('Edit Application')).not.toBeInTheDocument();
     });
 
     it('should populate form with component data when opened', async () => {
@@ -67,12 +60,11 @@ describe('EditComponentDialog', () => {
         selector(mockStore)
       );
 
-      render(<EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponent} />);
+      render(<EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponent} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
-        const dialog = getDialog();
-        expect(dialog.getByDisplayValue('Test Component')).toBeInTheDocument();
-        expect(dialog.getByDisplayValue('Test description')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Test Component')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Test description')).toBeInTheDocument();
       });
     });
   });
@@ -84,22 +76,21 @@ describe('EditComponentDialog', () => {
         selector(mockStore)
       );
 
-      render(<EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponent} />);
+      render(<EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponent} />, { wrapper: MantineTestWrapper });
 
-      const dialog = getDialog();
 
       await waitFor(() => {
-        expect(dialog.getByDisplayValue('Test Component')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Test Component')).toBeInTheDocument();
       });
 
-      const nameInput = dialog.getByLabelText(/name/i);
+      const nameInput = screen.getByLabelText(/name/i);
       fireEvent.change(nameInput, { target: { value: '' } });
 
       const form = document.querySelector('form');
       fireEvent.submit(form!);
 
       await waitFor(() => {
-        expect(dialog.getByText('Application name is required')).toBeInTheDocument();
+        expect(screen.getByText('Application name is required')).toBeInTheDocument();
       });
     });
 
@@ -110,13 +101,13 @@ describe('EditComponentDialog', () => {
       );
 
       const { rerender } = render(
-        <EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponent} />
+        <EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponent} />,
+        { wrapper: MantineTestWrapper }
       );
 
-      const dialog = getDialog();
 
       await waitFor(() => {
-        expect(dialog.getByDisplayValue('Test Component')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Test Component')).toBeInTheDocument();
       });
 
       rerender(<EditComponentDialog isOpen={true} onClose={vi.fn()} component={null} />);
@@ -125,7 +116,7 @@ describe('EditComponentDialog', () => {
       fireEvent.submit(form!);
 
       await waitFor(() => {
-        expect(dialog.getByText('No application selected')).toBeInTheDocument();
+        expect(screen.getByText('No application selected')).toBeInTheDocument();
       });
     });
 
@@ -137,15 +128,14 @@ describe('EditComponentDialog', () => {
       );
 
       const mockOnClose = vi.fn();
-      render(<EditComponentDialog isOpen={true} onClose={mockOnClose} component={mockComponent} />);
+      render(<EditComponentDialog isOpen={true} onClose={mockOnClose} component={mockComponent} />, { wrapper: MantineTestWrapper });
 
-      const dialog = getDialog();
 
       await waitFor(() => {
-        expect(dialog.getByDisplayValue('Test Component')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Test Component')).toBeInTheDocument();
       });
 
-      const nameInput = dialog.getByLabelText(/name/i);
+      const nameInput = screen.getByLabelText(/name/i);
       fireEvent.change(nameInput, { target: { value: 'Updated Component' } });
 
       const form = document.querySelector('form');
@@ -167,12 +157,11 @@ describe('EditComponentDialog', () => {
       );
 
       const mockOnClose = vi.fn();
-      render(<EditComponentDialog isOpen={true} onClose={mockOnClose} component={mockComponent} />);
+      render(<EditComponentDialog isOpen={true} onClose={mockOnClose} component={mockComponent} />, { wrapper: MantineTestWrapper });
 
-      const dialog = getDialog();
 
       await waitFor(() => {
-        expect(dialog.getByDisplayValue('Test Component')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Test Component')).toBeInTheDocument();
       });
 
       const form = document.querySelector('form');
@@ -190,19 +179,18 @@ describe('EditComponentDialog', () => {
         selector(mockStore)
       );
 
-      render(<EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponent} />);
+      render(<EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponent} />, { wrapper: MantineTestWrapper });
 
-      const dialog = getDialog();
 
       await waitFor(() => {
-        expect(dialog.getByDisplayValue('Test Component')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Test Component')).toBeInTheDocument();
       });
 
       const form = document.querySelector('form');
       fireEvent.submit(form!);
 
       await waitFor(() => {
-        expect(dialog.getByText('Update failed')).toBeInTheDocument();
+        expect(screen.getByText('Update failed')).toBeInTheDocument();
       });
     });
   });
@@ -215,10 +203,9 @@ describe('EditComponentDialog', () => {
       );
 
       const mockOnClose = vi.fn();
-      render(<EditComponentDialog isOpen={true} onClose={mockOnClose} component={mockComponent} />);
+      render(<EditComponentDialog isOpen={true} onClose={mockOnClose} component={mockComponent} />, { wrapper: MantineTestWrapper });
 
-      const dialog = getDialog();
-      const cancelButton = dialog.getByText('Cancel');
+      const cancelButton = screen.getByText('Cancel');
       fireEvent.click(cancelButton);
 
       expect(mockOnClose).toHaveBeenCalled();
@@ -232,19 +219,19 @@ describe('EditComponentDialog', () => {
 
       const mockOnClose = vi.fn();
       const { rerender } = render(
-        <EditComponentDialog isOpen={true} onClose={mockOnClose} component={mockComponent} />
+        <EditComponentDialog isOpen={true} onClose={mockOnClose} component={mockComponent} />,
+        { wrapper: MantineTestWrapper }
       );
 
-      const dialog = getDialog();
 
       await waitFor(() => {
-        expect(dialog.getByDisplayValue('Test Component')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Test Component')).toBeInTheDocument();
       });
 
-      const nameInput = dialog.getByLabelText(/name/i);
+      const nameInput = screen.getByLabelText(/name/i);
       fireEvent.change(nameInput, { target: { value: 'Modified Name' } });
 
-      const cancelButton = dialog.getByText('Cancel');
+      const cancelButton = screen.getByText('Cancel');
       fireEvent.click(cancelButton);
 
       const newComponent: Component = {
@@ -258,7 +245,7 @@ describe('EditComponentDialog', () => {
       rerender(<EditComponentDialog isOpen={true} onClose={mockOnClose} component={newComponent} />);
 
       await waitFor(() => {
-        expect(dialog.getByDisplayValue('Another Component')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Another Component')).toBeInTheDocument();
       });
     });
   });
@@ -271,12 +258,11 @@ describe('EditComponentDialog', () => {
         selector(mockStore)
       );
 
-      render(<EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponent} />);
+      render(<EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponent} />, { wrapper: MantineTestWrapper });
 
-      const dialog = getDialog();
 
       await waitFor(() => {
-        expect(dialog.getByDisplayValue('Test Component')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Test Component')).toBeInTheDocument();
       });
 
       const form = document.querySelector('form');
@@ -304,16 +290,16 @@ describe('EditComponentDialog', () => {
       };
 
       render(
-        <EditComponentDialog isOpen={true} onClose={vi.fn()} component={componentWithoutDescription} />
+        <EditComponentDialog isOpen={true} onClose={vi.fn()} component={componentWithoutDescription} />,
+        { wrapper: MantineTestWrapper }
       );
 
-      const dialog = getDialog();
 
       await waitFor(() => {
-        expect(dialog.getByDisplayValue('No Description Component')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('No Description Component')).toBeInTheDocument();
       });
 
-      const descriptionTextarea = dialog.getByLabelText(/description/i);
+      const descriptionTextarea = screen.getByLabelText(/description/i);
       expect(descriptionTextarea).toHaveValue('');
     });
   });
@@ -325,18 +311,17 @@ describe('EditComponentDialog', () => {
         selector(mockStore)
       );
 
-      render(<EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponent} />);
+      render(<EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponent} />, { wrapper: MantineTestWrapper });
 
-      const dialog = getDialog();
 
       await waitFor(() => {
-        expect(dialog.getByDisplayValue('Test Component')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Test Component')).toBeInTheDocument();
       });
 
-      const nameInput = dialog.getByLabelText(/name/i);
+      const nameInput = screen.getByLabelText(/name/i);
       fireEvent.change(nameInput, { target: { value: '   ' } });
 
-      const submitButton = dialog.getByText('Update Application');
+      const submitButton = screen.getByRole('button', { name: /Save Changes/i });
       expect(submitButton).toBeDisabled();
     });
 
@@ -349,19 +334,19 @@ describe('EditComponentDialog', () => {
         selector(mockStore)
       );
 
-      render(<EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponent} />);
+      render(<EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponent} />, { wrapper: MantineTestWrapper });
 
-      const dialog = getDialog();
 
       await waitFor(() => {
-        expect(dialog.getByDisplayValue('Test Component')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Test Component')).toBeInTheDocument();
       });
 
       const form = document.querySelector('form');
       fireEvent.submit(form!);
 
       await waitFor(() => {
-        expect(dialog.getByText('Updating...')).toBeInTheDocument();
+        const submitButton = screen.getByText('Save Changes');
+        expect(submitButton).toHaveAttribute('data-loading', 'true');
       });
     });
   });

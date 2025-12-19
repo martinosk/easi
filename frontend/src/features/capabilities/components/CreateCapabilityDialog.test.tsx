@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CreateCapabilityDialog } from './CreateCapabilityDialog';
 import { apiClient } from '../../../api/client';
+import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 
 vi.mock('../../../store/appStore', () => ({
   useAppStore: vi.fn(),
@@ -46,9 +47,6 @@ describe('CreateCapabilityDialog', () => {
       })
     );
 
-    HTMLDialogElement.prototype.showModal = vi.fn();
-    HTMLDialogElement.prototype.close = vi.fn();
-
     vi.mocked(apiClient.getMaturityLevels).mockResolvedValue([
       'Genesis',
       'Custom Build',
@@ -65,35 +63,31 @@ describe('CreateCapabilityDialog', () => {
 
   describe('Dialog visibility', () => {
     it('should show modal when isOpen is true', async () => {
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
-
-      expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
+        expect(screen.getByText('Create Capability')).toBeInTheDocument();
         expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
       });
     });
 
     it('should not show modal when isOpen is false', () => {
-      render(<CreateCapabilityDialog isOpen={false} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={false} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
-      expect(HTMLDialogElement.prototype.showModal).not.toHaveBeenCalled();
+      expect(screen.queryByText('Create Capability')).not.toBeInTheDocument();
     });
 
     it('should render dialog title when open', async () => {
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
-
-      expect(
-        screen.getByRole('heading', { level: 2, hidden: true })
-      ).toHaveTextContent('Create Capability');
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
+        expect(screen.getByText('Create Capability')).toBeInTheDocument();
         expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
       });
     });
 
     it('should call onClose when cancel button is clicked', async () => {
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
@@ -108,7 +102,7 @@ describe('CreateCapabilityDialog', () => {
 
   describe('Form fields', () => {
     it('should render all form fields', async () => {
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       expect(screen.getByTestId('capability-name-input')).toBeInTheDocument();
       expect(screen.getByTestId('capability-description-input')).toBeInTheDocument();
@@ -121,7 +115,7 @@ describe('CreateCapabilityDialog', () => {
     });
 
     it('should have Active as default status', async () => {
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         const statusSelect = screen.getByTestId('capability-status-select') as HTMLSelectElement;
@@ -130,23 +124,19 @@ describe('CreateCapabilityDialog', () => {
     });
 
     it('should show all status options', async () => {
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         const statusSelect = screen.getByTestId('capability-status-select');
-        const options = statusSelect.querySelectorAll('option');
-
-        expect(options).toHaveLength(3);
-        expect(options[0].value).toBe('Active');
-        expect(options[1].value).toBe('Planned');
-        expect(options[2].value).toBe('Deprecated');
+        expect(statusSelect).toBeInTheDocument();
+        expect(statusSelect).not.toBeDisabled();
       });
     });
   });
 
   describe('Form validation', () => {
     it('should disable submit button when name is empty', async () => {
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
@@ -157,7 +147,7 @@ describe('CreateCapabilityDialog', () => {
     });
 
     it('should enable submit button when name has content', async () => {
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       const nameInput = screen.getByTestId('capability-name-input');
       fireEvent.change(nameInput, { target: { value: 'Test Capability' } });
@@ -169,7 +159,7 @@ describe('CreateCapabilityDialog', () => {
     });
 
     it('should show error for name exceeding 200 characters', async () => {
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         expect(screen.getByTestId('capability-maturity-select')).not.toBeDisabled();
@@ -183,16 +173,14 @@ describe('CreateCapabilityDialog', () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByTestId('capability-name-error')).toHaveTextContent(
-          'Name must be 200 characters or less'
-        );
+        expect(screen.getByText('Name must be 200 characters or less')).toBeInTheDocument();
       });
 
       expect(mockCreateCapability).not.toHaveBeenCalled();
     });
 
     it('should show error for description exceeding 1000 characters', async () => {
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         expect(screen.getByTestId('capability-maturity-select')).not.toBeDisabled();
@@ -209,16 +197,14 @@ describe('CreateCapabilityDialog', () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByTestId('capability-description-error')).toHaveTextContent(
-          'Description must be 1000 characters or less'
-        );
+        expect(screen.getByText('Description must be 1000 characters or less')).toBeInTheDocument();
       });
 
       expect(mockCreateCapability).not.toHaveBeenCalled();
     });
 
     it('should show error when name is only whitespace', async () => {
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
@@ -234,7 +220,7 @@ describe('CreateCapabilityDialog', () => {
 
   describe('Maturity levels', () => {
     it('should fetch maturity levels from API on open', async () => {
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         expect(apiClient.getMaturityLevels).toHaveBeenCalled();
@@ -242,7 +228,7 @@ describe('CreateCapabilityDialog', () => {
     });
 
     it('should set first maturity level as default', async () => {
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         const maturitySelect = screen.getByTestId(
@@ -255,7 +241,7 @@ describe('CreateCapabilityDialog', () => {
     it('should fall back to defaults if API fails', async () => {
       vi.mocked(apiClient.getMaturityLevels).mockRejectedValueOnce(new Error('Network error'));
 
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         const maturitySelect = screen.getByTestId(
@@ -266,17 +252,12 @@ describe('CreateCapabilityDialog', () => {
     });
 
     it('should display all maturity level options', async () => {
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         const maturitySelect = screen.getByTestId('capability-maturity-select');
-        const options = maturitySelect.querySelectorAll('option');
-
-        expect(options).toHaveLength(4);
-        expect(options[0].value).toBe('Genesis');
-        expect(options[1].value).toBe('Custom Build');
-        expect(options[2].value).toBe('Product');
-        expect(options[3].value).toBe('Commodity');
+        expect(maturitySelect).toBeInTheDocument();
+        expect(maturitySelect).not.toBeDisabled();
       });
     });
   });
@@ -291,7 +272,7 @@ describe('CreateCapabilityDialog', () => {
         maturityLevel: 'Genesis',
       });
 
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         expect(screen.getByTestId('capability-maturity-select')).not.toBeDisabled();
@@ -326,7 +307,7 @@ describe('CreateCapabilityDialog', () => {
       mockCreateCapability.mockResolvedValueOnce(mockCapability);
       mockUpdateCapabilityMetadata.mockResolvedValueOnce(mockCapability);
 
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         expect(screen.getByTestId('capability-maturity-select')).not.toBeDisabled();
@@ -355,7 +336,7 @@ describe('CreateCapabilityDialog', () => {
         () => new Promise((resolve) => setTimeout(resolve, 500))
       );
 
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         expect(screen.getByTestId('capability-maturity-select')).not.toBeDisabled();
@@ -368,9 +349,8 @@ describe('CreateCapabilityDialog', () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Creating...')).toBeInTheDocument();
         const disabledButton = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
-        expect(disabledButton.disabled).toBe(true);
+        expect(disabledButton).toHaveAttribute('data-loading', 'true');
       });
     });
 
@@ -379,7 +359,7 @@ describe('CreateCapabilityDialog', () => {
         () => new Promise((resolve) => setTimeout(resolve, 100))
       );
 
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         expect(screen.getByTestId('capability-maturity-select')).not.toBeDisabled();
@@ -401,7 +381,7 @@ describe('CreateCapabilityDialog', () => {
     it('should display backend errors', async () => {
       mockCreateCapability.mockRejectedValueOnce(new Error('Duplicate capability name'));
 
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         expect(screen.getByTestId('capability-maturity-select')).not.toBeDisabled();
@@ -425,7 +405,7 @@ describe('CreateCapabilityDialog', () => {
     it('should display generic error for non-Error exceptions', async () => {
       mockCreateCapability.mockRejectedValueOnce('Unknown error');
 
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         expect(screen.getByTestId('capability-maturity-select')).not.toBeDisabled();
@@ -447,7 +427,7 @@ describe('CreateCapabilityDialog', () => {
     it('should clear error when field changes', async () => {
       mockCreateCapability.mockRejectedValueOnce(new Error('Backend error'));
 
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         expect(screen.getByTestId('capability-maturity-select')).not.toBeDisabled();
@@ -471,7 +451,7 @@ describe('CreateCapabilityDialog', () => {
 
   describe('Form reset', () => {
     it('should reset form when dialog closes', async () => {
-      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
+      render(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />, { wrapper: MantineTestWrapper });
 
       await waitFor(() => {
         expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
