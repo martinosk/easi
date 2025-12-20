@@ -1,5 +1,7 @@
 import React from 'react';
 import { useAppStore } from '../../../store/appStore';
+import { useRelations } from '../hooks/useRelations';
+import { useComponents } from '../../components/hooks/useComponents';
 import type { Relation, Component } from '../../../api/types';
 
 interface RelationDetailsProps {
@@ -15,8 +17,8 @@ interface RelationData {
 }
 
 const useRelationData = (selectedEdgeId: string | null): RelationData | null => {
-  const relations = useAppStore((state) => state.relations);
-  const components = useAppStore((state) => state.components);
+  const { data: relations = [] } = useRelations();
+  const { data: components = [] } = useComponents();
 
   if (!selectedEdgeId) {
     return null;
@@ -38,7 +40,6 @@ const useRelationData = (selectedEdgeId: string | null): RelationData | null => 
 
 export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
-  const clearSelection = useAppStore((state) => state.clearSelection);
 
   const data = useRelationData(selectedEdgeId);
 
@@ -52,13 +53,6 @@ export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
     <div className="detail-panel">
       <div className="detail-header">
         <h3 className="detail-title">Relation Details</h3>
-        <button
-          className="detail-close"
-          onClick={clearSelection}
-          aria-label="Close details"
-        >
-          ×
-        </button>
       </div>
 
       <div className="detail-content">

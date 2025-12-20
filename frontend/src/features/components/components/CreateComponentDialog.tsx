@@ -1,5 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
+import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
 import { useAppStore } from '../../../store/appStore';
+import { useCreateComponent } from '../hooks/useComponents';
+import { useAddComponentToView } from '../../views/hooks/useViews';
+import type { ComponentId, ViewId } from '../../../api/types';
 
 interface CreateComponentDialogProps {
   isOpen: boolean;
@@ -12,22 +16,13 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const createComponent = useAppStore((state) => state.createComponent);
+  const currentView = useAppStore((state) => state.currentView);
+  const createComponentMutation = useCreateComponent();
+  const addComponentToViewMutation = useAddComponentToView();
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (isOpen) {
-      dialog.showModal();
-    } else {
-      dialog.close();
-    }
-  }, [isOpen]);
+  const isCreating = createComponentMutation.isPending || addComponentToViewMutation.isPending;
 
   const handleClose = () => {
     setName('');
@@ -45,83 +40,87 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
       return;
     }
 
-    setIsCreating(true);
-
     try {
-      await createComponent({
+      const newComponent = await createComponentMutation.mutateAsync({
         name: name.trim(),
         description: description.trim() || undefined,
       });
+
+      if (currentView) {
+        const defaultPosition = { x: 400, y: 300 };
+        await addComponentToViewMutation.mutateAsync({
+          viewId: currentView.id as ViewId,
+          request: {
+            componentId: newComponent.id as ComponentId,
+            ...defaultPosition,
+          },
+        });
+      }
+
       handleClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create application');
-    } finally {
-      setIsCreating(false);
     }
   };
 
   return (
-    <dialog ref={dialogRef} className="dialog" onClose={handleClose} data-testid="create-component-dialog">
-      <div className="dialog-content">
-        <h2 className="dialog-title">Create Application</h2>
+    <Modal
+      opened={isOpen}
+      onClose={handleClose}
+      title="Create Application"
+      centered
+      data-testid="create-component-dialog"
+    >
+      <form onSubmit={handleSubmit}>
+        <Stack gap="md">
+          <TextInput
+            label="Name"
+            placeholder="Enter application name"
+            value={name}
+            onChange={(e) => setName(e.currentTarget.value)}
+            required
+            withAsterisk
+            autoFocus
+            disabled={isCreating}
+            data-testid="component-name-input"
+          />
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="component-name" className="form-label">
-              Name <span className="required">*</span>
-            </label>
-            <input
-              id="component-name"
-              type="text"
-              className="form-input"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter application name"
-              autoFocus
-              disabled={isCreating}
-              data-testid="component-name-input"
-            />
-          </div>
+          <Textarea
+            label="Description"
+            placeholder="Enter application description (optional)"
+            value={description}
+            onChange={(e) => setDescription(e.currentTarget.value)}
+            rows={3}
+            disabled={isCreating}
+            data-testid="component-description-input"
+          />
 
-          <div className="form-group">
-            <label htmlFor="component-description" className="form-label">
-              Description
-            </label>
-            <textarea
-              id="component-description"
-              className="form-textarea"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter application description (optional)"
-              rows={3}
-              disabled={isCreating}
-              data-testid="component-description-input"
-            />
-          </div>
+          {error && (
+            <Alert color="red" data-testid="create-component-error">
+              {error}
+            </Alert>
+          )}
 
-          {error && <div className="error-message" data-testid="create-component-error">{error}</div>}
-
-          <div className="dialog-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
               onClick={handleClose}
               disabled={isCreating}
               data-testid="create-component-cancel"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="btn btn-primary"
-              disabled={isCreating || !name.trim()}
+              loading={isCreating}
+              disabled={!name.trim()}
               data-testid="create-component-submit"
             >
-              {isCreating ? 'Creating...' : 'Create Application'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </dialog>
+              Create Application
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Modal>
   );
 };

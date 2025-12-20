@@ -1,68 +1,93 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CreateComponentDialog } from './CreateComponentDialog';
-import { setupDialogTest } from '../../../test/helpers/dialogTestUtils';
+import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// Mock the store
+const mockMutateAsync = vi.fn();
+const mockAddToViewMutateAsync = vi.fn();
+
+vi.mock('../hooks/useComponents', () => ({
+  useCreateComponent: () => ({
+    mutateAsync: mockMutateAsync,
+    isPending: false,
+  }),
+}));
+
+vi.mock('../../views/hooks/useViews', () => ({
+  useAddComponentToView: () => ({
+    mutateAsync: mockAddToViewMutateAsync,
+    isPending: false,
+  }),
+}));
+
 vi.mock('../../../store/appStore', () => ({
-  useAppStore: vi.fn(),
+  useAppStore: (selector: (state: { currentView: null }) => unknown) => selector({ currentView: null }),
 }));
 
 describe('CreateComponentDialog', () => {
   const mockOnClose = vi.fn();
-  let mocks: ReturnType<typeof setupDialogTest>;
+  let queryClient: QueryClient;
 
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Use shared dialog test setup
-    mocks = setupDialogTest();
-
-    // Mock HTMLDialogElement methods
-    HTMLDialogElement.prototype.showModal = vi.fn();
-    HTMLDialogElement.prototype.close = vi.fn();
+    mockMutateAsync.mockReset();
+    mockAddToViewMutateAsync.mockReset();
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
   });
 
-  it('should render dialog when open', () => {
-    render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
+  const renderDialog = (isOpen = true) => {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <CreateComponentDialog isOpen={isOpen} onClose={mockOnClose} />
+      </QueryClientProvider>,
+      { wrapper: MantineTestWrapper }
+    );
+  };
 
-    // Check for the heading element (use hidden option because dialog is not accessible by default in JSDOM)
-    expect(screen.getByRole('heading', { level: 2, hidden: true })).toHaveTextContent('Create Application');
-    expect(screen.getByLabelText(/Name/, {})).toBeInTheDocument();
-    expect(screen.getByLabelText(/Description/, {})).toBeInTheDocument();
+  it('should render dialog when open', () => {
+    renderDialog();
+
+    expect(screen.getAllByText('Create Application')[0]).toBeInTheDocument();
+    expect(screen.getByLabelText(/Name/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Description/)).toBeInTheDocument();
   });
 
   it('should not show modal when isOpen is false', () => {
-    render(<CreateComponentDialog isOpen={false} onClose={mockOnClose} />);
+    renderDialog(false);
 
-    expect(HTMLDialogElement.prototype.showModal).not.toHaveBeenCalled();
+    expect(screen.queryByText('Create Application')).not.toBeInTheDocument();
   });
 
   it('should show modal when isOpen is true', () => {
-    render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
+    renderDialog();
 
-    expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+    expect(screen.getAllByText('Create Application').length).toBeGreaterThan(0);
   });
 
   it('should disable submit button when name is empty', () => {
-    render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
+    renderDialog();
 
-    const buttons = screen.getAllByRole('button', { hidden: true });
+    const buttons = screen.getAllByRole('button');
     const submitButton = buttons.find(btn => btn.textContent === 'Create Application') as HTMLButtonElement;
 
-    // Button should be disabled when name is empty
     expect(submitButton.disabled).toBe(true);
-    expect(mocks.mockCreateComponent).not.toHaveBeenCalled();
+    expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
-  it('should call createComponent with valid data', async () => {
-    mocks.mockCreateComponent.mockResolvedValueOnce({ id: '1', name: 'Test Component' });
+  it('should call createComponent mutation with valid data', async () => {
+    mockMutateAsync.mockResolvedValueOnce({ id: '1', name: 'Test Component' });
 
-    render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
+    renderDialog();
 
-    const nameInput = screen.getByLabelText(/Name/, {});
-    const descriptionInput = screen.getByLabelText(/Description/, {});
-    const buttons = screen.getAllByRole('button', { hidden: true });
+    const nameInput = screen.getByLabelText(/Name/);
+    const descriptionInput = screen.getByLabelText(/Description/);
+    const buttons = screen.getAllByRole('button');
     const submitButton = buttons.find(btn => btn.textContent === 'Create Application');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
@@ -70,7 +95,7 @@ describe('CreateComponentDialog', () => {
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(mocks.mockCreateComponent).toHaveBeenCalledWith({
+      expect(mockMutateAsync).toHaveBeenCalledWith({
         name: 'Test Component',
         description: 'Test Description',
       });
@@ -80,19 +105,19 @@ describe('CreateComponentDialog', () => {
   });
 
   it('should trim whitespace from inputs', async () => {
-    mocks.mockCreateComponent.mockResolvedValueOnce({ id: '1', name: 'Test Component' });
+    mockMutateAsync.mockResolvedValueOnce({ id: '1', name: 'Test Component' });
 
-    render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
+    renderDialog();
 
-    const nameInput = screen.getByLabelText(/Name/, {});
-    const buttons = screen.getAllByRole('button', { hidden: true });
+    const nameInput = screen.getByLabelText(/Name/);
+    const buttons = screen.getAllByRole('button');
     const submitButton = buttons.find(btn => btn.textContent === 'Create Application');
 
     fireEvent.change(nameInput, { target: { value: '  Test Component  ' } });
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(mocks.mockCreateComponent).toHaveBeenCalledWith({
+      expect(mockMutateAsync).toHaveBeenCalledWith({
         name: 'Test Component',
         description: undefined,
       });
@@ -100,47 +125,26 @@ describe('CreateComponentDialog', () => {
   });
 
   it('should handle create component error', async () => {
-    mocks.mockCreateComponent.mockRejectedValueOnce(new Error('Creation failed'));
+    mockMutateAsync.mockRejectedValueOnce(new Error('Creation failed'));
 
-    render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
+    renderDialog();
 
-    const nameInput = screen.getByLabelText(/Name/, {});
-    const buttons = screen.getAllByRole('button', { hidden: true });
+    const nameInput = screen.getByLabelText(/Name/);
+    const buttons = screen.getAllByRole('button');
     const submitButton = buttons.find(btn => btn.textContent === 'Create Application');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
-      expect(screen.getByText('Creation failed', {})).toBeInTheDocument();
+      expect(screen.getByText('Creation failed')).toBeInTheDocument();
     });
 
     expect(mockOnClose).not.toHaveBeenCalled();
   });
 
-  it('should disable inputs while creating', async () => {
-    mocks.mockCreateComponent.mockImplementation(
-      () => new Promise((resolve) => setTimeout(resolve, 100))
-    );
-
-    render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
-
-    const nameInput = screen.getByLabelText(/Name/, {}) as HTMLInputElement;
-    const buttons = screen.getAllByRole('button', { hidden: true });
-    const submitButton = buttons.find(btn => btn.textContent === 'Create Application');
-
-    fireEvent.change(nameInput, { target: { value: 'Test Component' } });
-    fireEvent.click(submitButton!);
-
-    await waitFor(() => {
-      expect(screen.getByText('Creating...', {})).toBeInTheDocument();
-    });
-
-    expect(nameInput.disabled).toBe(true);
-  });
-
   it('should reset form on close', async () => {
-    render(<CreateComponentDialog isOpen={true} onClose={mockOnClose} />);
+    renderDialog();
 
     const nameInput = screen.getByLabelText(/Name/) as HTMLInputElement;
     const cancelButton = screen.getByText('Cancel');

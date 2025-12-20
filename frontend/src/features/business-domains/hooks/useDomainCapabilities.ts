@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../../api/client';
+import { queryKeys } from '../../../lib/queryClient';
 import type { Capability, CapabilityId } from '../../../api/types';
 
 export interface UseDomainCapabilitiesResult {
@@ -14,6 +16,7 @@ export interface UseDomainCapabilitiesResult {
 export function useDomainCapabilities(
   capabilitiesLink: string | undefined
 ): UseDomainCapabilitiesResult {
+  const queryClient = useQueryClient();
   const [capabilities, setCapabilities] = useState<Capability[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -47,8 +50,9 @@ export function useDomainCapabilities(
       }
       await apiClient.associateCapabilityWithDomain(capabilitiesLink, { capabilityId });
       setCapabilities((prev) => [...prev, capability]);
+      queryClient.invalidateQueries({ queryKey: queryKeys.businessDomains.all });
     },
-    [capabilitiesLink]
+    [capabilitiesLink, queryClient]
   );
 
   const dissociateCapability = useCallback(async (capability: Capability) => {
@@ -58,7 +62,8 @@ export function useDomainCapabilities(
     }
     await apiClient.dissociateCapabilityFromDomain(dissociateLink);
     setCapabilities((prev) => prev.filter((c) => c.id !== capability.id));
-  }, []);
+    queryClient.invalidateQueries({ queryKey: queryKeys.businessDomains.all });
+  }, [queryClient]);
 
   return {
     capabilities,

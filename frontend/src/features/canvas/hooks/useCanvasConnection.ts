@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import type { Connection } from '@xyflow/react';
-import { useAppStore } from '../../../store/appStore';
+import { useChangeCapabilityParent, useLinkSystemToCapability } from '../../capabilities/hooks/useCapabilities';
 import type { ComponentId, CapabilityId } from '../../../api/types';
 import toast from 'react-hot-toast';
 
@@ -27,8 +27,8 @@ const getConnectionType = (sourceIsCapability: boolean, targetIsCapability: bool
 export const useCanvasConnection = (
   onConnect: (source: string, target: string) => void
 ) => {
-  const changeCapabilityParent = useAppStore((state) => state.changeCapabilityParent);
-  const linkSystemToCapability = useAppStore((state) => state.linkSystemToCapability);
+  const changeCapabilityParentMutation = useChangeCapabilityParent();
+  const linkSystemToCapabilityMutation = useLinkSystemToCapability();
 
   const handleCapabilityParentConnection = useCallback(
     async (source: string, target: string) => {
@@ -36,7 +36,7 @@ export const useCanvasConnection = (
       const childId = extractCapabilityId(source) as CapabilityId;
 
       try {
-        await changeCapabilityParent(childId, parentId);
+        await changeCapabilityParentMutation.mutateAsync({ id: childId, parentId });
       } catch (error) {
         const errorMessage = getErrorMessage(error, 'Failed to create parent relationship');
         if (isHierarchyDepthError(errorMessage)) {
@@ -44,7 +44,7 @@ export const useCanvasConnection = (
         }
       }
     },
-    [changeCapabilityParent]
+    [changeCapabilityParentMutation]
   );
 
   const handleMixedConnection = useCallback(
@@ -55,16 +55,19 @@ export const useCanvasConnection = (
       const componentId = (sourceIsCapability ? target : source) as ComponentId;
 
       try {
-        await linkSystemToCapability(capabilityId, {
-          componentId,
-          realizationLevel: 'Full',
+        await linkSystemToCapabilityMutation.mutateAsync({
+          capabilityId,
+          request: {
+            componentId,
+            realizationLevel: 'Full',
+          },
         });
       } catch (error) {
         const errorMessage = getErrorMessage(error, 'Failed to create realization');
         toast.error(errorMessage);
       }
     },
-    [linkSystemToCapability]
+    [linkSystemToCapabilityMutation]
   );
 
   const onConnectHandler = useCallback(

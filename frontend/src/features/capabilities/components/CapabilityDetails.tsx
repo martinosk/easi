@@ -3,7 +3,10 @@ import { useAppStore } from '../../../store/appStore';
 import { EditCapabilityDialog } from './EditCapabilityDialog';
 import { DetailField } from '../../../components/shared/DetailField';
 import { ColorPicker } from '../../../components/shared/ColorPicker';
-import type { Capability, Component, CapabilityRealization, Expert, View, ViewCapability } from '../../../api/types';
+import { useCapabilities, useCapabilityRealizations } from '../hooks/useCapabilities';
+import { useComponents } from '../../components/hooks/useComponents';
+import { useUpdateCapabilityColor } from '../../views/hooks/useViews';
+import type { Capability, Component, CapabilityRealization, Expert, View, ViewCapability, ViewId, CapabilityId } from '../../../api/types';
 import toast from 'react-hot-toast';
 
 interface CapabilityDetailsProps {
@@ -218,12 +221,11 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
 
 export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFromView }) => {
   const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
-  const capabilities = useAppStore((state) => state.capabilities);
-  const selectCapability = useAppStore((state) => state.selectCapability);
-  const capabilityRealizations = useAppStore((state) => state.capabilityRealizations);
-  const components = useAppStore((state) => state.components);
+  const { data: capabilities = [] } = useCapabilities();
+  const { data: components = [] } = useComponents();
   const currentView = useAppStore((state) => state.currentView);
-  const updateCapabilityColor = useAppStore((state) => state.updateCapabilityColor);
+  const { data: capabilityRealizationsForThis = [] } = useCapabilityRealizations(selectedCapabilityId ?? undefined);
+  const updateCapabilityColorMutation = useUpdateCapabilityColor();
   const [showEditDialog, setShowEditDialog] = useState(false);
 
   const capability = capabilities.find((c) => c.id === selectedCapabilityId);
@@ -233,15 +235,15 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
     (vc) => vc.capabilityId === selectedCapabilityId
   );
 
-  const capabilityRealizationsForThis = capabilityRealizations.filter(
-    (r) => r.capabilityId === capability.id
-  );
-
   const handleColorChange = async (color: string) => {
     if (!currentView) return;
 
     try {
-      await updateCapabilityColor(currentView.id, selectedCapabilityId, color);
+      await updateCapabilityColorMutation.mutateAsync({
+        viewId: currentView.id as ViewId,
+        capabilityId: selectedCapabilityId as CapabilityId,
+        color
+      });
     } catch {
       toast.error('Failed to update color');
     }
@@ -251,7 +253,6 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
     <div className="detail-panel">
       <div className="detail-header">
         <h3 className="detail-title">Capability Details</h3>
-        <button className="detail-close" onClick={() => selectCapability(null)} aria-label="Close details">x</button>
       </div>
 
       <CapabilityContent

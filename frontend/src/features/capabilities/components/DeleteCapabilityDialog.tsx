@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useAppStore } from '../../../store/appStore';
+import React, { useState } from 'react';
+import { Modal, Text, Button, Group, Stack, Alert } from '@mantine/core';
+import { useDeleteCapability } from '../hooks/useCapabilities';
 import type { Capability } from '../../../api/types';
 
 interface DeleteCapabilityDialogProps {
@@ -20,19 +21,7 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
 
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const deleteCapability = useAppStore((state) => state.deleteCapability);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (isOpen && capability) {
-      dialog.showModal();
-    } else {
-      dialog.close();
-    }
-  }, [isOpen, capability]);
+  const deleteCapabilityMutation = useDeleteCapability();
 
   const handleClose = () => {
     setBackendError(null);
@@ -48,7 +37,7 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
     try {
       const capsToDelete = capabilitiesToDelete.length > 0 ? capabilitiesToDelete : [capability];
       for (const cap of capsToDelete) {
-        await deleteCapability(cap.id);
+        await deleteCapabilityMutation.mutateAsync(cap.id);
       }
       onConfirm?.();
       handleClose();
@@ -59,73 +48,55 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
     }
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen) return;
-
-      if (e.key === 'Escape') {
-        handleClose();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
-
   if (!capability) return null;
 
   const isMultiDelete = capabilitiesToDelete.length > 1;
   const deleteCount = capabilitiesToDelete.length > 0 ? capabilitiesToDelete.length : 1;
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog"
+    <Modal
+      opened={isOpen}
       onClose={handleClose}
+      title="Delete Capability?"
+      centered
       data-testid="delete-capability-dialog"
     >
-      <div className="dialog-content">
-        <h2 className="dialog-title">Delete Capability?</h2>
-
+      <Stack gap="md">
         {isMultiDelete ? (
-          <>
-            <p>Are you sure you want to delete {deleteCount} capabilities?</p>
-          </>
+          <Text>Are you sure you want to delete {deleteCount} capabilities?</Text>
         ) : (
           <>
-            <p>Are you sure you want to delete</p>
-            <p className="dialog-item-name">"{capability.name}"</p>
+            <Text>Are you sure you want to delete</Text>
+            <Text fw={600} size="lg">"{capability.name}"</Text>
           </>
         )}
-        <p className="dialog-warning">This action cannot be undone.</p>
+        <Text c="orange" size="sm">This action cannot be undone.</Text>
 
         {backendError && (
-          <div className="error-message" data-testid="delete-capability-error">
+          <Alert color="red" data-testid="delete-capability-error">
             {backendError}
-          </div>
+          </Alert>
         )}
 
-        <div className="dialog-actions">
-          <button
-            type="button"
-            className="btn btn-secondary"
+        <Group justify="flex-end" gap="sm">
+          <Button
+            variant="default"
             onClick={handleClose}
             disabled={isDeleting}
             data-testid="delete-capability-cancel"
           >
             Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-danger"
+          </Button>
+          <Button
+            color="red"
             onClick={handleConfirm}
-            disabled={isDeleting}
+            loading={isDeleting}
             data-testid="delete-capability-submit"
           >
-            {isDeleting ? 'Deleting...' : 'Delete'}
-          </button>
-        </div>
-      </div>
-    </dialog>
+            Delete
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
   );
 };

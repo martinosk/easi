@@ -9,15 +9,10 @@ export default defineConfig({
     setupFiles: './src/test/setup.ts',
     css: true,
 
-    // Process isolation to prevent memory leaks between test files
-    // React Flow components were causing memory leaks in JSDOM
-    pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: false,  // Use multiple forks for parallelization
-        isolate: true,      // Each test file runs in isolated process
-      },
-    },
+    // Use threads pool - better compatibility with MSW interceptors
+    // The forks pool causes "read EINVAL" errors with MSW's socket interceptors
+    pool: 'threads',
+    isolate: true,
 
     // Timeouts
     testTimeout: 10000,

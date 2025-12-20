@@ -3,14 +3,21 @@ import type { Edge, Node } from '@xyflow/react';
 import { MarkerType } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
 import { getBestHandles } from '../utils/handleCalculation';
-import type { CapabilityRealization } from '../../../api/types';
+import { useCapabilities, useRealizationsForComponents } from '../../capabilities/hooks/useCapabilities';
+import { useRelations } from '../../relations/hooks/useRelations';
+import type { CapabilityRealization, ComponentId } from '../../../api/types';
 
 export const useCanvasEdges = (nodes: Node[]): Edge[] => {
-  const relations = useAppStore((state) => state.relations);
+  const { data: relations = [] } = useRelations();
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
   const currentView = useAppStore((state) => state.currentView);
-  const capabilities = useAppStore((state) => state.capabilities);
-  const capabilityRealizations = useAppStore((state) => state.capabilityRealizations);
+  const { data: capabilities = [] } = useCapabilities();
+
+  const componentIdsInView = useMemo(() =>
+    currentView?.components.map((vc) => vc.componentId as ComponentId) || [],
+    [currentView?.components]
+  );
+  const { data: capabilityRealizations = [] } = useRealizationsForComponents(componentIdsInView);
 
   return useMemo(() => {
     const viewCapabilities = currentView?.capabilities || [];

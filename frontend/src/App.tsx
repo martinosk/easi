@@ -1,24 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useAppStore } from './store/appStore';
+import { useUserStore } from './store/userStore';
 import { AppLayout } from './components/layout/AppLayout';
 import { AppNavigation } from './components/layout/AppNavigation';
 import { LoadingScreen } from './components/shared/LoadingScreen';
 import { ErrorScreen } from './components/shared/ErrorScreen';
-import { MainLayout } from './components/layout/MainLayout';
+import { ErrorBoundary, FeatureErrorFallback } from './components/shared/ErrorBoundary';
+import { LoadingFallback } from './components/shared/LoadingFallback';
+import { DockviewLayout } from './components/layout/DockviewLayout';
 import { DialogManager } from './components/shared/DialogManager';
 import { ReleaseNotesOverlay } from './contexts/releases/components/ReleaseNotesOverlay';
 import { ReleaseNotesBrowser } from './contexts/releases/components/ReleaseNotesBrowser';
-import { BusinessDomainsRouter } from './features/business-domains';
-import { InvitationsPage } from './features/invitations';
 import type { ComponentCanvasRef } from './features/canvas/components/ComponentCanvas';
 import { useDialogManagement } from './hooks/useDialogManagement';
 import { useViewOperations } from './hooks/useViewOperations';
 import { useCanvasNavigation } from './hooks/useCanvasNavigation';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useReleaseNotes } from './hooks/useReleaseNotes';
-import { useSessionCheck } from './hooks/useSessionCheck';
+import { useRelations } from './features/relations/hooks/useRelations';
+import { useComponents } from './features/components/hooks/useComponents';
 import type { Release } from './api/types';
+
+const BusinessDomainsRouter = lazy(() =>
+  import('./features/business-domains').then(module => ({ default: module.BusinessDomainsRouter }))
+);
+
+const InvitationsPage = lazy(() =>
+  import('./features/invitations').then(module => ({ default: module.InvitationsPage }))
+);
+
+type AppView = 'canvas' | 'business-domains' | 'invitations';
 
 function useAuthErrorHandler() {
   const [authError, setAuthError] = useState<string | null>(null);
@@ -69,7 +81,7 @@ function CanvasView({
 }: CanvasViewProps) {
   return (
     <>
-      <MainLayout
+      <DockviewLayout
         canvasRef={canvasRef}
         selectedNodeId={selectedNodeId}
         selectedEdgeId={selectedEdgeId}
@@ -121,22 +133,26 @@ function ReleaseNotesDisplay({ showOverlay, release, onDismiss, browserIsOpen, o
   );
 }
 
-function App() {
+interface AppProps {
+  view: AppView;
+}
+
+function App({ view }: AppProps) {
   const canvasRef = useRef<ComponentCanvasRef>(null);
-  const [currentView, setCurrentView] = useState<'canvas' | 'business-domains' | 'invitations'>('canvas');
 
   const { authError } = useAuthErrorHandler();
-  const { isLoading: isSessionLoading, isAuthenticated } = useSessionCheck();
+  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
 
   const loadData = useAppStore((state) => state.loadData);
   const isLoading = useAppStore((state) => state.isLoading);
   const error = useAppStore((state) => state.error);
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
-  const relations = useAppStore((state) => state.relations);
+  const { data: relations = [] } = useRelations();
+  const { data: components = [] } = useComponents();
 
   const { showOverlay: showReleaseNotes, release, dismiss: dismissReleaseNotes } = useReleaseNotes();
-  const { state: dialogState, actions: dialogActions } = useDialogManagement(selectedEdgeId, relations);
+  const { state: dialogState, actions: dialogActions } = useDialogManagement(selectedEdgeId, relations, components);
   const { removeComponentFromView, addComponentToView, switchView } = useViewOperations();
   const { navigateToComponent, navigateToCapability } = useCanvasNavigation(canvasRef);
 
@@ -154,10 +170,9 @@ function App() {
     }
   }, [loadData, isAuthenticated]);
 
-  const hasNoData = !useAppStore.getState().components.length;
-  const isInitializing = isSessionLoading || !isAuthenticated;
+  const hasNoData = components.length === 0;
   const isLoadingInitialData = isLoading && hasNoData;
-  const showLoadingScreen = isInitializing || isLoadingInitialData;
+  const showLoadingScreen = isLoadingInitialData;
   const showErrorScreen = error && hasNoData;
 
   if (authError && !isAuthenticated) {
@@ -181,12 +196,12 @@ function App() {
     return <AppLayout><ErrorScreen error={error} onRetry={loadData} /></AppLayout>;
   }
 
-  const isCanvasView = currentView === 'canvas';
-  const isInvitationsView = currentView === 'invitations';
+  const isCanvasView = view === 'canvas';
+  const isInvitationsView = view === 'invitations';
 
   return (
     <AppLayout>
-      <AppNavigation onViewChange={setCurrentView} onOpenReleaseNotes={dialogState.releaseNotesBrowserDialog.onOpen} />
+      <AppNavigation currentView={view} onOpenReleaseNotes={dialogState.releaseNotesBrowserDialog.onOpen} />
       {isCanvasView ? (
         <CanvasView
           canvasRef={canvasRef}
@@ -201,9 +216,25 @@ function App() {
           onRemoveFromView={handleRemoveFromView}
         />
       ) : isInvitationsView ? (
-        <InvitationsPage />
+        <ErrorBoundary
+          fallback={(error, reset) => (
+            <FeatureErrorFallback featureName="Invitations" error={error} onReset={reset} />
+          )}
+        >
+          <Suspense fallback={<LoadingFallback message="Loading Invitations..." />}>
+            <InvitationsPage />
+          </Suspense>
+        </ErrorBoundary>
       ) : (
-        <BusinessDomainsRouter />
+        <ErrorBoundary
+          fallback={(error, reset) => (
+            <FeatureErrorFallback featureName="Business Domains" error={error} onReset={reset} />
+          )}
+        >
+          <Suspense fallback={<LoadingFallback message="Loading Business Domains..." />}>
+            <BusinessDomainsRouter />
+          </Suspense>
+        </ErrorBoundary>
       )}
       <ReleaseNotesDisplay
         showOverlay={showReleaseNotes}

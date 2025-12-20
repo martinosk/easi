@@ -24,7 +24,9 @@
       "mcp__context7__get-library-docs",
       "mcp__codescene__pre_commit_code_health_safeguard",
       "Bash(golangci-lint run:*)",
-      "Bash(npm run type-check:*)"
+      "Bash(npm run type-check:*)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__get-library-docs"
     ],
     "deny": [],
     "ask": []

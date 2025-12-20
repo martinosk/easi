@@ -1,5 +1,4 @@
 import { ContextMenu, type ContextMenuItem } from '../../../../components/shared/ContextMenu';
-import { useAppStore } from '../../../../store/appStore';
 import type { EdgeContextMenu as EdgeContextMenuType } from '../../hooks/useContextMenu';
 
 interface EdgeContextMenuProps {
@@ -14,8 +13,6 @@ interface EdgeContextMenuProps {
 }
 
 export const EdgeContextMenu = ({ menu, onClose, onRequestDelete }: EdgeContextMenuProps) => {
-  const capabilityRealizations = useAppStore((state) => state.capabilityRealizations);
-
   if (!menu) return null;
 
   const getContextMenuItems = (): ContextMenuItem[] => {
@@ -43,12 +40,7 @@ export const EdgeContextMenu = ({ menu, onClose, onRequestDelete }: EdgeContextM
     }
 
     if (menu.edgeType === 'realization' && menu.realizationId) {
-      const realization = capabilityRealizations.find(
-        (r) => r.id === menu.realizationId
-      );
-      const isInherited = realization?.origin === 'Inherited';
-
-      if (isInherited) {
+      if (menu.isInherited) {
         return [];
       }
 

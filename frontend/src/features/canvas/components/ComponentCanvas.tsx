@@ -3,9 +3,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   type NodeChange,
-  type EdgeChange,
   applyNodeChanges,
-  applyEdgeChanges,
   type NodeTypes,
   Background,
   Controls,
@@ -73,15 +71,14 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
   } = useDeleteConfirmation();
 
   const [internalNodes, setInternalNodes] = React.useState(nodes);
-  const [internalEdges, setInternalEdges] = React.useState(edges);
 
+  const nodesRef = React.useRef(nodes);
   React.useEffect(() => {
-    setInternalNodes(nodes);
+    if (nodesRef.current !== nodes) {
+      nodesRef.current = nodes;
+      setInternalNodes(nodes);
+    }
   }, [nodes]);
-
-  React.useEffect(() => {
-    setInternalEdges(edges);
-  }, [edges]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -90,12 +87,6 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     []
   );
 
-  const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) => {
-      setInternalEdges((eds) => applyEdgeChanges(changes, eds));
-    },
-    []
-  );
 
   const handlePaneClick = useCallback(() => {
     onPaneClick();
@@ -123,9 +114,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     >
       <ReactFlow
         nodes={internalNodes}
-        edges={internalEdges}
+        edges={edges}
         onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
         onEdgeClick={onEdgeClick}
         onPaneClick={handlePaneClick}

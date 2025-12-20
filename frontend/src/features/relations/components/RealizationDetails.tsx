@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAppStore } from '../../../store/appStore';
 import { EditRealizationDialog } from './EditRealizationDialog';
 import { DetailField } from '../../../components/shared/DetailField';
-import type { CapabilityRealization, Capability, Component } from '../../../api/types';
+import { useCapabilities, useRealizationsForComponents } from '../../capabilities/hooks/useCapabilities';
+import { useComponents } from '../../components/hooks/useComponents';
+import type { CapabilityRealization, Capability, Component, ComponentId } from '../../../api/types';
 
 const REALIZATION_PREFIX = 'realization-';
 
@@ -28,11 +30,12 @@ interface RealizationData {
   isInherited: boolean;
 }
 
-const useRealizationData = (selectedEdgeId: string | null): RealizationData | null => {
-  const capabilityRealizations = useAppStore((state) => state.capabilityRealizations);
-  const capabilities = useAppStore((state) => state.capabilities);
-  const components = useAppStore((state) => state.components);
-
+const getRealizationData = (
+  selectedEdgeId: string | null,
+  capabilityRealizations: CapabilityRealization[],
+  capabilities: Capability[],
+  components: Component[]
+): RealizationData | null => {
   if (!isRealizationEdge(selectedEdgeId)) {
     return null;
   }
@@ -54,10 +57,18 @@ const useRealizationData = (selectedEdgeId: string | null): RealizationData | nu
 
 export const RealizationDetails: React.FC = () => {
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
-  const selectEdge = useAppStore((state) => state.selectEdge);
+  const currentView = useAppStore((state) => state.currentView);
+  const { data: components = [] } = useComponents();
+  const { data: capabilities = [] } = useCapabilities();
   const [showEditDialog, setShowEditDialog] = useState(false);
 
-  const data = useRealizationData(selectedEdgeId);
+  const componentIdsInView = useMemo(() =>
+    currentView?.components.map((vc) => vc.componentId as ComponentId) || [],
+    [currentView?.components]
+  );
+  const { data: capabilityRealizations = [] } = useRealizationsForComponents(componentIdsInView);
+
+  const data = getRealizationData(selectedEdgeId, capabilityRealizations, capabilities, components);
 
   if (!data) {
     return null;
@@ -69,13 +80,6 @@ export const RealizationDetails: React.FC = () => {
     <div className="detail-panel">
       <div className="detail-header">
         <h3 className="detail-title">Realization Details</h3>
-        <button
-          className="detail-close"
-          onClick={() => selectEdge(null)}
-          aria-label="Close details"
-        >
-          x
-        </button>
       </div>
 
       <div className="detail-content">

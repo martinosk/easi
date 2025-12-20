@@ -1,15 +1,14 @@
 import { useState, useCallback } from 'react';
 import type { Capability, ComponentId } from '../../../api/types';
-import { useAppStore } from '../../../store/appStore';
 import { useComponentDetails } from '../hooks/useComponentDetails';
 import { ComponentDetailsContent } from '../../components/components/ComponentDetails';
 import { EditComponentDialog } from '../../components/components/EditComponentDialog';
+import { useCapabilities, useCapabilitiesByComponent } from '../../capabilities/hooks/useCapabilities';
+import { useComponents } from '../../components/hooks/useComponents';
 
 interface DetailsSidebarProps {
   selectedCapability: Capability | null;
   selectedComponentId: ComponentId | null;
-  onCloseCapability: () => void;
-  onCloseApplication: () => void;
 }
 
 function EmptyState() {
@@ -27,14 +26,11 @@ function EmptyState() {
   );
 }
 
-function CapabilityContent({ capability, onClose }: { capability: Capability; onClose: () => void }) {
+function CapabilityContent({ capability }: { capability: Capability }) {
   return (
     <div className="detail-panel">
       <div className="detail-header">
         <h3 className="detail-title">Capability Details</h3>
-        <button className="detail-close" onClick={onClose} aria-label="Close details">
-          x
-        </button>
       </div>
       <div className="detail-content">
         <div className="detail-field">
@@ -58,15 +54,14 @@ function CapabilityContent({ capability, onClose }: { capability: Capability; on
 
 interface ApplicationContentProps {
   componentId: ComponentId;
-  onClose: () => void;
 }
 
-function ApplicationContent({ componentId, onClose }: ApplicationContentProps) {
+function ApplicationContent({ componentId }: ApplicationContentProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
-  const storeComponents = useAppStore((state) => state.components);
-  const capabilities = useAppStore((state) => state.capabilities);
-  const capabilityRealizations = useAppStore((state) => state.capabilityRealizations);
+  const { data: storeComponents = [] } = useComponents();
+  const { data: capabilities = [] } = useCapabilities();
+  const { data: componentRealizations = [] } = useCapabilitiesByComponent(componentId);
 
   const componentFromStore = storeComponents.find((c) => c.id === componentId);
   const { component: componentFromApi, isLoading, error } = useComponentDetails(
@@ -88,9 +83,6 @@ function ApplicationContent({ componentId, onClose }: ApplicationContentProps) {
       <div className="detail-panel">
         <div className="detail-header">
           <h3 className="detail-title">Application Details</h3>
-          <button className="detail-close" onClick={onClose} aria-label="Close details">
-            x
-          </button>
         </div>
         <div className="detail-content" style={{ textAlign: 'center', padding: '2rem' }}>
           <p style={{ color: 'var(--color-gray-500)', margin: 0 }}>Loading...</p>
@@ -104,9 +96,6 @@ function ApplicationContent({ componentId, onClose }: ApplicationContentProps) {
       <div className="detail-panel">
         <div className="detail-header">
           <h3 className="detail-title">Application Details</h3>
-          <button className="detail-close" onClick={onClose} aria-label="Close details">
-            x
-          </button>
         </div>
         <div className="detail-content" style={{ textAlign: 'center', padding: '2rem' }}>
           <p style={{ color: 'var(--color-red-500)', margin: 0 }}>
@@ -117,8 +106,6 @@ function ApplicationContent({ componentId, onClose }: ApplicationContentProps) {
     );
   }
 
-  const componentRealizations = capabilityRealizations.filter((r) => r.componentId === component.id);
-
   return (
     <>
       <ComponentDetailsContent
@@ -126,7 +113,6 @@ function ApplicationContent({ componentId, onClose }: ApplicationContentProps) {
         realizations={componentRealizations}
         capabilities={capabilities}
         onEdit={handleEdit}
-        onClose={onClose}
       />
       <EditComponentDialog
         isOpen={editDialogOpen}
@@ -140,26 +126,22 @@ function ApplicationContent({ componentId, onClose }: ApplicationContentProps) {
 export function DetailsSidebar({
   selectedCapability,
   selectedComponentId,
-  onCloseCapability,
-  onCloseApplication,
 }: DetailsSidebarProps) {
   const hasSelection = selectedCapability || selectedComponentId;
 
   return (
     <aside
       style={{
-        width: '350px',
-        borderLeft: '1px solid var(--color-gray-200)',
+        width: '100%',
+        height: '100%',
         backgroundColor: 'white',
         overflow: 'auto',
       }}
     >
       {!hasSelection && <EmptyState />}
-      {selectedCapability && (
-        <CapabilityContent capability={selectedCapability} onClose={onCloseCapability} />
-      )}
+      {selectedCapability && <CapabilityContent capability={selectedCapability} />}
       {selectedComponentId && !selectedCapability && (
-        <ApplicationContent componentId={selectedComponentId} onClose={onCloseApplication} />
+        <ApplicationContent componentId={selectedComponentId} />
       )}
     </aside>
   );

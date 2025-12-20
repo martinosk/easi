@@ -25,10 +25,9 @@ export const useCanvasDragDrop = (
 
       if (!reactFlowInstance) return;
 
-      const bounds = (event.target as HTMLElement).getBoundingClientRect();
       const position = reactFlowInstance.screenToFlowPosition({
-        x: event.clientX - bounds.left,
-        y: event.clientY - bounds.top,
+        x: event.clientX,
+        y: event.clientY,
       });
 
       if (componentId && onComponentDrop) {

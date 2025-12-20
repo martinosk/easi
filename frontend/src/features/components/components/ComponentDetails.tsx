@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useAppStore } from '../../../store/appStore';
 import { DetailField } from '../../../components/shared/DetailField';
 import { ColorPicker } from '../../../components/shared/ColorPicker';
-import type { CapabilityRealization, Capability, ViewComponent, Component, View } from '../../../api/types';
+import { useCapabilities, useCapabilitiesByComponent } from '../../capabilities/hooks/useCapabilities';
+import { useComponents } from '../hooks/useComponents';
+import { useUpdateComponentColor, useClearComponentColor } from '../../views/hooks/useViews';
+import type { CapabilityRealization, Capability, ViewComponent, Component, View, ViewId, ComponentId } from '../../../api/types';
 import toast from 'react-hot-toast';
 
 interface ComponentDetailsProps {
@@ -15,7 +18,6 @@ export interface ComponentDetailsContentProps {
   realizations: CapabilityRealization[];
   capabilities: Capability[];
   onEdit: (componentId: string) => void;
-  onClose: () => void;
   componentInView?: ViewComponent;
   currentView?: View | null;
   isInCurrentView?: boolean;
@@ -224,7 +226,6 @@ export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (
   realizations,
   capabilities,
   onEdit,
-  onClose,
   componentInView,
   currentView,
   isInCurrentView = false,
@@ -236,7 +237,6 @@ export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (
     <div className="detail-panel">
       <div className="detail-header">
         <h3 className="detail-title">Application Details</h3>
-        <button className="detail-close" onClick={onClose} aria-label="Close details">x</button>
       </div>
 
       <ComponentContentInternal
@@ -257,26 +257,30 @@ export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (
 
 export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRemoveFromView }) => {
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
-  const components = useAppStore((state) => state.components);
+  const { data: components = [] } = useComponents();
   const currentView = useAppStore((state) => state.currentView);
-  const clearSelection = useAppStore((state) => state.clearSelection);
-  const capabilityRealizations = useAppStore((state) => state.capabilityRealizations);
-  const capabilities = useAppStore((state) => state.capabilities);
-  const updateComponentColor = useAppStore((state) => state.updateComponentColor);
-  const clearComponentColor = useAppStore((state) => state.clearComponentColor);
+  const { data: capabilities = [] } = useCapabilities();
+  const { data: componentRealizations = [] } = useCapabilitiesByComponent(selectedNodeId ?? undefined);
+  const updateComponentColorMutation = useUpdateComponentColor();
+  const clearComponentColorMutation = useClearComponentColor();
 
-  const component = components.find((c) => c.id === selectedNodeId);
+  const component = useMemo(() =>
+    components.find((c) => c.id === selectedNodeId),
+    [components, selectedNodeId]
+  );
   if (!selectedNodeId || !component) return null;
 
   const componentInView = currentView?.components.find((vc) => vc.componentId === selectedNodeId);
   const isInCurrentView = currentView?.components.some((vc) => vc.componentId === selectedNodeId) || false;
 
-  const componentRealizations = capabilityRealizations.filter((r) => r.componentId === component.id);
-
   const handleColorChange = async (color: string) => {
     if (!currentView) return;
     try {
-      await updateComponentColor(currentView.id, selectedNodeId, color);
+      await updateComponentColorMutation.mutateAsync({
+        viewId: currentView.id as ViewId,
+        componentId: selectedNodeId as ComponentId,
+        color
+      });
     } catch {
       toast.error('Failed to update color');
     }
@@ -285,7 +289,10 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
   const handleClearColor = async () => {
     if (!currentView) return;
     try {
-      await clearComponentColor(currentView.id, selectedNodeId);
+      await clearComponentColorMutation.mutateAsync({
+        viewId: currentView.id as ViewId,
+        componentId: selectedNodeId as ComponentId
+      });
     } catch {
       toast.error('Failed to clear color');
     }
@@ -297,7 +304,6 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
       realizations={componentRealizations}
       capabilities={capabilities}
       onEdit={onEdit}
-      onClose={clearSelection}
       componentInView={componentInView}
       currentView={currentView}
       isInCurrentView={isInCurrentView}

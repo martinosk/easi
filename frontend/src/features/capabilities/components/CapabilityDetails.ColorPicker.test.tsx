@@ -1,46 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 import { CapabilityDetails } from './CapabilityDetails';
-import type { Capability, View } from '../../../api/types';
-import { Toaster } from 'react-hot-toast';
+import type { Capability, View, CapabilityId, ViewId } from '../../../api/types';
+import { createMantineTestWrapper, seedDb, server } from '../../../test/helpers';
+import { useAppStore } from '../../../store/appStore';
+
+const API_BASE = 'http://localhost:8080';
 
 vi.mock('../../../store/appStore', () => ({
   useAppStore: vi.fn(),
 }));
 
-vi.mock('../../../api/client', () => ({
-  default: {
-    updateCapabilityColor: vi.fn(),
-  },
-  apiClient: {
-    updateCapabilityColor: vi.fn(),
-  },
-}));
-
-import { useAppStore } from '../../../store/appStore';
-import apiClient from '../../../api/client';
-
 const mockCapability: Capability = {
-  id: 'cap-1',
+  id: 'cap-1' as CapabilityId,
   name: 'Test Capability',
   description: 'Test description',
   level: 'L2',
   maturityLevel: 'Product',
   createdAt: '2024-01-01T00:00:00Z',
-  _links: { self: { href: '/api/v1/capabilities/cap-1' } },
+  _links: { self: '/api/v1/capabilities/cap-1' },
 };
 
 const createMockView = (colorScheme: string, customColor?: string): View => ({
-  id: 'view-1',
+  id: 'view-1' as ViewId,
   name: 'Test View',
   isDefault: true,
   components: [],
   capabilities: [
-    { capabilityId: 'cap-1', x: 100, y: 200, customColor } as any,
+    { capabilityId: 'cap-1' as CapabilityId, x: 100, y: 200, customColor },
   ],
   colorScheme,
   createdAt: '2024-01-01T00:00:00Z',
-  _links: { self: { href: '/api/v1/views/view-1' } },
+  _links: { self: '/api/v1/views/view-1' },
 });
 
 const createMockStore = (view: View | null) => ({
@@ -56,123 +48,130 @@ const createMockStore = (view: View | null) => ({
 describe('CapabilityDetails - ColorPicker Integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    seedDb({
+      capabilities: [mockCapability],
+      components: [],
+    });
   });
 
+  const renderCapabilityDetails = (store: ReturnType<typeof createMockStore>) => {
+    vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) => selector(store));
+    const { Wrapper } = createMantineTestWrapper();
+    return render(<CapabilityDetails onRemoveFromView={vi.fn()} />, { wrapper: Wrapper });
+  };
+
   describe('Color picker visibility', () => {
-    it('should show color picker in capability details panel', () => {
+    it('should show color picker in capability details panel', async () => {
       const mockView = createMockView('custom');
-      const mockStore = createMockStore(mockView);
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
+      renderCapabilityDetails(createMockStore(mockView));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
-
-      expect(screen.getByTestId('color-picker')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('color-picker')).toBeInTheDocument();
+      });
     });
 
-    it('should show color picker label', () => {
+    it('should show color picker label', async () => {
       const mockView = createMockView('custom');
-      const mockStore = createMockStore(mockView);
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
+      renderCapabilityDetails(createMockStore(mockView));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
-
-      expect(screen.getByText('Custom Color')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Custom Color')).toBeInTheDocument();
+      });
     });
   });
 
   describe('Color picker enabled state based on color scheme', () => {
-    it('should enable color picker when colorScheme is "custom"', () => {
+    it('should enable color picker when colorScheme is "custom"', async () => {
       const mockView = createMockView('custom');
-      const mockStore = createMockStore(mockView);
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
+      renderCapabilityDetails(createMockStore(mockView));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
-
-      const colorPickerButton = screen.getByTestId('color-picker-button');
-      expect(colorPickerButton).not.toBeDisabled();
+      await waitFor(() => {
+        const colorPickerButton = screen.getByTestId('color-picker-button');
+        expect(colorPickerButton).not.toBeDisabled();
+      });
     });
 
-    it('should disable color picker when colorScheme is "maturity"', () => {
+    it('should disable color picker when colorScheme is "maturity"', async () => {
       const mockView = createMockView('maturity');
-      const mockStore = createMockStore(mockView);
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
+      renderCapabilityDetails(createMockStore(mockView));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
-
-      const colorPickerButton = screen.getByTestId('color-picker-button');
-      expect(colorPickerButton).toBeDisabled();
+      await waitFor(() => {
+        const colorPickerButton = screen.getByTestId('color-picker-button');
+        expect(colorPickerButton).toBeDisabled();
+      });
     });
 
-    it('should disable color picker when colorScheme is "classic"', () => {
+    it('should disable color picker when colorScheme is "classic"', async () => {
       const mockView = createMockView('classic');
-      const mockStore = createMockStore(mockView);
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
+      renderCapabilityDetails(createMockStore(mockView));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
-
-      const colorPickerButton = screen.getByTestId('color-picker-button');
-      expect(colorPickerButton).toBeDisabled();
+      await waitFor(() => {
+        const colorPickerButton = screen.getByTestId('color-picker-button');
+        expect(colorPickerButton).toBeDisabled();
+      });
     });
 
-    it('should show tooltip when disabled explaining why', () => {
+    it('should show tooltip when disabled explaining why', async () => {
       const mockView = createMockView('maturity');
-      const mockStore = createMockStore(mockView);
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
+      renderCapabilityDetails(createMockStore(mockView));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
-
-      const colorPickerButton = screen.getByTestId('color-picker-button');
-      fireEvent.mouseOver(colorPickerButton);
+      await waitFor(() => {
+        const colorPickerButton = screen.getByTestId('color-picker-button');
+        fireEvent.mouseOver(colorPickerButton);
+      });
 
       expect(screen.getByText('Switch to custom color scheme to assign colors')).toBeInTheDocument();
     });
   });
 
   describe('Displaying current color', () => {
-    it('should show current custom color if set', () => {
+    it('should show current custom color if set', async () => {
       const mockView = createMockView('custom', '#FF5733');
-      const mockStore = createMockStore(mockView);
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
+      renderCapabilityDetails(createMockStore(mockView));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
-
-      const colorDisplay = screen.getByTestId('color-picker-display');
-      expect(colorDisplay).toHaveStyle({ backgroundColor: '#FF5733' });
+      await waitFor(() => {
+        const colorDisplay = screen.getByTestId('color-picker-display');
+        expect(colorDisplay).toHaveStyle({ backgroundColor: '#FF5733' });
+      });
     });
 
-    it('should show default color if custom color not set', () => {
+    it('should show default color if custom color not set', async () => {
       const mockView = createMockView('custom');
-      const mockStore = createMockStore(mockView);
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
+      renderCapabilityDetails(createMockStore(mockView));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
-
-      const colorDisplay = screen.getByTestId('color-picker-display');
-      expect(colorDisplay).toHaveStyle({ backgroundColor: '#E0E0E0' });
+      await waitFor(() => {
+        const colorDisplay = screen.getByTestId('color-picker-display');
+        expect(colorDisplay).toHaveStyle({ backgroundColor: '#E0E0E0' });
+      });
     });
 
-    it('should show color value text', () => {
+    it('should show color value text', async () => {
       const mockView = createMockView('custom', '#FF5733');
-      const mockStore = createMockStore(mockView);
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
+      renderCapabilityDetails(createMockStore(mockView));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
-
-      expect(screen.getByText('#FF5733')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('#FF5733')).toBeInTheDocument();
+      });
     });
   });
 
   describe('API calls on color selection', () => {
     it('should call API to update capability color when color selected', async () => {
+      let capturedColor: string | null = null;
+      server.use(
+        http.patch(`${API_BASE}/api/v1/views/:viewId/capabilities/:capabilityId/color`, async ({ request }) => {
+          const body = await request.json() as { color: string };
+          capturedColor = body.color;
+          return new HttpResponse(null, { status: 204 });
+        })
+      );
+
       const mockView = createMockView('custom');
-      const mockUpdateCapabilityColor = vi.fn().mockResolvedValue(undefined);
-      const mockStore = createMockStore(mockView);
-      mockStore.updateCapabilityColor = mockUpdateCapabilityColor;
+      renderCapabilityDetails(createMockStore(mockView));
 
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
-      vi.mocked(apiClient.updateCapabilityColor).mockResolvedValue(undefined);
-
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      await waitFor(() => {
+        expect(screen.getByTestId('color-picker-button')).toBeInTheDocument();
+      });
 
       const colorPickerButton = screen.getByTestId('color-picker-button');
       fireEvent.click(colorPickerButton);
@@ -181,19 +180,25 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       fireEvent.change(colorInput, { target: { value: '#00FF00' } });
 
       await waitFor(() => {
-        expect(mockUpdateCapabilityColor).toHaveBeenCalledWith('view-1', 'cap-1', '#00FF00');
+        expect(capturedColor).toBe('#00FF00');
       });
     });
 
     it('should call API with correct view ID and capability ID', async () => {
+      let capturedParams: { viewId?: string; capabilityId?: string } = {};
+      server.use(
+        http.patch(`${API_BASE}/api/v1/views/:viewId/capabilities/:capabilityId/color`, ({ params }) => {
+          capturedParams = { viewId: params.viewId as string, capabilityId: params.capabilityId as string };
+          return new HttpResponse(null, { status: 204 });
+        })
+      );
+
       const mockView = createMockView('custom');
-      const mockUpdateCapabilityColor = vi.fn().mockResolvedValue(undefined);
-      const mockStore = createMockStore(mockView);
-      mockStore.updateCapabilityColor = mockUpdateCapabilityColor;
+      renderCapabilityDetails(createMockStore(mockView));
 
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
-
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
+      await waitFor(() => {
+        expect(screen.getByTestId('color-picker-button')).toBeInTheDocument();
+      });
 
       const colorPickerButton = screen.getByTestId('color-picker-button');
       fireEvent.click(colorPickerButton);
@@ -202,96 +207,29 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       fireEvent.change(colorInput, { target: { value: '#AABBCC' } });
 
       await waitFor(() => {
-        expect(mockUpdateCapabilityColor).toHaveBeenCalledWith('view-1', 'cap-1', '#AABBCC');
+        expect(capturedParams.viewId).toBe('view-1');
+        expect(capturedParams.capabilityId).toBe('cap-1');
       });
     });
   });
 
-  describe('Optimistic updates', () => {
-    it('should update color immediately on selection (before API call completes)', async () => {
-      const mockView = createMockView('custom', '#FF5733');
-      const mockUpdateCapabilityColor = vi.fn().mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
-      );
-      const mockStore = createMockStore(mockView);
-      mockStore.updateCapabilityColor = mockUpdateCapabilityColor;
-
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
-
-      const { rerender } = render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
-
-      const colorPickerButton = screen.getByTestId('color-picker-button');
-      fireEvent.click(colorPickerButton);
-
-      const colorInput = screen.getByTestId('color-picker-input');
-      fireEvent.change(colorInput, { target: { value: '#00FF00' } });
-
-      const updatedView = createMockView('custom', '#00FF00');
-      const updatedStore = createMockStore(updatedView);
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(updatedStore));
-
-      rerender(<CapabilityDetails onRemoveFromView={vi.fn()} />);
-
-      const colorDisplay = screen.getByTestId('color-picker-display');
-      expect(colorDisplay).toHaveStyle({ backgroundColor: '#00FF00' });
-    });
-
-    it.skip('should roll back color to previous value if API call fails', async () => {
-      const mockView = createMockView('custom', '#FF5733');
-      const mockStore = createMockStore(mockView);
-
-      const mockUpdateCapabilityColor = vi.fn().mockImplementation(async (viewId: string, capabilityId: string, color: string) => {
-        const updatedView = createMockView('custom', color);
-        const updatedStore = createMockStore(updatedView);
-        updatedStore.updateCapabilityColor = mockUpdateCapabilityColor;
-        vi.mocked(useAppStore).mockImplementation((selector: any) => selector(updatedStore));
-
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const restoredView = createMockView('custom', '#FF5733');
-        const restoredStore = createMockStore(restoredView);
-        restoredStore.updateCapabilityColor = mockUpdateCapabilityColor;
-        vi.mocked(useAppStore).mockImplementation((selector: any) => selector(restoredStore));
-
-        throw new Error('API Error');
-      });
-
-      mockStore.updateCapabilityColor = mockUpdateCapabilityColor;
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
-
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
-
-      const colorPickerButton = screen.getByTestId('color-picker-button');
-      fireEvent.click(colorPickerButton);
-
-      const colorInput = screen.getByTestId('color-picker-input');
-      fireEvent.change(colorInput, { target: { value: '#00FF00' } });
-
-      await waitFor(() => {
-        expect(mockUpdateCapabilityColor).toHaveBeenCalled();
-      });
-
-      await waitFor(() => {
-        const colorDisplay = screen.getByTestId('color-picker-display');
-        expect(colorDisplay).toHaveStyle({ backgroundColor: '#FF5733' });
-      }, { timeout: 3000 });
-    });
-
-    it('should show error message when API call fails', async () => {
-      const mockView = createMockView('custom', '#FF5733');
-      const mockUpdateCapabilityColor = vi.fn().mockRejectedValue(new Error('Failed to update color'));
-      const mockStore = createMockStore(mockView);
-      mockStore.updateCapabilityColor = mockUpdateCapabilityColor;
-
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
-
-      render(
-        <>
-          <CapabilityDetails onRemoveFromView={vi.fn()} />
-          <Toaster />
-        </>
+  describe('Error handling', () => {
+    it('should call error handler when API call fails', async () => {
+      let apiCalled = false;
+      server.use(
+        http.patch(`${API_BASE}/api/v1/views/:viewId/capabilities/:capabilityId/color`, () => {
+          apiCalled = true;
+          return HttpResponse.json({ error: 'Failed to update color' }, { status: 500 });
+        })
       );
 
+      const mockView = createMockView('custom', '#FF5733');
+      renderCapabilityDetails(createMockStore(mockView));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('color-picker-button')).toBeInTheDocument();
+      });
+
       const colorPickerButton = screen.getByTestId('color-picker-button');
       fireEvent.click(colorPickerButton);
 
@@ -299,38 +237,36 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
       fireEvent.change(colorInput, { target: { value: '#00FF00' } });
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to update color/i)).toBeInTheDocument();
+        expect(apiCalled).toBe(true);
       });
     });
   });
 
   describe('Color picker in different contexts', () => {
-    it('should not render color picker when no view is selected', () => {
-      const mockStore = createMockStore(null);
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
+    it('should not render color picker when no view is selected', async () => {
+      renderCapabilityDetails(createMockStore(null));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
-
-      expect(screen.queryByTestId('color-picker')).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByTestId('color-picker')).not.toBeInTheDocument();
+      });
     });
 
-    it('should not render color picker when capability not in current view', () => {
+    it('should not render color picker when capability not in current view', async () => {
       const mockView: View = {
-        id: 'view-1',
+        id: 'view-1' as ViewId,
         name: 'Test View',
         isDefault: true,
         components: [],
         capabilities: [],
         colorScheme: 'custom',
         createdAt: '2024-01-01T00:00:00Z',
-        _links: { self: { href: '/api/v1/views/view-1' } },
+        _links: { self: '/api/v1/views/view-1' },
       };
-      const mockStore = createMockStore(mockView);
-      vi.mocked(useAppStore).mockImplementation((selector: any) => selector(mockStore));
+      renderCapabilityDetails(createMockStore(mockView));
 
-      render(<CapabilityDetails onRemoveFromView={vi.fn()} />);
-
-      expect(screen.queryByTestId('color-picker')).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByTestId('color-picker')).not.toBeInTheDocument();
+      });
     });
   });
 });

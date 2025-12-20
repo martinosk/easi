@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAppStore } from '../../../store/appStore';
-import apiClient from '../../../api/client';
 import type { View, Component, Capability, ViewId, ComponentId } from '../../../api/types';
 import { ContextMenu } from '../../../components/shared/ContextMenu';
 import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import { DeleteCapabilityDialog } from '../../capabilities/components/DeleteCapabilityDialog';
+import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
+import { useComponents, useUpdateComponent, useDeleteComponent } from '../../components/hooks/useComponents';
+import { useViews, useCreateView, useDeleteView, useRenameView, useSetDefaultView } from '../../views/hooks/useViews';
 
 interface CapabilityTreeNode {
   capability: Capability;
@@ -162,11 +164,11 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   onEditCapability,
   onEditComponent,
 }) => {
-  const components = useAppStore((state) => state.components);
+  const { data: components = [] } = useComponents();
   const currentView = useAppStore((state) => state.currentView);
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
-  const capabilities = useAppStore((state) => state.capabilities);
-  const loadCapabilities = useAppStore((state) => state.loadCapabilities);
+  const { data: capabilities = [] } = useCapabilities();
+  const { data: views = [] } = useViews();
 
   const [isOpen, setIsOpen] = useState(() => getPersistedBoolean('navigationTreeOpen', true));
   const [isModelsExpanded, setIsModelsExpanded] = useState(() => getPersistedBoolean('navigationTreeModelsExpanded', true));
@@ -176,10 +178,12 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
   const [selectedCapabilityId, setSelectedCapabilityId] = useState<string | null>(null);
 
-  const views = useAppStore((state) => state.views);
-  const loadViews = useAppStore((state) => state.loadViews);
-  const updateComponent = useAppStore((state) => state.updateComponent);
-  const deleteComponent = useAppStore((state) => state.deleteComponent);
+  const updateComponentMutation = useUpdateComponent();
+  const deleteComponentMutation = useDeleteComponent();
+  const createViewMutation = useCreateView();
+  const deleteViewMutation = useDeleteView();
+  const renameViewMutation = useRenameView();
+  const setDefaultViewMutation = useSetDefaultView();
 
   const [viewContextMenu, setViewContextMenu] = useState<ViewContextMenuState | null>(null);
   const [componentContextMenu, setComponentContextMenu] = useState<ComponentContextMenuState | null>(null);
@@ -196,11 +200,6 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   const editInputRef = useRef<HTMLInputElement>(null);
 
   const [deleteCapability, setDeleteCapability] = useState<Capability | null>(null);
-
-  // Load views when component mounts or when currentView changes
-  useEffect(() => {
-    loadViews();
-  }, [loadViews, currentView?.id]);
 
   // Persist menu state
   useEffect(() => {
@@ -222,10 +221,6 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   useEffect(() => {
     localStorage.setItem('navigationTreeExpandedCapabilities', JSON.stringify([...expandedCapabilities]));
   }, [expandedCapabilities]);
-
-  useEffect(() => {
-    loadCapabilities();
-  }, [loadCapabilities]);
 
   const capabilityTree = useMemo(() => buildCapabilityTree(capabilities), [capabilities]);
 
@@ -377,14 +372,19 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
     try {
       if (editingState.viewId) {
-        await apiClient.renameView(editingState.viewId, { name: editingState.name });
-        await loadViews();
+        await renameViewMutation.mutateAsync({
+          viewId: editingState.viewId,
+          request: { name: editingState.name }
+        });
       } else if (editingState.componentId) {
         const component = components.find(c => c.id === editingState.componentId);
         if (component) {
-          await updateComponent(editingState.componentId, {
-            name: editingState.name,
-            description: component.description,
+          await updateComponentMutation.mutateAsync({
+            id: editingState.componentId,
+            request: {
+              name: editingState.name,
+              description: component.description,
+            },
           });
         }
       }
@@ -399,13 +399,11 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
     if (!createViewName.trim()) return;
 
     try {
-      await apiClient.createView({ name: createViewName, description: '' });
-      await loadViews();
+      await createViewMutation.mutateAsync({ name: createViewName, description: '' });
       setShowCreateDialog(false);
       setCreateViewName('');
     } catch (error) {
       console.error('Failed to create view:', error);
-      alert('Failed to create view');
     }
   };
 
@@ -415,10 +413,9 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
     setIsDeleting(true);
     try {
       if (deleteTarget.type === 'view') {
-        await apiClient.deleteView(deleteTarget.id);
-        await loadViews();
+        await deleteViewMutation.mutateAsync(deleteTarget.id);
       } else if (deleteTarget.type === 'component') {
-        await deleteComponent(deleteTarget.id);
+        await deleteComponentMutation.mutateAsync(deleteTarget.id);
       }
       setDeleteTarget(null);
     } catch (error) {
@@ -446,8 +443,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
         label: 'Set as Default',
         onClick: async () => {
           try {
-            await apiClient.setDefaultView(menu.viewId);
-            await loadViews();
+            await setDefaultViewMutation.mutateAsync(menu.viewId);
           } catch (error) {
             console.error('Failed to set default view:', error);
           }

@@ -2,6 +2,9 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { NestedCapabilityGrid } from './NestedCapabilityGrid';
 import type { Capability } from '../../../api/types';
+import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
+
+const renderWithMantine = (ui: React.ReactElement) => render(<MantineTestWrapper>{ui}</MantineTestWrapper>);
 
 describe('NestedCapabilityGrid', () => {
   const createCapability = (
@@ -31,7 +34,7 @@ describe('NestedCapabilityGrid', () => {
   describe('depth level 1', () => {
     it('should only show L1 capabilities', () => {
       const onCapabilityClick = vi.fn();
-      render(
+      renderWithMantine(
         <NestedCapabilityGrid
           capabilities={mockCapabilities}
           depth={1}
@@ -49,7 +52,7 @@ describe('NestedCapabilityGrid', () => {
   describe('depth level 2', () => {
     it('should show L1 and L2 capabilities', () => {
       const onCapabilityClick = vi.fn();
-      render(
+      renderWithMantine(
         <NestedCapabilityGrid
           capabilities={mockCapabilities}
           depth={2}
@@ -68,7 +71,7 @@ describe('NestedCapabilityGrid', () => {
   describe('depth level 3', () => {
     it('should show L1, L2 and L3 capabilities', () => {
       const onCapabilityClick = vi.fn();
-      render(
+      renderWithMantine(
         <NestedCapabilityGrid
           capabilities={mockCapabilities}
           depth={3}
@@ -86,7 +89,7 @@ describe('NestedCapabilityGrid', () => {
   describe('depth level 4', () => {
     it('should show all capabilities', () => {
       const onCapabilityClick = vi.fn();
-      render(
+      renderWithMantine(
         <NestedCapabilityGrid
           capabilities={mockCapabilities}
           depth={4}
@@ -104,7 +107,7 @@ describe('NestedCapabilityGrid', () => {
   describe('color scheme', () => {
     it('should apply correct colors for each level', () => {
       const onCapabilityClick = vi.fn();
-      render(
+      renderWithMantine(
         <NestedCapabilityGrid
           capabilities={mockCapabilities}
           depth={4}
@@ -127,7 +130,7 @@ describe('NestedCapabilityGrid', () => {
   describe('click handler', () => {
     it('should call onCapabilityClick when capability is clicked', () => {
       const onCapabilityClick = vi.fn();
-      render(
+      renderWithMantine(
         <NestedCapabilityGrid
           capabilities={mockCapabilities}
           depth={2}
@@ -147,7 +150,7 @@ describe('NestedCapabilityGrid', () => {
   describe('nesting structure', () => {
     it('should nest L2 inside L1 container', () => {
       const onCapabilityClick = vi.fn();
-      const { container } = render(
+      const { container } = renderWithMantine(
         <NestedCapabilityGrid
           capabilities={mockCapabilities}
           depth={2}
@@ -165,7 +168,7 @@ describe('NestedCapabilityGrid', () => {
   describe('drop zone', () => {
     it('should show drop indicator when isDragOver is true', () => {
       const onCapabilityClick = vi.fn();
-      const { container } = render(
+      const { container } = renderWithMantine(
         <NestedCapabilityGrid
           capabilities={mockCapabilities}
           depth={2}

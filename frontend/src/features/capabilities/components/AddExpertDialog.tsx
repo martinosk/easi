@@ -1,5 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useAppStore } from '../../../store/appStore';
+import React, { useState } from 'react';
+import { Modal, TextInput, Button, Group, Stack, Alert } from '@mantine/core';
+import { useAddCapabilityExpert } from '../hooks/useCapabilities';
+import type { CapabilityId } from '../../../api/types';
 
 interface AddExpertDialogProps {
   isOpen: boolean;
@@ -48,22 +50,9 @@ export const AddExpertDialog: React.FC<AddExpertDialogProps> = ({
     contact: '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isAdding, setIsAdding] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
 
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const addCapabilityExpert = useAppStore((state) => state.addCapabilityExpert);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (isOpen) {
-      dialog.showModal();
-    } else {
-      dialog.close();
-    }
-  }, [isOpen]);
+  const addExpertMutation = useAddCapabilityExpert();
 
   const resetForm = () => {
     setForm({
@@ -100,125 +89,95 @@ export const AddExpertDialog: React.FC<AddExpertDialogProps> = ({
       return;
     }
 
-    setIsAdding(true);
-
     try {
-      await addCapabilityExpert(capabilityId as import('../../../api/types').CapabilityId, {
-        expertName: form.name.trim(),
-        expertRole: form.role.trim(),
-        contactInfo: form.contact.trim(),
+      await addExpertMutation.mutateAsync({
+        id: capabilityId as CapabilityId,
+        request: {
+          expertName: form.name.trim(),
+          expertRole: form.role.trim(),
+          contactInfo: form.contact.trim(),
+        },
       });
 
       handleClose();
     } catch (err) {
       setBackendError(err instanceof Error ? err.message : 'Failed to add expert');
-    } finally {
-      setIsAdding(false);
     }
   };
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog"
+    <Modal
+      opened={isOpen}
       onClose={handleClose}
+      title="Add Expert"
+      centered
       data-testid="add-expert-dialog"
     >
-      <div className="dialog-content">
-        <h2 className="dialog-title">Add Expert</h2>
+      <form onSubmit={handleSubmit}>
+        <Stack gap="md">
+          <TextInput
+            label="Name"
+            placeholder="Enter expert name"
+            value={form.name}
+            onChange={(e) => handleFieldChange('name', e.currentTarget.value)}
+            required
+            withAsterisk
+            autoFocus
+            disabled={addExpertMutation.isPending}
+            error={errors.name}
+            data-testid="expert-name-input"
+          />
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="expert-name" className="form-label">
-              Name <span className="required">*</span>
-            </label>
-            <input
-              id="expert-name"
-              type="text"
-              className={`form-input ${errors.name ? 'form-input-error' : ''}`}
-              value={form.name}
-              onChange={(e) => handleFieldChange('name', e.target.value)}
-              placeholder="Enter expert name"
-              autoFocus
-              disabled={isAdding}
-              data-testid="expert-name-input"
-            />
-            {errors.name && (
-              <div className="field-error" data-testid="expert-name-error">
-                {errors.name}
-              </div>
-            )}
-          </div>
+          <TextInput
+            label="Role"
+            placeholder="Enter expert role"
+            value={form.role}
+            onChange={(e) => handleFieldChange('role', e.currentTarget.value)}
+            required
+            withAsterisk
+            disabled={addExpertMutation.isPending}
+            error={errors.role}
+            data-testid="expert-role-input"
+          />
 
-          <div className="form-group">
-            <label htmlFor="expert-role" className="form-label">
-              Role <span className="required">*</span>
-            </label>
-            <input
-              id="expert-role"
-              type="text"
-              className={`form-input ${errors.role ? 'form-input-error' : ''}`}
-              value={form.role}
-              onChange={(e) => handleFieldChange('role', e.target.value)}
-              placeholder="Enter expert role"
-              disabled={isAdding}
-              data-testid="expert-role-input"
-            />
-            {errors.role && (
-              <div className="field-error" data-testid="expert-role-error">
-                {errors.role}
-              </div>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="expert-contact" className="form-label">
-              Contact <span className="required">*</span>
-            </label>
-            <input
-              id="expert-contact"
-              type="text"
-              className={`form-input ${errors.contact ? 'form-input-error' : ''}`}
-              value={form.contact}
-              onChange={(e) => handleFieldChange('contact', e.target.value)}
-              placeholder="Enter contact information"
-              disabled={isAdding}
-              data-testid="expert-contact-input"
-            />
-            {errors.contact && (
-              <div className="field-error" data-testid="expert-contact-error">
-                {errors.contact}
-              </div>
-            )}
-          </div>
+          <TextInput
+            label="Contact"
+            placeholder="Enter contact information"
+            value={form.contact}
+            onChange={(e) => handleFieldChange('contact', e.currentTarget.value)}
+            required
+            withAsterisk
+            disabled={addExpertMutation.isPending}
+            error={errors.contact}
+            data-testid="expert-contact-input"
+          />
 
           {backendError && (
-            <div className="error-message" data-testid="add-expert-error">
+            <Alert color="red" data-testid="add-expert-error">
               {backendError}
-            </div>
+            </Alert>
           )}
 
-          <div className="dialog-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
               onClick={handleClose}
-              disabled={isAdding}
+              disabled={addExpertMutation.isPending}
               data-testid="add-expert-cancel"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="btn btn-primary"
-              disabled={isAdding || !form.name.trim() || !form.role.trim() || !form.contact.trim()}
+              loading={addExpertMutation.isPending}
+              disabled={!form.name.trim() || !form.role.trim() || !form.contact.trim()}
               data-testid="add-expert-submit"
             >
-              {isAdding ? 'Adding...' : 'Add'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </dialog>
+              Add
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Modal>
   );
 };

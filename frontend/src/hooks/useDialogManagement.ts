@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useDialogState } from './useDialogState';
 import { useRelationDialog } from './useRelationDialog';
 import { useAppStore } from '../store/appStore';
@@ -107,7 +107,8 @@ const buildDialogState = (
 
 export function useDialogManagement(
   selectedEdgeId: string | null,
-  relations: Relation[]
+  relations: Relation[],
+  components: Component[]
 ): UseDialogManagementReturn {
   const componentDialog = useDialogState();
   const editComponentDialog = useDialogState();
@@ -121,7 +122,8 @@ export function useDialogManagement(
   const [editComponentTarget, setEditComponentTarget] = useState<Component | null>(null);
 
   const selectNode = useAppStore((state) => state.selectNode);
-  const getComponents = useAppStore.getState;
+  const componentsRef = useRef(components);
+  componentsRef.current = components;
 
   const openEditCapabilityDialog = useCallback((capability: Capability) => {
     setEditCapabilityTarget(capability);
@@ -136,11 +138,11 @@ export function useDialogManagement(
   const openEditComponentDialog = useCallback((componentId?: string) => {
     if (componentId) {
       selectNode(componentId as import('../api/types').ComponentId);
-      const component = getComponents().components.find((c) => c.id === componentId);
+      const component = componentsRef.current.find((c: Component) => c.id === componentId);
       setEditComponentTarget(component || null);
     }
     editComponentDialog.open();
-  }, [selectNode, editComponentDialog, getComponents]);
+  }, [selectNode, editComponentDialog]);
 
   const closeEditComponentDialog = useCallback(() => {
     editComponentDialog.close();

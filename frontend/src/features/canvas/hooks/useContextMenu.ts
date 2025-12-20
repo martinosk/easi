@@ -1,7 +1,10 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { Node, Edge } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
-import type { Component, Capability, Relation, CapabilityRealization } from '../../../api/types';
+import { useCapabilities, useRealizationsForComponents } from '../../capabilities/hooks/useCapabilities';
+import { useComponents } from '../../components/hooks/useComponents';
+import { useRelations } from '../../relations/hooks/useRelations';
+import type { Component, Capability, Relation, CapabilityRealization, ComponentId } from '../../../api/types';
 
 export interface NodeContextMenu {
   x: number;
@@ -18,6 +21,7 @@ export interface EdgeContextMenu {
   edgeName: string;
   edgeType: 'relation' | 'parent' | 'realization';
   realizationId?: string;
+  isInherited?: boolean;
 }
 
 interface MenuPosition {
@@ -93,6 +97,7 @@ function resolveRealizationEdge(
     edgeName,
     edgeType: 'realization',
     realizationId,
+    isInherited: realization.origin === 'Inherited',
   };
 }
 
@@ -127,10 +132,16 @@ function resolveEdgeContextMenu(
 }
 
 export const useContextMenu = () => {
-  const components = useAppStore((state) => state.components);
-  const capabilities = useAppStore((state) => state.capabilities);
-  const relations = useAppStore((state) => state.relations);
-  const capabilityRealizations = useAppStore((state) => state.capabilityRealizations);
+  const { data: components = [] } = useComponents();
+  const { data: capabilities = [] } = useCapabilities();
+  const { data: relations = [] } = useRelations();
+  const currentView = useAppStore((state) => state.currentView);
+
+  const componentIdsInView = useMemo(() =>
+    currentView?.components.map((vc) => vc.componentId as ComponentId) || [],
+    [currentView?.components]
+  );
+  const { data: capabilityRealizations = [] } = useRealizationsForComponents(componentIdsInView);
 
   const [nodeContextMenu, setNodeContextMenu] = useState<NodeContextMenu | null>(null);
   const [edgeContextMenu, setEdgeContextMenu] = useState<EdgeContextMenu | null>(null);

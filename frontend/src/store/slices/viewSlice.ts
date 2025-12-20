@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand';
-import type { View, Component, Relation } from '../../api/types';
+import type { View } from '../../api/types';
 import type { ViewId, ComponentId } from '../types/storeTypes';
 import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
@@ -21,8 +21,6 @@ export interface ViewActions {
 }
 
 type StoreWithDependencies = ViewState & {
-  components: Component[];
-  relations: Relation[];
   syncCanvasCapabilitiesFromView: (view: View) => void;
 };
 
@@ -48,13 +46,6 @@ export const createViewSlice: StateCreator<
     set({ isLoading: true, error: null });
 
     try {
-      const [components, relations] = await Promise.all([
-        apiClient.getComponents(),
-        apiClient.getRelations(),
-      ]);
-
-      set({ components, relations });
-
       const views = await apiClient.getViews();
       let currentView: View;
 

@@ -1,55 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.svg';
 import { UserMenu } from './UserMenu';
+import { ROUTES } from '../../routes/routes';
 
 type AppView = 'canvas' | 'business-domains' | 'invitations';
 
 interface AppNavigationProps {
-  onViewChange: (view: AppView) => void;
+  currentView: AppView;
   onOpenReleaseNotes?: () => void;
 }
 
-export function AppNavigation({ onViewChange, onOpenReleaseNotes }: AppNavigationProps) {
-  const [currentView, setCurrentView] = useState<AppView>('canvas');
-
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash.startsWith('#/business-domains')) {
-      setCurrentView('business-domains');
-      onViewChange('business-domains');
-    } else if (hash.startsWith('#/invitations')) {
-      setCurrentView('invitations');
-      onViewChange('invitations');
-    } else {
-      setCurrentView('canvas');
-      onViewChange('canvas');
-    }
-
-    const handleHashChange = () => {
-      const newHash = window.location.hash;
-      if (newHash.startsWith('#/business-domains')) {
-        setCurrentView('business-domains');
-        onViewChange('business-domains');
-      } else if (newHash.startsWith('#/invitations')) {
-        setCurrentView('invitations');
-        onViewChange('invitations');
-      } else {
-        setCurrentView('canvas');
-        onViewChange('canvas');
-      }
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [onViewChange]);
+export function AppNavigation({ currentView, onOpenReleaseNotes }: AppNavigationProps) {
+  const navigate = useNavigate();
 
   const handleNavigate = (view: AppView) => {
     if (view === 'business-domains') {
-      window.location.hash = '#/business-domains';
+      navigate(ROUTES.BUSINESS_DOMAINS);
     } else if (view === 'invitations') {
-      window.location.hash = '#/invitations';
+      navigate(ROUTES.INVITATIONS);
     } else {
-      window.location.hash = '#/';
+      navigate(ROUTES.HOME);
     }
   };
 

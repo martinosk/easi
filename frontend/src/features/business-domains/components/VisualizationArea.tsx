@@ -1,7 +1,9 @@
+import { Box, Group, Stack, Title, Text } from '@mantine/core';
 import type { BusinessDomain, Capability, CapabilityId, CapabilityRealization, ComponentId } from '../../../api/types';
 import { NestedCapabilityGrid } from './NestedCapabilityGrid';
 import { DepthSelector, type DepthLevel } from './DepthSelector';
 import { ShowApplicationsToggle } from './ShowApplicationsToggle';
+import { useResponsive } from '../../../hooks/useResponsive';
 
 interface VisualizationAreaProps {
   visualizedDomain: BusinessDomain | null;
@@ -42,40 +44,42 @@ export function VisualizationArea({
   onDragLeave,
   onDrop,
 }: VisualizationAreaProps) {
+  const { isMobile } = useResponsive();
+
   if (!visualizedDomain) {
     return (
-      <main className="business-domains-main" style={{ flex: 1, padding: '1rem', overflow: 'auto' }}>
-        <div style={{ textAlign: 'center', marginTop: '4rem' }}>
-          <h2>Grid Visualization</h2>
-          <p style={{ color: '#6b7280', marginTop: '1rem' }}>
+      <Box component="main" className="business-domains-main" style={{ flex: 1, padding: '1rem', overflow: 'auto' }}>
+        <Stack align="center" mt="xl">
+          <Title order={2}>Grid Visualization</Title>
+          <Text c="dimmed">
             Click a domain to see its capabilities
-          </p>
-        </div>
-      </main>
+          </Text>
+        </Stack>
+      </Box>
     );
   }
 
   if (capabilitiesLoading) {
     return (
-      <main className="business-domains-main" style={{ flex: 1, padding: '1rem', overflow: 'auto' }}>
+      <Box component="main" className="business-domains-main" style={{ flex: 1, padding: '1rem', overflow: 'auto' }}>
         <div className="loading-message">Loading capabilities...</div>
-      </main>
+      </Box>
     );
   }
 
   return (
-    <main className="business-domains-main" style={{ flex: 1, padding: '1rem', overflow: 'auto' }}>
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2>{visualizedDomain.name}</h2>
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+    <Box component="main" className="business-domains-main" style={{ flex: 1, padding: isMobile ? '0.5rem' : '1rem', overflow: 'auto' }}>
+      <Stack gap="md">
+        <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+          <Title order={2} size={isMobile ? 'h3' : 'h2'}>{visualizedDomain.name}</Title>
+          <Group gap={isMobile ? 'xs' : 'md'} wrap="wrap">
             <ShowApplicationsToggle
               showApplications={showApplications}
               onShowApplicationsChange={onShowApplicationsChange}
             />
             <DepthSelector value={depth} onChange={onDepthChange} />
-          </div>
-        </div>
+          </Group>
+        </Group>
         <NestedCapabilityGrid
           capabilities={capabilities}
           depth={depth}
@@ -91,7 +95,7 @@ export function VisualizationArea({
           onDragLeave={onDragLeave}
           onDrop={onDrop}
         />
-      </div>
-    </main>
+      </Stack>
+    </Box>
   );
 }

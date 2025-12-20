@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useAppStore } from '../../../store/appStore';
+import { useCapabilities, useUpdateRealization } from '../../capabilities/hooks/useCapabilities';
+import { useComponents } from '../../components/hooks/useComponents';
 import type { CapabilityRealization, RealizationLevel } from '../../../api/types';
 
 interface EditRealizationDialogProps {
@@ -19,9 +20,9 @@ export const EditRealizationDialog: React.FC<EditRealizationDialogProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const updateRealization = useAppStore((state) => state.updateRealization);
-  const capabilities = useAppStore((state) => state.capabilities);
-  const components = useAppStore((state) => state.components);
+  const updateRealizationMutation = useUpdateRealization();
+  const { data: capabilities = [] } = useCapabilities();
+  const { data: components = [] } = useComponents();
 
   const capability = realization
     ? capabilities.find((c) => c.id === realization.capabilityId)
@@ -67,9 +68,12 @@ export const EditRealizationDialog: React.FC<EditRealizationDialogProps> = ({
     setIsUpdating(true);
 
     try {
-      await updateRealization(realization.id, {
-        realizationLevel,
-        notes: notes.trim() || undefined,
+      await updateRealizationMutation.mutateAsync({
+        id: realization.id,
+        request: {
+          realizationLevel,
+          notes: notes.trim() || undefined,
+        },
       });
       handleClose();
     } catch (err) {

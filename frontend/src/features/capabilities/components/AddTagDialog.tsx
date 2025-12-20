@@ -1,5 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useAppStore } from '../../../store/appStore';
+import React, { useState } from 'react';
+import { Modal, TextInput, Button, Group, Stack, Alert } from '@mantine/core';
+import { useAddCapabilityTag } from '../hooks/useCapabilities';
+import type { CapabilityId } from '../../../api/types';
 
 interface AddTagDialogProps {
   isOpen: boolean;
@@ -34,22 +36,9 @@ export const AddTagDialog: React.FC<AddTagDialogProps> = ({
     tag: '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isAdding, setIsAdding] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
 
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const addCapabilityTag = useAppStore((state) => state.addCapabilityTag);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (isOpen) {
-      dialog.showModal();
-    } else {
-      dialog.close();
-    }
-  }, [isOpen]);
+  const addTagMutation = useAddCapabilityTag();
 
   const resetForm = () => {
     setForm({
@@ -84,79 +73,67 @@ export const AddTagDialog: React.FC<AddTagDialogProps> = ({
       return;
     }
 
-    setIsAdding(true);
-
     try {
-      await addCapabilityTag(capabilityId as import('../../../api/types').CapabilityId, form.tag.trim());
+      await addTagMutation.mutateAsync({
+        id: capabilityId as CapabilityId,
+        request: { tag: form.tag.trim() },
+      });
 
       handleClose();
     } catch (err) {
       setBackendError(err instanceof Error ? err.message : 'Failed to add tag');
-    } finally {
-      setIsAdding(false);
     }
   };
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog"
+    <Modal
+      opened={isOpen}
       onClose={handleClose}
+      title="Add Tag"
+      centered
       data-testid="add-tag-dialog"
     >
-      <div className="dialog-content">
-        <h2 className="dialog-title">Add Tag</h2>
-
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="tag-name" className="form-label">
-              Tag Name <span className="required">*</span>
-            </label>
-            <input
-              id="tag-name"
-              type="text"
-              className={`form-input ${errors.tag ? 'form-input-error' : ''}`}
-              value={form.tag}
-              onChange={(e) => handleFieldChange(e.target.value)}
-              placeholder="Enter tag name"
-              autoFocus
-              disabled={isAdding}
-              data-testid="tag-name-input"
-            />
-            {errors.tag && (
-              <div className="field-error" data-testid="tag-name-error">
-                {errors.tag}
-              </div>
-            )}
-          </div>
+      <form onSubmit={handleSubmit}>
+        <Stack gap="md">
+          <TextInput
+            label="Tag Name"
+            placeholder="Enter tag name"
+            value={form.tag}
+            onChange={(e) => handleFieldChange(e.currentTarget.value)}
+            required
+            withAsterisk
+            autoFocus
+            disabled={addTagMutation.isPending}
+            error={errors.tag}
+            data-testid="tag-name-input"
+          />
 
           {backendError && (
-            <div className="error-message" data-testid="add-tag-error">
+            <Alert color="red" data-testid="add-tag-error">
               {backendError}
-            </div>
+            </Alert>
           )}
 
-          <div className="dialog-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
               onClick={handleClose}
-              disabled={isAdding}
+              disabled={addTagMutation.isPending}
               data-testid="add-tag-cancel"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="btn btn-primary"
-              disabled={isAdding || !form.tag.trim()}
+              loading={addTagMutation.isPending}
+              disabled={!form.tag.trim()}
               data-testid="add-tag-submit"
             >
-              {isAdding ? 'Adding...' : 'Add'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </dialog>
+              Add
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Modal>
   );
 };

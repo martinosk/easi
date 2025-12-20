@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useAppStore } from '../../../store/appStore';
-import { apiClient } from '../../../api/client';
-import type { Capability, Expert, StatusOption, OwnershipModelOption, StrategyPillarOption } from '../../../api/types';
+import React, { useState, useEffect } from 'react';
+import { Modal, TextInput, Textarea, Select, NumberInput, Button, Group, Stack, Alert, SimpleGrid, Box, Badge, Text } from '@mantine/core';
+import { useCapabilities, useUpdateCapability, useUpdateCapabilityMetadata } from '../hooks/useCapabilities';
+import { useMaturityLevels, useStatuses, useOwnershipModels, useStrategyPillars } from '../../../hooks/useMetadata';
+import type { Capability, Expert } from '../../../api/types';
 import { AddExpertDialog } from './AddExpertDialog';
 import { AddTagDialog } from './AddTagDialog';
 
@@ -12,18 +13,18 @@ interface EditCapabilityDialogProps {
 }
 
 const DEFAULT_MATURITY_LEVELS = ['Genesis', 'Custom Build', 'Product', 'Commodity'];
-const DEFAULT_STATUSES: StatusOption[] = [
+const DEFAULT_STATUSES = [
   { value: 'Active', displayName: 'Active', sortOrder: 1 },
   { value: 'Planned', displayName: 'Planned', sortOrder: 2 },
   { value: 'Deprecated', displayName: 'Deprecated', sortOrder: 3 },
 ];
-const DEFAULT_OWNERSHIP_MODELS: OwnershipModelOption[] = [
+const DEFAULT_OWNERSHIP_MODELS = [
   { value: 'TribeOwned', displayName: 'Tribe Owned' },
   { value: 'TeamOwned', displayName: 'Team Owned' },
   { value: 'Shared', displayName: 'Shared' },
   { value: 'EnterpriseService', displayName: 'Enterprise Service' },
 ];
-const DEFAULT_STRATEGY_PILLARS: StrategyPillarOption[] = [
+const DEFAULT_STRATEGY_PILLARS = [
   { value: 'AlwaysOn', displayName: 'Always On' },
   { value: 'Grow', displayName: 'Grow' },
   { value: 'Transform', displayName: 'Transform' },
@@ -90,77 +91,6 @@ const createInitialFormState = (cap?: Capability): FormState => {
   };
 };
 
-interface TextInputProps {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-  disabled?: boolean;
-  required?: boolean;
-  placeholder?: string;
-}
-
-const TextInput: React.FC<TextInputProps> = ({ id, label, value, onChange, error, disabled, required, placeholder }) => (
-  <div className="form-group">
-    <label htmlFor={id} className="form-label">
-      {label} {required && <span className="required">*</span>}
-    </label>
-    <input
-      id={id}
-      type="text"
-      className={`form-input ${error ? 'form-input-error' : ''}`}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      disabled={disabled}
-      data-testid={`${id}-input`}
-    />
-    {error && <div className="field-error" data-testid={`${id}-error`}>{error}</div>}
-  </div>
-);
-
-interface SelectOption {
-  value: string;
-  displayName: string;
-}
-
-interface SelectInputProps {
-  id: string;
-  label: string;
-  value: string;
-  options: SelectOption[];
-  onChange: (value: string) => void;
-  disabled?: boolean;
-  placeholder?: string;
-  isLoading?: boolean;
-}
-
-const SelectInput: React.FC<SelectInputProps> = ({ id, label, value, options, onChange, disabled, placeholder, isLoading }) => (
-  <div className="form-group form-group-half">
-    <label htmlFor={id} className="form-label">{label}</label>
-    <select
-      id={id}
-      className="form-select"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled || isLoading}
-      data-testid={`${id}-select`}
-    >
-      {isLoading ? (
-        <option value="">Loading...</option>
-      ) : (
-        <>
-          {placeholder && <option value="">{placeholder}</option>}
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>{option.displayName}</option>
-          ))}
-        </>
-      )}
-    </select>
-  </div>
-);
-
 interface ExpertsListProps {
   experts?: Expert[];
   onAddClick: () => void;
@@ -168,25 +98,30 @@ interface ExpertsListProps {
 }
 
 const ExpertsList: React.FC<ExpertsListProps> = ({ experts, onAddClick, disabled }) => (
-  <div className="form-group">
-    <label className="form-label">Experts</label>
-    <div className="expert-list">
+  <Box>
+    <Text size="sm" fw={500} mb="xs">Experts</Text>
+    <Stack gap="xs">
       {experts && experts.length > 0 ? (
         experts.map((expert, index) => (
-          <div key={index} className="expert-item">
-            <span className="expert-name">{expert.name}</span>
-            <span className="expert-role">({expert.role})</span>
-            <span className="expert-contact">- {expert.contact}</span>
-          </div>
+          <Text key={index} size="sm" c="dimmed">
+            {expert.name} ({expert.role}) - {expert.contact}
+          </Text>
         ))
       ) : (
-        <div className="empty-list">No experts added</div>
+        <Text size="sm" c="dimmed">No experts added</Text>
       )}
-    </div>
-    <button type="button" className="btn btn-link" onClick={onAddClick} disabled={disabled} data-testid="add-expert-button">
+    </Stack>
+    <Button
+      variant="subtle"
+      size="compact-sm"
+      onClick={onAddClick}
+      disabled={disabled}
+      mt="xs"
+      data-testid="add-expert-button"
+    >
       + Add Expert
-    </button>
-  </div>
+    </Button>
+  </Box>
 );
 
 interface TagsListProps {
@@ -196,44 +131,51 @@ interface TagsListProps {
 }
 
 const TagsList: React.FC<TagsListProps> = ({ tags, onAddClick, disabled }) => (
-  <div className="form-group">
-    <label className="form-label">Tags</label>
-    <div className="tag-list">
+  <Box>
+    <Text size="sm" fw={500} mb="xs">Tags</Text>
+    <Group gap="xs">
       {tags && tags.length > 0 ? (
         tags.map((tag, index) => (
-          <span key={index} className="tag-badge">{tag}</span>
+          <Badge key={index} variant="light">{tag}</Badge>
         ))
       ) : (
-        <div className="empty-list">No tags added</div>
+        <Text size="sm" c="dimmed">No tags added</Text>
       )}
-    </div>
-    <button type="button" className="btn btn-link" onClick={onAddClick} disabled={disabled} data-testid="add-tag-button">
+    </Group>
+    <Button
+      variant="subtle"
+      size="compact-sm"
+      onClick={onAddClick}
+      disabled={disabled}
+      mt="xs"
+      data-testid="add-tag-button"
+    >
       + Add Tag
-    </button>
-  </div>
+    </Button>
+  </Box>
 );
 
 export const EditCapabilityDialog: React.FC<EditCapabilityDialogProps> = ({ isOpen, onClose, capability }) => {
   const [form, setForm] = useState<FormState>(createInitialFormState());
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isSaving, setIsSaving] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
-  const [maturityLevels, setMaturityLevels] = useState<string[]>([]);
-  const [isLoadingMaturityLevels, setIsLoadingMaturityLevels] = useState(false);
-  const [statuses, setStatuses] = useState<StatusOption[]>([]);
-  const [isLoadingStatuses, setIsLoadingStatuses] = useState(false);
-  const [ownershipModels, setOwnershipModels] = useState<OwnershipModelOption[]>([]);
-  const [isLoadingOwnershipModels, setIsLoadingOwnershipModels] = useState(false);
-  const [strategyPillars, setStrategyPillars] = useState<StrategyPillarOption[]>([]);
-  const [isLoadingStrategyPillars, setIsLoadingStrategyPillars] = useState(false);
   const [isAddExpertOpen, setIsAddExpertOpen] = useState(false);
   const [isAddTagOpen, setIsAddTagOpen] = useState(false);
   const [currentCapability, setCurrentCapability] = useState<Capability | null>(null);
 
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const updateCapability = useAppStore((state) => state.updateCapability);
-  const updateCapabilityMetadata = useAppStore((state) => state.updateCapabilityMetadata);
-  const capabilities = useAppStore((state) => state.capabilities);
+  const updateCapabilityMutation = useUpdateCapability();
+  const updateCapabilityMetadataMutation = useUpdateCapabilityMetadata();
+  const { data: capabilities = [] } = useCapabilities();
+
+  const { data: maturityLevelsData, isLoading: isLoadingMaturityLevels } = useMaturityLevels();
+  const { data: statusesData, isLoading: isLoadingStatuses } = useStatuses();
+  const { data: ownershipModelsData, isLoading: isLoadingOwnershipModels } = useOwnershipModels();
+  const { data: strategyPillarsData, isLoading: isLoadingStrategyPillars } = useStrategyPillars();
+
+  const maturityLevels = maturityLevelsData ?? DEFAULT_MATURITY_LEVELS;
+  const statuses = statusesData ?? DEFAULT_STATUSES;
+  const ownershipModels = ownershipModelsData ?? DEFAULT_OWNERSHIP_MODELS;
+  const strategyPillars = strategyPillarsData ?? DEFAULT_STRATEGY_PILLARS;
 
   useEffect(() => {
     if (capability) {
@@ -243,61 +185,12 @@ export const EditCapabilityDialog: React.FC<EditCapabilityDialogProps> = ({ isOp
   }, [capability, capabilities]);
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
     if (isOpen && capability) {
-      dialog.showModal();
-      fetchMetadata();
       setForm(createInitialFormState(capability));
       setErrors({});
       setBackendError(null);
-    } else {
-      dialog.close();
     }
   }, [isOpen, capability]);
-
-  const fetchMetadata = async () => {
-    setIsLoadingMaturityLevels(true);
-    setIsLoadingStatuses(true);
-    setIsLoadingOwnershipModels(true);
-    setIsLoadingStrategyPillars(true);
-
-    try {
-      const levels = await apiClient.getMaturityLevels();
-      setMaturityLevels(levels);
-    } catch {
-      setMaturityLevels(DEFAULT_MATURITY_LEVELS);
-    } finally {
-      setIsLoadingMaturityLevels(false);
-    }
-
-    try {
-      const statusList = await apiClient.getStatuses();
-      setStatuses(statusList.sort((a, b) => a.sortOrder - b.sortOrder));
-    } catch {
-      setStatuses(DEFAULT_STATUSES);
-    } finally {
-      setIsLoadingStatuses(false);
-    }
-
-    try {
-      const ownershipList = await apiClient.getOwnershipModels();
-      setOwnershipModels(ownershipList);
-    } catch {
-      setOwnershipModels(DEFAULT_OWNERSHIP_MODELS);
-    } finally {
-      setIsLoadingOwnershipModels(false);
-    }
-
-    try {
-      const pillarList = await apiClient.getStrategyPillars();
-      setStrategyPillars(pillarList);
-    } catch {
-      setStrategyPillars(DEFAULT_STRATEGY_PILLARS);
-    } finally {
-      setIsLoadingStrategyPillars(false);
-    }
-  };
 
   const handleClose = () => {
     setErrors({});
@@ -337,76 +230,190 @@ export const EditCapabilityDialog: React.FC<EditCapabilityDialogProps> = ({ isOp
       setErrors(validationErrors);
       return;
     }
-    setIsSaving(true);
     try {
       const description = form.description.trim() || undefined;
-      await updateCapability(capability.id, { name: form.name.trim(), description });
-      await updateCapabilityMetadata(capability.id, buildMetadataRequest());
+      await updateCapabilityMutation.mutateAsync({ id: capability.id, request: { name: form.name.trim(), description } });
+      await updateCapabilityMetadataMutation.mutateAsync({ id: capability.id, request: buildMetadataRequest() });
       handleClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update capability';
       setBackendError(message);
-    } finally {
-      setIsSaving(false);
     }
   };
 
   if (!capability) return null;
   const displayCapability = currentCapability || capability;
 
+  const statusOptions = [...statuses]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((s) => ({
+      value: s.value,
+      label: s.displayName,
+    }));
+
+  const ownershipModelOptions = ownershipModels.map((om) => ({
+    value: om.value,
+    label: om.displayName,
+  }));
+
+  const strategyPillarOptions = strategyPillars.map((sp) => ({
+    value: sp.value,
+    label: sp.displayName,
+  }));
+
+  const isSaving = updateCapabilityMutation.isPending || updateCapabilityMetadataMutation.isPending;
+  const isLoadingMetadata = isLoadingMaturityLevels || isLoadingStatuses || isLoadingOwnershipModels || isLoadingStrategyPillars;
+
   return (
     <>
-      <dialog ref={dialogRef} className="dialog dialog-large" onClose={handleClose} data-testid="edit-capability-dialog">
-        <div className="dialog-content">
-          <h2 className="dialog-title">Edit Capability</h2>
-          <form onSubmit={handleSubmit}>
-            <TextInput id="edit-capability-name" label="Name" value={form.name} onChange={(v) => handleFieldChange('name', v)} error={errors.name} disabled={isSaving} required placeholder="Enter capability name" />
+      <Modal
+        opened={isOpen}
+        onClose={handleClose}
+        title="Edit Capability"
+        centered
+        size="lg"
+        data-testid="edit-capability-dialog"
+      >
+        <form onSubmit={handleSubmit}>
+          <Stack gap="md">
+            <TextInput
+              label="Name"
+              placeholder="Enter capability name"
+              value={form.name}
+              onChange={(e) => handleFieldChange('name', e.currentTarget.value)}
+              required
+              withAsterisk
+              autoFocus
+              disabled={isSaving}
+              error={errors.name}
+              data-testid="edit-capability-name-input"
+            />
 
-            <div className="form-group">
-              <label htmlFor="edit-capability-description" className="form-label">Description</label>
-              <textarea id="edit-capability-description" className={`form-textarea ${errors.description ? 'form-input-error' : ''}`} value={form.description} onChange={(e) => handleFieldChange('description', e.target.value)} placeholder="Enter capability description (optional)" rows={3} disabled={isSaving} data-testid="edit-capability-description-input" />
-              {errors.description && <div className="field-error" data-testid="edit-capability-description-error">{errors.description}</div>}
-            </div>
+            <Textarea
+              label="Description"
+              placeholder="Enter capability description (optional)"
+              value={form.description}
+              onChange={(e) => handleFieldChange('description', e.currentTarget.value)}
+              rows={3}
+              disabled={isSaving}
+              error={errors.description}
+              data-testid="edit-capability-description-input"
+            />
 
-            <div className="form-row">
-              <SelectInput id="edit-capability-status" label="Status" value={form.status} options={statuses || []} onChange={(v) => handleFieldChange('status', v)} disabled={isSaving} isLoading={isLoadingStatuses} />
-              <SelectInput id="edit-capability-maturity" label="Maturity Level" value={form.maturityLevel} options={(maturityLevels || []).map((level) => ({ value: level, displayName: level }))} onChange={(v) => handleFieldChange('maturityLevel', v)} disabled={isSaving} isLoading={isLoadingMaturityLevels} />
-            </div>
+            <SimpleGrid cols={2}>
+              <Select
+                label="Status"
+                value={form.status}
+                onChange={(value) => handleFieldChange('status', value || 'Active')}
+                data={isLoadingStatuses ? [] : statusOptions}
+                disabled={isSaving || isLoadingStatuses}
+                data-testid="edit-capability-status-select"
+              />
 
-            <div className="form-row">
-              <SelectInput id="edit-capability-ownership" label="Ownership Model" value={form.ownershipModel} options={ownershipModels || []} onChange={(v) => handleFieldChange('ownershipModel', v)} disabled={isSaving} placeholder="Select ownership model" isLoading={isLoadingOwnershipModels} />
-              <div className="form-group form-group-half">
-                <label htmlFor="edit-capability-primary-owner" className="form-label">Primary Owner</label>
-                <input id="edit-capability-primary-owner" type="text" className="form-input" value={form.primaryOwner} onChange={(e) => handleFieldChange('primaryOwner', e.target.value)} placeholder="Enter primary owner" disabled={isSaving} data-testid="edit-capability-primary-owner-input" />
-              </div>
-            </div>
+              <Select
+                label="Maturity Level"
+                value={form.maturityLevel}
+                onChange={(value) => handleFieldChange('maturityLevel', value || '')}
+                data={isLoadingMaturityLevels ? [] : maturityLevels}
+                disabled={isSaving || isLoadingMaturityLevels}
+                data-testid="edit-capability-maturity-select"
+              />
+            </SimpleGrid>
 
-            <div className="form-row">
-              <div className="form-group form-group-half">
-                <label htmlFor="edit-capability-ea-owner" className="form-label">EA Owner</label>
-                <input id="edit-capability-ea-owner" type="text" className="form-input" value={form.eaOwner} onChange={(e) => handleFieldChange('eaOwner', e.target.value)} placeholder="Enter EA owner" disabled={isSaving} data-testid="edit-capability-ea-owner-input" />
-              </div>
-              <SelectInput id="edit-capability-strategy-pillar" label="Strategy Pillar" value={form.strategyPillar} options={strategyPillars || []} onChange={(v) => handleFieldChange('strategyPillar', v)} disabled={isSaving} placeholder="Select strategy pillar" isLoading={isLoadingStrategyPillars} />
-            </div>
+            <SimpleGrid cols={2}>
+              <Select
+                label="Ownership Model"
+                placeholder="Select ownership model"
+                value={form.ownershipModel}
+                onChange={(value) => handleFieldChange('ownershipModel', value || '')}
+                data={isLoadingOwnershipModels ? [] : ownershipModelOptions}
+                disabled={isSaving || isLoadingOwnershipModels}
+                clearable
+                data-testid="edit-capability-ownership-select"
+              />
 
-            <div className="form-group">
-              <label htmlFor="edit-capability-pillar-weight" className="form-label">Pillar Weight (0-100)</label>
-              <input id="edit-capability-pillar-weight" type="number" min="0" max="100" className={`form-input form-input-narrow ${errors.pillarWeight ? 'form-input-error' : ''}`} value={form.pillarWeight} onChange={(e) => handleFieldChange('pillarWeight', parseInt(e.target.value, 10) || 0)} disabled={isSaving} data-testid="edit-capability-pillar-weight-input" />
-              {errors.pillarWeight && <div className="field-error" data-testid="edit-capability-pillar-weight-error">{errors.pillarWeight}</div>}
-            </div>
+              <TextInput
+                label="Primary Owner"
+                placeholder="Enter primary owner"
+                value={form.primaryOwner}
+                onChange={(e) => handleFieldChange('primaryOwner', e.currentTarget.value)}
+                disabled={isSaving}
+                data-testid="edit-capability-primary-owner-input"
+              />
+            </SimpleGrid>
 
-            <ExpertsList experts={displayCapability.experts} onAddClick={() => setIsAddExpertOpen(true)} disabled={isSaving} />
-            <TagsList tags={displayCapability.tags} onAddClick={() => setIsAddTagOpen(true)} disabled={isSaving} />
+            <SimpleGrid cols={2}>
+              <TextInput
+                label="EA Owner"
+                placeholder="Enter EA owner"
+                value={form.eaOwner}
+                onChange={(e) => handleFieldChange('eaOwner', e.currentTarget.value)}
+                disabled={isSaving}
+                data-testid="edit-capability-ea-owner-input"
+              />
 
-            {backendError && <div className="error-message" data-testid="edit-capability-error">{backendError}</div>}
+              <Select
+                label="Strategy Pillar"
+                placeholder="Select strategy pillar"
+                value={form.strategyPillar}
+                onChange={(value) => handleFieldChange('strategyPillar', value || '')}
+                data={isLoadingStrategyPillars ? [] : strategyPillarOptions}
+                disabled={isSaving || isLoadingStrategyPillars}
+                clearable
+                data-testid="edit-capability-strategy-pillar-select"
+              />
+            </SimpleGrid>
 
-            <div className="dialog-actions">
-              <button type="button" className="btn btn-secondary" onClick={handleClose} disabled={isSaving} data-testid="edit-capability-cancel">Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={isSaving || isLoadingMaturityLevels || isLoadingStatuses || isLoadingOwnershipModels || isLoadingStrategyPillars || !form.name.trim()} data-testid="edit-capability-submit">{isSaving ? 'Saving...' : 'Save'}</button>
-            </div>
-          </form>
-        </div>
-      </dialog>
+            <NumberInput
+              label="Pillar Weight (0-100)"
+              value={form.pillarWeight}
+              onChange={(value) => handleFieldChange('pillarWeight', typeof value === 'number' ? value : 0)}
+              min={0}
+              max={100}
+              disabled={isSaving}
+              error={errors.pillarWeight}
+              data-testid="edit-capability-pillar-weight-input"
+            />
+
+            <ExpertsList
+              experts={displayCapability.experts}
+              onAddClick={() => setIsAddExpertOpen(true)}
+              disabled={isSaving}
+            />
+
+            <TagsList
+              tags={displayCapability.tags}
+              onAddClick={() => setIsAddTagOpen(true)}
+              disabled={isSaving}
+            />
+
+            {backendError && (
+              <Alert color="red" data-testid="edit-capability-error">
+                {backendError}
+              </Alert>
+            )}
+
+            <Group justify="flex-end" gap="sm">
+              <Button
+                variant="default"
+                onClick={handleClose}
+                disabled={isSaving}
+                data-testid="edit-capability-cancel"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                loading={isSaving}
+                disabled={isLoadingMetadata || !form.name.trim()}
+                data-testid="edit-capability-submit"
+              >
+                Save
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </Modal>
 
       <AddExpertDialog isOpen={isAddExpertOpen} onClose={() => setIsAddExpertOpen(false)} capabilityId={capability.id} />
       <AddTagDialog isOpen={isAddTagOpen} onClose={() => setIsAddTagOpen(false)} capabilityId={capability.id} />

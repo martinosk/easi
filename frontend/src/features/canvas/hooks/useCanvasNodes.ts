@@ -1,29 +1,18 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import type { Node } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 import { createComponentNode, createCapabilityNode, isComponentInView } from '../utils/nodeFactory';
+import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
+import { useComponents } from '../../components/hooks/useComponents';
 
 export const useCanvasNodes = (): Node[] => {
-  const components = useAppStore((state) => state.components);
+  const { data: components = [] } = useComponents();
   const currentView = useAppStore((state) => state.currentView);
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
-  const capabilities = useAppStore((state) => state.capabilities);
+  const { data: capabilities = [] } = useCapabilities();
   const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
-  const loadRealizationsByComponent = useAppStore((state) => state.loadRealizationsByComponent);
   const { positions: layoutPositions } = useCanvasLayoutContext();
-
-  const viewComponentIds = useMemo(
-    () => currentView?.components.map((vc) => vc.componentId).join(',') ?? '',
-    [currentView?.components]
-  );
-
-  useEffect(() => {
-    if (!currentView || !viewComponentIds) return;
-    currentView.components.forEach((vc) => {
-      loadRealizationsByComponent(vc.componentId);
-    });
-  }, [currentView?.id, viewComponentIds, loadRealizationsByComponent]);
 
   return useMemo(() => {
     if (!currentView) return [];

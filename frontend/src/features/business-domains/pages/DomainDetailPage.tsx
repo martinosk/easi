@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { DomainForm } from '../components/DomainForm';
 import { CapabilityAssociationManager } from '../components/CapabilityAssociationManager';
 import { apiClient } from '../../../api/client';
+import { ROUTES } from '../../../routes/routes';
 import type { BusinessDomain, BusinessDomainId } from '../../../api/types';
 
 interface DomainDetailPageProps {
@@ -10,6 +12,7 @@ interface DomainDetailPageProps {
 }
 
 export function DomainDetailPage({ domainId }: DomainDetailPageProps) {
+  const navigate = useNavigate();
   const [domain, setDomain] = useState<BusinessDomain | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -47,7 +50,7 @@ export function DomainDetailPage({ domainId }: DomainDetailPageProps) {
   };
 
   const handleBack = () => {
-    window.location.hash = '#/business-domains';
+    navigate(ROUTES.BUSINESS_DOMAINS);
   };
 
   if (isLoading) {

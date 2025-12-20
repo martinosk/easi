@@ -1,10 +1,15 @@
-import { useState, type FormEvent, type FC } from 'react';
+import { useState, useEffect, type FormEvent, type FC } from 'react';
 import { authApi } from '../api/authApi';
+import { resetLoginRedirectFlag } from '../../../api';
 
 export const LoginPage: FC = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    resetLoginRedirectFlag();
+  }, []);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import type { Capability, CapabilityId, CapabilityRealization, ComponentId, Position } from '../../../api/types';
 import type { DepthLevel } from './DepthSelector';
 import { ApplicationChipList } from './ApplicationChipList';
+import { useResponsive, RESPONSIVE_GRID_COLUMNS, RESPONSIVE_SPACING, getResponsiveValue, type Breakpoint } from '../../../hooks/useResponsive';
 import './visualization.css';
 
 const LEVEL_COLORS = {
@@ -18,15 +19,9 @@ const LEVEL_SIZES = {
   L4: { minHeight: '50px', padding: '0.375rem' },
 };
 
-const GRID_COLUMNS = {
-  L1: 'repeat(auto-fill, minmax(150px, 1fr))',
-  L2: 'repeat(auto-fill, minmax(120px, 1fr))',
-  L3: 'repeat(auto-fill, minmax(100px, 1fr))',
-  L4: 'repeat(auto-fill, minmax(100px, 1fr))',
-};
-
-function getGridColumns(level: Capability['level']): string {
-  return GRID_COLUMNS[level] || GRID_COLUMNS.L3;
+function getResponsiveGridColumns(level: Capability['level'], breakpoint: Breakpoint): string {
+  const columns = RESPONSIVE_GRID_COLUMNS[level] || RESPONSIVE_GRID_COLUMNS.L3;
+  return getResponsiveValue(columns, breakpoint) || columns.base;
 }
 
 export interface PositionMap {
@@ -108,6 +103,7 @@ interface NestedCapabilityItemProps {
   getRealizationsForCapability?: (capabilityId: CapabilityId) => CapabilityRealization[];
   onApplicationClick?: (componentId: ComponentId) => void;
   selectedCapabilities?: Set<CapabilityId>;
+  breakpoint: Breakpoint;
 }
 
 interface ChildrenGridProps {
@@ -120,6 +116,7 @@ interface ChildrenGridProps {
   getRealizationsForCapability?: (capabilityId: CapabilityId) => CapabilityRealization[];
   onApplicationClick?: (componentId: ComponentId) => void;
   selectedCapabilities?: Set<CapabilityId>;
+  breakpoint: Breakpoint;
 }
 
 function ChildrenGrid({
@@ -132,13 +129,16 @@ function ChildrenGrid({
   getRealizationsForCapability,
   onApplicationClick,
   selectedCapabilities,
+  breakpoint,
 }: ChildrenGridProps) {
+  const gridGap = getResponsiveValue(RESPONSIVE_SPACING.gridGap, breakpoint) || '0.5rem';
+
   return (
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: getGridColumns(level),
-        gap: '0.5rem',
+        gridTemplateColumns: getResponsiveGridColumns(level, breakpoint),
+        gap: gridGap,
         flex: 1,
         overflow: 'auto',
       }}
@@ -154,6 +154,7 @@ function ChildrenGrid({
           getRealizationsForCapability={getRealizationsForCapability}
           onApplicationClick={onApplicationClick}
           selectedCapabilities={selectedCapabilities}
+          breakpoint={breakpoint}
         />
       ))}
     </div>
@@ -201,6 +202,7 @@ function NestedCapabilityItem({
   getRealizationsForCapability,
   onApplicationClick,
   selectedCapabilities,
+  breakpoint,
 }: NestedCapabilityItemProps) {
   const { capability, children } = node;
   const realizations = getCapabilityRealizations(showApplications, getRealizationsForCapability, capability.id);
@@ -246,6 +248,7 @@ function NestedCapabilityItem({
         getRealizationsForCapability={getRealizationsForCapability}
         onApplicationClick={onApplicationClick}
         selectedCapabilities={selectedCapabilities}
+        breakpoint={breakpoint}
       />
     );
   };
@@ -292,6 +295,7 @@ export function NestedCapabilityGrid({
   onDrop,
   selectedCapabilities,
 }: NestedCapabilityGridProps) {
+  const { currentBreakpoint } = useResponsive();
   const tree = useMemo(() => buildTree(capabilities), [capabilities]);
 
   const sortedTree = useMemo(() => {
@@ -300,6 +304,10 @@ export function NestedCapabilityGrid({
     }
     return tree;
   }, [tree, positions]);
+
+  const containerPadding = getResponsiveValue(RESPONSIVE_SPACING.containerPadding, currentBreakpoint) || '1rem';
+  const gridGap = getResponsiveValue(RESPONSIVE_SPACING.gridGap, currentBreakpoint) || '1rem';
+  const rootGridColumns = getResponsiveValue(RESPONSIVE_GRID_COLUMNS.L1, currentBreakpoint) || 'repeat(auto-fill, minmax(250px, 1fr))';
 
   return (
     <div
@@ -318,9 +326,9 @@ export function NestedCapabilityGrid({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-          gap: '1rem',
-          padding: '1rem',
+          gridTemplateColumns: rootGridColumns,
+          gap: gridGap,
+          padding: containerPadding,
         }}
       >
         {sortedTree.map((node) => (
@@ -334,6 +342,7 @@ export function NestedCapabilityGrid({
             getRealizationsForCapability={getRealizationsForCapability}
             onApplicationClick={onApplicationClick}
             selectedCapabilities={selectedCapabilities}
+            breakpoint={currentBreakpoint}
           />
         ))}
       </div>

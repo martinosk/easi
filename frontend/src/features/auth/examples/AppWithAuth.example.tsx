@@ -34,5 +34,5 @@ export function AppWithAuth() {
     return <LoginPage />;
   }
 
-  return <App />;
+  return <App view="canvas" />;
 }

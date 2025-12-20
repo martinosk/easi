@@ -2,6 +2,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { VisualizationArea } from './VisualizationArea';
 import type { BusinessDomain, Capability, CapabilityId } from '../../../api/types';
+import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
+
+const renderWithMantine = (ui: React.ReactElement) => render(<MantineTestWrapper>{ui}</MantineTestWrapper>);
 
 describe('VisualizationArea', () => {
   const mockDomain: BusinessDomain = {
@@ -50,7 +53,7 @@ describe('VisualizationArea', () => {
   };
 
   it('renders capabilities when domain is selected', () => {
-    render(<VisualizationArea {...defaultProps} />);
+    renderWithMantine(<VisualizationArea {...defaultProps} />);
 
     expect(screen.getByText('Financial Management')).toBeInTheDocument();
     expect(screen.getByText('Accounting')).toBeInTheDocument();
@@ -58,7 +61,7 @@ describe('VisualizationArea', () => {
 
   it('calls onCapabilityClick with capability and event when clicked', () => {
     const onCapabilityClick = vi.fn();
-    render(<VisualizationArea {...defaultProps} onCapabilityClick={onCapabilityClick} />);
+    renderWithMantine(<VisualizationArea {...defaultProps} onCapabilityClick={onCapabilityClick} />);
 
     fireEvent.click(screen.getByText('Financial Management'));
 
@@ -71,7 +74,7 @@ describe('VisualizationArea', () => {
 
   it('calls onContextMenu with capability and event on right-click', () => {
     const onContextMenu = vi.fn();
-    render(<VisualizationArea {...defaultProps} onContextMenu={onContextMenu} />);
+    renderWithMantine(<VisualizationArea {...defaultProps} onContextMenu={onContextMenu} />);
 
     fireEvent.contextMenu(screen.getByText('Financial Management'));
 
@@ -84,20 +87,20 @@ describe('VisualizationArea', () => {
 
   it('passes selectedCapabilities to grid for visual highlighting', () => {
     const selectedCapabilities = new Set(['cap-1' as CapabilityId]);
-    render(<VisualizationArea {...defaultProps} selectedCapabilities={selectedCapabilities} />);
+    renderWithMantine(<VisualizationArea {...defaultProps} selectedCapabilities={selectedCapabilities} />);
 
     const capability = screen.getByTestId('capability-cap-1');
     expect(capability).toHaveClass('selected');
   });
 
   it('shows placeholder when no domain is selected', () => {
-    render(<VisualizationArea {...defaultProps} visualizedDomain={null} />);
+    renderWithMantine(<VisualizationArea {...defaultProps} visualizedDomain={null} />);
 
     expect(screen.getByText('Click a domain to see its capabilities')).toBeInTheDocument();
   });
 
   it('shows loading state when capabilities are loading', () => {
-    render(<VisualizationArea {...defaultProps} capabilitiesLoading={true} />);
+    renderWithMantine(<VisualizationArea {...defaultProps} capabilitiesLoading={true} />);
 
     expect(screen.getByText('Loading capabilities...')).toBeInTheDocument();
   });
