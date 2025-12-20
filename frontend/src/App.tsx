@@ -133,6 +133,35 @@ function ReleaseNotesDisplay({ showOverlay, release, onDismiss, browserIsOpen, o
   );
 }
 
+function LazyFeatureView({ featureName, children }: { featureName: string; children: React.ReactNode }) {
+  return (
+    <ErrorBoundary
+      fallback={(error, reset) => (
+        <FeatureErrorFallback featureName={featureName} error={error} onReset={reset} />
+      )}
+    >
+      <Suspense fallback={<LoadingFallback message={`Loading ${featureName}...`} />}>
+        {children}
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
+interface MainContentProps {
+  view: AppView;
+  canvasViewProps: CanvasViewProps;
+}
+
+function MainContent({ view, canvasViewProps }: MainContentProps) {
+  if (view === 'canvas') {
+    return <CanvasView {...canvasViewProps} />;
+  }
+  if (view === 'invitations') {
+    return <LazyFeatureView featureName="Invitations"><InvitationsPage /></LazyFeatureView>;
+  }
+  return <LazyFeatureView featureName="Business Domains"><BusinessDomainsRouter /></LazyFeatureView>;
+}
+
 interface AppProps {
   view: AppView;
 }
@@ -171,9 +200,6 @@ function App({ view }: AppProps) {
   }, [loadData, isAuthenticated]);
 
   const hasNoData = components.length === 0;
-  const isLoadingInitialData = isLoading && hasNoData;
-  const showLoadingScreen = isLoadingInitialData;
-  const showErrorScreen = error && hasNoData;
 
   if (authError && !isAuthenticated) {
     return (
@@ -188,54 +214,31 @@ function App({ view }: AppProps) {
     );
   }
 
-  if (showLoadingScreen) {
+  if (isLoading && hasNoData) {
     return <AppLayout><LoadingScreen /></AppLayout>;
   }
 
-  if (showErrorScreen) {
+  if (error && hasNoData) {
     return <AppLayout><ErrorScreen error={error} onRetry={loadData} /></AppLayout>;
   }
 
-  const isCanvasView = view === 'canvas';
-  const isInvitationsView = view === 'invitations';
+  const canvasViewProps: CanvasViewProps = {
+    canvasRef,
+    selectedNodeId,
+    selectedEdgeId,
+    dialogActions,
+    dialogState,
+    addComponentToView,
+    switchView,
+    navigateToComponent,
+    navigateToCapability,
+    onRemoveFromView: handleRemoveFromView,
+  };
 
   return (
     <AppLayout>
       <AppNavigation currentView={view} onOpenReleaseNotes={dialogState.releaseNotesBrowserDialog.onOpen} />
-      {isCanvasView ? (
-        <CanvasView
-          canvasRef={canvasRef}
-          selectedNodeId={selectedNodeId}
-          selectedEdgeId={selectedEdgeId}
-          dialogActions={dialogActions}
-          dialogState={dialogState}
-          addComponentToView={addComponentToView}
-          switchView={switchView}
-          navigateToComponent={navigateToComponent}
-          navigateToCapability={navigateToCapability}
-          onRemoveFromView={handleRemoveFromView}
-        />
-      ) : isInvitationsView ? (
-        <ErrorBoundary
-          fallback={(error, reset) => (
-            <FeatureErrorFallback featureName="Invitations" error={error} onReset={reset} />
-          )}
-        >
-          <Suspense fallback={<LoadingFallback message="Loading Invitations..." />}>
-            <InvitationsPage />
-          </Suspense>
-        </ErrorBoundary>
-      ) : (
-        <ErrorBoundary
-          fallback={(error, reset) => (
-            <FeatureErrorFallback featureName="Business Domains" error={error} onReset={reset} />
-          )}
-        >
-          <Suspense fallback={<LoadingFallback message="Loading Business Domains..." />}>
-            <BusinessDomainsRouter />
-          </Suspense>
-        </ErrorBoundary>
-      )}
+      <MainContent view={view} canvasViewProps={canvasViewProps} />
       <ReleaseNotesDisplay
         showOverlay={showReleaseNotes}
         release={release}

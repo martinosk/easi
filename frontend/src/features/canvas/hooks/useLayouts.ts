@@ -9,6 +9,25 @@ import type {
   BatchUpdateItem,
 } from '../../../api/types';
 
+interface LayoutContext {
+  contextType: LayoutContextType;
+  contextRef: string;
+}
+
+function useLayoutMutationWithInvalidation<TVariables extends LayoutContext>(
+  mutationFn: (variables: TVariables) => Promise<unknown>
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: (_, { contextType, contextRef }) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.layouts.detail(contextType, contextRef),
+      });
+    },
+  });
+}
+
 export function useLayout(
   contextType: LayoutContextType | undefined,
   contextRef: string | undefined
@@ -28,11 +47,8 @@ export function useUpsertLayout() {
       contextType,
       contextRef,
       request,
-    }: {
-      contextType: LayoutContextType;
-      contextRef: string;
-      request?: UpsertLayoutRequest;
-    }) => layoutsApi.upsert(contextType, contextRef, request),
+    }: LayoutContext & { request?: UpsertLayoutRequest }) =>
+      layoutsApi.upsert(contextType, contextRef, request),
     onSuccess: (data, { contextType, contextRef }) => {
       queryClient.setQueryData(
         queryKeys.layouts.detail(contextType, contextRef),
@@ -46,13 +62,8 @@ export function useDeleteLayout() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      contextType,
-      contextRef,
-    }: {
-      contextType: LayoutContextType;
-      contextRef: string;
-    }) => layoutsApi.delete(contextType, contextRef),
+    mutationFn: ({ contextType, contextRef }: LayoutContext) =>
+      layoutsApi.delete(contextType, contextRef),
     onSuccess: (_, { contextType, contextRef }) => {
       queryClient.removeQueries({
         queryKey: queryKeys.layouts.detail(contextType, contextRef),
@@ -70,22 +81,14 @@ export function useUpdateLayoutPreferences() {
       contextRef,
       preferences,
       version,
-    }: {
-      contextType: LayoutContextType;
-      contextRef: string;
-      preferences: Record<string, unknown>;
-      version: number;
-    }) => layoutsApi.updatePreferences(contextType, contextRef, preferences, version),
+    }: LayoutContext & { preferences: Record<string, unknown>; version: number }) =>
+      layoutsApi.updatePreferences(contextType, contextRef, preferences, version),
     onSuccess: (data, { contextType, contextRef }) => {
       queryClient.setQueryData<LayoutContainer | null>(
         queryKeys.layouts.detail(contextType, contextRef),
         (old) =>
           old
-            ? {
-                ...old,
-                preferences: data.preferences,
-                version: data.version,
-              }
+            ? { ...old, preferences: data.preferences, version: data.version }
             : null
       );
     },
@@ -93,66 +96,24 @@ export function useUpdateLayoutPreferences() {
 }
 
 export function useUpsertElementPosition() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      contextType,
-      contextRef,
-      elementId,
-      position,
-    }: {
-      contextType: LayoutContextType;
-      contextRef: string;
+  return useLayoutMutationWithInvalidation(
+    ({ contextType, contextRef, elementId, position }: LayoutContext & {
       elementId: string;
       position: ElementPositionInput;
-    }) => layoutsApi.upsertElement(contextType, contextRef, elementId, position),
-    onSuccess: (_, { contextType, contextRef }) => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.layouts.detail(contextType, contextRef),
-      });
-    },
-  });
+    }) => layoutsApi.upsertElement(contextType, contextRef, elementId, position)
+  );
 }
 
 export function useDeleteElementPosition() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      contextType,
-      contextRef,
-      elementId,
-    }: {
-      contextType: LayoutContextType;
-      contextRef: string;
-      elementId: string;
-    }) => layoutsApi.deleteElement(contextType, contextRef, elementId),
-    onSuccess: (_, { contextType, contextRef }) => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.layouts.detail(contextType, contextRef),
-      });
-    },
-  });
+  return useLayoutMutationWithInvalidation(
+    ({ contextType, contextRef, elementId }: LayoutContext & { elementId: string }) =>
+      layoutsApi.deleteElement(contextType, contextRef, elementId)
+  );
 }
 
 export function useBatchUpdateElements() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      contextType,
-      contextRef,
-      updates,
-    }: {
-      contextType: LayoutContextType;
-      contextRef: string;
-      updates: BatchUpdateItem[];
-    }) => layoutsApi.batchUpdateElements(contextType, contextRef, updates),
-    onSuccess: (_, { contextType, contextRef }) => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.layouts.detail(contextType, contextRef),
-      });
-    },
-  });
+  return useLayoutMutationWithInvalidation(
+    ({ contextType, contextRef, updates }: LayoutContext & { updates: BatchUpdateItem[] }) =>
+      layoutsApi.batchUpdateElements(contextType, contextRef, updates)
+  );
 }

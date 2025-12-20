@@ -168,39 +168,37 @@ export function useDeleteBusinessDomain() {
   });
 }
 
-export function useAssociateCapabilityWithDomain() {
+function useCapabilityDomainMutation<TVariables>(
+  mutationFn: (variables: TVariables) => Promise<void>,
+  successMessage: string,
+  errorMessage: string
+) {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: ({
-      associateLink,
-      request,
-    }: {
-      associateLink: string;
-      request: AssociateCapabilityRequest;
-    }) => businessDomainsApi.associateCapability(associateLink, request),
+    mutationFn,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.businessDomains.all });
-      toast.success('Capability associated with domain');
+      toast.success(successMessage);
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to associate capability');
+      toast.error(error.message || errorMessage);
     },
   });
 }
 
-export function useDissociateCapabilityFromDomain() {
-  const queryClient = useQueryClient();
+export function useAssociateCapabilityWithDomain() {
+  return useCapabilityDomainMutation(
+    ({ associateLink, request }: { associateLink: string; request: AssociateCapabilityRequest }) =>
+      businessDomainsApi.associateCapability(associateLink, request),
+    'Capability associated with domain',
+    'Failed to associate capability'
+  );
+}
 
-  return useMutation({
-    mutationFn: (dissociateLink: string) =>
-      businessDomainsApi.dissociateCapability(dissociateLink),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.businessDomains.all });
-      toast.success('Capability removed from domain');
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to dissociate capability');
-    },
-  });
+export function useDissociateCapabilityFromDomain() {
+  return useCapabilityDomainMutation(
+    (dissociateLink: string) => businessDomainsApi.dissociateCapability(dissociateLink),
+    'Capability removed from domain',
+    'Failed to dissociate capability'
+  );
 }

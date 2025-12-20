@@ -39,6 +39,197 @@ const isRelationEdge = (edgeId: string): boolean => !isRealizationEdge(edgeId) &
 
 const LAYOUT_STORAGE_KEY = 'easi-canvas-dockview-layout';
 
+type PanelId = 'navigation' | 'details';
+
+interface PanelSizes {
+  navigation: number;
+  details: number;
+}
+
+function savePanelSizes(api: DockviewReadyEvent['api'], sizesRef: React.MutableRefObject<PanelSizes>) {
+  const navigationPanel = api.getPanel('navigation');
+  const detailsPanel = api.getPanel('details');
+  if (navigationPanel) sizesRef.current.navigation = navigationPanel.api.width;
+  if (detailsPanel) sizesRef.current.details = detailsPanel.api.width;
+}
+
+function restorePanelSizes(api: DockviewReadyEvent['api'], sizesRef: React.MutableRefObject<PanelSizes>) {
+  setTimeout(() => {
+    const nav = api.getPanel('navigation');
+    const details = api.getPanel('details');
+    if (nav) nav.api.setSize({ width: sizesRef.current.navigation });
+    if (details) details.api.setSize({ width: sizesRef.current.details });
+  }, 0);
+}
+
+const panelToggleButtonStyle = {
+  padding: '4px 12px',
+  border: '1px solid var(--color-gray-300)',
+  borderRadius: '4px',
+  backgroundColor: 'white',
+  cursor: 'pointer',
+  fontSize: '13px',
+} as const;
+
+const panelBarStyle = {
+  height: '32px',
+  flexShrink: 0,
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  padding: '0 12px',
+  backgroundColor: 'var(--color-gray-50)',
+  borderBottom: '1px solid var(--color-gray-200)',
+  fontSize: '13px',
+} as const;
+
+interface PanelToggleBarProps {
+  panelVisibility: { navigation: boolean; details: boolean };
+  onToggle: (panelId: PanelId) => void;
+}
+
+function PanelToggleBar({ panelVisibility, onToggle }: PanelToggleBarProps) {
+  return (
+    <div style={panelBarStyle}>
+      <span style={{ color: 'var(--color-gray-600)', fontWeight: 500 }}>Panels:</span>
+      <button onClick={() => onToggle('navigation')} style={panelToggleButtonStyle}>
+        {panelVisibility.navigation ? '☑' : '☐'} Explorer
+      </button>
+      <button onClick={() => onToggle('details')} style={panelToggleButtonStyle}>
+        {panelVisibility.details ? '☑' : '☐'} Details
+      </button>
+    </div>
+  );
+}
+
+function usePanelParams(props: DockviewLayoutProps) {
+  const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
+  const removeCapabilityFromCanvas = useAppStore((state) => state.removeCapabilityFromCanvas);
+
+  const handleRemoveCapabilityFromView = useCallback(() => {
+    if (selectedCapabilityId) removeCapabilityFromCanvas(selectedCapabilityId);
+  }, [selectedCapabilityId, removeCapabilityFromCanvas]);
+
+  const navigation = useCallback(() => ({
+    onComponentSelect: props.onComponentSelect,
+    onCapabilitySelect: props.onCapabilitySelect,
+    onViewSelect: props.onViewSelect,
+    onAddComponent: props.onAddComponent,
+    onAddCapability: props.onAddCapability,
+    onEditCapability: props.onEditCapability,
+    onEditComponent: props.onEditComponent,
+  }), [props.onComponentSelect, props.onCapabilitySelect, props.onViewSelect, props.onAddComponent, props.onAddCapability, props.onEditCapability, props.onEditComponent]);
+
+  const details = useCallback(() => ({
+    selectedNodeId: props.selectedNodeId,
+    selectedEdgeId: props.selectedEdgeId,
+    selectedCapabilityId,
+    onEditComponent: props.onEditComponent,
+    onEditRelation: props.onEditRelation,
+    onRemoveFromView: props.onRemoveFromView,
+    onRemoveCapabilityFromView: handleRemoveCapabilityFromView,
+  }), [props.selectedNodeId, props.selectedEdgeId, selectedCapabilityId, props.onEditComponent, props.onEditRelation, props.onRemoveFromView, handleRemoveCapabilityFromView]);
+
+  const canvas = useCallback(() => ({
+    canvasRef: props.canvasRef,
+    onConnect: props.onConnect,
+    onComponentDrop: props.onComponentDrop,
+  }), [props.canvasRef, props.onConnect, props.onComponentDrop]);
+
+  return { navigation, details, canvas };
+}
+
+function initializeDefaultLayout(
+  api: DockviewReadyEvent['api'],
+  panelParams: ReturnType<typeof usePanelParams>
+) {
+  const canvasPanel = api.addPanel({ id: 'canvas', component: 'canvas', title: 'Canvas', tabComponent: 'nonClosable', params: panelParams.canvas() });
+  const navigationPanel = api.addPanel({ id: 'navigation', component: 'navigation', title: 'Explorer', position: { referencePanel: canvasPanel, direction: 'left' }, params: panelParams.navigation() });
+  const detailPanel = api.addPanel({ id: 'details', component: 'details', title: 'Details', position: { referencePanel: canvasPanel, direction: 'right' }, params: panelParams.details() });
+  navigationPanel.api.setSize({ width: 280 });
+  detailPanel.api.setSize({ width: 350 });
+}
+
+function restoreSavedLayout(
+  api: DockviewReadyEvent['api'],
+  panelParams: ReturnType<typeof usePanelParams>
+): boolean {
+  const savedLayout = localStorage.getItem(LAYOUT_STORAGE_KEY);
+  if (!savedLayout) return false;
+
+  try {
+    api.fromJSON(JSON.parse(savedLayout));
+    api.getPanel('navigation')?.api.updateParameters(panelParams.navigation());
+    api.getPanel('canvas')?.api.updateParameters(panelParams.canvas());
+    api.getPanel('details')?.api.updateParameters(panelParams.details());
+    return true;
+  } catch {
+    localStorage.removeItem(LAYOUT_STORAGE_KEY);
+    return false;
+  }
+}
+
+function usePanelSync(
+  apiRef: React.RefObject<DockviewReadyEvent['api'] | null>,
+  panelParams: ReturnType<typeof usePanelParams>
+) {
+  useEffect(() => { apiRef.current?.getPanel('details')?.api.updateParameters(panelParams.details()); }, [apiRef, panelParams]);
+  useEffect(() => { apiRef.current?.getPanel('canvas')?.api.updateParameters(panelParams.canvas()); }, [apiRef, panelParams]);
+  useEffect(() => { apiRef.current?.getPanel('navigation')?.api.updateParameters(panelParams.navigation()); }, [apiRef, panelParams]);
+}
+
+function useLayoutPersistence(apiRef: React.RefObject<DockviewReadyEvent['api'] | null>) {
+  useEffect(() => {
+    const api = apiRef.current;
+    if (!api) return;
+    const disposable = api.onDidLayoutChange(() => localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(api.toJSON())));
+    return () => disposable.dispose();
+  }, [apiRef]);
+}
+
+function useDockviewLayout(props: DockviewLayoutProps) {
+  const dockviewApiRef = useRef<DockviewReadyEvent['api'] | null>(null);
+  const [panelVisibility, setPanelVisibility] = useState({ navigation: true, details: true });
+  const panelSizesRef = useRef<PanelSizes>({ navigation: 280, details: 350 });
+  const panelParams = usePanelParams(props);
+
+  usePanelSync(dockviewApiRef, panelParams);
+  useLayoutPersistence(dockviewApiRef);
+
+  const togglePanel = useCallback((panelId: PanelId) => {
+    const api = dockviewApiRef.current;
+    if (!api) return;
+    const panel = api.getPanel(panelId);
+    savePanelSizes(api, panelSizesRef);
+
+    if (panel) {
+      api.removePanel(panel);
+      setPanelVisibility(prev => ({ ...prev, [panelId]: false }));
+    } else {
+      const canvasPanel = api.getPanel('canvas');
+      const isNav = panelId === 'navigation';
+      api.addPanel({
+        id: panelId,
+        component: panelId,
+        title: isNav ? 'Explorer' : 'Details',
+        position: { referencePanel: canvasPanel!, direction: isNav ? 'left' : 'right' },
+        params: isNav ? panelParams.navigation() : panelParams.details(),
+      });
+      setPanelVisibility(prev => ({ ...prev, [panelId]: true }));
+    }
+    restorePanelSizes(api, panelSizesRef);
+  }, [panelParams]);
+
+  const onReady = useCallback((event: DockviewReadyEvent) => {
+    dockviewApiRef.current = event.api;
+    if (!restoreSavedLayout(event.api, panelParams)) {
+      initializeDefaultLayout(event.api, panelParams);
+    }
+  }, [panelParams]);
+
+  return { panelVisibility, togglePanel, onReady };
+}
+
 const NavigationTreePanel = (props: IDockviewPanelProps<{
   onComponentSelect: (id: string) => void;
   onCapabilitySelect: (id: string) => void;
@@ -128,307 +319,23 @@ const DetailPanel = (props: IDockviewPanelProps<{
   );
 };
 
-export const DockviewLayout: React.FC<DockviewLayoutProps> = ({
-  canvasRef,
-  selectedNodeId,
-  selectedEdgeId,
-  onAddComponent,
-  onAddCapability,
-  onConnect,
-  onComponentDrop,
-  onComponentSelect,
-  onCapabilitySelect,
-  onViewSelect,
-  onEditComponent,
-  onEditRelation,
-  onEditCapability,
-  onRemoveFromView,
-}) => {
-  const dockviewApiRef = useRef<DockviewReadyEvent['api'] | null>(null);
-  const [panelVisibility, setPanelVisibility] = useState({ navigation: true, details: true });
-  const panelSizesRef = useRef<{ navigation: number; details: number }>({ navigation: 280, details: 350 });
-  const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
-  const removeCapabilityFromCanvas = useAppStore((state) => state.removeCapabilityFromCanvas);
+const components = {
+  navigation: NavigationTreePanel,
+  canvas: CanvasPanel,
+  details: DetailPanel,
+};
 
-  const handleRemoveCapabilityFromView = useCallback(() => {
-    if (selectedCapabilityId) {
-      removeCapabilityFromCanvas(selectedCapabilityId);
-    }
-  }, [selectedCapabilityId, removeCapabilityFromCanvas]);
+const tabComponents = {
+  nonClosable: NonClosableTab,
+};
 
-  const togglePanel = (panelId: 'navigation' | 'details') => {
-    const api = dockviewApiRef.current;
-    if (!api) return;
-
-    const panel = api.getPanel(panelId);
-    const navigationPanel = api.getPanel('navigation');
-    const detailsPanel = api.getPanel('details');
-    const canvasPanel = api.getPanel('canvas');
-
-    if (navigationPanel) {
-      panelSizesRef.current.navigation = navigationPanel.api.width;
-    }
-    if (detailsPanel) {
-      panelSizesRef.current.details = detailsPanel.api.width;
-    }
-
-    if (panel) {
-      api.removePanel(panel);
-      setPanelVisibility(prev => ({ ...prev, [panelId]: false }));
-
-      setTimeout(() => {
-        const nav = api.getPanel('navigation');
-        const details = api.getPanel('details');
-        if (nav) nav.api.setSize({ width: panelSizesRef.current.navigation });
-        if (details) details.api.setSize({ width: panelSizesRef.current.details });
-      }, 0);
-    } else {
-      if (panelId === 'navigation') {
-        api.addPanel({
-          id: 'navigation',
-          component: 'navigation',
-          title: 'Explorer',
-          position: { referencePanel: canvasPanel!, direction: 'left' },
-          params: {
-            onComponentSelect,
-            onCapabilitySelect,
-            onViewSelect,
-            onAddComponent,
-            onAddCapability,
-            onEditCapability,
-            onEditComponent,
-          },
-        });
-      } else {
-        api.addPanel({
-          id: 'details',
-          component: 'details',
-          title: 'Details',
-          position: { referencePanel: canvasPanel!, direction: 'right' },
-          params: {
-            selectedNodeId,
-            selectedEdgeId,
-            selectedCapabilityId,
-            onEditComponent,
-            onEditRelation,
-            onRemoveFromView,
-            onRemoveCapabilityFromView: handleRemoveCapabilityFromView,
-          },
-        });
-      }
-
-      setPanelVisibility(prev => ({ ...prev, [panelId]: true }));
-
-      setTimeout(() => {
-        const nav = api.getPanel('navigation');
-        const details = api.getPanel('details');
-        if (nav) nav.api.setSize({ width: panelSizesRef.current.navigation });
-        if (details) details.api.setSize({ width: panelSizesRef.current.details });
-      }, 0);
-    }
-  };
-
-  const onReady = (event: DockviewReadyEvent) => {
-    dockviewApiRef.current = event.api;
-
-    const savedLayout = localStorage.getItem(LAYOUT_STORAGE_KEY);
-    if (savedLayout) {
-      try {
-        event.api.fromJSON(JSON.parse(savedLayout));
-
-        event.api.getPanel('navigation')?.api.updateParameters({
-          onComponentSelect,
-          onCapabilitySelect,
-          onViewSelect,
-          onAddComponent,
-          onAddCapability,
-          onEditCapability,
-          onEditComponent,
-        });
-
-        event.api.getPanel('canvas')?.api.updateParameters({
-          canvasRef,
-          onConnect,
-          onComponentDrop,
-        });
-
-        event.api.getPanel('details')?.api.updateParameters({
-          selectedNodeId,
-          selectedEdgeId,
-          selectedCapabilityId,
-          onEditComponent,
-          onEditRelation,
-          onRemoveFromView,
-          onRemoveCapabilityFromView: handleRemoveCapabilityFromView,
-        });
-
-        return;
-      } catch (error) {
-        console.error('Failed to load saved layout, using default:', error);
-        localStorage.removeItem(LAYOUT_STORAGE_KEY);
-      }
-    }
-
-    const canvasPanel = event.api.addPanel({
-      id: 'canvas',
-      component: 'canvas',
-      title: 'Canvas',
-      tabComponent: 'nonClosable',
-      params: {
-        canvasRef,
-        onConnect,
-        onComponentDrop,
-      },
-    });
-
-    const navigationPanel = event.api.addPanel({
-      id: 'navigation',
-      component: 'navigation',
-      title: 'Explorer',
-      position: { referencePanel: canvasPanel, direction: 'left' },
-      params: {
-        onComponentSelect,
-        onCapabilitySelect,
-        onViewSelect,
-        onAddComponent,
-        onAddCapability,
-        onEditCapability,
-        onEditComponent,
-      },
-    });
-
-    const detailPanel = event.api.addPanel({
-      id: 'details',
-      component: 'details',
-      title: 'Details',
-      position: { referencePanel: canvasPanel, direction: 'right' },
-      params: {
-        selectedNodeId,
-        selectedEdgeId,
-        selectedCapabilityId,
-        onEditComponent,
-        onEditRelation,
-        onRemoveFromView,
-        onRemoveCapabilityFromView: handleRemoveCapabilityFromView,
-      },
-    });
-
-    navigationPanel.api.setSize({ width: 280 });
-    detailPanel.api.setSize({ width: 350 });
-  };
-
-  useEffect(() => {
-    if (dockviewApiRef.current) {
-      const detailPanel = dockviewApiRef.current.getPanel('details');
-      if (detailPanel) {
-        detailPanel.api.updateParameters({
-          selectedNodeId,
-          selectedEdgeId,
-          selectedCapabilityId,
-          onEditComponent,
-          onEditRelation,
-          onRemoveFromView,
-          onRemoveCapabilityFromView: handleRemoveCapabilityFromView,
-        });
-      }
-    }
-  }, [selectedNodeId, selectedEdgeId, selectedCapabilityId, onEditComponent, onEditRelation, onRemoveFromView, handleRemoveCapabilityFromView]);
-
-  useEffect(() => {
-    if (dockviewApiRef.current) {
-      const canvasPanel = dockviewApiRef.current.getPanel('canvas');
-      if (canvasPanel) {
-        canvasPanel.api.updateParameters({
-          canvasRef,
-          onConnect,
-          onComponentDrop,
-        });
-      }
-    }
-  }, [canvasRef, onConnect, onComponentDrop]);
-
-  useEffect(() => {
-    if (dockviewApiRef.current) {
-      const navigationPanel = dockviewApiRef.current.getPanel('navigation');
-      if (navigationPanel) {
-        navigationPanel.api.updateParameters({
-          onComponentSelect,
-          onCapabilitySelect,
-          onViewSelect,
-          onAddComponent,
-          onAddCapability,
-          onEditCapability,
-          onEditComponent,
-        });
-      }
-    }
-  }, [onComponentSelect, onCapabilitySelect, onViewSelect, onAddComponent, onAddCapability, onEditCapability, onEditComponent]);
-
-  useEffect(() => {
-    const api = dockviewApiRef.current;
-    if (!api) return;
-
-    const saveLayout = () => {
-      const layout = api.toJSON();
-      localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(layout));
-    };
-
-    const disposable = api.onDidLayoutChange(saveLayout);
-    return () => disposable.dispose();
-  }, []);
-
-  const components = {
-    navigation: NavigationTreePanel,
-    canvas: CanvasPanel,
-    details: DetailPanel,
-  };
-
-  const tabComponents = {
-    nonClosable: NonClosableTab,
-  };
+export const DockviewLayout: React.FC<DockviewLayoutProps> = (props) => {
+  const { panelVisibility, togglePanel, onReady } = useDockviewLayout(props);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
       <Toolbar />
-      <div style={{
-        height: '32px',
-        flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        padding: '0 12px',
-        backgroundColor: 'var(--color-gray-50)',
-        borderBottom: '1px solid var(--color-gray-200)',
-        fontSize: '13px',
-      }}>
-        <span style={{ color: 'var(--color-gray-600)', fontWeight: 500 }}>Panels:</span>
-        <button
-          onClick={() => togglePanel('navigation')}
-          style={{
-            padding: '4px 12px',
-            border: '1px solid var(--color-gray-300)',
-            borderRadius: '4px',
-            backgroundColor: 'white',
-            cursor: 'pointer',
-            fontSize: '13px',
-          }}
-        >
-          {panelVisibility.navigation ? '☑' : '☐'} Explorer
-        </button>
-        <button
-          onClick={() => togglePanel('details')}
-          style={{
-            padding: '4px 12px',
-            border: '1px solid var(--color-gray-300)',
-            borderRadius: '4px',
-            backgroundColor: 'white',
-            cursor: 'pointer',
-            fontSize: '13px',
-          }}
-        >
-          {panelVisibility.details ? '☑' : '☐'} Details
-        </button>
-      </div>
+      <PanelToggleBar panelVisibility={panelVisibility} onToggle={togglePanel} />
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
           <DockviewReact
