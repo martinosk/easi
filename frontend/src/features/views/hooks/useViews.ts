@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, QueryClient } from '@tanstack/react-query';
 import { viewsApi } from '../api';
 import { queryKeys } from '../../../lib/queryClient';
 import type {
@@ -17,6 +17,30 @@ import type {
   Position,
 } from '../../../api/types';
 import toast from 'react-hot-toast';
+
+type ViewMutationOptions<TVariables extends { viewId: ViewId }, TData = void> = {
+  mutationFn: (variables: TVariables) => Promise<TData>;
+  errorMessage: string;
+  showErrorToast?: boolean;
+};
+
+function createViewMutation<TVariables extends { viewId: ViewId }, TData = void>(
+  queryClient: QueryClient,
+  options: ViewMutationOptions<TVariables, TData>
+) {
+  const { mutationFn, errorMessage, showErrorToast = true } = options;
+  return useMutation({
+    mutationFn,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.views.detail(variables.viewId) });
+    },
+    onError: showErrorToast
+      ? (error: Error) => {
+          toast.error(error.message || errorMessage);
+        }
+      : undefined,
+  });
+}
 
 export function useViews() {
   return useQuery({
@@ -124,249 +148,107 @@ export function useSetDefaultView() {
 
 export function useUpdateViewEdgeType() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      viewId,
-      request,
-    }: {
-      viewId: ViewId;
-      request: UpdateViewEdgeTypeRequest;
-    }) => viewsApi.updateEdgeType(viewId, request),
-    onSuccess: (_, { viewId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.views.detail(viewId) });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to update edge type');
-    },
+  return createViewMutation<{ viewId: ViewId; request: UpdateViewEdgeTypeRequest }>(queryClient, {
+    mutationFn: ({ viewId, request }) => viewsApi.updateEdgeType(viewId, request),
+    errorMessage: 'Failed to update edge type',
   });
 }
 
 export function useUpdateViewColorScheme() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      viewId,
-      request,
-    }: {
-      viewId: ViewId;
-      request: UpdateViewColorSchemeRequest;
-    }) => viewsApi.updateColorScheme(viewId, request),
-    onSuccess: (_, { viewId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.views.detail(viewId) });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to update color scheme');
-    },
+  return createViewMutation<{ viewId: ViewId; request: UpdateViewColorSchemeRequest }>(queryClient, {
+    mutationFn: ({ viewId, request }) => viewsApi.updateColorScheme(viewId, request),
+    errorMessage: 'Failed to update color scheme',
   });
 }
 
 export function useAddComponentToView() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      viewId,
-      request,
-    }: {
-      viewId: ViewId;
-      request: AddComponentToViewRequest;
-    }) => viewsApi.addComponent(viewId, request),
-    onSuccess: (_, { viewId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.views.detail(viewId) });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to add component to view');
-    },
+  return createViewMutation<{ viewId: ViewId; request: AddComponentToViewRequest }>(queryClient, {
+    mutationFn: ({ viewId, request }) => viewsApi.addComponent(viewId, request),
+    errorMessage: 'Failed to add component to view',
   });
 }
 
 export function useRemoveComponentFromView() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ viewId, componentId }: { viewId: ViewId; componentId: ComponentId }) =>
-      viewsApi.removeComponent(viewId, componentId),
-    onSuccess: (_, { viewId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.views.detail(viewId) });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to remove component from view');
-    },
+  return createViewMutation<{ viewId: ViewId; componentId: ComponentId }>(queryClient, {
+    mutationFn: ({ viewId, componentId }) => viewsApi.removeComponent(viewId, componentId),
+    errorMessage: 'Failed to remove component from view',
   });
 }
 
 export function useUpdateComponentPosition() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      viewId,
-      componentId,
-      request,
-    }: {
-      viewId: ViewId;
-      componentId: ComponentId;
-      request: UpdatePositionRequest;
-    }) => viewsApi.updateComponentPosition(viewId, componentId, request),
-    onSuccess: (_, { viewId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.views.detail(viewId) });
-    },
+  return createViewMutation<{ viewId: ViewId; componentId: ComponentId; request: UpdatePositionRequest }>(queryClient, {
+    mutationFn: ({ viewId, componentId, request }) => viewsApi.updateComponentPosition(viewId, componentId, request),
+    errorMessage: 'Failed to update position',
+    showErrorToast: false,
   });
 }
 
 export function useUpdateMultiplePositions() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      viewId,
-      request,
-    }: {
-      viewId: ViewId;
-      request: UpdateMultiplePositionsRequest;
-    }) => viewsApi.updateMultiplePositions(viewId, request),
-    onSuccess: (_, { viewId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.views.detail(viewId) });
-    },
+  return createViewMutation<{ viewId: ViewId; request: UpdateMultiplePositionsRequest }>(queryClient, {
+    mutationFn: ({ viewId, request }) => viewsApi.updateMultiplePositions(viewId, request),
+    errorMessage: 'Failed to update positions',
+    showErrorToast: false,
   });
 }
 
 export function useAddCapabilityToView() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      viewId,
-      request,
-    }: {
-      viewId: ViewId;
-      request: AddCapabilityToViewRequest;
-    }) => viewsApi.addCapability(viewId, request),
-    onSuccess: (_, { viewId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.views.detail(viewId) });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to add capability to view');
-    },
+  return createViewMutation<{ viewId: ViewId; request: AddCapabilityToViewRequest }>(queryClient, {
+    mutationFn: ({ viewId, request }) => viewsApi.addCapability(viewId, request),
+    errorMessage: 'Failed to add capability to view',
   });
 }
 
 export function useRemoveCapabilityFromView() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      viewId,
-      capabilityId,
-    }: {
-      viewId: ViewId;
-      capabilityId: CapabilityId;
-    }) => viewsApi.removeCapability(viewId, capabilityId),
-    onSuccess: (_, { viewId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.views.detail(viewId) });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to remove capability from view');
-    },
+  return createViewMutation<{ viewId: ViewId; capabilityId: CapabilityId }>(queryClient, {
+    mutationFn: ({ viewId, capabilityId }) => viewsApi.removeCapability(viewId, capabilityId),
+    errorMessage: 'Failed to remove capability from view',
   });
 }
 
 export function useUpdateCapabilityPosition() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      viewId,
-      capabilityId,
-      position,
-    }: {
-      viewId: ViewId;
-      capabilityId: CapabilityId;
-      position: Position;
-    }) => viewsApi.updateCapabilityPosition(viewId, capabilityId, position),
-    onSuccess: (_, { viewId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.views.detail(viewId) });
-    },
+  return createViewMutation<{ viewId: ViewId; capabilityId: CapabilityId; position: Position }>(queryClient, {
+    mutationFn: ({ viewId, capabilityId, position }) => viewsApi.updateCapabilityPosition(viewId, capabilityId, position),
+    errorMessage: 'Failed to update position',
+    showErrorToast: false,
   });
 }
 
 export function useUpdateComponentColor() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      viewId,
-      componentId,
-      color,
-    }: {
-      viewId: ViewId;
-      componentId: ComponentId;
-      color: string;
-    }) => viewsApi.updateComponentColor(viewId, componentId, color),
-    onSuccess: (_, { viewId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.views.detail(viewId) });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to update component color');
-    },
+  return createViewMutation<{ viewId: ViewId; componentId: ComponentId; color: string }>(queryClient, {
+    mutationFn: ({ viewId, componentId, color }) => viewsApi.updateComponentColor(viewId, componentId, color),
+    errorMessage: 'Failed to update component color',
   });
 }
 
 export function useClearComponentColor() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ viewId, componentId }: { viewId: ViewId; componentId: ComponentId }) =>
-      viewsApi.clearComponentColor(viewId, componentId),
-    onSuccess: (_, { viewId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.views.detail(viewId) });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to clear component color');
-    },
+  return createViewMutation<{ viewId: ViewId; componentId: ComponentId }>(queryClient, {
+    mutationFn: ({ viewId, componentId }) => viewsApi.clearComponentColor(viewId, componentId),
+    errorMessage: 'Failed to clear component color',
   });
 }
 
 export function useUpdateCapabilityColor() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      viewId,
-      capabilityId,
-      color,
-    }: {
-      viewId: ViewId;
-      capabilityId: CapabilityId;
-      color: string;
-    }) => viewsApi.updateCapabilityColor(viewId, capabilityId, color),
-    onSuccess: (_, { viewId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.views.detail(viewId) });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to update capability color');
-    },
+  return createViewMutation<{ viewId: ViewId; capabilityId: CapabilityId; color: string }>(queryClient, {
+    mutationFn: ({ viewId, capabilityId, color }) => viewsApi.updateCapabilityColor(viewId, capabilityId, color),
+    errorMessage: 'Failed to update capability color',
   });
 }
 
 export function useClearCapabilityColor() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      viewId,
-      capabilityId,
-    }: {
-      viewId: ViewId;
-      capabilityId: CapabilityId;
-    }) => viewsApi.clearCapabilityColor(viewId, capabilityId),
-    onSuccess: (_, { viewId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.views.detail(viewId) });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to clear capability color');
-    },
+  return createViewMutation<{ viewId: ViewId; capabilityId: CapabilityId }>(queryClient, {
+    mutationFn: ({ viewId, capabilityId }) => viewsApi.clearCapabilityColor(viewId, capabilityId),
+    errorMessage: 'Failed to clear capability color',
   });
 }

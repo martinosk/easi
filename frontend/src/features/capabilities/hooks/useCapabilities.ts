@@ -1,9 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { capabilitiesApi } from '../api';
 import { queryKeys } from '../../../lib/queryClient';
 import type {
   Capability,
   CapabilityId,
+  CapabilityRealization,
   ComponentId,
   RealizationId,
   CapabilityDependencyId,
@@ -17,6 +19,29 @@ import type {
   UpdateRealizationRequest,
 } from '../../../api/types';
 import toast from 'react-hot-toast';
+
+type InvalidateMutationOptions<TVariables, TData = void> = {
+  mutationFn: (variables: TVariables) => Promise<TData>;
+  getInvalidateKeys: (variables: TVariables, data: TData) => QueryKey[];
+  successMessage: string;
+  errorMessage: string;
+};
+
+function createInvalidateMutation<TVariables, TData = void>(
+  queryClient: QueryClient,
+  options: InvalidateMutationOptions<TVariables, TData>
+) {
+  return useMutation({
+    mutationFn: options.mutationFn,
+    onSuccess: (data, variables) => {
+      options.getInvalidateKeys(variables, data).forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
+      toast.success(options.successMessage);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || options.errorMessage);
+    },
+  });
+}
 
 export function useCapabilities() {
   return useQuery({
@@ -162,45 +187,21 @@ export function useUpdateCapabilityMetadata() {
 
 export function useAddCapabilityExpert() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      id,
-      request,
-    }: {
-      id: CapabilityId;
-      request: AddCapabilityExpertRequest;
-    }) => capabilitiesApi.addExpert(id, request),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.capabilities.detail(id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.capabilities.lists() });
-      toast.success('Expert added');
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to add expert');
-    },
+  return createInvalidateMutation<{ id: CapabilityId; request: AddCapabilityExpertRequest }>(queryClient, {
+    mutationFn: ({ id, request }) => capabilitiesApi.addExpert(id, request),
+    getInvalidateKeys: ({ id }) => [queryKeys.capabilities.detail(id), queryKeys.capabilities.lists()],
+    successMessage: 'Expert added',
+    errorMessage: 'Failed to add expert',
   });
 }
 
 export function useAddCapabilityTag() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      id,
-      request,
-    }: {
-      id: CapabilityId;
-      request: AddCapabilityTagRequest;
-    }) => capabilitiesApi.addTag(id, request),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.capabilities.detail(id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.capabilities.lists() });
-      toast.success('Tag added');
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to add tag');
-    },
+  return createInvalidateMutation<{ id: CapabilityId; request: AddCapabilityTagRequest }>(queryClient, {
+    mutationFn: ({ id, request }) => capabilitiesApi.addTag(id, request),
+    getInvalidateKeys: ({ id }) => [queryKeys.capabilities.detail(id), queryKeys.capabilities.lists()],
+    successMessage: 'Tag added',
+    errorMessage: 'Failed to add tag',
   });
 }
 
@@ -228,23 +229,11 @@ export function useDeleteCapability() {
 
 export function useChangeCapabilityParent() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      id,
-      parentId,
-    }: {
-      id: CapabilityId;
-      parentId: CapabilityId | null;
-    }) => capabilitiesApi.changeParent(id, parentId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.capabilities.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.businessDomains.all });
-      toast.success('Capability parent updated');
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to change parent');
-    },
+  return createInvalidateMutation<{ id: CapabilityId; parentId: CapabilityId | null }>(queryClient, {
+    mutationFn: ({ id, parentId }) => capabilitiesApi.changeParent(id, parentId),
+    getInvalidateKeys: () => [queryKeys.capabilities.all, queryKeys.businessDomains.all],
+    successMessage: 'Capability parent updated',
+    errorMessage: 'Failed to change parent',
   });
 }
 
@@ -311,37 +300,21 @@ export function useLinkSystemToCapability() {
 
 export function useUpdateRealization() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      id,
-      request,
-    }: {
-      id: RealizationId;
-      request: UpdateRealizationRequest;
-    }) => capabilitiesApi.updateRealization(id, request),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.capabilities.all });
-      toast.success('Realization updated');
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to update realization');
-    },
+  return createInvalidateMutation<{ id: RealizationId; request: UpdateRealizationRequest }, CapabilityRealization>(queryClient, {
+    mutationFn: ({ id, request }) => capabilitiesApi.updateRealization(id, request),
+    getInvalidateKeys: () => [queryKeys.capabilities.all],
+    successMessage: 'Realization updated',
+    errorMessage: 'Failed to update realization',
   });
 }
 
 export function useDeleteRealization() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: RealizationId) => capabilitiesApi.deleteRealization(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.capabilities.all });
-      toast.success('Realization deleted');
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to delete realization');
-    },
+  return createInvalidateMutation<RealizationId>(queryClient, {
+    mutationFn: (id) => capabilitiesApi.deleteRealization(id),
+    getInvalidateKeys: () => [queryKeys.capabilities.all],
+    successMessage: 'Realization deleted',
+    errorMessage: 'Failed to delete realization',
   });
 }
 
