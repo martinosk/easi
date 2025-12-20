@@ -2391,3 +2391,9 @@ body {
 .dockview-theme-light .dv-groupview-panel {
   background-color: white;
 }
+
+/* Hide dockview tab headers - only show ViewSelector tabs */
+.dockview-theme-light .dv-tabs-container,
+.dockview-theme-light .dv-default-tab {
+  display: none;
+}

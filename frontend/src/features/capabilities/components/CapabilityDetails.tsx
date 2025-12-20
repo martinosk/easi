@@ -219,7 +219,6 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
 export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFromView }) => {
   const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
   const capabilities = useAppStore((state) => state.capabilities);
-  const selectCapability = useAppStore((state) => state.selectCapability);
   const capabilityRealizations = useAppStore((state) => state.capabilityRealizations);
   const components = useAppStore((state) => state.components);
   const currentView = useAppStore((state) => state.currentView);
@@ -251,7 +250,6 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
     <div className="detail-panel">
       <div className="detail-header">
         <h3 className="detail-title">Capability Details</h3>
-        <button className="detail-close" onClick={() => selectCapability(null)} aria-label="Close details">x</button>
       </div>
 
       <CapabilityContent

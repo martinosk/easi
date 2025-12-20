@@ -38,7 +38,6 @@ const useRelationData = (selectedEdgeId: string | null): RelationData | null => 
 
 export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
-  const clearSelection = useAppStore((state) => state.clearSelection);
 
   const data = useRelationData(selectedEdgeId);
 
@@ -52,13 +51,6 @@ export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
     <div className="detail-panel">
       <div className="detail-header">
         <h3 className="detail-title">Relation Details</h3>
-        <button
-          className="detail-close"
-          onClick={clearSelection}
-          aria-label="Close details"
-        >
-          ×
-        </button>
       </div>
 
       <div className="detail-content">

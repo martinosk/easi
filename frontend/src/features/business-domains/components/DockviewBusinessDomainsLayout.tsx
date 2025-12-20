@@ -50,18 +50,14 @@ interface ExplorerPanelProps extends IDockviewPanelProps<{
 interface DetailsPanelProps extends IDockviewPanelProps<{
   selectedCapability: BusinessDomainsHookReturn['selectedCapability'];
   selectedComponentId: BusinessDomainsHookReturn['selectedComponentId'];
-  onCloseCapability: BusinessDomainsHookReturn['clearCapabilityDetails'];
-  onCloseApplication: BusinessDomainsHookReturn['clearSelectedComponent'];
 }> {}
 
 const DomainsSidebarPanel = (props: DomainsSidebarPanelProps) => {
   return (
     <div style={{ height: '100%', width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <DomainsSidebar
-        isCollapsed={false}
         domains={props.params.domains}
         selectedDomainId={props.params.selectedDomainId}
-        onToggle={() => {}}
         onCreateClick={props.params.onCreateClick}
         onVisualize={props.params.onVisualize}
         onContextMenu={props.params.onContextMenu}
@@ -100,12 +96,10 @@ const ExplorerPanel = (props: ExplorerPanelProps) => {
   return (
     <div style={{ height: '100%', width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <CapabilityExplorerSidebar
-        isCollapsed={false}
         visualizedDomain={props.params.visualizedDomain}
         capabilities={props.params.capabilities}
         assignedCapabilityIds={props.params.assignedCapabilityIds}
         isLoading={false}
-        onToggle={() => {}}
         onDragStart={props.params.onDragStart}
         onDragEnd={props.params.onDragEnd}
       />
@@ -119,8 +113,6 @@ const DetailsPanel = (props: DetailsPanelProps) => {
       <DetailsSidebar
         selectedCapability={props.params.selectedCapability}
         selectedComponentId={props.params.selectedComponentId}
-        onCloseCapability={props.params.onCloseCapability}
-        onCloseApplication={props.params.onCloseApplication}
       />
     </div>
   );
@@ -184,8 +176,6 @@ export function DockviewBusinessDomainsLayout({ hookData }: DockviewBusinessDoma
         event.api.getPanel('details')?.api.updateParameters({
           selectedCapability: hookData.selectedCapability,
           selectedComponentId: hookData.selectedComponentId,
-          onCloseCapability: hookData.clearCapabilityDetails,
-          onCloseApplication: hookData.clearSelectedComponent,
         });
 
         return;
@@ -255,8 +245,6 @@ export function DockviewBusinessDomainsLayout({ hookData }: DockviewBusinessDoma
       params: {
         selectedCapability: hookData.selectedCapability,
         selectedComponentId: hookData.selectedComponentId,
-        onCloseCapability: hookData.clearCapabilityDetails,
-        onCloseApplication: hookData.clearSelectedComponent,
       },
     });
 
@@ -309,8 +297,6 @@ export function DockviewBusinessDomainsLayout({ hookData }: DockviewBusinessDoma
     api.getPanel('details')?.api.updateParameters({
       selectedCapability: hookData.selectedCapability,
       selectedComponentId: hookData.selectedComponentId,
-      onCloseCapability: hookData.clearCapabilityDetails,
-      onCloseApplication: hookData.clearSelectedComponent,
     });
   }, [hookData]);
 
@@ -379,8 +365,6 @@ export function DockviewBusinessDomainsLayout({ hookData }: DockviewBusinessDoma
           params: {
             selectedCapability: hookData.selectedCapability,
             selectedComponentId: hookData.selectedComponentId,
-            onCloseCapability: hookData.clearCapabilityDetails,
-            onCloseApplication: hookData.clearSelectedComponent,
           },
         });
         newPanel.api.setSize({ height: 300 });

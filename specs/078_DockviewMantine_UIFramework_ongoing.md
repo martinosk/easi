@@ -80,6 +80,12 @@ Introduce Dockview for customizable panel layouts and Mantine for accessible UI 
   - [x] Fix panel content sizing (width/height 100%, proper flex layout)
   - [x] Position panels in proper dock areas (left/center/right) instead of tabs
   - [x] Add View menu to toggle panel visibility (reopen closed panels)
+- [x] Phase 2: Dockview UI cleanup:
+  - [x] Remove collapse feature from sidebars (not needed with dockview)
+  - [x] Remove redundant close buttons from detail panels
+  - [x] Make Canvas panel non-closable
+  - [x] Move ViewSelector to its own dock panel
+  - [x] Hide dockview panel tab headers (only show ViewSelector tabs)
 - [x] Phase 3: Establish Mantine Modal migration pattern (2 dialogs migrated)
 - [x] Phase 3: Create test infrastructure for Mantine components (MantineTestWrapper)
 - [x] Phase 3: Migrate 8 dialogs to Mantine Modal:

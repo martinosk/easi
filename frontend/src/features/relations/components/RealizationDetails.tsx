@@ -54,7 +54,6 @@ const useRealizationData = (selectedEdgeId: string | null): RealizationData | nu
 
 export const RealizationDetails: React.FC = () => {
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
-  const selectEdge = useAppStore((state) => state.selectEdge);
   const [showEditDialog, setShowEditDialog] = useState(false);
 
   const data = useRealizationData(selectedEdgeId);
@@ -69,13 +68,6 @@ export const RealizationDetails: React.FC = () => {
     <div className="detail-panel">
       <div className="detail-header">
         <h3 className="detail-title">Realization Details</h3>
-        <button
-          className="detail-close"
-          onClick={() => selectEdge(null)}
-          aria-label="Close details"
-        >
-          x
-        </button>
       </div>
 
       <div className="detail-content">

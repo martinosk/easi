@@ -8,8 +8,6 @@ import { EditComponentDialog } from '../../components/components/EditComponentDi
 interface DetailsSidebarProps {
   selectedCapability: Capability | null;
   selectedComponentId: ComponentId | null;
-  onCloseCapability: () => void;
-  onCloseApplication: () => void;
 }
 
 function EmptyState() {
@@ -27,14 +25,11 @@ function EmptyState() {
   );
 }
 
-function CapabilityContent({ capability, onClose }: { capability: Capability; onClose: () => void }) {
+function CapabilityContent({ capability }: { capability: Capability }) {
   return (
     <div className="detail-panel">
       <div className="detail-header">
         <h3 className="detail-title">Capability Details</h3>
-        <button className="detail-close" onClick={onClose} aria-label="Close details">
-          x
-        </button>
       </div>
       <div className="detail-content">
         <div className="detail-field">
@@ -58,10 +53,9 @@ function CapabilityContent({ capability, onClose }: { capability: Capability; on
 
 interface ApplicationContentProps {
   componentId: ComponentId;
-  onClose: () => void;
 }
 
-function ApplicationContent({ componentId, onClose }: ApplicationContentProps) {
+function ApplicationContent({ componentId }: ApplicationContentProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const storeComponents = useAppStore((state) => state.components);
@@ -88,9 +82,6 @@ function ApplicationContent({ componentId, onClose }: ApplicationContentProps) {
       <div className="detail-panel">
         <div className="detail-header">
           <h3 className="detail-title">Application Details</h3>
-          <button className="detail-close" onClick={onClose} aria-label="Close details">
-            x
-          </button>
         </div>
         <div className="detail-content" style={{ textAlign: 'center', padding: '2rem' }}>
           <p style={{ color: 'var(--color-gray-500)', margin: 0 }}>Loading...</p>
@@ -104,9 +95,6 @@ function ApplicationContent({ componentId, onClose }: ApplicationContentProps) {
       <div className="detail-panel">
         <div className="detail-header">
           <h3 className="detail-title">Application Details</h3>
-          <button className="detail-close" onClick={onClose} aria-label="Close details">
-            x
-          </button>
         </div>
         <div className="detail-content" style={{ textAlign: 'center', padding: '2rem' }}>
           <p style={{ color: 'var(--color-red-500)', margin: 0 }}>
@@ -126,7 +114,6 @@ function ApplicationContent({ componentId, onClose }: ApplicationContentProps) {
         realizations={componentRealizations}
         capabilities={capabilities}
         onEdit={handleEdit}
-        onClose={onClose}
       />
       <EditComponentDialog
         isOpen={editDialogOpen}
@@ -140,8 +127,6 @@ function ApplicationContent({ componentId, onClose }: ApplicationContentProps) {
 export function DetailsSidebar({
   selectedCapability,
   selectedComponentId,
-  onCloseCapability,
-  onCloseApplication,
 }: DetailsSidebarProps) {
   const hasSelection = selectedCapability || selectedComponentId;
 
@@ -155,11 +140,9 @@ export function DetailsSidebar({
       }}
     >
       {!hasSelection && <EmptyState />}
-      {selectedCapability && (
-        <CapabilityContent capability={selectedCapability} onClose={onCloseCapability} />
-      )}
+      {selectedCapability && <CapabilityContent capability={selectedCapability} />}
       {selectedComponentId && !selectedCapability && (
-        <ApplicationContent componentId={selectedComponentId} onClose={onCloseApplication} />
+        <ApplicationContent componentId={selectedComponentId} />
       )}
     </aside>
   );

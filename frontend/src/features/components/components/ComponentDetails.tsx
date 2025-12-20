@@ -15,7 +15,6 @@ export interface ComponentDetailsContentProps {
   realizations: CapabilityRealization[];
   capabilities: Capability[];
   onEdit: (componentId: string) => void;
-  onClose: () => void;
   componentInView?: ViewComponent;
   currentView?: View | null;
   isInCurrentView?: boolean;
@@ -224,7 +223,6 @@ export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (
   realizations,
   capabilities,
   onEdit,
-  onClose,
   componentInView,
   currentView,
   isInCurrentView = false,
@@ -236,7 +234,6 @@ export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (
     <div className="detail-panel">
       <div className="detail-header">
         <h3 className="detail-title">Application Details</h3>
-        <button className="detail-close" onClick={onClose} aria-label="Close details">x</button>
       </div>
 
       <ComponentContentInternal
@@ -297,7 +294,6 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
       realizations={componentRealizations}
       capabilities={capabilities}
       onEdit={onEdit}
-      onClose={clearSelection}
       componentInView={componentInView}
       currentView={currentView}
       isInCurrentView={isInCurrentView}

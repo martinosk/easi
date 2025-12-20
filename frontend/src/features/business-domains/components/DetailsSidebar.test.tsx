@@ -43,8 +43,6 @@ describe('DetailsSidebar', () => {
   const defaultProps = {
     selectedCapability: null,
     selectedComponentId: null,
-    onCloseCapability: vi.fn(),
-    onCloseApplication: vi.fn(),
   };
 
   beforeEach(() => {
@@ -91,21 +89,6 @@ describe('DetailsSidebar', () => {
       render(<DetailsSidebar {...defaultProps} selectedCapability={mockCapability} />);
 
       expect(screen.getByText('Manage financial operations')).toBeInTheDocument();
-    });
-
-    it('calls onCloseCapability when close button is clicked', () => {
-      const onCloseCapability = vi.fn();
-      render(
-        <DetailsSidebar
-          {...defaultProps}
-          selectedCapability={mockCapability}
-          onCloseCapability={onCloseCapability}
-        />
-      );
-
-      fireEvent.click(screen.getByRole('button', { name: /close/i }));
-
-      expect(onCloseCapability).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -161,21 +144,6 @@ describe('DetailsSidebar', () => {
       );
 
       expect(screen.getByText('Failed to load application details')).toBeInTheDocument();
-    });
-
-    it('calls onCloseApplication when close button is clicked', () => {
-      const onCloseApplication = vi.fn();
-      render(
-        <DetailsSidebar
-          {...defaultProps}
-          selectedComponentId={'comp-1' as ComponentId}
-          onCloseApplication={onCloseApplication}
-        />
-      );
-
-      fireEvent.click(screen.getByRole('button', { name: /close/i }));
-
-      expect(onCloseApplication).toHaveBeenCalledTimes(1);
     });
 
     it('opens edit dialog when Edit button is clicked', () => {

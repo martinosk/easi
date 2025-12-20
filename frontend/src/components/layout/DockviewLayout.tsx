@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { DockviewReact } from 'dockview';
-import type { DockviewReadyEvent, IDockviewPanelProps } from 'dockview';
+import { DockviewReact, DockviewDefaultTab } from 'dockview';
+import type { DockviewReadyEvent, IDockviewPanelProps, IDockviewPanelHeaderProps } from 'dockview';
 import { Toolbar } from './Toolbar';
 import { NavigationTree } from '../../features/navigation';
 import { ViewSelector } from '../../features/views';
@@ -10,6 +10,10 @@ import { RelationDetails, RealizationDetails } from '../../features/relations';
 import { CapabilityDetails } from '../../features/capabilities';
 import { useAppStore } from '../../store/appStore';
 import type { Capability } from '../../api/types';
+
+const NonClosableTab = (props: IDockviewPanelHeaderProps) => {
+  return <DockviewDefaultTab hideClose={true} {...props} />;
+};
 
 interface DockviewLayoutProps {
   canvasRef: React.RefObject<ComponentCanvasRef | null>;
@@ -58,21 +62,26 @@ const NavigationTreePanel = (props: IDockviewPanelProps<{
   );
 };
 
+const ViewSelectorPanel = () => {
+  return (
+    <div style={{ height: '100%', width: '100%', overflow: 'auto' }}>
+      <ViewSelector />
+    </div>
+  );
+};
+
 const CanvasPanel = (props: IDockviewPanelProps<{
   canvasRef: React.RefObject<ComponentCanvasRef | null>;
   onConnect: (source: string, target: string) => void;
   onComponentDrop: (componentId: string, x: number, y: number) => Promise<void>;
 }>) => {
   return (
-    <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <ViewSelector />
-      <div style={{ flex: 1, minHeight: 0, height: '100%', position: 'relative' }}>
-        <ComponentCanvas
-          ref={props.params.canvasRef}
-          onConnect={props.params.onConnect}
-          onComponentDrop={props.params.onComponentDrop}
-        />
-      </div>
+    <div style={{ height: '100%', width: '100%', position: 'relative', overflow: 'hidden' }}>
+      <ComponentCanvas
+        ref={props.params.canvasRef}
+        onConnect={props.params.onConnect}
+        onComponentDrop={props.params.onComponentDrop}
+      />
     </div>
   );
 };
@@ -122,7 +131,7 @@ export const DockviewLayout: React.FC<DockviewLayoutProps> = ({
   onRemoveFromView,
 }) => {
   const dockviewApiRef = useRef<DockviewReadyEvent['api'] | null>(null);
-  const [panelVisibility, setPanelVisibility] = useState({ navigation: true, details: true });
+  const [panelVisibility, setPanelVisibility] = useState({ navigation: true, views: true, details: true });
   const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
   const removeCapabilityFromCanvas = useAppStore((state) => state.removeCapabilityFromCanvas);
 
@@ -132,7 +141,7 @@ export const DockviewLayout: React.FC<DockviewLayoutProps> = ({
     }
   };
 
-  const togglePanel = (panelId: 'navigation' | 'details') => {
+  const togglePanel = (panelId: 'navigation' | 'views' | 'details') => {
     const api = dockviewApiRef.current;
     if (!api) return;
 
@@ -161,6 +170,14 @@ export const DockviewLayout: React.FC<DockviewLayoutProps> = ({
           },
         });
         newPanel.api.setSize({ width: 280 });
+      } else if (panelId === 'views') {
+        const newPanel = api.addPanel({
+          id: 'views',
+          component: 'views',
+          title: 'Views',
+          position: { referencePanel: canvasPanel, direction: 'above' },
+        });
+        newPanel.api.setSize({ height: 40 });
       } else {
         const newPanel = api.addPanel({
           id: 'details',
@@ -230,11 +247,19 @@ export const DockviewLayout: React.FC<DockviewLayoutProps> = ({
       id: 'canvas',
       component: 'canvas',
       title: 'Canvas',
+      tabComponent: 'nonClosable',
       params: {
         canvasRef,
         onConnect,
         onComponentDrop,
       },
+    });
+
+    const viewsPanel = event.api.addPanel({
+      id: 'views',
+      component: 'views',
+      title: 'Views',
+      position: { referencePanel: canvasPanel, direction: 'above' },
     });
 
     const navigationPanel = event.api.addPanel({
@@ -269,6 +294,7 @@ export const DockviewLayout: React.FC<DockviewLayoutProps> = ({
       },
     });
 
+    viewsPanel.api.setSize({ height: 40 });
     navigationPanel.api.setSize({ width: 280 });
     detailPanel.api.setSize({ width: 350 });
   };
@@ -305,8 +331,13 @@ export const DockviewLayout: React.FC<DockviewLayoutProps> = ({
 
   const components = {
     navigation: NavigationTreePanel,
+    views: ViewSelectorPanel,
     canvas: CanvasPanel,
     details: DetailPanel,
+  };
+
+  const tabComponents = {
+    nonClosable: NonClosableTab,
   };
 
   return (
@@ -338,6 +369,19 @@ export const DockviewLayout: React.FC<DockviewLayoutProps> = ({
           {panelVisibility.navigation ? '☑' : '☐'} Explorer
         </button>
         <button
+          onClick={() => togglePanel('views')}
+          style={{
+            padding: '4px 12px',
+            border: '1px solid var(--color-gray-300)',
+            borderRadius: '4px',
+            backgroundColor: 'white',
+            cursor: 'pointer',
+            fontSize: '13px',
+          }}
+        >
+          {panelVisibility.views ? '☑' : '☐'} Views
+        </button>
+        <button
           onClick={() => togglePanel('details')}
           style={{
             padding: '4px 12px',
@@ -356,6 +400,7 @@ export const DockviewLayout: React.FC<DockviewLayoutProps> = ({
           <DockviewReact
             onReady={onReady}
             components={components}
+            tabComponents={tabComponents}
             className="dockview-theme-light"
           />
         </div>
