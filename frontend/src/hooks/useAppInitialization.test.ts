@@ -90,13 +90,17 @@ describe('useAppInitialization', () => {
   });
 
   describe('when views are loading', () => {
-    it('should return isLoading true', () => {
+    it('should return isLoading true', async () => {
       mockUseViewsReturn({ isLoading: true });
 
-      const { result } = renderInitializationHook();
+      const { result, unmount } = renderInitializationHook();
 
       expect(result.current.isLoading).toBe(true);
       expect(result.current.isInitialized).toBe(false);
+
+      await act(async () => {
+        unmount();
+      });
     });
   });
 
@@ -121,7 +125,7 @@ describe('useAppInitialization', () => {
     ])('should select correct view when $scenario', async ({ views, expectedViewId }) => {
       mockUseViewsReturn({ views });
 
-      const { result } = renderInitializationHook();
+      const { result, unmount } = renderInitializationHook();
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -129,6 +133,10 @@ describe('useAppInitialization', () => {
 
       expect(useAppStore.getState().currentViewId).toBe(expectedViewId);
       expect(mockToast.success).toHaveBeenCalledWith('Data loaded successfully');
+
+      await act(async () => {
+        unmount();
+      });
     });
   });
 
@@ -138,7 +146,7 @@ describe('useAppInitialization', () => {
       mockCreateViewMutateAsync.mockResolvedValue(createdView);
       mockUseViewsReturn({ views: [] });
 
-      const { result } = renderInitializationHook();
+      const { result, unmount } = renderInitializationHook();
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -150,6 +158,10 @@ describe('useAppInitialization', () => {
       });
       expect(useAppStore.getState().currentViewId).toBe('new-view');
       expect(mockToast.success).toHaveBeenCalledWith('Created default view');
+
+      await act(async () => {
+        unmount();
+      });
     });
 
     it('should handle view creation error', async () => {
@@ -158,7 +170,7 @@ describe('useAppInitialization', () => {
       mockCreateViewMutateAsync.mockRejectedValue(error);
       mockUseViewsReturn({ views: [] });
 
-      renderInitializationHook();
+      const { unmount } = renderInitializationHook();
 
       await waitFor(() => {
         expect(consoleSpy).toHaveBeenCalledWith('Failed to initialize:', expect.any(Error));
@@ -166,6 +178,10 @@ describe('useAppInitialization', () => {
       });
 
       consoleSpy.mockRestore();
+
+      await act(async () => {
+        unmount();
+      });
     });
   });
 
@@ -177,26 +193,31 @@ describe('useAppInitialization', () => {
       });
       mockUseViewsReturn({ views: [createMockView()] });
 
-      const { result } = renderInitializationHook();
+      const { result, unmount } = renderInitializationHook();
 
-      await waitFor(() => {
-        expect(result.current.isInitialized).toBe(true);
-      });
-
+      expect(result.current.isInitialized).toBe(true);
       expect(result.current.currentViewId).toBe('existing-view');
       expect(useAppStore.getState().currentViewId).toBe('existing-view');
+
+      await act(async () => {
+        unmount();
+      });
     });
   });
 
   describe('when there is an error loading views', () => {
-    it('should return error and not be loading', () => {
+    it('should return error and not be loading', async () => {
       const viewsError = new Error('Failed to load views');
       mockUseViewsReturn({ error: viewsError });
 
-      const { result } = renderInitializationHook();
+      const { result, unmount } = renderInitializationHook();
 
       expect(result.current.error).toBe(viewsError);
       expect(result.current.isLoading).toBe(false);
+
+      await act(async () => {
+        unmount();
+      });
     });
   });
 });

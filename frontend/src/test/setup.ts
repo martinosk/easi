@@ -77,11 +77,13 @@ afterEach(async () => {
   if (actWarnings.length > 0) {
     const warningCount = actWarnings.length;
     const testName = expect.getState().currentTestName || 'Unknown test';
-    console.warn(
-      `[ACT WARNING] "${testName}" caused ${warningCount} act warning(s). ` +
-      'See React Testing Library docs for proper async testing patterns.'
-    );
+    const capturedWarnings = [...actWarnings];
     actWarnings = [];
+    throw new Error(
+      `Test "${testName}" caused ${warningCount} act warning(s). ` +
+      'State updates must be wrapped in act(). First warning:\n' +
+      capturedWarnings[0].substring(0, 200)
+    );
   }
 });
 

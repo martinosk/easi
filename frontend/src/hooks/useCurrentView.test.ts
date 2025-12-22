@@ -74,69 +74,85 @@ describe('useCurrentView', () => {
   });
 
   describe('when no view is selected', () => {
-    it('should return null values and call useView with undefined', () => {
+    it('should return null values and call useView with undefined', async () => {
       mockUseViewReturn();
 
-      const { result } = renderCurrentViewHook();
+      const { result, unmount } = renderCurrentViewHook();
 
       expect(result.current.currentView).toBeNull();
       expect(result.current.currentViewId).toBeNull();
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
       expect(mockUseView).toHaveBeenCalledWith(undefined);
+
+      await act(async () => {
+        unmount();
+      });
     });
   });
 
   describe('when a view is selected', () => {
-    it('should return view data and call useView with viewId', () => {
+    it('should return view data and call useView with viewId', async () => {
       const mockView = createMockView({ id: 'view-123' as ViewId });
       useAppStore.setState({ currentViewId: 'view-123' as ViewId });
       mockUseViewReturn({ view: mockView });
 
-      const { result } = renderCurrentViewHook();
+      const { result, unmount } = renderCurrentViewHook();
 
       expect(result.current.currentView).toEqual(mockView);
       expect(result.current.currentViewId).toBe('view-123');
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
       expect(mockUseView).toHaveBeenCalledWith('view-123');
+
+      await act(async () => {
+        unmount();
+      });
     });
   });
 
   describe('when view is loading', () => {
-    it('should return isLoading true and null currentView', () => {
+    it('should return isLoading true and null currentView', async () => {
       useAppStore.setState({ currentViewId: 'view-1' as ViewId });
       mockUseViewReturn({ isLoading: true });
 
-      const { result } = renderCurrentViewHook();
+      const { result, unmount } = renderCurrentViewHook();
 
       expect(result.current.currentViewId).toBe('view-1');
       expect(result.current.isLoading).toBe(true);
       expect(result.current.currentView).toBeNull();
+
+      await act(async () => {
+        unmount();
+      });
     });
   });
 
   describe('when there is an error', () => {
-    it('should return the error with null currentView', () => {
+    it('should return the error with null currentView', async () => {
       useAppStore.setState({ currentViewId: 'view-1' as ViewId });
       const viewError = new Error('Failed to load view');
       mockUseViewReturn({ error: viewError });
 
-      const { result } = renderCurrentViewHook();
+      const { result, unmount } = renderCurrentViewHook();
 
       expect(result.current.currentViewId).toBe('view-1');
       expect(result.current.error).toBe(viewError);
       expect(result.current.currentView).toBeNull();
       expect(result.current.isLoading).toBe(false);
+
+      await act(async () => {
+        unmount();
+      });
     });
   });
 
   describe('when store currentViewId changes', () => {
-    it('should update the view being fetched', () => {
+    it('should update the view being fetched', async () => {
       useAppStore.setState({ currentViewId: 'view-1' as ViewId });
       mockUseViewReturn({ view: createMockView({ id: 'view-1' as ViewId }) });
 
-      const { result, rerender } = renderCurrentViewHook();
+      const { result, rerender, unmount } = renderCurrentViewHook();
 
       expect(result.current.currentViewId).toBe('view-1');
 
@@ -147,6 +163,10 @@ describe('useCurrentView', () => {
       });
 
       expect(result.current.currentViewId).toBe('view-2');
+
+      await act(async () => {
+        unmount();
+      });
     });
   });
 });
