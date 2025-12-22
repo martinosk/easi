@@ -17,6 +17,7 @@ import (
 
 	"easi/backend/internal/platform/application/handlers"
 	"easi/backend/internal/platform/infrastructure/repositories"
+	"easi/backend/internal/platform/infrastructure/secrets"
 	"easi/backend/internal/shared/cqrs"
 
 	"github.com/go-chi/chi/v5"
@@ -86,7 +87,8 @@ func setupPlatformHandlers(db *sql.DB) (*TenantHandlers, chi.Router) {
 	createTenantHandler := handlers.NewCreateTenantHandler(tenantRepo)
 	commandBus.Register("CreateTenant", createTenantHandler)
 
-	tenantHandlers := NewTenantHandlers(commandBus, tenantRepo)
+	secretProvider := secrets.NewEnvSecretProvider("OIDC_CLIENT_SECRET")
+	tenantHandlers := NewTenantHandlers(commandBus, tenantRepo, secretProvider)
 
 	r := chi.NewRouter()
 	r.Use(PlatformAdminMiddleware("test-api-key"))
@@ -128,9 +130,9 @@ func TestCreateTenant_Integration(t *testing.T) {
 		Name:    "Acme Corporation",
 		Domains: []string{tenantID + ".com"},
 		OIDCConfig: OIDCConfigRequest{
-			DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0/.well-known/openid-configuration",
+			DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0",
 			ClientID:     "client-id",
-			ClientSecret: "client-secret",
+			AuthMethod:   "client_secret",
 			Scopes:       "openid email profile",
 		},
 		FirstAdminEmail: "admin@" + tenantID + ".com",
@@ -153,7 +155,7 @@ func TestCreateTenant_Integration(t *testing.T) {
 	assert.NotNil(t, response.OIDCConfig)
 	assert.Equal(t, "client-id", response.OIDCConfig.ClientID)
 	assert.NotNil(t, response.Links)
-	assert.Contains(t, response.Links["self"], tenantID)
+	assert.Contains(t, response.Links["self"].Href, tenantID)
 
 	var exists bool
 	err = ctx.db.QueryRow("SELECT EXISTS(SELECT 1 FROM tenants WHERE id = $1)", tenantID).Scan(&exists)
@@ -166,9 +168,14 @@ func TestCreateTenant_Integration(t *testing.T) {
 	assert.Equal(t, 1, domainCount)
 
 	var invitationCount int
-	err = ctx.db.QueryRow("SELECT COUNT(*) FROM invitations WHERE tenant_id = $1 AND email = $2 AND role = 'admin'",
+	tx, err := ctx.db.Begin()
+	require.NoError(t, err)
+	_, err = tx.Exec(fmt.Sprintf("SET LOCAL app.current_tenant = '%s'", tenantID))
+	require.NoError(t, err)
+	err = tx.QueryRow("SELECT COUNT(*) FROM invitations WHERE tenant_id = $1 AND email = $2 AND role = 'admin'",
 		tenantID, "admin@"+tenantID+".com").Scan(&invitationCount)
 	require.NoError(t, err)
+	tx.Rollback()
 	assert.Equal(t, 1, invitationCount)
 }
 
@@ -186,9 +193,9 @@ func TestCreateTenant_DuplicateID_Integration(t *testing.T) {
 		Name:    "First Tenant",
 		Domains: []string{tenantID + ".com"},
 		OIDCConfig: OIDCConfigRequest{
-			DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0/.well-known/openid-configuration",
+			DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0",
 			ClientID:     "client-id",
-			ClientSecret: "client-secret",
+			AuthMethod:   "client_secret",
 		},
 		FirstAdminEmail: "admin@" + tenantID + ".com",
 	}
@@ -215,9 +222,9 @@ func TestGetTenantByID_Integration(t *testing.T) {
 		Name:    "Get Test Corp",
 		Domains: []string{tenantID + ".com"},
 		OIDCConfig: OIDCConfigRequest{
-			DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0/.well-known/openid-configuration",
+			DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0",
 			ClientID:     "client-id",
-			ClientSecret: "client-secret",
+			AuthMethod:   "client_secret",
 		},
 		FirstAdminEmail: "admin@" + tenantID + ".com",
 	}
@@ -261,9 +268,9 @@ func TestListTenants_Integration(t *testing.T) {
 		Name:    "List Test Corp",
 		Domains: []string{tenantID + ".com"},
 		OIDCConfig: OIDCConfigRequest{
-			DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0/.well-known/openid-configuration",
+			DiscoveryURL: "https://login.microsoftonline.com/xxx/v2.0",
 			ClientID:     "client-id",
-			ClientSecret: "client-secret",
+			AuthMethod:   "client_secret",
 		},
 		FirstAdminEmail: "admin@" + tenantID + ".com",
 	}

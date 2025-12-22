@@ -217,6 +217,7 @@ func (h *AuthHandlers) GetCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.createAuthenticatedSession(r.Context(), preAuth, result); err != nil {
+		log.Printf("[AUTH] createAuthenticatedSession failed for email=%s tenant=%s: %v", result.Email, preAuth.TenantID(), err)
 		if strings.Contains(err.Error(), "no valid invitation") {
 			redirectURL := h.buildErrorRedirectURL(preAuth.ReturnURL(), "no_invitation", "You need an invitation to access this application. Please contact your administrator.")
 			http.Redirect(w, r, redirectURL, http.StatusFound)
