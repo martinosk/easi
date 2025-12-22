@@ -44,7 +44,7 @@ func SetupAuthDependencies(db *sql.DB) (*AuthDependencies, error) {
 	scsManager.Cookie.Name = "easi_session"
 	scsManager.Cookie.HttpOnly = true
 	scsManager.Cookie.Secure = config.IsProduction()
-	scsManager.Cookie.SameSite = http.SameSiteStrictMode
+	scsManager.Cookie.SameSite = http.SameSiteLaxMode
 
 	sessionManager := session.NewSessionManager(scsManager)
 	authMiddleware := NewAuthMiddleware(sessionManager)
