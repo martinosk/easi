@@ -284,10 +284,14 @@ describe('UsersPage', () => {
     });
   });
 
-  it('displays loading state while fetching users', () => {
+  it('displays loading state while fetching users', async () => {
     render(<UsersPage />);
 
     expect(screen.getByText('Loading users...')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('users-table')).toBeInTheDocument();
+    });
   });
 
   it('reloads users after successful role change', async () => {

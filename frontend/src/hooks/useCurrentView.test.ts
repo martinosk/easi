@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useCurrentView } from './useCurrentView';
@@ -110,6 +110,7 @@ describe('useCurrentView', () => {
 
       const { result } = renderCurrentViewHook();
 
+      expect(result.current.currentViewId).toBe('view-1');
       expect(result.current.isLoading).toBe(true);
       expect(result.current.currentView).toBeNull();
     });
@@ -123,6 +124,7 @@ describe('useCurrentView', () => {
 
       const { result } = renderCurrentViewHook();
 
+      expect(result.current.currentViewId).toBe('view-1');
       expect(result.current.error).toBe(viewError);
       expect(result.current.currentView).toBeNull();
       expect(result.current.isLoading).toBe(false);
@@ -138,10 +140,11 @@ describe('useCurrentView', () => {
 
       expect(result.current.currentViewId).toBe('view-1');
 
-      useAppStore.setState({ currentViewId: 'view-2' as ViewId });
-      mockUseViewReturn({ view: createMockView({ id: 'view-2' as ViewId }) });
-
-      rerender();
+      act(() => {
+        useAppStore.setState({ currentViewId: 'view-2' as ViewId });
+        mockUseViewReturn({ view: createMockView({ id: 'view-2' as ViewId }) });
+        rerender();
+      });
 
       expect(result.current.currentViewId).toBe('view-2');
     });

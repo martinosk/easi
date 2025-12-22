@@ -97,9 +97,9 @@ describe('DetailsSidebar', () => {
       renderSidebar({ ...defaultProps, selectedComponentId: 'comp-1' as ComponentId });
 
       await waitFor(() => {
-        expect(screen.getByText('Application Details')).toBeInTheDocument();
+        expect(screen.getByText('SAP Finance')).toBeInTheDocument();
       });
-      expect(screen.getByText('SAP Finance')).toBeInTheDocument();
+      expect(screen.getByText('Application Details')).toBeInTheDocument();
     });
 
     it('shows loading state when fetching component from API', async () => {

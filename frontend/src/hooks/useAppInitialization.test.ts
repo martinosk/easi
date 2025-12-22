@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useAppInitialization } from './useAppInitialization';
@@ -121,13 +121,13 @@ describe('useAppInitialization', () => {
     ])('should select correct view when $scenario', async ({ views, expectedViewId }) => {
       mockUseViewsReturn({ views });
 
-      renderInitializationHook();
+      const { result } = renderInitializationHook();
 
       await waitFor(() => {
-        expect(useAppStore.getState().currentViewId).toBe(expectedViewId);
-        expect(useAppStore.getState().isInitialized).toBe(true);
+        expect(result.current.isInitialized).toBe(true);
       });
 
+      expect(useAppStore.getState().currentViewId).toBe(expectedViewId);
       expect(mockToast.success).toHaveBeenCalledWith('Data loaded successfully');
     });
   });
@@ -138,31 +138,30 @@ describe('useAppInitialization', () => {
       mockCreateViewMutateAsync.mockResolvedValue(createdView);
       mockUseViewsReturn({ views: [] });
 
-      renderInitializationHook();
+      const { result } = renderInitializationHook();
 
       await waitFor(() => {
-        expect(mockCreateViewMutateAsync).toHaveBeenCalledWith({
-          name: 'Default View',
-          description: 'Main application view',
-        });
-        expect(useAppStore.getState().currentViewId).toBe('new-view');
-        expect(useAppStore.getState().isInitialized).toBe(true);
+        expect(result.current.isInitialized).toBe(true);
       });
 
+      expect(mockCreateViewMutateAsync).toHaveBeenCalledWith({
+        name: 'Default View',
+        description: 'Main application view',
+      });
+      expect(useAppStore.getState().currentViewId).toBe('new-view');
       expect(mockToast.success).toHaveBeenCalledWith('Created default view');
     });
 
     it('should handle view creation error', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const error = new Error('Failed to create view');
       mockCreateViewMutateAsync.mockRejectedValue(error);
       mockUseViewsReturn({ views: [] });
 
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
       renderInitializationHook();
 
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to initialize:', error);
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to initialize:', expect.any(Error));
         expect(mockToast.error).toHaveBeenCalledWith('Failed to initialize application');
       });
 
@@ -180,7 +179,10 @@ describe('useAppInitialization', () => {
 
       const { result } = renderInitializationHook();
 
-      expect(result.current.isInitialized).toBe(true);
+      await waitFor(() => {
+        expect(result.current.isInitialized).toBe(true);
+      });
+
       expect(result.current.currentViewId).toBe('existing-view');
       expect(useAppStore.getState().currentViewId).toBe('existing-view');
     });
