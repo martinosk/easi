@@ -2,6 +2,21 @@ import { useState, useEffect, type FormEvent, type FC } from 'react';
 import { authApi } from '../api/authApi';
 import { resetLoginRedirectFlag } from '../../../api';
 
+function isValidRedirectUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      return false;
+    }
+    if (parsed.protocol === 'http:' && parsed.hostname !== 'localhost' && parsed.hostname !== '127.0.0.1') {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export const LoginPage: FC = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,7 +39,13 @@ export const LoginPage: FC = () => {
 
     try {
       const response = await authApi.initiateLogin(email);
-      window.location.href = response._links.authorize;
+      const authorizeUrl = response._links.authorize;
+      if (!isValidRedirectUrl(authorizeUrl)) {
+        setLoading(false);
+        setError('Invalid authorization URL received');
+        return;
+      }
+      window.location.href = authorizeUrl;
     } catch (err) {
       setLoading(false);
       if (err instanceof Error) {

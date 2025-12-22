@@ -3,6 +3,7 @@ package readmodels
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -10,6 +11,11 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
+)
+
+var (
+	allowedSelectFields = map[string]bool{"id": true, "email": true}
+	allowedUpdateFields = map[string]bool{"role": true, "status": true, "last_login_at": true}
 )
 
 type UserDTO struct {
@@ -60,6 +66,10 @@ func (rm *UserReadModel) GetByEmail(ctx context.Context, email string) (*UserDTO
 }
 
 func (rm *UserReadModel) getByField(ctx context.Context, field string, value interface{}) (*UserDTO, error) {
+	if !allowedSelectFields[field] {
+		return nil, fmt.Errorf("invalid field name: %s", field)
+	}
+
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, err
@@ -285,6 +295,10 @@ func (rm *UserReadModel) UpdateStatus(ctx context.Context, id string, status str
 }
 
 func (rm *UserReadModel) updateField(ctx context.Context, id string, field string, value interface{}) error {
+	if !allowedUpdateFields[field] {
+		return fmt.Errorf("invalid field name: %s", field)
+	}
+
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
