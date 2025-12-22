@@ -20,11 +20,7 @@ func SetupPlatformRoutes(r chi.Router, db *sql.DB) error {
 	createTenantHandler := handlers.NewCreateTenantHandler(tenantRepo)
 	commandBus.Register("CreateTenant", createTenantHandler)
 
-	secretsBasePath := os.Getenv("OIDC_SECRETS_PATH")
-	if secretsBasePath == "" {
-		secretsBasePath = "/var/run/secrets/oidc"
-	}
-	secretProvider := secrets.NewFileSecretProvider(secretsBasePath)
+	secretProvider := secrets.NewEnvSecretProvider("OIDC_CLIENT_SECRET")
 
 	tenantHandlers := NewTenantHandlers(commandBus, tenantRepo, secretProvider)
 

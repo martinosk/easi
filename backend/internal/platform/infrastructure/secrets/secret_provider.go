@@ -73,3 +73,31 @@ func (p *FileSecretProvider) IsProvisioned(ctx context.Context, tenantID string)
 	}
 	return false
 }
+
+type EnvSecretProvider struct {
+	envVar string
+}
+
+func NewEnvSecretProvider(envVar string) *EnvSecretProvider {
+	return &EnvSecretProvider{envVar: envVar}
+}
+
+func (p *EnvSecretProvider) GetClientSecret(ctx context.Context, tenantID string) (string, error) {
+	secret := os.Getenv(p.envVar)
+	if secret == "" {
+		return "", ErrSecretNotFound
+	}
+	return secret, nil
+}
+
+func (p *EnvSecretProvider) GetPrivateKey(ctx context.Context, tenantID string) ([]byte, error) {
+	return nil, ErrSecretNotFound
+}
+
+func (p *EnvSecretProvider) GetCertificate(ctx context.Context, tenantID string) ([]byte, error) {
+	return nil, ErrSecretNotFound
+}
+
+func (p *EnvSecretProvider) IsProvisioned(ctx context.Context, tenantID string) bool {
+	return os.Getenv(p.envVar) != ""
+}
