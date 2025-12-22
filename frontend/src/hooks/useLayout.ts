@@ -75,7 +75,8 @@ export function useLayout(
 
   useEffect(() => {
     initializeLayout();
-  }, [initializeLayout]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contextType, contextRef]);
 
   const updateElementPosition = useCallback(
     async (

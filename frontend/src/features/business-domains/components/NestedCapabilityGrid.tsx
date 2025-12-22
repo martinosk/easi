@@ -140,7 +140,8 @@ function ChildrenGrid({
         gridTemplateColumns: getResponsiveGridColumns(level, breakpoint),
         gap: gridGap,
         flex: 1,
-        overflow: 'auto',
+        minWidth: 0,
+        overflow: 'hidden',
       }}
     >
       {children.map((child) => (
