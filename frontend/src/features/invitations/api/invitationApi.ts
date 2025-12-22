@@ -1,4 +1,5 @@
-import axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import axios from 'axios';
+import type { AxiosError, AxiosRequestConfig } from 'axios';
 import type { Invitation, CreateInvitationRequest, UpdateInvitationRequest, InvitationsListResponse } from '../types';
 
 interface ApiErrorResponse {
