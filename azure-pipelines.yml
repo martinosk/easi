@@ -91,7 +91,7 @@ steps:
     command: 'build'
     Dockerfile: 'frontend/Dockerfile'
     buildContext: 'frontend'
-    arguments: '--tag easi-frontend:$(Build.BuildNumber) --build-arg VITE_API_URL=/api'
+    arguments: '--tag easi-frontend:$(Build.BuildNumber) --build-arg VITE_API_URL='
     addPipelineData: false
 
 - task: ECRPushImage@1
