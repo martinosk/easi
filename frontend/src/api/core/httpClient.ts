@@ -20,7 +20,7 @@ function extractErrorMessage(error: AxiosError): string {
   return responseMessage ?? error.message ?? 'An unknown error occurred';
 }
 
-function createHttpClient(baseURL: string = import.meta.env.VITE_API_URL || 'http://localhost:8080'): AxiosInstance {
+function createHttpClient(baseURL: string = import.meta.env.VITE_API_URL ?? ''): AxiosInstance {
   const client = axios.create({
     baseURL,
     headers: {
