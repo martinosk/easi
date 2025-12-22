@@ -20,7 +20,7 @@ class InvitationApiClient {
   private baseURL: string;
 
   constructor() {
-    this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+    this.baseURL = import.meta.env.VITE_API_URL ?? '';
   }
 
   private async request<T>(config: AxiosRequestConfig, errorMessage: string): Promise<T> {

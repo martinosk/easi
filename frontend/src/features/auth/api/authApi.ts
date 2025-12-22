@@ -19,7 +19,7 @@ class AuthApiClient {
   private baseURL: string;
 
   constructor() {
-    this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+    this.baseURL = import.meta.env.VITE_API_URL ?? '';
   }
 
   async initiateLogin(email: string): Promise<InitiateLoginResponse> {
