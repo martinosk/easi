@@ -8,12 +8,14 @@ import (
 	"net/http"
 	"time"
 
+	authCommands "easi/backend/internal/auth/application/commands"
 	"easi/backend/internal/platform/application/commands"
 	"easi/backend/internal/platform/domain/aggregates"
 	"easi/backend/internal/platform/domain/valueobjects"
 	"easi/backend/internal/platform/infrastructure/repositories"
 	"easi/backend/internal/platform/infrastructure/secrets"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 	sharedvo "easi/backend/internal/shared/domain/valueobjects"
 
@@ -303,7 +305,19 @@ func (h *TenantHandlers) CreateTenantInvitation(w http.ResponseWriter, r *http.R
 		req.Role = "admin"
 	}
 
-	if err := h.repository.CreateInvitation(r.Context(), tenantID, req.Email, req.Role); err != nil {
+	tenantIDVO, err := sharedvo.NewTenantID(tenantID)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid tenant ID")
+		return
+	}
+	tenantCtx := sharedctx.WithTenant(r.Context(), tenantIDVO)
+
+	cmd := &authCommands.CreateInvitation{
+		Email: req.Email,
+		Role:  req.Role,
+	}
+
+	if err := h.commandBus.Dispatch(tenantCtx, cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create invitation")
 		return
 	}

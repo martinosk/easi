@@ -119,7 +119,13 @@ func registerAPIRoutes(r chi.Router, deps routerDependencies) {
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/version", versionHandler)
 
-		mustSetup(platformAPI.SetupPlatformRoutes(r, deps.db.DB()), "platform routes")
+		mustSetup(platformAPI.SetupPlatformRoutes(platformAPI.PlatformRoutesDeps{
+			Router:     r,
+			RawDB:      deps.db.DB(),
+			TenantDB:   deps.db,
+			CommandBus: deps.commandBus,
+			EventStore: deps.eventStore,
+		}), "platform routes")
 		mustSetup(authAPI.SetupAuthRoutes(r, deps.db.DB(), deps.authDeps), "auth routes")
 
 		r.Group(func(r chi.Router) {

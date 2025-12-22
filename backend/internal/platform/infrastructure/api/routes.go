@@ -4,6 +4,10 @@ import (
 	"database/sql"
 	"os"
 
+	authHandlers "easi/backend/internal/auth/application/handlers"
+	authRepositories "easi/backend/internal/auth/infrastructure/repositories"
+	"easi/backend/internal/infrastructure/database"
+	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/platform/application/handlers"
 	"easi/backend/internal/platform/infrastructure/repositories"
 	"easi/backend/internal/platform/infrastructure/secrets"
@@ -12,23 +16,32 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func SetupPlatformRoutes(r chi.Router, db *sql.DB) error {
-	commandBus := cqrs.NewInMemoryCommandBus()
+type PlatformRoutesDeps struct {
+	Router     chi.Router
+	RawDB      *sql.DB
+	TenantDB   *database.TenantAwareDB
+	CommandBus *cqrs.InMemoryCommandBus
+	EventStore eventstore.EventStore
+}
 
-	tenantRepo := repositories.NewTenantRepository(db)
+func SetupPlatformRoutes(deps PlatformRoutesDeps) error {
+	tenantRepo := repositories.NewTenantRepository(deps.RawDB)
+	invitationRepo := authRepositories.NewInvitationRepository(deps.EventStore)
 
-	createTenantHandler := handlers.NewCreateTenantHandler(tenantRepo)
-	commandBus.Register("CreateTenant", createTenantHandler)
+	createTenantHandler := handlers.NewCreateTenantHandler(tenantRepo, deps.CommandBus)
+	deps.CommandBus.Register("CreateTenant", createTenantHandler)
+
+	deps.CommandBus.Register("CreateInvitation", authHandlers.NewCreateInvitationHandler(invitationRepo))
 
 	secretProvider := secrets.NewEnvSecretProvider("OIDC_CLIENT_SECRET")
 
-	tenantHandlers := NewTenantHandlers(commandBus, tenantRepo, secretProvider)
+	tenantHandlers := NewTenantHandlers(deps.CommandBus, tenantRepo, secretProvider)
 
 	platformAdminKey := os.Getenv("PLATFORM_ADMIN_API_KEY")
 
 	rateLimiter := NewRateLimiter(100, 60)
 
-	r.Route("/platform", func(r chi.Router) {
+	deps.Router.Route("/platform", func(r chi.Router) {
 		r.Use(RateLimitMiddleware(rateLimiter))
 		r.Use(PlatformAdminMiddleware(platformAdminKey))
 

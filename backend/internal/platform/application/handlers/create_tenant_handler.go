@@ -4,20 +4,23 @@ import (
 	"context"
 	"time"
 
+	authCommands "easi/backend/internal/auth/application/commands"
 	"easi/backend/internal/platform/application/commands"
 	"easi/backend/internal/platform/domain/aggregates"
 	"easi/backend/internal/platform/domain/valueobjects"
 	"easi/backend/internal/platform/infrastructure/repositories"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 	sharedvo "easi/backend/internal/shared/domain/valueobjects"
 )
 
 type CreateTenantHandler struct {
 	repository *repositories.TenantRepository
+	commandBus cqrs.CommandBus
 }
 
-func NewCreateTenantHandler(repository *repositories.TenantRepository) *CreateTenantHandler {
-	return &CreateTenantHandler{repository: repository}
+func NewCreateTenantHandler(repository *repositories.TenantRepository, commandBus cqrs.CommandBus) *CreateTenantHandler {
+	return &CreateTenantHandler{repository: repository, commandBus: commandBus}
 }
 
 func (h *CreateTenantHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
@@ -76,5 +79,15 @@ func (h *CreateTenantHandler) Handle(ctx context.Context, cmd cqrs.Command) erro
 		UpdatedAt:       now,
 	}
 
-	return h.repository.Create(ctx, record)
+	if err := h.repository.Create(ctx, record); err != nil {
+		return err
+	}
+
+	tenantCtx := sharedctx.WithTenant(ctx, tenantID)
+	createInvitationCmd := &authCommands.CreateInvitation{
+		Email: command.FirstAdminEmail,
+		Role:  "admin",
+	}
+
+	return h.commandBus.Dispatch(tenantCtx, createInvitationCmd)
 }

@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
-	"strings"
 	"time"
 )
 
@@ -91,22 +89,6 @@ func (r *TenantRepository) Create(ctx context.Context, record TenantRecord) erro
 		`INSERT INTO tenant_oidc_configs (tenant_id, discovery_url, client_id, auth_method, scopes, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		record.ID, record.DiscoveryURL, record.ClientID, record.AuthMethod, record.Scopes, record.CreatedAt, record.UpdatedAt,
-	)
-	if err != nil {
-		return err
-	}
-
-	setTenantSQL := fmt.Sprintf("SET LOCAL app.current_tenant = '%s'", strings.ReplaceAll(record.ID, "'", "''"))
-	_, err = tx.ExecContext(ctx, setTenantSQL)
-	if err != nil {
-		return err
-	}
-
-	expiresAt := record.CreatedAt.Add(7 * 24 * time.Hour)
-	_, err = tx.ExecContext(ctx,
-		`INSERT INTO invitations (tenant_id, email, role, status, created_at, expires_at)
-		 VALUES ($1, $2, 'admin', 'pending', $3, $4)`,
-		record.ID, record.FirstAdminEmail, record.CreatedAt, expiresAt,
 	)
 	if err != nil {
 		return err
@@ -239,29 +221,3 @@ func (r *TenantRepository) DomainExists(ctx context.Context, domain string) (boo
 	return exists, err
 }
 
-func (r *TenantRepository) CreateInvitation(ctx context.Context, tenantID, email, role string) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	setTenantSQL := fmt.Sprintf("SET LOCAL app.current_tenant = '%s'", strings.ReplaceAll(tenantID, "'", "''"))
-	_, err = tx.ExecContext(ctx, setTenantSQL)
-	if err != nil {
-		return err
-	}
-
-	now := time.Now().UTC()
-	expiresAt := now.Add(7 * 24 * time.Hour)
-	_, err = tx.ExecContext(ctx,
-		`INSERT INTO invitations (tenant_id, email, role, status, created_at, expires_at)
-		 VALUES ($1, $2, $3, 'pending', $4, $5)`,
-		tenantID, email, role, now, expiresAt,
-	)
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit()
-}
