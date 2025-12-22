@@ -1,17 +1,18 @@
 # Code style
 Never add comments to code unless specifically instructed to do so by the user.
+Always check code quality with CodeScene after modifying files. Refactor any file that doesn't score a 10.0
+Always verify build and tests after modifying files.
 
 # Architecture style
 - Using the principles of strategic DDD, structure the code by bounded contexts. 
 - Bounded contexts must have meaning to the business domain.
 - There must never be direct coupling between bounded contexts. Use loosely coupled events if needed.
-- Use the principles of tactical DDD when writing code. 
-- Keep Domain Model separate of infrastructure concerns
-- Use aggregates as transactional boundaries
+- Use the principles of tactical DDD when writing backend code. 
+- Keep Domain Model separate of infrastructure concerns.
+- Use aggregates as transactional boundaries.
 - If aggregates must link to other aggregates, they do so only by their globally unique ID. Never by reference.
-- Use immutable value objects for entities that does not have a lifecycle. This includes the aggregate id.
+- Use immutable value objects with validation in their constructors for entities that does not have a lifecycle. This includes the aggregate id.
 - **Aggregates must never expose primitive types directly. All properties must be value objects that encapsulate business invariants and domain concepts.**
-- Value objects should be immutable records with validation in their constructors.
 - Use API first principles. Any functionality is always done via API calls to the backend.
 
 ## CQRS with Event Sourcing
@@ -37,7 +38,6 @@ ReadModel → Screen: ReadModel(OUTBOUND) → Screen(INBOUND)
 
 ## API Versioning
 - **ALL API routes MUST resolve to `/api/v1/` prefix** (except `/health` and `/swagger`)
-- Never use hardcoded hosts in swagger - use relative URLs with schemes
 - Swagger `@Router` annotations must use **relative paths** without `/api/v1/` prefix
   - ✅ `@Router /capabilities [get]` (basePath will be prepended)
   - ❌ `@Router /api/v1/capabilities [get]` (creates double prefix)
@@ -72,56 +72,14 @@ REST Level 3 APIs must follow consistent response structures:
 - Return the resource directly at the root level
 - Embed `_links` object within the resource for HATEOAS navigation
 - Use `sharedAPI.RespondJSON(w, statusCode, resource)`
-- Example:
-```json
-{
-  "id": "123",
-  "name": "Component A",
-  "_links": {
-    "self": "/api/v1/components/123",
-    "update": "/api/v1/components/123",
-    "delete": "/api/v1/components/123"
-  }
-}
-```
 
 ### Non-Paginated Collection Responses (GET all)
 - Use structured envelope with `data` and `_links`
 - Use `sharedAPI.RespondCollection(w, statusCode, data, links)`
-- Example:
-```json
-{
-  "data": [
-    {"id": "123", "name": "Item 1", "_links": {...}},
-    {"id": "456", "name": "Item 2", "_links": {...}}
-  ],
-  "_links": {
-    "self": "/api/v1/items"
-  }
-}
-```
 
 ### Paginated Collection Responses (GET with pagination)
 - Use structured envelope with `data`, `pagination`, and `_links`
 - Use `sharedAPI.RespondPaginated(w, statusCode, data, hasMore, nextCursor, limit, selfLink, baseLink)`
-- Example:
-```json
-{
-  "data": [
-    {"id": "123", "name": "Item 1", "_links": {...}},
-    {"id": "456", "name": "Item 2", "_links": {...}}
-  ],
-  "pagination": {
-    "hasMore": true,
-    "limit": 50,
-    "cursor": "eyJpZCI6IjQ1NiIsInRzIjoxNjQwMDAwMDAwfQ=="
-  },
-  "_links": {
-    "self": "/api/v1/items?after=xyz&limit=50",
-    "next": "/api/v1/items?after=abc&limit=50"
-  }
-}
-```
 
 ### Success Responses (201 Created, 204 No Content)
 - **201 Created with body**: Return created resource directly with Location header
@@ -134,36 +92,19 @@ REST Level 3 APIs must follow consistent response structures:
 
 ### Error Responses
 - Always use consistent error structure via `sharedAPI.RespondError(w, statusCode, err, message)`
-- Structure:
-```json
-{
-  "error": "Bad Request",
-  "message": "Validation failed",
-  "details": {
-    "fieldName": "Field-specific error"
-  }
-}
-```
 
 ### Implementation Rules
-1. NEVER use `sharedAPI.RespondSuccess()` or `sharedAPI.RespondCreated()` - these are deprecated wrappers
-2. Single resources: `sharedAPI.RespondJSON(w, statusCode, resource)`
-3. Non-paginated collections: `sharedAPI.RespondCollection(w, statusCode, data, links)`
-4. Paginated collections: `sharedAPI.RespondPaginated(w, statusCode, data, hasMore, nextCursor, limit, selfLink, baseLink)`
-5. Created: `w.Header().Set("Location", ...")` + `sharedAPI.RespondJSON(w, http.StatusCreated, resource)`
-6. No content: `w.WriteHeader(http.StatusNoContent)`
-7. Errors: `sharedAPI.RespondError(w, statusCode, err, message)`
+1. Single resources: `sharedAPI.RespondJSON(w, statusCode, resource)`
+2. Non-paginated collections: `sharedAPI.RespondCollection(w, statusCode, data, links)`
+3. Paginated collections: `sharedAPI.RespondPaginated(w, statusCode, data, hasMore, nextCursor, limit, selfLink, baseLink)`
+4. Created: `w.Header().Set("Location", ...")` + `sharedAPI.RespondJSON(w, http.StatusCreated, resource)`
+5. No content: `w.WriteHeader(http.StatusNoContent)`
+6. Errors: `sharedAPI.RespondError(w, statusCode, err, message)`
 
 # Spec Management
 - **NEVER modify a spec file with "done" status**
 - Never add "future" requirements in a spec. A spec always contain what is to be implemented NOW. Nothing less, nothing more.
-- If a done spec needs changes, it must be renamed to "reopened" status
 - Keep specs short, precise and descriptive. Avoid prescriptive code examples.
-- When reopening a spec:
-  - Rename file from `XXX_SpecName_done.md` to `XXX_SpecName_reopened.md`
-  - Keep all completed checkmarks for work already done
-  - Add new uncompleted checkmarks explaining what additional work is needed
-  - Require new user sign-off after changes are complete
 - Spec status workflow: `pending` → `ongoing` → `done` (or `done` → `reopened` → `done`)
 
 # Database Migration Management
@@ -175,17 +116,13 @@ REST Level 3 APIs must follow consistent response structures:
 - Migration files must be numbered sequentially (001, 002, 003, etc.)
 - To fix issues in committed migrations, create a new migration that makes the correction
 - Do not add conditional logic checking current schema state - migrations run in order
-- Foreign key constraints should not be used in event-sourced read models:
-  - Referential integrity is maintained by the domain model and event handlers
+- Foreign key constraints should not be used. Referential integrity is maintained by the domain model and event handlers.
 
 # Running Tests
 
 ## Frontend Tests
 Frontend tests use Vitest with process isolation (takes ~45 seconds). Use these commands:
-- `npm test -- --run` - Run all tests once (use 3 minute timeout)
-- `npm test -- --run --reporter=dot` - Compact output (dots instead of verbose names)
-- `npm test -- --run src/path/to/file.test.ts` - Run specific test file
-
+- `npm test -- --run` - Run all tests once
 Note: Always use `--run` flag to avoid watch mode which waits indefinitely.
 
 ## Backend Tests
