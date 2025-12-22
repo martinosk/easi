@@ -24,6 +24,12 @@ type Cursor struct {
 	Timestamp int64  `json:"ts"`
 }
 
+// NameCursor represents a cursor for name-based alphabetical pagination
+type NameCursor struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 // PaginationInfo contains pagination metadata
 type PaginationInfo struct {
 	HasMore bool   `json:"hasMore"`
@@ -81,6 +87,35 @@ func EncodeCursor(id string, timestamp time.Time) string {
 	cursor := Cursor{
 		ID:        id,
 		Timestamp: timestamp.Unix(),
+	}
+	data, _ := json.Marshal(cursor)
+	return base64.URLEncoding.EncodeToString(data)
+}
+
+// DecodeNameCursor decodes a base64 encoded name-based pagination cursor
+func DecodeNameCursor(encoded string) (*NameCursor, error) {
+	if encoded == "" {
+		return nil, nil
+	}
+
+	data, err := base64.URLEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	var cursor NameCursor
+	if err := json.Unmarshal(data, &cursor); err != nil {
+		return nil, err
+	}
+
+	return &cursor, nil
+}
+
+// EncodeNameCursor creates an opaque pagination cursor from an ID and name
+func EncodeNameCursor(id string, name string) string {
+	cursor := NameCursor{
+		ID:   id,
+		Name: name,
 	}
 	data, _ := json.Marshal(cursor)
 	return base64.URLEncoding.EncodeToString(data)

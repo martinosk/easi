@@ -37,6 +37,11 @@ type Pageable interface {
 	GetTimestamp() time.Time
 }
 
+type NamePageable interface {
+	GetID() string
+	GetName() string
+}
+
 func (h *PaginationHelper) GenerateNextCursor(items []Pageable, hasMore bool) string {
 	if !hasMore || len(items) == 0 {
 		return ""
@@ -44,6 +49,32 @@ func (h *PaginationHelper) GenerateNextCursor(items []Pageable, hasMore bool) st
 
 	lastItem := items[len(items)-1]
 	return EncodeCursor(lastItem.GetID(), lastItem.GetTimestamp())
+}
+
+func (h *PaginationHelper) GenerateNextNameCursor(items []NamePageable, hasMore bool) string {
+	if !hasMore || len(items) == 0 {
+		return ""
+	}
+
+	lastItem := items[len(items)-1]
+	return EncodeNameCursor(lastItem.GetID(), lastItem.GetName())
+}
+
+func (h *PaginationHelper) ProcessNameCursor(after string) (string, string, error) {
+	if after == "" {
+		return "", "", nil
+	}
+
+	cursor, err := DecodeNameCursor(after)
+	if err != nil {
+		return "", "", err
+	}
+
+	if cursor == nil {
+		return "", "", nil
+	}
+
+	return cursor.ID, cursor.Name, nil
 }
 
 func (h *PaginationHelper) BuildSelfLink(params PaginationParams) string {

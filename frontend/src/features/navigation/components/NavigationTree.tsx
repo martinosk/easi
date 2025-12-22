@@ -201,6 +201,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   const editInputRef = useRef<HTMLInputElement>(null);
 
   const [deleteCapability, setDeleteCapability] = useState<Capability | null>(null);
+  const [applicationSearch, setApplicationSearch] = useState('');
 
   // Persist menu state
   useEffect(() => {
@@ -224,6 +225,18 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   }, [expandedCapabilities]);
 
   const capabilityTree = useMemo(() => buildCapabilityTree(capabilities), [capabilities]);
+
+  const filteredComponents = useMemo(() => {
+    if (!applicationSearch.trim()) {
+      return components;
+    }
+    const searchLower = applicationSearch.toLowerCase();
+    return components.filter(
+      (c) =>
+        c.name.toLowerCase().includes(searchLower) ||
+        (c.description && c.description.toLowerCase().includes(searchLower))
+    );
+  }, [components, applicationSearch]);
 
   const toggleCapabilityExpanded = useCallback((capabilityId: string) => {
     setExpandedCapabilities((prev) => {
@@ -531,10 +544,30 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
               {isModelsExpanded && (
                 <div className="tree-items">
-                  {components.length === 0 ? (
-                    <div className="tree-item-empty">No applications</div>
+                  <div className="tree-search">
+                    <input
+                      type="text"
+                      className="tree-search-input"
+                      placeholder="Search applications..."
+                      value={applicationSearch}
+                      onChange={(e) => setApplicationSearch(e.target.value)}
+                    />
+                    {applicationSearch && (
+                      <button
+                        className="tree-search-clear"
+                        onClick={() => setApplicationSearch('')}
+                        aria-label="Clear search"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                  {filteredComponents.length === 0 ? (
+                    <div className="tree-item-empty">
+                      {components.length === 0 ? 'No applications' : 'No matches'}
+                    </div>
                   ) : (
-                    components.map((component) => {
+                    filteredComponents.map((component) => {
                       const isInCurrentView = currentView?.components.some(
                         vc => vc.componentId === component.id
                       );

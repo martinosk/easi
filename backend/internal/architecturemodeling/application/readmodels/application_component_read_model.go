@@ -117,7 +117,7 @@ func (rm *ApplicationComponentReadModel) GetAll(ctx context.Context) ([]Applicat
 	var components []ApplicationComponentDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY created_at DESC",
+			"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC",
 			tenantID.Value(),
 		)
 		if err != nil {
@@ -140,23 +140,23 @@ func (rm *ApplicationComponentReadModel) GetAll(ctx context.Context) ([]Applicat
 }
 
 type paginationQuery struct {
-	tenantID       string
-	afterCursor    string
-	afterTimestamp int64
-	limit          int
+	tenantID    string
+	afterCursor string
+	afterName   string
+	limit       int
 }
 
-func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, limit int, afterCursor string, afterTimestamp int64) ([]ApplicationComponentDTO, bool, error) {
+func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, limit int, afterCursor string, afterName string) ([]ApplicationComponentDTO, bool, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, false, err
 	}
 
 	query := paginationQuery{
-		tenantID:       tenantID.Value(),
-		afterCursor:    afterCursor,
-		afterTimestamp: afterTimestamp,
-		limit:          limit + 1,
+		tenantID:    tenantID.Value(),
+		afterCursor: afterCursor,
+		afterName:   afterName,
+		limit:       limit + 1,
 	}
 
 	var components []ApplicationComponentDTO
@@ -181,13 +181,13 @@ func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, li
 func (rm *ApplicationComponentReadModel) queryPaginatedComponents(ctx context.Context, tx *sql.Tx, query paginationQuery) (*sql.Rows, error) {
 	if query.afterCursor == "" {
 		return tx.QueryContext(ctx,
-			"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY created_at DESC, id DESC LIMIT $2",
+			"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
 			query.tenantID, query.limit,
 		)
 	}
 	return tx.QueryContext(ctx,
-		"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND is_deleted = FALSE AND (created_at < to_timestamp($2) OR (created_at = to_timestamp($2) AND id < $3)) ORDER BY created_at DESC, id DESC LIMIT $4",
-		query.tenantID, query.afterTimestamp, query.afterCursor, query.limit,
+		"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
+		query.tenantID, query.afterName, query.afterCursor, query.limit,
 	)
 }
 

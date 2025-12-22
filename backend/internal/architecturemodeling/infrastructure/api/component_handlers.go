@@ -116,13 +116,13 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Request) {
 	params := sharedAPI.ParsePaginationParams(r)
 
-	afterCursor, afterTimestamp, err := h.paginationHelper.ProcessCursor(params.After)
+	afterID, afterName, err := h.paginationHelper.ProcessNameCursor(params.After)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid pagination cursor")
 		return
 	}
 
-	components, hasMore, err := h.readModel.GetAllPaginated(r.Context(), params.Limit, afterCursor, afterTimestamp)
+	components, hasMore, err := h.readModel.GetAllPaginated(r.Context(), params.Limit, afterID, afterName)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve components")
 		return
@@ -132,8 +132,8 @@ func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Requ
 		components[i].Links = h.hateoas.ComponentLinks(components[i].ID)
 	}
 
-	pageables := ConvertToPageable(components)
-	nextCursor := h.paginationHelper.GenerateNextCursor(pageables, hasMore)
+	pageables := ConvertToNamePageable(components)
+	nextCursor := h.paginationHelper.GenerateNextNameCursor(pageables, hasMore)
 	selfLink := h.paginationHelper.BuildSelfLink(params)
 
 	sharedAPI.RespondPaginated(w, sharedAPI.PaginatedResponseParams{

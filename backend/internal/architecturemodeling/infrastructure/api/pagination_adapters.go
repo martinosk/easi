@@ -1,28 +1,26 @@
 package api
 
 import (
-	"time"
-
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
 )
 
-type PageableComponent struct {
+type NamePageableComponent struct {
 	Component readmodels.ApplicationComponentDTO
 }
 
-func (p PageableComponent) GetID() string {
+func (p NamePageableComponent) GetID() string {
 	return p.Component.ID
 }
 
-func (p PageableComponent) GetTimestamp() time.Time {
-	return p.Component.CreatedAt
+func (p NamePageableComponent) GetName() string {
+	return p.Component.Name
 }
 
-func ConvertToPageable(components []readmodels.ApplicationComponentDTO) []sharedAPI.Pageable {
-	pageables := make([]sharedAPI.Pageable, len(components))
+func ConvertToNamePageable(components []readmodels.ApplicationComponentDTO) []sharedAPI.NamePageable {
+	pageables := make([]sharedAPI.NamePageable, len(components))
 	for i, c := range components {
-		pageables[i] = PageableComponent{Component: c}
+		pageables[i] = NamePageableComponent{Component: c}
 	}
 	return pageables
 }
