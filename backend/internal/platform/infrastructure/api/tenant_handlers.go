@@ -258,6 +258,64 @@ func (h *TenantHandlers) mapRecordToResponse(ctx context.Context, record *reposi
 	}
 }
 
+type CreateInvitationRequest struct {
+	Email string `json:"email"`
+	Role  string `json:"role"`
+}
+
+// CreateTenantInvitation godoc
+// @Summary Create an invitation for a tenant
+// @Description Creates an admin invitation for an existing tenant
+// @Tags tenants
+// @Accept json
+// @Produce json
+// @Param id path string true "Tenant ID"
+// @Param request body CreateInvitationRequest true "Invitation details"
+// @Success 201 {object} map[string]string "Invitation created"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid request"
+// @Failure 404 {object} sharedAPI.ErrorResponse "Tenant not found"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
+// @Router /platform/tenants/{id}/invitations [post]
+func (h *TenantHandlers) CreateTenantInvitation(w http.ResponseWriter, r *http.Request) {
+	tenantID := chi.URLParam(r, "id")
+
+	exists, err := h.repository.ExistsByID(r.Context(), tenantID)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to check tenant")
+		return
+	}
+	if !exists {
+		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Tenant not found")
+		return
+	}
+
+	var req CreateInvitationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+
+	if req.Email == "" {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Email is required")
+		return
+	}
+	if req.Role == "" {
+		req.Role = "admin"
+	}
+
+	if err := h.repository.CreateInvitation(r.Context(), tenantID, req.Email, req.Role); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create invitation")
+		return
+	}
+
+	sharedAPI.RespondJSON(w, http.StatusCreated, map[string]string{
+		"message": "Invitation created for " + req.Email,
+		"tenant":  tenantID,
+		"email":   req.Email,
+		"role":    req.Role,
+	})
+}
+
 func mapTenantErrorToStatusCode(err error) int {
 	switch {
 	case errors.Is(err, repositories.ErrTenantAlreadyExists):

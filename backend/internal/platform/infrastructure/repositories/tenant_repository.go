@@ -238,3 +238,30 @@ func (r *TenantRepository) DomainExists(ctx context.Context, domain string) (boo
 	).Scan(&exists)
 	return exists, err
 }
+
+func (r *TenantRepository) CreateInvitation(ctx context.Context, tenantID, email, role string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	setTenantSQL := fmt.Sprintf("SET LOCAL app.current_tenant = '%s'", strings.ReplaceAll(tenantID, "'", "''"))
+	_, err = tx.ExecContext(ctx, setTenantSQL)
+	if err != nil {
+		return err
+	}
+
+	now := time.Now().UTC()
+	expiresAt := now.Add(7 * 24 * time.Hour)
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO invitations (tenant_id, email, role, status, created_at, expires_at)
+		 VALUES ($1, $2, $3, 'pending', $4, $5)`,
+		tenantID, email, role, now, expiresAt,
+	)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}

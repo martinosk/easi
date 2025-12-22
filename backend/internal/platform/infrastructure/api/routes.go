@@ -35,6 +35,7 @@ func SetupPlatformRoutes(r chi.Router, db *sql.DB) error {
 		r.Post("/tenants", tenantHandlers.CreateTenant)
 		r.Get("/tenants", tenantHandlers.ListTenants)
 		r.Get("/tenants/{id}", tenantHandlers.GetTenantByID)
+		r.Post("/tenants/{id}/invitations", tenantHandlers.CreateTenantInvitation)
 	})
 
 	return nil
