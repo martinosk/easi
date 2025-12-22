@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -90,6 +92,12 @@ func (r *TenantRepository) Create(ctx context.Context, record TenantRecord) erro
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		record.ID, record.DiscoveryURL, record.ClientID, record.AuthMethod, record.Scopes, record.CreatedAt, record.UpdatedAt,
 	)
+	if err != nil {
+		return err
+	}
+
+	setTenantSQL := fmt.Sprintf("SET LOCAL app.current_tenant = '%s'", strings.ReplaceAll(record.ID, "'", "''"))
+	_, err = tx.ExecContext(ctx, setTenantSQL)
 	if err != nil {
 		return err
 	}
