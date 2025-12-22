@@ -1,9 +1,6 @@
-# 070 - Customer Onboarding Documentation
+# Identity Provider Configuration Guide
 
-**Depends on:** [065_TenantProvisioning](065_TenantProvisioning_done.md)
-
-## Description
-Documentation guides for customers to configure their Identity Provider (IdP) for OIDC integration with EASI.
+This guide helps you configure your organization's Identity Provider (IdP) for OIDC integration with EASI.
 
 ## Azure Entra (Azure AD)
 
@@ -136,10 +133,3 @@ Provide these values to EASI platform admin:
 2. **Conditional Access**: Consider adding conditional access policies in your IdP
 3. **MFA**: Enable multi-factor authentication for users in your IdP
 4. **Session Duration**: EASI access tokens last 8 hours, sessions extend up to 7 days via refresh tokens; IdP session policies may differ
-
-## Checklist
-- [ ] Customer onboarding guide (Azure Entra)
-- [ ] Customer onboarding guide (Okta)
-- [ ] Customer onboarding guide (Google Workspace)
-- [ ] Generic OIDC setup guide
-- [ ] User sign-off
