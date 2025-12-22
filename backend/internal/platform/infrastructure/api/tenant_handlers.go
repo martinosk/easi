@@ -174,9 +174,14 @@ func (h *TenantHandlers) GetTenantByID(w http.ResponseWriter, r *http.Request) {
 	record, err := h.repository.GetByID(r.Context(), tenantID)
 	if err != nil {
 		if errors.Is(err, repositories.ErrTenantNotFound) {
-			sharedAPI.RespondErrorWithLinks(w, http.StatusNotFound, err, "Tenant not found", map[string]sharedAPI.Link{
-				"list":   {Href: "/api/v1/platform/tenants"},
-				"create": {Href: "/api/v1/platform/tenants", Method: "POST"},
+			sharedAPI.RespondErrorWithLinks(w, sharedAPI.ErrorWithLinksParams{
+				StatusCode: http.StatusNotFound,
+				Err:        err,
+				Message:    "Tenant not found",
+				Links: map[string]sharedAPI.Link{
+					"list":   {Href: "/api/v1/platform/tenants"},
+					"create": {Href: "/api/v1/platform/tenants", Method: "POST"},
+				},
 			})
 			return
 		}

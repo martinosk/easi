@@ -150,8 +150,10 @@ func (h *ImportHandlers) GetImportSession(w http.ResponseWriter, r *http.Request
 	}
 
 	if session == nil {
-		sharedAPI.RespondErrorWithLinks(w, http.StatusNotFound, nil, "Import session not found", map[string]sharedAPI.Link{
-			"create": {Href: "/api/v1/imports", Method: "POST"},
+		sharedAPI.RespondErrorWithLinks(w, sharedAPI.ErrorWithLinksParams{
+			StatusCode: http.StatusNotFound,
+			Message:    "Import session not found",
+			Links:      map[string]sharedAPI.Link{"create": {Href: "/api/v1/imports", Method: "POST"}},
 		})
 		return
 	}
@@ -186,16 +188,21 @@ func (h *ImportHandlers) ConfirmImport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if session == nil {
-		sharedAPI.RespondErrorWithLinks(w, http.StatusNotFound, nil, "Import session not found", map[string]sharedAPI.Link{
-			"create": {Href: "/api/v1/imports", Method: "POST"},
+		sharedAPI.RespondErrorWithLinks(w, sharedAPI.ErrorWithLinksParams{
+			StatusCode: http.StatusNotFound,
+			Message:    "Import session not found",
+			Links:      map[string]sharedAPI.Link{"create": {Href: "/api/v1/imports", Method: "POST"}},
 		})
 		return
 	}
 
 	baseURL := fmt.Sprintf("/api/v1/imports/%s", id)
 	if session.Status != "pending" {
-		sharedAPI.RespondErrorWithLinks(w, http.StatusConflict, aggregates.ErrImportAlreadyStarted, "Import session has already been started or completed", map[string]sharedAPI.Link{
-			"self": {Href: baseURL},
+		sharedAPI.RespondErrorWithLinks(w, sharedAPI.ErrorWithLinksParams{
+			StatusCode: http.StatusConflict,
+			Err:        aggregates.ErrImportAlreadyStarted,
+			Message:    "Import session has already been started or completed",
+			Links:      map[string]sharedAPI.Link{"self": {Href: baseURL}},
 		})
 		return
 	}
@@ -247,16 +254,20 @@ func (h *ImportHandlers) DeleteImportSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	if session == nil {
-		sharedAPI.RespondErrorWithLinks(w, http.StatusNotFound, nil, "Import session not found", map[string]sharedAPI.Link{
-			"create": {Href: "/api/v1/imports", Method: "POST"},
+		sharedAPI.RespondErrorWithLinks(w, sharedAPI.ErrorWithLinksParams{
+			StatusCode: http.StatusNotFound,
+			Message:    "Import session not found",
+			Links:      map[string]sharedAPI.Link{"create": {Href: "/api/v1/imports", Method: "POST"}},
 		})
 		return
 	}
 
 	baseURL := fmt.Sprintf("/api/v1/imports/%s", id)
 	if session.Status != "pending" {
-		sharedAPI.RespondErrorWithLinks(w, http.StatusConflict, nil, "Cannot cancel import that has already started or completed", map[string]sharedAPI.Link{
-			"self": {Href: baseURL},
+		sharedAPI.RespondErrorWithLinks(w, sharedAPI.ErrorWithLinksParams{
+			StatusCode: http.StatusConflict,
+			Message:    "Cannot cancel import that has already started or completed",
+			Links:      map[string]sharedAPI.Link{"self": {Href: baseURL}},
 		})
 		return
 	}

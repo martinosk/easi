@@ -45,19 +45,9 @@ func NewViewHandlers(
 }
 
 func (h *ViewHandlers) dispatchCommand(w http.ResponseWriter, r *http.Request, cmd cqrs.Command) {
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		h.errorHandler.HandleError(w, err, "Failed to execute command")
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (h *ViewHandlers) dispatchCommandWithStatus(w http.ResponseWriter, r *http.Request, cmd cqrs.Command, errorStatus int) {
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, errorStatus, err, "")
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
+		w.WriteHeader(http.StatusNoContent)
+	})
 }
 
 type elementParams struct {
@@ -391,19 +381,15 @@ func (h *ViewHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Re
 func (h *ViewHandlers) RenameView(w http.ResponseWriter, r *http.Request) {
 	viewID := chi.URLParam(r, "id")
 	var req RenameViewRequest
-
-	h.decodeValidateAndDispatch(w, r, &req,
-		func() error {
-			_, err := valueobjects.NewViewName(req.Name)
-			return err
-		},
-		func() cqrs.Command {
-			return &commands.RenameView{
-				ViewID:  viewID,
-				NewName: req.Name,
-			}
-		},
-	)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+	if _, err := valueobjects.NewViewName(req.Name); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+	h.dispatchCommand(w, r, &commands.RenameView{ViewID: viewID, NewName: req.Name})
 }
 
 // DeleteView godoc
@@ -420,9 +406,9 @@ func (h *ViewHandlers) RenameView(w http.ResponseWriter, r *http.Request) {
 func (h *ViewHandlers) DeleteView(w http.ResponseWriter, r *http.Request) {
 	viewID := chi.URLParam(r, "id")
 
-	h.dispatchCommandWithStatus(w, r, &commands.DeleteView{
+	h.dispatchCommand(w, r, &commands.DeleteView{
 		ViewID: viewID,
-	}, http.StatusConflict)
+	})
 }
 
 // RemoveComponentFromView godoc
@@ -465,39 +451,37 @@ func (h *ViewHandlers) SetDefaultView(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ViewHandlers) UpdateEdgeType(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
 	var req UpdateEdgeTypeRequest
-
-	h.decodeValidateAndDispatch(w, r, &req,
-		func() error {
-			_, err := valueobjects.NewEdgeType(req.EdgeType)
-			return err
-		},
-		func() cqrs.Command {
-			return &commands.UpdateViewEdgeType{
-				ViewID:   viewID,
-				EdgeType: req.EdgeType,
-			}
-		},
-	)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+	edgeType, err := valueobjects.NewEdgeType(req.EdgeType)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+	h.dispatchCommand(w, r, &commands.UpdateViewEdgeType{
+		ViewID:   chi.URLParam(r, "id"),
+		EdgeType: edgeType.String(),
+	})
 }
 
 func (h *ViewHandlers) UpdateLayoutDirection(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
 	var req UpdateLayoutDirectionRequest
-
-	h.decodeValidateAndDispatch(w, r, &req,
-		func() error {
-			_, err := valueobjects.NewLayoutDirection(req.LayoutDirection)
-			return err
-		},
-		func() cqrs.Command {
-			return &commands.UpdateViewLayoutDirection{
-				ViewID:          viewID,
-				LayoutDirection: req.LayoutDirection,
-			}
-		},
-	)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+	layoutDir, err := valueobjects.NewLayoutDirection(req.LayoutDirection)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+	h.dispatchCommand(w, r, &commands.UpdateViewLayoutDirection{
+		ViewID:          chi.URLParam(r, "id"),
+		LayoutDirection: layoutDir.String(),
+	})
 }
 
 type AddCapabilityRequest struct {

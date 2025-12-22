@@ -2,14 +2,12 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
-	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 
@@ -238,14 +236,7 @@ func (h *ComponentHandlers) DeleteApplicationComponent(w http.ResponseWriter, r 
 		ID: id,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		if errors.Is(err, repositories.ErrComponentNotFound) {
-			sharedAPI.RespondError(w, http.StatusNotFound, err, "Component not found")
-			return
-		}
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to delete component")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
+		w.WriteHeader(http.StatusNoContent)
+	})
 }

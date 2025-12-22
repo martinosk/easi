@@ -2,16 +2,13 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"easi/backend/internal/auth/application/commands"
 	"easi/backend/internal/auth/application/readmodels"
-	"easi/backend/internal/auth/domain/aggregates"
 	"easi/backend/internal/auth/domain/valueobjects"
-	"easi/backend/internal/auth/infrastructure/repositories"
 	"easi/backend/internal/auth/infrastructure/session"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
@@ -183,70 +180,74 @@ func (h *UserHandlers) GetUserByID(w http.ResponseWriter, r *http.Request) {
 // @Failure 409 {object} sharedAPI.ErrorResponse "Business rule violation (last admin, already disabled, etc.)"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
 // @Router /users/{id} [patch]
-func (h *UserHandlers) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+type userUpdateContext struct {
+	w           http.ResponseWriter
+	r           *http.Request
+	userID      string
+	changedByID string
+}
 
+func (h *UserHandlers) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	req, ctx, ok := h.parseUserUpdateRequest(w, r)
+	if !ok {
+		return
+	}
+	if req.Role != nil && !h.handleRoleUpdate(ctx, *req.Role) {
+		return
+	}
+	if req.Status != nil && !h.handleStatusUpdate(ctx, *req.Status) {
+		return
+	}
+	h.respondWithUpdatedUser(w, r, ctx.userID)
+}
+
+func (h *UserHandlers) parseUserUpdateRequest(w http.ResponseWriter, r *http.Request) (UpdateUserRequest, userUpdateContext, bool) {
 	var req UpdateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
-		return
+		return req, userUpdateContext{}, false
 	}
-
 	if req.Role == nil && req.Status == nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "At least one field (role or status) must be provided")
-		return
+		return req, userUpdateContext{}, false
 	}
-
 	currentUserID, err := h.getCurrentUserID(r)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Failed to get current user")
-		return
+		return req, userUpdateContext{}, false
 	}
+	ctx := userUpdateContext{w: w, r: r, userID: chi.URLParam(r, "id"), changedByID: currentUserID}
+	return req, ctx, true
+}
 
-	if req.Role != nil {
-		if _, err := valueobjects.RoleFromString(*req.Role); err != nil {
-			sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid role")
-			return
-		}
-
-		cmd := &commands.ChangeUserRole{
-			UserID:      id,
-			NewRole:     *req.Role,
-			ChangedByID: currentUserID,
-		}
-		if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-			h.handleCommandError(w, err, "Failed to change user role")
-			return
-		}
+func (h *UserHandlers) handleRoleUpdate(ctx userUpdateContext, newRole string) bool {
+	if _, err := valueobjects.RoleFromString(newRole); err != nil {
+		sharedAPI.RespondError(ctx.w, http.StatusBadRequest, err, "Invalid role")
+		return false
 	}
-
-	if req.Status != nil {
-		switch *req.Status {
-		case "disabled":
-			cmd := &commands.DisableUser{
-				UserID:       id,
-				DisabledByID: currentUserID,
-			}
-			if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-				h.handleCommandError(w, err, "Failed to disable user")
-				return
-			}
-		case "active":
-			cmd := &commands.EnableUser{
-				UserID:      id,
-				EnabledByID: currentUserID,
-			}
-			if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-				h.handleCommandError(w, err, "Failed to enable user")
-				return
-			}
-		default:
-			sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Invalid status. Must be 'active' or 'disabled'")
-			return
-		}
+	if err := h.commandBus.Dispatch(ctx.r.Context(), &commands.ChangeUserRole{UserID: ctx.userID, NewRole: newRole, ChangedByID: ctx.changedByID}); err != nil {
+		sharedAPI.HandleError(ctx.w, err)
+		return false
 	}
+	return true
+}
 
-	h.respondWithUpdatedUser(w, r, id)
+func (h *UserHandlers) handleStatusUpdate(ctx userUpdateContext, status string) bool {
+	var cmd cqrs.Command
+	switch status {
+	case "disabled":
+		cmd = &commands.DisableUser{UserID: ctx.userID, DisabledByID: ctx.changedByID}
+	case "active":
+		cmd = &commands.EnableUser{UserID: ctx.userID, EnabledByID: ctx.changedByID}
+	default:
+		sharedAPI.RespondError(ctx.w, http.StatusBadRequest, nil, "Invalid status. Must be 'active' or 'disabled'")
+		return false
+	}
+	if err := h.commandBus.Dispatch(ctx.r.Context(), cmd); err != nil {
+		sharedAPI.HandleError(ctx.w, err)
+		return false
+	}
+	return true
 }
 
 func (h *UserHandlers) getCurrentUserID(r *http.Request) (string, error) {
@@ -255,29 +256,6 @@ func (h *UserHandlers) getCurrentUserID(r *http.Request) (string, error) {
 		return "", err
 	}
 	return authSession.UserID().String(), nil
-}
-
-func (h *UserHandlers) handleCommandError(w http.ResponseWriter, err error, defaultMessage string) {
-	switch {
-	case errors.Is(err, repositories.ErrUserAggregateNotFound):
-		sharedAPI.RespondError(w, http.StatusNotFound, err, "User not found")
-	case errors.Is(err, aggregates.ErrCannotDisableSelf):
-		sharedAPI.RespondError(w, http.StatusConflict, err, "Cannot disable your own account")
-	case errors.Is(err, aggregates.ErrCannotDemoteLastAdmin):
-		sharedAPI.RespondError(w, http.StatusConflict, err, "Cannot demote the last admin in tenant")
-	case errors.Is(err, aggregates.ErrCannotDisableLastAdmin):
-		sharedAPI.RespondError(w, http.StatusConflict, err, "Cannot disable the last admin in tenant")
-	case errors.Is(err, aggregates.ErrUserAlreadyActive):
-		sharedAPI.RespondError(w, http.StatusConflict, err, "User is already active")
-	case errors.Is(err, aggregates.ErrUserAlreadyDisabled):
-		sharedAPI.RespondError(w, http.StatusConflict, err, "User is already disabled")
-	case errors.Is(err, aggregates.ErrSameRole):
-		sharedAPI.RespondError(w, http.StatusConflict, err, "User already has this role")
-	case errors.Is(err, valueobjects.ErrInvalidRole):
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid role")
-	default:
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, defaultMessage)
-	}
 }
 
 func (h *UserHandlers) respondWithUpdatedUser(w http.ResponseWriter, r *http.Request, id string) {
@@ -304,24 +282,29 @@ func (h *UserHandlers) toUserResponse(user readmodels.UserDTO, isCurrentUser, is
 		Status:      user.Status,
 		CreatedAt:   user.CreatedAt,
 		LastLoginAt: user.LastLoginAt,
-		Links:       h.userLinks(user.ID.String(), user.Status, user.Role, isCurrentUser, isLastAdmin),
+		Links:       h.userLinks(userLinkParams{userID: user.ID.String(), role: user.Role, isCurrentUser: isCurrentUser, isLastAdmin: isLastAdmin}),
 	}
 }
 
-func (h *UserHandlers) userLinks(userID, status, role string, isCurrentUser, isLastAdmin bool) map[string]string {
+type userLinkParams struct {
+	userID        string
+	role          string
+	isCurrentUser bool
+	isLastAdmin   bool
+}
+
+func (h *UserHandlers) userLinks(p userLinkParams) map[string]string {
 	links := map[string]string{
-		"self": fmt.Sprintf("/api/v1/users/%s", userID),
+		"self": fmt.Sprintf("/api/v1/users/%s", p.userID),
 	}
 
-	if isCurrentUser {
+	if p.isCurrentUser {
 		return links
 	}
 
-	isAdmin := role == "admin"
-	canModify := !isLastAdmin || !isAdmin
-
+	canModify := !p.isLastAdmin || p.role != "admin"
 	if canModify {
-		links["update"] = fmt.Sprintf("/api/v1/users/%s", userID)
+		links["update"] = fmt.Sprintf("/api/v1/users/%s", p.userID)
 	}
 
 	return links

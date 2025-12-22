@@ -69,20 +69,26 @@ func RespondError(w http.ResponseWriter, statusCode int, err error, message stri
 	RespondJSON(w, statusCode, response)
 }
 
-// RespondErrorWithLinks sends an error response with HATEOAS links for recovery
-func RespondErrorWithLinks(w http.ResponseWriter, statusCode int, err error, message string, links map[string]Link) {
-	// Override status code based on error type if applicable
-	if err != nil {
-		statusCode = MapErrorToStatusCode(err, statusCode)
+type ErrorWithLinksParams struct {
+	StatusCode int
+	Err        error
+	Message    string
+	Links      map[string]Link
+}
+
+func RespondErrorWithLinks(w http.ResponseWriter, params ErrorWithLinksParams) {
+	statusCode := params.StatusCode
+	if params.Err != nil {
+		statusCode = MapErrorToStatusCode(params.Err, statusCode)
 	}
 
 	response := ErrorResponse{
 		Error:   http.StatusText(statusCode),
-		Message: message,
-		Links:   links,
+		Message: params.Message,
+		Links:   params.Links,
 	}
-	if err != nil && message == "" {
-		response.Message = err.Error()
+	if params.Err != nil && params.Message == "" {
+		response.Message = params.Err.Error()
 	}
 
 	RespondJSON(w, statusCode, response)
@@ -90,6 +96,10 @@ func RespondErrorWithLinks(w http.ResponseWriter, statusCode int, err error, mes
 
 // MapErrorToStatusCode maps domain errors to appropriate HTTP status codes
 func MapErrorToStatusCode(err error, defaultCode int) int {
+	if statusCode, _, found := globalRegistry.Lookup(err); found {
+		return statusCode
+	}
+
 	switch {
 	case errors.Is(err, domain.ErrNotFound):
 		return http.StatusNotFound

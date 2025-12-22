@@ -2,15 +2,12 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
-	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
-	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 
@@ -137,6 +134,19 @@ func (h *BusinessDomainHandlers) GetAllBusinessDomains(w http.ResponseWriter, r 
 	sharedAPI.RespondCollection(w, http.StatusOK, domains, links)
 }
 
+func (h *BusinessDomainHandlers) getDomainOrNotFound(w http.ResponseWriter, r *http.Request, id string) *readmodels.BusinessDomainDTO {
+	domain, err := h.readModels.Domain.GetByID(r.Context(), id)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve domain")
+		return nil
+	}
+	if domain == nil {
+		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Domain not found")
+		return nil
+	}
+	return domain
+}
+
 // GetBusinessDomainByID godoc
 // @Summary Get a business domain by ID
 // @Description Returns a single business domain with its details
@@ -148,19 +158,10 @@ func (h *BusinessDomainHandlers) GetAllBusinessDomains(w http.ResponseWriter, r 
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /business-domains/{id} [get]
 func (h *BusinessDomainHandlers) GetBusinessDomainByID(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-
-	domain, err := h.readModels.Domain.GetByID(r.Context(), id)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve domain")
-		return
-	}
-
+	domain := h.getDomainOrNotFound(w, r, chi.URLParam(r, "id"))
 	if domain == nil {
-		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Domain not found")
 		return
 	}
-
 	domain.Links = h.hateoas.BusinessDomainLinks(domain.ID, domain.CapabilityCount > 0)
 	sharedAPI.RespondJSON(w, http.StatusOK, domain)
 }
@@ -194,20 +195,9 @@ func (h *BusinessDomainHandlers) UpdateBusinessDomain(w http.ResponseWriter, r *
 		Description: req.Description,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		if errors.Is(err, handlers.ErrBusinessDomainNameExists) {
-			sharedAPI.RespondError(w, http.StatusConflict, err, "Business domain with this name already exists")
-			return
-		}
-		if errors.Is(err, valueobjects.ErrDomainNameEmpty) || errors.Is(err, valueobjects.ErrDomainNameTooLong) {
-			sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-			return
-		}
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "")
-		return
-	}
-
-	h.respondWithDomain(w, r, id, http.StatusOK)
+	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
+		h.respondWithDomain(w, r, id, http.StatusOK)
+	})
 }
 
 func (h *BusinessDomainHandlers) respondWithDomain(w http.ResponseWriter, r *http.Request, domainID string, statusCode int) {
@@ -250,32 +240,13 @@ func (h *BusinessDomainHandlers) respondWithDomain(w http.ResponseWriter, r *htt
 // @Router /business-domains/{id} [delete]
 func (h *BusinessDomainHandlers) DeleteBusinessDomain(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-
-	domain, err := h.readModels.Domain.GetByID(r.Context(), id)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve domain")
+	if h.getDomainOrNotFound(w, r, id) == nil {
 		return
 	}
 
-	if domain == nil {
-		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Domain not found")
-		return
-	}
-
-	cmd := &commands.DeleteBusinessDomain{
-		ID: id,
-	}
-
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		if errors.Is(err, handlers.ErrBusinessDomainHasAssignments) {
-			sharedAPI.RespondError(w, http.StatusConflict, err, "Cannot delete domain with assigned capabilities")
-			return
-		}
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), &commands.DeleteBusinessDomain{ID: id}), func() {
+		w.WriteHeader(http.StatusNoContent)
+	})
 }
 
 // GetCapabilitiesInDomain godoc
@@ -328,26 +299,6 @@ func (h *BusinessDomainHandlers) GetCapabilitiesInDomain(w http.ResponseWriter, 
 	sharedAPI.RespondCollection(w, http.StatusOK, capabilities, links)
 }
 
-var assignmentErrorMappings = []struct {
-	err     error
-	status  int
-	message string
-}{
-	{handlers.ErrCapabilityNotFound, http.StatusNotFound, "Capability not found"},
-	{handlers.ErrBusinessDomainNotFound, http.StatusNotFound, "Business domain not found"},
-	{handlers.ErrOnlyL1CapabilitiesCanBeAssigned, http.StatusBadRequest, "Only L1 capabilities can be assigned to business domains"},
-	{handlers.ErrAssignmentAlreadyExists, http.StatusConflict, "Capability is already assigned to this domain"},
-}
-
-func handleAssignmentError(w http.ResponseWriter, err error) bool {
-	for _, m := range assignmentErrorMappings {
-		if errors.Is(err, m.err) {
-			sharedAPI.RespondError(w, m.status, err, m.message)
-			return true
-		}
-	}
-	return false
-}
 
 // AssignCapabilityToDomain godoc
 // @Summary Assign a capability to a domain
@@ -377,14 +328,9 @@ func (h *BusinessDomainHandlers) AssignCapabilityToDomain(w http.ResponseWriter,
 		CapabilityID:     req.CapabilityID,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		if !handleAssignmentError(w, err) {
-			sharedAPI.RespondError(w, http.StatusInternalServerError, err, "")
-		}
-		return
-	}
-
-	h.respondWithAssignment(w, r, domainID, req.CapabilityID)
+	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
+		h.respondWithAssignment(w, r, domainID, req.CapabilityID)
+	})
 }
 
 func (h *BusinessDomainHandlers) respondWithAssignment(w http.ResponseWriter, r *http.Request, domainID, capabilityID string) {
@@ -512,7 +458,10 @@ func parseDepthParam(r *http.Request) (int, error) {
 		return 4, nil
 	}
 	depth, err := strconv.Atoi(depthStr)
-	if err != nil || depth < 1 || depth > 4 {
+	if err != nil {
+		return 0, fmt.Errorf("depth must be between 1 and 4")
+	}
+	if depth < 1 || depth > 4 {
 		return 0, fmt.Errorf("depth must be between 1 and 4")
 	}
 	return depth, nil

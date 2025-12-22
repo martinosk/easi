@@ -2,15 +2,12 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
-	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
-	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 
@@ -89,15 +86,7 @@ func (h *RealizationHandlers) LinkSystemToCapability(w http.ResponseWriter, r *h
 	}
 
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		if errors.Is(err, handlers.ErrCapabilityNotFoundForRealization) {
-			sharedAPI.RespondError(w, http.StatusNotFound, err, "Capability not found")
-			return
-		}
-		if errors.Is(err, handlers.ErrComponentNotFound) {
-			sharedAPI.RespondError(w, http.StatusNotFound, err, "Component not found")
-			return
-		}
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to link system to capability")
+		sharedAPI.HandleError(w, err)
 		return
 	}
 
@@ -224,11 +213,7 @@ func (h *RealizationHandlers) UpdateRealization(w http.ResponseWriter, r *http.R
 	}
 
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		if errors.Is(err, repositories.ErrRealizationNotFound) {
-			sharedAPI.RespondError(w, http.StatusNotFound, err, "Realization not found")
-			return
-		}
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update realization")
+		sharedAPI.HandleError(w, err)
 		return
 	}
 
@@ -264,14 +249,7 @@ func (h *RealizationHandlers) DeleteRealization(w http.ResponseWriter, r *http.R
 		ID: id,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		if errors.Is(err, repositories.ErrRealizationNotFound) {
-			sharedAPI.RespondError(w, http.StatusNotFound, err, "Realization not found")
-			return
-		}
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to delete realization")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
+		w.WriteHeader(http.StatusNoContent)
+	})
 }

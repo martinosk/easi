@@ -50,5 +50,9 @@ func (m *DomainErrorMapper) MapToStatus(err error) (int, string) {
 		}
 	}
 
-	return m.handler.mapError(err, "")
+	if statusCode, message, found := globalRegistry.Lookup(err); found {
+		return statusCode, message
+	}
+
+	return MapErrorToStatusCode(err, http.StatusInternalServerError), ""
 }
