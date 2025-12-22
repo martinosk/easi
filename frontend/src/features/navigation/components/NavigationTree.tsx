@@ -543,7 +543,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
               </div>
 
               {isModelsExpanded && (
-                <div className="tree-items">
+                <>
                   <div className="tree-search">
                     <input
                       type="text"
@@ -562,6 +562,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                       </button>
                     )}
                   </div>
+                  <div className="tree-items">
                   {filteredComponents.length === 0 ? (
                     <div className="tree-item-empty">
                       {components.length === 0 ? 'No applications' : 'No matches'}
@@ -624,7 +625,8 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                       );
                     })
                   )}
-                </div>
+                  </div>
+                </>
               )}
             </div>
 
