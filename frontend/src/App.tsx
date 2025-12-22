@@ -30,7 +30,11 @@ const InvitationsPage = lazy(() =>
   import('./features/invitations').then(module => ({ default: module.InvitationsPage }))
 );
 
-type AppView = 'canvas' | 'business-domains' | 'invitations';
+const UsersPage = lazy(() =>
+  import('./features/users').then(module => ({ default: module.UsersPage }))
+);
+
+type AppView = 'canvas' | 'business-domains' | 'invitations' | 'users';
 
 function useAuthErrorHandler() {
   const [authError, setAuthError] = useState<string | null>(null);
@@ -158,6 +162,9 @@ function MainContent({ view, canvasViewProps }: MainContentProps) {
   }
   if (view === 'invitations') {
     return <LazyFeatureView featureName="Invitations"><InvitationsPage /></LazyFeatureView>;
+  }
+  if (view === 'users') {
+    return <LazyFeatureView featureName="Users"><UsersPage /></LazyFeatureView>;
   }
   return <LazyFeatureView featureName="Business Domains"><BusinessDomainsRouter /></LazyFeatureView>;
 }

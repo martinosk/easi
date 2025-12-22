@@ -23,6 +23,7 @@ export const ROUTES = {
   CANVAS: '/canvas',
   BUSINESS_DOMAINS: '/business-domains',
   BUSINESS_DOMAIN_DETAIL: '/business-domains/:domainId',
+  USERS: '/users',
   INVITATIONS: '/invitations',
   LOGIN: '/login',
 } as const;

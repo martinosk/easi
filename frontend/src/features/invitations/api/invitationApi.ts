@@ -1,5 +1,5 @@
-import axios, { AxiosError } from 'axios';
-import type { Invitation, CreateInvitationRequest, InvitationsListResponse } from '../types';
+import axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import type { Invitation, CreateInvitationRequest, UpdateInvitationRequest, InvitationsListResponse } from '../types';
 
 interface ApiErrorResponse {
   message?: string;
@@ -22,70 +22,60 @@ class InvitationApiClient {
     this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   }
 
-  async createInvitation(request: CreateInvitationRequest): Promise<Invitation> {
+  private async request<T>(config: AxiosRequestConfig, errorMessage: string): Promise<T> {
     try {
-      const response = await axios.post<Invitation>(
-        `${this.baseURL}/api/v1/invitations`,
-        request,
-        { headers: { 'Content-Type': 'application/json' }, withCredentials: true }
-      );
+      const response = await axios.request<T>({
+        ...config,
+        baseURL: this.baseURL,
+        withCredentials: true,
+      });
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        throw new Error(extractErrorMessage(error, 'Failed to create invitation'));
+        throw new Error(extractErrorMessage(error, errorMessage));
       }
       throw error;
     }
+  }
+
+  async createInvitation(request: CreateInvitationRequest): Promise<Invitation> {
+    return this.request<Invitation>({
+      method: 'POST',
+      url: '/api/v1/invitations',
+      data: request,
+      headers: { 'Content-Type': 'application/json' },
+    }, 'Failed to create invitation');
   }
 
   async listInvitations(limit: number = 50, after?: string): Promise<InvitationsListResponse> {
-    try {
-      const params = new URLSearchParams();
-      params.append('limit', limit.toString());
-      if (after) params.append('after', after);
+    const params = new URLSearchParams();
+    params.append('limit', limit.toString());
+    if (after) params.append('after', after);
 
-      const response = await axios.get<InvitationsListResponse>(
-        `${this.baseURL}/api/v1/invitations?${params.toString()}`,
-        { withCredentials: true }
-      );
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(extractErrorMessage(error, 'Failed to fetch invitations'));
-      }
-      throw error;
-    }
+    return this.request<InvitationsListResponse>({
+      method: 'GET',
+      url: `/api/v1/invitations?${params.toString()}`,
+    }, 'Failed to fetch invitations');
   }
 
   async getInvitation(id: string): Promise<Invitation> {
-    try {
-      const response = await axios.get<Invitation>(
-        `${this.baseURL}/api/v1/invitations/${id}`,
-        { withCredentials: true }
-      );
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(extractErrorMessage(error, 'Failed to fetch invitation'));
-      }
-      throw error;
-    }
+    return this.request<Invitation>({
+      method: 'GET',
+      url: `/api/v1/invitations/${id}`,
+    }, 'Failed to fetch invitation');
+  }
+
+  async updateInvitation(id: string, request: UpdateInvitationRequest): Promise<Invitation> {
+    return this.request<Invitation>({
+      method: 'PATCH',
+      url: `/api/v1/invitations/${id}`,
+      data: request,
+      headers: { 'Content-Type': 'application/json' },
+    }, 'Failed to update invitation');
   }
 
   async revokeInvitation(id: string): Promise<Invitation> {
-    try {
-      const response = await axios.post<Invitation>(
-        `${this.baseURL}/api/v1/invitations/${id}/revoke`,
-        {},
-        { headers: { 'Content-Type': 'application/json' }, withCredentials: true }
-      );
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(extractErrorMessage(error, 'Failed to revoke invitation'));
-      }
-      throw error;
-    }
+    return this.updateInvitation(id, { status: 'revoked' });
   }
 }
 

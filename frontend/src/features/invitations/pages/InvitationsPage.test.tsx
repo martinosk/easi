@@ -22,7 +22,7 @@ const mockInvitations: Invitation[] = [
     invitedBy: 'admin@acme.com',
     createdAt: '2025-01-01T10:00:00Z',
     expiresAt: '2025-01-08T10:00:00Z',
-    _links: { self: '/api/v1/invitations/inv-1', revoke: '/api/v1/invitations/inv-1/revoke' },
+    _links: { self: '/api/v1/invitations/inv-1', update: '/api/v1/invitations/inv-1' },
   },
   {
     id: 'inv-2',
@@ -43,7 +43,7 @@ const mockInvitations: Invitation[] = [
     invitedBy: 'admin@acme.com',
     createdAt: '2025-01-03T10:00:00Z',
     expiresAt: '2025-01-10T10:00:00Z',
-    _links: { self: '/api/v1/invitations/inv-3', revoke: '/api/v1/invitations/inv-3/revoke' },
+    _links: { self: '/api/v1/invitations/inv-3', update: '/api/v1/invitations/inv-3' },
   },
   {
     id: 'inv-4',

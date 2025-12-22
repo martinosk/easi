@@ -36,18 +36,15 @@ ReadModel → Screen: ReadModel(OUTBOUND) → Screen(INBOUND)
 # API principles
 
 ## API Versioning
-- **ALL API routes MUST be under `/api/v1/` prefix** (except `/health`)
+- **ALL API routes MUST resolve to `/api/v1/` prefix** (except `/health` and `/swagger`)
 - Never use hardcoded hosts in swagger - use relative URLs with schemes
 - Swagger `@Router` annotations must use **relative paths** without `/api/v1/` prefix
   - ✅ `@Router /capabilities [get]` (basePath will be prepended)
   - ❌ `@Router /api/v1/capabilities [get]` (creates double prefix)
-- Route registration examples:
-  - ✅ `/api/v1/capabilities` (in routes.go)
-  - ✅ `/api/v1/platform/tenants` (in routes.go)
-  - ✅ `/api/v1/auth/sessions` (in routes.go)
-  - ❌ `/capabilities` (missing version in routes.go)
-  - ❌ `/api/platform/v1/tenants` (wrong structure)
-  - ❌ `/auth/sessions` (missing version in routes.go)
+
+### Route Registration
+All API routes are registered inside a single `/api/v1` parent route in `router.go`. **Always use relative paths**
+**Rule**: All route setup functions receive a router already scoped to `/api/v1`. Always use relative paths like `/auth`, `/users`, `/platform`.
 
 ## General API Standards
 - Create restful API's with maturity level 3

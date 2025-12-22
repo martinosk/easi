@@ -35,3 +35,29 @@ func (r *TenantRepository) GetByID(ctx context.Context, tenantID string) (*Tenan
 
 	return &tenant, nil
 }
+
+func (r *TenantRepository) GetDomains(ctx context.Context, tenantID string) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT domain FROM tenant_domains WHERE tenant_id = $1 ORDER BY domain`,
+		tenantID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var domains []string
+	for rows.Next() {
+		var domain string
+		if err := rows.Scan(&domain); err != nil {
+			return nil, err
+		}
+		domains = append(domains, domain)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return domains, nil
+}

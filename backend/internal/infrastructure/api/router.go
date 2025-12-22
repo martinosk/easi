@@ -53,8 +53,8 @@ func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) htt
 
 	deps := initializeDependencies(eventStore, db)
 	configureMiddleware(r, deps.authDeps)
-	registerPublicRoutes(r, db, deps.authDeps)
-	registerTenantRoutes(r, deps)
+	registerRootRoutes(r)
+	registerAPIRoutes(r, deps)
 
 	return r
 }
@@ -98,13 +98,9 @@ func configureMiddleware(r chi.Router, authDeps *authAPI.AuthDependencies) {
 	r.Use(authDeps.SCSManager.LoadAndSave)
 }
 
-func registerPublicRoutes(r chi.Router, db *database.TenantAwareDB, authDeps *authAPI.AuthDependencies) {
+func registerRootRoutes(r chi.Router) {
 	r.Get("/health", healthHandler)
-	r.Get("/api/v1/version", versionHandler)
 	r.Get("/swagger/*", swaggerHandlerWithDynamicBasePath())
-
-	mustSetup(platformAPI.SetupPlatformRoutes(r, db.DB()), "platform routes")
-	mustSetup(authAPI.SetupAuthRoutes(r, db.DB(), authDeps), "auth routes")
 }
 
 func swaggerHandlerWithDynamicBasePath() http.HandlerFunc {
@@ -119,29 +115,47 @@ func swaggerHandlerWithDynamicBasePath() http.HandlerFunc {
 	}
 }
 
-func registerTenantRoutes(r chi.Router, deps routerDependencies) {
+func registerAPIRoutes(r chi.Router, deps routerDependencies) {
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Use(middleware.TenantMiddlewareWithSession(deps.authDeps.SessionManager))
+		r.Get("/version", versionHandler)
 
-		mustSetup(architectureAPI.SetupArchitectureModelingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas), "architecture modeling routes")
-		mustSetup(viewsAPI.SetupArchitectureViewsRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas), "architecture views routes")
-		mustSetup(capabilityAPI.SetupCapabilityMappingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas), "capability mapping routes")
-		mustSetup(releasesAPI.SetupReleasesRoutes(r, deps.db.DB()), "releases routes")
-		mustSetup(viewlayoutsAPI.SetupViewLayoutsRoutes(r, deps.eventBus, deps.db, deps.hateoas), "view layouts routes")
-		mustSetup(importingAPI.SetupImportingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db), "importing routes")
+		mustSetup(platformAPI.SetupPlatformRoutes(r, deps.db.DB()), "platform routes")
+		mustSetup(authAPI.SetupAuthRoutes(r, deps.db.DB(), deps.authDeps), "auth routes")
 
-		invDeps, err := authAPI.SetupInvitationRoutes(authAPI.InvitationRoutesDeps{
-			Router:     r,
-			CommandBus: deps.commandBus,
-			EventStore: deps.eventStore,
-			EventBus:   deps.eventBus,
-			DB:         deps.db,
-			AuthDeps:   deps.authDeps,
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.TenantMiddlewareWithSession(deps.authDeps.SessionManager))
+
+			mustSetup(architectureAPI.SetupArchitectureModelingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas), "architecture modeling routes")
+			mustSetup(viewsAPI.SetupArchitectureViewsRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas), "architecture views routes")
+			mustSetup(capabilityAPI.SetupCapabilityMappingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas), "capability mapping routes")
+			mustSetup(releasesAPI.SetupReleasesRoutes(r, deps.db.DB()), "releases routes")
+			mustSetup(viewlayoutsAPI.SetupViewLayoutsRoutes(r, deps.eventBus, deps.db, deps.hateoas), "view layouts routes")
+			mustSetup(importingAPI.SetupImportingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db), "importing routes")
+
+			invDeps, err := authAPI.SetupInvitationRoutes(authAPI.InvitationRoutesDeps{
+				Router:     r,
+				CommandBus: deps.commandBus,
+				EventStore: deps.eventStore,
+				EventBus:   deps.eventBus,
+				DB:         deps.db,
+				AuthDeps:   deps.authDeps,
+			})
+			mustSetup(err, "invitation routes")
+			authAPI.WireLoginService(deps.authDeps, invDeps)
+
+			mustSetup(authAPI.SetupUserRoutes(authAPI.UserRoutesDeps{
+				Router:     r,
+				CommandBus: deps.commandBus,
+				EventStore: deps.eventStore,
+				EventBus:   deps.eventBus,
+				DB:         deps.db,
+				RawDB:      deps.db.DB(),
+				AuthDeps:   deps.authDeps,
+				InvDeps:    invDeps,
+			}), "user routes")
+
+			sharedAPI.SetupReferenceRoutes(r)
 		})
-		mustSetup(err, "invitation routes")
-		authAPI.WireLoginService(deps.authDeps, invDeps)
-
-		sharedAPI.SetupReferenceRoutes(r)
 	})
 }
 

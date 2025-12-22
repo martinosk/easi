@@ -9,26 +9,33 @@ import (
 
 	"easi/backend/internal/auth/application/commands"
 	"easi/backend/internal/auth/application/readmodels"
+	"easi/backend/internal/auth/domain/aggregates"
+	"easi/backend/internal/auth/domain/valueobjects"
+	"easi/backend/internal/auth/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
 var ErrNoValidInvitation = errors.New("no valid invitation found for this email")
+var ErrUserDisabled = errors.New("user account is disabled")
 
 type LoginService struct {
 	userReadModel       *readmodels.UserReadModel
 	invitationReadModel *readmodels.InvitationReadModel
 	commandBus          cqrs.CommandBus
+	userAggregateRepo   *repositories.UserAggregateRepository
 }
 
 func NewLoginService(
 	userReadModel *readmodels.UserReadModel,
 	invitationReadModel *readmodels.InvitationReadModel,
 	commandBus cqrs.CommandBus,
+	userAggregateRepo *repositories.UserAggregateRepository,
 ) *LoginService {
 	return &LoginService{
 		userReadModel:       userReadModel,
 		invitationReadModel: invitationReadModel,
 		commandBus:          commandBus,
+		userAggregateRepo:   userAggregateRepo,
 	}
 }
 
@@ -39,13 +46,16 @@ type LoginResult struct {
 	IsNew  bool
 }
 
-func (s *LoginService) ProcessLogin(ctx context.Context, email string) (*LoginResult, error) {
+func (s *LoginService) ProcessLogin(ctx context.Context, email, name string) (*LoginResult, error) {
 	existingUser, err := s.userReadModel.GetByEmail(ctx, email)
 	if err != nil {
 		return nil, err
 	}
 
 	if existingUser != nil {
+		if existingUser.Status == "disabled" {
+			return nil, ErrUserDisabled
+		}
 		if err := s.userReadModel.UpdateLastLogin(ctx, existingUser.ID, time.Now().UTC()); err != nil {
 			return nil, err
 		}
@@ -83,19 +93,27 @@ func (s *LoginService) ProcessLogin(ctx context.Context, email string) (*LoginRe
 		return nil, err
 	}
 
-	newUserID := uuid.New()
-
-	userDTO := readmodels.UserDTO{
-		ID:           newUserID,
-		Email:        email,
-		Role:         invitation.Role,
-		Status:       "active",
-		InvitationID: parseUUID(invitation.ID),
-		CreatedAt:    now,
-		LastLoginAt:  &now,
+	emailVO, err := valueobjects.NewEmail(email)
+	if err != nil {
+		return nil, err
 	}
 
-	if err := s.userReadModel.Insert(ctx, userDTO); err != nil {
+	role, err := valueobjects.RoleFromString(invitation.Role)
+	if err != nil {
+		return nil, err
+	}
+
+	user, err := aggregates.NewUser(emailVO, name, role, "", invitation.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.userAggregateRepo.Save(ctx, user); err != nil {
+		return nil, err
+	}
+
+	newUserID, err := uuid.Parse(user.ID())
+	if err != nil {
 		return nil, err
 	}
 
@@ -105,12 +123,4 @@ func (s *LoginService) ProcessLogin(ctx context.Context, email string) (*LoginRe
 		Role:   invitation.Role,
 		IsNew:  true,
 	}, nil
-}
-
-func parseUUID(s string) *uuid.UUID {
-	id, err := uuid.Parse(s)
-	if err != nil {
-		return nil
-	}
-	return &id
 }

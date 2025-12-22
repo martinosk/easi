@@ -43,6 +43,10 @@ type CreateInvitationRequest struct {
 	Role  string `json:"role"`
 }
 
+type UpdateInvitationRequest struct {
+	Status string `json:"status"`
+}
+
 // CreateInvitation godoc
 // @Summary Create a new invitation
 // @Description Creates a new user invitation for the specified email address with the given role
@@ -194,29 +198,52 @@ func (h *InvitationHandlers) GetInvitationByID(w http.ResponseWriter, r *http.Re
 	sharedAPI.RespondJSON(w, http.StatusOK, invitation)
 }
 
-// RevokeInvitation godoc
-// @Summary Revoke an invitation
-// @Description Revokes a pending invitation, preventing it from being accepted
+// UpdateInvitation godoc
+// @Summary Update invitation
+// @Description Updates invitation status (e.g., revoke a pending invitation)
 // @Tags invitations
+// @Accept json
+// @Produce json
 // @Param id path string true "Invitation ID"
-// @Success 204 "Invitation revoked successfully"
+// @Param request body UpdateInvitationRequest true "Status update"
+// @Success 200 {object} readmodels.InvitationDTO "Updated invitation with HATEOAS links"
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid request body or status"
 // @Failure 404 {object} sharedAPI.ErrorResponse "Invitation not found"
 // @Failure 409 {object} sharedAPI.ErrorResponse "Invitation already revoked or not pending"
 // @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
-// @Router /invitations/{id}/revoke [post]
-func (h *InvitationHandlers) RevokeInvitation(w http.ResponseWriter, r *http.Request) {
+// @Router /invitations/{id} [patch]
+func (h *InvitationHandlers) UpdateInvitation(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	cmd := &commands.RevokeInvitation{ID: id}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		h.handleRevokeError(w, err)
+	var req UpdateInvitationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	switch req.Status {
+	case "revoked":
+		cmd := &commands.RevokeInvitation{ID: id}
+		if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+			h.handleUpdateError(w, err)
+			return
+		}
+	default:
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Invalid status. Only 'revoked' is supported")
+		return
+	}
+
+	invitation, err := h.readModel.GetByID(r.Context(), id)
+	if err != nil || invitation == nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve updated invitation")
+		return
+	}
+
+	invitation.Links = h.invitationLinks(invitation.ID, invitation.Status)
+	sharedAPI.RespondJSON(w, http.StatusOK, invitation)
 }
 
-func (h *InvitationHandlers) handleRevokeError(w http.ResponseWriter, err error) {
+func (h *InvitationHandlers) handleUpdateError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, repositories.ErrInvitationNotFound):
 		sharedAPI.RespondError(w, http.StatusNotFound, err, "Invitation not found")
@@ -225,7 +252,7 @@ func (h *InvitationHandlers) handleRevokeError(w http.ResponseWriter, err error)
 	case errors.Is(err, aggregates.ErrInvitationNotPending):
 		sharedAPI.RespondError(w, http.StatusConflict, err, "Invitation is not pending")
 	default:
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to revoke invitation")
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update invitation")
 	}
 }
 
@@ -234,7 +261,7 @@ func (h *InvitationHandlers) invitationLinks(id, status string) map[string]strin
 		"self": fmt.Sprintf("/api/v1/invitations/%s", id),
 	}
 	if status == "pending" {
-		links["revoke"] = fmt.Sprintf("/api/v1/invitations/%s/revoke", id)
+		links["update"] = fmt.Sprintf("/api/v1/invitations/%s", id)
 	}
 	return links
 }

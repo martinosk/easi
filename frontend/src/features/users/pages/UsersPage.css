@@ -1,0 +1,233 @@
+.users-page {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  background: var(--color-gray-50);
+  overflow: auto;
+}
+
+.users-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--spacing-2xl);
+}
+
+.users-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-2xl);
+}
+
+.users-title {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--color-gray-900);
+  margin-bottom: var(--spacing-xs);
+}
+
+.users-subtitle {
+  font-size: var(--font-size-base);
+  color: var(--color-gray-600);
+}
+
+.users-filters {
+  margin-bottom: var(--spacing-xl);
+  display: flex;
+  gap: var(--spacing-lg);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.filter-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-gray-700);
+}
+
+.filter-select {
+  padding: 0.5rem 0.75rem;
+  font-size: var(--font-size-sm);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  background: white;
+  cursor: pointer;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl);
+  gap: var(--spacing-lg);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl);
+  gap: var(--spacing-lg);
+}
+
+.empty-state-icon {
+  width: 64px;
+  height: 64px;
+  color: var(--color-gray-400);
+  stroke-width: 1.5;
+}
+
+.empty-state-text {
+  font-size: var(--font-size-lg);
+  color: var(--color-gray-600);
+}
+
+.users-table-container {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-table thead {
+  background: var(--color-gray-100);
+}
+
+.users-table th {
+  padding: var(--spacing-md) var(--spacing-lg);
+  text-align: left;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-gray-700);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.users-table tbody tr {
+  border-bottom: 1px solid var(--color-gray-200);
+  transition: background-color 0.15s ease;
+}
+
+.users-table tbody tr:hover {
+  background: var(--color-gray-50);
+}
+
+.users-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.users-table td {
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-900);
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.user-email {
+  font-weight: 500;
+}
+
+.user-name {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-500);
+}
+
+.current-user-badge {
+  display: inline-block;
+  padding: 0.125rem 0.375rem;
+  background: var(--color-primary);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-badge-active {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--color-success);
+}
+
+.status-badge-disabled {
+  background: rgba(107, 114, 128, 0.1);
+  color: var(--color-gray-600);
+}
+
+.date-cell {
+  color: var(--color-gray-600);
+  font-size: var(--font-size-xs);
+}
+
+.actions-cell {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.actions-cell .btn {
+  min-width: 5.5rem;
+  padding: 0.375rem 0.75rem;
+  font-size: var(--font-size-xs);
+}
+
+.actions-cell .btn-danger {
+  background: var(--color-error);
+  color: white;
+}
+
+.actions-cell .btn-danger:hover {
+  background: #dc2626;
+}
+
+.actions-cell .btn-success {
+  background: var(--color-success);
+  color: white;
+}
+
+.actions-cell .btn-success:hover {
+  background: #059669;
+}

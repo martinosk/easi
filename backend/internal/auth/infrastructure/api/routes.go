@@ -58,7 +58,7 @@ func SetupAuthDependencies(db *sql.DB) (*AuthDependencies, error) {
 
 func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies) error {
 	if config.IsAuthBypassed() {
-		r.Route("/api/v1/auth", func(r chi.Router) {
+		r.Route("/auth", func(r chi.Router) {
 			r.Get("/sessions/current", handleBypassSession)
 			r.Delete("/sessions/current", func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusNoContent)
@@ -99,7 +99,7 @@ func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies) error {
 	tenantRepo := NewTenantRepositoryAdapter(repositories.NewTenantRepository(db))
 	sessionHandlers := NewSessionHandlers(deps.SessionManager, userRepo, tenantRepo)
 
-	r.Route("/api/v1/auth", func(r chi.Router) {
+	r.Route("/auth", func(r chi.Router) {
 		r.Post("/sessions", authHandlers.PostSessions)
 		r.Get("/callback", authHandlers.GetCallback)
 		r.Get("/sessions/current", sessionHandlers.GetCurrentSession)
@@ -118,14 +118,16 @@ func WireLoginService(deps *AuthDependencies, invDeps *InvitationDependencies) {
 		invDeps.UserReadModel,
 		invDeps.InvitationReadModel,
 		invDeps.CommandBus,
+		invDeps.UserAggregateRepo,
 	)
 	deps.AuthHandlers.WithLoginService(loginService)
 }
 
 type InvitationDependencies struct {
-	UserReadModel       *readmodels.UserReadModel
-	InvitationReadModel *readmodels.InvitationReadModel
-	CommandBus          cqrs.CommandBus
+	UserReadModel         *readmodels.UserReadModel
+	InvitationReadModel   *readmodels.InvitationReadModel
+	CommandBus            cqrs.CommandBus
+	UserAggregateRepo     *repositories.UserAggregateRepository
 }
 
 type InvitationRoutesDeps struct {
@@ -142,9 +144,10 @@ func SetupInvitationRoutes(deps InvitationRoutesDeps) (*InvitationDependencies, 
 	invitationReadModel := readmodels.NewInvitationReadModel(deps.DB)
 	userReadModel := readmodels.NewUserReadModel(deps.DB)
 	domainChecker := readmodels.NewTenantDomainChecker(deps.DB)
+	userAggregateRepo := repositories.NewUserAggregateRepository(deps.EventStore)
 
-	registerCommandHandlers(deps.CommandBus, invitationRepo, invitationReadModel)
-	registerEventSubscriptions(deps.EventBus, invitationReadModel)
+	registerInvitationCommandHandlers(deps.CommandBus, invitationRepo, invitationReadModel)
+	registerInvitationEventSubscriptions(deps.EventBus, invitationReadModel)
 
 	deps.AuthDeps.AuthMiddleware.WithUserReadModel(userReadModel)
 
@@ -152,20 +155,83 @@ func SetupInvitationRoutes(deps InvitationRoutesDeps) (*InvitationDependencies, 
 	registerInvitationRoutes(deps.Router, deps.AuthDeps.AuthMiddleware, invitationHandlers)
 
 	return &InvitationDependencies{
-		UserReadModel:       userReadModel,
-		InvitationReadModel: invitationReadModel,
-		CommandBus:          deps.CommandBus,
+		UserReadModel:         userReadModel,
+		InvitationReadModel:   invitationReadModel,
+		CommandBus:            deps.CommandBus,
+		UserAggregateRepo:     userAggregateRepo,
 	}, nil
 }
 
-func registerCommandHandlers(commandBus cqrs.CommandBus, repo *repositories.InvitationRepository, readModel *readmodels.InvitationReadModel) {
+type UserRoutesDeps struct {
+	Router     chi.Router
+	CommandBus cqrs.CommandBus
+	EventStore eventstore.EventStore
+	EventBus   events.EventBus
+	DB         *database.TenantAwareDB
+	RawDB      *sql.DB
+	AuthDeps   *AuthDependencies
+	InvDeps    *InvitationDependencies
+}
+
+func SetupUserRoutes(deps UserRoutesDeps) error {
+	userAggregateRepo := repositories.NewUserAggregateRepository(deps.EventStore)
+	userReadModel := deps.InvDeps.UserReadModel
+	tenantRepo := repositories.NewTenantRepository(deps.RawDB)
+
+	registerUserCommandHandlers(deps.CommandBus, userAggregateRepo, userReadModel)
+	registerUserEventSubscriptions(deps.EventBus, userReadModel)
+
+	userHandlers := NewUserHandlers(deps.CommandBus, userReadModel, deps.AuthDeps.SessionManager)
+	tenantHandlers := NewTenantHandlers(tenantRepo, userReadModel, deps.AuthDeps.SessionManager)
+
+	registerUserAPIRoutes(deps.Router, deps.AuthDeps.AuthMiddleware, userHandlers)
+	registerTenantRoutes(deps.Router, deps.AuthDeps.AuthMiddleware, tenantHandlers)
+
+	return nil
+}
+
+func registerUserCommandHandlers(commandBus cqrs.CommandBus, repo *repositories.UserAggregateRepository, readModel *readmodels.UserReadModel) {
+	commandBus.Register("ChangeUserRole", handlers.NewChangeUserRoleHandler(repo, readModel))
+	commandBus.Register("DisableUser", handlers.NewDisableUserHandler(repo, readModel))
+	commandBus.Register("EnableUser", handlers.NewEnableUserHandler(repo))
+}
+
+func registerUserEventSubscriptions(eventBus events.EventBus, readModel *readmodels.UserReadModel) {
+	projector := projectors.NewUserProjector(readModel)
+	eventBus.Subscribe("UserCreated", projector)
+	eventBus.Subscribe("UserRoleChanged", projector)
+	eventBus.Subscribe("UserDisabled", projector)
+	eventBus.Subscribe("UserEnabled", projector)
+}
+
+func registerUserAPIRoutes(r chi.Router, authMiddleware *AuthMiddleware, h *UserHandlers) {
+	r.Route("/users", func(r chi.Router) {
+		r.Use(authMiddleware.RequirePermission(valueobjects.PermUsersRead))
+		r.Get("/", h.GetAllUsers)
+		r.Get("/{id}", h.GetUserByID)
+
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(valueobjects.PermUsersManage))
+			r.Patch("/{id}", h.UpdateUser)
+		})
+	})
+}
+
+func registerTenantRoutes(r chi.Router, authMiddleware *AuthMiddleware, h *TenantHandlers) {
+	r.Route("/tenants", func(r chi.Router) {
+		r.Use(authMiddleware.RequireAuth())
+		r.Get("/current", h.GetCurrentTenant)
+	})
+}
+
+func registerInvitationCommandHandlers(commandBus cqrs.CommandBus, repo *repositories.InvitationRepository, readModel *readmodels.InvitationReadModel) {
 	commandBus.Register("CreateInvitation", handlers.NewCreateInvitationHandler(repo))
 	commandBus.Register("RevokeInvitation", handlers.NewRevokeInvitationHandler(repo))
 	commandBus.Register("AcceptInvitation", handlers.NewAcceptInvitationHandler(repo, readModel))
 	commandBus.Register("MarkInvitationExpired", handlers.NewMarkInvitationExpiredHandler(repo))
 }
 
-func registerEventSubscriptions(eventBus events.EventBus, readModel *readmodels.InvitationReadModel) {
+func registerInvitationEventSubscriptions(eventBus events.EventBus, readModel *readmodels.InvitationReadModel) {
 	projector := projectors.NewInvitationProjector(readModel)
 	eventBus.Subscribe("InvitationCreated", projector)
 	eventBus.Subscribe("InvitationAccepted", projector)
@@ -179,7 +245,7 @@ func registerInvitationRoutes(r chi.Router, authMiddleware *AuthMiddleware, h *I
 		r.Post("/", h.CreateInvitation)
 		r.Get("/", h.GetAllInvitations)
 		r.Get("/{id}", h.GetInvitationByID)
-		r.Post("/{id}/revoke", h.RevokeInvitation)
+		r.Patch("/{id}", h.UpdateInvitation)
 	})
 }
 

@@ -222,6 +222,11 @@ func (h *AuthHandlers) GetCallback(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, redirectURL, http.StatusFound)
 			return
 		}
+		if errors.Is(err, services.ErrUserDisabled) {
+			redirectURL := h.buildErrorRedirectURL(preAuth.ReturnURL(), "account_disabled", "Your account has been disabled. Please contact your administrator.")
+			http.Redirect(w, r, redirectURL, http.StatusFound)
+			return
+		}
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create session")
 		return
 	}
@@ -305,7 +310,7 @@ func (h *AuthHandlers) createAuthenticatedSession(ctx context.Context, preAuth s
 	var userInfo session.UserInfo
 
 	if h.loginService != nil {
-		loginResult, err := h.loginService.ProcessLogin(tenantCtx, result.Email)
+		loginResult, err := h.loginService.ProcessLogin(tenantCtx, result.Email, result.Name)
 		if err != nil {
 			if errors.Is(err, services.ErrNoValidInvitation) {
 				return fmt.Errorf("no valid invitation for email %s", result.Email)

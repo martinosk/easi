@@ -14,13 +14,17 @@ export interface Invitation {
   revokedAt?: string;
   _links: {
     self: string;
-    revoke?: string;
+    update?: string;
   };
 }
 
 export interface CreateInvitationRequest {
   email: string;
   role: UserRole;
+}
+
+export interface UpdateInvitationRequest {
+  status: 'revoked';
 }
 
 export interface InvitationsListResponse {
