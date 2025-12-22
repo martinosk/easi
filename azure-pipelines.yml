@@ -91,7 +91,7 @@ steps:
     command: 'build'
     Dockerfile: 'frontend/Dockerfile'
     buildContext: 'frontend'
-    arguments: '--tag easi-frontend:$(Build.BuildNumber) --build-arg VITE_API_URL=/easi-api'
+    arguments: '--tag easi-frontend:$(Build.BuildNumber) --build-arg VITE_API_URL=/api'
     addPipelineData: false
 
 - task: ECRPushImage@1
@@ -196,6 +196,54 @@ steps:
     namespace: '$(kubernetes-namespace)'
     command: create
     arguments: 'secret generic easi-prod-postgres --from-literal=DB_CONN_STRING="$(DB_CONN_STRING)"'
+    versionSpec: 1.22.9
+
+- task: Kubernetes@1
+  name: DeleteOidcSecret
+  displayName: 'Delete easi-oidc-credentials secret if exists'
+  continueOnError: true
+  inputs:
+    connectionType: Kubernetes Service Connection
+    kubernetesServiceEndpoint: '$(k8s-service-connection)'
+    namespace: '$(kubernetes-namespace)'
+    command: delete
+    arguments: 'secret easi-oidc-credentials'
+    versionSpec: 1.22.9
+
+- task: Kubernetes@1
+  name: CreateOidcSecret
+  displayName: 'Create easi-oidc-credentials secret'
+  condition: succeeded()
+  inputs:
+    connectionType: Kubernetes Service Connection
+    kubernetesServiceEndpoint: '$(k8s-service-connection)'
+    namespace: '$(kubernetes-namespace)'
+    command: create
+    arguments: 'secret generic easi-oidc-credentials --from-literal=client-secret="$(OIDC_CLIENT_SECRET)"'
+    versionSpec: 1.22.9
+
+- task: Kubernetes@1
+  name: DeletePlatformSecret
+  displayName: 'Delete easi-platform-credentials secret if exists'
+  continueOnError: true
+  inputs:
+    connectionType: Kubernetes Service Connection
+    kubernetesServiceEndpoint: '$(k8s-service-connection)'
+    namespace: '$(kubernetes-namespace)'
+    command: delete
+    arguments: 'secret easi-platform-credentials'
+    versionSpec: 1.22.9
+
+- task: Kubernetes@1
+  name: CreatePlatformSecret
+  displayName: 'Create easi-platform-credentials secret'
+  condition: succeeded()
+  inputs:
+    connectionType: Kubernetes Service Connection
+    kubernetesServiceEndpoint: '$(k8s-service-connection)'
+    namespace: '$(kubernetes-namespace)'
+    command: create
+    arguments: 'secret generic easi-platform-credentials --from-literal=admin-api-key="$(PLATFORM_ADMIN_API_KEY)"'
     versionSpec: 1.22.9
 
 - task: Kubernetes@1

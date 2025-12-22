@@ -7,38 +7,28 @@ spec:
   entryPoints: []
   routes:
   - kind: Rule
-    match: Host(`internal.hellman.oxygen.dfds.cloud`) && PathPrefix(`/easi`)
-    services:
-    - kind: Service
-      name: easi-frontend
-      namespace: enterprisearchitecture-pnpbj
-      port: external
-  - kind: Rule
-    match: Host(`internal.hellman.oxygen.dfds.cloud`) && PathPrefix(`/easi-api`)
+    match: Host(`easi.dfds.cloud`) && PathPrefix(`/api`)
     middlewares:
-      - name: strip-easi-api-prefix
+      - name: strip-api-prefix
     services:
     - kind: Service
       name: easi-backend
       namespace: enterprisearchitecture-pnpbj
       port: external
+  - kind: Rule
+    match: Host(`easi.dfds.cloud`)
+    services:
+    - kind: Service
+      name: easi-frontend
+      namespace: enterprisearchitecture-pnpbj
+      port: external
 ---
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
-  name: strip-easi-prefix
+  name: strip-api-prefix
   namespace: enterprisearchitecture-pnpbj
 spec:
   stripPrefix:
     prefixes:
-    - /easi
----
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: strip-easi-api-prefix
-  namespace: enterprisearchitecture-pnpbj
-spec:
-  stripPrefix:
-    prefixes:
-    - /easi-api
+    - /api
