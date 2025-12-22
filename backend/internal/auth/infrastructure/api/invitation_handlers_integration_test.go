@@ -251,10 +251,11 @@ func TestRevokeInvitation_Integration(t *testing.T) {
 	json.Unmarshal(wCreate.Body.Bytes(), &created)
 	testCtx.trackID(created.ID)
 
-	wRevoke, reqRevoke := testCtx.makeRequest(t, http.MethodPost, fmt.Sprintf("/api/v1/invitations/%s/revoke", created.ID), nil, map[string]string{"id": created.ID})
-	invitationHandlers.RevokeInvitation(wRevoke, reqRevoke)
+	revokeBody, _ := json.Marshal(UpdateInvitationRequest{Status: "revoked"})
+	wRevoke, reqRevoke := testCtx.makeRequest(t, http.MethodPatch, fmt.Sprintf("/api/v1/invitations/%s", created.ID), revokeBody, map[string]string{"id": created.ID})
+	invitationHandlers.UpdateInvitation(wRevoke, reqRevoke)
 
-	require.Equal(t, http.StatusNoContent, wRevoke.Code)
+	require.Equal(t, http.StatusOK, wRevoke.Code)
 
 	invitation, err := readModel.GetByID(tenantContext(), created.ID)
 	require.NoError(t, err)
@@ -449,6 +450,7 @@ func TestLoginService_UninvitedUserBlocked_Integration(t *testing.T) {
 	invitationReadModel := readmodels.NewInvitationReadModel(tenantDB)
 	userReadModel := readmodels.NewUserReadModel(tenantDB)
 	invitationRepo := repositories.NewInvitationRepository(eventStore)
+	userRepo := repositories.NewUserAggregateRepository(eventStore)
 
 	invitationProjector := projectors.NewInvitationProjector(invitationReadModel)
 	eventBus.Subscribe("InvitationCreated", invitationProjector)
@@ -456,15 +458,18 @@ func TestLoginService_UninvitedUserBlocked_Integration(t *testing.T) {
 	eventBus.Subscribe("InvitationRevoked", invitationProjector)
 	eventBus.Subscribe("InvitationExpired", invitationProjector)
 
+	userProjector := projectors.NewUserProjector(userReadModel)
+	eventBus.Subscribe("UserCreated", userProjector)
+
 	acceptHandler := handlers.NewAcceptInvitationHandler(invitationRepo, invitationReadModel)
 	commandBus.Register("AcceptInvitation", acceptHandler)
 
-	loginService := services.NewLoginService(userReadModel, invitationReadModel, commandBus)
+	loginService := services.NewLoginService(userReadModel, invitationReadModel, commandBus, userRepo)
 
 	ctx := tenantContext()
 	uninvitedEmail := fmt.Sprintf("uninvited-%s@acme.com", testCtx.testID)
 
-	result, err := loginService.ProcessLogin(ctx, uninvitedEmail)
+	result, err := loginService.ProcessLogin(ctx, uninvitedEmail, "Test User")
 	assert.ErrorIs(t, err, services.ErrNoValidInvitation)
 	assert.Nil(t, result)
 
@@ -486,6 +491,7 @@ func TestLoginService_ValidInvitationCreatesUser_Integration(t *testing.T) {
 	invitationReadModel := readmodels.NewInvitationReadModel(tenantDB)
 	userReadModel := readmodels.NewUserReadModel(tenantDB)
 	invitationRepo := repositories.NewInvitationRepository(eventStore)
+	userRepo := repositories.NewUserAggregateRepository(eventStore)
 
 	invitationProjector := projectors.NewInvitationProjector(invitationReadModel)
 	eventBus.Subscribe("InvitationCreated", invitationProjector)
@@ -493,12 +499,15 @@ func TestLoginService_ValidInvitationCreatesUser_Integration(t *testing.T) {
 	eventBus.Subscribe("InvitationRevoked", invitationProjector)
 	eventBus.Subscribe("InvitationExpired", invitationProjector)
 
+	userProjector := projectors.NewUserProjector(userReadModel)
+	eventBus.Subscribe("UserCreated", userProjector)
+
 	createHandler := handlers.NewCreateInvitationHandler(invitationRepo)
 	acceptHandler := handlers.NewAcceptInvitationHandler(invitationRepo, invitationReadModel)
 	commandBus.Register("CreateInvitation", createHandler)
 	commandBus.Register("AcceptInvitation", acceptHandler)
 
-	loginService := services.NewLoginService(userReadModel, invitationReadModel, commandBus)
+	loginService := services.NewLoginService(userReadModel, invitationReadModel, commandBus, userRepo)
 
 	ctx := tenantContext()
 	email := fmt.Sprintf("invited-%s@acme.com", testCtx.testID)
@@ -517,7 +526,7 @@ func TestLoginService_ValidInvitationCreatesUser_Integration(t *testing.T) {
 	require.NotNil(t, invitation)
 	testCtx.trackID(invitation.ID)
 
-	result, err := loginService.ProcessLogin(ctx, email)
+	result, err := loginService.ProcessLogin(ctx, email, "Test User")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -552,12 +561,16 @@ func TestLoginService_ExpiredInvitationMarkedAsExpired_Integration(t *testing.T)
 	invitationReadModel := readmodels.NewInvitationReadModel(tenantDB)
 	userReadModel := readmodels.NewUserReadModel(tenantDB)
 	invitationRepo := repositories.NewInvitationRepository(eventStore)
+	userRepo := repositories.NewUserAggregateRepository(eventStore)
 
 	invitationProjector := projectors.NewInvitationProjector(invitationReadModel)
 	eventBus.Subscribe("InvitationCreated", invitationProjector)
 	eventBus.Subscribe("InvitationAccepted", invitationProjector)
 	eventBus.Subscribe("InvitationRevoked", invitationProjector)
 	eventBus.Subscribe("InvitationExpired", invitationProjector)
+
+	userProjector := projectors.NewUserProjector(userReadModel)
+	eventBus.Subscribe("UserCreated", userProjector)
 
 	createHandler := handlers.NewCreateInvitationHandler(invitationRepo)
 	acceptHandler := handlers.NewAcceptInvitationHandler(invitationRepo, invitationReadModel)
@@ -566,7 +579,7 @@ func TestLoginService_ExpiredInvitationMarkedAsExpired_Integration(t *testing.T)
 	commandBus.Register("AcceptInvitation", acceptHandler)
 	commandBus.Register("MarkInvitationExpired", expireHandler)
 
-	loginService := services.NewLoginService(userReadModel, invitationReadModel, commandBus)
+	loginService := services.NewLoginService(userReadModel, invitationReadModel, commandBus, userRepo)
 
 	ctx := tenantContext()
 	email := fmt.Sprintf("lazy-expire-%d@acme.com", time.Now().UnixNano())
@@ -592,7 +605,7 @@ func TestLoginService_ExpiredInvitationMarkedAsExpired_Integration(t *testing.T)
 	)
 	require.NoError(t, err)
 
-	result, err := loginService.ProcessLogin(ctx, email)
+	result, err := loginService.ProcessLogin(ctx, email, "Test User")
 	assert.ErrorIs(t, err, services.ErrNoValidInvitation)
 	assert.Nil(t, result)
 

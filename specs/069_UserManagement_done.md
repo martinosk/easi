@@ -1,6 +1,6 @@
 # 069 - User Management
 
-**Depends on:** [068_InvitationSystem](068_InvitationSystem_pending.md)
+**Depends on:** [068_InvitationSystem](068_InvitationSystem_done.md)
 
 ## Description
 Admin can manage existing users: view user list, change roles, and disable/enable accounts.
@@ -194,15 +194,15 @@ Returns current tenant info. Available to all authenticated users.
 | USER_ENABLED | Admin enabled user |
 
 ## Checklist
-- [ ] GET /api/v1/users endpoint
-- [ ] GET /api/v1/users/{id} endpoint
-- [ ] POST /api/v1/users/{id}/change-role endpoint
-- [ ] POST /api/v1/users/{id}/disable endpoint
-- [ ] POST /api/v1/users/{id}/enable endpoint
-- [ ] GET /api/v1/tenants/current endpoint
-- [ ] User management page (frontend, admin only)
-- [ ] Role-based UI visibility (frontend)
-- [ ] Integration tests: user management operations
-- [ ] Integration test: cannot demote last admin
-- [ ] Integration test: cannot disable self
-- [ ] User sign-off
+- [x] GET /api/v1/users endpoint
+- [x] GET /api/v1/users/{id} endpoint
+- [x] POST /api/v1/users/{id}/change-role endpoint
+- [x] POST /api/v1/users/{id}/disable endpoint
+- [x] POST /api/v1/users/{id}/enable endpoint
+- [x] GET /api/v1/tenants/current endpoint
+- [x] User management page (frontend, admin only)
+- [x] Role-based UI visibility (frontend)
+- [x] Integration tests: user management operations
+- [x] Integration test: cannot demote last admin
+- [x] Integration test: cannot disable self
+- [x] User sign-off
