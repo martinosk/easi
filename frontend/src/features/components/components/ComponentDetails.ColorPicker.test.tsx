@@ -5,11 +5,16 @@ import { ComponentDetails } from './ComponentDetails';
 import type { View, ComponentId, ViewId } from '../../../api/types';
 import { createMantineTestWrapper, seedDb, server } from '../../../test/helpers';
 import { useAppStore } from '../../../store/appStore';
+import { useCurrentView } from '../../../hooks/useCurrentView';
 
 const API_BASE = 'http://localhost:8080';
 
 vi.mock('../../../store/appStore', () => ({
   useAppStore: vi.fn(),
+}));
+
+vi.mock('../../../hooks/useCurrentView', () => ({
+  useCurrentView: vi.fn(),
 }));
 
 const mockComponent = {
@@ -33,15 +38,9 @@ const createMockView = (colorScheme: string, customColor?: string): View => ({
   _links: { self: '/api/v1/views/view-1' },
 });
 
-const createMockStore = (view: View | null) => ({
+const createMockStore = () => ({
   selectedNodeId: 'comp-1',
-  components: [mockComponent],
-  currentView: view,
   clearSelection: vi.fn(),
-  capabilityRealizations: [],
-  capabilities: [],
-  updateComponentColor: vi.fn(),
-  clearComponentColor: vi.fn(),
 });
 
 describe('ComponentDetails - ColorPicker Integration', () => {
@@ -53,8 +52,14 @@ describe('ComponentDetails - ColorPicker Integration', () => {
     });
   });
 
-  const renderComponentDetails = (store: ReturnType<typeof createMockStore>) => {
-    vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) => selector(store));
+  const renderComponentDetails = (view: View | null) => {
+    vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) => selector(createMockStore()));
+    vi.mocked(useCurrentView).mockReturnValue({
+      currentView: view,
+      currentViewId: view?.id ?? null,
+      isLoading: false,
+      error: null,
+    });
     const { Wrapper } = createMantineTestWrapper();
     return render(<ComponentDetails onEdit={vi.fn()} />, { wrapper: Wrapper });
   };
@@ -62,7 +67,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
   describe('Color picker visibility', () => {
     it('should show color picker in component details panel', async () => {
       const mockView = createMockView('custom');
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         expect(screen.getByTestId('color-picker')).toBeInTheDocument();
@@ -71,7 +76,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
 
     it('should show color picker label', async () => {
       const mockView = createMockView('custom');
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         expect(screen.getByText('Custom Color')).toBeInTheDocument();
@@ -82,7 +87,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
   describe('Color picker enabled state based on color scheme', () => {
     it('should enable color picker when colorScheme is "custom"', async () => {
       const mockView = createMockView('custom');
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         const colorPickerButton = screen.getByTestId('color-picker-button');
@@ -92,7 +97,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
 
     it('should disable color picker when colorScheme is "maturity"', async () => {
       const mockView = createMockView('maturity');
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         const colorPickerButton = screen.getByTestId('color-picker-button');
@@ -102,7 +107,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
 
     it('should disable color picker when colorScheme is "classic"', async () => {
       const mockView = createMockView('classic');
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         const colorPickerButton = screen.getByTestId('color-picker-button');
@@ -112,7 +117,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
 
     it('should show tooltip when disabled explaining why', async () => {
       const mockView = createMockView('maturity');
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         const colorPickerButton = screen.getByTestId('color-picker-button');
@@ -126,7 +131,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
   describe('Displaying current color', () => {
     it('should show current custom color if set', async () => {
       const mockView = createMockView('custom', '#FF5733');
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         const colorDisplay = screen.getByTestId('color-picker-display');
@@ -136,7 +141,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
 
     it('should show default color if custom color not set', async () => {
       const mockView = createMockView('custom');
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         const colorDisplay = screen.getByTestId('color-picker-display');
@@ -146,7 +151,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
 
     it('should show color value text', async () => {
       const mockView = createMockView('custom', '#FF5733');
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         expect(screen.getByText('#FF5733')).toBeInTheDocument();
@@ -166,7 +171,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
       );
 
       const mockView = createMockView('custom');
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         expect(screen.getByTestId('color-picker-button')).toBeInTheDocument();
@@ -193,7 +198,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
       );
 
       const mockView = createMockView('custom');
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         expect(screen.getByTestId('color-picker-button')).toBeInTheDocument();
@@ -223,7 +228,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
       );
 
       const mockView = createMockView('custom', '#FF5733');
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         expect(screen.getByTestId('color-picker-button')).toBeInTheDocument();
@@ -261,7 +266,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
         createdAt: '2024-01-01T00:00:00Z',
         _links: { self: '/api/v1/views/view-1' },
       };
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         expect(screen.queryByTestId('color-picker')).not.toBeInTheDocument();
@@ -272,7 +277,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
   describe('Clear color functionality', () => {
     it('should show clear color button when custom color is set', async () => {
       const mockView = createMockView('custom', '#FF5733');
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         expect(screen.getByText('Clear Color')).toBeInTheDocument();
@@ -281,7 +286,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
 
     it('should not show clear color button when no custom color is set', async () => {
       const mockView = createMockView('custom');
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         expect(screen.queryByText('Clear Color')).not.toBeInTheDocument();
@@ -298,7 +303,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
       );
 
       const mockView = createMockView('custom', '#FF5733');
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         expect(screen.getByText('Clear Color')).toBeInTheDocument();
@@ -322,7 +327,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
       );
 
       const mockView = createMockView('custom', '#FF5733');
-      renderComponentDetails(createMockStore(mockView));
+      renderComponentDetails(mockView);
 
       await waitFor(() => {
         expect(screen.getByText('Clear Color')).toBeInTheDocument();

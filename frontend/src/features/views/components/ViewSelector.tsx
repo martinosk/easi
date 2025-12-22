@@ -1,24 +1,21 @@
 import React from 'react';
 import { useAppStore } from '../../../store/appStore';
+import { useViews } from '../hooks/useViews';
+import { useCurrentView } from '../../../hooks/useCurrentView';
+import type { ViewId } from '../../../api/types';
 
 export const ViewSelector: React.FC = () => {
-  const views = useAppStore((state) => state.views);
-  const currentView = useAppStore((state) => state.currentView);
-  const switchView = useAppStore((state) => state.switchView);
-  const loadViews = useAppStore((state) => state.loadViews);
+  const { data: views } = useViews();
+  const { currentView } = useCurrentView();
+  const setCurrentViewId = useAppStore((state) => state.setCurrentViewId);
 
-  // Reload views when component mounts or when current view changes
-  React.useEffect(() => {
-    loadViews();
-  }, [loadViews, currentView?.id]);
-
-  const handleViewClick = async (viewId: string) => {
+  const handleViewClick = (viewId: string) => {
     if (currentView?.id !== viewId) {
-      await switchView(viewId as import('../../../api/types').ViewId);
+      setCurrentViewId(viewId as ViewId);
     }
   };
 
-  if (views.length === 0) {
+  if (!views || views.length === 0) {
     return null;
   }
 

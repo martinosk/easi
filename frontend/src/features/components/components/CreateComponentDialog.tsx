@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
-import { useAppStore } from '../../../store/appStore';
 import { useCreateComponent } from '../hooks/useComponents';
 import { useAddComponentToView } from '../../views/hooks/useViews';
+import { useCurrentView } from '../../../hooks/useCurrentView';
 import type { ComponentId, ViewId } from '../../../api/types';
 
 interface CreateComponentDialogProps {
@@ -18,7 +18,7 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const currentView = useAppStore((state) => state.currentView);
+  const { currentView } = useCurrentView();
   const createComponentMutation = useCreateComponent();
   const addComponentToViewMutation = useAddComponentToView();
 

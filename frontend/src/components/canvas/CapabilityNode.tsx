@@ -1,6 +1,6 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { useAppStore } from '../../store/appStore';
+import { useCurrentView } from '../../hooks/useCurrentView';
 
 type HexColor = string;
 type ColorScheme = 'maturity' | 'classic' | 'custom';
@@ -64,7 +64,7 @@ const resolveBorderColor = (isSelected: boolean, baseColor: HexColor): HexColor 
 };
 
 export const CapabilityNode: React.FC<{ data: CapabilityNodeData; id: string }> = ({ data, id }) => {
-  const currentView = useAppStore((state) => state.currentView);
+  const { currentView } = useCurrentView();
   const colorScheme = (currentView?.colorScheme || 'maturity') as ColorScheme;
 
   const baseColor = resolveBaseColor({ colorScheme, customColor: data.customColor, maturityLevel: data.maturityLevel });

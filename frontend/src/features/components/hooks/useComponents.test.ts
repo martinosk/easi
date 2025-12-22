@@ -205,7 +205,7 @@ describe('useComponents hooks', () => {
   });
 
   describe('useUpdateComponent', () => {
-    it('should update component and update both list and detail cache', async () => {
+    it('should update component and invalidate both list and detail cache', async () => {
       const existingComponent = buildComponent({
         id: 'comp-1' as ComponentId,
         name: 'Original Name',
@@ -219,6 +219,8 @@ describe('useComponents hooks', () => {
       queryClient.setQueryData(queryKeys.components.detail('comp-1'), existingComponent);
       vi.mocked(componentsApi.update).mockResolvedValue(updatedComponent);
 
+      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
       const { result } = renderHook(() => useUpdateComponent(), {
         wrapper: createWrapper(queryClient),
       });
@@ -230,15 +232,12 @@ describe('useComponents hooks', () => {
         });
       });
 
-      const cachedComponents = queryClient.getQueryData<Component[]>(
-        queryKeys.components.lists()
-      );
-      expect(cachedComponents?.[0].name).toBe('Updated Name');
-
-      const cachedDetail = queryClient.getQueryData<Component>(
-        queryKeys.components.detail('comp-1')
-      );
-      expect(cachedDetail?.name).toBe('Updated Name');
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.components.lists(),
+      });
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.components.detail('comp-1'),
+      });
 
       expect(toast.success).toHaveBeenCalledWith('Component "Updated Name" updated');
     });

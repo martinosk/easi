@@ -20,6 +20,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useReleaseNotes } from './hooks/useReleaseNotes';
 import { useRelations } from './features/relations/hooks/useRelations';
 import { useComponents } from './features/components/hooks/useComponents';
+import { useAppInitialization } from './hooks/useAppInitialization';
 import type { Release } from './api/types';
 
 const BusinessDomainsRouter = lazy(() =>
@@ -95,7 +96,7 @@ function CanvasView({
         onComponentDrop={(id, x, y) => addComponentToView(id as import('./api/types').ComponentId, x, y)}
         onComponentSelect={navigateToComponent}
         onCapabilitySelect={navigateToCapability}
-        onViewSelect={(id) => switchView(id as import('./api/types').ViewId)}
+        onViewSelect={async (id) => switchView(id as import('./api/types').ViewId)}
         onEditComponent={dialogActions.openEditComponentDialog}
         onEditRelation={dialogActions.openEditRelationDialog}
         onEditCapability={dialogActions.openEditCapabilityDialog}
@@ -179,9 +180,7 @@ function App({ view }: AppProps) {
   const { authError } = useAuthErrorHandler();
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
 
-  const loadData = useAppStore((state) => state.loadData);
-  const isLoading = useAppStore((state) => state.isLoading);
-  const error = useAppStore((state) => state.error);
+  const { isLoading, error } = useAppInitialization();
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
   const { data: relations = [] } = useRelations();
@@ -199,12 +198,6 @@ function App({ view }: AppProps) {
   };
 
   useKeyboardShortcuts({ onDelete: handleRemoveFromView });
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadData();
-    }
-  }, [loadData, isAuthenticated]);
 
   const hasNoData = components.length === 0;
 
@@ -226,7 +219,7 @@ function App({ view }: AppProps) {
   }
 
   if (error && hasNoData) {
-    return <AppLayout><ErrorScreen error={error} onRetry={loadData} /></AppLayout>;
+    return <AppLayout><ErrorScreen error={error.message} onRetry={() => window.location.reload()} /></AppLayout>;
   }
 
   const canvasViewProps: CanvasViewProps = {

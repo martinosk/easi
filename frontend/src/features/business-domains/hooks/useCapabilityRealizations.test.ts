@@ -1,4 +1,6 @@
+import React from 'react';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useCapabilityRealizations } from './useCapabilityRealizations';
 import { apiClient } from '../../../api/client';
@@ -9,6 +11,22 @@ vi.mock('../../../api/client', () => ({
     getCapabilityRealizationsByDomain: vi.fn(),
   },
 }));
+
+function createQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+    },
+  });
+}
+
+function createWrapper(queryClient: QueryClient) {
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client: queryClient }, children);
+}
 
 const createRealization = (
   id: string,
@@ -42,7 +60,10 @@ const createGroup = (
 const domainId = 'domain-1' as BusinessDomainId;
 
 describe('useCapabilityRealizations', () => {
+  let queryClient: QueryClient;
+
   beforeEach(() => {
+    queryClient = createQueryClient();
     vi.clearAllMocks();
   });
 
@@ -53,7 +74,8 @@ describe('useCapabilityRealizations', () => {
       ]);
 
       const { result } = renderHook(() =>
-        useCapabilityRealizations(true, domainId, 4)
+        useCapabilityRealizations(true, domainId, 4),
+        { wrapper: createWrapper(queryClient) }
       );
 
       await waitFor(() => {
@@ -68,7 +90,8 @@ describe('useCapabilityRealizations', () => {
     it('should pass depth parameter to API', async () => {
       vi.mocked(apiClient.getCapabilityRealizationsByDomain).mockResolvedValue([]);
 
-      renderHook(() => useCapabilityRealizations(true, domainId, 2));
+      renderHook(() => useCapabilityRealizations(true, domainId, 2),
+        { wrapper: createWrapper(queryClient) });
 
       await waitFor(() => {
         expect(apiClient.getCapabilityRealizationsByDomain).toHaveBeenCalledWith(domainId, 2);
@@ -77,7 +100,8 @@ describe('useCapabilityRealizations', () => {
 
     it('should not fetch when disabled', async () => {
       const { result } = renderHook(() =>
-        useCapabilityRealizations(false, domainId, 4)
+        useCapabilityRealizations(false, domainId, 4),
+        { wrapper: createWrapper(queryClient) }
       );
 
       expect(result.current.isLoading).toBe(false);
@@ -87,7 +111,8 @@ describe('useCapabilityRealizations', () => {
 
     it('should not fetch when domainId is null', async () => {
       const { result } = renderHook(() =>
-        useCapabilityRealizations(true, null, 4)
+        useCapabilityRealizations(true, null, 4),
+        { wrapper: createWrapper(queryClient) }
       );
 
       expect(result.current.isLoading).toBe(false);
@@ -100,7 +125,7 @@ describe('useCapabilityRealizations', () => {
 
       const { rerender } = renderHook(
         ({ depth }) => useCapabilityRealizations(true, domainId, depth),
-        { initialProps: { depth: 2 } }
+        { initialProps: { depth: 2 }, wrapper: createWrapper(queryClient) }
       );
 
       await waitFor(() => {
@@ -122,7 +147,8 @@ describe('useCapabilityRealizations', () => {
       );
 
       const { result } = renderHook(() =>
-        useCapabilityRealizations(true, domainId, 4)
+        useCapabilityRealizations(true, domainId, 4),
+        { wrapper: createWrapper(queryClient) }
       );
 
       await waitFor(() => {
@@ -143,7 +169,8 @@ describe('useCapabilityRealizations', () => {
       ]);
 
       const { result } = renderHook(() =>
-        useCapabilityRealizations(true, domainId, 1)
+        useCapabilityRealizations(true, domainId, 1),
+        { wrapper: createWrapper(queryClient) }
       );
 
       await waitFor(() => {
@@ -165,7 +192,8 @@ describe('useCapabilityRealizations', () => {
       ]);
 
       const { result } = renderHook(() =>
-        useCapabilityRealizations(true, domainId, 2)
+        useCapabilityRealizations(true, domainId, 2),
+        { wrapper: createWrapper(queryClient) }
       );
 
       await waitFor(() => {
@@ -184,7 +212,8 @@ describe('useCapabilityRealizations', () => {
       ]);
 
       const { result } = renderHook(() =>
-        useCapabilityRealizations(true, domainId, 4)
+        useCapabilityRealizations(true, domainId, 4),
+        { wrapper: createWrapper(queryClient) }
       );
 
       await waitFor(() => {
@@ -204,7 +233,8 @@ describe('useCapabilityRealizations', () => {
       ]);
 
       const { result } = renderHook(() =>
-        useCapabilityRealizations(true, domainId, 4)
+        useCapabilityRealizations(true, domainId, 4),
+        { wrapper: createWrapper(queryClient) }
       );
 
       await waitFor(() => {
@@ -220,7 +250,8 @@ describe('useCapabilityRealizations', () => {
       vi.mocked(apiClient.getCapabilityRealizationsByDomain).mockResolvedValue([]);
 
       const { result } = renderHook(() =>
-        useCapabilityRealizations(true, domainId, 4)
+        useCapabilityRealizations(true, domainId, 4),
+        { wrapper: createWrapper(queryClient) }
       );
 
       await waitFor(() => {
@@ -241,7 +272,8 @@ describe('useCapabilityRealizations', () => {
       ]);
 
       const { result } = renderHook(() =>
-        useCapabilityRealizations(true, domainId, 1)
+        useCapabilityRealizations(true, domainId, 1),
+        { wrapper: createWrapper(queryClient) }
       );
 
       await waitFor(() => {
@@ -263,7 +295,8 @@ describe('useCapabilityRealizations', () => {
       ]);
 
       const { result } = renderHook(() =>
-        useCapabilityRealizations(true, domainId, 2)
+        useCapabilityRealizations(true, domainId, 2),
+        { wrapper: createWrapper(queryClient) }
       );
 
       await waitFor(() => {
@@ -286,7 +319,8 @@ describe('useCapabilityRealizations', () => {
       ]);
 
       const { result } = renderHook(() =>
-        useCapabilityRealizations(true, domainId, 2)
+        useCapabilityRealizations(true, domainId, 2),
+        { wrapper: createWrapper(queryClient) }
       );
 
       await waitFor(() => {
@@ -311,7 +345,8 @@ describe('useCapabilityRealizations', () => {
       ]);
 
       const { result } = renderHook(() =>
-        useCapabilityRealizations(true, domainId, 2)
+        useCapabilityRealizations(true, domainId, 2),
+        { wrapper: createWrapper(queryClient) }
       );
 
       await waitFor(() => {
@@ -330,7 +365,8 @@ describe('useCapabilityRealizations', () => {
       ]);
 
       const { result } = renderHook(() =>
-        useCapabilityRealizations(true, domainId, 4)
+        useCapabilityRealizations(true, domainId, 4),
+        { wrapper: createWrapper(queryClient) }
       );
 
       await waitFor(() => {
@@ -355,29 +391,27 @@ describe('useCapabilityRealizations', () => {
       expect(apiClient.getCapabilityRealizationsByDomain).toHaveBeenCalledTimes(2);
     });
 
-    it('should not fetch when refetch is called but hook is disabled', async () => {
+    it('should return empty realizations when disabled initially', async () => {
       const { result } = renderHook(() =>
-        useCapabilityRealizations(false, domainId, 4)
+        useCapabilityRealizations(false, domainId, 4),
+        { wrapper: createWrapper(queryClient) }
       );
 
-      await act(async () => {
-        await result.current.refetch();
-      });
-
-      expect(apiClient.getCapabilityRealizationsByDomain).not.toHaveBeenCalled();
+      expect(result.current.isLoading).toBe(false);
       expect(result.current.realizations).toEqual([]);
+      expect(apiClient.getCapabilityRealizationsByDomain).not.toHaveBeenCalled();
     });
   });
 
-  describe('clearing state', () => {
-    it('should clear realizations when disabled', async () => {
+  describe('cache behavior', () => {
+    it('should keep cached data when disabled after fetching', async () => {
       vi.mocked(apiClient.getCapabilityRealizationsByDomain).mockResolvedValue([
         createGroup('cap-1', 'L1', [createRealization('real-1', 'cap-1', 'Direct')]),
       ]);
 
       const { result, rerender } = renderHook(
         ({ enabled }) => useCapabilityRealizations(enabled, domainId, 4),
-        { initialProps: { enabled: true } }
+        { initialProps: { enabled: true }, wrapper: createWrapper(queryClient) }
       );
 
       await waitFor(() => {
@@ -386,17 +420,17 @@ describe('useCapabilityRealizations', () => {
 
       rerender({ enabled: false });
 
-      expect(result.current.realizations).toEqual([]);
+      expect(result.current.realizations).toHaveLength(1);
     });
 
-    it('should clear realizations when domainId becomes null', async () => {
+    it('should return empty when domainId changes to null', async () => {
       vi.mocked(apiClient.getCapabilityRealizationsByDomain).mockResolvedValue([
         createGroup('cap-1', 'L1', [createRealization('real-1', 'cap-1', 'Direct')]),
       ]);
 
       const { result, rerender } = renderHook(
         ({ domainId }) => useCapabilityRealizations(true, domainId, 4),
-        { initialProps: { domainId: domainId as BusinessDomainId | null } }
+        { initialProps: { domainId: domainId as BusinessDomainId | null }, wrapper: createWrapper(queryClient) }
       );
 
       await waitFor(() => {

@@ -1,65 +1,59 @@
 import { useCallback } from 'react';
 import { useAppStore } from '../store/appStore';
-import apiClient from '../api/client';
+import { useRemoveComponentFromView, useAddComponentToView } from '../features/views/hooks/useViews';
+import { useCurrentView } from './useCurrentView';
 import type { ComponentId, ViewId } from '../api/types';
-import toast from 'react-hot-toast';
 
 export function useViewOperations() {
-  const currentView = useAppStore((state) => state.currentView);
+  const { currentViewId } = useCurrentView();
+  const setCurrentViewId = useAppStore((state) => state.setCurrentViewId);
+  const clearSelection = useAppStore((state) => state.clearSelection);
+
+  const removeComponentMutation = useRemoveComponentFromView();
+  const addComponentMutation = useAddComponentToView();
 
   const removeComponentFromView = useCallback(
     async (componentId: ComponentId) => {
-      if (!currentView) {
+      if (!currentViewId) {
         console.warn('No current view selected');
         return;
       }
 
       try {
-        await apiClient.removeComponentFromView(currentView.id, componentId);
-        const updatedView = await apiClient.getViewById(currentView.id);
-        useAppStore.setState({ currentView: updatedView });
-        useAppStore.getState().clearSelection();
-        toast.success('Component removed from view');
+        await removeComponentMutation.mutateAsync({
+          viewId: currentViewId,
+          componentId,
+        });
+        clearSelection();
       } catch (error) {
         console.error('Failed to remove component from view:', error);
-        toast.error('Failed to remove component from view');
       }
     },
-    [currentView]
+    [currentViewId, removeComponentMutation, clearSelection]
   );
 
   const addComponentToView = useCallback(
     async (componentId: ComponentId, x: number, y: number) => {
-      if (!currentView) {
+      if (!currentViewId) {
         console.warn('No current view selected');
         return;
       }
 
       try {
-        await apiClient.addComponentToView(currentView.id, {
-          componentId,
-          x,
-          y,
+        await addComponentMutation.mutateAsync({
+          viewId: currentViewId,
+          request: { componentId, x, y },
         });
-        const updatedView = await apiClient.getViewById(currentView.id);
-        useAppStore.setState({ currentView: updatedView });
-        toast.success('Component added to view');
       } catch (error) {
         console.error('Failed to add component to view:', error);
-        toast.error('Failed to add component to view');
       }
     },
-    [currentView]
+    [currentViewId, addComponentMutation]
   );
 
-  const switchView = useCallback(async (viewId: ViewId) => {
-    const switchViewAction = useAppStore.getState().switchView;
-    try {
-      await switchViewAction(viewId);
-    } catch (error) {
-      console.error('Failed to switch view:', error);
-    }
-  }, []);
+  const switchView = useCallback((viewId: ViewId) => {
+    setCurrentViewId(viewId);
+  }, [setCurrentViewId]);
 
   return {
     removeComponentFromView,

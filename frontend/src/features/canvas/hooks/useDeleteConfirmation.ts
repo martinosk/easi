@@ -1,87 +1,104 @@
-import { useState, useCallback } from 'react';
-import { useAppStore } from '../../../store/appStore';
+import { useState, useCallback, useMemo } from 'react';
+import { useCurrentView } from '../../../hooks/useCurrentView';
 import { useDeleteCapability, useChangeCapabilityParent, useDeleteRealization } from '../../capabilities/hooks/useCapabilities';
 import { useDeleteComponent } from '../../components/hooks/useComponents';
 import { useDeleteRelation } from '../../relations/hooks/useRelations';
-import { useRemoveComponentFromView } from '../../views/hooks/useViews';
+import { useRemoveComponentFromView, useRemoveCapabilityFromView } from '../../views/hooks/useViews';
 import type { ComponentId, RelationId, CapabilityId, RealizationId, ViewId } from '../../../api/types';
 
+export type DeleteTargetType =
+  | 'component-from-view'
+  | 'component-from-model'
+  | 'relation-from-model'
+  | 'capability-from-canvas'
+  | 'capability-from-model'
+  | 'parent-relation'
+  | 'realization';
+
 export interface DeleteTarget {
-  type: 'component-from-view' | 'component-from-model' | 'relation-from-model' | 'capability-from-canvas' | 'capability-from-model' | 'parent-relation' | 'realization';
+  type: DeleteTargetType;
   id: string;
   name: string;
   childId?: string;
 }
 
-export const useDeleteConfirmation = () => {
-  const currentView = useAppStore((state) => state.currentView);
-  const removeCapabilityFromCanvas = useAppStore((state) => state.removeCapabilityFromCanvas);
+type DeleteHandler = (target: DeleteTarget, viewId: ViewId | null) => Promise<void>;
 
+function useDeleteHandlers() {
   const removeComponentFromViewMutation = useRemoveComponentFromView();
+  const removeCapabilityFromViewMutation = useRemoveCapabilityFromView();
   const deleteComponentMutation = useDeleteComponent();
   const deleteRelationMutation = useDeleteRelation();
   const deleteCapabilityMutation = useDeleteCapability();
   const changeCapabilityParentMutation = useChangeCapabilityParent();
   const deleteRealizationMutation = useDeleteRealization();
 
-  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const executeDelete = useCallback(async (target: DeleteTarget) => {
-    switch (target.type) {
-      case 'component-from-view':
-        if (currentView) {
-          await removeComponentFromViewMutation.mutateAsync({
-            viewId: currentView.id as ViewId,
-            componentId: target.id as ComponentId
-          });
-        }
-        break;
-      case 'component-from-model':
-        await deleteComponentMutation.mutateAsync(target.id as ComponentId);
-        break;
-      case 'relation-from-model':
-        await deleteRelationMutation.mutateAsync(target.id as RelationId);
-        break;
-      case 'capability-from-canvas':
-        removeCapabilityFromCanvas(target.id as CapabilityId);
-        break;
-      case 'capability-from-model':
-        await deleteCapabilityMutation.mutateAsync(target.id as CapabilityId);
-        break;
-      case 'parent-relation':
-        if (target.childId) {
-          await changeCapabilityParentMutation.mutateAsync({ id: target.childId as CapabilityId, parentId: null });
-        }
-        break;
-      case 'realization':
-        await deleteRealizationMutation.mutateAsync(target.id as RealizationId);
-        break;
-    }
-  }, [
-    currentView,
+  return useMemo((): Record<DeleteTargetType, DeleteHandler> => ({
+    'component-from-view': async (target, viewId) => {
+      if (!viewId) return;
+      await removeComponentFromViewMutation.mutateAsync({
+        viewId,
+        componentId: target.id as ComponentId,
+      });
+    },
+    'component-from-model': async (target) => {
+      await deleteComponentMutation.mutateAsync(target.id as ComponentId);
+    },
+    'relation-from-model': async (target) => {
+      await deleteRelationMutation.mutateAsync(target.id as RelationId);
+    },
+    'capability-from-canvas': async (target, viewId) => {
+      if (!viewId) return;
+      await removeCapabilityFromViewMutation.mutateAsync({
+        viewId,
+        capabilityId: target.id as CapabilityId,
+      });
+    },
+    'capability-from-model': async (target) => {
+      await deleteCapabilityMutation.mutateAsync(target.id as CapabilityId);
+    },
+    'parent-relation': async (target) => {
+      if (!target.childId) return;
+      await changeCapabilityParentMutation.mutateAsync({
+        id: target.childId as CapabilityId,
+        parentId: null,
+      });
+    },
+    'realization': async (target) => {
+      await deleteRealizationMutation.mutateAsync(target.id as RealizationId);
+    },
+  }), [
     removeComponentFromViewMutation,
+    removeCapabilityFromViewMutation,
     deleteComponentMutation,
     deleteRelationMutation,
-    removeCapabilityFromCanvas,
     deleteCapabilityMutation,
     changeCapabilityParentMutation,
     deleteRealizationMutation,
   ]);
+}
+
+export const useDeleteConfirmation = () => {
+  const { currentViewId } = useCurrentView();
+  const handlers = useDeleteHandlers();
+
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteTarget) return;
 
     setIsDeleting(true);
     try {
-      await executeDelete(deleteTarget);
+      const handler = handlers[deleteTarget.type];
+      await handler(deleteTarget, currentViewId);
       setDeleteTarget(null);
     } catch (error) {
       console.error('Failed to delete:', error);
     } finally {
       setIsDeleting(false);
     }
-  }, [deleteTarget, executeDelete]);
+  }, [deleteTarget, handlers, currentViewId]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeleteTarget(null);

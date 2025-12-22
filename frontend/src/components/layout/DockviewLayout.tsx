@@ -10,7 +10,9 @@ import { RelationDetails, RealizationDetails } from '../../features/relations';
 import { CapabilityDetails } from '../../features/capabilities';
 import { useAppStore } from '../../store/appStore';
 import { ErrorBoundary, FeatureErrorFallback } from '../shared/ErrorBoundary';
-import type { Capability } from '../../api/types';
+import { useRemoveCapabilityFromView } from '../../features/views/hooks/useViews';
+import { useCurrentView } from '../../hooks/useCurrentView';
+import type { Capability, CapabilityId } from '../../api/types';
 
 const NonClosableTab = (props: IDockviewPanelHeaderProps) => {
   return <DockviewDefaultTab hideClose={true} {...props} />;
@@ -104,11 +106,17 @@ function PanelToggleBar({ panelVisibility, onToggle }: PanelToggleBarProps) {
 
 function usePanelParams(props: DockviewLayoutProps) {
   const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
-  const removeCapabilityFromCanvas = useAppStore((state) => state.removeCapabilityFromCanvas);
+  const { currentViewId } = useCurrentView();
+  const removeCapabilityFromViewMutation = useRemoveCapabilityFromView();
 
   const handleRemoveCapabilityFromView = useCallback(() => {
-    if (selectedCapabilityId) removeCapabilityFromCanvas(selectedCapabilityId);
-  }, [selectedCapabilityId, removeCapabilityFromCanvas]);
+    if (selectedCapabilityId && currentViewId) {
+      removeCapabilityFromViewMutation.mutate({
+        viewId: currentViewId,
+        capabilityId: selectedCapabilityId as CapabilityId,
+      });
+    }
+  }, [selectedCapabilityId, currentViewId, removeCapabilityFromViewMutation]);
 
   const navigation = useCallback(() => ({
     onComponentSelect: props.onComponentSelect,

@@ -199,7 +199,7 @@ describe('useCapabilities hooks', () => {
   });
 
   describe('useUpdateCapability', () => {
-    it('should update capability and update cache', async () => {
+    it('should update capability and invalidate cache', async () => {
       const existingCapability = buildCapability({
         id: 'cap-1' as CapabilityId,
         name: 'Original Name',
@@ -213,6 +213,8 @@ describe('useCapabilities hooks', () => {
       queryClient.setQueryData(queryKeys.capabilities.detail('cap-1'), existingCapability);
       vi.mocked(capabilitiesApi.update).mockResolvedValue(updatedCapability);
 
+      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
       const { result } = renderHook(() => useUpdateCapability(), {
         wrapper: createWrapper(queryClient),
       });
@@ -224,15 +226,12 @@ describe('useCapabilities hooks', () => {
         });
       });
 
-      const cachedCapabilities = queryClient.getQueryData<Capability[]>(
-        queryKeys.capabilities.lists()
-      );
-      expect(cachedCapabilities?.[0].name).toBe('Updated Name');
-
-      const cachedDetail = queryClient.getQueryData<Capability>(
-        queryKeys.capabilities.detail('cap-1')
-      );
-      expect(cachedDetail?.name).toBe('Updated Name');
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.capabilities.lists(),
+      });
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.capabilities.detail('cap-1'),
+      });
 
       expect(toast.success).toHaveBeenCalledWith('Capability "Updated Name" updated');
     });

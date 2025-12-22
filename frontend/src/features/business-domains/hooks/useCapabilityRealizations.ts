@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../api/client';
+import { queryKeys } from '../../../lib/queryClient';
 import type { BusinessDomainId, CapabilityId, CapabilityLevel, CapabilityRealization } from '../../../api/types';
 
 export interface UseCapabilityRealizationsResult {
@@ -66,28 +68,20 @@ export function filterVisibleRealizations(
   return [...directRealizations, ...inheritedByKey.values()];
 }
 
+interface RealizationsData {
+  realizations: CapabilityRealization[];
+  capabilityLevels: Map<CapabilityId, number>;
+}
+
 export function useCapabilityRealizations(
   enabled: boolean,
   domainId: BusinessDomainId | null,
   depth: number
 ): UseCapabilityRealizationsResult {
-  const [allRealizations, setAllRealizations] = useState<CapabilityRealization[]>([]);
-  const [capabilityLevels, setCapabilityLevels] = useState<Map<CapabilityId, number>>(new Map());
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-
-  const fetchRealizations = useCallback(async () => {
-    if (!enabled || !domainId) {
-      setAllRealizations([]);
-      setCapabilityLevels(new Map());
-      setError(null);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    try {
-      const groups = await apiClient.getCapabilityRealizationsByDomain(domainId, depth);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: queryKeys.businessDomains.realizations(domainId ?? '', depth),
+    queryFn: async (): Promise<RealizationsData> => {
+      const groups = await apiClient.getCapabilityRealizationsByDomain(domainId!, depth);
       const levelMap = new Map<CapabilityId, number>();
       const realizations: CapabilityRealization[] = [];
 
@@ -96,22 +90,17 @@ export function useCapabilityRealizations(
         realizations.push(...group.realizations);
       }
 
-      setCapabilityLevels(levelMap);
-      setAllRealizations(realizations);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch capability realizations'));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [enabled, domainId, depth]);
-
-  useEffect(() => {
-    fetchRealizations();
-  }, [fetchRealizations]);
+      return { realizations, capabilityLevels: levelMap };
+    },
+    enabled: enabled && !!domainId,
+  });
 
   const filteredRealizations = useMemo(
-    () => filterVisibleRealizations(allRealizations, capabilityLevels),
-    [allRealizations, capabilityLevels]
+    () => filterVisibleRealizations(
+      data?.realizations ?? [],
+      data?.capabilityLevels ?? new Map()
+    ),
+    [data]
   );
 
   const getRealizationsForCapability = useCallback(
@@ -124,8 +113,8 @@ export function useCapabilityRealizations(
   return {
     realizations: filteredRealizations,
     isLoading,
-    error,
+    error: error ?? null,
     getRealizationsForCapability,
-    refetch: fetchRealizations,
+    refetch: async () => { await refetch(); },
   };
 }

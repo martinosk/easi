@@ -44,15 +44,9 @@ export function useUpdateComponent() {
     mutationFn: ({ id, request }: { id: ComponentId; request: CreateComponentRequest }) =>
       componentsApi.update(id, request),
     onSuccess: (updatedComponent) => {
-      queryClient.setQueryData<Component[]>(
-        queryKeys.components.lists(),
-        (old) =>
-          old?.map((c) => (c.id === updatedComponent.id ? updatedComponent : c)) ?? []
-      );
-      queryClient.setQueryData(
-        queryKeys.components.detail(updatedComponent.id),
-        updatedComponent
-      );
+      queryClient.invalidateQueries({ queryKey: queryKeys.components.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.components.detail(updatedComponent.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.businessDomains.all });
       toast.success(`Component "${updatedComponent.name}" updated`);
     },
     onError: (error: Error) => {

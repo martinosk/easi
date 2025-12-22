@@ -21,8 +21,13 @@ vi.mock('../../views/hooks/useViews', () => ({
   }),
 }));
 
-vi.mock('../../../store/appStore', () => ({
-  useAppStore: (selector: (state: { currentView: null }) => unknown) => selector({ currentView: null }),
+vi.mock('../../../hooks/useCurrentView', () => ({
+  useCurrentView: () => ({
+    currentView: null,
+    currentViewId: null,
+    isLoading: false,
+    error: null,
+  }),
 }));
 
 describe('CreateComponentDialog', () => {

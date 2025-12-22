@@ -3,12 +3,12 @@ import { render } from '@testing-library/react';
 import React from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 
-vi.mock('../../store/appStore', () => ({
-  useAppStore: vi.fn(),
+vi.mock('../../hooks/useCurrentView', () => ({
+  useCurrentView: vi.fn(),
 }));
 
 import { CapabilityNode, type CapabilityNodeData } from './CapabilityNode';
-import { useAppStore } from '../../store/appStore';
+import { useCurrentView } from '../../hooks/useCurrentView';
 import type { View } from '../../api/types';
 
 const createMockView = (colorScheme: string, capabilitiesWithColors?: Array<{ capabilityId: string; customColor?: string }>): View => ({
@@ -78,9 +78,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('custom', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Product', false, '#FF5733');
       const { container } = renderWithProvider(
@@ -96,9 +99,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('custom', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Genesis');
       const { container } = renderWithProvider(
@@ -113,9 +119,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('custom', [
         { capabilityId: 'cap-1', customColor: '#22AA88' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Product', false, '#22AA88');
       const { container } = renderWithProvider(
@@ -132,9 +141,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('custom', [
         { capabilityId: 'cap-2', customColor: undefined },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Product');
       const { container } = renderWithProvider(
@@ -149,9 +161,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('custom', [
         { capabilityId: 'cap-2', customColor: undefined },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Genesis', false);
       const { container } = renderWithProvider(
@@ -166,9 +181,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('custom', [
         { capabilityId: 'cap-3', customColor: undefined },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Commodity');
       const { container } = renderWithProvider(
@@ -185,9 +203,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('maturity', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Product');
       const { container } = renderWithProvider(
@@ -203,9 +224,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('maturity', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Genesis');
       const { container } = renderWithProvider(
@@ -220,9 +244,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('maturity', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Custom Build');
       const { container } = renderWithProvider(
@@ -237,9 +264,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('maturity', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Commodity');
       const { container } = renderWithProvider(
@@ -257,9 +287,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
       mockView.colorScheme = undefined;
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Product');
       const { container } = renderWithProvider(
@@ -271,9 +304,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
     });
 
     it('should use maturity color when currentView is null', () => {
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: null })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: null,
+        currentViewId: null,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Commodity');
       const { container } = renderWithProvider(
@@ -290,9 +326,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('custom', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Product', false, '#FF5733');
       const { container, rerender } = renderWithProvider(
@@ -316,9 +355,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       let mockView = createMockView('custom', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Product', false, '#FF5733');
       const { container, rerender } = renderWithProvider(
@@ -331,9 +373,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       mockView = createMockView('maturity', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const updatedNodeData = createCapabilityNodeData('Product', false, '#FF5733');
       rerender(<CapabilityNode data={updatedNodeData} id="cap-1" />);
@@ -347,9 +392,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       let mockView = createMockView('maturity', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Genesis', false, '#FF5733');
       const { container, rerender } = renderWithProvider(
@@ -362,9 +410,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       mockView = createMockView('custom', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const updatedNodeData = createCapabilityNodeData('Genesis', false, '#FF5733');
       rerender(<CapabilityNode data={updatedNodeData} id="cap-1" />);
@@ -379,9 +430,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
         { capabilityId: 'cap-1', customColor: '#FF5733' },
         { capabilityId: 'cap-2', customColor: undefined },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Product', false, '#FF5733');
       const { container, rerender } = renderWithProvider(
@@ -405,9 +459,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('custom', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Product', true);
       const { container } = renderWithProvider(
@@ -422,9 +479,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('custom', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Genesis', false, '#FF5733');
       const { container } = renderWithProvider(
@@ -440,9 +500,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('maturity', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Commodity', false);
       const { container } = renderWithProvider(
@@ -459,9 +522,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('maturity', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('UnknownLevel');
       const { container } = renderWithProvider(
@@ -476,9 +542,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('maturity', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData(undefined);
       const { container } = renderWithProvider(
@@ -493,9 +562,12 @@ describe('CapabilityNode Custom Color Rendering', () => {
       const mockView = createMockView('custom', [
         { capabilityId: 'cap-4', customColor: '' },
       ]);
-      vi.mocked(useAppStore).mockImplementation((selector: (state: { currentView: View | null }) => unknown) =>
-        selector({ currentView: mockView })
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: mockView,
+        currentViewId: mockView.id,
+        isLoading: false,
+        error: null,
+      });
 
       const nodeData = createCapabilityNodeData('Product');
       const { container } = renderWithProvider(

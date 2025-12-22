@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { useCanvasLayout, type UseCanvasLayoutResult } from '../hooks/useCanvasLayout';
-import { useAppStore } from '../../../store/appStore';
+import { useCurrentView } from '../../../hooks/useCurrentView';
 
 const CanvasLayoutContext = createContext<UseCanvasLayoutResult | null>(null);
 
@@ -9,8 +9,8 @@ interface CanvasLayoutProviderProps {
 }
 
 export function CanvasLayoutProvider({ children }: CanvasLayoutProviderProps) {
-  const currentView = useAppStore((state) => state.currentView);
-  const layoutResult = useCanvasLayout(currentView?.id ?? null);
+  const { currentViewId } = useCurrentView();
+  const layoutResult = useCanvasLayout(currentViewId);
 
   return (
     <CanvasLayoutContext.Provider value={layoutResult}>

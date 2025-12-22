@@ -1,185 +1,39 @@
 import { useMemo } from 'react';
 import type { Edge, Node } from '@xyflow/react';
-import { MarkerType } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
-import { getBestHandles } from '../utils/handleCalculation';
 import { useCapabilities, useRealizationsForComponents } from '../../capabilities/hooks/useCapabilities';
 import { useRelations } from '../../relations/hooks/useRelations';
-import type { CapabilityRealization, ComponentId } from '../../../api/types';
+import { useCurrentView } from '../../../hooks/useCurrentView';
+import { createRelationEdges, createParentEdges, createRealizationEdges } from '../utils/edgeCreators';
+import type { ComponentId, ViewComponent } from '../../../api/types';
 
 export const useCanvasEdges = (nodes: Node[]): Edge[] => {
   const { data: relations = [] } = useRelations();
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
-  const currentView = useAppStore((state) => state.currentView);
+  const { currentView } = useCurrentView();
   const { data: capabilities = [] } = useCapabilities();
 
-  const componentIdsInView = useMemo(() =>
-    currentView?.components.map((vc) => vc.componentId as ComponentId) || [],
+  const componentIdsInView = useMemo(
+    () => (currentView?.components ?? []).map((vc: ViewComponent) => vc.componentId as ComponentId),
     [currentView?.components]
   );
   const { data: capabilityRealizations = [] } = useRealizationsForComponents(componentIdsInView);
 
   return useMemo(() => {
-    const viewCapabilities = currentView?.capabilities || [];
-    const edgeType = currentView?.edgeType || 'default';
-    const colorScheme = currentView?.colorScheme || 'maturity';
-    const isClassicScheme = colorScheme === 'classic';
+    const viewCapabilities = currentView?.capabilities ?? [];
+    const viewComponents = currentView?.components ?? [];
 
-    const relationEdges: Edge[] = relations.map((relation) => {
-      const isSelected = selectedEdgeId === relation.id;
-      const isTriggers = relation.relationType === 'Triggers';
-
-      const sourceNode = nodes.find(n => n.id === relation.sourceComponentId);
-      const targetNode = nodes.find(n => n.id === relation.targetComponentId);
-      const { sourceHandle, targetHandle } = getBestHandles(sourceNode, targetNode);
-
-      const edgeColor = isClassicScheme ? '#000000' : (isTriggers ? '#f97316' : '#3b82f6');
-
-      return {
-        id: relation.id,
-        source: relation.sourceComponentId,
-        target: relation.targetComponentId,
-        sourceHandle,
-        targetHandle,
-        label: relation.name || relation.relationType,
-        type: edgeType,
-        animated: isSelected,
-        style: {
-          stroke: edgeColor,
-          strokeWidth: isSelected ? 3 : 2,
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: edgeColor,
-        },
-        labelStyle: {
-          fill: edgeColor,
-          fontWeight: isSelected ? 700 : 500,
-        },
-        labelBgStyle: {
-          fill: '#ffffff',
-        },
-      };
-    });
-
-    const canvasCapabilityIds = new Set(viewCapabilities.map((vc) => vc.capabilityId));
-    const parentEdges: Edge[] = viewCapabilities
-      .map((vc) => {
-        const capability = capabilities.find((c) => c.id === vc.capabilityId);
-        if (!capability || !capability.parentId) return null;
-
-        if (!canvasCapabilityIds.has(capability.parentId)) return null;
-
-        const childNodeId = `cap-${capability.id}`;
-        const parentNodeId = `cap-${capability.parentId}`;
-        const edgeId = `parent-${capability.parentId}-${capability.id}`;
-        const isSelected = selectedEdgeId === edgeId;
-
-        const parentNode = nodes.find((n) => n.id === parentNodeId);
-        const childNode = nodes.find((n) => n.id === childNodeId);
-        const { sourceHandle, targetHandle } = getBestHandles(parentNode, childNode);
-
-        const parentEdgeColor = isClassicScheme ? '#000000' : '#374151';
-
-        return {
-          id: edgeId,
-          source: parentNodeId,
-          target: childNodeId,
-          sourceHandle,
-          targetHandle,
-          label: 'Parent',
-          type: edgeType,
-          animated: isSelected,
-          style: {
-            stroke: parentEdgeColor,
-            strokeWidth: 3,
-          },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: parentEdgeColor,
-          },
-          labelStyle: {
-            fill: parentEdgeColor,
-            fontWeight: isSelected ? 700 : 600,
-          },
-          labelBgStyle: {
-            fill: '#ffffff',
-          },
-        };
-      })
-      .filter((e) => e !== null) as Edge[];
-
-    const visibleCapabilityIds = new Set(viewCapabilities.map((vc) => vc.capabilityId));
-    const componentIdsOnCanvas = new Set(
-      currentView?.components.map((vc) => vc.componentId) || []
-    );
-
-    const shouldShowRealizationEdge = (realization: CapabilityRealization): boolean => {
-      if (!componentIdsOnCanvas.has(realization.componentId)) return false;
-      if (!visibleCapabilityIds.has(realization.capabilityId)) return false;
-
-      if (realization.origin === 'Direct') {
-        return true;
-      }
-
-      if (realization.origin === 'Inherited' && realization.sourceRealizationId) {
-        const sourceRealization = capabilityRealizations.find(
-          (r) => r.id === realization.sourceRealizationId
-        );
-        if (sourceRealization) {
-          return !visibleCapabilityIds.has(sourceRealization.capabilityId);
-        }
-      }
-      return false;
+    const ctx = {
+      nodes,
+      selectedEdgeId,
+      edgeType: currentView?.edgeType ?? 'default',
+      isClassicScheme: (currentView?.colorScheme ?? 'maturity') === 'classic',
     };
 
-    const realizationEdges = capabilityRealizations
-      .filter(shouldShowRealizationEdge)
-      .map((realization) => {
-        const edgeId = `realization-${realization.id}`;
-        const isSelected = selectedEdgeId === edgeId;
-        const isInherited = realization.origin === 'Inherited';
-
-        const sourceNodeId = realization.componentId;
-        const targetNodeId = `cap-${realization.capabilityId}`;
-
-        const sourceNode = nodes.find((n) => n.id === sourceNodeId);
-        const targetNode = nodes.find((n) => n.id === targetNodeId);
-        const { sourceHandle, targetHandle } = getBestHandles(sourceNode, targetNode);
-
-        const realizationColor = isClassicScheme ? '#000000' : '#10B981';
-
-        return {
-          id: edgeId,
-          source: sourceNodeId,
-          target: targetNodeId,
-          sourceHandle,
-          targetHandle,
-          label: isInherited ? 'Realizes (inherited)' : 'Realizes',
-          type: edgeType,
-          animated: isSelected,
-          className: isInherited ? 'realization-edge inherited' : 'realization-edge',
-          style: {
-            stroke: realizationColor,
-            strokeWidth: isSelected ? 3 : 2,
-            strokeDasharray: '5,5',
-            opacity: isInherited ? 0.6 : 1.0,
-          },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: realizationColor,
-          },
-          labelStyle: {
-            fill: realizationColor,
-            fontWeight: isSelected ? 700 : 500,
-            opacity: isInherited ? 0.8 : 1.0,
-          },
-          labelBgStyle: {
-            fill: '#ffffff',
-          },
-        };
-      });
-
-    return [...relationEdges, ...parentEdges, ...realizationEdges];
+    return [
+      ...createRelationEdges(relations, ctx),
+      ...createParentEdges(viewCapabilities, capabilities, ctx),
+      ...createRealizationEdges(capabilityRealizations, viewCapabilities, viewComponents, ctx),
+    ];
   }, [relations, selectedEdgeId, currentView, nodes, capabilities, capabilityRealizations]);
 };

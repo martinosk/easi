@@ -5,6 +5,7 @@ import { ColorPicker } from '../../../components/shared/ColorPicker';
 import { useCapabilities, useCapabilitiesByComponent } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../hooks/useComponents';
 import { useUpdateComponentColor, useClearComponentColor } from '../../views/hooks/useViews';
+import { useCurrentView } from '../../../hooks/useCurrentView';
 import type { CapabilityRealization, Capability, ViewComponent, Component, View, ViewId, ComponentId } from '../../../api/types';
 import toast from 'react-hot-toast';
 
@@ -258,7 +259,7 @@ export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (
 export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRemoveFromView }) => {
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const { data: components = [] } = useComponents();
-  const currentView = useAppStore((state) => state.currentView);
+  const { currentView } = useCurrentView();
   const { data: capabilities = [] } = useCapabilities();
   const { data: componentRealizations = [] } = useCapabilitiesByComponent(selectedNodeId ?? undefined);
   const updateComponentColorMutation = useUpdateComponentColor();

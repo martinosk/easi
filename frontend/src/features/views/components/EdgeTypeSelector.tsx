@@ -1,14 +1,21 @@
 import React from 'react';
-import { useAppStore } from '../../../store/appStore';
+import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useUpdateViewEdgeType } from '../hooks/useViews';
+import type { ViewId } from '../../../api/types';
 
 export const EdgeTypeSelector: React.FC = () => {
-  const currentView = useAppStore((state) => state.currentView);
-  const setEdgeType = useAppStore((state) => state.setEdgeType);
+  const { currentView, currentViewId } = useCurrentView();
+  const updateEdgeTypeMutation = useUpdateViewEdgeType();
 
   const edgeType = currentView?.edgeType || 'default';
 
-  const handleChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
-    await setEdgeType(event.target.value);
+  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    if (currentViewId) {
+      updateEdgeTypeMutation.mutate({
+        viewId: currentViewId as ViewId,
+        request: { edgeType: event.target.value },
+      });
+    }
   };
 
   return (
@@ -22,6 +29,7 @@ export const EdgeTypeSelector: React.FC = () => {
         value={edgeType}
         onChange={handleChange}
         aria-label="Select edge type for relations"
+        disabled={updateEdgeTypeMutation.isPending}
       >
         <option value="default">Bezier</option>
         <option value="step">Step</option>

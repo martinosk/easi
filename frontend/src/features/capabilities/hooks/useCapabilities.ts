@@ -135,17 +135,8 @@ export function useUpdateCapability() {
       request: UpdateCapabilityRequest;
     }) => capabilitiesApi.update(id, request),
     onSuccess: (updatedCapability) => {
-      queryClient.setQueryData<Capability[]>(
-        queryKeys.capabilities.lists(),
-        (old) =>
-          old?.map((c) =>
-            c.id === updatedCapability.id ? updatedCapability : c
-          ) ?? []
-      );
-      queryClient.setQueryData(
-        queryKeys.capabilities.detail(updatedCapability.id),
-        updatedCapability
-      );
+      queryClient.invalidateQueries({ queryKey: queryKeys.capabilities.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.capabilities.detail(updatedCapability.id) });
       toast.success(`Capability "${updatedCapability.name}" updated`);
     },
     onError: (error: Error) => {
@@ -166,17 +157,8 @@ export function useUpdateCapabilityMetadata() {
       request: UpdateCapabilityMetadataRequest;
     }) => capabilitiesApi.updateMetadata(id, request),
     onSuccess: (updatedCapability) => {
-      queryClient.setQueryData<Capability[]>(
-        queryKeys.capabilities.lists(),
-        (old) =>
-          old?.map((c) =>
-            c.id === updatedCapability.id ? updatedCapability : c
-          ) ?? []
-      );
-      queryClient.setQueryData(
-        queryKeys.capabilities.detail(updatedCapability.id),
-        updatedCapability
-      );
+      queryClient.invalidateQueries({ queryKey: queryKeys.capabilities.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.capabilities.detail(updatedCapability.id) });
       toast.success('Capability metadata updated');
     },
     onError: (error: Error) => {
@@ -289,6 +271,9 @@ export function useLinkSystemToCapability() {
     onSuccess: (_, { capabilityId }) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.capabilities.realizations(capabilityId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['realizations', 'byComponents'],
       });
       toast.success('System linked to capability');
     },

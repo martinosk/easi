@@ -3,10 +3,15 @@ import { render, screen, within, fireEvent, waitFor } from '@testing-library/rea
 import { NavigationTree } from './NavigationTree';
 import { createMantineTestWrapper, seedDb } from '../../../test/helpers';
 import { useAppStore } from '../../../store/appStore';
+import { useCurrentView } from '../../../hooks/useCurrentView';
 import type { View, ComponentId, CapabilityId } from '../../../api/types';
 
 vi.mock('../../../store/appStore', () => ({
   useAppStore: vi.fn(),
+}));
+
+vi.mock('../../../hooks/useCurrentView', () => ({
+  useCurrentView: vi.fn(),
 }));
 
 const mockComponents = [
@@ -83,12 +88,8 @@ const createViewWithColorScheme = (
   _links: { self: '/api/v1/views/view-1' },
 });
 
-const createMockStore = (currentView: View | null, canvasCapabilities: Array<{ capabilityId: string; x: number; y: number }> = []) => ({
-  capabilities: mockCapabilities,
-  currentView,
-  views: [],
+const createMockStore = () => ({
   selectedNodeId: null,
-  canvasCapabilities,
 });
 
 describe('NavigationTree - Custom Color Indicators', () => {
@@ -100,8 +101,14 @@ describe('NavigationTree - Custom Color Indicators', () => {
     });
   });
 
-  const renderNavigationTree = (store: ReturnType<typeof createMockStore>) => {
-    vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) => selector(store));
+  const renderNavigationTree = (currentView: View | null) => {
+    vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) => selector(createMockStore()));
+    vi.mocked(useCurrentView).mockReturnValue({
+      currentView,
+      currentViewId: currentView?.id ?? null,
+      isLoading: false,
+      error: null,
+    });
     const { Wrapper } = createMantineTestWrapper();
     return render(<NavigationTree />, { wrapper: Wrapper });
   };
@@ -117,7 +124,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         []
       );
 
-      renderNavigationTree(createMockStore(currentView));
+      renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();
@@ -136,7 +143,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         []
       );
 
-      renderNavigationTree(createMockStore(currentView));
+      renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();
@@ -154,7 +161,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         []
       );
 
-      renderNavigationTree(createMockStore(currentView));
+      renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();
@@ -172,7 +179,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         []
       );
 
-      renderNavigationTree(createMockStore(currentView));
+      renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();
@@ -193,7 +200,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         []
       );
 
-      renderNavigationTree(createMockStore(currentView));
+      renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();
@@ -226,7 +233,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         { capabilityId: 'cap-3', x: 100, y: 200 },
       ]);
 
-      renderNavigationTree(store);
+      renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Customer Management')).toBeInTheDocument();
@@ -247,7 +254,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
 
       const store = createMockStore(currentView, [{ capabilityId: 'cap-1', x: 100, y: 200 }]);
 
-      renderNavigationTree(store);
+      renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Customer Management')).toBeInTheDocument();
@@ -267,7 +274,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
 
       const store = createMockStore(currentView, [{ capabilityId: 'cap-1', x: 100, y: 200 }]);
 
-      renderNavigationTree(store);
+      renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Customer Management')).toBeInTheDocument();
@@ -293,7 +300,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         { capabilityId: 'cap-3', x: 100, y: 200 },
       ]);
 
-      renderNavigationTree(store);
+      renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Customer Management')).toBeInTheDocument();
@@ -324,7 +331,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         { capabilityId: 'cap-2', x: 100, y: 200 },
       ]);
 
-      renderNavigationTree(store);
+      renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Customer Management')).toBeInTheDocument();
@@ -353,8 +360,14 @@ describe('NavigationTree - Custom Color Indicators', () => {
 
       const { Wrapper } = createMantineTestWrapper();
       vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-        selector(createMockStore(currentViewMaturity))
+        selector(createMockStore())
       );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: currentViewMaturity,
+        currentViewId: currentViewMaturity.id,
+        isLoading: false,
+        error: null,
+      });
 
       const { rerender } = render(<NavigationTree />, { wrapper: Wrapper });
 
@@ -372,9 +385,12 @@ describe('NavigationTree - Custom Color Indicators', () => {
         []
       );
 
-      vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-        selector(createMockStore(currentViewCustom))
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: currentViewCustom,
+        currentViewId: currentViewCustom.id,
+        isLoading: false,
+        error: null,
+      });
 
       rerender(<NavigationTree />);
 
@@ -393,8 +409,14 @@ describe('NavigationTree - Custom Color Indicators', () => {
 
       const { Wrapper } = createMantineTestWrapper();
       vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-        selector(createMockStore(currentViewCustom, [{ capabilityId: 'cap-1', x: 100, y: 200 }]))
+        selector(createMockStore())
       );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: currentViewCustom,
+        currentViewId: currentViewCustom.id,
+        isLoading: false,
+        error: null,
+      });
 
       const { rerender } = render(<NavigationTree />, { wrapper: Wrapper });
 
@@ -412,9 +434,12 @@ describe('NavigationTree - Custom Color Indicators', () => {
         [{ capabilityId: 'cap-1', customColor: '#AA00FF' }]
       );
 
-      vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-        selector(createMockStore(currentViewClassic, [{ capabilityId: 'cap-1', x: 100, y: 200 }]))
-      );
+      vi.mocked(useCurrentView).mockReturnValue({
+        currentView: currentViewClassic,
+        currentViewId: currentViewClassic.id,
+        isLoading: false,
+        error: null,
+      });
 
       rerender(<NavigationTree />);
 
@@ -426,7 +451,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
 
   describe('Edge Cases', () => {
     it('should handle null currentView gracefully', async () => {
-      renderNavigationTree(createMockStore(null));
+      renderNavigationTree(null);
 
       await waitFor(() => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();
@@ -445,7 +470,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
       );
       currentView.colorScheme = undefined;
 
-      renderNavigationTree(createMockStore(currentView));
+      renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();
@@ -474,7 +499,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         { capabilityId: 'cap-3', x: 100, y: 200 },
       ]);
 
-      renderNavigationTree(store);
+      renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();

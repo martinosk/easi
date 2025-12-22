@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { apiClient } from '../../../api/client';
+import { useMemo } from 'react';
 import type { Capability, CapabilityId } from '../../../api/types';
+import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 
 export interface CapabilityTreeNode {
   capability: Capability;
@@ -49,26 +49,7 @@ function findOrphanedL1s(tree: CapabilityTreeNode[]): Set<CapabilityId> {
 }
 
 export function useCapabilityTree(): UseCapabilityTreeResult {
-  const [capabilities, setCapabilities] = useState<Capability[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  const fetchCapabilities = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await apiClient.getCapabilities();
-      setCapabilities(data);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch capabilities'));
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCapabilities();
-  }, [fetchCapabilities]);
+  const { data: capabilities = [], isLoading, error, refetch } = useCapabilities();
 
   const tree = useMemo(() => buildTree(capabilities), [capabilities]);
   const orphanedL1Ids = useMemo(() => findOrphanedL1s(tree), [tree]);
@@ -76,8 +57,8 @@ export function useCapabilityTree(): UseCapabilityTreeResult {
   return {
     tree,
     isLoading,
-    error,
-    refetch: fetchCapabilities,
+    error: error ?? null,
+    refetch: async () => { await refetch(); },
     orphanedL1Ids,
   };
 }

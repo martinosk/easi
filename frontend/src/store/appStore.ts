@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { createViewSlice, type ViewState, type ViewActions } from './slices/viewSlice';
 import { createViewportSlice, type ViewportSliceState, type ViewportActions } from './slices/viewportSlice';
 import { createSelectionSlice, type SelectionState, type SelectionActions } from './slices/selectionSlice';
-import { createLayoutSlice, type LayoutActions } from './slices/layoutSlice';
 import { createCanvasCapabilitySlice, type CanvasCapabilityState, type CanvasCapabilityActions } from './slices/canvasCapabilitySlice';
 
 export type AppStore =
@@ -12,7 +11,6 @@ export type AppStore =
   & ViewportActions
   & SelectionState
   & SelectionActions
-  & LayoutActions
   & CanvasCapabilityState
   & CanvasCapabilityActions;
 
@@ -20,7 +18,6 @@ export const useAppStore = create<AppStore>()((...args) => ({
   ...createViewSlice(...args),
   ...createViewportSlice(...args),
   ...createSelectionSlice(...args),
-  ...createLayoutSlice(...args),
   ...createCanvasCapabilitySlice(...args),
 }));
 

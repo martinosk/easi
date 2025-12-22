@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { Node, Edge } from '@xyflow/react';
-import { useAppStore } from '../../../store/appStore';
+import { useCurrentView } from '../../../hooks/useCurrentView';
 import { useCapabilities, useRealizationsForComponents } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useRelations } from '../../relations/hooks/useRelations';
@@ -135,7 +135,7 @@ export const useContextMenu = () => {
   const { data: components = [] } = useComponents();
   const { data: capabilities = [] } = useCapabilities();
   const { data: relations = [] } = useRelations();
-  const currentView = useAppStore((state) => state.currentView);
+  const { currentView } = useCurrentView();
 
   const componentIdsInView = useMemo(() =>
     currentView?.components.map((vc) => vc.componentId as ComponentId) || [],

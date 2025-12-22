@@ -1,12 +1,13 @@
 import { useEffect, useCallback, useState } from 'react';
 import type { ReactFlowInstance, Node } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
+import { useCurrentView } from '../../../hooks/useCurrentView';
 
 export const useCanvasViewport = (
   reactFlowInstance: ReactFlowInstance | null,
   nodes: Node[]
 ) => {
-  const currentView = useAppStore((state) => state.currentView);
+  const { currentView } = useCurrentView();
   const saveViewportState = useAppStore((state) => state.saveViewportState);
   const getViewportState = useAppStore((state) => state.getViewportState);
   const [isFirstLoad, setIsFirstLoad] = useState(true);

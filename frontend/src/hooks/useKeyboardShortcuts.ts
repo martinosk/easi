@@ -1,5 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { useAppStore } from '../store/appStore';
+import { useCurrentView } from './useCurrentView';
+import type { ViewComponent } from '../api/types';
 
 export interface KeyboardShortcutHandlers {
   onDelete?: () => void;
@@ -9,11 +11,11 @@ const isDeleteKey = (event: KeyboardEvent): boolean => event.key === 'Delete';
 
 export function useKeyboardShortcuts(handlers: KeyboardShortcutHandlers) {
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
-  const currentView = useAppStore((state) => state.currentView);
+  const { currentView } = useCurrentView();
 
   const isSelectedNodeInView = useCallback((): boolean => {
     if (!selectedNodeId || !currentView) return false;
-    return currentView.components.some((vc) => vc.componentId === selectedNodeId);
+    return currentView.components.some((vc: ViewComponent) => vc.componentId === selectedNodeId);
   }, [selectedNodeId, currentView]);
 
   const handleDeleteKey = useCallback(() => {

@@ -7,7 +7,9 @@ import { ComponentDetails } from '../../features/components';
 import { RelationDetails, RealizationDetails } from '../../features/relations';
 import { CapabilityDetails } from '../../features/capabilities';
 import { useAppStore } from '../../store/appStore';
-import type { Capability } from '../../api/types';
+import { useRemoveCapabilityFromView } from '../../features/views/hooks/useViews';
+import { useCurrentView } from '../../hooks/useCurrentView';
+import type { Capability, CapabilityId } from '../../api/types';
 
 interface MainLayoutProps {
   canvasRef: React.RefObject<ComponentCanvasRef | null>;
@@ -40,53 +42,31 @@ interface DetailSectionProps {
   onRemoveCapabilityFromView: () => void;
 }
 
-const renderDetailContent = (
-  selectedNodeId: string | null,
-  selectedEdgeId: string | null,
-  selectedCapabilityId: string | null,
-  onEditComponent: (componentId?: string) => void,
-  onEditRelation: () => void,
-  onRemoveFromView: () => void,
-  onRemoveCapabilityFromView: () => void
-): React.ReactNode => {
+function renderDetailContent(props: DetailSectionProps): React.ReactNode {
+  const { selectedNodeId, selectedEdgeId, selectedCapabilityId } = props;
+
   if (selectedNodeId) {
-    return <ComponentDetails onEdit={onEditComponent} onRemoveFromView={onRemoveFromView} />;
+    return <ComponentDetails onEdit={props.onEditComponent} onRemoveFromView={props.onRemoveFromView} />;
   }
   if (selectedEdgeId && isRealizationEdge(selectedEdgeId)) {
     return <RealizationDetails />;
   }
   if (selectedEdgeId && isRelationEdge(selectedEdgeId)) {
-    return <RelationDetails onEdit={onEditRelation} />;
+    return <RelationDetails onEdit={props.onEditRelation} />;
   }
   if (selectedCapabilityId) {
-    return <CapabilityDetails onRemoveFromView={onRemoveCapabilityFromView} />;
+    return <CapabilityDetails onRemoveFromView={props.onRemoveCapabilityFromView} />;
   }
   return null;
-};
+}
 
-const DetailSection: React.FC<DetailSectionProps> = ({
-  selectedNodeId,
-  selectedEdgeId,
-  selectedCapabilityId,
-  onEditComponent,
-  onEditRelation,
-  onRemoveFromView,
-  onRemoveCapabilityFromView,
-}) => {
-  const hasSelection = selectedNodeId || selectedEdgeId || selectedCapabilityId;
+const DetailSection: React.FC<DetailSectionProps> = (props) => {
+  const hasSelection = props.selectedNodeId || props.selectedEdgeId || props.selectedCapabilityId;
   if (!hasSelection) return null;
 
   return (
     <div className="detail-section">
-      {renderDetailContent(
-        selectedNodeId,
-        selectedEdgeId,
-        selectedCapabilityId,
-        onEditComponent,
-        onEditRelation,
-        onRemoveFromView,
-        onRemoveCapabilityFromView
-      )}
+      {renderDetailContent(props)}
     </div>
   );
 };
@@ -108,11 +88,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   onRemoveFromView,
 }) => {
   const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
-  const removeCapabilityFromCanvas = useAppStore((state) => state.removeCapabilityFromCanvas);
+  const { currentViewId } = useCurrentView();
+  const removeCapabilityFromViewMutation = useRemoveCapabilityFromView();
 
   const handleRemoveCapabilityFromView = () => {
-    if (selectedCapabilityId) {
-      removeCapabilityFromCanvas(selectedCapabilityId);
+    if (selectedCapabilityId && currentViewId) {
+      removeCapabilityFromViewMutation.mutate({
+        viewId: currentViewId,
+        capabilityId: selectedCapabilityId as CapabilityId,
+      });
     }
   };
 

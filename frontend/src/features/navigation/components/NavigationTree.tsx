@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAppStore } from '../../../store/appStore';
-import type { View, Component, Capability, ViewId, ComponentId } from '../../../api/types';
+import { useCurrentView } from '../../../hooks/useCurrentView';
+import type { View, Component, Capability, ViewId, ComponentId, ViewCapability } from '../../../api/types';
 import { ContextMenu } from '../../../components/shared/ContextMenu';
 import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
@@ -165,7 +166,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   onEditComponent,
 }) => {
   const { data: components = [] } = useComponents();
-  const currentView = useAppStore((state) => state.currentView);
+  const { currentView } = useCurrentView();
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const { data: capabilities = [] } = useCapabilities();
   const { data: views = [] } = useViews();
@@ -269,7 +270,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
   const getCapabilityNodeData = (node: CapabilityTreeNode) => {
     const { capability } = node;
-    const viewCapability = currentView?.capabilities.find(vc => vc.capabilityId === capability.id);
+    const viewCapability = currentView?.capabilities.find((vc: ViewCapability) => vc.capabilityId === capability.id);
     const isOnCanvas = !!viewCapability;
     const customColor = viewCapability?.customColor;
     const colorScheme = currentView?.colorScheme ?? 'maturity';

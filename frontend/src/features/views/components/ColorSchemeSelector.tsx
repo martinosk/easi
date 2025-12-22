@@ -1,14 +1,21 @@
 import React from 'react';
-import { useAppStore } from '../../../store/appStore';
+import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useUpdateViewColorScheme } from '../hooks/useViews';
+import type { ViewId } from '../../../api/types';
 
 export const ColorSchemeSelector: React.FC = () => {
-  const currentView = useAppStore((state) => state.currentView);
-  const setColorScheme = useAppStore((state) => state.setColorScheme);
+  const { currentView, currentViewId } = useCurrentView();
+  const updateColorSchemeMutation = useUpdateViewColorScheme();
 
   const colorScheme = currentView?.colorScheme || 'maturity';
 
-  const handleChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
-    await setColorScheme(event.target.value);
+  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    if (currentViewId) {
+      updateColorSchemeMutation.mutate({
+        viewId: currentViewId as ViewId,
+        request: { colorScheme: event.target.value },
+      });
+    }
   };
 
   return (
@@ -22,6 +29,7 @@ export const ColorSchemeSelector: React.FC = () => {
         value={colorScheme}
         onChange={handleChange}
         aria-label="Select color scheme for canvas elements"
+        disabled={updateColorSchemeMutation.isPending}
       >
         <option value="maturity">Maturity</option>
         <option value="classic">Classic</option>

@@ -6,6 +6,7 @@ import { ColorPicker } from '../../../components/shared/ColorPicker';
 import { useCapabilities, useCapabilityRealizations } from '../hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useUpdateCapabilityColor } from '../../views/hooks/useViews';
+import { useCurrentView } from '../../../hooks/useCurrentView';
 import type { Capability, Component, CapabilityRealization, Expert, View, ViewCapability, ViewId, CapabilityId } from '../../../api/types';
 import toast from 'react-hot-toast';
 
@@ -223,7 +224,7 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
   const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
   const { data: capabilities = [] } = useCapabilities();
   const { data: components = [] } = useComponents();
-  const currentView = useAppStore((state) => state.currentView);
+  const { currentView } = useCurrentView();
   const { data: capabilityRealizationsForThis = [] } = useCapabilityRealizations(selectedCapabilityId ?? undefined);
   const updateCapabilityColorMutation = useUpdateCapabilityColor();
   const [showEditDialog, setShowEditDialog] = useState(false);

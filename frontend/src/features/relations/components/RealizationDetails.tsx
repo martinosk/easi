@@ -4,6 +4,7 @@ import { EditRealizationDialog } from './EditRealizationDialog';
 import { DetailField } from '../../../components/shared/DetailField';
 import { useCapabilities, useRealizationsForComponents } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
+import { useCurrentView } from '../../../hooks/useCurrentView';
 import type { CapabilityRealization, Capability, Component, ComponentId } from '../../../api/types';
 
 const REALIZATION_PREFIX = 'realization-';
@@ -57,7 +58,7 @@ const getRealizationData = (
 
 export const RealizationDetails: React.FC = () => {
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
-  const currentView = useAppStore((state) => state.currentView);
+  const { currentView } = useCurrentView();
   const { data: components = [] } = useComponents();
   const { data: capabilities = [] } = useCapabilities();
   const [showEditDialog, setShowEditDialog] = useState(false);

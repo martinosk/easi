@@ -72,10 +72,11 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
 
   const [internalNodes, setInternalNodes] = React.useState(nodes);
 
-  const nodesRef = React.useRef(nodes);
+  const prevNodesRef = React.useRef<string>('');
   React.useEffect(() => {
-    if (nodesRef.current !== nodes) {
-      nodesRef.current = nodes;
+    const nodesKey = nodes.map(n => `${n.id}:${n.position.x}:${n.position.y}:${n.data?.isSelected}:${n.data?.label}:${n.data?.customColor}`).join('|');
+    if (prevNodesRef.current !== nodesKey) {
+      prevNodesRef.current = nodesKey;
       setInternalNodes(nodes);
     }
   }, [nodes]);

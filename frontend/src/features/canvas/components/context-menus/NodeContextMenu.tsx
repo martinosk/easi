@@ -1,5 +1,6 @@
 import { ContextMenu, type ContextMenuItem } from '../../../../components/shared/ContextMenu';
-import { useAppStore } from '../../../../store/appStore';
+import { useCurrentView } from '../../../../hooks/useCurrentView';
+import { useRemoveComponentFromView, useRemoveCapabilityFromView } from '../../../views/hooks/useViews';
 import type { NodeContextMenu as NodeContextMenuType } from '../../hooks/useContextMenu';
 import type { CapabilityId, ComponentId } from '../../../../api/types';
 
@@ -14,8 +15,9 @@ interface NodeContextMenuProps {
 }
 
 export const NodeContextMenu = ({ menu, onClose, onRequestDelete }: NodeContextMenuProps) => {
-  const removeComponentFromView = useAppStore((state) => state.removeComponentFromView);
-  const removeCapabilityFromCanvas = useAppStore((state) => state.removeCapabilityFromCanvas);
+  const { currentViewId } = useCurrentView();
+  const removeComponentFromViewMutation = useRemoveComponentFromView();
+  const removeCapabilityFromViewMutation = useRemoveCapabilityFromView();
 
   if (!menu) return null;
 
@@ -25,7 +27,12 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete }: NodeContextM
         {
           label: 'Remove from View',
           onClick: () => {
-            removeCapabilityFromCanvas(menu.nodeId as CapabilityId);
+            if (currentViewId) {
+              removeCapabilityFromViewMutation.mutate({
+                viewId: currentViewId,
+                capabilityId: menu.nodeId as CapabilityId
+              });
+            }
             onClose();
           },
         },
@@ -49,7 +56,12 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete }: NodeContextM
       {
         label: 'Remove from View',
         onClick: () => {
-          removeComponentFromView(menu.nodeId as ComponentId);
+          if (currentViewId) {
+            removeComponentFromViewMutation.mutate({
+              viewId: currentViewId,
+              componentId: menu.nodeId as ComponentId
+            });
+          }
           onClose();
         },
       },
