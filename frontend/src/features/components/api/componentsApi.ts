@@ -1,15 +1,13 @@
-import { httpClient } from '../../../api/core';
+import { httpClient, fetchAllPaginated } from '../../../api/core';
 import type {
   Component,
   ComponentId,
   CreateComponentRequest,
-  PaginatedResponse,
 } from '../../../api/types';
 
 export const componentsApi = {
   async getAll(): Promise<Component[]> {
-    const response = await httpClient.get<PaginatedResponse<Component>>('/api/v1/components');
-    return response.data.data || [];
+    return fetchAllPaginated<Component>('/api/v1/components');
   },
 
   async getById(id: ComponentId): Promise<Component> {

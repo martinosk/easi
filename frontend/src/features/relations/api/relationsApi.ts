@@ -1,15 +1,13 @@
-import { httpClient } from '../../../api/core';
+import { httpClient, fetchAllPaginated } from '../../../api/core';
 import type {
   Relation,
   RelationId,
   CreateRelationRequest,
-  PaginatedResponse,
 } from '../../../api/types';
 
 export const relationsApi = {
   async getAll(): Promise<Relation[]> {
-    const response = await httpClient.get<PaginatedResponse<Relation>>('/api/v1/relations');
-    return response.data.data || [];
+    return fetchAllPaginated<Relation>('/api/v1/relations');
   },
 
   async getById(id: RelationId): Promise<Relation> {

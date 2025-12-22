@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import axios, { type AxiosError } from 'axios';
+import { httpClient } from '../../../api/core/httpClient';
 import type { ImportSession, CreateImportSessionRequest, ImportSessionId } from '../types';
 
 interface UseImportSessionReturn {
@@ -13,22 +13,6 @@ interface UseImportSessionReturn {
 }
 
 const POLL_INTERVAL = 2000;
-
-const client = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? '',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true,
-});
-
-client.interceptors.response.use(
-  (response) => response,
-  (error: AxiosError) => {
-    const message = extractErrorMessage(error);
-    throw new Error(message);
-  }
-);
 
 export function useImportSession(): UseImportSessionReturn {
   const [session, setSession] = useState<ImportSession | null>(null);
@@ -49,7 +33,7 @@ export function useImportSession(): UseImportSessionReturn {
     if (!isMountedRef.current) return;
 
     try {
-      const response = await client.get<ImportSession>(`/api/v1/imports/${sessionId}`);
+      const response = await httpClient.get<ImportSession>(`/api/v1/imports/${sessionId}`);
       if (!isMountedRef.current) return;
 
       setSession(response.data);
@@ -78,7 +62,7 @@ export function useImportSession(): UseImportSessionReturn {
         formData.append('businessDomainId', request.businessDomainId);
       }
 
-      const response = await client.post<ImportSession>('/api/v1/imports', formData, {
+      const response = await httpClient.post<ImportSession>('/api/v1/imports', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -106,7 +90,7 @@ export function useImportSession(): UseImportSessionReturn {
     setError(null);
 
     try {
-      const response = await client.post<ImportSession>(session._links.confirm.href);
+      const response = await httpClient.post<ImportSession>(session._links.confirm.href);
       setSession(response.data);
 
       if (response.data.status === 'importing') {
@@ -129,7 +113,7 @@ export function useImportSession(): UseImportSessionReturn {
     setError(null);
 
     try {
-      await client.delete(session._links.delete.href);
+      await httpClient.delete(session._links.delete.href);
       setSession(null);
       stopPolling();
     } catch (err) {
@@ -163,31 +147,4 @@ export function useImportSession(): UseImportSessionReturn {
     cancelSession,
     reset,
   };
-}
-
-interface ErrorResponseData {
-  message?: string;
-  error?: string;
-  details?: Record<string, string>;
-}
-
-function isErrorResponseData(data: unknown): data is ErrorResponseData {
-  return typeof data === 'object' && data !== null;
-}
-
-function extractDetailsMessage(details?: Record<string, string>): string | null {
-  if (!details) return null;
-  const messages = Object.values(details).filter(Boolean);
-  return messages.length > 0 ? messages.join(', ') : null;
-}
-
-function extractErrorMessage(error: AxiosError): string {
-  const responseData = error.response?.data;
-  if (!isErrorResponseData(responseData)) {
-    return error.message || 'An unknown error occurred';
-  }
-  return responseData.message
-    ?? responseData.error
-    ?? extractDetailsMessage(responseData.details)
-    ?? 'An error occurred';
 }

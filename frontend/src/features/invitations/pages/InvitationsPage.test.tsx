@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { InvitationsPage } from './InvitationsPage';
 import { invitationApi } from '../api/invitationApi';
-import type { Invitation, InvitationsListResponse } from '../types';
+import type { Invitation } from '../types';
 
 vi.mock('../api/invitationApi');
 vi.mock('react-hot-toast', () => ({
@@ -68,16 +68,10 @@ const mockInvitations: Invitation[] = [
   },
 ];
 
-const mockResponse: InvitationsListResponse = {
-  data: mockInvitations,
-  pagination: { hasMore: false, limit: 50 },
-  _links: { self: '/api/v1/invitations' },
-};
-
 describe('InvitationsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(invitationApi.listInvitations).mockResolvedValue(mockResponse);
+    vi.mocked(invitationApi.getAll).mockResolvedValue(mockInvitations);
   });
 
   it('renders all invitations when filter is set to all', async () => {
@@ -90,7 +84,12 @@ describe('InvitationsPage', () => {
     expect(screen.getAllByTestId(/invitation-row-/)).toHaveLength(5);
   });
 
-  it('filters to show only pending invitations', async () => {
+  it.each([
+    { status: 'pending', expectedCount: 2, expectedIds: ['inv-1', 'inv-3'] },
+    { status: 'accepted', expectedCount: 1, expectedIds: ['inv-2'] },
+    { status: 'expired', expectedCount: 1, expectedIds: ['inv-4'] },
+    { status: 'revoked', expectedCount: 1, expectedIds: ['inv-5'] },
+  ])('filters to show only $status invitations', async ({ status, expectedCount, expectedIds }) => {
     render(<InvitationsPage />);
 
     await waitFor(() => {
@@ -98,64 +97,19 @@ describe('InvitationsPage', () => {
     });
 
     const filterSelect = screen.getByTestId('status-filter');
-    fireEvent.change(filterSelect, { target: { value: 'pending' } });
+    fireEvent.change(filterSelect, { target: { value: status } });
 
     const rows = screen.getAllByTestId(/invitation-row-/);
-    expect(rows).toHaveLength(2);
-    expect(screen.getByTestId('invitation-row-inv-1')).toBeInTheDocument();
-    expect(screen.getByTestId('invitation-row-inv-3')).toBeInTheDocument();
-  });
-
-  it('filters to show only accepted invitations', async () => {
-    render(<InvitationsPage />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('invitations-table')).toBeInTheDocument();
+    expect(rows).toHaveLength(expectedCount);
+    expectedIds.forEach((id) => {
+      expect(screen.getByTestId(`invitation-row-${id}`)).toBeInTheDocument();
     });
-
-    const filterSelect = screen.getByTestId('status-filter');
-    fireEvent.change(filterSelect, { target: { value: 'accepted' } });
-
-    const rows = screen.getAllByTestId(/invitation-row-/);
-    expect(rows).toHaveLength(1);
-    expect(screen.getByTestId('invitation-row-inv-2')).toBeInTheDocument();
-  });
-
-  it('filters to show only expired invitations', async () => {
-    render(<InvitationsPage />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('invitations-table')).toBeInTheDocument();
-    });
-
-    const filterSelect = screen.getByTestId('status-filter');
-    fireEvent.change(filterSelect, { target: { value: 'expired' } });
-
-    const rows = screen.getAllByTestId(/invitation-row-/);
-    expect(rows).toHaveLength(1);
-    expect(screen.getByTestId('invitation-row-inv-4')).toBeInTheDocument();
-  });
-
-  it('filters to show only revoked invitations', async () => {
-    render(<InvitationsPage />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('invitations-table')).toBeInTheDocument();
-    });
-
-    const filterSelect = screen.getByTestId('status-filter');
-    fireEvent.change(filterSelect, { target: { value: 'revoked' } });
-
-    const rows = screen.getAllByTestId(/invitation-row-/);
-    expect(rows).toHaveLength(1);
-    expect(screen.getByTestId('invitation-row-inv-5')).toBeInTheDocument();
   });
 
   it('shows empty state when filter matches no invitations', async () => {
-    vi.mocked(invitationApi.listInvitations).mockResolvedValue({
-      ...mockResponse,
-      data: mockInvitations.filter((i) => i.status === 'pending'),
-    });
+    vi.mocked(invitationApi.getAll).mockResolvedValue(
+      mockInvitations.filter((i) => i.status === 'pending')
+    );
 
     render(<InvitationsPage />);
 

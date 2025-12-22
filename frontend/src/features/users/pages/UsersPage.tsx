@@ -28,8 +28,8 @@ export function UsersPage() {
       setError(null);
       const statusParam = statusFilter !== 'all' ? statusFilter : undefined;
       const roleParam = roleFilter !== 'all' ? roleFilter : undefined;
-      const response = await userApi.listUsers(50, undefined, statusParam, roleParam);
-      setUsers(response.data ?? []);
+      const allUsers = await userApi.getAll(statusParam, roleParam);
+      setUsers(allUsers);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load users');
       toast.error('Failed to load users');
@@ -52,7 +52,7 @@ export function UsersPage() {
     if (!selectedUser) return;
 
     try {
-      await userApi.updateUser(selectedUser.id, { role: newRole });
+      await userApi.update(selectedUser.id, { role: newRole });
       toast.success(`Role changed to ${newRole} for ${selectedUser.email}`);
       setIsChangeRoleModalOpen(false);
       setSelectedUser(null);
@@ -68,7 +68,7 @@ export function UsersPage() {
     }
 
     try {
-      await userApi.updateUser(user.id, { status: 'disabled' });
+      await userApi.update(user.id, { status: 'disabled' });
       toast.success(`Account disabled for ${user.email}`);
       await loadUsers();
     } catch (err) {
@@ -78,7 +78,7 @@ export function UsersPage() {
 
   const handleEnableUser = async (user: User) => {
     try {
-      await userApi.updateUser(user.id, { status: 'active' });
+      await userApi.update(user.id, { status: 'active' });
       toast.success(`Account enabled for ${user.email}`);
       await loadUsers();
     } catch (err) {

@@ -23,8 +23,8 @@ export function InvitationsPage() {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await invitationApi.listInvitations();
-      setInvitations(response.data ?? []);
+      const allInvitations = await invitationApi.getAll();
+      setInvitations(allInvitations);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load invitations');
       toast.error('Failed to load invitations');
@@ -45,7 +45,7 @@ export function InvitationsPage() {
   }, [invitations, statusFilter]);
 
   const handleCreateInvitation = async (request: CreateInvitationRequest) => {
-    await invitationApi.createInvitation(request);
+    await invitationApi.create(request);
     toast.success(`Invitation created for ${request.email}. Please notify them to log in.`);
     await loadInvitations();
   };
@@ -55,7 +55,7 @@ export function InvitationsPage() {
       return;
     }
     try {
-      await invitationApi.revokeInvitation(invitation.id);
+      await invitationApi.revoke(invitation.id);
       toast.success('Invitation revoked');
       await loadInvitations();
     } catch (err) {

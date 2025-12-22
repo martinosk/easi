@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { UsersPage } from './UsersPage';
 import { userApi } from '../api/userApi';
-import type { User, UsersListResponse } from '../types';
+import type { User } from '../types';
 
 vi.mock('../api/userApi');
 vi.mock('react-hot-toast', () => ({
@@ -66,16 +66,10 @@ const mockUsers: User[] = [
   },
 ];
 
-const mockResponse: UsersListResponse = {
-  data: mockUsers,
-  pagination: { hasMore: false, limit: 50 },
-  _links: { self: '/api/v1/users' },
-};
-
 describe('UsersPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(userApi.listUsers).mockResolvedValue(mockResponse);
+    vi.mocked(userApi.getAll).mockResolvedValue(mockUsers);
   });
 
   it('renders user management page with all users', async () => {
@@ -91,48 +85,22 @@ describe('UsersPage', () => {
     expect(screen.getByText('disabled@acme.com')).toBeInTheDocument();
   });
 
-  it('filters users by status when active filter is selected', async () => {
+  it.each([
+    { filterType: 'status', testId: 'status-filter', value: 'active', expectedCall: ['active', undefined] },
+    { filterType: 'status', testId: 'status-filter', value: 'disabled', expectedCall: ['disabled', undefined] },
+    { filterType: 'role', testId: 'role-filter', value: 'admin', expectedCall: [undefined, 'admin'] },
+  ])('filters users by $filterType when $value filter is selected', async ({ testId, value, expectedCall }) => {
     render(<UsersPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('users-table')).toBeInTheDocument();
     });
 
-    const statusFilter = screen.getByTestId('status-filter');
-    fireEvent.change(statusFilter, { target: { value: 'active' } });
+    const filter = screen.getByTestId(testId);
+    fireEvent.change(filter, { target: { value } });
 
     await waitFor(() => {
-      expect(userApi.listUsers).toHaveBeenCalledWith(50, undefined, 'active', undefined);
-    });
-  });
-
-  it('filters users by status when disabled filter is selected', async () => {
-    render(<UsersPage />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('users-table')).toBeInTheDocument();
-    });
-
-    const statusFilter = screen.getByTestId('status-filter');
-    fireEvent.change(statusFilter, { target: { value: 'disabled' } });
-
-    await waitFor(() => {
-      expect(userApi.listUsers).toHaveBeenCalledWith(50, undefined, 'disabled', undefined);
-    });
-  });
-
-  it('filters users by role', async () => {
-    render(<UsersPage />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('users-table')).toBeInTheDocument();
-    });
-
-    const roleFilter = screen.getByTestId('role-filter');
-    fireEvent.change(roleFilter, { target: { value: 'admin' } });
-
-    await waitFor(() => {
-      expect(userApi.listUsers).toHaveBeenCalledWith(50, undefined, undefined, 'admin');
+      expect(userApi.getAll).toHaveBeenCalledWith(...expectedCall);
     });
   });
 
@@ -205,9 +173,12 @@ describe('UsersPage', () => {
     });
   });
 
-  it('calls update user API when disable button is clicked and confirmed', async () => {
+  it.each([
+    { action: 'disable', btnTestId: 'disable-btn-user-2', userId: 'user-2', newStatus: 'disabled', mockUserIndex: 1 },
+    { action: 'enable', btnTestId: 'enable-btn-user-3', userId: 'user-3', newStatus: 'active', mockUserIndex: 2 },
+  ])('calls update user API when $action button is clicked', async ({ btnTestId, userId, newStatus, mockUserIndex }) => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    vi.mocked(userApi.updateUser).mockResolvedValue(mockUsers[1]);
+    vi.mocked(userApi.update).mockResolvedValue(mockUsers[mockUserIndex]);
 
     render(<UsersPage />);
 
@@ -215,11 +186,11 @@ describe('UsersPage', () => {
       expect(screen.getByTestId('users-table')).toBeInTheDocument();
     });
 
-    const disableBtn = screen.getByTestId('disable-btn-user-2');
-    fireEvent.click(disableBtn);
+    const btn = screen.getByTestId(btnTestId);
+    fireEvent.click(btn);
 
     await waitFor(() => {
-      expect(userApi.updateUser).toHaveBeenCalledWith('user-2', { status: 'disabled' });
+      expect(userApi.update).toHaveBeenCalledWith(userId, { status: newStatus });
     });
 
     confirmSpy.mockRestore();
@@ -237,30 +208,13 @@ describe('UsersPage', () => {
     const disableBtn = screen.getByTestId('disable-btn-user-2');
     fireEvent.click(disableBtn);
 
-    expect(userApi.updateUser).not.toHaveBeenCalled();
+    expect(userApi.update).not.toHaveBeenCalled();
 
     confirmSpy.mockRestore();
   });
 
-  it('calls update user API when enable button is clicked', async () => {
-    vi.mocked(userApi.updateUser).mockResolvedValue(mockUsers[2]);
-
-    render(<UsersPage />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('users-table')).toBeInTheDocument();
-    });
-
-    const enableBtn = screen.getByTestId('enable-btn-user-3');
-    fireEvent.click(enableBtn);
-
-    await waitFor(() => {
-      expect(userApi.updateUser).toHaveBeenCalledWith('user-3', { status: 'active' });
-    });
-  });
-
   it('shows error message when users fail to load', async () => {
-    vi.mocked(userApi.listUsers).mockRejectedValue(new Error('Failed to fetch users'));
+    vi.mocked(userApi.getAll).mockRejectedValue(new Error('Failed to fetch users'));
 
     render(<UsersPage />);
 
@@ -272,10 +226,7 @@ describe('UsersPage', () => {
   });
 
   it('shows empty state when no users are found', async () => {
-    vi.mocked(userApi.listUsers).mockResolvedValue({
-      ...mockResponse,
-      data: [],
-    });
+    vi.mocked(userApi.getAll).mockResolvedValue([]);
 
     render(<UsersPage />);
 
@@ -301,7 +252,7 @@ describe('UsersPage', () => {
       expect(screen.getByTestId('users-table')).toBeInTheDocument();
     });
 
-    expect(userApi.listUsers).toHaveBeenCalledTimes(1);
+    expect(userApi.getAll).toHaveBeenCalledTimes(1);
   });
 
   it('displays user status badges correctly', async () => {
