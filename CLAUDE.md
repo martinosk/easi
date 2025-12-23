@@ -1,6 +1,5 @@
 # Code style
 Never add comments to code unless specifically instructed to do so by the user.
-Always check code quality with CodeScene after modifying files. Refactor any file that doesn't score a 10.0
 Always verify build and tests after modifying files.
 
 # Architecture style
