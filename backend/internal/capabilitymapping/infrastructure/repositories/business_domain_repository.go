@@ -1,96 +1,55 @@
 package repositories
 
 import (
-	"context"
 	"errors"
 	"time"
 
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/events"
 	"easi/backend/internal/infrastructure/eventstore"
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
+	"easi/backend/internal/shared/infrastructure/repository"
 )
 
-var (
-	ErrBusinessDomainNotFound = errors.New("business domain not found")
-)
+var ErrBusinessDomainNotFound = errors.New("business domain not found")
 
 type BusinessDomainRepository struct {
-	eventStore eventstore.EventStore
+	*repository.EventSourcedRepository[*aggregates.BusinessDomain]
 }
 
 func NewBusinessDomainRepository(eventStore eventstore.EventStore) *BusinessDomainRepository {
 	return &BusinessDomainRepository{
-		eventStore: eventStore,
+		EventSourcedRepository: repository.NewEventSourcedRepository(
+			eventStore,
+			businessDomainEventDeserializers,
+			aggregates.LoadBusinessDomainFromHistory,
+			ErrBusinessDomainNotFound,
+		),
 	}
 }
 
-func (r *BusinessDomainRepository) Save(ctx context.Context, businessDomain *aggregates.BusinessDomain) error {
-	uncommittedEvents := businessDomain.GetUncommittedChanges()
-	if len(uncommittedEvents) == 0 {
-		return nil
-	}
+var businessDomainEventDeserializers = repository.EventDeserializers{
+	"BusinessDomainCreated": func(data map[string]interface{}) domain.DomainEvent {
+		id, _ := data["id"].(string)
+		name, _ := data["name"].(string)
+		description, _ := data["description"].(string)
+		createdAtStr, _ := data["createdAt"].(string)
+		createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
 
-	err := r.eventStore.SaveEvents(ctx, businessDomain.ID(), uncommittedEvents, businessDomain.Version()-len(uncommittedEvents))
-	if err != nil {
-		return err
-	}
+		evt := events.NewBusinessDomainCreated(id, name, description)
+		evt.CreatedAt = createdAt
+		return evt
+	},
+	"BusinessDomainUpdated": func(data map[string]interface{}) domain.DomainEvent {
+		id, _ := data["id"].(string)
+		name, _ := data["name"].(string)
+		description, _ := data["description"].(string)
 
-	businessDomain.MarkChangesAsCommitted()
-	return nil
-}
+		return events.NewBusinessDomainUpdated(id, name, description)
+	},
+	"BusinessDomainDeleted": func(data map[string]interface{}) domain.DomainEvent {
+		id, _ := data["id"].(string)
 
-func (r *BusinessDomainRepository) GetByID(ctx context.Context, id string) (*aggregates.BusinessDomain, error) {
-	storedEvents, err := r.eventStore.GetEvents(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(storedEvents) == 0 {
-		return nil, ErrBusinessDomainNotFound
-	}
-
-	domainEvents := r.deserializeEvents(storedEvents)
-
-	return aggregates.LoadBusinessDomainFromHistory(domainEvents)
-}
-
-func (r *BusinessDomainRepository) deserializeEvents(storedEvents []domain.DomainEvent) []domain.DomainEvent {
-	var domainEvents []domain.DomainEvent
-
-	for _, event := range storedEvents {
-		eventData := event.EventData()
-
-		switch event.EventType() {
-		case "BusinessDomainCreated":
-			id, _ := eventData["id"].(string)
-			name, _ := eventData["name"].(string)
-			description, _ := eventData["description"].(string)
-			createdAtStr, _ := eventData["createdAt"].(string)
-			createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
-
-			concreteEvent := events.NewBusinessDomainCreated(id, name, description)
-			concreteEvent.CreatedAt = createdAt
-			domainEvents = append(domainEvents, concreteEvent)
-
-		case "BusinessDomainUpdated":
-			id, _ := eventData["id"].(string)
-			name, _ := eventData["name"].(string)
-			description, _ := eventData["description"].(string)
-
-			concreteEvent := events.NewBusinessDomainUpdated(id, name, description)
-			domainEvents = append(domainEvents, concreteEvent)
-
-		case "BusinessDomainDeleted":
-			id, _ := eventData["id"].(string)
-
-			concreteEvent := events.NewBusinessDomainDeleted(id)
-			domainEvents = append(domainEvents, concreteEvent)
-
-		default:
-			continue
-		}
-	}
-
-	return domainEvents
+		return events.NewBusinessDomainDeleted(id)
+	},
 }

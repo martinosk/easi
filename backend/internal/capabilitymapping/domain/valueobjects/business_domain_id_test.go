@@ -3,7 +3,7 @@ package valueobjects
 import (
 	"testing"
 
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 
 	"github.com/stretchr/testify/assert"
 )

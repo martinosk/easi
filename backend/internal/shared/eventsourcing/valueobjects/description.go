@@ -3,7 +3,7 @@ package valueobjects
 import (
 	"strings"
 
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 type Description struct {

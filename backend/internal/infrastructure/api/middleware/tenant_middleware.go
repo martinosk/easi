@@ -9,7 +9,7 @@ import (
 	"easi/backend/internal/auth/infrastructure/session"
 	"easi/backend/internal/shared/config"
 	sharedctx "easi/backend/internal/shared/context"
-	sharedvo "easi/backend/internal/shared/domain/valueobjects"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 // TenantMiddleware extracts tenant context from request and injects it into context

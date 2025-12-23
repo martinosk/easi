@@ -4,7 +4,7 @@ import (
 	"errors"
 	"regexp"
 
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 var (

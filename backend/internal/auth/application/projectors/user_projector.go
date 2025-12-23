@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"easi/backend/internal/auth/application/readmodels"
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 type UserProjector struct {

@@ -3,8 +3,8 @@ package valueobjects
 import (
 	"errors"
 
-	"easi/backend/internal/shared/domain"
-	sharedvo "easi/backend/internal/shared/domain/valueobjects"
+	"easi/backend/internal/shared/eventsourcing"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 var ErrInvalidInvitationID = errors.New("invalid invitation ID: must be a valid UUID")

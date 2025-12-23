@@ -1,7 +1,7 @@
 package valueobjects
 
 import (
-	sharedvo "easi/backend/internal/shared/domain/valueobjects"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 type Description = sharedvo.Description

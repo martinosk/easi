@@ -8,7 +8,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"easi/backend/internal/auth/domain/valueobjects"
-	sharedvo "easi/backend/internal/shared/domain/valueobjects"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 const tokenExpiryBuffer = 5 * time.Minute

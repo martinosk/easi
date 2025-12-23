@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"

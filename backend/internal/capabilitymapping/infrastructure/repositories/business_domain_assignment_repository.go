@@ -1,90 +1,50 @@
 package repositories
 
 import (
-	"context"
 	"errors"
 	"time"
 
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/events"
 	"easi/backend/internal/infrastructure/eventstore"
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
+	"easi/backend/internal/shared/infrastructure/repository"
 )
 
-var (
-	ErrAssignmentNotFound = errors.New("business domain assignment not found")
-)
+var ErrAssignmentNotFound = errors.New("business domain assignment not found")
 
 type BusinessDomainAssignmentRepository struct {
-	eventStore eventstore.EventStore
+	*repository.EventSourcedRepository[*aggregates.BusinessDomainAssignment]
 }
 
 func NewBusinessDomainAssignmentRepository(eventStore eventstore.EventStore) *BusinessDomainAssignmentRepository {
 	return &BusinessDomainAssignmentRepository{
-		eventStore: eventStore,
+		EventSourcedRepository: repository.NewEventSourcedRepository(
+			eventStore,
+			assignmentEventDeserializers,
+			aggregates.LoadBusinessDomainAssignmentFromHistory,
+			ErrAssignmentNotFound,
+		),
 	}
 }
 
-func (r *BusinessDomainAssignmentRepository) Save(ctx context.Context, assignment *aggregates.BusinessDomainAssignment) error {
-	uncommittedEvents := assignment.GetUncommittedChanges()
-	if len(uncommittedEvents) == 0 {
-		return nil
-	}
+var assignmentEventDeserializers = repository.EventDeserializers{
+	"CapabilityAssignedToDomain": func(data map[string]interface{}) domain.DomainEvent {
+		id, _ := data["id"].(string)
+		businessDomainID, _ := data["businessDomainId"].(string)
+		capabilityID, _ := data["capabilityId"].(string)
+		assignedAtStr, _ := data["assignedAt"].(string)
+		assignedAt, _ := time.Parse(time.RFC3339Nano, assignedAtStr)
 
-	err := r.eventStore.SaveEvents(ctx, assignment.ID(), uncommittedEvents, assignment.Version()-len(uncommittedEvents))
-	if err != nil {
-		return err
-	}
+		evt := events.NewCapabilityAssignedToDomain(id, businessDomainID, capabilityID)
+		evt.AssignedAt = assignedAt
+		return evt
+	},
+	"CapabilityUnassignedFromDomain": func(data map[string]interface{}) domain.DomainEvent {
+		id, _ := data["id"].(string)
+		businessDomainID, _ := data["businessDomainId"].(string)
+		capabilityID, _ := data["capabilityId"].(string)
 
-	assignment.MarkChangesAsCommitted()
-	return nil
-}
-
-func (r *BusinessDomainAssignmentRepository) GetByID(ctx context.Context, id string) (*aggregates.BusinessDomainAssignment, error) {
-	storedEvents, err := r.eventStore.GetEvents(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(storedEvents) == 0 {
-		return nil, ErrAssignmentNotFound
-	}
-
-	domainEvents := r.deserializeEvents(storedEvents)
-
-	return aggregates.LoadBusinessDomainAssignmentFromHistory(domainEvents)
-}
-
-func (r *BusinessDomainAssignmentRepository) deserializeEvents(storedEvents []domain.DomainEvent) []domain.DomainEvent {
-	var domainEvents []domain.DomainEvent
-
-	for _, event := range storedEvents {
-		eventData := event.EventData()
-
-		switch event.EventType() {
-		case "CapabilityAssignedToDomain":
-			id, _ := eventData["id"].(string)
-			businessDomainID, _ := eventData["businessDomainId"].(string)
-			capabilityID, _ := eventData["capabilityId"].(string)
-			assignedAtStr, _ := eventData["assignedAt"].(string)
-			assignedAt, _ := time.Parse(time.RFC3339Nano, assignedAtStr)
-
-			concreteEvent := events.NewCapabilityAssignedToDomain(id, businessDomainID, capabilityID)
-			concreteEvent.AssignedAt = assignedAt
-			domainEvents = append(domainEvents, concreteEvent)
-
-		case "CapabilityUnassignedFromDomain":
-			id, _ := eventData["id"].(string)
-			businessDomainID, _ := eventData["businessDomainId"].(string)
-			capabilityID, _ := eventData["capabilityId"].(string)
-
-			concreteEvent := events.NewCapabilityUnassignedFromDomain(id, businessDomainID, capabilityID)
-			domainEvents = append(domainEvents, concreteEvent)
-
-		default:
-			continue
-		}
-	}
-
-	return domainEvents
+		return events.NewCapabilityUnassignedFromDomain(id, businessDomainID, capabilityID)
+	},
 }

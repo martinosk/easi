@@ -8,7 +8,7 @@ import (
 
 	"easi/backend/internal/auth/application/readmodels"
 	"easi/backend/internal/auth/domain/events"
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 type InvitationProjector struct {

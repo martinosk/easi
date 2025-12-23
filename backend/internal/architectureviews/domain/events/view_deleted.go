@@ -3,7 +3,7 @@ package events
 import (
 	"time"
 
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 // ViewDeleted is raised when an architecture view is deleted

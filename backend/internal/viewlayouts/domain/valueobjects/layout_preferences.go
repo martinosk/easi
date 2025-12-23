@@ -3,7 +3,7 @@ package valueobjects
 import (
 	"reflect"
 
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 type LayoutPreferences struct {

@@ -8,7 +8,7 @@ import (
 	"easi/backend/internal/releases/domain"
 	"easi/backend/internal/releases/domain/aggregates"
 	"easi/backend/internal/releases/domain/valueobjects"
-	sharedDomain "easi/backend/internal/shared/domain"
+	sharedDomain "easi/backend/internal/shared/eventsourcing"
 )
 
 type PostgresReleaseRepository struct {

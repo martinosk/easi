@@ -5,7 +5,7 @@ import (
 	"net/mail"
 	"strings"
 
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 var (

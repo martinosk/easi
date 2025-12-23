@@ -13,7 +13,7 @@ import (
 	"time"
 
 	sharedctx "easi/backend/internal/shared/context"
-	sharedvo "easi/backend/internal/shared/domain/valueobjects"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"

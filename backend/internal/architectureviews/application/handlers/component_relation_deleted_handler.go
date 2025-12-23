@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 type ComponentRelationDeletedHandler struct{}

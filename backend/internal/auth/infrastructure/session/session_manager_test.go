@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	sharedvo "easi/backend/internal/shared/domain/valueobjects"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 func newTestSessionManager() *SessionManager {

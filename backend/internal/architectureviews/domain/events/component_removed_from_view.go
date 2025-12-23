@@ -3,7 +3,7 @@ package events
 import (
 	"time"
 
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 // ComponentRemovedFromView is raised when a component is removed from a view

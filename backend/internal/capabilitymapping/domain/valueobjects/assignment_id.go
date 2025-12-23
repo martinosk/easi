@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 
 	"github.com/google/uuid"
 )

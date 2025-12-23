@@ -3,7 +3,7 @@ package events
 import (
 	"time"
 
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 // ComponentRelationCreated is raised when a new component relation is created

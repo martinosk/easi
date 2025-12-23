@@ -9,7 +9,7 @@ import (
 	"os"
 
 	sharedcontext "easi/backend/internal/shared/context"
-	sharedvo "easi/backend/internal/shared/domain/valueobjects"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 func getEnv(key, defaultValue string) string {

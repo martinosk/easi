@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	sharedvo "easi/backend/internal/shared/domain/valueobjects"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 // contextKey is a custom type for context keys to avoid collisions

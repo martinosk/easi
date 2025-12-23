@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	sharedcontext "easi/backend/internal/shared/context"
-	sharedvo "easi/backend/internal/shared/domain/valueobjects"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 
 	"github.com/go-chi/chi/v5"
 )

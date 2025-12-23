@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"easi/backend/internal/auth/infrastructure/session"
-	sharedvo "easi/backend/internal/shared/domain/valueobjects"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 type mockUserRepository struct {

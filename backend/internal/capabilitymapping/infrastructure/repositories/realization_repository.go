@@ -1,101 +1,61 @@
 package repositories
 
 import (
-	"context"
 	"errors"
 	"time"
 
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/events"
 	"easi/backend/internal/infrastructure/eventstore"
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
+	"easi/backend/internal/shared/infrastructure/repository"
 )
 
-var (
-	ErrRealizationNotFound = errors.New("realization not found")
-)
+var ErrRealizationNotFound = errors.New("realization not found")
 
 type RealizationRepository struct {
-	eventStore eventstore.EventStore
+	*repository.EventSourcedRepository[*aggregates.CapabilityRealization]
 }
 
 func NewRealizationRepository(eventStore eventstore.EventStore) *RealizationRepository {
 	return &RealizationRepository{
-		eventStore: eventStore,
+		EventSourcedRepository: repository.NewEventSourcedRepository(
+			eventStore,
+			realizationEventDeserializers,
+			aggregates.LoadCapabilityRealizationFromHistory,
+			ErrRealizationNotFound,
+		),
 	}
 }
 
-func (r *RealizationRepository) Save(ctx context.Context, realization *aggregates.CapabilityRealization) error {
-	uncommittedEvents := realization.GetUncommittedChanges()
-	if len(uncommittedEvents) == 0 {
-		return nil
-	}
+var realizationEventDeserializers = repository.EventDeserializers{
+	"SystemLinkedToCapability": func(data map[string]interface{}) domain.DomainEvent {
+		id, _ := data["id"].(string)
+		capabilityID, _ := data["capabilityId"].(string)
+		componentID, _ := data["componentId"].(string)
+		realizationLevel, _ := data["realizationLevel"].(string)
+		notes, _ := data["notes"].(string)
+		linkedAtStr, _ := data["linkedAt"].(string)
+		linkedAt, _ := time.Parse(time.RFC3339Nano, linkedAtStr)
 
-	err := r.eventStore.SaveEvents(ctx, realization.ID(), uncommittedEvents, realization.Version()-len(uncommittedEvents))
-	if err != nil {
-		return err
-	}
+		evt := events.NewSystemLinkedToCapability(id, capabilityID, componentID, realizationLevel, notes)
+		evt.LinkedAt = linkedAt
+		return evt
+	},
+	"SystemRealizationUpdated": func(data map[string]interface{}) domain.DomainEvent {
+		id, _ := data["id"].(string)
+		realizationLevel, _ := data["realizationLevel"].(string)
+		notes, _ := data["notes"].(string)
 
-	realization.MarkChangesAsCommitted()
-	return nil
-}
+		return events.NewSystemRealizationUpdated(id, realizationLevel, notes)
+	},
+	"SystemRealizationDeleted": func(data map[string]interface{}) domain.DomainEvent {
+		id, _ := data["id"].(string)
+		deletedAtStr, _ := data["deletedAt"].(string)
+		deletedAt, _ := time.Parse(time.RFC3339Nano, deletedAtStr)
 
-func (r *RealizationRepository) GetByID(ctx context.Context, id string) (*aggregates.CapabilityRealization, error) {
-	storedEvents, err := r.eventStore.GetEvents(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(storedEvents) == 0 {
-		return nil, ErrRealizationNotFound
-	}
-
-	domainEvents := r.deserializeEvents(storedEvents)
-
-	return aggregates.LoadCapabilityRealizationFromHistory(domainEvents)
-}
-
-func (r *RealizationRepository) deserializeEvents(storedEvents []domain.DomainEvent) []domain.DomainEvent {
-	var domainEvents []domain.DomainEvent
-
-	for _, event := range storedEvents {
-		eventData := event.EventData()
-
-		switch event.EventType() {
-		case "SystemLinkedToCapability":
-			id, _ := eventData["id"].(string)
-			capabilityID, _ := eventData["capabilityId"].(string)
-			componentID, _ := eventData["componentId"].(string)
-			realizationLevel, _ := eventData["realizationLevel"].(string)
-			notes, _ := eventData["notes"].(string)
-			linkedAtStr, _ := eventData["linkedAt"].(string)
-			linkedAt, _ := time.Parse(time.RFC3339Nano, linkedAtStr)
-
-			concreteEvent := events.NewSystemLinkedToCapability(id, capabilityID, componentID, realizationLevel, notes)
-			concreteEvent.LinkedAt = linkedAt
-			domainEvents = append(domainEvents, concreteEvent)
-
-		case "SystemRealizationUpdated":
-			id, _ := eventData["id"].(string)
-			realizationLevel, _ := eventData["realizationLevel"].(string)
-			notes, _ := eventData["notes"].(string)
-
-			concreteEvent := events.NewSystemRealizationUpdated(id, realizationLevel, notes)
-			domainEvents = append(domainEvents, concreteEvent)
-
-		case "SystemRealizationDeleted":
-			id, _ := eventData["id"].(string)
-			deletedAtStr, _ := eventData["deletedAt"].(string)
-			deletedAt, _ := time.Parse(time.RFC3339Nano, deletedAtStr)
-
-			concreteEvent := events.NewSystemRealizationDeleted(id)
-			concreteEvent.DeletedAt = deletedAt
-			domainEvents = append(domainEvents, concreteEvent)
-
-		default:
-			continue
-		}
-	}
-
-	return domainEvents
+		evt := events.NewSystemRealizationDeleted(id)
+		evt.DeletedAt = deletedAt
+		return evt
+	},
 }

@@ -16,7 +16,7 @@ import (
 	"easi/backend/internal/auth/application/services"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
-	sharedvo "easi/backend/internal/shared/domain/valueobjects"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 
 	"easi/backend/internal/auth/infrastructure/oidc"
 	"easi/backend/internal/auth/infrastructure/repositories"

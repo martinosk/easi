@@ -3,7 +3,7 @@ package valueobjects
 import (
 	"errors"
 
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 var ErrInvalidUserStatus = errors.New("invalid user status: must be active or disabled")

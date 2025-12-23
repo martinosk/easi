@@ -7,7 +7,7 @@ import (
 
 	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/architectureviews/domain/events"
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 // ArchitectureViewProjector projects events to read models

@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 var ErrEmptyAuthState = errors.New("auth state cannot be empty")

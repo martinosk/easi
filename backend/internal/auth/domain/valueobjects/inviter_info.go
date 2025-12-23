@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 var (

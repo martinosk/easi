@@ -1,7 +1,7 @@
 package events
 
 import (
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 type CapabilityUpdated struct {

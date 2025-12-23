@@ -10,7 +10,7 @@ import (
 
 	"easi/backend/internal/auth/domain/events"
 	"easi/backend/internal/auth/domain/valueobjects"
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 func TestNewInvitation_CreatesPendingInvitation(t *testing.T) {

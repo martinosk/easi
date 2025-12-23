@@ -11,7 +11,7 @@ import (
 	"easi/backend/internal/platform/infrastructure/repositories"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
-	sharedvo "easi/backend/internal/shared/domain/valueobjects"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 type CreateTenantHandler struct {

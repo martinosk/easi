@@ -3,8 +3,8 @@ package valueobjects
 import (
 	"errors"
 
-	"easi/backend/internal/shared/domain"
-	sharedvo "easi/backend/internal/shared/domain/valueobjects"
+	"easi/backend/internal/shared/eventsourcing"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 var ErrInvalidUserID = errors.New("invalid user ID: must be a valid UUID")

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
 )
 
 // EventHandler handles a domain event

@@ -1,113 +1,60 @@
 package repositories
 
 import (
-	"context"
 	"errors"
 	"time"
 
 	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/events"
 	"easi/backend/internal/infrastructure/eventstore"
-	"easi/backend/internal/shared/domain"
+	"easi/backend/internal/shared/eventsourcing"
+	"easi/backend/internal/shared/infrastructure/repository"
 )
 
-var (
-	// ErrRelationNotFound is returned when a relation is not found
-	ErrRelationNotFound = errors.New("relation not found")
-)
+var ErrRelationNotFound = errors.New("relation not found")
 
-// ComponentRelationRepository manages persistence of component relations
 type ComponentRelationRepository struct {
-	eventStore eventstore.EventStore
+	*repository.EventSourcedRepository[*aggregates.ComponentRelation]
 }
 
-// NewComponentRelationRepository creates a new repository
 func NewComponentRelationRepository(eventStore eventstore.EventStore) *ComponentRelationRepository {
 	return &ComponentRelationRepository{
-		eventStore: eventStore,
+		EventSourcedRepository: repository.NewEventSourcedRepository(
+			eventStore,
+			relationEventDeserializers,
+			aggregates.LoadComponentRelationFromHistory,
+			ErrRelationNotFound,
+		),
 	}
 }
 
-// Save persists a component relation aggregate
-func (r *ComponentRelationRepository) Save(ctx context.Context, relation *aggregates.ComponentRelation) error {
-	uncommittedEvents := relation.GetUncommittedChanges()
-	if len(uncommittedEvents) == 0 {
-		return nil
-	}
+var relationEventDeserializers = repository.EventDeserializers{
+	"ComponentRelationCreated": func(data map[string]interface{}) domain.DomainEvent {
+		id, _ := data["id"].(string)
+		sourceComponentID, _ := data["sourceComponentId"].(string)
+		targetComponentID, _ := data["targetComponentId"].(string)
+		relationType, _ := data["relationType"].(string)
+		name, _ := data["name"].(string)
+		description, _ := data["description"].(string)
+		createdAtStr, _ := data["createdAt"].(string)
+		createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
 
-	err := r.eventStore.SaveEvents(ctx, relation.ID(), uncommittedEvents, relation.Version()-len(uncommittedEvents))
-	if err != nil {
-		return err
-	}
+		evt := events.NewComponentRelationCreated(events.ComponentRelationParams{
+			ID:          id,
+			SourceID:    sourceComponentID,
+			TargetID:    targetComponentID,
+			Type:        relationType,
+			Name:        name,
+			Description: description,
+		})
+		evt.CreatedAt = createdAt
+		return evt
+	},
+	"ComponentRelationUpdated": func(data map[string]interface{}) domain.DomainEvent {
+		id, _ := data["id"].(string)
+		name, _ := data["name"].(string)
+		description, _ := data["description"].(string)
 
-	relation.MarkChangesAsCommitted()
-	return nil
-}
-
-// GetByID retrieves a component relation by ID
-func (r *ComponentRelationRepository) GetByID(ctx context.Context, id string) (*aggregates.ComponentRelation, error) {
-	storedEvents, err := r.eventStore.GetEvents(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	// If no events found, the aggregate doesn't exist
-	if len(storedEvents) == 0 {
-		return nil, ErrRelationNotFound
-	}
-
-	// Deserialize events (simplified)
-	domainEvents := r.deserializeEvents(storedEvents)
-
-	return aggregates.LoadComponentRelationFromHistory(domainEvents)
-}
-
-// deserializeEvents converts stored events to domain events
-func (r *ComponentRelationRepository) deserializeEvents(storedEvents []domain.DomainEvent) []domain.DomainEvent {
-	// Convert generic events back to concrete event types
-	var domainEvents []domain.DomainEvent
-
-	for _, event := range storedEvents {
-		eventData := event.EventData()
-
-		switch event.EventType() {
-		case "ComponentRelationCreated":
-			// Extract fields from event data
-			id, _ := eventData["id"].(string)
-			sourceComponentID, _ := eventData["sourceComponentId"].(string)
-			targetComponentID, _ := eventData["targetComponentId"].(string)
-			relationType, _ := eventData["relationType"].(string)
-			name, _ := eventData["name"].(string)
-			description, _ := eventData["description"].(string)
-			createdAtStr, _ := eventData["createdAt"].(string)
-			createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
-
-			concreteEvent := events.NewComponentRelationCreated(events.ComponentRelationParams{
-				ID:          id,
-				SourceID:    sourceComponentID,
-				TargetID:    targetComponentID,
-				Type:        relationType,
-				Name:        name,
-				Description: description,
-			})
-			concreteEvent.CreatedAt = createdAt
-			domainEvents = append(domainEvents, concreteEvent)
-
-		case "ComponentRelationUpdated":
-			// Extract fields from event data
-			id, _ := eventData["id"].(string)
-			name, _ := eventData["name"].(string)
-			description, _ := eventData["description"].(string)
-
-			// Create concrete event
-			concreteEvent := events.NewComponentRelationUpdated(id, name, description)
-			domainEvents = append(domainEvents, concreteEvent)
-
-		default:
-			// Unknown event type, skip it
-			continue
-		}
-	}
-
-	return domainEvents
+		return events.NewComponentRelationUpdated(id, name, description)
+	},
 }

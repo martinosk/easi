@@ -9,8 +9,8 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
-	"easi/backend/internal/shared/domain"
-	sharedvo "easi/backend/internal/shared/domain/valueobjects"
+	"easi/backend/internal/shared/eventsourcing"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 	"easi/backend/internal/shared/events"
 )
 
