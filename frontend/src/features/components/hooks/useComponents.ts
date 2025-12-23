@@ -25,10 +25,10 @@ export function useCreateComponent() {
   return useMutation({
     mutationFn: (request: CreateComponentRequest) => componentsApi.create(request),
     onSuccess: (newComponent) => {
-      queryClient.setQueryData<Component[]>(
-        queryKeys.components.lists(),
-        (old) => (old ? [...old, newComponent] : [newComponent])
-      );
+      queryClient.setQueryData<Component[]>(queryKeys.components.lists(), (old) => {
+        const updated = old ? [...old, newComponent] : [newComponent];
+        return updated.sort((a, b) => a.name.localeCompare(b.name));
+      });
       toast.success(`Component "${newComponent.name}" created`);
     },
     onError: (error: Error) => {
