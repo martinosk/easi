@@ -1,8 +1,6 @@
 package api
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"easi/backend/internal/architecturemodeling/application/commands"
@@ -10,8 +8,6 @@ import (
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
-
-	"github.com/go-chi/chi/v5"
 )
 
 type ComponentHandlers struct {
@@ -56,14 +52,12 @@ type UpdateApplicationComponentRequest struct {
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /components [post]
 func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r *http.Request) {
-	var req CreateApplicationComponentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[CreateApplicationComponentRequest](w, r)
+	if !ok {
 		return
 	}
 
-	_, err := valueobjects.NewComponentName(req.Name)
-	if err != nil {
+	if _, err := valueobjects.NewComponentName(req.Name); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
@@ -78,6 +72,7 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 		return
 	}
 
+	location := sharedAPI.BuildResourceLink(sharedAPI.ResourcePath("/components"), sharedAPI.ResourceID(cmd.ID))
 	component, err := h.readModel.GetByID(r.Context(), cmd.ID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve created component")
@@ -85,9 +80,7 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 	}
 
 	if component == nil {
-		location := fmt.Sprintf("/api/v1/components/%s", cmd.ID)
-		w.Header().Set("Location", location)
-		sharedAPI.RespondJSON(w, http.StatusCreated, map[string]string{
+		sharedAPI.RespondCreated(w, location, map[string]string{
 			"id":      cmd.ID,
 			"message": "Component created, processing",
 		})
@@ -95,10 +88,7 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 	}
 
 	component.Links = h.hateoas.ComponentLinks(component.ID)
-
-	location := fmt.Sprintf("/api/v1/components/%s", component.ID)
-	w.Header().Set("Location", location)
-	sharedAPI.RespondJSON(w, http.StatusCreated, component)
+	sharedAPI.RespondCreated(w, location, component)
 }
 
 // GetAllComponents godoc
@@ -156,7 +146,7 @@ func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Requ
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /components/{id} [get]
 func (h *ComponentHandlers) GetComponentByID(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+	id := sharedAPI.GetPathParam(r, "id")
 
 	component, err := h.readModel.GetByID(r.Context(), id)
 	if err != nil {
@@ -170,7 +160,6 @@ func (h *ComponentHandlers) GetComponentByID(w http.ResponseWriter, r *http.Requ
 	}
 
 	component.Links = h.hateoas.ComponentLinks(component.ID)
-
 	sharedAPI.RespondJSON(w, http.StatusOK, component)
 }
 
@@ -188,16 +177,14 @@ func (h *ComponentHandlers) GetComponentByID(w http.ResponseWriter, r *http.Requ
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /components/{id} [put]
 func (h *ComponentHandlers) UpdateApplicationComponent(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+	id := sharedAPI.GetPathParam(r, "id")
 
-	var req UpdateApplicationComponentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[UpdateApplicationComponentRequest](w, r)
+	if !ok {
 		return
 	}
 
-	_, err := valueobjects.NewComponentName(req.Name)
-	if err != nil {
+	if _, err := valueobjects.NewComponentName(req.Name); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
@@ -225,18 +212,17 @@ func (h *ComponentHandlers) UpdateApplicationComponent(w http.ResponseWriter, r 
 	}
 
 	component.Links = h.hateoas.ComponentLinks(component.ID)
-
 	sharedAPI.RespondJSON(w, http.StatusOK, component)
 }
 
 func (h *ComponentHandlers) DeleteApplicationComponent(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+	id := sharedAPI.GetPathParam(r, "id")
 
 	cmd := &commands.DeleteApplicationComponent{
 		ID: id,
 	}
 
 	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
-		w.WriteHeader(http.StatusNoContent)
+		sharedAPI.RespondDeleted(w)
 	})
 }

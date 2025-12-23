@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -10,8 +9,6 @@ import (
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
-
-	"github.com/go-chi/chi/v5"
 )
 
 type BusinessDomainReadModels struct {
@@ -89,9 +86,8 @@ type DomainForCapabilityDTO struct {
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /business-domains [post]
 func (h *BusinessDomainHandlers) CreateBusinessDomain(w http.ResponseWriter, r *http.Request) {
-	var req CreateBusinessDomainRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[CreateBusinessDomainRequest](w, r)
+	if !ok {
 		return
 	}
 
@@ -158,7 +154,7 @@ func (h *BusinessDomainHandlers) getDomainOrNotFound(w http.ResponseWriter, r *h
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /business-domains/{id} [get]
 func (h *BusinessDomainHandlers) GetBusinessDomainByID(w http.ResponseWriter, r *http.Request) {
-	domain := h.getDomainOrNotFound(w, r, chi.URLParam(r, "id"))
+	domain := h.getDomainOrNotFound(w, r, sharedAPI.GetPathParam(r, "id"))
 	if domain == nil {
 		return
 	}
@@ -181,11 +177,10 @@ func (h *BusinessDomainHandlers) GetBusinessDomainByID(w http.ResponseWriter, r 
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /business-domains/{id} [put]
 func (h *BusinessDomainHandlers) UpdateBusinessDomain(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+	id := sharedAPI.GetPathParam(r, "id")
 
-	var req UpdateBusinessDomainRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[UpdateBusinessDomainRequest](w, r)
+	if !ok {
 		return
 	}
 
@@ -207,9 +202,11 @@ func (h *BusinessDomainHandlers) respondWithDomain(w http.ResponseWriter, r *htt
 		return
 	}
 
+	location := sharedAPI.BuildResourceLink(sharedAPI.ResourcePath("/business-domains"), sharedAPI.ResourceID(domainID))
+
 	if domain == nil {
 		if statusCode == http.StatusCreated {
-			sharedAPI.RespondJSON(w, http.StatusCreated, map[string]string{
+			sharedAPI.RespondCreated(w, location, map[string]string{
 				"id":      domainID,
 				"message": "Domain created, processing",
 			})
@@ -219,13 +216,12 @@ func (h *BusinessDomainHandlers) respondWithDomain(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if statusCode == http.StatusCreated {
-		location := fmt.Sprintf("/api/v1/business-domains/%s", domainID)
-		w.Header().Set("Location", location)
-	}
-
 	domain.Links = h.hateoas.BusinessDomainLinks(domain.ID, domain.CapabilityCount > 0)
-	sharedAPI.RespondJSON(w, statusCode, domain)
+	if statusCode == http.StatusCreated {
+		sharedAPI.RespondCreated(w, location, domain)
+	} else {
+		sharedAPI.RespondJSON(w, statusCode, domain)
+	}
 }
 
 // DeleteBusinessDomain godoc
@@ -239,13 +235,13 @@ func (h *BusinessDomainHandlers) respondWithDomain(w http.ResponseWriter, r *htt
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /business-domains/{id} [delete]
 func (h *BusinessDomainHandlers) DeleteBusinessDomain(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+	id := sharedAPI.GetPathParam(r, "id")
 	if h.getDomainOrNotFound(w, r, id) == nil {
 		return
 	}
 
 	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), &commands.DeleteBusinessDomain{ID: id}), func() {
-		w.WriteHeader(http.StatusNoContent)
+		sharedAPI.RespondDeleted(w)
 	})
 }
 
@@ -260,7 +256,7 @@ func (h *BusinessDomainHandlers) DeleteBusinessDomain(w http.ResponseWriter, r *
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /business-domains/{id}/capabilities [get]
 func (h *BusinessDomainHandlers) GetCapabilitiesInDomain(w http.ResponseWriter, r *http.Request) {
-	domainID := chi.URLParam(r, "id")
+	domainID := sharedAPI.GetPathParam(r, "id")
 
 	domain, err := h.readModels.Domain.GetByID(r.Context(), domainID)
 	if err != nil {
@@ -315,11 +311,10 @@ func (h *BusinessDomainHandlers) GetCapabilitiesInDomain(w http.ResponseWriter, 
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /business-domains/{id}/capabilities [post]
 func (h *BusinessDomainHandlers) AssignCapabilityToDomain(w http.ResponseWriter, r *http.Request) {
-	domainID := chi.URLParam(r, "id")
+	domainID := sharedAPI.GetPathParam(r, "id")
 
-	var req AssignCapabilityRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[AssignCapabilityRequest](w, r)
+	if !ok {
 		return
 	}
 
@@ -371,8 +366,8 @@ func (h *BusinessDomainHandlers) respondWithAssignment(w http.ResponseWriter, r 
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /business-domains/{domainId}/capabilities/{capabilityId} [delete]
 func (h *BusinessDomainHandlers) RemoveCapabilityFromDomain(w http.ResponseWriter, r *http.Request) {
-	domainID := chi.URLParam(r, "domainId")
-	capabilityID := chi.URLParam(r, "capabilityId")
+	domainID := sharedAPI.GetPathParam(r, "domainId")
+	capabilityID := sharedAPI.GetPathParam(r, "capabilityId")
 
 	assignment, err := h.readModels.Assignment.GetByDomainAndCapability(r.Context(), domainID, capabilityID)
 	if err != nil {
@@ -394,7 +389,7 @@ func (h *BusinessDomainHandlers) RemoveCapabilityFromDomain(w http.ResponseWrite
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	sharedAPI.RespondDeleted(w)
 }
 
 // GetDomainsForCapability godoc
@@ -408,7 +403,7 @@ func (h *BusinessDomainHandlers) RemoveCapabilityFromDomain(w http.ResponseWrite
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id}/business-domains [get]
 func (h *BusinessDomainHandlers) GetDomainsForCapability(w http.ResponseWriter, r *http.Request) {
-	capabilityID := chi.URLParam(r, "id")
+	capabilityID := sharedAPI.GetPathParam(r, "id")
 
 	capability, err := h.readModels.Capability.GetByID(r.Context(), capabilityID)
 	if err != nil {
@@ -502,7 +497,7 @@ func (h *BusinessDomainHandlers) addRealizationLinks(realizations []readmodels.R
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /business-domains/{id}/capability-realizations [get]
 func (h *BusinessDomainHandlers) GetCapabilityRealizationsByDomain(w http.ResponseWriter, r *http.Request) {
-	domainID := chi.URLParam(r, "id")
+	domainID := sharedAPI.GetPathParam(r, "id")
 
 	domain, err := h.readModels.Domain.GetByID(r.Context(), domainID)
 	if err != nil {

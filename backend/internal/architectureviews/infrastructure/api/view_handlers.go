@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -11,8 +10,6 @@ import (
 	"easi/backend/internal/architectureviews/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
-
-	"github.com/go-chi/chi/v5"
 )
 
 type ViewHandlers struct {
@@ -57,9 +54,8 @@ type elementParams struct {
 }
 
 func (h *ViewHandlers) updateElementColor(w http.ResponseWriter, r *http.Request, params elementParams) {
-	var req UpdateElementColorRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[UpdateElementColorRequest](w, r)
+	if !ok {
 		return
 	}
 
@@ -75,7 +71,7 @@ func (h *ViewHandlers) updateElementColor(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	sharedAPI.RespondNoContent(w)
 }
 
 func (h *ViewHandlers) clearElementColor(w http.ResponseWriter, r *http.Request, params elementParams) {
@@ -90,11 +86,11 @@ func (h *ViewHandlers) clearElementColor(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	sharedAPI.RespondNoContent(w)
 }
 
 func (h *ViewHandlers) decodeValidateAndDispatch(w http.ResponseWriter, r *http.Request, req interface{}, validate func() error, createCmd func() cqrs.Command) {
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+	if err := sharedAPI.DecodeRequestInto(r, req); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
 		return
 	}
@@ -163,14 +159,12 @@ type UpdateColorSchemeRequest struct {
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /views [post]
 func (h *ViewHandlers) CreateView(w http.ResponseWriter, r *http.Request) {
-	var req CreateViewRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.errorHandler.HandleValidationError(w, err)
+	req, ok := sharedAPI.DecodeRequestOrFail[CreateViewRequest](w, r)
+	if !ok {
 		return
 	}
 
-	_, err := valueobjects.NewViewName(req.Name)
-	if err != nil {
+	if _, err := valueobjects.NewViewName(req.Name); err != nil {
 		h.errorHandler.HandleValidationError(w, err)
 		return
 	}
@@ -185,6 +179,7 @@ func (h *ViewHandlers) CreateView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	location := sharedAPI.BuildResourceLink(sharedAPI.ResourcePath("/views"), sharedAPI.ResourceID(cmd.ID))
 	view, err := h.readModel.GetByID(r.Context(), cmd.ID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve created view")
@@ -192,9 +187,7 @@ func (h *ViewHandlers) CreateView(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if view == nil {
-		location := fmt.Sprintf("/api/v1/views/%s", cmd.ID)
-		w.Header().Set("Location", location)
-		sharedAPI.RespondJSON(w, http.StatusCreated, map[string]string{
+		sharedAPI.RespondCreated(w, location, map[string]string{
 			"id":      cmd.ID,
 			"message": "View created, processing",
 		})
@@ -202,10 +195,7 @@ func (h *ViewHandlers) CreateView(w http.ResponseWriter, r *http.Request) {
 	}
 
 	view.Links = h.hateoas.ViewLinks(view.ID)
-
-	location := fmt.Sprintf("/api/v1/views/%s", view.ID)
-	w.Header().Set("Location", location)
-	sharedAPI.RespondJSON(w, http.StatusCreated, view)
+	sharedAPI.RespondCreated(w, location, view)
 }
 
 // GetAllViews godoc
@@ -246,7 +236,7 @@ func (h *ViewHandlers) GetAllViews(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /views/{id} [get]
 func (h *ViewHandlers) GetViewByID(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+	id := sharedAPI.GetPathParam(r, "id")
 
 	view, err := h.readModel.GetByID(r.Context(), id)
 	if err != nil {
@@ -280,11 +270,10 @@ func (h *ViewHandlers) GetViewByID(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /views/{id}/components [post]
 func (h *ViewHandlers) AddComponentToView(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
+	viewID := sharedAPI.GetPathParam(r, "id")
 
-	var req AddComponentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[AddComponentRequest](w, r)
+	if !ok {
 		return
 	}
 
@@ -300,9 +289,8 @@ func (h *ViewHandlers) AddComponentToView(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	location := fmt.Sprintf("/api/v1/views/%s/components", viewID)
-	w.Header().Set("Location", location)
-	w.WriteHeader(http.StatusCreated)
+	location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/views"), sharedAPI.ResourceID(viewID), sharedAPI.ResourcePath("/components"))
+	sharedAPI.RespondCreatedNoBody(w, location)
 }
 
 // UpdateComponentPosition godoc
@@ -320,8 +308,8 @@ func (h *ViewHandlers) AddComponentToView(w http.ResponseWriter, r *http.Request
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /views/{id}/components/{componentId}/position [patch]
 func (h *ViewHandlers) UpdateComponentPosition(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
-	componentID := chi.URLParam(r, "componentId")
+	viewID := sharedAPI.GetPathParam(r, "id")
+	componentID := sharedAPI.GetPathParam(r, "componentId")
 	var req UpdatePositionRequest
 
 	h.decodeValidateAndDispatch(w, r, &req, nil, func() cqrs.Command {
@@ -335,11 +323,10 @@ func (h *ViewHandlers) UpdateComponentPosition(w http.ResponseWriter, r *http.Re
 }
 
 func (h *ViewHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
+	viewID := sharedAPI.GetPathParam(r, "id")
 
-	var req UpdateMultiplePositionsRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[UpdateMultiplePositionsRequest](w, r)
+	if !ok {
 		return
 	}
 
@@ -362,7 +349,7 @@ func (h *ViewHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	sharedAPI.RespondNoContent(w)
 }
 
 // RenameView godoc
@@ -379,16 +366,18 @@ func (h *ViewHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Re
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /views/{id}/name [patch]
 func (h *ViewHandlers) RenameView(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
-	var req RenameViewRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	viewID := sharedAPI.GetPathParam(r, "id")
+
+	req, ok := sharedAPI.DecodeRequestOrFail[RenameViewRequest](w, r)
+	if !ok {
 		return
 	}
+
 	if _, err := valueobjects.NewViewName(req.Name); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
+
 	h.dispatchCommand(w, r, &commands.RenameView{ViewID: viewID, NewName: req.Name})
 }
 
@@ -404,7 +393,7 @@ func (h *ViewHandlers) RenameView(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /views/{id} [delete]
 func (h *ViewHandlers) DeleteView(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
+	viewID := sharedAPI.GetPathParam(r, "id")
 
 	h.dispatchCommand(w, r, &commands.DeleteView{
 		ViewID: viewID,
@@ -423,8 +412,8 @@ func (h *ViewHandlers) DeleteView(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /views/{id}/components/{componentId} [delete]
 func (h *ViewHandlers) RemoveComponentFromView(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
-	componentID := chi.URLParam(r, "componentId")
+	viewID := sharedAPI.GetPathParam(r, "id")
+	componentID := sharedAPI.GetPathParam(r, "componentId")
 
 	h.dispatchCommand(w, r, &commands.RemoveComponentFromView{
 		ViewID:      viewID,
@@ -443,7 +432,7 @@ func (h *ViewHandlers) RemoveComponentFromView(w http.ResponseWriter, r *http.Re
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /views/{id}/default [put]
 func (h *ViewHandlers) SetDefaultView(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
+	viewID := sharedAPI.GetPathParam(r, "id")
 
 	h.dispatchCommand(w, r, &commands.SetDefaultView{
 		ViewID: viewID,
@@ -451,35 +440,37 @@ func (h *ViewHandlers) SetDefaultView(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ViewHandlers) UpdateEdgeType(w http.ResponseWriter, r *http.Request) {
-	var req UpdateEdgeTypeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[UpdateEdgeTypeRequest](w, r)
+	if !ok {
 		return
 	}
+
 	edgeType, err := valueobjects.NewEdgeType(req.EdgeType)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
+
 	h.dispatchCommand(w, r, &commands.UpdateViewEdgeType{
-		ViewID:   chi.URLParam(r, "id"),
+		ViewID:   sharedAPI.GetPathParam(r, "id"),
 		EdgeType: edgeType.String(),
 	})
 }
 
 func (h *ViewHandlers) UpdateLayoutDirection(w http.ResponseWriter, r *http.Request) {
-	var req UpdateLayoutDirectionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[UpdateLayoutDirectionRequest](w, r)
+	if !ok {
 		return
 	}
+
 	layoutDir, err := valueobjects.NewLayoutDirection(req.LayoutDirection)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
+
 	h.dispatchCommand(w, r, &commands.UpdateViewLayoutDirection{
-		ViewID:          chi.URLParam(r, "id"),
+		ViewID:          sharedAPI.GetPathParam(r, "id"),
 		LayoutDirection: layoutDir.String(),
 	})
 }
@@ -496,11 +487,10 @@ type UpdateCapabilityPositionRequest struct {
 }
 
 func (h *ViewHandlers) AddCapabilityToView(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
+	viewID := sharedAPI.GetPathParam(r, "id")
 
-	var req AddCapabilityRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[AddCapabilityRequest](w, r)
+	if !ok {
 		return
 	}
 
@@ -514,18 +504,16 @@ func (h *ViewHandlers) AddCapabilityToView(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	location := fmt.Sprintf("/api/v1/views/%s/capabilities", viewID)
-	w.Header().Set("Location", location)
-	w.WriteHeader(http.StatusCreated)
+	location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/views"), sharedAPI.ResourceID(viewID), sharedAPI.ResourcePath("/capabilities"))
+	sharedAPI.RespondCreatedNoBody(w, location)
 }
 
 func (h *ViewHandlers) UpdateCapabilityPosition(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
-	capabilityID := chi.URLParam(r, "capabilityId")
+	viewID := sharedAPI.GetPathParam(r, "id")
+	capabilityID := sharedAPI.GetPathParam(r, "capabilityId")
 
-	var req UpdateCapabilityPositionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[UpdateCapabilityPositionRequest](w, r)
+	if !ok {
 		return
 	}
 
@@ -534,19 +522,19 @@ func (h *ViewHandlers) UpdateCapabilityPosition(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	sharedAPI.RespondNoContent(w)
 }
 
 func (h *ViewHandlers) RemoveCapabilityFromView(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
-	capabilityID := chi.URLParam(r, "capabilityId")
+	viewID := sharedAPI.GetPathParam(r, "id")
+	capabilityID := sharedAPI.GetPathParam(r, "capabilityId")
 
 	if err := h.layoutRepo.RemoveCapabilityFromView(r.Context(), viewID, capabilityID); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to remove capability from view")
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	sharedAPI.RespondNoContent(w)
 }
 
 // UpdateColorScheme godoc
@@ -562,16 +550,14 @@ func (h *ViewHandlers) RemoveCapabilityFromView(w http.ResponseWriter, r *http.R
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /views/{id}/color-scheme [patch]
 func (h *ViewHandlers) UpdateColorScheme(w http.ResponseWriter, r *http.Request) {
-	viewID := chi.URLParam(r, "id")
+	viewID := sharedAPI.GetPathParam(r, "id")
 
-	var req UpdateColorSchemeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[UpdateColorSchemeRequest](w, r)
+	if !ok {
 		return
 	}
 
-	_, err := valueobjects.NewColorScheme(req.ColorScheme)
-	if err != nil {
+	if _, err := valueobjects.NewColorScheme(req.ColorScheme); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
@@ -584,15 +570,17 @@ func (h *ViewHandlers) UpdateColorScheme(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	links := sharedAPI.NewResourceLinks().
+		SelfSubResource(sharedAPI.ResourcePath("/views"), sharedAPI.ResourceID(viewID), sharedAPI.ResourcePath("/color-scheme")).
+		Related(sharedAPI.LinkRelation("view"), sharedAPI.ResourcePath("/views"), sharedAPI.ResourceID(viewID)).
+		Build()
+
 	response := struct {
 		ColorScheme string            `json:"colorScheme"`
 		Links       map[string]string `json:"_links"`
 	}{
 		ColorScheme: req.ColorScheme,
-		Links: map[string]string{
-			"self": fmt.Sprintf("/api/v1/views/%s/color-scheme", viewID),
-			"view": fmt.Sprintf("/api/v1/views/%s", viewID),
-		},
+		Links:       links,
 	}
 
 	sharedAPI.RespondJSON(w, http.StatusOK, response)
@@ -616,8 +604,8 @@ type UpdateElementColorRequest struct {
 // @Router /views/{id}/components/{componentId}/color [patch]
 func (h *ViewHandlers) UpdateComponentColor(w http.ResponseWriter, r *http.Request) {
 	h.updateElementColor(w, r, elementParams{
-		viewID:      chi.URLParam(r, "id"),
-		elementID:   chi.URLParam(r, "componentId"),
+		viewID:      sharedAPI.GetPathParam(r, "id"),
+		elementID:   sharedAPI.GetPathParam(r, "componentId"),
 		elementType: "component",
 	})
 }
@@ -636,8 +624,8 @@ func (h *ViewHandlers) UpdateComponentColor(w http.ResponseWriter, r *http.Reque
 // @Router /views/{id}/capabilities/{capabilityId}/color [patch]
 func (h *ViewHandlers) UpdateCapabilityColor(w http.ResponseWriter, r *http.Request) {
 	h.updateElementColor(w, r, elementParams{
-		viewID:      chi.URLParam(r, "id"),
-		elementID:   chi.URLParam(r, "capabilityId"),
+		viewID:      sharedAPI.GetPathParam(r, "id"),
+		elementID:   sharedAPI.GetPathParam(r, "capabilityId"),
 		elementType: "capability",
 	})
 }
@@ -653,8 +641,8 @@ func (h *ViewHandlers) UpdateCapabilityColor(w http.ResponseWriter, r *http.Requ
 // @Router /views/{id}/components/{componentId}/color [delete]
 func (h *ViewHandlers) ClearComponentColor(w http.ResponseWriter, r *http.Request) {
 	h.clearElementColor(w, r, elementParams{
-		viewID:      chi.URLParam(r, "id"),
-		elementID:   chi.URLParam(r, "componentId"),
+		viewID:      sharedAPI.GetPathParam(r, "id"),
+		elementID:   sharedAPI.GetPathParam(r, "componentId"),
 		elementType: "component",
 	})
 }
@@ -670,8 +658,8 @@ func (h *ViewHandlers) ClearComponentColor(w http.ResponseWriter, r *http.Reques
 // @Router /views/{id}/capabilities/{capabilityId}/color [delete]
 func (h *ViewHandlers) ClearCapabilityColor(w http.ResponseWriter, r *http.Request) {
 	h.clearElementColor(w, r, elementParams{
-		viewID:      chi.URLParam(r, "id"),
-		elementID:   chi.URLParam(r, "capabilityId"),
+		viewID:      sharedAPI.GetPathParam(r, "id"),
+		elementID:   sharedAPI.GetPathParam(r, "capabilityId"),
 		elementType: "capability",
 	})
 }

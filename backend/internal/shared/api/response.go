@@ -121,6 +121,23 @@ func RespondNoContent(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// RespondCreated sends a 201 Created response with Location header and body
+func RespondCreated(w http.ResponseWriter, location string, data interface{}) {
+	w.Header().Set("Location", location)
+	RespondJSON(w, http.StatusCreated, data)
+}
+
+// RespondCreatedNoBody sends a 201 Created response with Location header only
+func RespondCreatedNoBody(w http.ResponseWriter, location string) {
+	w.Header().Set("Location", location)
+	w.WriteHeader(http.StatusCreated)
+}
+
+// RespondDeleted sends a 204 No Content response for successful deletions
+func RespondDeleted(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // RespondCollection sends a collection response with consistent wrapping
 func RespondCollection(w http.ResponseWriter, statusCode int, data interface{}, links map[string]string) {
 	response := CollectionResponse{

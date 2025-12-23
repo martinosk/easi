@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,8 +11,6 @@ import (
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
-
-	"github.com/go-chi/chi/v5"
 )
 
 type CapabilityHandlers struct {
@@ -58,9 +55,8 @@ type UpdateCapabilityRequest struct {
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities [post]
 func (h *CapabilityHandlers) CreateCapability(w http.ResponseWriter, r *http.Request) {
-	var req CreateCapabilityRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[CreateCapabilityRequest](w, r)
+	if !ok {
 		return
 	}
 
@@ -109,12 +105,10 @@ func (h *CapabilityHandlers) handleCreateCapabilityResponse(w http.ResponseWrite
 		return
 	}
 
-	location := fmt.Sprintf("/api/capabilities/%s", capabilityID)
-	w.Header().Set("Location", location)
+	location := sharedAPI.BuildResourceLink(sharedAPI.ResourcePath("/capabilities"), sharedAPI.ResourceID(capabilityID))
 
 	if capability == nil {
-		// Capability is still being processed
-		sharedAPI.RespondJSON(w, http.StatusCreated, map[string]string{
+		sharedAPI.RespondCreated(w, location, map[string]string{
 			"id":      capabilityID,
 			"message": "Capability created, processing",
 		})
@@ -122,7 +116,7 @@ func (h *CapabilityHandlers) handleCreateCapabilityResponse(w http.ResponseWrite
 	}
 
 	capability.Links = h.hateoas.CapabilityLinks(capability.ID, capability.ParentID)
-	sharedAPI.RespondJSON(w, http.StatusCreated, capability)
+	sharedAPI.RespondCreated(w, location, capability)
 }
 
 // GetAllCapabilities godoc
@@ -162,7 +156,7 @@ func (h *CapabilityHandlers) GetAllCapabilities(w http.ResponseWriter, r *http.R
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id} [get]
 func (h *CapabilityHandlers) GetCapabilityByID(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+	id := sharedAPI.GetPathParam(r, "id")
 
 	capability, err := h.readModel.GetByID(r.Context(), id)
 	if err != nil {
@@ -176,7 +170,6 @@ func (h *CapabilityHandlers) GetCapabilityByID(w http.ResponseWriter, r *http.Re
 	}
 
 	capability.Links = h.hateoas.CapabilityLinks(capability.ID, capability.ParentID)
-
 	sharedAPI.RespondJSON(w, http.StatusOK, capability)
 }
 
@@ -191,7 +184,7 @@ func (h *CapabilityHandlers) GetCapabilityByID(w http.ResponseWriter, r *http.Re
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id}/children [get]
 func (h *CapabilityHandlers) GetCapabilityChildren(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+	id := sharedAPI.GetPathParam(r, "id")
 
 	capability, err := h.readModel.GetByID(r.Context(), id)
 	if err != nil {
@@ -214,10 +207,10 @@ func (h *CapabilityHandlers) GetCapabilityChildren(w http.ResponseWriter, r *htt
 		children[i].Links = h.hateoas.CapabilityLinks(children[i].ID, children[i].ParentID)
 	}
 
-	links := map[string]string{
-		"self":   "/api/v1/capabilities/" + id + "/children",
-		"parent": "/api/v1/capabilities/" + id,
-	}
+	links := sharedAPI.NewResourceLinks().
+		Self(sharedAPI.ResourcePath("/capabilities/" + id + "/children")).
+		Related(sharedAPI.LinkRelation("parent"), sharedAPI.ResourcePath("/capabilities"), sharedAPI.ResourceID(id)).
+		Build()
 
 	sharedAPI.RespondCollection(w, http.StatusOK, children, links)
 }
@@ -236,16 +229,14 @@ func (h *CapabilityHandlers) GetCapabilityChildren(w http.ResponseWriter, r *htt
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id} [put]
 func (h *CapabilityHandlers) UpdateCapability(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+	id := sharedAPI.GetPathParam(r, "id")
 
-	var req UpdateCapabilityRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[UpdateCapabilityRequest](w, r)
+	if !ok {
 		return
 	}
 
-	_, err := valueobjects.NewCapabilityName(req.Name)
-	if err != nil {
+	if _, err := valueobjects.NewCapabilityName(req.Name); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
@@ -273,7 +264,6 @@ func (h *CapabilityHandlers) UpdateCapability(w http.ResponseWriter, r *http.Req
 	}
 
 	capability.Links = h.hateoas.CapabilityLinks(capability.ID, capability.ParentID)
-
 	sharedAPI.RespondJSON(w, http.StatusOK, capability)
 }
 
@@ -288,7 +278,7 @@ func (h *CapabilityHandlers) UpdateCapability(w http.ResponseWriter, r *http.Req
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /capabilities/{id} [delete]
 func (h *CapabilityHandlers) DeleteCapability(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+	id := sharedAPI.GetPathParam(r, "id")
 
 	capability, err := h.readModel.GetByID(r.Context(), id)
 	if err != nil {
@@ -314,5 +304,5 @@ func (h *CapabilityHandlers) DeleteCapability(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	sharedAPI.RespondDeleted(w)
 }

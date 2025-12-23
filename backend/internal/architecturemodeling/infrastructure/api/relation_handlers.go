@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -11,8 +10,6 @@ import (
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
-
-	"github.com/go-chi/chi/v5"
 )
 
 // RelationHandlers handles HTTP requests for component relations
@@ -62,32 +59,26 @@ type UpdateComponentRelationRequest struct {
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /relations [post]
 func (h *RelationHandlers) CreateComponentRelation(w http.ResponseWriter, r *http.Request) {
-	var req CreateComponentRelationRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[CreateComponentRelationRequest](w, r)
+	if !ok {
 		return
 	}
 
-	// Validate using domain value objects
-	_, err := valueobjects.NewComponentIDFromString(req.SourceComponentID)
-	if err != nil {
+	if _, err := valueobjects.NewComponentIDFromString(req.SourceComponentID); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid source component ID")
 		return
 	}
 
-	_, err = valueobjects.NewComponentIDFromString(req.TargetComponentID)
-	if err != nil {
+	if _, err := valueobjects.NewComponentIDFromString(req.TargetComponentID); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid target component ID")
 		return
 	}
 
-	_, err = valueobjects.NewRelationType(req.RelationType)
-	if err != nil {
+	if _, err := valueobjects.NewRelationType(req.RelationType); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
 
-	// Create command (pass by reference so handler can set ID)
 	cmd := &commands.CreateComponentRelation{
 		SourceComponentID: req.SourceComponentID,
 		TargetComponentID: req.TargetComponentID,
@@ -96,13 +87,12 @@ func (h *RelationHandlers) CreateComponentRelation(w http.ResponseWriter, r *htt
 		Description:       req.Description,
 	}
 
-	// Dispatch command
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
 
-	// Retrieve the created relation from read model
+	location := sharedAPI.BuildResourceLink(sharedAPI.ResourcePath("/relations"), sharedAPI.ResourceID(cmd.ID))
 	relation, err := h.readModel.GetByID(r.Context(), cmd.ID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve created relation")
@@ -110,23 +100,15 @@ func (h *RelationHandlers) CreateComponentRelation(w http.ResponseWriter, r *htt
 	}
 
 	if relation == nil {
-		// If not yet in read model, return minimal response with Location header
-		location := fmt.Sprintf("/api/v1/relations/%s", cmd.ID)
-		w.Header().Set("Location", location)
-		sharedAPI.RespondJSON(w, http.StatusCreated, map[string]string{
+		sharedAPI.RespondCreated(w, location, map[string]string{
 			"id":      cmd.ID,
 			"message": "Relation created, processing",
 		})
 		return
 	}
 
-	// Add HATEOAS links
 	relation.Links = h.hateoas.RelationLinks(relation.ID)
-
-	// Return created resource with Location header
-	location := fmt.Sprintf("/api/v1/relations/%s", relation.ID)
-	w.Header().Set("Location", location)
-	sharedAPI.RespondJSON(w, http.StatusCreated, relation)
+	sharedAPI.RespondCreated(w, location, relation)
 }
 
 // GetAllRelations godoc
@@ -216,7 +198,7 @@ func (h *RelationHandlers) addLinksToRelations(relations []readmodels.ComponentR
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /relations/{id} [get]
 func (h *RelationHandlers) GetRelationByID(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+	id := sharedAPI.GetPathParam(r, "id")
 
 	relation, err := h.readModel.GetByID(r.Context(), id)
 	if err != nil {
@@ -229,9 +211,7 @@ func (h *RelationHandlers) GetRelationByID(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Add HATEOAS links
 	relation.Links = h.hateoas.RelationLinks(relation.ID)
-
 	sharedAPI.RespondJSON(w, http.StatusOK, relation)
 }
 
@@ -264,7 +244,7 @@ func (h *RelationHandlers) GetRelationsToComponent(w http.ResponseWriter, r *htt
 type relationFetcher func(ctx context.Context, componentID string) ([]readmodels.ComponentRelationDTO, error)
 
 func (h *RelationHandlers) getRelationsByComponent(w http.ResponseWriter, r *http.Request, direction string, fetch relationFetcher) {
-	componentID := chi.URLParam(r, "componentId")
+	componentID := sharedAPI.GetPathParam(r, "componentId")
 
 	relations, err := fetch(r.Context(), componentID)
 	if err != nil {
@@ -274,10 +254,10 @@ func (h *RelationHandlers) getRelationsByComponent(w http.ResponseWriter, r *htt
 
 	h.addLinksToRelations(relations)
 
-	links := map[string]string{
-		"self":      fmt.Sprintf("/api/v1/relations/%s/%s", direction, componentID),
-		"component": "/api/v1/components/" + componentID,
-	}
+	links := sharedAPI.NewResourceLinks().
+		SelfWithID(sharedAPI.ResourcePath("/relations/"+direction), sharedAPI.ResourceID(componentID)).
+		Related(sharedAPI.LinkRelation("component"), sharedAPI.ResourcePath("/components"), sharedAPI.ResourceID(componentID)).
+		Build()
 
 	sharedAPI.RespondCollection(w, http.StatusOK, relations, links)
 }
@@ -296,28 +276,24 @@ func (h *RelationHandlers) getRelationsByComponent(w http.ResponseWriter, r *htt
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /relations/{id} [put]
 func (h *RelationHandlers) UpdateComponentRelation(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+	id := sharedAPI.GetPathParam(r, "id")
 
-	var req UpdateComponentRelationRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+	req, ok := sharedAPI.DecodeRequestOrFail[UpdateComponentRelationRequest](w, r)
+	if !ok {
 		return
 	}
 
-	// Create command
 	cmd := &commands.UpdateComponentRelation{
 		ID:          id,
 		Name:        req.Name,
 		Description: req.Description,
 	}
 
-	// Dispatch command
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update relation")
 		return
 	}
 
-	// Retrieve the updated relation from read model
 	relation, err := h.readModel.GetByID(r.Context(), id)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve updated relation")
@@ -329,20 +305,18 @@ func (h *RelationHandlers) UpdateComponentRelation(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// Add HATEOAS links
 	relation.Links = h.hateoas.RelationLinks(relation.ID)
-
 	sharedAPI.RespondJSON(w, http.StatusOK, relation)
 }
 
 func (h *RelationHandlers) DeleteComponentRelation(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+	id := sharedAPI.GetPathParam(r, "id")
 
 	cmd := &commands.DeleteComponentRelation{
 		ID: id,
 	}
 
 	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
-		w.WriteHeader(http.StatusNoContent)
+		sharedAPI.RespondDeleted(w)
 	})
 }
