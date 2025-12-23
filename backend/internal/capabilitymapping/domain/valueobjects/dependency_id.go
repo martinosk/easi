@@ -2,41 +2,28 @@ package valueobjects
 
 import (
 	"easi/backend/internal/shared/domain"
-
-	"github.com/google/uuid"
+	sharedvo "easi/backend/internal/shared/domain/valueobjects"
 )
 
 type DependencyID struct {
-	value string
+	sharedvo.UUIDValue
 }
 
 func NewDependencyID() DependencyID {
-	return DependencyID{value: uuid.New().String()}
+	return DependencyID{UUIDValue: sharedvo.NewUUIDValue()}
 }
 
 func NewDependencyIDFromString(value string) (DependencyID, error) {
-	if value == "" {
-		return DependencyID{}, domain.ErrEmptyValue
+	uuidValue, err := sharedvo.NewUUIDValueFromString(value)
+	if err != nil {
+		return DependencyID{}, err
 	}
-
-	if _, err := uuid.Parse(value); err != nil {
-		return DependencyID{}, domain.ErrInvalidValue
-	}
-
-	return DependencyID{value: value}, nil
-}
-
-func (d DependencyID) Value() string {
-	return d.value
+	return DependencyID{UUIDValue: uuidValue}, nil
 }
 
 func (d DependencyID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(DependencyID); ok {
-		return d.value == otherID.value
+		return d.UUIDValue.EqualsValue(otherID.UUIDValue)
 	}
 	return false
-}
-
-func (d DependencyID) String() string {
-	return d.value
 }

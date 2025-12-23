@@ -2,41 +2,28 @@ package valueobjects
 
 import (
 	"easi/backend/internal/shared/domain"
-
-	"github.com/google/uuid"
+	sharedvo "easi/backend/internal/shared/domain/valueobjects"
 )
 
 type LayoutContainerID struct {
-	value string
+	sharedvo.UUIDValue
 }
 
 func NewLayoutContainerID() LayoutContainerID {
-	return LayoutContainerID{value: uuid.New().String()}
+	return LayoutContainerID{UUIDValue: sharedvo.NewUUIDValue()}
 }
 
 func NewLayoutContainerIDFromString(value string) (LayoutContainerID, error) {
-	if value == "" {
-		return LayoutContainerID{}, domain.ErrEmptyValue
+	uuidValue, err := sharedvo.NewUUIDValueFromString(value)
+	if err != nil {
+		return LayoutContainerID{}, err
 	}
-
-	if _, err := uuid.Parse(value); err != nil {
-		return LayoutContainerID{}, domain.ErrInvalidValue
-	}
-
-	return LayoutContainerID{value: value}, nil
-}
-
-func (l LayoutContainerID) Value() string {
-	return l.value
+	return LayoutContainerID{UUIDValue: uuidValue}, nil
 }
 
 func (l LayoutContainerID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(LayoutContainerID); ok {
-		return l.value == otherID.value
+		return l.UUIDValue.EqualsValue(otherID.UUIDValue)
 	}
 	return false
-}
-
-func (l LayoutContainerID) String() string {
-	return l.value
 }

@@ -1,43 +1,33 @@
 package valueobjects
 
 import (
-	"easi/backend/internal/shared/domain"
 	"errors"
 
-	"github.com/google/uuid"
+	"easi/backend/internal/shared/domain"
+	sharedvo "easi/backend/internal/shared/domain/valueobjects"
 )
 
 var ErrInvalidImportSessionID = errors.New("invalid import session ID: must be a valid UUID")
 
 type ImportSessionID struct {
-	value string
+	sharedvo.UUIDValue
 }
 
 func NewImportSessionID() ImportSessionID {
-	return ImportSessionID{value: uuid.New().String()}
+	return ImportSessionID{UUIDValue: sharedvo.NewUUIDValue()}
 }
 
 func NewImportSessionIDFromString(value string) (ImportSessionID, error) {
-	if value == "" {
+	uuidValue, err := sharedvo.NewUUIDValueFromString(value)
+	if err != nil {
 		return ImportSessionID{}, ErrInvalidImportSessionID
 	}
-	if _, err := uuid.Parse(value); err != nil {
-		return ImportSessionID{}, ErrInvalidImportSessionID
-	}
-	return ImportSessionID{value: value}, nil
-}
-
-func (id ImportSessionID) Value() string {
-	return id.value
+	return ImportSessionID{UUIDValue: uuidValue}, nil
 }
 
 func (id ImportSessionID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(ImportSessionID); ok {
-		return id.value == otherID.value
+		return id.UUIDValue.EqualsValue(otherID.UUIDValue)
 	}
 	return false
-}
-
-func (id ImportSessionID) String() string {
-	return id.value
 }

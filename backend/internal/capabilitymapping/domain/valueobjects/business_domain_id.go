@@ -2,41 +2,28 @@ package valueobjects
 
 import (
 	"easi/backend/internal/shared/domain"
-
-	"github.com/google/uuid"
+	sharedvo "easi/backend/internal/shared/domain/valueobjects"
 )
 
 type BusinessDomainID struct {
-	value string
+	sharedvo.UUIDValue
 }
 
 func NewBusinessDomainID() BusinessDomainID {
-	return BusinessDomainID{value: uuid.New().String()}
+	return BusinessDomainID{UUIDValue: sharedvo.NewUUIDValue()}
 }
 
 func NewBusinessDomainIDFromString(value string) (BusinessDomainID, error) {
-	if value == "" {
-		return BusinessDomainID{}, domain.ErrEmptyValue
+	uuidValue, err := sharedvo.NewUUIDValueFromString(value)
+	if err != nil {
+		return BusinessDomainID{}, err
 	}
-
-	if _, err := uuid.Parse(value); err != nil {
-		return BusinessDomainID{}, domain.ErrInvalidValue
-	}
-
-	return BusinessDomainID{value: value}, nil
-}
-
-func (b BusinessDomainID) Value() string {
-	return b.value
+	return BusinessDomainID{UUIDValue: uuidValue}, nil
 }
 
 func (b BusinessDomainID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(BusinessDomainID); ok {
-		return b.value == otherID.value
+		return b.UUIDValue.EqualsValue(otherID.UUIDValue)
 	}
 	return false
-}
-
-func (b BusinessDomainID) String() string {
-	return b.value
 }

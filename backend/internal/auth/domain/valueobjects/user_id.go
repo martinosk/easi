@@ -3,37 +3,26 @@ package valueobjects
 import (
 	"errors"
 
-	"github.com/google/uuid"
-
 	"easi/backend/internal/shared/domain"
+	sharedvo "easi/backend/internal/shared/domain/valueobjects"
 )
 
 var ErrInvalidUserID = errors.New("invalid user ID: must be a valid UUID")
 
 type UserID struct {
-	value string
+	sharedvo.UUIDValue
 }
 
 func NewUserID() UserID {
-	return UserID{value: uuid.New().String()}
+	return UserID{UUIDValue: sharedvo.NewUUIDValue()}
 }
 
 func UserIDFromString(value string) (UserID, error) {
-	if value == "" {
+	uuidValue, err := sharedvo.NewUUIDValueFromString(value)
+	if err != nil {
 		return UserID{}, ErrInvalidUserID
 	}
-	if _, err := uuid.Parse(value); err != nil {
-		return UserID{}, ErrInvalidUserID
-	}
-	return UserID{value: value}, nil
-}
-
-func (id UserID) Value() string {
-	return id.value
-}
-
-func (id UserID) String() string {
-	return id.value
+	return UserID{UUIDValue: uuidValue}, nil
 }
 
 func (id UserID) Equals(other domain.ValueObject) bool {
@@ -41,5 +30,5 @@ func (id UserID) Equals(other domain.ValueObject) bool {
 	if !ok {
 		return false
 	}
-	return id.value == otherID.value
+	return id.UUIDValue.EqualsValue(otherID.UUIDValue)
 }

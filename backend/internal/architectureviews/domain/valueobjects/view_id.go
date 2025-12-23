@@ -2,48 +2,28 @@ package valueobjects
 
 import (
 	"easi/backend/internal/shared/domain"
-
-	"github.com/google/uuid"
+	sharedvo "easi/backend/internal/shared/domain/valueobjects"
 )
 
-// ViewID represents a unique identifier for an architecture view
 type ViewID struct {
-	value string
+	sharedvo.UUIDValue
 }
 
-// NewViewID creates a new view ID
 func NewViewID() ViewID {
-	return ViewID{value: uuid.New().String()}
+	return ViewID{UUIDValue: sharedvo.NewUUIDValue()}
 }
 
-// NewViewIDFromString creates a view ID from a string
 func NewViewIDFromString(value string) (ViewID, error) {
-	if value == "" {
-		return ViewID{}, domain.ErrEmptyValue
+	uuidValue, err := sharedvo.NewUUIDValueFromString(value)
+	if err != nil {
+		return ViewID{}, err
 	}
-
-	// Validate UUID format
-	if _, err := uuid.Parse(value); err != nil {
-		return ViewID{}, domain.ErrInvalidValue
-	}
-
-	return ViewID{value: value}, nil
+	return ViewID{UUIDValue: uuidValue}, nil
 }
 
-// Value returns the string value of the ID
-func (v ViewID) Value() string {
-	return v.value
-}
-
-// Equals checks if two view IDs are equal
 func (v ViewID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(ViewID); ok {
-		return v.value == otherID.value
+		return v.UUIDValue.EqualsValue(otherID.UUIDValue)
 	}
 	return false
-}
-
-// String implements the Stringer interface
-func (v ViewID) String() string {
-	return v.value
 }

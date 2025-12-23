@@ -2,41 +2,28 @@ package valueobjects
 
 import (
 	"easi/backend/internal/shared/domain"
-
-	"github.com/google/uuid"
+	sharedvo "easi/backend/internal/shared/domain/valueobjects"
 )
 
 type CapabilityID struct {
-	value string
+	sharedvo.UUIDValue
 }
 
 func NewCapabilityID() CapabilityID {
-	return CapabilityID{value: uuid.New().String()}
+	return CapabilityID{UUIDValue: sharedvo.NewUUIDValue()}
 }
 
 func NewCapabilityIDFromString(value string) (CapabilityID, error) {
-	if value == "" {
-		return CapabilityID{}, domain.ErrEmptyValue
+	uuidValue, err := sharedvo.NewUUIDValueFromString(value)
+	if err != nil {
+		return CapabilityID{}, err
 	}
-
-	if _, err := uuid.Parse(value); err != nil {
-		return CapabilityID{}, domain.ErrInvalidValue
-	}
-
-	return CapabilityID{value: value}, nil
-}
-
-func (c CapabilityID) Value() string {
-	return c.value
+	return CapabilityID{UUIDValue: uuidValue}, nil
 }
 
 func (c CapabilityID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(CapabilityID); ok {
-		return c.value == otherID.value
+		return c.UUIDValue.EqualsValue(otherID.UUIDValue)
 	}
 	return false
-}
-
-func (c CapabilityID) String() string {
-	return c.value
 }
