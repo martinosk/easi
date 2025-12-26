@@ -15,6 +15,10 @@ import (
 	"testing"
 	"time"
 
+	authHandlers "easi/backend/internal/auth/application/handlers"
+	authRepositories "easi/backend/internal/auth/infrastructure/repositories"
+	"easi/backend/internal/infrastructure/database"
+	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/platform/application/handlers"
 	"easi/backend/internal/platform/infrastructure/repositories"
 	"easi/backend/internal/platform/infrastructure/secrets"
@@ -83,8 +87,14 @@ func (ctx *platformTestContext) trackTenant(id string) {
 func setupPlatformHandlers(db *sql.DB) (*TenantHandlers, chi.Router) {
 	commandBus := cqrs.NewInMemoryCommandBus()
 	tenantRepo := repositories.NewTenantRepository(db)
+	tenantDB := database.NewTenantAwareDB(db)
+	evStore := eventstore.NewPostgresEventStore(tenantDB)
 
-	createTenantHandler := handlers.NewCreateTenantHandler(tenantRepo)
+	invitationRepo := authRepositories.NewInvitationRepository(evStore)
+	createInvitationHandler := authHandlers.NewCreateInvitationHandler(invitationRepo)
+	commandBus.Register("CreateInvitation", createInvitationHandler)
+
+	createTenantHandler := handlers.NewCreateTenantHandler(tenantRepo, commandBus)
 	commandBus.Register("CreateTenant", createTenantHandler)
 
 	secretProvider := secrets.NewEnvSecretProvider("OIDC_CLIENT_SECRET")

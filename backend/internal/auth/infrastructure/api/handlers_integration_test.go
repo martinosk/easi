@@ -33,6 +33,7 @@ type authTestContext struct {
 	db         *sql.DB
 	testID     string
 	tenantID   string
+	testDomain string
 	dexBaseURL string
 }
 
@@ -60,8 +61,8 @@ func setupAuthTestDB(t *testing.T) (*authTestContext, func()) {
 	err = db.Ping()
 	require.NoError(t, err)
 
-	testID := fmt.Sprintf("auth-test-%d", time.Now().UnixNano())
-	tenantID := fmt.Sprintf("acme-%s", testID)
+	testID := fmt.Sprintf("%d", time.Now().UnixNano())
+	tenantID := fmt.Sprintf("test-%s", testID)
 
 	_, err = db.Exec(`
 		INSERT INTO tenants (id, name, status, created_at, updated_at)
@@ -69,10 +70,11 @@ func setupAuthTestDB(t *testing.T) (*authTestContext, func()) {
 	`, tenantID, "ACME Test Corp")
 	require.NoError(t, err)
 
+	testDomain := fmt.Sprintf("test%s.example.com", testID)
 	_, err = db.Exec(`
 		INSERT INTO tenant_domains (tenant_id, domain, created_at)
-		VALUES ($1, 'acme.com', NOW())
-	`, tenantID)
+		VALUES ($1, $2, NOW())
+	`, tenantID, testDomain)
 	require.NoError(t, err)
 
 	_, err = db.Exec(`
@@ -85,6 +87,7 @@ func setupAuthTestDB(t *testing.T) (*authTestContext, func()) {
 		db:         db,
 		testID:     testID,
 		tenantID:   tenantID,
+		testDomain: testDomain,
 		dexBaseURL: dexBaseURL,
 	}
 
@@ -126,10 +129,10 @@ func TestIntegration_PostSessions_ValidEmail_ReturnsDexAuthURL(t *testing.T) {
 
 	_, _, router := setupAuthHandlers(t, ctx.db, ctx.dexBaseURL)
 
-	body := map[string]string{"email": "testuser@acme.com"}
+	body := map[string]string{"email": fmt.Sprintf("testuser@%s", ctx.testDomain)}
 	jsonBody, _ := json.Marshal(body)
 
-	req := httptest.NewRequest(http.MethodPost, "/auth/sessions", bytes.NewReader(jsonBody))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/sessions", bytes.NewReader(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 
@@ -165,7 +168,7 @@ func TestIntegration_PostSessions_UnknownDomain_Returns404(t *testing.T) {
 	body := map[string]string{"email": "user@unknown-domain.com"}
 	jsonBody, _ := json.Marshal(body)
 
-	req := httptest.NewRequest(http.MethodPost, "/auth/sessions", bytes.NewReader(jsonBody))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/sessions", bytes.NewReader(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 
@@ -180,9 +183,9 @@ func TestIntegration_GetCallback_InvalidState_ReturnsBadRequest(t *testing.T) {
 
 	_, _, router := setupAuthHandlers(t, ctx.db, ctx.dexBaseURL)
 
-	body := map[string]string{"email": "testuser@acme.com"}
+	body := map[string]string{"email": fmt.Sprintf("testuser@%s", ctx.testDomain)}
 	jsonBody, _ := json.Marshal(body)
-	req1 := httptest.NewRequest(http.MethodPost, "/auth/sessions", bytes.NewReader(jsonBody))
+	req1 := httptest.NewRequest(http.MethodPost, "/api/v1/auth/sessions", bytes.NewReader(jsonBody))
 	req1.Header.Set("Content-Type", "application/json")
 	rec1 := httptest.NewRecorder()
 	router.ServeHTTP(rec1, req1)
@@ -190,7 +193,7 @@ func TestIntegration_GetCallback_InvalidState_ReturnsBadRequest(t *testing.T) {
 
 	cookies := rec1.Result().Cookies()
 
-	req2 := httptest.NewRequest(http.MethodGet, "/auth/callback?code=test-code&state=invalid-state", nil)
+	req2 := httptest.NewRequest(http.MethodGet, "/api/v1/auth/callback?code=test-code&state=invalid-state", nil)
 	for _, c := range cookies {
 		req2.AddCookie(c)
 	}
@@ -206,10 +209,10 @@ func TestIntegration_PostSessions_AuthURLContainsPKCE(t *testing.T) {
 
 	_, _, router := setupAuthHandlers(t, ctx.db, ctx.dexBaseURL)
 
-	body := map[string]string{"email": "testuser@acme.com"}
+	body := map[string]string{"email": fmt.Sprintf("testuser@%s", ctx.testDomain)}
 	jsonBody, _ := json.Marshal(body)
 
-	req := httptest.NewRequest(http.MethodPost, "/auth/sessions", bytes.NewReader(jsonBody))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/sessions", bytes.NewReader(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 

@@ -225,7 +225,7 @@ func TestChangeCapabilityParent_RejectSelfReference_Integration(t *testing.T) {
 	})
 	h.ChangeCapabilityParent(w, req)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
 func TestChangeCapabilityParent_RejectCircularReference_Integration(t *testing.T) {
@@ -255,7 +255,7 @@ func TestChangeCapabilityParent_RejectCircularReference_Integration(t *testing.T
 	})
 	h.ChangeCapabilityParent(w, req)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
 func TestChangeCapabilityParent_RejectL5PlusHierarchy_Integration(t *testing.T) {
@@ -291,7 +291,7 @@ func TestChangeCapabilityParent_RejectL5PlusHierarchy_Integration(t *testing.T) 
 	})
 	h.ChangeCapabilityParent(w, req)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
 func TestChangeCapabilityParent_RejectL5PlusHierarchyWithSubtree_Integration(t *testing.T) {
@@ -327,7 +327,7 @@ func TestChangeCapabilityParent_RejectL5PlusHierarchyWithSubtree_Integration(t *
 	})
 	h.ChangeCapabilityParent(w, req)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
 func TestChangeCapabilityParent_NonExistentCapability_Integration(t *testing.T) {
