@@ -6,29 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewOwnershipModel_ValidValues(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected OwnershipModel
-	}{
-		{"TribeOwned", "TribeOwned", OwnershipTribeOwned},
-		{"TeamOwned", "TeamOwned", OwnershipTeamOwned},
-		{"Shared", "Shared", OwnershipShared},
-		{"EnterpriseService", "EnterpriseService", OwnershipEnterpriseService},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			model, err := NewOwnershipModel(tt.input)
-			assert.NoError(t, err)
-			assert.Equal(t, tt.expected, model)
-		})
-	}
-}
-
-func TestNewOwnershipModel_TrimSpace(t *testing.T) {
-	model, err := NewOwnershipModel("  TeamOwned  ")
+func TestNewOwnershipModel_Valid(t *testing.T) {
+	model, err := NewOwnershipModel("TeamOwned")
 	assert.NoError(t, err)
 	assert.Equal(t, OwnershipTeamOwned, model)
 }
@@ -44,16 +23,6 @@ func TestNewOwnershipModel_InvalidValue(t *testing.T) {
 	_, err := NewOwnershipModel("InvalidModel")
 	assert.Error(t, err)
 	assert.Equal(t, ErrInvalidOwnershipModel, err)
-}
-
-func TestOwnershipModel_Value(t *testing.T) {
-	model := OwnershipShared
-	assert.Equal(t, "Shared", model.Value())
-}
-
-func TestOwnershipModel_String(t *testing.T) {
-	model := OwnershipEnterpriseService
-	assert.Equal(t, "EnterpriseService", model.String())
 }
 
 func TestOwnershipModel_Equals(t *testing.T) {

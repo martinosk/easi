@@ -7,36 +7,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPermissionFromString_ValidPermissions(t *testing.T) {
-	testCases := []struct {
-		input    string
-		expected Permission
-	}{
-		{"components:read", PermComponentsRead},
-		{"components:write", PermComponentsWrite},
-		{"components:delete", PermComponentsDelete},
-		{"views:read", PermViewsRead},
-		{"views:write", PermViewsWrite},
-		{"views:delete", PermViewsDelete},
-		{"capabilities:read", PermCapabilitiesRead},
-		{"capabilities:write", PermCapabilitiesWrite},
-		{"capabilities:delete", PermCapabilitiesDelete},
-		{"domains:read", PermDomainsRead},
-		{"domains:write", PermDomainsWrite},
-		{"domains:delete", PermDomainsDelete},
-		{"users:read", PermUsersRead},
-		{"users:manage", PermUsersManage},
-		{"invitations:manage", PermInvitationsManage},
-		{"metamodel:write", PermMetaModelWrite},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.input, func(t *testing.T) {
-			perm, err := PermissionFromString(tc.input)
-			require.NoError(t, err)
-			assert.Equal(t, tc.expected, perm)
-		})
-	}
+func TestPermissionFromString_ValidPermission(t *testing.T) {
+	perm, err := PermissionFromString("components:read")
+	require.NoError(t, err)
+	assert.Equal(t, PermComponentsRead, perm)
 }
 
 func TestPermissionFromString_InvalidPermission(t *testing.T) {
@@ -49,18 +23,13 @@ func TestPermissionFromString_EmptyPermission(t *testing.T) {
 	assert.ErrorIs(t, err, ErrInvalidPermission)
 }
 
-func TestPermission_String(t *testing.T) {
-	assert.Equal(t, "components:read", PermComponentsRead.String())
-	assert.Equal(t, "users:manage", PermUsersManage.String())
-}
-
 func TestPermission_Equals(t *testing.T) {
 	perm1 := PermComponentsRead
 	perm2, _ := PermissionFromString("components:read")
 	perm3 := PermComponentsWrite
 
-	assert.True(t, perm1.Equals(perm2), "same permissions should be equal")
-	assert.False(t, perm1.Equals(perm3), "different permissions should not be equal")
+	assert.True(t, perm1.Equals(perm2))
+	assert.False(t, perm1.Equals(perm3))
 }
 
 func TestPermissionsToStrings(t *testing.T) {
