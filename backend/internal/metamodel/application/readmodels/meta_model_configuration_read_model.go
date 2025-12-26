@@ -22,6 +22,7 @@ type MetaModelConfigurationDTO struct {
 	TenantID   string               `json:"tenantId"`
 	Sections   []MaturitySectionDTO `json:"sections"`
 	Version    int                  `json:"version"`
+	IsDefault  bool                 `json:"isDefault"`
 	CreatedAt  time.Time            `json:"createdAt"`
 	ModifiedAt time.Time            `json:"modifiedAt"`
 	ModifiedBy string               `json:"modifiedBy"`
@@ -36,6 +37,7 @@ type UpdateParams struct {
 	ID         string
 	Sections   []MaturitySectionDTO
 	Version    int
+	IsDefault  bool
 	ModifiedAt time.Time
 	ModifiedBy string
 }
@@ -57,9 +59,9 @@ func (rm *MetaModelConfigurationReadModel) Insert(ctx context.Context, dto MetaM
 
 	_, err = rm.db.ExecContext(ctx,
 		`INSERT INTO meta_model_configurations
-		(id, tenant_id, sections, version, created_at, modified_at, modified_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		dto.ID, tenantID.Value(), sectionsJSON, dto.Version, dto.CreatedAt, dto.ModifiedAt, dto.ModifiedBy,
+		(id, tenant_id, sections, version, is_default, created_at, modified_at, modified_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		dto.ID, tenantID.Value(), sectionsJSON, dto.Version, dto.IsDefault, dto.CreatedAt, dto.ModifiedAt, dto.ModifiedBy,
 	)
 	return err
 }
@@ -77,9 +79,9 @@ func (rm *MetaModelConfigurationReadModel) Update(ctx context.Context, params Up
 
 	_, err = rm.db.ExecContext(ctx,
 		`UPDATE meta_model_configurations
-		SET sections = $1, version = $2, modified_at = $3, modified_by = $4
-		WHERE tenant_id = $5 AND id = $6`,
-		sectionsJSON, params.Version, params.ModifiedAt, params.ModifiedBy, tenantID.Value(), params.ID,
+		SET sections = $1, version = $2, is_default = $3, modified_at = $4, modified_by = $5
+		WHERE tenant_id = $6 AND id = $7`,
+		sectionsJSON, params.Version, params.IsDefault, params.ModifiedAt, params.ModifiedBy, tenantID.Value(), params.ID,
 	)
 	return err
 }
@@ -96,11 +98,11 @@ func (rm *MetaModelConfigurationReadModel) GetByID(ctx context.Context, id strin
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			`SELECT id, tenant_id, sections, version, created_at, modified_at, modified_by
+			`SELECT id, tenant_id, sections, version, is_default, created_at, modified_at, modified_by
 			FROM meta_model_configurations
 			WHERE tenant_id = $1 AND id = $2`,
 			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.TenantID, &sectionsJSON, &dto.Version, &dto.CreatedAt, &dto.ModifiedAt, &dto.ModifiedBy)
+		).Scan(&dto.ID, &dto.TenantID, &sectionsJSON, &dto.Version, &dto.IsDefault, &dto.CreatedAt, &dto.ModifiedAt, &dto.ModifiedBy)
 
 		if err == sql.ErrNoRows {
 			notFound = true
@@ -135,11 +137,11 @@ func (rm *MetaModelConfigurationReadModel) GetByTenantID(ctx context.Context) (*
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			`SELECT id, tenant_id, sections, version, created_at, modified_at, modified_by
+			`SELECT id, tenant_id, sections, version, is_default, created_at, modified_at, modified_by
 			FROM meta_model_configurations
 			WHERE tenant_id = $1`,
 			tenantID.Value(),
-		).Scan(&dto.ID, &dto.TenantID, &sectionsJSON, &dto.Version, &dto.CreatedAt, &dto.ModifiedAt, &dto.ModifiedBy)
+		).Scan(&dto.ID, &dto.TenantID, &sectionsJSON, &dto.Version, &dto.IsDefault, &dto.CreatedAt, &dto.ModifiedAt, &dto.ModifiedBy)
 
 		if err == sql.ErrNoRows {
 			notFound = true

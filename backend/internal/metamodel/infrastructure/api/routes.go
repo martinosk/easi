@@ -57,14 +57,14 @@ func SetupMetaModelRoutes(deps MetaModelRoutesDeps) error {
 
 	metaModelHandlers := NewMetaModelHandlers(deps.CommandBus, configReadModel, deps.Hateoas, deps.SessionManager)
 
-	deps.Router.Route("/metamodel", func(r chi.Router) {
+	deps.Router.Route("/meta-model", func(r chi.Router) {
 		r.Get("/maturity-scale", metaModelHandlers.GetMaturityScale)
 		r.Get("/configurations/{id}", metaModelHandlers.GetMaturityScaleByID)
 
 		r.Group(func(r chi.Router) {
 			r.Use(deps.AuthMiddleware.RequirePermission(authValueObjects.PermMetaModelWrite))
 			r.Put("/maturity-scale", metaModelHandlers.UpdateMaturityScale)
-			r.Put("/maturity-scale/reset", metaModelHandlers.ResetMaturityScale)
+			r.Post("/maturity-scale/reset", metaModelHandlers.ResetMaturityScale)
 		})
 	})
 

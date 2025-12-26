@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"easi/backend/internal/auth/infrastructure/session"
@@ -11,6 +12,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 )
+
+func setMaturityScaleCacheHeaders(w http.ResponseWriter, version int) {
+	w.Header().Set("Cache-Control", "private, max-age=300")
+	w.Header().Set("ETag", fmt.Sprintf(`"v%d"`, version))
+}
 
 type MetaModelHandlers struct {
 	commandBus     cqrs.CommandBus
@@ -42,38 +48,68 @@ type MaturitySectionRequest struct {
 
 type UpdateMaturityScaleRequest struct {
 	Sections [4]MaturitySectionRequest `json:"sections"`
+	Version  int                       `json:"version"`
+}
+
+func (req UpdateMaturityScaleRequest) toCommandInput() [4]commands.MaturitySectionInput {
+	var sections [4]commands.MaturitySectionInput
+	for i, s := range req.Sections {
+		sections[i] = commands.MaturitySectionInput{
+			Order:    s.Order,
+			Name:     s.Name,
+			MinValue: s.MinValue,
+			MaxValue: s.MaxValue,
+		}
+	}
+	return sections
+}
+
+type configLoader func() (*readmodels.MetaModelConfigurationDTO, error)
+type linkGenerator func(config *readmodels.MetaModelConfigurationDTO) map[string]string
+
+func (h *MetaModelHandlers) loadConfigOrFail(w http.ResponseWriter, loader configLoader) *readmodels.MetaModelConfigurationDTO {
+	config, err := loader()
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve configuration")
+		return nil
+	}
+	if config == nil {
+		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Configuration not found")
+		return nil
+	}
+	return config
+}
+
+func (h *MetaModelHandlers) getAndRespondWithConfig(w http.ResponseWriter, loader configLoader, linkGen linkGenerator) {
+	config := h.loadConfigOrFail(w, loader)
+	if config == nil {
+		return
+	}
+	setMaturityScaleCacheHeaders(w, config.Version)
+	config.Links = linkGen(config)
+	sharedAPI.RespondJSON(w, http.StatusOK, config)
 }
 
 // GetMaturityScale godoc
 // @Summary Get the maturity scale configuration
 // @Description Retrieves the maturity scale configuration for the current tenant
-// @Tags metamodel
+// @Tags meta-model
 // @Produce json
 // @Success 200 {object} readmodels.MetaModelConfigurationDTO
 // @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Router /metamodel/maturity-scale [get]
+// @Router /meta-model/maturity-scale [get]
 func (h *MetaModelHandlers) GetMaturityScale(w http.ResponseWriter, r *http.Request) {
-	config, err := h.readModel.GetByTenantID(r.Context())
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve maturity scale configuration")
-		return
-	}
-
-	if config == nil {
-		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Maturity scale configuration not found")
-		return
-	}
-
-	config.Links = h.hateoas.MaturityScaleLinks()
-
-	sharedAPI.RespondJSON(w, http.StatusOK, config)
+	h.getAndRespondWithConfig(w,
+		func() (*readmodels.MetaModelConfigurationDTO, error) { return h.readModel.GetByTenantID(r.Context()) },
+		func(c *readmodels.MetaModelConfigurationDTO) map[string]string { return h.hateoas.MaturityScaleLinks(c.IsDefault) },
+	)
 }
 
 // UpdateMaturityScale godoc
 // @Summary Update the maturity scale configuration
 // @Description Updates the maturity scale sections for the current tenant
-// @Tags metamodel
+// @Tags meta-model
 // @Accept json
 // @Produce json
 // @Param scale body UpdateMaturityScaleRequest true "Maturity scale configuration"
@@ -82,8 +118,9 @@ func (h *MetaModelHandlers) GetMaturityScale(w http.ResponseWriter, r *http.Requ
 // @Failure 401 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Failure 403 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 409 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Router /metamodel/maturity-scale [put]
+// @Router /meta-model/maturity-scale [put]
 func (h *MetaModelHandlers) UpdateMaturityScale(w http.ResponseWriter, r *http.Request) {
 	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
 	if err != nil {
@@ -96,30 +133,21 @@ func (h *MetaModelHandlers) UpdateMaturityScale(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	config, err := h.readModel.GetByTenantID(r.Context())
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve configuration")
-		return
-	}
-
+	config := h.loadConfigOrFail(w, func() (*readmodels.MetaModelConfigurationDTO, error) {
+		return h.readModel.GetByTenantID(r.Context())
+	})
 	if config == nil {
-		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Configuration not found")
 		return
 	}
 
-	var sections [4]commands.MaturitySectionInput
-	for i, s := range req.Sections {
-		sections[i] = commands.MaturitySectionInput{
-			Order:    s.Order,
-			Name:     s.Name,
-			MinValue: s.MinValue,
-			MaxValue: s.MaxValue,
-		}
+	if req.Version != config.Version {
+		sharedAPI.RespondError(w, http.StatusConflict, nil, "Configuration was modified by another user. Please refresh and try again.")
+		return
 	}
 
 	cmd := &commands.UpdateMaturityScale{
 		ID:         config.ID,
-		Sections:   sections,
+		Sections:   req.toCommandInput(),
 		ModifiedBy: authSession.UserEmail(),
 	}
 
@@ -128,28 +156,23 @@ func (h *MetaModelHandlers) UpdateMaturityScale(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	updatedConfig, err := h.readModel.GetByID(r.Context(), config.ID)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve updated configuration")
-		return
-	}
-
-	updatedConfig.Links = h.hateoas.MaturityScaleLinks()
-
-	sharedAPI.RespondJSON(w, http.StatusOK, updatedConfig)
+	h.getAndRespondWithConfig(w,
+		func() (*readmodels.MetaModelConfigurationDTO, error) { return h.readModel.GetByID(r.Context(), config.ID) },
+		func(c *readmodels.MetaModelConfigurationDTO) map[string]string { return h.hateoas.MaturityScaleLinks(c.IsDefault) },
+	)
 }
 
 // ResetMaturityScale godoc
 // @Summary Reset maturity scale to defaults
 // @Description Resets the maturity scale configuration to default values
-// @Tags metamodel
+// @Tags meta-model
 // @Produce json
 // @Success 200 {object} readmodels.MetaModelConfigurationDTO
 // @Failure 401 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Failure 403 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Router /metamodel/maturity-scale/reset [put]
+// @Router /meta-model/maturity-scale/reset [post]
 func (h *MetaModelHandlers) ResetMaturityScale(w http.ResponseWriter, r *http.Request) {
 	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
 	if err != nil {
@@ -157,14 +180,10 @@ func (h *MetaModelHandlers) ResetMaturityScale(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	config, err := h.readModel.GetByTenantID(r.Context())
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve configuration")
-		return
-	}
-
+	config := h.loadConfigOrFail(w, func() (*readmodels.MetaModelConfigurationDTO, error) {
+		return h.readModel.GetByTenantID(r.Context())
+	})
 	if config == nil {
-		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Configuration not found")
 		return
 	}
 
@@ -178,42 +197,26 @@ func (h *MetaModelHandlers) ResetMaturityScale(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	updatedConfig, err := h.readModel.GetByID(r.Context(), config.ID)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve reset configuration")
-		return
-	}
-
-	updatedConfig.Links = h.hateoas.MaturityScaleLinks()
-
-	sharedAPI.RespondJSON(w, http.StatusOK, updatedConfig)
+	h.getAndRespondWithConfig(w,
+		func() (*readmodels.MetaModelConfigurationDTO, error) { return h.readModel.GetByID(r.Context(), config.ID) },
+		func(c *readmodels.MetaModelConfigurationDTO) map[string]string { return h.hateoas.MaturityScaleLinks(c.IsDefault) },
+	)
 }
 
 // GetMaturityScaleByID godoc
 // @Summary Get maturity scale by configuration ID
 // @Description Retrieves a specific maturity scale configuration by ID
-// @Tags metamodel
+// @Tags meta-model
 // @Produce json
 // @Param id path string true "Configuration ID"
 // @Success 200 {object} readmodels.MetaModelConfigurationDTO
 // @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Router /metamodel/configurations/{id} [get]
+// @Router /meta-model/configurations/{id} [get]
 func (h *MetaModelHandlers) GetMaturityScaleByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-
-	config, err := h.readModel.GetByID(r.Context(), id)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve configuration")
-		return
-	}
-
-	if config == nil {
-		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Configuration not found")
-		return
-	}
-
-	config.Links = h.hateoas.MetaModelConfigLinks(id)
-
-	sharedAPI.RespondJSON(w, http.StatusOK, config)
+	h.getAndRespondWithConfig(w,
+		func() (*readmodels.MetaModelConfigurationDTO, error) { return h.readModel.GetByID(r.Context(), id) },
+		func(c *readmodels.MetaModelConfigurationDTO) map[string]string { return h.hateoas.MetaModelConfigLinks(id, c.IsDefault) },
+	)
 }

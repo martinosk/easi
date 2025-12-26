@@ -162,16 +162,16 @@ Uses generic event-sourced repository pattern from Spec 089.
 - `Save`: Persist aggregate with new events
 
 ## Checklist
-- [ ] Specification ready
-- [ ] Value objects implemented with validation
-- [ ] Aggregate implemented with event sourcing
-- [ ] Events defined and serializable
-- [ ] Command handlers implemented
-- [ ] TenantCreated event handler implemented
-- [ ] Projector implemented
-- [ ] Read model table migration created
-- [ ] Repository implemented
-- [ ] Unit tests for value objects
-- [ ] Unit tests for aggregate
-- [ ] Integration tests for repository
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Value objects implemented with validation
+- [x] Aggregate implemented with event sourcing
+- [x] Events defined and serializable
+- [x] Command handlers implemented
+- [x] TenantCreated event handler implemented
+- [x] Projector implemented
+- [x] Read model table migration created
+- [x] Repository implemented
+- [x] Unit tests for value objects
+- [x] Unit tests for aggregate
+- [x] Integration tests for repository
+- [x] User sign-off

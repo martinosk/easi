@@ -247,16 +247,16 @@ The maturity-levels endpoint in CapabilityMapping context must query MetaModel c
 Direct database queries between bounded contexts are NOT allowed as they violate context isolation. The maturity-levels handler must use the `MaturityScaleGateway` interface to call the MetaModel REST API with caching.
 
 ## Checklist
-- [ ] Specification ready
-- [ ] Route registration implemented
-- [ ] GET handler implemented
-- [ ] PUT handler implemented with validation
-- [ ] POST /reset handler implemented
-- [ ] Maturity-levels endpoint updated to read from configuration
-- [ ] HATEOAS links implemented
-- [ ] Error responses match specification
-- [ ] Cache headers implemented
-- [ ] OpenAPI/Swagger documentation updated
-- [ ] Unit tests for handlers
-- [ ] Integration tests for API
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Route registration implemented
+- [x] GET handler implemented
+- [x] PUT handler implemented with validation
+- [x] POST /reset handler implemented
+- [ ] Maturity-levels endpoint updated to read from configuration (see Spec 094)
+- [x] HATEOAS links implemented
+- [x] Error responses match specification
+- [x] Cache headers implemented
+- [x] OpenAPI/Swagger documentation updated
+- [x] Unit tests for handlers
+- [x] Integration tests for API
+- [x] User sign-off

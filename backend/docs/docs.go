@@ -2907,6 +2907,191 @@ const docTemplate = `{
                 }
             }
         },
+        "/meta-model/configurations/{id}": {
+            "get": {
+                "description": "Retrieves a specific maturity scale configuration by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Get maturity scale by configuration ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Configuration ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_metamodel_application_readmodels.MetaModelConfigurationDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/meta-model/maturity-scale": {
+            "get": {
+                "description": "Retrieves the maturity scale configuration for the current tenant",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Get the maturity scale configuration",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_metamodel_application_readmodels.MetaModelConfigurationDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Updates the maturity scale sections for the current tenant",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Update the maturity scale configuration",
+                "parameters": [
+                    {
+                        "description": "Maturity scale configuration",
+                        "name": "scale",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.UpdateMaturityScaleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_metamodel_application_readmodels.MetaModelConfigurationDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/meta-model/maturity-scale/reset": {
+            "post": {
+                "description": "Resets the maturity scale configuration to default values",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Reset maturity scale to defaults",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_metamodel_application_readmodels.MetaModelConfigurationDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/platform/tenants": {
             "get": {
                 "description": "Retrieves a list of all tenants with optional filtering",
@@ -3036,6 +3221,68 @@ const docTemplate = `{
                         "description": "Tenant details",
                         "schema": {
                             "$ref": "#/definitions/internal_platform_infrastructure_api.TenantResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/platform/tenants/{id}/invitations": {
+            "post": {
+                "description": "Creates an admin invitation for an existing tenant",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tenants"
+                ],
+                "summary": "Create an invitation for a tenant",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Invitation details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_platform_infrastructure_api.CreateInvitationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Invitation created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "404": {
@@ -3597,81 +3844,6 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "User not found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "patch": {
-                "description": "Updates user properties (role and/or status). Cannot demote the last admin or disable yourself.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "users"
-                ],
-                "summary": "Update user",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User ID (UUID format)",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Fields to update",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_auth_infrastructure_api.UpdateUserRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Updated user with HATEOAS links",
-                        "schema": {
-                            "$ref": "#/definitions/internal_auth_infrastructure_api.UserResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body, role, or status",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Not authenticated",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Insufficient permissions",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "User not found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Business rule violation (last admin, already disabled, etc.)",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -4869,6 +5041,61 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_metamodel_application_readmodels.MaturitySectionDTO": {
+            "type": "object",
+            "properties": {
+                "maxValue": {
+                    "type": "integer"
+                },
+                "minValue": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "order": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_metamodel_application_readmodels.MetaModelConfigurationDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "isDefault": {
+                    "type": "boolean"
+                },
+                "modifiedAt": {
+                    "type": "string"
+                },
+                "modifiedBy": {
+                    "type": "string"
+                },
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_metamodel_application_readmodels.MaturitySectionDTO"
+                    }
+                },
+                "tenantId": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
         "easi_backend_internal_shared_api.CollectionMeta": {
             "type": "object",
             "properties": {
@@ -5195,17 +5422,6 @@ const docTemplate = `{
         "internal_auth_infrastructure_api.UpdateInvitationRequest": {
             "type": "object",
             "properties": {
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_auth_infrastructure_api.UpdateUserRequest": {
-            "type": "object",
-            "properties": {
-                "role": {
-                    "type": "string"
-                },
                 "status": {
                     "type": "string"
                 }
@@ -5554,6 +5770,48 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "realizationLevel": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_metamodel_infrastructure_api.MaturitySectionRequest": {
+            "type": "object",
+            "properties": {
+                "maxValue": {
+                    "type": "integer"
+                },
+                "minValue": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "order": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_metamodel_infrastructure_api.UpdateMaturityScaleRequest": {
+            "type": "object",
+            "properties": {
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_metamodel_infrastructure_api.MaturitySectionRequest"
+                    }
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_platform_infrastructure_api.CreateInvitationRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "role": {
                     "type": "string"
                 }
             }

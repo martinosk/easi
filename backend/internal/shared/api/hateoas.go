@@ -144,18 +144,22 @@ func (h *HATEOASLinks) ReferenceDocLink(resourceType string) string {
 	return fmt.Sprintf("%s/reference/%s", h.baseURL, resourceType)
 }
 
-func (h *HATEOASLinks) MaturityScaleLinks() map[string]string {
-	return map[string]string{
-		"self":   fmt.Sprintf("%s/metamodel/maturity-scale", h.baseURL),
-		"update": fmt.Sprintf("%s/metamodel/maturity-scale", h.baseURL),
-		"reset":  fmt.Sprintf("%s/metamodel/maturity-scale/reset", h.baseURL),
+func (h *HATEOASLinks) buildMaturityLinks(selfURL string, isDefault bool) map[string]string {
+	links := map[string]string{
+		"self":           selfURL,
+		"update":         fmt.Sprintf("%s/meta-model/maturity-scale", h.baseURL),
+		"maturityLevels": fmt.Sprintf("%s/capabilities/metadata/maturity-levels", h.baseURL),
 	}
+	if !isDefault {
+		links["reset"] = fmt.Sprintf("%s/meta-model/maturity-scale/reset", h.baseURL)
+	}
+	return links
 }
 
-func (h *HATEOASLinks) MetaModelConfigLinks(configID string) map[string]string {
-	return map[string]string{
-		"self":   fmt.Sprintf("%s/metamodel/configurations/%s", h.baseURL, configID),
-		"update": fmt.Sprintf("%s/metamodel/maturity-scale", h.baseURL),
-		"reset":  fmt.Sprintf("%s/metamodel/maturity-scale/reset", h.baseURL),
-	}
+func (h *HATEOASLinks) MaturityScaleLinks(isDefault bool) map[string]string {
+	return h.buildMaturityLinks(fmt.Sprintf("%s/meta-model/maturity-scale", h.baseURL), isDefault)
+}
+
+func (h *HATEOASLinks) MetaModelConfigLinks(configID string, isDefault bool) map[string]string {
+	return h.buildMaturityLinks(fmt.Sprintf("%s/meta-model/configurations/%s", h.baseURL, configID), isDefault)
 }

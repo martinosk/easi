@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS meta_model_configurations (
     tenant_id VARCHAR(50) NOT NULL,
     sections JSONB NOT NULL,
     version INTEGER NOT NULL DEFAULT 1,
+    is_default BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     modified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     modified_by VARCHAR(255) NOT NULL,

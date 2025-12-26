@@ -53,6 +53,7 @@ func (p *MetaModelConfigurationProjector) handleCreated(ctx context.Context, eve
 		TenantID:   event.TenantID,
 		Sections:   toSectionDTOs(event.Sections),
 		Version:    1,
+		IsDefault:  true,
 		CreatedAt:  event.CreatedAt,
 		ModifiedAt: event.CreatedAt,
 		ModifiedBy: event.CreatedBy,
@@ -70,6 +71,7 @@ func (p *MetaModelConfigurationProjector) handleUpdated(ctx context.Context, eve
 		ID:         event.ID,
 		Sections:   toSectionDTOs(event.NewSections),
 		Version:    event.Version,
+		IsDefault:  false,
 		ModifiedAt: event.ModifiedAt,
 		ModifiedBy: event.ModifiedBy,
 	}
@@ -86,6 +88,7 @@ func (p *MetaModelConfigurationProjector) handleReset(ctx context.Context, event
 		ID:         event.ID,
 		Sections:   toSectionDTOs(event.Sections),
 		Version:    event.Version,
+		IsDefault:  true,
 		ModifiedAt: event.ModifiedAt,
 		ModifiedBy: event.ModifiedBy,
 	}
