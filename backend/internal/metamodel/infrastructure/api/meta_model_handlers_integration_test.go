@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -37,9 +38,8 @@ type testContext struct {
 	createdIDs []string
 }
 
-func (ctx *testContext) setTenantContext(t *testing.T) {
-	_, err := ctx.db.Exec(fmt.Sprintf("SET app.current_tenant = '%s'", testTenantID()))
-	require.NoError(t, err)
+func (ctx *testContext) trackID(id string) {
+	ctx.createdIDs = append(ctx.createdIDs, id)
 }
 
 func setupTestDB(t *testing.T) (*testContext, func()) {
@@ -77,14 +77,11 @@ func setupTestDB(t *testing.T) (*testContext, func()) {
 	return ctx, cleanup
 }
 
-func (ctx *testContext) trackID(id string) {
-	ctx.createdIDs = append(ctx.createdIDs, id)
-}
-
 type testHandlers struct {
-	handlers   *MetaModelHandlers
-	commandBus *cqrs.InMemoryCommandBus
-	readModel  *readmodels.MetaModelConfigurationReadModel
+	handlers       *MetaModelHandlers
+	commandBus     *cqrs.InMemoryCommandBus
+	readModel      *readmodels.MetaModelConfigurationReadModel
+	sessionManager *testSessionManager
 }
 
 func setupHandlers(db *sql.DB) *testHandlers {
@@ -113,11 +110,49 @@ func setupHandlers(db *sql.DB) *testHandlers {
 	commandBus.Register("UpdateMaturityScale", updateHandler)
 	commandBus.Register("ResetMaturityScale", resetHandler)
 
+	sessionMgr := newTestSessionManager()
+
 	return &testHandlers{
-		handlers:   NewMetaModelHandlers(commandBus, readModel, hateoas),
-		commandBus: commandBus,
-		readModel:  readModel,
+		handlers:       NewMetaModelHandlers(commandBus, readModel, hateoas, sessionMgr.sessionManager),
+		commandBus:     commandBus,
+		readModel:      readModel,
+		sessionManager: sessionMgr,
 	}
+}
+
+func (h *testHandlers) createRouter() chi.Router {
+	router := chi.NewRouter()
+	router.Use(h.sessionManager.scsManager.LoadAndSave)
+
+	router.Put("/api/v1/metamodel/maturity-scale", h.wrapHandler(h.handlers.UpdateMaturityScale))
+	router.Put("/api/v1/metamodel/maturity-scale/reset", h.wrapHandler(h.handlers.ResetMaturityScale))
+
+	return router
+}
+
+func (h *testHandlers) wrapHandler(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		r = withTestTenant(r)
+		handler(w, r)
+	}
+}
+
+type requestOptions struct {
+	body    io.Reader
+	cookies []*http.Cookie
+}
+
+func (h *testHandlers) executeRequest(router chi.Router, method, path string, opts requestOptions) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(method, path, opts.body)
+	if opts.body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	for _, c := range opts.cookies {
+		req.AddCookie(c)
+	}
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	return w
 }
 
 func createTestConfiguration(t *testing.T, testCtx *testContext, h *testHandlers) string {
@@ -133,6 +168,17 @@ func createTestConfiguration(t *testing.T, testCtx *testContext, h *testHandlers
 	time.Sleep(100 * time.Millisecond)
 
 	return cmd.ID
+}
+
+func validSectionsRequest() UpdateMaturityScaleRequest {
+	return UpdateMaturityScaleRequest{
+		Sections: [4]MaturitySectionRequest{
+			{Order: 1, Name: "Section 1", MinValue: 0, MaxValue: 24},
+			{Order: 2, Name: "Section 2", MinValue: 25, MaxValue: 49},
+			{Order: 3, Name: "Section 3", MinValue: 50, MaxValue: 74},
+			{Order: 4, Name: "Section 4", MinValue: 75, MaxValue: 99},
+		},
+	}
 }
 
 func TestGetMaturityScale_Integration(t *testing.T) {
@@ -210,12 +256,14 @@ func TestUpdateMaturityScale_Integration(t *testing.T) {
 	}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/metamodel/maturity-scale", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
+	userEmail := "admin@acme.com"
+	cookies := h.sessionManager.getSessionCookies(t, userEmail)
+	router := h.createRouter()
 
-	h.handlers.UpdateMaturityScale(w, req)
+	w := h.executeRequest(router, http.MethodPut, "/api/v1/metamodel/maturity-scale", requestOptions{
+		body:    bytes.NewReader(body),
+		cookies: cookies,
+	})
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
@@ -229,6 +277,7 @@ func TestUpdateMaturityScale_Integration(t *testing.T) {
 	assert.Equal(t, "Growth", response.Sections[1].Name)
 	assert.Equal(t, "Mature", response.Sections[2].Name)
 	assert.Equal(t, "Sunset", response.Sections[3].Name)
+	assert.Equal(t, userEmail, response.ModifiedBy)
 }
 
 func TestUpdateMaturityScale_InvalidSections_Integration(t *testing.T) {
@@ -248,12 +297,13 @@ func TestUpdateMaturityScale_InvalidSections_Integration(t *testing.T) {
 	}
 	body, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/metamodel/maturity-scale", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
+	cookies := h.sessionManager.getSessionCookies(t, "admin@acme.com")
+	router := h.createRouter()
 
-	h.handlers.UpdateMaturityScale(w, req)
+	w := h.executeRequest(router, http.MethodPut, "/api/v1/metamodel/maturity-scale", requestOptions{
+		body:    bytes.NewReader(body),
+		cookies: cookies,
+	})
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
@@ -265,6 +315,10 @@ func TestResetMaturityScale_Integration(t *testing.T) {
 	h := setupHandlers(testCtx.db)
 	configID := createTestConfiguration(t, testCtx, h)
 
+	userEmail := "admin@acme.com"
+	cookies := h.sessionManager.getSessionCookies(t, userEmail)
+	router := h.createRouter()
+
 	updateReqBody := UpdateMaturityScaleRequest{
 		Sections: [4]MaturitySectionRequest{
 			{Order: 1, Name: "Custom 1", MinValue: 0, MaxValue: 24},
@@ -274,20 +328,18 @@ func TestResetMaturityScale_Integration(t *testing.T) {
 		},
 	}
 	updateBody, _ := json.Marshal(updateReqBody)
-	updateReq := httptest.NewRequest(http.MethodPut, "/api/v1/metamodel/maturity-scale", bytes.NewReader(updateBody))
-	updateReq.Header.Set("Content-Type", "application/json")
-	updateReq = withTestTenant(updateReq)
-	updateW := httptest.NewRecorder()
-	h.handlers.UpdateMaturityScale(updateW, updateReq)
+
+	updateW := h.executeRequest(router, http.MethodPut, "/api/v1/metamodel/maturity-scale", requestOptions{
+		body:    bytes.NewReader(updateBody),
+		cookies: cookies,
+	})
 	require.Equal(t, http.StatusOK, updateW.Code)
 
 	time.Sleep(100 * time.Millisecond)
 
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/metamodel/maturity-scale/reset", nil)
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	h.handlers.ResetMaturityScale(w, req)
+	w := h.executeRequest(router, http.MethodPut, "/api/v1/metamodel/maturity-scale/reset", requestOptions{
+		cookies: cookies,
+	})
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
@@ -297,6 +349,7 @@ func TestResetMaturityScale_Integration(t *testing.T) {
 
 	assert.Equal(t, configID, response.ID)
 	assert.Equal(t, 3, response.Version)
+	assert.Equal(t, userEmail, response.ModifiedBy)
 
 	assert.Equal(t, "Genesis", response.Sections[0].Name)
 	assert.Equal(t, "Custom Built", response.Sections[1].Name)
@@ -356,22 +409,14 @@ func TestUpdateMaturityScale_NotFound_Integration(t *testing.T) {
 
 	h := setupHandlers(testCtx.db)
 
-	reqBody := UpdateMaturityScaleRequest{
-		Sections: [4]MaturitySectionRequest{
-			{Order: 1, Name: "Section 1", MinValue: 0, MaxValue: 24},
-			{Order: 2, Name: "Section 2", MinValue: 25, MaxValue: 49},
-			{Order: 3, Name: "Section 3", MinValue: 50, MaxValue: 74},
-			{Order: 4, Name: "Section 4", MinValue: 75, MaxValue: 99},
-		},
-	}
-	body, _ := json.Marshal(reqBody)
+	body, _ := json.Marshal(validSectionsRequest())
+	cookies := h.sessionManager.getSessionCookies(t, "admin@acme.com")
+	router := h.createRouter()
 
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/metamodel/maturity-scale", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
-
-	h.handlers.UpdateMaturityScale(w, req)
+	w := h.executeRequest(router, http.MethodPut, "/api/v1/metamodel/maturity-scale", requestOptions{
+		body:    bytes.NewReader(body),
+		cookies: cookies,
+	})
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
@@ -382,11 +427,78 @@ func TestResetMaturityScale_NotFound_Integration(t *testing.T) {
 
 	h := setupHandlers(testCtx.db)
 
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/metamodel/maturity-scale/reset", nil)
-	req = withTestTenant(req)
-	w := httptest.NewRecorder()
+	cookies := h.sessionManager.getSessionCookies(t, "admin@acme.com")
+	router := h.createRouter()
 
-	h.handlers.ResetMaturityScale(w, req)
+	w := h.executeRequest(router, http.MethodPut, "/api/v1/metamodel/maturity-scale/reset", requestOptions{
+		cookies: cookies,
+	})
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestUpdateMaturityScale_Unauthorized_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	h := setupHandlers(testCtx.db)
+	createTestConfiguration(t, testCtx, h)
+
+	body, _ := json.Marshal(validSectionsRequest())
+	router := h.createRouter()
+
+	w := h.executeRequest(router, http.MethodPut, "/api/v1/metamodel/maturity-scale", requestOptions{
+		body: bytes.NewReader(body),
+	})
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestResetMaturityScale_Unauthorized_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	h := setupHandlers(testCtx.db)
+	createTestConfiguration(t, testCtx, h)
+
+	router := h.createRouter()
+
+	w := h.executeRequest(router, http.MethodPut, "/api/v1/metamodel/maturity-scale/reset", requestOptions{})
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestUpdateMaturityScale_RecordsUserEmail_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	h := setupHandlers(testCtx.db)
+	createTestConfiguration(t, testCtx, h)
+
+	reqBody := UpdateMaturityScaleRequest{
+		Sections: [4]MaturitySectionRequest{
+			{Order: 1, Name: "Phase 1", MinValue: 0, MaxValue: 24},
+			{Order: 2, Name: "Phase 2", MinValue: 25, MaxValue: 49},
+			{Order: 3, Name: "Phase 3", MinValue: 50, MaxValue: 74},
+			{Order: 4, Name: "Phase 4", MinValue: 75, MaxValue: 99},
+		},
+	}
+	body, _ := json.Marshal(reqBody)
+
+	specificEmail := "specific-user@acme.com"
+	cookies := h.sessionManager.getSessionCookies(t, specificEmail)
+	router := h.createRouter()
+
+	w := h.executeRequest(router, http.MethodPut, "/api/v1/metamodel/maturity-scale", requestOptions{
+		body:    bytes.NewReader(body),
+		cookies: cookies,
+	})
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var response readmodels.MetaModelConfigurationDTO
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+
+	assert.Equal(t, specificEmail, response.ModifiedBy, "ModifiedBy should contain the authenticated user's email")
 }

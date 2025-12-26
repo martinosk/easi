@@ -1,6 +1,10 @@
 package api
 
 import (
+	"net/http"
+
+	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
+	"easi/backend/internal/auth/infrastructure/session"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/metamodel/application/handlers"
@@ -14,42 +18,54 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func SetupMetaModelRoutes(
-	r chi.Router,
-	commandBus *cqrs.InMemoryCommandBus,
-	eventStore eventstore.EventStore,
-	eventBus events.EventBus,
-	db *database.TenantAwareDB,
-	hateoas *sharedAPI.HATEOASLinks,
-) error {
-	configRepo := repositories.NewMetaModelConfigurationRepository(eventStore)
+type AuthMiddleware interface {
+	RequirePermission(permission authValueObjects.Permission) func(http.Handler) http.Handler
+}
 
-	configReadModel := readmodels.NewMetaModelConfigurationReadModel(db)
+type MetaModelRoutesDeps struct {
+	Router         chi.Router
+	CommandBus     *cqrs.InMemoryCommandBus
+	EventStore     eventstore.EventStore
+	EventBus       events.EventBus
+	DB             *database.TenantAwareDB
+	Hateoas        *sharedAPI.HATEOASLinks
+	AuthMiddleware AuthMiddleware
+	SessionManager *session.SessionManager
+}
+
+func SetupMetaModelRoutes(deps MetaModelRoutesDeps) error {
+	configRepo := repositories.NewMetaModelConfigurationRepository(deps.EventStore)
+
+	configReadModel := readmodels.NewMetaModelConfigurationReadModel(deps.DB)
 
 	configProjector := projectors.NewMetaModelConfigurationProjector(configReadModel)
 
-	eventBus.Subscribe("MetaModelConfigurationCreated", configProjector)
-	eventBus.Subscribe("MaturityScaleConfigUpdated", configProjector)
-	eventBus.Subscribe("MaturityScaleConfigReset", configProjector)
+	deps.EventBus.Subscribe("MetaModelConfigurationCreated", configProjector)
+	deps.EventBus.Subscribe("MaturityScaleConfigUpdated", configProjector)
+	deps.EventBus.Subscribe("MaturityScaleConfigReset", configProjector)
 
 	createConfigHandler := handlers.NewCreateMetaModelConfigurationHandler(configRepo)
 	updateScaleHandler := handlers.NewUpdateMaturityScaleHandler(configRepo)
 	resetScaleHandler := handlers.NewResetMaturityScaleHandler(configRepo)
 
-	commandBus.Register("CreateMetaModelConfiguration", createConfigHandler)
-	commandBus.Register("UpdateMaturityScale", updateScaleHandler)
-	commandBus.Register("ResetMaturityScale", resetScaleHandler)
+	deps.CommandBus.Register("CreateMetaModelConfiguration", createConfigHandler)
+	deps.CommandBus.Register("UpdateMaturityScale", updateScaleHandler)
+	deps.CommandBus.Register("ResetMaturityScale", resetScaleHandler)
 
-	tenantCreatedHandler := handlers.NewTenantCreatedHandler(commandBus)
-	eventBus.Subscribe("TenantCreated", tenantCreatedHandler)
+	tenantCreatedHandler := handlers.NewTenantCreatedHandler(deps.CommandBus)
+	deps.EventBus.Subscribe("TenantCreated", tenantCreatedHandler)
 
-	metaModelHandlers := NewMetaModelHandlers(commandBus, configReadModel, hateoas)
+	metaModelHandlers := NewMetaModelHandlers(deps.CommandBus, configReadModel, deps.Hateoas, deps.SessionManager)
 
-	r.Route("/metamodel", func(r chi.Router) {
+	deps.Router.Route("/metamodel", func(r chi.Router) {
 		r.Get("/maturity-scale", metaModelHandlers.GetMaturityScale)
-		r.Put("/maturity-scale", metaModelHandlers.UpdateMaturityScale)
-		r.Put("/maturity-scale/reset", metaModelHandlers.ResetMaturityScale)
 		r.Get("/configurations/{id}", metaModelHandlers.GetMaturityScaleByID)
+
+		r.Group(func(r chi.Router) {
+			r.Use(deps.AuthMiddleware.RequirePermission(authValueObjects.PermMetaModelWrite))
+			r.Put("/maturity-scale", metaModelHandlers.UpdateMaturityScale)
+			r.Put("/maturity-scale/reset", metaModelHandlers.ResetMaturityScale)
+		})
 	})
 
 	return nil

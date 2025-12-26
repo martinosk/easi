@@ -33,6 +33,8 @@ var (
 	PermUsersManage = Permission{value: "users:manage"}
 
 	PermInvitationsManage = Permission{value: "invitations:manage"}
+
+	PermMetaModelWrite = Permission{value: "metamodel:write"}
 )
 
 var validPermissions = map[string]Permission{
@@ -51,6 +53,7 @@ var validPermissions = map[string]Permission{
 	"users:read":          PermUsersRead,
 	"users:manage":        PermUsersManage,
 	"invitations:manage":  PermInvitationsManage,
+	"metamodel:write":     PermMetaModelWrite,
 }
 
 func PermissionFromString(s string) (Permission, error) {

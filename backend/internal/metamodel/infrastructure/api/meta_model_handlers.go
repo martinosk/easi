@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"easi/backend/internal/auth/infrastructure/session"
 	"easi/backend/internal/metamodel/application/commands"
 	"easi/backend/internal/metamodel/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -12,20 +13,23 @@ import (
 )
 
 type MetaModelHandlers struct {
-	commandBus cqrs.CommandBus
-	readModel  *readmodels.MetaModelConfigurationReadModel
-	hateoas    *sharedAPI.HATEOASLinks
+	commandBus     cqrs.CommandBus
+	readModel      *readmodels.MetaModelConfigurationReadModel
+	hateoas        *sharedAPI.HATEOASLinks
+	sessionManager *session.SessionManager
 }
 
 func NewMetaModelHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.MetaModelConfigurationReadModel,
 	hateoas *sharedAPI.HATEOASLinks,
+	sessionManager *session.SessionManager,
 ) *MetaModelHandlers {
 	return &MetaModelHandlers{
-		commandBus: commandBus,
-		readModel:  readModel,
-		hateoas:    hateoas,
+		commandBus:     commandBus,
+		readModel:      readModel,
+		hateoas:        hateoas,
+		sessionManager: sessionManager,
 	}
 }
 
@@ -75,10 +79,18 @@ func (h *MetaModelHandlers) GetMaturityScale(w http.ResponseWriter, r *http.Requ
 // @Param scale body UpdateMaturityScaleRequest true "Maturity scale configuration"
 // @Success 200 {object} readmodels.MetaModelConfigurationDTO
 // @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 401 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 403 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /metamodel/maturity-scale [put]
 func (h *MetaModelHandlers) UpdateMaturityScale(w http.ResponseWriter, r *http.Request) {
+	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Authentication required")
+		return
+	}
+
 	req, ok := sharedAPI.DecodeRequestOrFail[UpdateMaturityScaleRequest](w, r)
 	if !ok {
 		return
@@ -95,7 +107,6 @@ func (h *MetaModelHandlers) UpdateMaturityScale(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	userEmail := "system@easi.io"
 	var sections [4]commands.MaturitySectionInput
 	for i, s := range req.Sections {
 		sections[i] = commands.MaturitySectionInput{
@@ -109,7 +120,7 @@ func (h *MetaModelHandlers) UpdateMaturityScale(w http.ResponseWriter, r *http.R
 	cmd := &commands.UpdateMaturityScale{
 		ID:         config.ID,
 		Sections:   sections,
-		ModifiedBy: userEmail,
+		ModifiedBy: authSession.UserEmail(),
 	}
 
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
@@ -134,10 +145,18 @@ func (h *MetaModelHandlers) UpdateMaturityScale(w http.ResponseWriter, r *http.R
 // @Tags metamodel
 // @Produce json
 // @Success 200 {object} readmodels.MetaModelConfigurationDTO
+// @Failure 401 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 403 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Router /metamodel/maturity-scale/reset [put]
 func (h *MetaModelHandlers) ResetMaturityScale(w http.ResponseWriter, r *http.Request) {
+	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Authentication required")
+		return
+	}
+
 	config, err := h.readModel.GetByTenantID(r.Context())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve configuration")
@@ -149,11 +168,9 @@ func (h *MetaModelHandlers) ResetMaturityScale(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	userEmail := "system@easi.io"
-
 	cmd := &commands.ResetMaturityScale{
 		ID:         config.ID,
-		ModifiedBy: userEmail,
+		ModifiedBy: authSession.UserEmail(),
 	}
 
 	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {

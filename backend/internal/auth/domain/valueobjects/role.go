@@ -54,6 +54,7 @@ func (r Role) Permissions() []Permission {
 			PermDomainsRead, PermDomainsWrite, PermDomainsDelete,
 			PermUsersRead, PermUsersManage,
 			PermInvitationsManage,
+			PermMetaModelWrite,
 		}
 	case "architect":
 		return []Permission{

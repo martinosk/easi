@@ -27,6 +27,7 @@ func TestPermissionFromString_ValidPermissions(t *testing.T) {
 		{"users:read", PermUsersRead},
 		{"users:manage", PermUsersManage},
 		{"invitations:manage", PermInvitationsManage},
+		{"metamodel:write", PermMetaModelWrite},
 	}
 
 	for _, tc := range testCases {

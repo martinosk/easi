@@ -193,4 +193,4 @@ backend/internal/metamodel/
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented
 - [x] API documentation updated (Swagger annotations in handlers)
-- [ ] User sign-off
+- [x] User sign-off

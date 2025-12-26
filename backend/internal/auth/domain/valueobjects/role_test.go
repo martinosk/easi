@@ -56,17 +56,20 @@ func TestRole_Permissions(t *testing.T) {
 	adminPerms := RoleAdmin.Permissions()
 	assert.Contains(t, adminPerms, PermUsersManage)
 	assert.Contains(t, adminPerms, PermComponentsDelete)
+	assert.Contains(t, adminPerms, PermMetaModelWrite)
 
 	architectPerms := RoleArchitect.Permissions()
 	assert.Contains(t, architectPerms, PermComponentsWrite)
 	assert.Contains(t, architectPerms, PermViewsWrite)
 	assert.NotContains(t, architectPerms, PermUsersManage)
 	assert.NotContains(t, architectPerms, PermComponentsDelete)
+	assert.NotContains(t, architectPerms, PermMetaModelWrite)
 
 	stakeholderPerms := RoleStakeholder.Permissions()
 	assert.Contains(t, stakeholderPerms, PermComponentsRead)
 	assert.Contains(t, stakeholderPerms, PermViewsRead)
 	assert.NotContains(t, stakeholderPerms, PermComponentsWrite)
+	assert.NotContains(t, stakeholderPerms, PermMetaModelWrite)
 }
 
 func TestRole_Equals(t *testing.T) {
@@ -82,11 +85,14 @@ func TestRole_HasPermission(t *testing.T) {
 	assert.True(t, RoleAdmin.HasPermission(PermUsersManage))
 	assert.True(t, RoleAdmin.HasPermission(PermComponentsDelete))
 	assert.True(t, RoleAdmin.HasPermission(PermComponentsRead))
+	assert.True(t, RoleAdmin.HasPermission(PermMetaModelWrite))
 
 	assert.True(t, RoleArchitect.HasPermission(PermComponentsWrite))
 	assert.False(t, RoleArchitect.HasPermission(PermUsersManage))
 	assert.False(t, RoleArchitect.HasPermission(PermComponentsDelete))
+	assert.False(t, RoleArchitect.HasPermission(PermMetaModelWrite))
 
 	assert.True(t, RoleStakeholder.HasPermission(PermComponentsRead))
 	assert.False(t, RoleStakeholder.HasPermission(PermComponentsWrite))
+	assert.False(t, RoleStakeholder.HasPermission(PermMetaModelWrite))
 }

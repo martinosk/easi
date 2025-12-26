@@ -15,3 +15,13 @@ CREATE TABLE IF NOT EXISTS meta_model_configurations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_metamodel_configurations_tenant ON meta_model_configurations(tenant_id);
+
+-- Row-Level Security for tenant isolation
+ALTER TABLE meta_model_configurations ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation_policy ON meta_model_configurations;
+CREATE POLICY tenant_isolation_policy ON meta_model_configurations
+    FOR ALL
+    TO easi_app
+    USING (tenant_id = current_setting('app.current_tenant', true))
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true));

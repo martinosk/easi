@@ -14,6 +14,7 @@ import (
 	"easi/backend/internal/infrastructure/api/middleware"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
+	metamodelAPI "easi/backend/internal/metamodel/infrastructure/api"
 	platformAPI "easi/backend/internal/platform/infrastructure/api"
 	releasesAPI "easi/backend/internal/releases/infrastructure/api"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -137,6 +138,16 @@ func registerAPIRoutes(r chi.Router, deps routerDependencies) {
 			mustSetup(releasesAPI.SetupReleasesRoutes(r, deps.db.DB()), "releases routes")
 			mustSetup(viewlayoutsAPI.SetupViewLayoutsRoutes(r, deps.eventBus, deps.db, deps.hateoas), "view layouts routes")
 			mustSetup(importingAPI.SetupImportingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db), "importing routes")
+			mustSetup(metamodelAPI.SetupMetaModelRoutes(metamodelAPI.MetaModelRoutesDeps{
+				Router:         r,
+				CommandBus:     deps.commandBus,
+				EventStore:     deps.eventStore,
+				EventBus:       deps.eventBus,
+				DB:             deps.db,
+				Hateoas:        deps.hateoas,
+				AuthMiddleware: deps.authDeps.AuthMiddleware,
+				SessionManager: deps.authDeps.SessionManager,
+			}), "metamodel routes")
 
 			invDeps, err := authAPI.SetupInvitationRoutes(authAPI.InvitationRoutesDeps{
 				Router:     r,
