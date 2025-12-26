@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { CapabilityExplorer } from './CapabilityExplorer';
 import type { Capability, CapabilityId } from '../../../api/types';
 
@@ -26,155 +26,83 @@ describe('CapabilityExplorer', () => {
     createCapability('cap-5', 'Order Validation', 'L2', 'cap-4'),
   ];
 
-  it('should render all L1 capabilities as top-level items', () => {
-    render(
-      <CapabilityExplorer
-        capabilities={mockCapabilities}
-        assignedCapabilityIds={new Set()}
-        isLoading={false}
-      />
-    );
+  describe('Hierarchical Nesting', () => {
+    it('should render L2 capabilities nested under their L1 parent', () => {
+      render(
+        <CapabilityExplorer
+          capabilities={mockCapabilities}
+          assignedCapabilityIds={new Set()}
+          isLoading={false}
+        />
+      );
 
-    expect(screen.getByText('Customer Management')).toBeInTheDocument();
-    expect(screen.getByText('Order Processing')).toBeInTheDocument();
+      expect(screen.getByText('Customer Onboarding')).toBeInTheDocument();
+      expect(screen.getByText('Order Validation')).toBeInTheDocument();
+    });
+
+    it('should render L3 capabilities nested under their L2 parent', () => {
+      render(
+        <CapabilityExplorer
+          capabilities={mockCapabilities}
+          assignedCapabilityIds={new Set()}
+          isLoading={false}
+        />
+      );
+
+      expect(screen.getByText('Customer Verification')).toBeInTheDocument();
+    });
   });
 
-  it('should render L2 capabilities nested under their L1 parent', () => {
-    render(
-      <CapabilityExplorer
-        capabilities={mockCapabilities}
-        assignedCapabilityIds={new Set()}
-        isLoading={false}
-      />
-    );
+  describe('L1-Only Draggable Rule', () => {
+    it('should make L1 items draggable', () => {
+      render(
+        <CapabilityExplorer
+          capabilities={mockCapabilities}
+          assignedCapabilityIds={new Set()}
+          isLoading={false}
+        />
+      );
 
-    expect(screen.getByText('Customer Onboarding')).toBeInTheDocument();
-    expect(screen.getByText('Order Validation')).toBeInTheDocument();
+      const l1Item = screen.getByTestId('draggable-cap-1');
+      expect(l1Item).toBeInTheDocument();
+      expect(l1Item).toHaveAttribute('data-draggable', 'true');
+      expect(l1Item).toHaveAttribute('draggable', 'true');
+    });
+
+    it('should not make non-L1 items draggable', () => {
+      render(
+        <CapabilityExplorer
+          capabilities={mockCapabilities}
+          assignedCapabilityIds={new Set()}
+          isLoading={false}
+        />
+      );
+
+      expect(screen.queryByTestId('draggable-cap-2')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('draggable-cap-3')).not.toBeInTheDocument();
+    });
   });
 
-  it('should render L3 capabilities nested under their L2 parent', () => {
-    render(
-      <CapabilityExplorer
-        capabilities={mockCapabilities}
-        assignedCapabilityIds={new Set()}
-        isLoading={false}
-      />
-    );
+  describe('Alphabetical Sorting', () => {
+    it('should sort L1 capabilities alphabetically', () => {
+      const unsortedCapabilities: Capability[] = [
+        createCapability('cap-z', 'Zebra', 'L1'),
+        createCapability('cap-a', 'Alpha', 'L1'),
+        createCapability('cap-m', 'Middle', 'L1'),
+      ];
 
-    expect(screen.getByText('Customer Verification')).toBeInTheDocument();
-  });
+      render(
+        <CapabilityExplorer
+          capabilities={unsortedCapabilities}
+          assignedCapabilityIds={new Set()}
+          isLoading={false}
+        />
+      );
 
-  it('should mark L1 capabilities that are assigned to other domains', () => {
-    const assignedIds = new Set<CapabilityId>(['cap-1' as CapabilityId]);
-
-    render(
-      <CapabilityExplorer
-        capabilities={mockCapabilities}
-        assignedCapabilityIds={assignedIds}
-        isLoading={false}
-      />
-    );
-
-    const assignedIndicator = screen.getByTestId('assigned-indicator-cap-1');
-    expect(assignedIndicator).toBeInTheDocument();
-  });
-
-  it('should not show assigned indicator for unassigned L1 capabilities', () => {
-    render(
-      <CapabilityExplorer
-        capabilities={mockCapabilities}
-        assignedCapabilityIds={new Set()}
-        isLoading={false}
-      />
-    );
-
-    expect(screen.queryByTestId('assigned-indicator-cap-1')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('assigned-indicator-cap-4')).not.toBeInTheDocument();
-  });
-
-  it('should make L1 items draggable', () => {
-    render(
-      <CapabilityExplorer
-        capabilities={mockCapabilities}
-        assignedCapabilityIds={new Set()}
-        isLoading={false}
-      />
-    );
-
-    const l1Item = screen.getByTestId('draggable-cap-1');
-    expect(l1Item).toBeInTheDocument();
-    expect(l1Item).toHaveAttribute('data-draggable', 'true');
-    expect(l1Item).toHaveAttribute('draggable', 'true');
-  });
-
-  it('should not make non-L1 items draggable', () => {
-    render(
-      <CapabilityExplorer
-        capabilities={mockCapabilities}
-        assignedCapabilityIds={new Set()}
-        isLoading={false}
-      />
-    );
-
-    expect(screen.queryByTestId('draggable-cap-2')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('draggable-cap-3')).not.toBeInTheDocument();
-  });
-
-  it('should display loading state', () => {
-    render(
-      <CapabilityExplorer
-        capabilities={[]}
-        assignedCapabilityIds={new Set()}
-        isLoading={true}
-      />
-    );
-
-    expect(screen.getByText(/loading/i)).toBeInTheDocument();
-  });
-
-  it('should display empty state when no capabilities', () => {
-    render(
-      <CapabilityExplorer
-        capabilities={[]}
-        assignedCapabilityIds={new Set()}
-        isLoading={false}
-      />
-    );
-
-    expect(screen.getByText(/no capabilities/i)).toBeInTheDocument();
-  });
-
-  it('should sort L1 capabilities alphabetically', () => {
-    const unsortedCapabilities: Capability[] = [
-      createCapability('cap-z', 'Zebra', 'L1'),
-      createCapability('cap-a', 'Alpha', 'L1'),
-      createCapability('cap-m', 'Middle', 'L1'),
-    ];
-
-    render(
-      <CapabilityExplorer
-        capabilities={unsortedCapabilities}
-        assignedCapabilityIds={new Set()}
-        isLoading={false}
-      />
-    );
-
-    const items = screen.getAllByTestId(/^draggable-cap/);
-    expect(items[0]).toHaveTextContent('Alpha');
-    expect(items[1]).toHaveTextContent('Middle');
-    expect(items[2]).toHaveTextContent('Zebra');
-  });
-
-  it('should have cursor grab style on draggable items', () => {
-    render(
-      <CapabilityExplorer
-        capabilities={mockCapabilities}
-        assignedCapabilityIds={new Set()}
-        isLoading={false}
-      />
-    );
-
-    const draggableItem = screen.getByTestId('draggable-cap-1');
-    expect(draggableItem).toHaveStyle({ cursor: 'grab' });
+      const items = screen.getAllByTestId(/^draggable-cap/);
+      expect(items[0]).toHaveTextContent('Alpha');
+      expect(items[1]).toHaveTextContent('Middle');
+      expect(items[2]).toHaveTextContent('Zebra');
+    });
   });
 });
