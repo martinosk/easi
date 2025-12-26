@@ -28,33 +28,35 @@ func NewArchitectureViewRepository(eventStore eventstore.EventStore) *Architectu
 	}
 }
 
-var eventDeserializers = repository.EventDeserializers{
-	"ViewCreated": deserializeViewCreated,
-	"ComponentAddedToView": func(data map[string]interface{}) domain.DomainEvent {
-		viewID, componentID, x, y := extractComponentPosition(data)
-		return events.ComponentAddedToView{
-			BaseEvent:   domain.NewBaseEvent(viewID),
-			ViewID:      viewID,
-			ComponentID: componentID,
-			X:           x,
-			Y:           y,
-		}
+var eventDeserializers = repository.NewEventDeserializers(
+	map[string]repository.EventDeserializerFunc{
+		"ViewCreated": deserializeViewCreated,
+		"ComponentAddedToView": func(data map[string]interface{}) domain.DomainEvent {
+			viewID, componentID, x, y := extractComponentPosition(data)
+			return events.ComponentAddedToView{
+				BaseEvent:   domain.NewBaseEvent(viewID),
+				ViewID:      viewID,
+				ComponentID: componentID,
+				X:           x,
+				Y:           y,
+			}
+		},
+		"ComponentPositionUpdated": func(data map[string]interface{}) domain.DomainEvent {
+			viewID, componentID, x, y := extractComponentPosition(data)
+			return events.ComponentPositionUpdated{
+				BaseEvent:   domain.NewBaseEvent(viewID),
+				ViewID:      viewID,
+				ComponentID: componentID,
+				X:           x,
+				Y:           y,
+			}
+		},
+		"ComponentRemovedFromView": deserializeComponentRemoved,
+		"ViewRenamed":              deserializeViewRenamed,
+		"ViewDeleted":              deserializeViewDeleted,
+		"DefaultViewChanged":       deserializeDefaultViewChanged,
 	},
-	"ComponentPositionUpdated": func(data map[string]interface{}) domain.DomainEvent {
-		viewID, componentID, x, y := extractComponentPosition(data)
-		return events.ComponentPositionUpdated{
-			BaseEvent:   domain.NewBaseEvent(viewID),
-			ViewID:      viewID,
-			ComponentID: componentID,
-			X:           x,
-			Y:           y,
-		}
-	},
-	"ComponentRemovedFromView": deserializeComponentRemoved,
-	"ViewRenamed":              deserializeViewRenamed,
-	"ViewDeleted":              deserializeViewDeleted,
-	"DefaultViewChanged":       deserializeDefaultViewChanged,
-}
+)
 
 func deserializeViewCreated(data map[string]interface{}) domain.DomainEvent {
 	id, _ := data["id"].(string)

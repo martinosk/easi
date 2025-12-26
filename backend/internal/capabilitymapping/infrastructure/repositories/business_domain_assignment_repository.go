@@ -28,23 +28,25 @@ func NewBusinessDomainAssignmentRepository(eventStore eventstore.EventStore) *Bu
 	}
 }
 
-var assignmentEventDeserializers = repository.EventDeserializers{
-	"CapabilityAssignedToDomain": func(data map[string]interface{}) domain.DomainEvent {
-		id, _ := data["id"].(string)
-		businessDomainID, _ := data["businessDomainId"].(string)
-		capabilityID, _ := data["capabilityId"].(string)
-		assignedAtStr, _ := data["assignedAt"].(string)
-		assignedAt, _ := time.Parse(time.RFC3339Nano, assignedAtStr)
+var assignmentEventDeserializers = repository.NewEventDeserializers(
+	map[string]repository.EventDeserializerFunc{
+		"CapabilityAssignedToDomain": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			businessDomainID, _ := data["businessDomainId"].(string)
+			capabilityID, _ := data["capabilityId"].(string)
+			assignedAtStr, _ := data["assignedAt"].(string)
+			assignedAt, _ := time.Parse(time.RFC3339Nano, assignedAtStr)
 
-		evt := events.NewCapabilityAssignedToDomain(id, businessDomainID, capabilityID)
-		evt.AssignedAt = assignedAt
-		return evt
-	},
-	"CapabilityUnassignedFromDomain": func(data map[string]interface{}) domain.DomainEvent {
-		id, _ := data["id"].(string)
-		businessDomainID, _ := data["businessDomainId"].(string)
-		capabilityID, _ := data["capabilityId"].(string)
+			evt := events.NewCapabilityAssignedToDomain(id, businessDomainID, capabilityID)
+			evt.AssignedAt = assignedAt
+			return evt
+		},
+		"CapabilityUnassignedFromDomain": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			businessDomainID, _ := data["businessDomainId"].(string)
+			capabilityID, _ := data["capabilityId"].(string)
 
-		return events.NewCapabilityUnassignedFromDomain(id, businessDomainID, capabilityID)
+			return events.NewCapabilityUnassignedFromDomain(id, businessDomainID, capabilityID)
+		},
 	},
-}
+)

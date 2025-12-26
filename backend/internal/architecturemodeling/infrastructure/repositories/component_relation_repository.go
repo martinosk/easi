@@ -28,33 +28,35 @@ func NewComponentRelationRepository(eventStore eventstore.EventStore) *Component
 	}
 }
 
-var relationEventDeserializers = repository.EventDeserializers{
-	"ComponentRelationCreated": func(data map[string]interface{}) domain.DomainEvent {
-		id, _ := data["id"].(string)
-		sourceComponentID, _ := data["sourceComponentId"].(string)
-		targetComponentID, _ := data["targetComponentId"].(string)
-		relationType, _ := data["relationType"].(string)
-		name, _ := data["name"].(string)
-		description, _ := data["description"].(string)
-		createdAtStr, _ := data["createdAt"].(string)
-		createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
+var relationEventDeserializers = repository.NewEventDeserializers(
+	map[string]repository.EventDeserializerFunc{
+		"ComponentRelationCreated": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			sourceComponentID, _ := data["sourceComponentId"].(string)
+			targetComponentID, _ := data["targetComponentId"].(string)
+			relationType, _ := data["relationType"].(string)
+			name, _ := data["name"].(string)
+			description, _ := data["description"].(string)
+			createdAtStr, _ := data["createdAt"].(string)
+			createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
 
-		evt := events.NewComponentRelationCreated(events.ComponentRelationParams{
-			ID:          id,
-			SourceID:    sourceComponentID,
-			TargetID:    targetComponentID,
-			Type:        relationType,
-			Name:        name,
-			Description: description,
-		})
-		evt.CreatedAt = createdAt
-		return evt
-	},
-	"ComponentRelationUpdated": func(data map[string]interface{}) domain.DomainEvent {
-		id, _ := data["id"].(string)
-		name, _ := data["name"].(string)
-		description, _ := data["description"].(string)
+			evt := events.NewComponentRelationCreated(events.ComponentRelationParams{
+				ID:          id,
+				SourceID:    sourceComponentID,
+				TargetID:    targetComponentID,
+				Type:        relationType,
+				Name:        name,
+				Description: description,
+			})
+			evt.CreatedAt = createdAt
+			return evt
+		},
+		"ComponentRelationUpdated": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			name, _ := data["name"].(string)
+			description, _ := data["description"].(string)
 
-		return events.NewComponentRelationUpdated(id, name, description)
+			return events.NewComponentRelationUpdated(id, name, description)
+		},
 	},
-}
+)

@@ -102,35 +102,15 @@ func (p *CapabilityProjector) handleCapabilityMetadataUpdated(ctx context.Contex
 		return err
 	}
 
-	maturityValue := event.MaturityValue
-	if maturityValue == 0 && event.MaturityLevel != "" {
-		maturityValue = legacyStringToMaturityValue(event.MaturityLevel)
-	}
-
 	return p.readModel.UpdateMetadata(ctx, event.ID, readmodels.CapabilityMetadataUpdate{
 		StrategyPillar: event.StrategyPillar,
 		PillarWeight:   event.PillarWeight,
-		MaturityValue:  maturityValue,
+		MaturityValue:  event.MaturityValue,
 		OwnershipModel: event.OwnershipModel,
 		PrimaryOwner:   event.PrimaryOwner,
 		EAOwner:        event.EAOwner,
 		Status:         event.Status,
 	})
-}
-
-func legacyStringToMaturityValue(name string) int {
-	switch name {
-	case "Genesis":
-		return 12
-	case "Custom Build":
-		return 37
-	case "Product":
-		return 62
-	case "Commodity":
-		return 87
-	default:
-		return 12
-	}
 }
 
 func (p *CapabilityProjector) handleCapabilityExpertAdded(ctx context.Context, eventData []byte) error {

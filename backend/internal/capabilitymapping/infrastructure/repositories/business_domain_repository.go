@@ -28,28 +28,30 @@ func NewBusinessDomainRepository(eventStore eventstore.EventStore) *BusinessDoma
 	}
 }
 
-var businessDomainEventDeserializers = repository.EventDeserializers{
-	"BusinessDomainCreated": func(data map[string]interface{}) domain.DomainEvent {
-		id, _ := data["id"].(string)
-		name, _ := data["name"].(string)
-		description, _ := data["description"].(string)
-		createdAtStr, _ := data["createdAt"].(string)
-		createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
+var businessDomainEventDeserializers = repository.NewEventDeserializers(
+	map[string]repository.EventDeserializerFunc{
+		"BusinessDomainCreated": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			name, _ := data["name"].(string)
+			description, _ := data["description"].(string)
+			createdAtStr, _ := data["createdAt"].(string)
+			createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
 
-		evt := events.NewBusinessDomainCreated(id, name, description)
-		evt.CreatedAt = createdAt
-		return evt
-	},
-	"BusinessDomainUpdated": func(data map[string]interface{}) domain.DomainEvent {
-		id, _ := data["id"].(string)
-		name, _ := data["name"].(string)
-		description, _ := data["description"].(string)
+			evt := events.NewBusinessDomainCreated(id, name, description)
+			evt.CreatedAt = createdAt
+			return evt
+		},
+		"BusinessDomainUpdated": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			name, _ := data["name"].(string)
+			description, _ := data["description"].(string)
 
-		return events.NewBusinessDomainUpdated(id, name, description)
-	},
-	"BusinessDomainDeleted": func(data map[string]interface{}) domain.DomainEvent {
-		id, _ := data["id"].(string)
+			return events.NewBusinessDomainUpdated(id, name, description)
+		},
+		"BusinessDomainDeleted": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
 
-		return events.NewBusinessDomainDeleted(id)
+			return events.NewBusinessDomainDeleted(id)
+		},
 	},
-}
+)

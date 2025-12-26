@@ -28,29 +28,31 @@ func NewApplicationComponentRepository(eventStore eventstore.EventStore) *Applic
 	}
 }
 
-var componentEventDeserializers = repository.EventDeserializers{
-	"ApplicationComponentCreated": func(data map[string]interface{}) domain.DomainEvent {
-		id, _ := data["id"].(string)
-		name, _ := data["name"].(string)
-		description, _ := data["description"].(string)
-		createdAtStr, _ := data["createdAt"].(string)
-		createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
+var componentEventDeserializers = repository.NewEventDeserializers(
+	map[string]repository.EventDeserializerFunc{
+		"ApplicationComponentCreated": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			name, _ := data["name"].(string)
+			description, _ := data["description"].(string)
+			createdAtStr, _ := data["createdAt"].(string)
+			createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
 
-		evt := events.NewApplicationComponentCreated(id, name, description)
-		evt.CreatedAt = createdAt
-		return evt
-	},
-	"ApplicationComponentUpdated": func(data map[string]interface{}) domain.DomainEvent {
-		id, _ := data["id"].(string)
-		name, _ := data["name"].(string)
-		description, _ := data["description"].(string)
+			evt := events.NewApplicationComponentCreated(id, name, description)
+			evt.CreatedAt = createdAt
+			return evt
+		},
+		"ApplicationComponentUpdated": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			name, _ := data["name"].(string)
+			description, _ := data["description"].(string)
 
-		return events.NewApplicationComponentUpdated(id, name, description)
-	},
-	"ApplicationComponentDeleted": func(data map[string]interface{}) domain.DomainEvent {
-		id, _ := data["id"].(string)
-		name, _ := data["name"].(string)
+			return events.NewApplicationComponentUpdated(id, name, description)
+		},
+		"ApplicationComponentDeleted": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			name, _ := data["name"].(string)
 
-		return events.NewApplicationComponentDeleted(id, name)
+			return events.NewApplicationComponentDeleted(id, name)
+		},
 	},
-}
+)

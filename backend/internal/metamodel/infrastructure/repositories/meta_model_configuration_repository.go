@@ -33,52 +33,54 @@ func (r *MetaModelConfigurationRepository) GetByTenantID(ctx context.Context, te
 	return nil, errors.New("not implemented - requires read model lookup")
 }
 
-var metaModelEventDeserializers = repository.EventDeserializers{
-	"MetaModelConfigurationCreated": func(data map[string]interface{}) domain.DomainEvent {
-		id, _ := data["id"].(string)
-		tenantID, _ := data["tenantId"].(string)
-		createdBy, _ := data["createdBy"].(string)
-		createdAtStr, _ := data["createdAt"].(string)
-		createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
+var metaModelEventDeserializers = repository.NewEventDeserializers(
+	map[string]repository.EventDeserializerFunc{
+		"MetaModelConfigurationCreated": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			tenantID, _ := data["tenantId"].(string)
+			createdBy, _ := data["createdBy"].(string)
+			createdAtStr, _ := data["createdAt"].(string)
+			createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
 
-		sectionsRaw, _ := data["sections"].([]interface{})
-		sections := deserializeSections(sectionsRaw)
+			sectionsRaw, _ := data["sections"].([]interface{})
+			sections := deserializeSections(sectionsRaw)
 
-		evt := events.NewMetaModelConfigurationCreated(id, tenantID, sections, createdBy)
-		evt.CreatedAt = createdAt
-		return evt
+			evt := events.NewMetaModelConfigurationCreated(id, tenantID, sections, createdBy)
+			evt.CreatedAt = createdAt
+			return evt
+		},
+		"MaturityScaleConfigUpdated": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			tenantID, _ := data["tenantId"].(string)
+			version, _ := data["version"].(float64)
+			modifiedBy, _ := data["modifiedBy"].(string)
+			modifiedAtStr, _ := data["modifiedAt"].(string)
+			modifiedAt, _ := time.Parse(time.RFC3339Nano, modifiedAtStr)
+
+			sectionsRaw, _ := data["newSections"].([]interface{})
+			sections := deserializeSections(sectionsRaw)
+
+			evt := events.NewMaturityScaleConfigUpdated(id, tenantID, int(version), sections, modifiedBy)
+			evt.ModifiedAt = modifiedAt
+			return evt
+		},
+		"MaturityScaleConfigReset": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			tenantID, _ := data["tenantId"].(string)
+			version, _ := data["version"].(float64)
+			modifiedBy, _ := data["modifiedBy"].(string)
+			modifiedAtStr, _ := data["modifiedAt"].(string)
+			modifiedAt, _ := time.Parse(time.RFC3339Nano, modifiedAtStr)
+
+			sectionsRaw, _ := data["sections"].([]interface{})
+			sections := deserializeSections(sectionsRaw)
+
+			evt := events.NewMaturityScaleConfigReset(id, tenantID, int(version), sections, modifiedBy)
+			evt.ModifiedAt = modifiedAt
+			return evt
+		},
 	},
-	"MaturityScaleConfigUpdated": func(data map[string]interface{}) domain.DomainEvent {
-		id, _ := data["id"].(string)
-		tenantID, _ := data["tenantId"].(string)
-		version, _ := data["version"].(float64)
-		modifiedBy, _ := data["modifiedBy"].(string)
-		modifiedAtStr, _ := data["modifiedAt"].(string)
-		modifiedAt, _ := time.Parse(time.RFC3339Nano, modifiedAtStr)
-
-		sectionsRaw, _ := data["newSections"].([]interface{})
-		sections := deserializeSections(sectionsRaw)
-
-		evt := events.NewMaturityScaleConfigUpdated(id, tenantID, int(version), sections, modifiedBy)
-		evt.ModifiedAt = modifiedAt
-		return evt
-	},
-	"MaturityScaleConfigReset": func(data map[string]interface{}) domain.DomainEvent {
-		id, _ := data["id"].(string)
-		tenantID, _ := data["tenantId"].(string)
-		version, _ := data["version"].(float64)
-		modifiedBy, _ := data["modifiedBy"].(string)
-		modifiedAtStr, _ := data["modifiedAt"].(string)
-		modifiedAt, _ := time.Parse(time.RFC3339Nano, modifiedAtStr)
-
-		sectionsRaw, _ := data["sections"].([]interface{})
-		sections := deserializeSections(sectionsRaw)
-
-		evt := events.NewMaturityScaleConfigReset(id, tenantID, int(version), sections, modifiedBy)
-		evt.ModifiedAt = modifiedAt
-		return evt
-	},
-}
+)
 
 func deserializeSections(sectionsRaw []interface{}) []events.MaturitySectionData {
 	sections := make([]events.MaturitySectionData, 0, len(sectionsRaw))

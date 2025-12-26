@@ -28,34 +28,36 @@ func NewRealizationRepository(eventStore eventstore.EventStore) *RealizationRepo
 	}
 }
 
-var realizationEventDeserializers = repository.EventDeserializers{
-	"SystemLinkedToCapability": func(data map[string]interface{}) domain.DomainEvent {
-		id, _ := data["id"].(string)
-		capabilityID, _ := data["capabilityId"].(string)
-		componentID, _ := data["componentId"].(string)
-		realizationLevel, _ := data["realizationLevel"].(string)
-		notes, _ := data["notes"].(string)
-		linkedAtStr, _ := data["linkedAt"].(string)
-		linkedAt, _ := time.Parse(time.RFC3339Nano, linkedAtStr)
+var realizationEventDeserializers = repository.NewEventDeserializers(
+	map[string]repository.EventDeserializerFunc{
+		"SystemLinkedToCapability": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			capabilityID, _ := data["capabilityId"].(string)
+			componentID, _ := data["componentId"].(string)
+			realizationLevel, _ := data["realizationLevel"].(string)
+			notes, _ := data["notes"].(string)
+			linkedAtStr, _ := data["linkedAt"].(string)
+			linkedAt, _ := time.Parse(time.RFC3339Nano, linkedAtStr)
 
-		evt := events.NewSystemLinkedToCapability(id, capabilityID, componentID, realizationLevel, notes)
-		evt.LinkedAt = linkedAt
-		return evt
-	},
-	"SystemRealizationUpdated": func(data map[string]interface{}) domain.DomainEvent {
-		id, _ := data["id"].(string)
-		realizationLevel, _ := data["realizationLevel"].(string)
-		notes, _ := data["notes"].(string)
+			evt := events.NewSystemLinkedToCapability(id, capabilityID, componentID, realizationLevel, notes)
+			evt.LinkedAt = linkedAt
+			return evt
+		},
+		"SystemRealizationUpdated": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			realizationLevel, _ := data["realizationLevel"].(string)
+			notes, _ := data["notes"].(string)
 
-		return events.NewSystemRealizationUpdated(id, realizationLevel, notes)
-	},
-	"SystemRealizationDeleted": func(data map[string]interface{}) domain.DomainEvent {
-		id, _ := data["id"].(string)
-		deletedAtStr, _ := data["deletedAt"].(string)
-		deletedAt, _ := time.Parse(time.RFC3339Nano, deletedAtStr)
+			return events.NewSystemRealizationUpdated(id, realizationLevel, notes)
+		},
+		"SystemRealizationDeleted": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			deletedAtStr, _ := data["deletedAt"].(string)
+			deletedAt, _ := time.Parse(time.RFC3339Nano, deletedAtStr)
 
-		evt := events.NewSystemRealizationDeleted(id)
-		evt.DeletedAt = deletedAt
-		return evt
+			evt := events.NewSystemRealizationDeleted(id)
+			evt.DeletedAt = deletedAt
+			return evt
+		},
 	},
-}
+)
