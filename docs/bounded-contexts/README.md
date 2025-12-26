@@ -4,7 +4,7 @@ This directory contains Bounded Context Canvases for all contexts in the EASI en
 
 ## Overview
 
-EASI is built using Strategic Domain-Driven Design principles with clear bounded context boundaries. The system is organized into 5 bounded contexts:
+EASI is built using Strategic Domain-Driven Design principles with clear bounded context boundaries. The system is organized into 7 bounded contexts:
 
 ### 1. Architecture Modeling (Implemented)
 **Purpose:** Manage IT application landscape - what systems exist and how they interact.
@@ -56,7 +56,40 @@ EASI is built using Strategic Domain-Driven Design principles with clear bounded
 
 ---
 
-### 4. Releases (Implemented)
+### 4. MetaModel (Implemented)
+**Purpose:** Manage configurable meta-model elements that control how the architecture modeling tool behaves within each tenant.
+
+**Location:** `/backend/internal/metamodel/`
+
+**Key Responsibilities:**
+- Maturity scale configuration
+- Strategy pillar definitions
+- Tenant-specific modeling vocabulary
+
+**Strategic Classification:** Supporting Domain
+
+[Full Canvas →](./MetaModel.md)
+
+---
+
+### 5. Enterprise Architecture (Specified - Specs 100-101)
+**Purpose:** Enable cross-domain capability analysis, standardization tracking, and maturity gap analysis for investment prioritization.
+
+**Location:** `/backend/internal/enterprisearchitecture/` (future)
+
+**Key Responsibilities:**
+- Enterprise capability groupings (cross-domain)
+- Capability overlap discovery
+- Standardization candidate tracking
+- Cross-domain maturity gap analysis
+
+**Strategic Classification:** Core Domain
+
+[Full Canvas →](./EnterpriseArchitecture.md)
+
+---
+
+### 6. Releases (Implemented)
 **Purpose:** Track and communicate EASI platform releases and version history.
 
 **Location:** `/backend/internal/releases/`
@@ -72,7 +105,7 @@ EASI is built using Strategic Domain-Driven Design principles with clear bounded
 
 ---
 
-### 5. Enterprise Strategy (Future)
+### 7. Enterprise Strategy (Future)
 **Purpose:** Govern strategic architectural decisions about business domain evolution.
 
 **Location:** `/backend/internal/enterprisestrategy/` (future)
@@ -104,19 +137,28 @@ EASI is built using Strategic Domain-Driven Design principles with clear bounded
               │ (ComponentDeleted)         │ (ComponentDeleted)
               ↓                            ↓
     ┌─────────────────────┐      ┌──────────────────────┐
-    │ Architecture Views  │      │ Capability Mapping   │
-    │  (Views/Layouts)    │      │ (Cap-to-System Map)  │
-    │ [Supporting Domain] │      │   [Core Domain]      │
-    └─────────────────────┘      └──────────┬───────────┘
-                                            │ Commands
-                                            │ (Strategic Ops)
-                                            ↓
-                               ┌────────────────────────┐
-                               │ Enterprise Strategy    │
-                               │ (Strategic Governance) │
-                               │   [Core Domain]        │
-                               │      [Future]          │
-                               └────────────────────────┘
+    │ Architecture Views  │      │ Capability Mapping   │◄────────────┐
+    │  (Views/Layouts)    │      │ (Cap-to-System Map)  │             │
+    │ [Supporting Domain] │      │   [Core Domain]      │             │
+    └─────────────────────┘      └──────────┬───────────┘             │
+                                            │                         │
+                    ┌───────────────────────┴─────────────────┐       │
+                    │                                         │       │
+                    ↓                                         ↓       │
+    ┌────────────────────────┐      ┌────────────────────────────┐   │
+    │ Enterprise Architecture│      │ Enterprise Strategy        │   │
+    │ (Cross-domain Analysis)│─────►│ (Strategic Governance)     │   │
+    │   [Core Domain]        │      │   [Core Domain]            │   │
+    │   [Specs 100-101]      │      │      [Future]              │   │
+    └───────────┬────────────┘      └────────────────────────────┘   │
+                │                                                     │
+                │ Queries (Pillar definitions)                        │
+                ↓                                                     │
+    ┌────────────────────────┐                                        │
+    │      MetaModel         │────────────────────────────────────────┘
+    │  (Configuration)       │  Events (Pillar changes)
+    │ [Supporting Domain]    │
+    └────────────────────────┘
 
                     ┌─────────────────┐
                     │    Releases     │
@@ -132,6 +174,10 @@ EASI is built using Strategic Domain-Driven Design principles with clear bounded
 |------------------|-------------------|-------------------|---------------------|
 | Architecture Modeling | Architecture Views | Customer-Supplier | Event-driven (component deletions) |
 | Architecture Modeling | Capability Mapping | Customer-Supplier | Event-driven (component deletions) + Query (read models) |
+| MetaModel | Capability Mapping | Published Language | Event-driven (pillar/maturity config) + Query (configuration) |
+| MetaModel | Enterprise Architecture | Published Language | Event-driven (pillar definitions) + Query (configuration) |
+| Capability Mapping | Enterprise Architecture | Customer-Supplier | Query (capability data) + Event-driven (capability deletions) |
+| Enterprise Architecture | Enterprise Strategy | Customer-Supplier | Query (analysis data for consolidation proposals) |
 | Capability Mapping | Enterprise Strategy | Partnership | Command-driven (strategic ops) + Event-driven (tracking) |
 
 ### Key Integration Points
@@ -145,6 +191,24 @@ EASI is built using Strategic Domain-Driven Design principles with clear bounded
 - Queries: Read `ApplicationComponentReadModel` for system realization
 - Purpose: Link capabilities to systems, cleanup when systems deleted
 
+**MetaModel → Capability Mapping**
+- Events: `StrategyPillarAdded`, `StrategyPillarUpdated`, `StrategyPillarRemoved`
+- Queries: Read maturity scale configuration for display
+- Purpose: Provide configurable vocabulary (pillars, maturity sections) to capability modeling
+
+**MetaModel → Enterprise Architecture**
+- Events: `StrategyPillarAdded`, `StrategyPillarUpdated`, `StrategyPillarRemoved`
+- Purpose: Enterprise Architecture maintains local cache of pillars for alignment
+
+**Capability Mapping → Enterprise Architecture**
+- Queries: Read capability details, maturity levels, business domains
+- Events: `CapabilityDeleted` (to remove links)
+- Purpose: Enterprise Architecture analyzes cross-domain capability data
+
+**Enterprise Architecture → Enterprise Strategy** (Future)
+- Queries: Get standardization candidates, maturity gap analysis
+- Purpose: Provide analytical foundation for consolidation proposals
+
 **Capability Mapping → Enterprise Strategy** (Future)
 - Commands: `CreateBusinessDomain`, `AssignCapabilityToDomain`, etc.
 - Events: `CapabilityAssignedToDomain`, `BusinessDomainDeleted`
@@ -154,11 +218,13 @@ EASI is built using Strategic Domain-Driven Design principles with clear bounded
 
 ### Core Domains (Competitive Advantage)
 1. **Capability Mapping** - Sophisticated capability-to-system mapping with strategic analysis
-2. **Enterprise Strategy** (future) - Strategic governance of domain evolution
+2. **Enterprise Architecture** - Cross-domain capability analysis and standardization tracking
+3. **Enterprise Strategy** (future) - Strategic governance of domain evolution
 
 ### Supporting Domains (Essential but not differentiating)
 1. **Architecture Modeling** - Standard application inventory
-2. **Architecture Reviews** - View management and visualization
+2. **Architecture Views** - View management and visualization
+3. **MetaModel** - Tenant-specific configuration and vocabulary
 
 ### Generic Domains (Commodity)
 1. **Releases** - Simple version tracking
@@ -181,9 +247,11 @@ Each bounded context has:
 | Context | Status | Location | CQRS/ES |
 |---------|--------|----------|---------|
 | Architecture Modeling | ✅ Implemented | `/backend/internal/architecturemodeling/` | Yes |
-| Architecture Reviews | ✅ Implemented | `/backend/internal/architectureviews/` | Yes |
+| Architecture Views | ✅ Implemented | `/backend/internal/architectureviews/` | Yes |
 | Capability Mapping | ✅ Implemented | `/backend/internal/capabilitymapping/` | Yes |
-| Business Domains (in Capability Mapping) | 📝 Specified (specs 053-058) | `/backend/internal/capabilitymapping/` | Yes |
+| Business Domains (in Capability Mapping) | ✅ Implemented | `/backend/internal/capabilitymapping/` | Yes |
+| MetaModel | ✅ Implemented | `/backend/internal/metamodel/` | Yes |
+| Strategy Pillars (in MetaModel) | 📝 Specified (specs 098-099) | `/backend/internal/metamodel/` | Yes (future) |
+| Enterprise Architecture | 📝 Specified (specs 100-101) | `/backend/internal/enterprisearchitecture/` (future) | Yes (future) |
 | Releases | ✅ Implemented | `/backend/internal/releases/` | No (simple CRUD) |
-| Enterprise Strategy | 📝 Specified (spec 059) | `/backend/internal/enterprisestrategy/` (future) | Yes (future) |
-s
+| Enterprise Strategy | 📝 Specified | `/backend/internal/enterprisestrategy/` (future) | Yes (future) |
