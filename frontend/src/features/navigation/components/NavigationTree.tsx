@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAppStore } from '../../../store/appStore';
 import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useMaturityColorScale } from '../../../hooks/useMaturityColorScale';
+import { deriveMaturityValue } from '../../../constants/maturityColors';
 import type { View, Component, Capability, ViewId, ComponentId, ViewCapability } from '../../../api/types';
 import { ContextMenu } from '../../../components/shared/ContextMenu';
 import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
@@ -25,19 +27,6 @@ const getPersistedSet = (key: string): Set<string> => {
   return saved ? new Set(JSON.parse(saved)) : new Set();
 };
 
-const MATURITY_CLASS_MAP: Record<string, string> = {
-  genesis: 'maturity-genesis',
-  'custom build': 'maturity-custom-build',
-  product: 'maturity-product',
-  commodity: 'maturity-commodity',
-};
-
-const getMaturityClass = (colorScheme: string, maturityLevel?: string): string => {
-  if (colorScheme === 'classic') {
-    return 'maturity-classic';
-  }
-  return MATURITY_CLASS_MAP[maturityLevel?.toLowerCase() ?? ''] ?? 'maturity-genesis';
-};
 
 const LEVEL_NUMBER_MAP: Record<string, number> = {
   L1: 1, L2: 2, L3: 3, L4: 4,
@@ -170,6 +159,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const { data: capabilities = [] } = useCapabilities();
   const { data: views = [] } = useViews();
+  const { getColorForValue, getSectionNameForValue } = useMaturityColorScale();
 
   const [isOpen, setIsOpen] = useState(() => getPersistedBoolean('navigationTreeOpen', true));
   const [isModelsExpanded, setIsModelsExpanded] = useState(() => getPersistedBoolean('navigationTreeModelsExpanded', true));
@@ -314,6 +304,11 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
     const { capability, children } = node;
     const nodeData = getCapabilityNodeData(node);
 
+    const effectiveMaturityValue = capability.maturityValue ?? deriveMaturityValue(capability.maturityLevel);
+    const maturityColor = nodeData.colorScheme === 'classic' ? '#f9c268' : getColorForValue(effectiveMaturityValue);
+    const sectionName = capability.maturitySection?.name || getSectionNameForValue(effectiveMaturityValue);
+    const maturityTooltip = `${sectionName} (${effectiveMaturityValue})`;
+
     const handleExpandClick = (e: React.MouseEvent) => {
       e.stopPropagation();
       toggleCapabilityExpanded(capability.id);
@@ -342,8 +337,9 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
           <span className="capability-level-badge">{capability.level}:</span>
           <span className="capability-name">{capability.name}</span>
           <span
-            className={`capability-maturity-indicator ${getMaturityClass(nodeData.colorScheme, capability.maturityLevel)}`}
-            title={capability.maturityLevel || 'Initial'}
+            className="capability-maturity-indicator"
+            style={{ backgroundColor: maturityColor }}
+            title={maturityTooltip}
           />
           {nodeData.showColorIndicator && <ColorIndicator customColor={nodeData.customColor} />}
         </div>

@@ -11,23 +11,35 @@ import (
 	sharedctx "easi/backend/internal/shared/context"
 )
 
+type MaturitySectionDTO struct {
+	Name  string         `json:"name"`
+	Order int            `json:"order"`
+	Range MaturityRange  `json:"range"`
+}
+
+type MaturityRange struct {
+	Min int `json:"min"`
+	Max int `json:"max"`
+}
+
 type CapabilityDTO struct {
-	ID             string            `json:"id"`
-	Name           string            `json:"name"`
-	Description    string            `json:"description,omitempty"`
-	ParentID       string            `json:"parentId,omitempty"`
-	Level          string            `json:"level"`
-	StrategyPillar string            `json:"strategyPillar,omitempty"`
-	PillarWeight   int               `json:"pillarWeight,omitempty"`
-	MaturityLevel  string            `json:"maturityLevel,omitempty"`
-	OwnershipModel string            `json:"ownershipModel,omitempty"`
-	PrimaryOwner   string            `json:"primaryOwner,omitempty"`
-	EAOwner        string            `json:"eaOwner,omitempty"`
-	Status         string            `json:"status,omitempty"`
-	Experts        []ExpertDTO       `json:"experts,omitempty"`
-	Tags           []string          `json:"tags,omitempty"`
-	CreatedAt      time.Time         `json:"createdAt"`
-	Links          map[string]string `json:"_links,omitempty"`
+	ID              string             `json:"id"`
+	Name            string             `json:"name"`
+	Description     string             `json:"description,omitempty"`
+	ParentID        string             `json:"parentId,omitempty"`
+	Level           string             `json:"level"`
+	StrategyPillar  string             `json:"strategyPillar,omitempty"`
+	PillarWeight    int                `json:"pillarWeight,omitempty"`
+	MaturityValue   int                `json:"maturityValue"`
+	MaturitySection *MaturitySectionDTO `json:"maturitySection,omitempty"`
+	OwnershipModel  string             `json:"ownershipModel,omitempty"`
+	PrimaryOwner    string             `json:"primaryOwner,omitempty"`
+	EAOwner         string             `json:"eaOwner,omitempty"`
+	Status          string             `json:"status,omitempty"`
+	Experts         []ExpertDTO        `json:"experts,omitempty"`
+	Tags            []string           `json:"tags,omitempty"`
+	CreatedAt       time.Time          `json:"createdAt"`
+	Links           map[string]string  `json:"_links,omitempty"`
 }
 
 type ExpertDTO struct {
@@ -40,7 +52,7 @@ type ExpertDTO struct {
 type CapabilityMetadataUpdate struct {
 	StrategyPillar string
 	PillarWeight   int
-	MaturityLevel  string
+	MaturityValue  int
 	OwnershipModel string
 	PrimaryOwner   string
 	EAOwner        string
@@ -52,6 +64,7 @@ type capabilityScanResult struct {
 	parentID       sql.NullString
 	strategyPillar sql.NullString
 	pillarWeight   sql.NullInt64
+	maturityValue  sql.NullInt64
 	ownershipModel sql.NullString
 	primaryOwner   sql.NullString
 	eaOwner        sql.NullString
@@ -90,8 +103,8 @@ func (rm *CapabilityReadModel) UpdateMetadata(ctx context.Context, id string, me
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE capabilities SET strategy_pillar = $1, pillar_weight = $2, maturity_level = $3, ownership_model = $4, primary_owner = $5, ea_owner = $6, status = $7, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $8 AND id = $9",
-		metadata.StrategyPillar, metadata.PillarWeight, metadata.MaturityLevel, metadata.OwnershipModel, metadata.PrimaryOwner, metadata.EAOwner, metadata.Status, tenantID.Value(), id,
+		"UPDATE capabilities SET strategy_pillar = $1, pillar_weight = $2, maturity_value = $3, ownership_model = $4, primary_owner = $5, ea_owner = $6, status = $7, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $8 AND id = $9",
+		metadata.StrategyPillar, metadata.PillarWeight, metadata.MaturityValue, metadata.OwnershipModel, metadata.PrimaryOwner, metadata.EAOwner, metadata.Status, tenantID.Value(), id,
 	)
 	return err
 }
@@ -221,9 +234,9 @@ func (rm *CapabilityReadModel) GetByID(ctx context.Context, id string) (*Capabil
 func scanCapabilityRow(ctx context.Context, tx *sql.Tx, tenantID, id string) (*capabilityScanResult, bool, error) {
 	var result capabilityScanResult
 	err := tx.QueryRowContext(ctx,
-		"SELECT id, name, description, parent_id, level, strategy_pillar, pillar_weight, maturity_level, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilities WHERE tenant_id = $1 AND id = $2",
+		"SELECT id, name, description, parent_id, level, strategy_pillar, pillar_weight, maturity_value, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilities WHERE tenant_id = $1 AND id = $2",
 		tenantID, id,
-	).Scan(&result.dto.ID, &result.dto.Name, &result.dto.Description, &result.parentID, &result.dto.Level, &result.strategyPillar, &result.pillarWeight, &result.dto.MaturityLevel, &result.ownershipModel, &result.primaryOwner, &result.eaOwner, &result.dto.Status, &result.dto.CreatedAt)
+	).Scan(&result.dto.ID, &result.dto.Name, &result.dto.Description, &result.parentID, &result.dto.Level, &result.strategyPillar, &result.pillarWeight, &result.maturityValue, &result.ownershipModel, &result.primaryOwner, &result.eaOwner, &result.dto.Status, &result.dto.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, false, nil
@@ -287,6 +300,10 @@ func (r *capabilityScanResult) toDTO() *CapabilityDTO {
 	if r.pillarWeight.Valid {
 		dto.PillarWeight = int(r.pillarWeight.Int64)
 	}
+	if r.maturityValue.Valid {
+		dto.MaturityValue = int(r.maturityValue.Int64)
+		dto.MaturitySection = calculateMaturitySection(dto.MaturityValue)
+	}
 	if r.ownershipModel.Valid {
 		dto.OwnershipModel = r.ownershipModel.String
 	}
@@ -299,6 +316,33 @@ func (r *capabilityScanResult) toDTO() *CapabilityDTO {
 	return dto
 }
 
+func calculateMaturitySection(value int) *MaturitySectionDTO {
+	if value <= 24 {
+		return &MaturitySectionDTO{
+			Name:  "Genesis",
+			Order: 1,
+			Range: MaturityRange{Min: 0, Max: 24},
+		}
+	} else if value <= 49 {
+		return &MaturitySectionDTO{
+			Name:  "Custom Build",
+			Order: 2,
+			Range: MaturityRange{Min: 25, Max: 49},
+		}
+	} else if value <= 74 {
+		return &MaturitySectionDTO{
+			Name:  "Product",
+			Order: 3,
+			Range: MaturityRange{Min: 50, Max: 74},
+		}
+	}
+	return &MaturitySectionDTO{
+		Name:  "Commodity",
+		Order: 4,
+		Range: MaturityRange{Min: 75, Max: 99},
+	}
+}
+
 func (rm *CapabilityReadModel) GetAll(ctx context.Context) ([]CapabilityDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
@@ -306,7 +350,7 @@ func (rm *CapabilityReadModel) GetAll(ctx context.Context) ([]CapabilityDTO, err
 	}
 
 	return rm.queryCapabilityList(ctx,
-		"SELECT id, name, description, parent_id, level, strategy_pillar, pillar_weight, maturity_level, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilities WHERE tenant_id = $1 ORDER BY level, name",
+		"SELECT id, name, description, parent_id, level, strategy_pillar, pillar_weight, maturity_value, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilities WHERE tenant_id = $1 ORDER BY level, name",
 		tenantID.Value(),
 	)
 }
@@ -318,7 +362,7 @@ func (rm *CapabilityReadModel) GetChildren(ctx context.Context, parentID string)
 	}
 
 	return rm.queryCapabilityList(ctx,
-		"SELECT id, name, description, parent_id, level, strategy_pillar, pillar_weight, maturity_level, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilities WHERE tenant_id = $1 AND parent_id = $2 ORDER BY name",
+		"SELECT id, name, description, parent_id, level, strategy_pillar, pillar_weight, maturity_value, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilities WHERE tenant_id = $1 AND parent_id = $2 ORDER BY name",
 		tenantID.Value(), parentID,
 	)
 }
@@ -362,7 +406,7 @@ func (rm *CapabilityReadModel) scanCapabilityRows(ctx context.Context, tx *sql.T
 		var result capabilityScanResult
 		if err := rows.Scan(
 			&result.dto.ID, &result.dto.Name, &result.dto.Description, &result.parentID,
-			&result.dto.Level, &result.strategyPillar, &result.pillarWeight, &result.dto.MaturityLevel,
+			&result.dto.Level, &result.strategyPillar, &result.pillarWeight, &result.maturityValue,
 			&result.ownershipModel, &result.primaryOwner, &result.eaOwner, &result.dto.Status, &result.dto.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -390,7 +434,9 @@ func buildInClause(ids []string) (placeholders string, args []interface{}) {
 	return strings.Join(ph, ", "), args
 }
 
-func (rm *CapabilityReadModel) fetchExpertsBatch(ctx context.Context, tx *sql.Tx, tenantID string, capabilityMap map[string]*CapabilityDTO) error {
+type batchRowProcessor func(rows *sql.Rows, capabilityMap map[string]*CapabilityDTO) error
+
+func (rm *CapabilityReadModel) fetchRelatedBatch(ctx context.Context, tx *sql.Tx, tenantID string, capabilityMap map[string]*CapabilityDTO, queryTemplate string, processor batchRowProcessor) error {
 	if len(capabilityMap) == 0 {
 		return nil
 	}
@@ -401,10 +447,7 @@ func (rm *CapabilityReadModel) fetchExpertsBatch(ctx context.Context, tx *sql.Tx
 	}
 
 	placeholders, idArgs := buildInClause(ids)
-	query := fmt.Sprintf(
-		"SELECT capability_id, expert_name, expert_role, contact_info, added_at FROM capability_experts WHERE tenant_id = $1 AND capability_id IN (%s)",
-		placeholders,
-	)
+	query := fmt.Sprintf(queryTemplate, placeholders)
 
 	rows, err := tx.QueryContext(ctx, query, append([]interface{}{tenantID}, idArgs...)...)
 	if err != nil {
@@ -413,48 +456,40 @@ func (rm *CapabilityReadModel) fetchExpertsBatch(ctx context.Context, tx *sql.Tx
 	defer rows.Close()
 
 	for rows.Next() {
-		var capabilityID string
-		var expert ExpertDTO
-		if err := rows.Scan(&capabilityID, &expert.Name, &expert.Role, &expert.Contact, &expert.AddedAt); err != nil {
+		if err := processor(rows, capabilityMap); err != nil {
 			return err
-		}
-		if cap, ok := capabilityMap[capabilityID]; ok {
-			cap.Experts = append(cap.Experts, expert)
 		}
 	}
 	return rows.Err()
 }
 
+func (rm *CapabilityReadModel) fetchExpertsBatch(ctx context.Context, tx *sql.Tx, tenantID string, capabilityMap map[string]*CapabilityDTO) error {
+	return rm.fetchRelatedBatch(ctx, tx, tenantID, capabilityMap,
+		"SELECT capability_id, expert_name, expert_role, contact_info, added_at FROM capability_experts WHERE tenant_id = $1 AND capability_id IN (%s)",
+		func(rows *sql.Rows, m map[string]*CapabilityDTO) error {
+			var capabilityID string
+			var expert ExpertDTO
+			if err := rows.Scan(&capabilityID, &expert.Name, &expert.Role, &expert.Contact, &expert.AddedAt); err != nil {
+				return err
+			}
+			if cap, ok := m[capabilityID]; ok {
+				cap.Experts = append(cap.Experts, expert)
+			}
+			return nil
+		})
+}
+
 func (rm *CapabilityReadModel) fetchTagsBatch(ctx context.Context, tx *sql.Tx, tenantID string, capabilityMap map[string]*CapabilityDTO) error {
-	if len(capabilityMap) == 0 {
-		return nil
-	}
-
-	ids := make([]string, 0, len(capabilityMap))
-	for id := range capabilityMap {
-		ids = append(ids, id)
-	}
-
-	placeholders, idArgs := buildInClause(ids)
-	query := fmt.Sprintf(
+	return rm.fetchRelatedBatch(ctx, tx, tenantID, capabilityMap,
 		"SELECT capability_id, tag FROM capability_tags WHERE tenant_id = $1 AND capability_id IN (%s) ORDER BY tag",
-		placeholders,
-	)
-
-	rows, err := tx.QueryContext(ctx, query, append([]interface{}{tenantID}, idArgs...)...)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var capabilityID, tag string
-		if err := rows.Scan(&capabilityID, &tag); err != nil {
-			return err
-		}
-		if cap, ok := capabilityMap[capabilityID]; ok {
-			cap.Tags = append(cap.Tags, tag)
-		}
-	}
-	return rows.Err()
+		func(rows *sql.Rows, m map[string]*CapabilityDTO) error {
+			var capabilityID, tag string
+			if err := rows.Scan(&capabilityID, &tag); err != nil {
+				return err
+			}
+			if cap, ok := m[capabilityID]; ok {
+				cap.Tags = append(cap.Tags, tag)
+			}
+			return nil
+		})
 }

@@ -96,6 +96,7 @@ func (c *Capability) UpdateMetadata(metadata valueobjects.CapabilityMetadata) er
 		metadata.StrategyPillar().Value(),
 		metadata.PillarWeight().Value(),
 		metadata.MaturityLevel().Value(),
+		metadata.MaturityLevel().StringValue(),
 		metadata.OwnershipModel().Value(),
 		metadata.PrimaryOwner().Value(),
 		metadata.EAOwner().Value(),
@@ -156,7 +157,11 @@ func (c *Capability) apply(event domain.DomainEvent) {
 	case events.CapabilityMetadataUpdated:
 		c.strategyPillar, _ = valueobjects.NewStrategyPillar(e.StrategyPillar)
 		c.pillarWeight, _ = valueobjects.NewPillarWeight(e.PillarWeight)
-		c.maturityLevel, _ = valueobjects.NewMaturityLevel(e.MaturityLevel)
+		if e.MaturityValue > 0 {
+			c.maturityLevel, _ = valueobjects.NewMaturityLevelFromValue(e.MaturityValue)
+		} else {
+			c.maturityLevel, _ = valueobjects.NewMaturityLevel(e.MaturityLevel)
+		}
 		c.ownershipModel, _ = valueobjects.NewOwnershipModel(e.OwnershipModel)
 		c.primaryOwner = valueobjects.NewOwner(e.PrimaryOwner)
 		c.eaOwner = valueobjects.NewOwner(e.EAOwner)

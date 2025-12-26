@@ -1,15 +1,20 @@
 package api
 
 import (
+	"context"
+	"log"
 	"net/http"
 
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
+	"easi/backend/internal/capabilitymapping/infrastructure/metamodel"
 	sharedAPI "easi/backend/internal/shared/api"
 )
 
 type MaturityLevelDTO struct {
-	Value        string `json:"value" example:"Genesis"`
-	NumericValue int    `json:"numericValue" example:"1"`
+	Value    string `json:"value" example:"Genesis"`
+	MinValue int    `json:"minValue" example:"0"`
+	MaxValue int    `json:"maxValue" example:"24"`
+	Order    int    `json:"order" example:"1"`
 }
 
 type StatusDTO struct {
@@ -32,10 +37,18 @@ type MetadataIndexDTO struct {
 	Links map[string]string `json:"_links"`
 }
 
-type MaturityLevelHandlers struct{}
+type MaturityScaleConfigProvider interface {
+	GetMaturityScaleConfig(ctx context.Context) (*metamodel.MaturityScaleConfigDTO, error)
+}
 
-func NewMaturityLevelHandlers() *MaturityLevelHandlers {
-	return &MaturityLevelHandlers{}
+type MaturityLevelHandlers struct {
+	gateway MaturityScaleConfigProvider
+}
+
+func NewMaturityLevelHandlers(gateway MaturityScaleConfigProvider) *MaturityLevelHandlers {
+	return &MaturityLevelHandlers{
+		gateway: gateway,
+	}
 }
 
 func setCacheHeaders(w http.ResponseWriter) {
@@ -76,18 +89,42 @@ func (h *MaturityLevelHandlers) GetMetadataIndex(w http.ResponseWriter, r *http.
 func (h *MaturityLevelHandlers) GetMaturityLevels(w http.ResponseWriter, r *http.Request) {
 	setCacheHeaders(w)
 
-	levels := []MaturityLevelDTO{
-		{Value: string(valueobjects.MaturityGenesis), NumericValue: valueobjects.MaturityGenesis.NumericValue()},
-		{Value: string(valueobjects.MaturityCustomBuild), NumericValue: valueobjects.MaturityCustomBuild.NumericValue()},
-		{Value: string(valueobjects.MaturityProduct), NumericValue: valueobjects.MaturityProduct.NumericValue()},
-		{Value: string(valueobjects.MaturityCommodity), NumericValue: valueobjects.MaturityCommodity.NumericValue()},
+	config := h.getMaturityScaleConfigWithFallback(r.Context())
+
+	levels := make([]MaturityLevelDTO, 0, len(config.Sections))
+	for _, section := range config.Sections {
+		levels = append(levels, MaturityLevelDTO{
+			Value:    section.Name,
+			MinValue: section.MinValue,
+			MaxValue: section.MaxValue,
+			Order:    section.Order,
+		})
 	}
 
 	links := map[string]string{
-		"self": "/api/v1/capabilities/metadata/maturity-levels",
+		"self":        "/api/v1/capabilities/metadata/maturity-levels",
+		"configureAt": "/api/v1/meta-model/maturity-scale",
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, levels, links)
+}
+
+func (h *MaturityLevelHandlers) getMaturityScaleConfigWithFallback(ctx context.Context) *metamodel.MaturityScaleConfigDTO {
+	if h.gateway == nil {
+		return metamodel.DefaultMaturityScaleConfig()
+	}
+
+	config, err := h.gateway.GetMaturityScaleConfig(ctx)
+	if err != nil {
+		log.Printf("Failed to fetch maturity scale config, using defaults: %v", err)
+		return metamodel.DefaultMaturityScaleConfig()
+	}
+
+	if config == nil {
+		return metamodel.DefaultMaturityScaleConfig()
+	}
+
+	return config
 }
 
 // GetStatuses godoc

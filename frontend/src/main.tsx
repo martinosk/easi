@@ -86,6 +86,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path={ROUTES.BUSINESS_DOMAIN_DETAIL} element={<App view="business-domains" />} />
                   <Route path={ROUTES.INVITATIONS} element={<App view="invitations" />} />
                   <Route path={ROUTES.USERS} element={<App view="users" />} />
+                  <Route path="/settings/*" element={<App view="settings" />} />
                 </Route>
                 <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
               </Routes>

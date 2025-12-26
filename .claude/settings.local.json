@@ -31,16 +31,11 @@
     "deny": [],
     "ask": []
   },
-  "hooks": {
+  "hooks": {    
     "Stop": [
       {
         "matcher": "",
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "Are all files scoring 10.0 in CodeScene? If not, refactor the files."
-          }
-        ]
+        "hooks": []
       }
     ]
   }

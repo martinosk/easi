@@ -25,5 +25,7 @@ export const ROUTES = {
   BUSINESS_DOMAIN_DETAIL: '/business-domains/:domainId',
   USERS: '/users',
   INVITATIONS: '/invitations',
+  SETTINGS: '/settings',
+  SETTINGS_MATURITY_SCALE: '/settings/maturity-scale',
   LOGIN: '/login',
 } as const;

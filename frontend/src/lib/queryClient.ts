@@ -76,6 +76,7 @@ export const queryKeys = {
   metadata: {
     all: ['metadata'] as const,
     maturityLevels: () => [...queryKeys.metadata.all, 'maturityLevels'] as const,
+    maturityScale: () => [...queryKeys.metadata.all, 'maturityScale'] as const,
     statuses: () => [...queryKeys.metadata.all, 'statuses'] as const,
     ownershipModels: () => [...queryKeys.metadata.all, 'ownershipModels'] as const,
     strategyPillars: () => [...queryKeys.metadata.all, 'strategyPillars'] as const,

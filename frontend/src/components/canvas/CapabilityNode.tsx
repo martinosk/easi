@@ -1,41 +1,34 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { useCurrentView } from '../../hooks/useCurrentView';
+import { useMaturityColorScale } from '../../hooks/useMaturityColorScale';
+import { CLASSIC_COLOR, DEFAULT_CUSTOM_COLOR, SELECTED_BORDER_COLOR, deriveMaturityValue } from '../../constants/maturityColors';
 
 type HexColor = string;
 type ColorScheme = 'maturity' | 'classic' | 'custom';
-type MaturityLevel = 'genesis' | 'custom build' | 'product' | 'commodity';
 
 export interface CapabilityNodeData {
   label: string;
   level: string;
   maturityLevel?: string;
+  maturityValue?: number;
+  maturitySection?: string;
   isSelected: boolean;
   customColor?: string;
 }
 
-const MATURITY_COLORS: Record<MaturityLevel, HexColor> = {
-  'genesis': '#ef4444',
-  'custom build': '#f97316',
-  'product': '#22c55e',
-  'commodity': '#3b82f6',
-};
-
-const DEFAULT_MATURITY_COLOR: HexColor = '#6b7280';
-const CLASSIC_COLOR: HexColor = '#f9c268';
-const DEFAULT_CUSTOM_COLOR: HexColor = '#E0E0E0';
-const SELECTED_BORDER_COLOR: HexColor = '#374151';
-
-const getMaturityColor = (maturityLevel?: string): HexColor => {
-  const level = maturityLevel?.toLowerCase() as MaturityLevel | undefined;
-  return level && level in MATURITY_COLORS ? MATURITY_COLORS[level] : DEFAULT_MATURITY_COLOR;
-};
-
-const getColorByScheme = (colorScheme: ColorScheme, maturityLevel?: string): HexColor => {
+const getColorByScheme = (
+  colorScheme: ColorScheme,
+  maturityValue: number | undefined,
+  maturityLevel: string | undefined,
+  getColorForValue: (value: number) => string
+): HexColor => {
   if (colorScheme === 'classic') {
     return CLASSIC_COLOR;
   }
-  return getMaturityColor(maturityLevel);
+
+  const effectiveValue = maturityValue ?? deriveMaturityValue(maturityLevel);
+  return getColorForValue(effectiveValue);
 };
 
 const getBackgroundGradient = (baseColor: HexColor): string => {
@@ -50,13 +43,15 @@ interface ColorConfig {
   colorScheme: ColorScheme;
   customColor: HexColor | undefined;
   maturityLevel: string | undefined;
+  maturityValue: number | undefined;
+  getColorForValue: (value: number) => string;
 }
 
 const resolveBaseColor = (config: ColorConfig): HexColor => {
   if (config.colorScheme === 'custom') {
     return hasValidCustomColor(config.customColor) ? config.customColor! : DEFAULT_CUSTOM_COLOR;
   }
-  return getColorByScheme(config.colorScheme, config.maturityLevel);
+  return getColorByScheme(config.colorScheme, config.maturityValue, config.maturityLevel, config.getColorForValue);
 };
 
 const resolveBorderColor = (isSelected: boolean, baseColor: HexColor): HexColor => {
@@ -66,8 +61,18 @@ const resolveBorderColor = (isSelected: boolean, baseColor: HexColor): HexColor 
 export const CapabilityNode: React.FC<{ data: CapabilityNodeData; id: string }> = ({ data, id }) => {
   const { currentView } = useCurrentView();
   const colorScheme = (currentView?.colorScheme || 'maturity') as ColorScheme;
+  const { getColorForValue, getSectionNameForValue } = useMaturityColorScale();
 
-  const baseColor = resolveBaseColor({ colorScheme, customColor: data.customColor, maturityLevel: data.maturityLevel });
+  const effectiveMaturityValue = data.maturityValue ?? deriveMaturityValue(data.maturityLevel);
+  const sectionName = getSectionNameForValue(effectiveMaturityValue);
+
+  const baseColor = resolveBaseColor({
+    colorScheme,
+    customColor: data.customColor,
+    maturityLevel: data.maturityLevel,
+    maturityValue: data.maturityValue,
+    getColorForValue,
+  });
   const borderColor = resolveBorderColor(data.isSelected, baseColor);
 
   const nodeClassName = `capability-node ${data.isSelected ? 'capability-node-selected' : ''} ${colorScheme === 'classic' ? 'classic-text' : ''}`;
@@ -119,7 +124,7 @@ export const CapabilityNode: React.FC<{ data: CapabilityNodeData; id: string }> 
           <span className="capability-node-name">{data.label}</span>
         </div>
         <div className="capability-node-maturity">
-          {data.maturityLevel || 'Unknown'}
+          {sectionName}
         </div>
       </div>
 

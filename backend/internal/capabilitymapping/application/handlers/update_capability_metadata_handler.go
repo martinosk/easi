@@ -19,6 +19,53 @@ func NewUpdateCapabilityMetadataHandler(repository *repositories.CapabilityRepos
 	}
 }
 
+func resolveMaturityLevel(maturityValue int, maturityLevel string) (valueobjects.MaturityLevel, error) {
+	if maturityValue > 0 {
+		return valueobjects.NewMaturityLevelFromValue(maturityValue)
+	}
+	if maturityLevel != "" {
+		return valueobjects.NewMaturityLevel(maturityLevel)
+	}
+	return valueobjects.MaturityGenesis, nil
+}
+
+func buildMetadata(cmd *commands.UpdateCapabilityMetadata) (valueobjects.CapabilityMetadata, error) {
+	strategyPillar, err := valueobjects.NewStrategyPillar(cmd.StrategyPillar)
+	if err != nil {
+		return valueobjects.CapabilityMetadata{}, err
+	}
+
+	pillarWeight, err := valueobjects.NewPillarWeight(cmd.PillarWeight)
+	if err != nil {
+		return valueobjects.CapabilityMetadata{}, err
+	}
+
+	maturityLevel, err := resolveMaturityLevel(cmd.MaturityValue, cmd.MaturityLevel)
+	if err != nil {
+		return valueobjects.CapabilityMetadata{}, err
+	}
+
+	ownershipModel, err := valueobjects.NewOwnershipModel(cmd.OwnershipModel)
+	if err != nil {
+		return valueobjects.CapabilityMetadata{}, err
+	}
+
+	status, err := valueobjects.NewCapabilityStatus(cmd.Status)
+	if err != nil {
+		return valueobjects.CapabilityMetadata{}, err
+	}
+
+	return valueobjects.NewCapabilityMetadata(
+		strategyPillar,
+		pillarWeight,
+		maturityLevel,
+		ownershipModel,
+		valueobjects.NewOwner(cmd.PrimaryOwner),
+		valueobjects.NewOwner(cmd.EAOwner),
+		status,
+	), nil
+}
+
 func (h *UpdateCapabilityMetadataHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
 	command, ok := cmd.(*commands.UpdateCapabilityMetadata)
 	if !ok {
@@ -30,43 +77,10 @@ func (h *UpdateCapabilityMetadataHandler) Handle(ctx context.Context, cmd cqrs.C
 		return err
 	}
 
-	strategyPillar, err := valueobjects.NewStrategyPillar(command.StrategyPillar)
+	metadata, err := buildMetadata(command)
 	if err != nil {
 		return err
 	}
-
-	pillarWeight, err := valueobjects.NewPillarWeight(command.PillarWeight)
-	if err != nil {
-		return err
-	}
-
-	maturityLevel, err := valueobjects.NewMaturityLevel(command.MaturityLevel)
-	if err != nil {
-		return err
-	}
-
-	ownershipModel, err := valueobjects.NewOwnershipModel(command.OwnershipModel)
-	if err != nil {
-		return err
-	}
-
-	primaryOwner := valueobjects.NewOwner(command.PrimaryOwner)
-	eaOwner := valueobjects.NewOwner(command.EAOwner)
-
-	status, err := valueobjects.NewCapabilityStatus(command.Status)
-	if err != nil {
-		return err
-	}
-
-	metadata := valueobjects.NewCapabilityMetadata(
-		strategyPillar,
-		pillarWeight,
-		maturityLevel,
-		ownershipModel,
-		primaryOwner,
-		eaOwner,
-		status,
-	)
 
 	if err := capability.UpdateMetadata(metadata); err != nil {
 		return err

@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, TextInput, Textarea, Select, NumberInput, Button, Group, Stack, Alert, SimpleGrid, Box, Badge, Text } from '@mantine/core';
 import { useCapabilities, useUpdateCapability, useUpdateCapabilityMetadata } from '../hooks/useCapabilities';
-import { useMaturityLevels, useStatuses, useOwnershipModels, useStrategyPillars } from '../../../hooks/useMetadata';
+import { useStatuses, useOwnershipModels, useStrategyPillars } from '../../../hooks/useMetadata';
+import { useMaturityScale } from '../../../hooks/useMaturityScale';
 import type { Capability, Expert } from '../../../api/types';
 import { AddExpertDialog } from './AddExpertDialog';
 import { AddTagDialog } from './AddTagDialog';
+import { MaturitySlider } from '../../../components/shared/MaturitySlider';
+import { deriveLegacyMaturityValue, getDefaultSections } from '../../../utils/maturity';
 
 interface EditCapabilityDialogProps {
   isOpen: boolean;
@@ -12,7 +15,6 @@ interface EditCapabilityDialogProps {
   capability: Capability | null;
 }
 
-const DEFAULT_MATURITY_LEVELS = ['Genesis', 'Custom Build', 'Product', 'Commodity'];
 const DEFAULT_STATUSES = [
   { value: 'Active', displayName: 'Active', sortOrder: 1 },
   { value: 'Planned', displayName: 'Planned', sortOrder: 2 },
@@ -34,7 +36,7 @@ interface FormState {
   name: string;
   description: string;
   status: string;
-  maturityLevel: string;
+  maturityValue: number;
   ownershipModel: string;
   primaryOwner: string;
   eaOwner: string;
@@ -68,7 +70,7 @@ const EMPTY_FORM: FormState = {
   name: '',
   description: '',
   status: 'Active',
-  maturityLevel: '',
+  maturityValue: 12,
   ownershipModel: '',
   primaryOwner: '',
   eaOwner: '',
@@ -76,13 +78,19 @@ const EMPTY_FORM: FormState = {
   pillarWeight: 0,
 };
 
-const createInitialFormState = (cap?: Capability): FormState => {
+const createInitialFormState = (cap?: Capability, sections = getDefaultSections()): FormState => {
   if (!cap) return EMPTY_FORM;
+
+  let maturityValue = cap.maturityValue ?? 12;
+  if (maturityValue === undefined && cap.maturityLevel) {
+    maturityValue = deriveLegacyMaturityValue(cap.maturityLevel, sections);
+  }
+
   return {
     name: cap.name ?? '',
     description: cap.description ?? '',
     status: cap.status ?? 'Active',
-    maturityLevel: cap.maturityLevel ?? '',
+    maturityValue,
     ownershipModel: cap.ownershipModel ?? '',
     primaryOwner: cap.primaryOwner ?? '',
     eaOwner: cap.eaOwner ?? '',
@@ -188,34 +196,22 @@ const BasicInfoFields: React.FC<BasicInfoFieldsProps> = ({ form, errors, isSavin
 interface StatusFieldsProps {
   form: FormState;
   statusOptions: SelectOption[];
-  maturityLevels: string[];
   isLoadingStatuses: boolean;
-  isLoadingMaturityLevels: boolean;
   isSaving: boolean;
   onFieldChange: (field: keyof FormState, value: string | number) => void;
 }
 
 const StatusFields: React.FC<StatusFieldsProps> = ({
-  form, statusOptions, maturityLevels, isLoadingStatuses, isLoadingMaturityLevels, isSaving, onFieldChange,
+  form, statusOptions, isLoadingStatuses, isSaving, onFieldChange,
 }) => (
-  <SimpleGrid cols={2}>
-    <Select
-      label="Status"
-      value={form.status}
-      onChange={(value) => onFieldChange('status', value || 'Active')}
-      data={isLoadingStatuses ? [] : statusOptions}
-      disabled={isSaving || isLoadingStatuses}
-      data-testid="edit-capability-status-select"
-    />
-    <Select
-      label="Maturity Level"
-      value={form.maturityLevel}
-      onChange={(value) => onFieldChange('maturityLevel', value || '')}
-      data={isLoadingMaturityLevels ? [] : maturityLevels}
-      disabled={isSaving || isLoadingMaturityLevels}
-      data-testid="edit-capability-maturity-select"
-    />
-  </SimpleGrid>
+  <Select
+    label="Status"
+    value={form.status}
+    onChange={(value) => onFieldChange('status', value || 'Active')}
+    data={isLoadingStatuses ? [] : statusOptions}
+    disabled={isSaving || isLoadingStatuses}
+    data-testid="edit-capability-status-select"
+  />
 );
 
 interface OwnershipFieldsProps {
@@ -307,12 +303,12 @@ function useEditCapabilityForm(capability: Capability | null, isOpen: boolean, o
   const updateCapabilityMetadataMutation = useUpdateCapabilityMetadata();
   const { data: capabilities = [] } = useCapabilities();
 
-  const { data: maturityLevelsData, isLoading: isLoadingMaturityLevels } = useMaturityLevels();
+  const { data: maturityScale } = useMaturityScale();
   const { data: statusesData, isLoading: isLoadingStatuses } = useStatuses();
   const { data: ownershipModelsData, isLoading: isLoadingOwnershipModels } = useOwnershipModels();
   const { data: strategyPillarsData, isLoading: isLoadingStrategyPillars } = useStrategyPillars();
 
-  const maturityLevels = maturityLevelsData ?? DEFAULT_MATURITY_LEVELS;
+  const sections = maturityScale?.sections ?? getDefaultSections();
   const statuses = statusesData ?? DEFAULT_STATUSES;
   const ownershipModels = ownershipModelsData ?? DEFAULT_OWNERSHIP_MODELS;
   const strategyPillars = strategyPillarsData ?? DEFAULT_STRATEGY_PILLARS;
@@ -326,11 +322,11 @@ function useEditCapabilityForm(capability: Capability | null, isOpen: boolean, o
 
   useEffect(() => {
     if (isOpen && capability) {
-      setForm(createInitialFormState(capability));
+      setForm(createInitialFormState(capability, sections));
       setErrors({});
       setBackendError(null);
     }
-  }, [isOpen, capability]);
+  }, [isOpen, capability, sections]);
 
   const handleClose = () => {
     setErrors({});
@@ -359,10 +355,9 @@ function useEditCapabilityForm(capability: Capability | null, isOpen: boolean, o
     }
     try {
       const description = form.description.trim() || undefined;
-      const defaultMaturity = maturityLevels[0] ?? DEFAULT_MATURITY_LEVELS[0];
       const metadataRequest = {
         status: form.status,
-        maturityLevel: form.maturityLevel || defaultMaturity,
+        maturityValue: form.maturityValue,
         ownershipModel: form.ownershipModel || undefined,
         primaryOwner: form.primaryOwner.trim() || undefined,
         eaOwner: form.eaOwner.trim() || undefined,
@@ -387,14 +382,12 @@ function useEditCapabilityForm(capability: Capability | null, isOpen: boolean, o
     errors,
     backendError,
     currentCapability,
-    maturityLevels,
     statusOptions,
     ownershipModelOptions,
     strategyPillarOptions,
     isSaving: updateCapabilityMutation.isPending || updateCapabilityMetadataMutation.isPending,
-    isLoadingMetadata: isLoadingMaturityLevels || isLoadingStatuses || isLoadingOwnershipModels || isLoadingStrategyPillars,
+    isLoadingMetadata: isLoadingStatuses || isLoadingOwnershipModels || isLoadingStrategyPillars,
     isLoadingStatuses,
-    isLoadingMaturityLevels,
     isLoadingOwnershipModels,
     isLoadingStrategyPillars,
     handleClose,
@@ -422,11 +415,14 @@ export const EditCapabilityDialog: React.FC<EditCapabilityDialogProps> = ({ isOp
             <StatusFields
               form={form}
               statusOptions={formProps.statusOptions}
-              maturityLevels={formProps.maturityLevels}
               isLoadingStatuses={formProps.isLoadingStatuses}
-              isLoadingMaturityLevels={formProps.isLoadingMaturityLevels}
               isSaving={isSaving}
               onFieldChange={handleFieldChange}
+            />
+            <MaturitySlider
+              value={form.maturityValue}
+              onChange={(value) => handleFieldChange('maturityValue', value)}
+              disabled={isSaving}
             />
             <OwnershipFields
               form={form}

@@ -14,8 +14,13 @@ vi.mock('../../../hooks/useMetadata', () => ({
   useStatuses: vi.fn(),
 }));
 
+vi.mock('../../../hooks/useMaturityScale', () => ({
+  useMaturityScale: vi.fn(),
+}));
+
 import { useCreateCapability, useUpdateCapabilityMetadata } from '../hooks/useCapabilities';
 import { useMaturityLevels, useStatuses } from '../../../hooks/useMetadata';
+import { useMaturityScale } from '../../../hooks/useMaturityScale';
 
 function createTestQueryClient() {
   return new QueryClient({
@@ -68,6 +73,16 @@ describe('CreateCapabilityDialog', () => {
       isSuccess: true,
       status: 'success',
     } as ReturnType<typeof useStatuses>);
+
+    vi.mocked(useMaturityScale).mockReturnValue({
+      data: null,
+      isLoading: false,
+      error: null,
+      isError: false,
+      isPending: false,
+      isSuccess: true,
+      status: 'success',
+    } as ReturnType<typeof useMaturityScale>);
 
     vi.mocked(useCreateCapability).mockReturnValue({
       mutateAsync: mockCreateMutateAsync,
@@ -138,7 +153,7 @@ describe('CreateCapabilityDialog', () => {
       expect(screen.getByTestId('capability-name-input')).toBeInTheDocument();
       expect(screen.getByTestId('capability-description-input')).toBeInTheDocument();
       expect(screen.getByTestId('capability-status-select')).toBeInTheDocument();
-      expect(screen.getByTestId('capability-maturity-select')).toBeInTheDocument();
+      expect(screen.getByTestId('maturity-slider')).toBeInTheDocument();
 
       await waitFor(() => {
         expect(screen.getByTestId('capability-status-select')).not.toBeDisabled();
@@ -193,7 +208,7 @@ describe('CreateCapabilityDialog', () => {
       renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('capability-maturity-select')).not.toBeDisabled();
+        expect(screen.getByTestId('maturity-slider')).toBeInTheDocument();
       });
 
       const nameInput = screen.getByTestId('capability-name-input');
@@ -214,7 +229,7 @@ describe('CreateCapabilityDialog', () => {
       renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('capability-maturity-select')).not.toBeDisabled();
+        expect(screen.getByTestId('maturity-slider')).toBeInTheDocument();
       });
 
       const nameInput = screen.getByTestId('capability-name-input');
@@ -249,54 +264,50 @@ describe('CreateCapabilityDialog', () => {
     });
   });
 
-  describe('Maturity levels', () => {
-    it('should use maturity levels from hook', async () => {
+  describe('Maturity slider', () => {
+    it('should use maturity scale from hook', async () => {
       renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
       await waitFor(() => {
-        expect(useMaturityLevels).toHaveBeenCalled();
+        expect(useMaturityScale).toHaveBeenCalled();
       });
     });
 
-    it('should set first maturity level as default', async () => {
+    it('should set default maturity value to 12', async () => {
       renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
       await waitFor(() => {
-        const maturitySelect = screen.getByTestId(
-          'capability-maturity-select'
-        ) as HTMLSelectElement;
-        expect(maturitySelect.value).toBe('Genesis');
+        const slider = screen.getByTestId('maturity-slider');
+        expect(slider).toHaveAttribute('aria-valuenow', '12');
       });
     });
 
-    it('should fall back to defaults if hook returns empty', async () => {
-      vi.mocked(useMaturityLevels).mockReturnValue({
-        data: undefined,
+    it('should fall back to default sections if hook returns empty', async () => {
+      vi.mocked(useMaturityScale).mockReturnValue({
+        data: null,
         isLoading: false,
         error: null,
         isError: false,
         isPending: false,
-        isSuccess: false,
-        status: 'pending',
-      } as unknown as ReturnType<typeof useMaturityLevels>);
+        isSuccess: true,
+        status: 'success',
+      } as ReturnType<typeof useMaturityScale>);
 
       renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
       await waitFor(() => {
-        const maturitySelect = screen.getByTestId(
-          'capability-maturity-select'
-        ) as HTMLSelectElement;
-        expect(maturitySelect.value).toBe('Genesis');
+        const slider = screen.getByTestId('maturity-slider');
+        expect(slider).toHaveAttribute('aria-valuenow', '12');
       });
     });
 
-    it('should display all maturity level options', async () => {
+    it('should display maturity slider', async () => {
       renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
       await waitFor(() => {
-        const maturitySelect = screen.getByTestId('capability-maturity-select');
-        expect(maturitySelect).toBeInTheDocument();
-        expect(maturitySelect).not.toBeDisabled();
+        const slider = screen.getByTestId('maturity-slider');
+        expect(slider).toBeInTheDocument();
+        expect(slider).not.toBeDisabled();
       });
     });
   });
@@ -308,13 +319,13 @@ describe('CreateCapabilityDialog', () => {
       mockUpdateMetadataMutateAsync.mockResolvedValueOnce({
         ...mockCapability,
         status: 'Active',
-        maturityLevel: 'Genesis',
+        maturityValue: 12,
       });
 
       renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('capability-maturity-select')).not.toBeDisabled();
+        expect(screen.getByTestId('maturity-slider')).toBeInTheDocument();
       });
 
       const nameInput = screen.getByTestId('capability-name-input');
@@ -336,7 +347,7 @@ describe('CreateCapabilityDialog', () => {
           id: 'cap-1',
           request: {
             status: 'Active',
-            maturityLevel: 'Genesis',
+            maturityValue: 12,
           },
         });
       });
@@ -352,7 +363,7 @@ describe('CreateCapabilityDialog', () => {
       renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('capability-maturity-select')).not.toBeDisabled();
+        expect(screen.getByTestId('maturity-slider')).toBeInTheDocument();
       });
 
       const nameInput = screen.getByTestId('capability-name-input');
@@ -421,7 +432,7 @@ describe('CreateCapabilityDialog', () => {
       renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('capability-maturity-select')).not.toBeDisabled();
+        expect(screen.getByTestId('maturity-slider')).toBeInTheDocument();
       });
 
       const nameInput = screen.getByTestId('capability-name-input');
@@ -445,7 +456,7 @@ describe('CreateCapabilityDialog', () => {
       renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('capability-maturity-select')).not.toBeDisabled();
+        expect(screen.getByTestId('maturity-slider')).toBeInTheDocument();
       });
 
       const nameInput = screen.getByTestId('capability-name-input');
@@ -467,7 +478,7 @@ describe('CreateCapabilityDialog', () => {
       renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('capability-maturity-select')).not.toBeDisabled();
+        expect(screen.getByTestId('maturity-slider')).toBeInTheDocument();
       });
 
       const nameInput = screen.getByTestId('capability-name-input');

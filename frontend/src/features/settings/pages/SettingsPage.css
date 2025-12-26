@@ -1,0 +1,38 @@
+.settings-page {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  background-color: var(--gray-50);
+}
+
+.settings-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.settings-header {
+  margin-bottom: 2rem;
+}
+
+.settings-title {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin: 0 0 0.5rem 0;
+}
+
+.settings-subtitle {
+  font-size: 1rem;
+  color: var(--gray-600);
+  margin: 0;
+}
+
+.error-message {
+  padding: 1rem;
+  background-color: var(--red-50);
+  border: 1px solid var(--red-200);
+  border-radius: 0.5rem;
+  color: var(--red-800);
+  text-align: center;
+}

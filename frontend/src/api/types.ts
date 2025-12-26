@@ -190,6 +190,13 @@ export interface Expert {
   addedAt: string;
 }
 
+export interface MaturitySection {
+  name: string;
+  order: number;
+  minValue: number;
+  maxValue: number;
+}
+
 export interface Capability {
   id: CapabilityId;
   name: string;
@@ -199,6 +206,8 @@ export interface Capability {
   strategyPillar?: string;
   pillarWeight?: number;
   maturityLevel?: string;
+  maturityValue?: number;
+  maturitySection?: MaturitySection;
   ownershipModel?: string;
   primaryOwner?: string;
   eaOwner?: string;
@@ -249,7 +258,8 @@ export interface UpdateCapabilityRequest {
 export interface UpdateCapabilityMetadataRequest {
   strategyPillar?: string;
   pillarWeight?: number;
-  maturityLevel: string;
+  maturityLevel?: string;
+  maturityValue?: number;
   ownershipModel?: string;
   primaryOwner?: string;
   eaOwner?: string;
@@ -303,6 +313,27 @@ export interface OwnershipModelOption {
 export interface StrategyPillarOption {
   value: string;
   displayName: string;
+}
+
+export interface MaturityScaleSection {
+  name: string;
+  order: number;
+  minValue: number;
+  maxValue: number;
+}
+
+export interface MaturityScale {
+  sections: MaturityScaleSection[];
+  version: number;
+  isDefault: boolean;
+  _links: HATEOASLinks;
+}
+
+export type MaturityScaleConfiguration = MaturityScale;
+
+export interface UpdateMaturityScaleRequest {
+  sections: MaturityScaleSection[];
+  version: number;
 }
 
 export type MaturityLevelsResponse = CollectionResponse<MaturityLevelOption>;

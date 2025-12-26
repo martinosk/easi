@@ -48,6 +48,8 @@ export const createCapabilityNode = (
       label: capability.name,
       level: capability.level,
       maturityLevel: capability.maturityLevel,
+      maturityValue: capability.maturityValue,
+      maturitySection: capability.maturitySection?.name,
       isSelected: selectedCapabilityId === capability.id,
       customColor: viewCapability?.customColor,
     },

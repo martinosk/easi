@@ -54,13 +54,15 @@ var capabilityEventDeserializers = repository.EventDeserializers{
 		strategyPillar, _ := data["strategyPillar"].(string)
 		pillarWeightFloat, _ := data["pillarWeight"].(float64)
 		pillarWeight := int(pillarWeightFloat)
+		maturityValueFloat, _ := data["maturityValue"].(float64)
+		maturityValue := int(maturityValueFloat)
 		maturityLevel, _ := data["maturityLevel"].(string)
 		ownershipModel, _ := data["ownershipModel"].(string)
 		primaryOwner, _ := data["primaryOwner"].(string)
 		eaOwner, _ := data["eaOwner"].(string)
 		status, _ := data["status"].(string)
 
-		return events.NewCapabilityMetadataUpdated(id, strategyPillar, pillarWeight, maturityLevel, ownershipModel, primaryOwner, eaOwner, status)
+		return events.NewCapabilityMetadataUpdated(id, strategyPillar, pillarWeight, maturityValue, maturityLevel, ownershipModel, primaryOwner, eaOwner, status)
 	},
 	"CapabilityExpertAdded": func(data map[string]interface{}) domain.DomainEvent {
 		capabilityID, _ := data["capabilityId"].(string)

@@ -11,6 +11,7 @@ import type {
   Release,
   ReleasesResponse,
   ReleaseVersion,
+  MaturityScale,
 } from '../types';
 
 export const metadataApi = {
@@ -68,6 +69,11 @@ export const metadataApi = {
   async getReleases(): Promise<Release[]> {
     const response = await httpClient.get<ReleasesResponse>('/api/v1/releases');
     return response.data.data || [];
+  },
+
+  async getMaturityScale(): Promise<MaturityScale> {
+    const response = await httpClient.get<MaturityScale>('/api/v1/meta-model/maturity-scale');
+    return response.data;
   },
 };
 

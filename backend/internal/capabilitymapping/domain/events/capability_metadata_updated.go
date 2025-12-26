@@ -9,6 +9,7 @@ type CapabilityMetadataUpdated struct {
 	ID             string
 	StrategyPillar string
 	PillarWeight   int
+	MaturityValue  int
 	MaturityLevel  string
 	OwnershipModel string
 	PrimaryOwner   string
@@ -19,13 +20,16 @@ type CapabilityMetadataUpdated struct {
 func NewCapabilityMetadataUpdated(
 	id, strategyPillar string,
 	pillarWeight int,
-	maturityLevel, ownershipModel, primaryOwner, eaOwner, status string,
+	maturityValue int,
+	maturityLevel string,
+	ownershipModel, primaryOwner, eaOwner, status string,
 ) CapabilityMetadataUpdated {
 	return CapabilityMetadataUpdated{
 		BaseEvent:      domain.NewBaseEvent(id),
 		ID:             id,
 		StrategyPillar: strategyPillar,
 		PillarWeight:   pillarWeight,
+		MaturityValue:  maturityValue,
 		MaturityLevel:  maturityLevel,
 		OwnershipModel: ownershipModel,
 		PrimaryOwner:   primaryOwner,
@@ -43,6 +47,7 @@ func (e CapabilityMetadataUpdated) EventData() map[string]interface{} {
 		"id":             e.ID,
 		"strategyPillar": e.StrategyPillar,
 		"pillarWeight":   e.PillarWeight,
+		"maturityValue":  e.MaturityValue,
 		"maturityLevel":  e.MaturityLevel,
 		"ownershipModel": e.OwnershipModel,
 		"primaryOwner":   e.PrimaryOwner,

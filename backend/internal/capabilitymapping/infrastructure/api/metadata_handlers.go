@@ -17,6 +17,7 @@ import (
 func isValidationError(err error) bool {
 	return errors.Is(err, valueobjects.ErrInvalidPillarWeight) ||
 		errors.Is(err, valueobjects.ErrInvalidMaturityLevel) ||
+		errors.Is(err, valueobjects.ErrMaturityValueOutOfRange) ||
 		errors.Is(err, valueobjects.ErrInvalidOwnershipModel) ||
 		errors.Is(err, valueobjects.ErrInvalidCapabilityStatus) ||
 		errors.Is(err, valueobjects.ErrInvalidStrategyPillar) ||
@@ -33,7 +34,8 @@ func isNotFoundError(err error) bool {
 type UpdateCapabilityMetadataRequest struct {
 	StrategyPillar string `json:"strategyPillar,omitempty"`
 	PillarWeight   int    `json:"pillarWeight,omitempty"`
-	MaturityLevel  string `json:"maturityLevel"`
+	MaturityValue  *int   `json:"maturityValue,omitempty"`
+	MaturityLevel  string `json:"maturityLevel,omitempty"`
 	OwnershipModel string `json:"ownershipModel,omitempty"`
 	PrimaryOwner   string `json:"primaryOwner,omitempty"`
 	EAOwner        string `json:"eaOwner,omitempty"`
@@ -72,10 +74,16 @@ func (h *CapabilityHandlers) UpdateCapabilityMetadata(w http.ResponseWriter, r *
 		return
 	}
 
+	var maturityValue int
+	if req.MaturityValue != nil {
+		maturityValue = *req.MaturityValue
+	}
+
 	cmd := &commands.UpdateCapabilityMetadata{
 		ID:             id,
 		StrategyPillar: req.StrategyPillar,
 		PillarWeight:   req.PillarWeight,
+		MaturityValue:  maturityValue,
 		MaturityLevel:  req.MaturityLevel,
 		OwnershipModel: req.OwnershipModel,
 		PrimaryOwner:   req.PrimaryOwner,

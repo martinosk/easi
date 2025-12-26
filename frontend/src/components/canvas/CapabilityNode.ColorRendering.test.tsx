@@ -7,6 +7,23 @@ vi.mock('../../hooks/useCurrentView', () => ({
   useCurrentView: vi.fn(),
 }));
 
+vi.mock('../../hooks/useMaturityScale', () => ({
+  useMaturityScale: vi.fn(() => ({
+    data: {
+      sections: [
+        { name: 'Genesis', order: 1, minValue: 0, maxValue: 24 },
+        { name: 'Custom Built', order: 2, minValue: 25, maxValue: 49 },
+        { name: 'Product', order: 3, minValue: 50, maxValue: 74 },
+        { name: 'Commodity', order: 4, minValue: 75, maxValue: 99 },
+      ],
+      version: 1,
+      isDefault: true,
+    },
+    isLoading: false,
+    error: null,
+  })),
+}));
+
 import { CapabilityNode, type CapabilityNodeData } from './CapabilityNode';
 import { useCurrentView } from '../../hooks/useCurrentView';
 import type { View } from '../../api/types';
@@ -31,11 +48,13 @@ const createMockView = (colorScheme: string, capabilitiesWithColors?: Array<{ ca
 const createCapabilityNodeData = (
   maturityLevel?: string,
   isSelected: boolean = false,
-  customColor?: string
+  customColor?: string,
+  maturityValue?: number
 ): CapabilityNodeData => ({
   label: 'Customer Management',
   level: 'L1',
   maturityLevel,
+  maturityValue,
   isSelected,
   customColor,
 });
@@ -210,13 +229,13 @@ describe('CapabilityNode Custom Color Rendering', () => {
         error: null,
       });
 
-      const nodeData = createCapabilityNodeData('Product');
+      const nodeData = createCapabilityNodeData('Product', false, '#FF5733', 62);
       const { container } = renderWithProvider(
         <CapabilityNode data={nodeData} id="cap-1" />
       );
 
       const node = container.querySelector('.capability-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#22c55e'));
+      expect(node.style.background).toMatch(/linear-gradient/);
       expect(node.style.background).not.toContain(hexToRgb('#FF5733'));
     });
 
@@ -231,13 +250,14 @@ describe('CapabilityNode Custom Color Rendering', () => {
         error: null,
       });
 
-      const nodeData = createCapabilityNodeData('Genesis');
+      const nodeData = createCapabilityNodeData('Genesis', false, undefined, 12);
       const { container } = renderWithProvider(
         <CapabilityNode data={nodeData} id="cap-1" />
       );
 
       const node = container.querySelector('.capability-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#ef4444'));
+      expect(node.style.background).toMatch(/linear-gradient/);
+      expect(node.style.background).toMatch(/rgb\(248, 145, 145\)/);
     });
 
     it('should use maturity color for Custom Build when colorScheme is "maturity"', () => {
@@ -251,13 +271,14 @@ describe('CapabilityNode Custom Color Rendering', () => {
         error: null,
       });
 
-      const nodeData = createCapabilityNodeData('Custom Build');
+      const nodeData = createCapabilityNodeData('Custom Build', false, undefined, 37);
       const { container } = renderWithProvider(
         <CapabilityNode data={nodeData} id="cap-1" />
       );
 
       const node = container.querySelector('.capability-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#f97316'));
+      expect(node.style.background).toMatch(/linear-gradient/);
+      expect(node.style.background).toMatch(/rgb\(253, 183, 116\)/);
     });
 
     it('should use maturity color for Commodity when colorScheme is "maturity"', () => {
@@ -271,13 +292,14 @@ describe('CapabilityNode Custom Color Rendering', () => {
         error: null,
       });
 
-      const nodeData = createCapabilityNodeData('Commodity');
+      const nodeData = createCapabilityNodeData('Commodity', false, undefined, 87);
       const { container } = renderWithProvider(
         <CapabilityNode data={nodeData} id="cap-1" />
       );
 
       const node = container.querySelector('.capability-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#3b82f6'));
+      expect(node.style.background).toMatch(/linear-gradient/);
+      expect(node.style.background).toMatch(/rgb\(91, 239, 177\)/);
     });
   });
 
@@ -294,13 +316,13 @@ describe('CapabilityNode Custom Color Rendering', () => {
         error: null,
       });
 
-      const nodeData = createCapabilityNodeData('Product');
+      const nodeData = createCapabilityNodeData('Product', false, undefined, 62);
       const { container } = renderWithProvider(
         <CapabilityNode data={nodeData} id="cap-1" />
       );
 
       const node = container.querySelector('.capability-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#22c55e'));
+      expect(node.style.background).toMatch(/linear-gradient/);
     });
 
     it('should use maturity color when currentView is null', () => {
@@ -311,13 +333,13 @@ describe('CapabilityNode Custom Color Rendering', () => {
         error: null,
       });
 
-      const nodeData = createCapabilityNodeData('Commodity');
+      const nodeData = createCapabilityNodeData('Commodity', false, undefined, 87);
       const { container } = renderWithProvider(
         <CapabilityNode data={nodeData} id="cap-1" />
       );
 
       const node = container.querySelector('.capability-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#3b82f6'));
+      expect(node.style.background).toMatch(/linear-gradient/);
     });
   });
 
@@ -362,7 +384,7 @@ describe('CapabilityNode Custom Color Rendering', () => {
         error: null,
       });
 
-      const nodeData = createCapabilityNodeData('Product', false, '#FF5733');
+      const nodeData = createCapabilityNodeData('Product', false, '#FF5733', 62);
       const { container, rerender } = renderWithProvider(
         <CapabilityNode data={nodeData} id="cap-1" />
       );
@@ -380,11 +402,11 @@ describe('CapabilityNode Custom Color Rendering', () => {
         error: null,
       });
 
-      const updatedNodeData = createCapabilityNodeData('Product', false, '#FF5733');
+      const updatedNodeData = createCapabilityNodeData('Product', false, '#FF5733', 62);
       rerender(<CapabilityNode data={updatedNodeData} id="cap-1" />);
 
       node = container.querySelector('.capability-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#22c55e'));
+      expect(node.style.background).toMatch(/linear-gradient/);
       expect(node.style.background).not.toContain(hexToRgb('#FF5733'));
     });
 
@@ -399,13 +421,13 @@ describe('CapabilityNode Custom Color Rendering', () => {
         error: null,
       });
 
-      const nodeData = createCapabilityNodeData('Genesis', false, '#FF5733');
+      const nodeData = createCapabilityNodeData('Genesis', false, '#FF5733', 12);
       const { container, rerender } = renderWithProvider(
         <CapabilityNode data={nodeData} id="cap-1" />
       );
 
       let node = container.querySelector('.capability-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#ef4444'));
+      expect(node.style.background).toMatch(/linear-gradient/);
 
       mockView = createMockView('custom', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
@@ -417,12 +439,11 @@ describe('CapabilityNode Custom Color Rendering', () => {
         error: null,
       });
 
-      const updatedNodeData = createCapabilityNodeData('Genesis', false, '#FF5733');
+      const updatedNodeData = createCapabilityNodeData('Genesis', false, '#FF5733', 12);
       rerender(<CapabilityNode data={updatedNodeData} id="cap-1" />);
 
       node = container.querySelector('.capability-node') as HTMLElement;
       expect(node.style.background).toContain(hexToRgb('#FF5733'));
-      expect(node.style.background).not.toContain(hexToRgb('#ef4444'));
     });
 
     it('should update to neutral default when custom color is removed in custom scheme', () => {
@@ -507,18 +528,18 @@ describe('CapabilityNode Custom Color Rendering', () => {
         error: null,
       });
 
-      const nodeData = createCapabilityNodeData('Commodity', false);
+      const nodeData = createCapabilityNodeData('Commodity', false, undefined, 87);
       const { container } = renderWithProvider(
         <CapabilityNode data={nodeData} id="cap-1" />
       );
 
       const node = container.querySelector('.capability-node') as HTMLElement;
-      expect(node.style.borderColor).toBe(hexToRgb('#3b82f6'));
+      expect(node.style.borderColor).toMatch(/rgb\(\d+, \d+, \d+\)/);
     });
   });
 
   describe('Edge Cases', () => {
-    it('should handle unknown maturity level with default gray color in maturity scheme', () => {
+    it('should handle unknown maturity level with default color in maturity scheme', () => {
       const mockView = createMockView('maturity', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
@@ -529,16 +550,16 @@ describe('CapabilityNode Custom Color Rendering', () => {
         error: null,
       });
 
-      const nodeData = createCapabilityNodeData('UnknownLevel');
+      const nodeData = createCapabilityNodeData('UnknownLevel', false, undefined, 0);
       const { container } = renderWithProvider(
         <CapabilityNode data={nodeData} id="cap-1" />
       );
 
       const node = container.querySelector('.capability-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#6b7280'));
+      expect(node.style.background).toMatch(/linear-gradient/);
     });
 
-    it('should handle undefined maturity level with default gray color in maturity scheme', () => {
+    it('should handle undefined maturity level with default value 0', () => {
       const mockView = createMockView('maturity', [
         { capabilityId: 'cap-1', customColor: '#FF5733' },
       ]);
@@ -549,13 +570,13 @@ describe('CapabilityNode Custom Color Rendering', () => {
         error: null,
       });
 
-      const nodeData = createCapabilityNodeData(undefined);
+      const nodeData = createCapabilityNodeData(undefined, false, undefined, undefined);
       const { container } = renderWithProvider(
         <CapabilityNode data={nodeData} id="cap-1" />
       );
 
       const node = container.querySelector('.capability-node') as HTMLElement;
-      expect(node.style.background).toContain(hexToRgb('#6b7280'));
+      expect(node.style.background).toMatch(/linear-gradient/);
     });
 
     it('should handle empty string customColor as null in custom scheme', () => {

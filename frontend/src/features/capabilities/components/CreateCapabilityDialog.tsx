@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Modal, TextInput, Textarea, Select, Button, Group, Stack, Alert } from '@mantine/core';
 import { useCreateCapability, useUpdateCapabilityMetadata } from '../hooks/useCapabilities';
-import { useMaturityLevels, useStatuses } from '../../../hooks/useMetadata';
+import { useStatuses } from '../../../hooks/useMetadata';
+import { MaturitySlider } from '../../../components/shared/MaturitySlider';
 
 interface CreateCapabilityDialogProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const DEFAULT_MATURITY_LEVELS = ['Genesis', 'Custom Build', 'Product', 'Commodity'];
 const DEFAULT_STATUSES = [
   { value: 'Active', displayName: 'Active', sortOrder: 1 },
   { value: 'Planned', displayName: 'Planned', sortOrder: 2 },
@@ -19,7 +19,7 @@ interface FormState {
   name: string;
   description: string;
   status: string;
-  maturityLevel: string;
+  maturityValue: number;
 }
 
 interface FormErrors {
@@ -51,32 +51,23 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
     name: '',
     description: '',
     status: 'Active',
-    maturityLevel: '',
+    maturityValue: 12,
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [backendError, setBackendError] = useState<string | null>(null);
 
-  const { data: maturityLevelsData, isLoading: isLoadingMaturityLevels } = useMaturityLevels();
   const { data: statusesData, isLoading: isLoadingStatuses } = useStatuses();
   const createCapabilityMutation = useCreateCapability();
   const updateMetadataMutation = useUpdateCapabilityMetadata();
 
-  const maturityLevels = maturityLevelsData ?? DEFAULT_MATURITY_LEVELS;
   const statuses = statusesData ?? DEFAULT_STATUSES;
 
-  useEffect(() => {
-    if (isOpen && maturityLevels.length > 0 && !form.maturityLevel) {
-      setForm((prev) => ({ ...prev, maturityLevel: maturityLevels[0] }));
-    }
-  }, [isOpen, maturityLevels, form.maturityLevel]);
-
   const resetForm = () => {
-    const defaultMaturity = maturityLevels.length > 0 ? maturityLevels[0] : DEFAULT_MATURITY_LEVELS[0];
     setForm({
       name: '',
       description: '',
       status: 'Active',
-      maturityLevel: defaultMaturity,
+      maturityValue: 12,
     });
     setErrors({});
     setBackendError(null);
@@ -89,7 +80,7 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
 
   const handleFieldChange = (
     field: keyof FormState,
-    value: string
+    value: string | number
   ) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (errors[field as keyof FormErrors]) {
@@ -121,7 +112,7 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
         id: capability.id,
         request: {
           status: form.status,
-          maturityLevel: form.maturityLevel,
+          maturityValue: form.maturityValue,
         },
       });
 
@@ -183,13 +174,10 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
             data-testid="capability-status-select"
           />
 
-          <Select
-            label="Maturity Level"
-            value={form.maturityLevel}
-            onChange={(value) => handleFieldChange('maturityLevel', value || '')}
-            data={isLoadingMaturityLevels ? [] : maturityLevels}
-            disabled={isCreating || isLoadingMaturityLevels}
-            data-testid="capability-maturity-select"
+          <MaturitySlider
+            value={form.maturityValue}
+            onChange={(value) => handleFieldChange('maturityValue', value)}
+            disabled={isCreating}
           />
 
           {backendError && (
@@ -210,7 +198,7 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
             <Button
               type="submit"
               loading={isCreating}
-              disabled={isLoadingMaturityLevels || isLoadingStatuses || !form.name.trim()}
+              disabled={isLoadingStatuses || !form.name.trim()}
               data-testid="create-capability-submit"
             >
               Create

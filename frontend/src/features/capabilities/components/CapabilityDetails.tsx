@@ -7,6 +7,8 @@ import { useCapabilities, useCapabilityRealizations } from '../hooks/useCapabili
 import { useComponents } from '../../components/hooks/useComponents';
 import { useUpdateCapabilityColor } from '../../views/hooks/useViews';
 import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useMaturityScale } from '../../../hooks/useMaturityScale';
+import { deriveLegacyMaturityValue, getDefaultSections } from '../../../utils/maturity';
 import type { Capability, Component, CapabilityRealization, Expert, View, ViewCapability, ViewId, CapabilityId } from '../../../api/types';
 import toast from 'react-hot-toast';
 
@@ -19,6 +21,7 @@ const getMaturityBadgeClass = (maturityLevel?: string): string => {
   const maturityClasses: Record<string, string> = {
     'genesis': 'badge-genesis',
     'custom build': 'badge-custom-build',
+    'custom built': 'badge-custom-build',
     'product': 'badge-product',
     'commodity': 'badge-commodity',
   };
@@ -188,6 +191,14 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
   onRemoveFromView,
 }) => {
   const formattedDate = new Date(capability.createdAt).toLocaleString();
+  const { data: maturityScale } = useMaturityScale();
+  const sections = maturityScale?.sections ?? getDefaultSections();
+
+  const effectiveMaturityValue = capability.maturityValue ??
+    (capability.maturityLevel ? deriveLegacyMaturityValue(capability.maturityLevel, sections) : 12);
+  const sectionName = sections.find(s => effectiveMaturityValue >= s.minValue && effectiveMaturityValue <= s.maxValue)?.name ||
+    'Unknown';
+  const maturityDisplay = `${sectionName} (${effectiveMaturityValue})`;
 
   return (
     <div className="detail-content">
@@ -200,8 +211,8 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
       <DetailField label="Level"><span className="level-badge">{capability.level}</span></DetailField>
       <CapabilityOptionalFields capability={capability} />
       <DetailField label="Maturity Level">
-        <span className={`maturity-badge ${getMaturityBadgeClass(capability.maturityLevel)}`}>
-          {capability.maturityLevel || 'Not set'}
+        <span className={`maturity-badge ${getMaturityBadgeClass(sectionName)}`}>
+          {maturityDisplay}
         </span>
       </DetailField>
       <DetailField label="Created"><span className="detail-date">{formattedDate}</span></DetailField>

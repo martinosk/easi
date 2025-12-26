@@ -5,6 +5,7 @@ import (
 	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/application/projectors"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
+	"easi/backend/internal/capabilitymapping/infrastructure/metamodel"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -16,11 +17,12 @@ import (
 )
 
 type routeConfig struct {
-	commandBus *cqrs.InMemoryCommandBus
-	eventStore eventstore.EventStore
-	eventBus   events.EventBus
-	db         *database.TenantAwareDB
-	hateoas    *sharedAPI.HATEOASLinks
+	commandBus           *cqrs.InMemoryCommandBus
+	eventStore           eventstore.EventStore
+	eventBus             events.EventBus
+	db                   *database.TenantAwareDB
+	hateoas              *sharedAPI.HATEOASLinks
+	maturityScaleGateway metamodel.MaturityScaleGateway
 }
 
 func SetupCapabilityMappingRoutes(
@@ -31,7 +33,19 @@ func SetupCapabilityMappingRoutes(
 	db *database.TenantAwareDB,
 	hateoas *sharedAPI.HATEOASLinks,
 ) error {
-	config := &routeConfig{commandBus, eventStore, eventBus, db, hateoas}
+	return SetupCapabilityMappingRoutesWithGateway(r, commandBus, eventStore, eventBus, db, hateoas, nil)
+}
+
+func SetupCapabilityMappingRoutesWithGateway(
+	r chi.Router,
+	commandBus *cqrs.InMemoryCommandBus,
+	eventStore eventstore.EventStore,
+	eventBus events.EventBus,
+	db *database.TenantAwareDB,
+	hateoas *sharedAPI.HATEOASLinks,
+	gateway metamodel.MaturityScaleGateway,
+) error {
+	config := &routeConfig{commandBus, eventStore, eventBus, db, hateoas, gateway}
 
 	repos := initializeRepositories(config.eventStore)
 	readModels := initializeReadModels(config.db)
@@ -39,11 +53,22 @@ func SetupCapabilityMappingRoutes(
 	setupEventSubscriptions(config.eventBus, readModels)
 	setupCascadingDeleteHandlers(config.eventBus, config.commandBus, readModels)
 	setupCommandHandlers(config.commandBus, repos, readModels)
+	setupMetaModelEventHandlers(config.eventBus, config.maturityScaleGateway)
 
-	httpHandlers := initializeHTTPHandlers(config.commandBus, readModels, config.hateoas)
+	httpHandlers := initializeHTTPHandlers(config.commandBus, readModels, config.hateoas, config.maturityScaleGateway)
 	registerRoutes(r, httpHandlers)
 
 	return nil
+}
+
+func setupMetaModelEventHandlers(eventBus events.EventBus, gateway metamodel.MaturityScaleGateway) {
+	if gateway == nil {
+		return
+	}
+
+	maturityScaleUpdatedHandler := handlers.NewMaturityScaleConfigUpdatedHandler(gateway)
+	eventBus.Subscribe("MaturityScaleConfigUpdated", maturityScaleUpdatedHandler)
+	eventBus.Subscribe("MaturityScaleConfigReset", maturityScaleUpdatedHandler)
 }
 
 type routeRepositories struct {
@@ -193,7 +218,7 @@ func registerDomainAssignmentCommands(commandBus *cqrs.InMemoryCommandBus, assig
 	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(assignRepo))
 }
 
-func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels, hateoas *sharedAPI.HATEOASLinks) *routeHTTPHandlers {
+func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels, hateoas *sharedAPI.HATEOASLinks, gateway metamodel.MaturityScaleGateway) *routeHTTPHandlers {
 	businessDomainReadModels := &BusinessDomainReadModels{
 		Domain:      rm.businessDomain,
 		Assignment:  rm.domainAssignment,
@@ -205,7 +230,7 @@ func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadMo
 		capability:     NewCapabilityHandlers(commandBus, rm.capability, hateoas),
 		dependency:     NewDependencyHandlers(commandBus, rm.dependency, hateoas),
 		realization:    NewRealizationHandlers(commandBus, rm.realization, hateoas),
-		maturityLevel:  NewMaturityLevelHandlers(),
+		maturityLevel:  NewMaturityLevelHandlers(gateway),
 		businessDomain: NewBusinessDomainHandlers(commandBus, businessDomainReadModels, hateoas),
 	}
 }
