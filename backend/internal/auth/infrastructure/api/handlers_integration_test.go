@@ -144,8 +144,13 @@ func TestIntegration_PostSessions_ValidEmail_ReturnsDexAuthURL(t *testing.T) {
 	err := json.NewDecoder(rec.Body).Decode(&response)
 	require.NoError(t, err)
 
-	authURL, ok := response["authorizationUrl"].(string)
-	require.True(t, ok, "authorizationUrl should be a string")
+	links, ok := response["_links"].(map[string]interface{})
+	require.True(t, ok, "_links should be a map")
+	assert.Contains(t, links, "authorize")
+	assert.Contains(t, links, "self")
+
+	authURL, ok := links["authorize"].(string)
+	require.True(t, ok, "authorize link should be a string")
 	assert.Contains(t, authURL, ctx.dexBaseURL)
 	assert.Contains(t, authURL, "response_type=code")
 	assert.Contains(t, authURL, "client_id=easi-test")
@@ -153,10 +158,6 @@ func TestIntegration_PostSessions_ValidEmail_ReturnsDexAuthURL(t *testing.T) {
 	assert.Contains(t, authURL, "code_challenge_method=S256")
 	assert.Contains(t, authURL, "state=")
 	assert.Contains(t, authURL, "nonce=")
-
-	links, ok := response["_links"].(map[string]interface{})
-	require.True(t, ok, "_links should be a map")
-	assert.Contains(t, links, "authorize")
 }
 
 func TestIntegration_PostSessions_UnknownDomain_Returns404(t *testing.T) {
@@ -218,9 +219,16 @@ func TestIntegration_PostSessions_AuthURLContainsPKCE(t *testing.T) {
 
 	router.ServeHTTP(rec, req)
 
+	require.Equal(t, http.StatusOK, rec.Code)
+
 	var response map[string]interface{}
-	json.NewDecoder(rec.Body).Decode(&response)
-	authURL := response["authorizationUrl"].(string)
+	err := json.NewDecoder(rec.Body).Decode(&response)
+	require.NoError(t, err)
+
+	links, ok := response["_links"].(map[string]interface{})
+	require.True(t, ok, "_links should be a map")
+	authURL, ok := links["authorize"].(string)
+	require.True(t, ok, "authorize link should be a string")
 
 	assert.True(t, strings.Contains(authURL, "code_challenge="), "URL should contain code_challenge")
 	assert.True(t, strings.Contains(authURL, "code_challenge_method=S256"), "URL should use S256 challenge method")

@@ -69,9 +69,8 @@ func setupViewTestDB(t *testing.T) (*viewTestContext, func()) {
 		createdIDs: make([]string, 0),
 	}
 
-	// Clean up only the data created in this specific test
 	cleanup := func() {
-		// Delete views and element positions by tracking the IDs created during the test
+		db.Exec(fmt.Sprintf("SET app.current_tenant = '%s'", testTenantID()))
 		for _, id := range ctx.createdIDs {
 			db.Exec("DELETE FROM view_element_positions WHERE view_id = $1", id)
 			db.Exec("DELETE FROM architecture_views WHERE id = $1", id)

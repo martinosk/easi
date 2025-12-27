@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -19,129 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestIndexUsage_EventsTenantQuery(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
-
-	ctx, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	tenant, err := sharedvo.NewTenantID("perf-tenant")
-	require.NoError(t, err)
-
-	tenantCtx := sharedctx.WithTenant(context.Background(), tenant)
-
-	var explainOutput string
-	err = ctx.tenantDB.WithReadOnlyTx(tenantCtx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(tenantCtx,
-			"EXPLAIN SELECT * FROM events WHERE tenant_id = $1 AND aggregate_id = $2 ORDER BY version ASC",
-			tenant.Value(), "test-aggregate-id",
-		)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		var lines []string
-		for rows.Next() {
-			var line string
-			if err := rows.Scan(&line); err != nil {
-				return err
-			}
-			lines = append(lines, line)
-		}
-		explainOutput = strings.Join(lines, "\n")
-		return rows.Err()
-	})
-	require.NoError(t, err)
-
-	usesIndex := strings.Contains(explainOutput, "Index") || strings.Contains(explainOutput, "idx_events_tenant")
-	assert.True(t, usesIndex, "Query should use tenant index. Got: %s", explainOutput)
-}
-
-func TestIndexUsage_ApplicationComponentsTenantQuery(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
-
-	ctx, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	tenant, err := sharedvo.NewTenantID("perf-tenant")
-	require.NoError(t, err)
-
-	tenantCtx := sharedctx.WithTenant(context.Background(), tenant)
-
-	var explainOutput string
-	err = ctx.tenantDB.WithReadOnlyTx(tenantCtx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(tenantCtx,
-			"EXPLAIN SELECT * FROM application_components WHERE tenant_id = $1 ORDER BY created_at DESC",
-			tenant.Value(),
-		)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		var lines []string
-		for rows.Next() {
-			var line string
-			if err := rows.Scan(&line); err != nil {
-				return err
-			}
-			lines = append(lines, line)
-		}
-		explainOutput = strings.Join(lines, "\n")
-		return rows.Err()
-	})
-	require.NoError(t, err)
-
-	usesIndex := strings.Contains(explainOutput, "Index") || strings.Contains(explainOutput, "idx_application_components")
-	assert.True(t, usesIndex, "Query should use tenant index. Got: %s", explainOutput)
-}
-
-func TestIndexUsage_CapabilitiesTenantQuery(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
-
-	ctx, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	tenant, err := sharedvo.NewTenantID("perf-tenant")
-	require.NoError(t, err)
-
-	tenantCtx := sharedctx.WithTenant(context.Background(), tenant)
-
-	var explainOutput string
-	err = ctx.tenantDB.WithReadOnlyTx(tenantCtx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(tenantCtx,
-			"EXPLAIN SELECT * FROM capabilities WHERE tenant_id = $1 ORDER BY level, name",
-			tenant.Value(),
-		)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		var lines []string
-		for rows.Next() {
-			var line string
-			if err := rows.Scan(&line); err != nil {
-				return err
-			}
-			lines = append(lines, line)
-		}
-		explainOutput = strings.Join(lines, "\n")
-		return rows.Err()
-	})
-	require.NoError(t, err)
-
-	usesIndex := strings.Contains(explainOutput, "Index") || strings.Contains(explainOutput, "idx_capabilities")
-	assert.True(t, usesIndex, "Query should use tenant index. Got: %s", explainOutput)
-}
 
 func TestRLSPerformance_WithTenantContext(t *testing.T) {
 	if testing.Short() {

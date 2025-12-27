@@ -83,21 +83,21 @@ func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
 	).Scan(&metadataEventData)
 	require.NoError(t, err)
 	assert.Contains(t, metadataEventData, "Transform")
-	assert.Contains(t, metadataEventData, "Custom Build")
+	assert.Contains(t, metadataEventData, `"maturityValue": 37`)
 	assert.Contains(t, metadataEventData, "TribeOwned")
 
 	time.Sleep(100 * time.Millisecond)
 
-	var strategyPillar, maturityLevel, ownershipModel, status string
-	var pillarWeight int
+	var strategyPillar, ownershipModel, status string
+	var pillarWeight, maturityValue int
 	err = testCtx.db.QueryRow(
-		"SELECT strategy_pillar, pillar_weight, maturity_level, ownership_model, status FROM capabilities WHERE id = $1",
+		"SELECT strategy_pillar, pillar_weight, maturity_value, ownership_model, status FROM capabilities WHERE id = $1",
 		capabilityID,
-	).Scan(&strategyPillar, &pillarWeight, &maturityLevel, &ownershipModel, &status)
+	).Scan(&strategyPillar, &pillarWeight, &maturityValue, &ownershipModel, &status)
 	require.NoError(t, err)
 	assert.Equal(t, "Transform", strategyPillar)
 	assert.Equal(t, 75, pillarWeight)
-	assert.Equal(t, "Custom Build", maturityLevel)
+	assert.Equal(t, 37, maturityValue)
 	assert.Equal(t, "TribeOwned", ownershipModel)
 	assert.Equal(t, "Active", status)
 }

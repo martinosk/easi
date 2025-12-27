@@ -183,7 +183,7 @@ func TestPostSessions_DomainNotFound(t *testing.T) {
 	router.Post("/auth/sessions", handlers.PostSessions)
 	router.ServeHTTP(rec, req)
 
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
 
 func TestPostSessions_AuthURLContainsPKCE(t *testing.T) {

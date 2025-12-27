@@ -16,6 +16,8 @@ import (
 	"time"
 
 	authHandlers "easi/backend/internal/auth/application/handlers"
+	authProjectors "easi/backend/internal/auth/application/projectors"
+	authReadmodels "easi/backend/internal/auth/application/readmodels"
 	authRepositories "easi/backend/internal/auth/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -23,6 +25,7 @@ import (
 	"easi/backend/internal/platform/infrastructure/repositories"
 	"easi/backend/internal/platform/infrastructure/secrets"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/events"
 
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
@@ -89,6 +92,16 @@ func setupPlatformHandlers(db *sql.DB) (*TenantHandlers, chi.Router) {
 	tenantRepo := repositories.NewTenantRepository(db)
 	tenantDB := database.NewTenantAwareDB(db)
 	evStore := eventstore.NewPostgresEventStore(tenantDB)
+
+	eventBus := events.NewInMemoryEventBus()
+	evStore.SetEventBus(eventBus)
+
+	invitationReadModel := authReadmodels.NewInvitationReadModel(tenantDB)
+	invitationProjector := authProjectors.NewInvitationProjector(invitationReadModel)
+	eventBus.Subscribe("InvitationCreated", invitationProjector)
+	eventBus.Subscribe("InvitationAccepted", invitationProjector)
+	eventBus.Subscribe("InvitationRevoked", invitationProjector)
+	eventBus.Subscribe("InvitationExpired", invitationProjector)
 
 	invitationRepo := authRepositories.NewInvitationRepository(evStore)
 	createInvitationHandler := authHandlers.NewCreateInvitationHandler(invitationRepo)
@@ -296,7 +309,7 @@ func TestListTenants_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.NotNil(t, response["data"])
-	assert.NotNil(t, response["pagination"])
+	assert.NotNil(t, response["_links"])
 }
 
 func TestPlatformAdminMiddleware_MissingKey_Integration(t *testing.T) {

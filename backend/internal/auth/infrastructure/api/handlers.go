@@ -135,6 +135,10 @@ func (h *AuthHandlers) logDomainLookupError(domain string, err error) {
 }
 
 func (h *AuthHandlers) handleDomainResolutionError(w http.ResponseWriter, err error) {
+	if errors.Is(err, repositories.ErrDomainNotFound) || errors.Is(err, repositories.ErrTenantInactive) {
+		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Unable to process login request")
+		return
+	}
 	sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Unable to process login request")
 }
 
