@@ -132,4 +132,4 @@ Settings → Strategy Pillars (new tab alongside Maturity Scale)
 - [x] API implemented
 - [x] Settings UI implemented
 - [x] Tests passing
-- [ ] User sign-off
+- [x] User sign-off
