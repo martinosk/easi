@@ -479,3 +479,26 @@ export interface CapabilityRealizationsGroup {
   level: CapabilityLevel;
   realizations: CapabilityRealization[];
 }
+
+export interface StrategyPillar {
+  id: string;
+  name: string;
+  description: string;
+  active: boolean;
+  _links: HATEOASLinks;
+}
+
+export interface StrategyPillarsConfiguration {
+  data: StrategyPillar[];
+  _links: HATEOASLinks;
+}
+
+export interface CreateStrategyPillarRequest {
+  name: string;
+  description: string;
+}
+
+export interface UpdateStrategyPillarRequest {
+  name: string;
+  description: string;
+}

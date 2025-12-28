@@ -2950,7 +2950,7 @@ const docTemplate = `{
         },
         "/meta-model/maturity-scale": {
             "get": {
-                "description": "Retrieves the maturity scale configuration for the current tenant",
+                "description": "Retrieves the maturity scale configuration for the current tenant. Returns default configuration if none exists.",
                 "produces": [
                     "application/json"
                 ],
@@ -2965,12 +2965,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/easi_backend_internal_metamodel_application_readmodels.MetaModelConfigurationDTO"
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -2980,7 +2974,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Updates the maturity scale sections for the current tenant",
+                "description": "Updates the maturity scale sections for the current tenant. Creates config if it doesn't exist.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3027,12 +3021,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
                     "409": {
                         "description": "Conflict",
                         "schema": {
@@ -3050,7 +3038,7 @@ const docTemplate = `{
         },
         "/meta-model/maturity-scale/reset": {
             "post": {
-                "description": "Resets the maturity scale configuration to default values",
+                "description": "Resets the maturity scale configuration to default values. Creates config if it doesn't exist.",
                 "produces": [
                     "application/json"
                 ],
@@ -3077,8 +3065,350 @@ const docTemplate = `{
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/meta-model/strategy-pillars": {
+            "get": {
+                "description": "Retrieves the list of strategy pillars for the current tenant",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Get strategy pillars",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Include inactive pillars",
+                        "name": "includeInactive",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_metamodel_infrastructure_api.StrategyPillarResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a new strategy pillar for the current tenant",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Create a new strategy pillar",
+                "parameters": [
+                    {
+                        "description": "Pillar to create",
+                        "name": "pillar",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.CreateStrategyPillarRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.StrategyPillarResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Atomically update multiple strategy pillars in a single transaction",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Batch update strategy pillars",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ETag for optimistic locking",
+                        "name": "If-Match",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Pillar changes",
+                        "name": "changes",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.BatchUpdateStrategyPillarsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.BatchUpdateStrategyPillarsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "412": {
+                        "description": "Precondition Failed",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/meta-model/strategy-pillars/{id}": {
+            "get": {
+                "description": "Retrieves a single strategy pillar by its ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Get strategy pillar by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pillar ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.StrategyPillarResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Updates a strategy pillar's name and description",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Update a strategy pillar",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pillar ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ETag for optimistic locking",
+                        "name": "If-Match",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Pillar updates",
+                        "name": "pillar",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.UpdateStrategyPillarRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.StrategyPillarResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "412": {
+                        "description": "Precondition Failed",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Soft deletes a strategy pillar (sets it as inactive)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Delete a strategy pillar",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pillar ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -4776,8 +5106,11 @@ const docTemplate = `{
                 "level": {
                     "type": "string"
                 },
-                "maturityLevel": {
-                    "type": "string"
+                "maturitySection": {
+                    "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.MaturitySectionDTO"
+                },
+                "maturityValue": {
+                    "type": "integer"
                 },
                 "name": {
                     "type": "string"
@@ -4851,6 +5184,31 @@ const docTemplate = `{
                 },
                 "role": {
                     "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_capabilitymapping_application_readmodels.MaturityRange": {
+            "type": "object",
+            "properties": {
+                "max": {
+                    "type": "integer"
+                },
+                "min": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_capabilitymapping_application_readmodels.MaturitySectionDTO": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "order": {
+                    "type": "integer"
+                },
+                "range": {
+                    "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.MaturityRange"
                 }
             }
         },
@@ -5088,11 +5446,34 @@ const docTemplate = `{
                         "$ref": "#/definitions/easi_backend_internal_metamodel_application_readmodels.MaturitySectionDTO"
                     }
                 },
+                "strategyPillars": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_metamodel_application_readmodels.StrategyPillarDTO"
+                    }
+                },
                 "tenantId": {
                     "type": "string"
                 },
                 "version": {
                     "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_metamodel_application_readmodels.StrategyPillarDTO": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "boolean"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },
@@ -5651,7 +6032,15 @@ const docTemplate = `{
         "internal_capabilitymapping_infrastructure_api.MaturityLevelDTO": {
             "type": "object",
             "properties": {
-                "numericValue": {
+                "maxValue": {
+                    "type": "integer",
+                    "example": 24
+                },
+                "minValue": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "order": {
                     "type": "integer",
                     "example": 1
                 },
@@ -5735,6 +6124,9 @@ const docTemplate = `{
                 "maturityLevel": {
                     "type": "string"
                 },
+                "maturityValue": {
+                    "type": "integer"
+                },
                 "ownershipModel": {
                     "type": "string"
                 },
@@ -5774,6 +6166,45 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_metamodel_infrastructure_api.BatchUpdateStrategyPillarsRequest": {
+            "type": "object",
+            "properties": {
+                "changes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_metamodel_infrastructure_api.PillarChangeRequest"
+                    }
+                }
+            }
+        },
+        "internal_metamodel_infrastructure_api.BatchUpdateStrategyPillarsResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_metamodel_infrastructure_api.StrategyPillarResponse"
+                    }
+                }
+            }
+        },
+        "internal_metamodel_infrastructure_api.CreateStrategyPillarRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_metamodel_infrastructure_api.MaturitySectionRequest": {
             "type": "object",
             "properties": {
@@ -5791,6 +6222,46 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_metamodel_infrastructure_api.PillarChangeRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "operation": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_metamodel_infrastructure_api.StrategyPillarResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "active": {
+                    "type": "boolean"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_metamodel_infrastructure_api.UpdateMaturityScaleRequest": {
             "type": "object",
             "properties": {
@@ -5802,6 +6273,17 @@ const docTemplate = `{
                 },
                 "version": {
                     "type": "integer"
+                }
+            }
+        },
+        "internal_metamodel_infrastructure_api.UpdateStrategyPillarRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },

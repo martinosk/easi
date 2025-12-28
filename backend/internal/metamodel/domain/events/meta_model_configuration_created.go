@@ -17,18 +17,28 @@ type MetaModelConfigurationCreated struct {
 	ID        string                `json:"id"`
 	TenantID  string                `json:"tenantId"`
 	Sections  []MaturitySectionData `json:"sections"`
+	Pillars   []StrategyPillarData  `json:"pillars"`
 	CreatedAt time.Time             `json:"createdAt"`
 	CreatedBy string                `json:"createdBy"`
 }
 
-func NewMetaModelConfigurationCreated(id, tenantID string, sections []MaturitySectionData, createdBy string) MetaModelConfigurationCreated {
+type CreateConfigParams struct {
+	ID        string
+	TenantID  string
+	Sections  []MaturitySectionData
+	Pillars   []StrategyPillarData
+	CreatedBy string
+}
+
+func NewMetaModelConfigurationCreated(params CreateConfigParams) MetaModelConfigurationCreated {
 	return MetaModelConfigurationCreated{
-		BaseEvent: domain.NewBaseEvent(id),
-		ID:        id,
-		TenantID:  tenantID,
-		Sections:  sections,
+		BaseEvent: domain.NewBaseEvent(params.ID),
+		ID:        params.ID,
+		TenantID:  params.TenantID,
+		Sections:  params.Sections,
+		Pillars:   params.Pillars,
 		CreatedAt: time.Now().UTC(),
-		CreatedBy: createdBy,
+		CreatedBy: params.CreatedBy,
 	}
 }
 
@@ -41,6 +51,7 @@ func (e MetaModelConfigurationCreated) EventData() map[string]interface{} {
 		"id":        e.ID,
 		"tenantId":  e.TenantID,
 		"sections":  e.Sections,
+		"pillars":   e.Pillars,
 		"createdAt": e.CreatedAt,
 		"createdBy": e.CreatedBy,
 	}

@@ -107,6 +107,8 @@ func MapErrorToStatusCode(err error, defaultCode int) int {
 		return http.StatusConflict
 	case errors.Is(err, domain.ErrConflict):
 		return http.StatusConflict
+	case errors.Is(err, domain.ErrConcurrencyConflict):
+		return http.StatusPreconditionFailed
 	case errors.Is(err, domain.ErrInvalidOperation):
 		return http.StatusConflict
 	case errors.As(err, &domain.ValidationError{}):

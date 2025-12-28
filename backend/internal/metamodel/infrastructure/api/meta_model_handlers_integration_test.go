@@ -27,10 +27,15 @@ import (
 	"easi/backend/internal/shared/events"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func generateTestTenantID() string {
+	return fmt.Sprintf("test-%s", uuid.New().String())
+}
 
 type testContext struct {
 	db         *sql.DB
@@ -82,9 +87,10 @@ type testHandlers struct {
 	commandBus     *cqrs.InMemoryCommandBus
 	readModel      *readmodels.MetaModelConfigurationReadModel
 	sessionManager *testSessionManager
+	tenantID       string
 }
 
-func setupHandlers(db *sql.DB) *testHandlers {
+func setupHandlers(db *sql.DB, tenantID string) *testHandlers {
 	tenantDB := database.NewTenantAwareDB(db)
 
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
@@ -117,7 +123,12 @@ func setupHandlers(db *sql.DB) *testHandlers {
 		commandBus:     commandBus,
 		readModel:      readModel,
 		sessionManager: sessionMgr,
+		tenantID:       tenantID,
 	}
+}
+
+func (h *testHandlers) tenantContext() context.Context {
+	return tenantContextWithID(h.tenantID)
 }
 
 func (h *testHandlers) createRouter() chi.Router {
@@ -132,7 +143,7 @@ func (h *testHandlers) createRouter() chi.Router {
 
 func (h *testHandlers) wrapHandler(handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		r = withTestTenant(r)
+		r = withTenant(r, h.tenantID)
 		handler(w, r)
 	}
 }
@@ -157,11 +168,11 @@ func (h *testHandlers) executeRequest(router chi.Router, method, path string, op
 
 func createTestConfiguration(t *testing.T, testCtx *testContext, h *testHandlers) string {
 	cmd := &commands.CreateMetaModelConfiguration{
-		TenantID:  testTenantID(),
+		TenantID:  h.tenantID,
 		CreatedBy: "test@example.com",
 	}
 
-	err := h.commandBus.Dispatch(tenantContext(), cmd)
+	err := h.commandBus.Dispatch(h.tenantContext(), cmd)
 	require.NoError(t, err)
 
 	testCtx.trackID(cmd.ID)
@@ -186,11 +197,12 @@ func TestGetMaturityScale_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	h := setupHandlers(testCtx.db)
+	tenantID := generateTestTenantID()
+	h := setupHandlers(testCtx.db, tenantID)
 	configID := createTestConfiguration(t, testCtx, h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/meta-model/maturity-scale", nil)
-	req = withTestTenant(req)
+	req = withTenant(req, h.tenantID)
 	w := httptest.NewRecorder()
 
 	h.handlers.GetMaturityScale(w, req)
@@ -202,7 +214,7 @@ func TestGetMaturityScale_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, configID, response.ID)
-	assert.Equal(t, testTenantID(), response.TenantID)
+	assert.Equal(t, h.tenantID, response.TenantID)
 	assert.Len(t, response.Sections, 4)
 	assert.Equal(t, 1, response.Version)
 
@@ -225,26 +237,37 @@ func TestGetMaturityScale_Integration(t *testing.T) {
 	assert.NotNil(t, response.Links)
 }
 
-func TestGetMaturityScale_NotFound_Integration(t *testing.T) {
+func TestGetMaturityScale_ReturnsDefault_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	h := setupHandlers(testCtx.db)
+	tenantID := generateTestTenantID()
+	h := setupHandlers(testCtx.db, tenantID)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/meta-model/maturity-scale", nil)
-	req = withTestTenant(req)
+	req = withTenant(req, h.tenantID)
 	w := httptest.NewRecorder()
 
 	h.handlers.GetMaturityScale(w, req)
 
-	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response readmodels.MetaModelConfigurationDTO
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+
+	assert.True(t, response.IsDefault)
+	assert.Equal(t, 0, response.Version)
+	assert.Len(t, response.Sections, 4)
+	assert.Equal(t, "Genesis", response.Sections[0].Name)
 }
 
 func TestUpdateMaturityScale_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	h := setupHandlers(testCtx.db)
+	tenantID := generateTestTenantID()
+	h := setupHandlers(testCtx.db, tenantID)
 	configID := createTestConfiguration(t, testCtx, h)
 
 	reqBody := UpdateMaturityScaleRequest{
@@ -287,7 +310,8 @@ func TestUpdateMaturityScale_InvalidSections_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	h := setupHandlers(testCtx.db)
+	tenantID := generateTestTenantID()
+	h := setupHandlers(testCtx.db, tenantID)
 	createTestConfiguration(t, testCtx, h)
 
 	reqBody := UpdateMaturityScaleRequest{
@@ -316,7 +340,8 @@ func TestResetMaturityScale_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	h := setupHandlers(testCtx.db)
+	tenantID := generateTestTenantID()
+	h := setupHandlers(testCtx.db, tenantID)
 	configID := createTestConfiguration(t, testCtx, h)
 
 	userEmail := "admin@acme.com"
@@ -367,11 +392,12 @@ func TestGetMaturityScaleByID_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	h := setupHandlers(testCtx.db)
+	tenantID := generateTestTenantID()
+	h := setupHandlers(testCtx.db, tenantID)
 	configID := createTestConfiguration(t, testCtx, h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/meta-model/configurations/"+configID, nil)
-	req = withTestTenant(req)
+	req = withTenant(req, h.tenantID)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", configID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -393,12 +419,13 @@ func TestGetMaturityScaleByID_NotFound_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	h := setupHandlers(testCtx.db)
+	tenantID := generateTestTenantID()
+	h := setupHandlers(testCtx.db, tenantID)
 
 	nonExistentID := fmt.Sprintf("non-existent-%d", time.Now().UnixNano())
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/meta-model/configurations/"+nonExistentID, nil)
-	req = withTestTenant(req)
+	req = withTenant(req, h.tenantID)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", nonExistentID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -409,13 +436,14 @@ func TestGetMaturityScaleByID_NotFound_Integration(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
-func TestUpdateMaturityScale_NotFound_Integration(t *testing.T) {
+func TestUpdateMaturityScale_AutoCreatesConfig_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	h := setupHandlers(testCtx.db)
+	tenantID := generateTestTenantID()
+	h := setupHandlers(testCtx.db, tenantID)
 
-	body, _ := json.Marshal(validSectionsRequest(1))
+	body, _ := json.Marshal(validSectionsRequest(0))
 	cookies := h.sessionManager.getSessionCookies(t, "admin@acme.com")
 	router := h.createRouter()
 
@@ -424,14 +452,15 @@ func TestUpdateMaturityScale_NotFound_Integration(t *testing.T) {
 		cookies: cookies,
 	})
 
-	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
-func TestResetMaturityScale_NotFound_Integration(t *testing.T) {
+func TestResetMaturityScale_AutoCreatesConfig_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	h := setupHandlers(testCtx.db)
+	tenantID := generateTestTenantID()
+	h := setupHandlers(testCtx.db, tenantID)
 
 	cookies := h.sessionManager.getSessionCookies(t, "admin@acme.com")
 	router := h.createRouter()
@@ -440,14 +469,23 @@ func TestResetMaturityScale_NotFound_Integration(t *testing.T) {
 		cookies: cookies,
 	})
 
-	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response readmodels.MetaModelConfigurationDTO
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+
+	assert.True(t, response.IsDefault)
+	assert.NotEmpty(t, response.ID)
+	assert.Equal(t, h.tenantID, response.TenantID)
 }
 
 func TestUpdateMaturityScale_Unauthorized_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	h := setupHandlers(testCtx.db)
+	tenantID := generateTestTenantID()
+	h := setupHandlers(testCtx.db, tenantID)
 	createTestConfiguration(t, testCtx, h)
 
 	body, _ := json.Marshal(validSectionsRequest(1))
@@ -464,7 +502,8 @@ func TestResetMaturityScale_Unauthorized_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	h := setupHandlers(testCtx.db)
+	tenantID := generateTestTenantID()
+	h := setupHandlers(testCtx.db, tenantID)
 	createTestConfiguration(t, testCtx, h)
 
 	router := h.createRouter()
@@ -478,7 +517,8 @@ func TestUpdateMaturityScale_RecordsUserEmail_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	h := setupHandlers(testCtx.db)
+	tenantID := generateTestTenantID()
+	h := setupHandlers(testCtx.db, tenantID)
 	createTestConfiguration(t, testCtx, h)
 
 	reqBody := UpdateMaturityScaleRequest{

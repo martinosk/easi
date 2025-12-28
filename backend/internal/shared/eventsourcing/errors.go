@@ -15,6 +15,9 @@ var (
 
 	// ErrConflict indicates a business rule violation or conflict
 	ErrConflict = errors.New("conflict")
+
+	// ErrConcurrencyConflict indicates the resource was modified by another user
+	ErrConcurrencyConflict = errors.New("resource was modified by another user")
 )
 
 // ValidationError represents a validation error with details

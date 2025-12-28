@@ -127,9 +127,9 @@ Settings → Strategy Pillars (new tab alongside Maturity Scale)
 
 ## Checklist
 
-- [ ] Specification approved
-- [ ] Domain model implemented
-- [ ] API implemented
-- [ ] Settings UI implemented
-- [ ] Tests passing
+- [x] Specification approved
+- [x] Domain model implemented
+- [x] API implemented
+- [x] Settings UI implemented
+- [x] Tests passing
 - [ ] User sign-off

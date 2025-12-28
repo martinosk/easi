@@ -163,3 +163,22 @@ func (h *HATEOASLinks) MaturityScaleLinks(isDefault bool) map[string]string {
 func (h *HATEOASLinks) MetaModelConfigLinks(configID string, isDefault bool) map[string]string {
 	return h.buildMaturityLinks(fmt.Sprintf("%s/meta-model/configurations/%s", h.baseURL, configID), isDefault)
 }
+
+func (h *HATEOASLinks) StrategyPillarLinks(pillarID string, isActive bool) map[string]string {
+	links := map[string]string{
+		"self":       fmt.Sprintf("%s/meta-model/strategy-pillars/%s", h.baseURL, pillarID),
+		"collection": fmt.Sprintf("%s/meta-model/strategy-pillars", h.baseURL),
+	}
+	if isActive {
+		links["update"] = fmt.Sprintf("%s/meta-model/strategy-pillars/%s", h.baseURL, pillarID)
+		links["delete"] = fmt.Sprintf("%s/meta-model/strategy-pillars/%s", h.baseURL, pillarID)
+	}
+	return links
+}
+
+func (h *HATEOASLinks) StrategyPillarsCollectionLinks() map[string]string {
+	return map[string]string{
+		"self":   fmt.Sprintf("%s/meta-model/strategy-pillars", h.baseURL),
+		"create": fmt.Sprintf("%s/meta-model/strategy-pillars", h.baseURL),
+	}
+}

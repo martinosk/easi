@@ -99,7 +99,7 @@ func (s *PostgresEventStore) checkVersionConflict(ctx context.Context, tx *sql.T
 	}
 
 	if currentVersion != expectedVersion {
-		return fmt.Errorf("concurrency conflict: expected version %d, got %d", expectedVersion, currentVersion)
+		return fmt.Errorf("%w: expected version %d, got %d", domain.ErrConcurrencyConflict, expectedVersion, currentVersion)
 	}
 
 	return nil

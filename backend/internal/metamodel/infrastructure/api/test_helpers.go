@@ -35,12 +35,23 @@ func withTestTenant(req *http.Request) *http.Request {
 	return req.WithContext(ctx)
 }
 
+func withTenant(req *http.Request, tenantID string) *http.Request {
+	tid, _ := sharedvo.NewTenantID(tenantID)
+	ctx := sharedcontext.WithTenant(req.Context(), tid)
+	return req.WithContext(ctx)
+}
+
 func testTenantID() string {
 	return "default"
 }
 
 func tenantContext() context.Context {
 	return sharedcontext.WithTenant(context.Background(), sharedvo.DefaultTenantID())
+}
+
+func tenantContextWithID(tenantID string) context.Context {
+	tid, _ := sharedvo.NewTenantID(tenantID)
+	return sharedcontext.WithTenant(context.Background(), tid)
 }
 
 func makeRequest(method, url string, body []byte, urlParams map[string]string) (*httptest.ResponseRecorder, *http.Request) {

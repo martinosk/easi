@@ -17,16 +17,24 @@ type MaturitySectionDTO struct {
 	MaxValue int    `json:"maxValue"`
 }
 
+type StrategyPillarDTO struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Active      bool   `json:"active"`
+}
+
 type MetaModelConfigurationDTO struct {
-	ID         string               `json:"id"`
-	TenantID   string               `json:"tenantId"`
-	Sections   []MaturitySectionDTO `json:"sections"`
-	Version    int                  `json:"version"`
-	IsDefault  bool                 `json:"isDefault"`
-	CreatedAt  time.Time            `json:"createdAt"`
-	ModifiedAt time.Time            `json:"modifiedAt"`
-	ModifiedBy string               `json:"modifiedBy"`
-	Links      map[string]string    `json:"_links,omitempty"`
+	ID              string               `json:"id"`
+	TenantID        string               `json:"tenantId"`
+	Sections        []MaturitySectionDTO `json:"sections"`
+	StrategyPillars []StrategyPillarDTO  `json:"strategyPillars"`
+	Version         int                  `json:"version"`
+	IsDefault       bool                 `json:"isDefault"`
+	CreatedAt       time.Time            `json:"createdAt"`
+	ModifiedAt      time.Time            `json:"modifiedAt"`
+	ModifiedBy      string               `json:"modifiedBy"`
+	Links           map[string]string    `json:"_links,omitempty"`
 }
 
 type MetaModelConfigurationReadModel struct {
@@ -34,12 +42,13 @@ type MetaModelConfigurationReadModel struct {
 }
 
 type UpdateParams struct {
-	ID         string
-	Sections   []MaturitySectionDTO
-	Version    int
-	IsDefault  bool
-	ModifiedAt time.Time
-	ModifiedBy string
+	ID              string
+	Sections        []MaturitySectionDTO
+	StrategyPillars []StrategyPillarDTO
+	Version         int
+	IsDefault       bool
+	ModifiedAt      time.Time
+	ModifiedBy      string
 }
 
 func NewMetaModelConfigurationReadModel(db *database.TenantAwareDB) *MetaModelConfigurationReadModel {
@@ -57,11 +66,16 @@ func (rm *MetaModelConfigurationReadModel) Insert(ctx context.Context, dto MetaM
 		return err
 	}
 
+	pillarsJSON, err := json.Marshal(dto.StrategyPillars)
+	if err != nil {
+		return err
+	}
+
 	_, err = rm.db.ExecContext(ctx,
 		`INSERT INTO meta_model_configurations
-		(id, tenant_id, sections, version, is_default, created_at, modified_at, modified_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		dto.ID, tenantID.Value(), sectionsJSON, dto.Version, dto.IsDefault, dto.CreatedAt, dto.ModifiedAt, dto.ModifiedBy,
+		(id, tenant_id, sections, strategy_pillars, version, is_default, created_at, modified_at, modified_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		dto.ID, tenantID.Value(), sectionsJSON, pillarsJSON, dto.Version, dto.IsDefault, dto.CreatedAt, dto.ModifiedAt, dto.ModifiedBy,
 	)
 	return err
 }
@@ -77,11 +91,16 @@ func (rm *MetaModelConfigurationReadModel) Update(ctx context.Context, params Up
 		return err
 	}
 
+	pillarsJSON, err := json.Marshal(params.StrategyPillars)
+	if err != nil {
+		return err
+	}
+
 	_, err = rm.db.ExecContext(ctx,
 		`UPDATE meta_model_configurations
-		SET sections = $1, version = $2, is_default = $3, modified_at = $4, modified_by = $5
-		WHERE tenant_id = $6 AND id = $7`,
-		sectionsJSON, params.Version, params.IsDefault, params.ModifiedAt, params.ModifiedBy, tenantID.Value(), params.ID,
+		SET sections = $1, strategy_pillars = $2, version = $3, is_default = $4, modified_at = $5, modified_by = $6
+		WHERE tenant_id = $7 AND id = $8`,
+		sectionsJSON, pillarsJSON, params.Version, params.IsDefault, params.ModifiedAt, params.ModifiedBy, tenantID.Value(), params.ID,
 	)
 	return err
 }
@@ -94,15 +113,16 @@ func (rm *MetaModelConfigurationReadModel) GetByID(ctx context.Context, id strin
 
 	var dto MetaModelConfigurationDTO
 	var sectionsJSON []byte
+	var pillarsJSON []byte
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			`SELECT id, tenant_id, sections, version, is_default, created_at, modified_at, modified_by
+			`SELECT id, tenant_id, sections, strategy_pillars, version, is_default, created_at, modified_at, modified_by
 			FROM meta_model_configurations
 			WHERE tenant_id = $1 AND id = $2`,
 			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.TenantID, &sectionsJSON, &dto.Version, &dto.IsDefault, &dto.CreatedAt, &dto.ModifiedAt, &dto.ModifiedBy)
+		).Scan(&dto.ID, &dto.TenantID, &sectionsJSON, &pillarsJSON, &dto.Version, &dto.IsDefault, &dto.CreatedAt, &dto.ModifiedAt, &dto.ModifiedBy)
 
 		if err == sql.ErrNoRows {
 			notFound = true
@@ -120,6 +140,12 @@ func (rm *MetaModelConfigurationReadModel) GetByID(ctx context.Context, id strin
 
 	if err := json.Unmarshal(sectionsJSON, &dto.Sections); err != nil {
 		return nil, err
+	}
+
+	if pillarsJSON != nil {
+		if err := json.Unmarshal(pillarsJSON, &dto.StrategyPillars); err != nil {
+			return nil, err
+		}
 	}
 
 	return &dto, nil
@@ -133,15 +159,16 @@ func (rm *MetaModelConfigurationReadModel) GetByTenantID(ctx context.Context) (*
 
 	var dto MetaModelConfigurationDTO
 	var sectionsJSON []byte
+	var pillarsJSON []byte
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			`SELECT id, tenant_id, sections, version, is_default, created_at, modified_at, modified_by
+			`SELECT id, tenant_id, sections, strategy_pillars, version, is_default, created_at, modified_at, modified_by
 			FROM meta_model_configurations
 			WHERE tenant_id = $1`,
 			tenantID.Value(),
-		).Scan(&dto.ID, &dto.TenantID, &sectionsJSON, &dto.Version, &dto.IsDefault, &dto.CreatedAt, &dto.ModifiedAt, &dto.ModifiedBy)
+		).Scan(&dto.ID, &dto.TenantID, &sectionsJSON, &pillarsJSON, &dto.Version, &dto.IsDefault, &dto.CreatedAt, &dto.ModifiedAt, &dto.ModifiedBy)
 
 		if err == sql.ErrNoRows {
 			notFound = true
@@ -159,6 +186,12 @@ func (rm *MetaModelConfigurationReadModel) GetByTenantID(ctx context.Context) (*
 
 	if err := json.Unmarshal(sectionsJSON, &dto.Sections); err != nil {
 		return nil, err
+	}
+
+	if pillarsJSON != nil {
+		if err := json.Unmarshal(pillarsJSON, &dto.StrategyPillars); err != nil {
+			return nil, err
+		}
 	}
 
 	return &dto, nil

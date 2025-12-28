@@ -80,6 +80,7 @@ export const queryKeys = {
     statuses: () => [...queryKeys.metadata.all, 'statuses'] as const,
     ownershipModels: () => [...queryKeys.metadata.all, 'ownershipModels'] as const,
     strategyPillars: () => [...queryKeys.metadata.all, 'strategyPillars'] as const,
+    strategyPillarsConfig: () => [...queryKeys.metadata.all, 'strategyPillarsConfig'] as const,
     version: () => [...queryKeys.metadata.all, 'version'] as const,
   },
   releases: {

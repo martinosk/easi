@@ -1,7 +1,6 @@
 package repositories
 
 import (
-	"context"
 	"errors"
 	"time"
 
@@ -29,10 +28,6 @@ func NewMetaModelConfigurationRepository(eventStore eventstore.EventStore) *Meta
 	}
 }
 
-func (r *MetaModelConfigurationRepository) GetByTenantID(ctx context.Context, tenantID string) (*aggregates.MetaModelConfiguration, error) {
-	return nil, errors.New("not implemented - requires read model lookup")
-}
-
 var metaModelEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
 		"MetaModelConfigurationCreated": func(data map[string]interface{}) domain.DomainEvent {
@@ -45,7 +40,16 @@ var metaModelEventDeserializers = repository.NewEventDeserializers(
 			sectionsRaw, _ := data["sections"].([]interface{})
 			sections := deserializeSections(sectionsRaw)
 
-			evt := events.NewMetaModelConfigurationCreated(id, tenantID, sections, createdBy)
+			pillarsRaw, _ := data["pillars"].([]interface{})
+			pillars := deserializePillars(pillarsRaw)
+
+			evt := events.NewMetaModelConfigurationCreated(events.CreateConfigParams{
+				ID:        id,
+				TenantID:  tenantID,
+				Sections:  sections,
+				Pillars:   pillars,
+				CreatedBy: createdBy,
+			})
 			evt.CreatedAt = createdAt
 			return evt
 		},
@@ -79,6 +83,75 @@ var metaModelEventDeserializers = repository.NewEventDeserializers(
 			evt.ModifiedAt = modifiedAt
 			return evt
 		},
+		"StrategyPillarAdded": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			tenantID, _ := data["tenantId"].(string)
+			version, _ := data["version"].(float64)
+			pillarID, _ := data["pillarId"].(string)
+			name, _ := data["name"].(string)
+			description, _ := data["description"].(string)
+			modifiedBy, _ := data["modifiedBy"].(string)
+			modifiedAtStr, _ := data["modifiedAt"].(string)
+			modifiedAt, _ := time.Parse(time.RFC3339Nano, modifiedAtStr)
+
+			evt := events.NewStrategyPillarAdded(events.AddPillarParams{
+				PillarEventParams: events.PillarEventParams{
+					ConfigID:   id,
+					TenantID:   tenantID,
+					Version:    int(version),
+					PillarID:   pillarID,
+					ModifiedBy: modifiedBy,
+				},
+				Name:        name,
+				Description: description,
+			})
+			evt.ModifiedAt = modifiedAt
+			return evt
+		},
+		"StrategyPillarUpdated": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			tenantID, _ := data["tenantId"].(string)
+			version, _ := data["version"].(float64)
+			pillarID, _ := data["pillarId"].(string)
+			newName, _ := data["newName"].(string)
+			newDescription, _ := data["newDescription"].(string)
+			modifiedBy, _ := data["modifiedBy"].(string)
+			modifiedAtStr, _ := data["modifiedAt"].(string)
+			modifiedAt, _ := time.Parse(time.RFC3339Nano, modifiedAtStr)
+
+			evt := events.NewStrategyPillarUpdated(events.UpdatePillarParams{
+				PillarEventParams: events.PillarEventParams{
+					ConfigID:   id,
+					TenantID:   tenantID,
+					Version:    int(version),
+					PillarID:   pillarID,
+					ModifiedBy: modifiedBy,
+				},
+				NewName:        newName,
+				NewDescription: newDescription,
+			})
+			evt.ModifiedAt = modifiedAt
+			return evt
+		},
+		"StrategyPillarRemoved": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			tenantID, _ := data["tenantId"].(string)
+			version, _ := data["version"].(float64)
+			pillarID, _ := data["pillarId"].(string)
+			modifiedBy, _ := data["modifiedBy"].(string)
+			modifiedAtStr, _ := data["modifiedAt"].(string)
+			modifiedAt, _ := time.Parse(time.RFC3339Nano, modifiedAtStr)
+
+			evt := events.NewStrategyPillarRemoved(events.PillarEventParams{
+				ConfigID:   id,
+				TenantID:   tenantID,
+				Version:    int(version),
+				PillarID:   pillarID,
+				ModifiedBy: modifiedBy,
+			})
+			evt.ModifiedAt = modifiedAt
+			return evt
+		},
 	},
 )
 
@@ -102,4 +175,26 @@ func deserializeSections(sectionsRaw []interface{}) []events.MaturitySectionData
 		})
 	}
 	return sections
+}
+
+func deserializePillars(pillarsRaw []interface{}) []events.StrategyPillarData {
+	pillars := make([]events.StrategyPillarData, 0, len(pillarsRaw))
+	for _, p := range pillarsRaw {
+		pillarMap, ok := p.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		id, _ := pillarMap["id"].(string)
+		name, _ := pillarMap["name"].(string)
+		description, _ := pillarMap["description"].(string)
+		active, _ := pillarMap["active"].(bool)
+
+		pillars = append(pillars, events.StrategyPillarData{
+			ID:          id,
+			Name:        name,
+			Description: description,
+			Active:      active,
+		})
+	}
+	return pillars
 }

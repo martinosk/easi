@@ -1,5 +1,6 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import { MaturityScaleSettings } from '../components/MaturityScaleSettings';
+import { StrategyPillarsSettings } from '../components/StrategyPillarsSettings';
 import { useUserStore } from '../../../store/userStore';
 import './SettingsPage.css';
 
@@ -29,9 +30,29 @@ export function SettingsPage() {
           </p>
         </div>
 
+        <nav className="settings-tabs">
+          <NavLink
+            to="/settings/maturity-scale"
+            className={({ isActive }) =>
+              `settings-tab ${isActive ? 'settings-tab-active' : ''}`
+            }
+          >
+            Maturity Scale
+          </NavLink>
+          <NavLink
+            to="/settings/strategy-pillars"
+            className={({ isActive }) =>
+              `settings-tab ${isActive ? 'settings-tab-active' : ''}`
+            }
+          >
+            Strategy Pillars
+          </NavLink>
+        </nav>
+
         <Routes>
           <Route path="/" element={<Navigate to="/settings/maturity-scale" replace />} />
           <Route path="/maturity-scale" element={<MaturityScaleSettings />} />
+          <Route path="/strategy-pillars" element={<StrategyPillarsSettings />} />
         </Routes>
       </div>
     </div>

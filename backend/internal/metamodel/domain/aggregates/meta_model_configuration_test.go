@@ -97,17 +97,22 @@ func TestMetaModelConfiguration_ResetToDefaults(t *testing.T) {
 }
 
 func TestLoadMetaModelConfigurationFromHistory(t *testing.T) {
-	createdEvent := events.NewMetaModelConfigurationCreated(
-		"config-uuid",
-		"tenant-123",
-		[]events.MaturitySectionData{
+	createdEvent := events.NewMetaModelConfigurationCreated(events.CreateConfigParams{
+		ID:       "config-uuid",
+		TenantID: "tenant-123",
+		Sections: []events.MaturitySectionData{
 			{Order: 1, Name: "Genesis", MinValue: 0, MaxValue: 24},
 			{Order: 2, Name: "Custom Built", MinValue: 25, MaxValue: 49},
 			{Order: 3, Name: "Product", MinValue: 50, MaxValue: 74},
 			{Order: 4, Name: "Commodity", MinValue: 75, MaxValue: 99},
 		},
-		"admin@example.com",
-	)
+		Pillars: []events.StrategyPillarData{
+			{ID: "pillar-1", Name: "Always On", Description: "Core capabilities", Active: true},
+			{ID: "pillar-2", Name: "Grow", Description: "Growth capabilities", Active: true},
+			{ID: "pillar-3", Name: "Transform", Description: "Transformation capabilities", Active: true},
+		},
+		CreatedBy: "admin@example.com",
+	})
 
 	history := []domain.DomainEvent{createdEvent}
 
@@ -120,17 +125,22 @@ func TestLoadMetaModelConfigurationFromHistory(t *testing.T) {
 }
 
 func TestLoadMetaModelConfigurationFromHistory_WithUpdates(t *testing.T) {
-	createdEvent := events.NewMetaModelConfigurationCreated(
-		"config-uuid",
-		"tenant-123",
-		[]events.MaturitySectionData{
+	createdEvent := events.NewMetaModelConfigurationCreated(events.CreateConfigParams{
+		ID:       "config-uuid",
+		TenantID: "tenant-123",
+		Sections: []events.MaturitySectionData{
 			{Order: 1, Name: "Genesis", MinValue: 0, MaxValue: 24},
 			{Order: 2, Name: "Custom Built", MinValue: 25, MaxValue: 49},
 			{Order: 3, Name: "Product", MinValue: 50, MaxValue: 74},
 			{Order: 4, Name: "Commodity", MinValue: 75, MaxValue: 99},
 		},
-		"admin@example.com",
-	)
+		Pillars: []events.StrategyPillarData{
+			{ID: "pillar-1", Name: "Always On", Description: "Core capabilities", Active: true},
+			{ID: "pillar-2", Name: "Grow", Description: "Growth capabilities", Active: true},
+			{ID: "pillar-3", Name: "Transform", Description: "Transformation capabilities", Active: true},
+		},
+		CreatedBy: "admin@example.com",
+	})
 
 	updatedEvent := events.NewMaturityScaleConfigUpdated(
 		"config-uuid",
@@ -153,6 +163,109 @@ func TestLoadMetaModelConfigurationFromHistory_WithUpdates(t *testing.T) {
 	assert.Equal(t, "config-uuid", config.ID())
 	assert.Equal(t, 2, config.Version())
 	assert.Equal(t, "Emerging", config.MaturityScaleConfig().Sections()[0].Name().Value())
+}
+
+func TestMetaModelConfiguration_AddStrategyPillar(t *testing.T) {
+	tenantID, _ := sharedvo.NewTenantID("tenant-123")
+	createdBy, _ := valueobjects.NewUserEmail("admin@example.com")
+	config, _ := NewMetaModelConfiguration(tenantID, createdBy)
+	config.MarkChangesAsCommitted()
+
+	pillarName, _ := valueobjects.NewPillarName("Innovation")
+	pillarDesc, _ := valueobjects.NewPillarDescription("Innovation capabilities")
+	modifiedBy, _ := valueobjects.NewUserEmail("editor@example.com")
+
+	err := config.AddStrategyPillar(pillarName, pillarDesc, modifiedBy)
+
+	require.NoError(t, err)
+	assert.Equal(t, 4, config.StrategyPillarsConfig().CountActive())
+	assert.Equal(t, 2, config.Version())
+
+	changes := config.GetUncommittedChanges()
+	assert.Len(t, changes, 1)
+
+	addedEvent, ok := changes[0].(events.StrategyPillarAdded)
+	assert.True(t, ok)
+	assert.Equal(t, "Innovation", addedEvent.Name)
+	assert.Equal(t, modifiedBy.Value(), addedEvent.ModifiedBy)
+}
+
+func TestMetaModelConfiguration_AddStrategyPillar_DuplicateName(t *testing.T) {
+	tenantID, _ := sharedvo.NewTenantID("tenant-123")
+	createdBy, _ := valueobjects.NewUserEmail("admin@example.com")
+	config, _ := NewMetaModelConfiguration(tenantID, createdBy)
+	config.MarkChangesAsCommitted()
+
+	pillarName, _ := valueobjects.NewPillarName("always on")
+	pillarDesc, _ := valueobjects.NewPillarDescription("")
+	modifiedBy, _ := valueobjects.NewUserEmail("editor@example.com")
+
+	err := config.AddStrategyPillar(pillarName, pillarDesc, modifiedBy)
+
+	assert.Error(t, err)
+	assert.Equal(t, valueobjects.ErrPillarNameDuplicate, err)
+}
+
+func TestMetaModelConfiguration_UpdateStrategyPillar(t *testing.T) {
+	tenantID, _ := sharedvo.NewTenantID("tenant-123")
+	createdBy, _ := valueobjects.NewUserEmail("admin@example.com")
+	config, _ := NewMetaModelConfiguration(tenantID, createdBy)
+	config.MarkChangesAsCommitted()
+
+	pillarID := config.StrategyPillarsConfig().Pillars()[0].ID()
+	newName, _ := valueobjects.NewPillarName("Updated Pillar")
+	newDesc, _ := valueobjects.NewPillarDescription("Updated description")
+	modifiedBy, _ := valueobjects.NewUserEmail("editor@example.com")
+
+	err := config.UpdateStrategyPillar(pillarID, newName, newDesc, modifiedBy)
+
+	require.NoError(t, err)
+	assert.Equal(t, 2, config.Version())
+	found, _ := config.StrategyPillarsConfig().FindByID(pillarID)
+	assert.Equal(t, "Updated Pillar", found.Name().Value())
+}
+
+func TestMetaModelConfiguration_RemoveStrategyPillar(t *testing.T) {
+	tenantID, _ := sharedvo.NewTenantID("tenant-123")
+	createdBy, _ := valueobjects.NewUserEmail("admin@example.com")
+	config, _ := NewMetaModelConfiguration(tenantID, createdBy)
+	config.MarkChangesAsCommitted()
+
+	pillarID := config.StrategyPillarsConfig().Pillars()[0].ID()
+	modifiedBy, _ := valueobjects.NewUserEmail("editor@example.com")
+
+	err := config.RemoveStrategyPillar(pillarID, modifiedBy)
+
+	require.NoError(t, err)
+	assert.Equal(t, 2, config.StrategyPillarsConfig().CountActive())
+	assert.Equal(t, 2, config.Version())
+
+	changes := config.GetUncommittedChanges()
+	assert.Len(t, changes, 1)
+
+	removedEvent, ok := changes[0].(events.StrategyPillarRemoved)
+	assert.True(t, ok)
+	assert.Equal(t, pillarID.Value(), removedEvent.PillarID)
+}
+
+func TestMetaModelConfiguration_RemoveStrategyPillar_LastActive(t *testing.T) {
+	tenantID, _ := sharedvo.NewTenantID("tenant-123")
+	createdBy, _ := valueobjects.NewUserEmail("admin@example.com")
+	config, _ := NewMetaModelConfiguration(tenantID, createdBy)
+	config.MarkChangesAsCommitted()
+
+	pillars := config.StrategyPillarsConfig().Pillars()
+	modifiedBy, _ := valueobjects.NewUserEmail("editor@example.com")
+
+	_ = config.RemoveStrategyPillar(pillars[0].ID(), modifiedBy)
+	config.MarkChangesAsCommitted()
+	_ = config.RemoveStrategyPillar(pillars[1].ID(), modifiedBy)
+	config.MarkChangesAsCommitted()
+
+	err := config.RemoveStrategyPillar(pillars[2].ID(), modifiedBy)
+
+	assert.Error(t, err)
+	assert.Equal(t, valueobjects.ErrCannotRemoveLastActivePillar, err)
 }
 
 func createCustomMaturityScaleConfig() valueobjects.MaturityScaleConfig {
