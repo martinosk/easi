@@ -3,7 +3,7 @@ package valueobjects
 import (
 	"errors"
 
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 var (

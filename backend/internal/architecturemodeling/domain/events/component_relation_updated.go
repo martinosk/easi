@@ -1,9 +1,8 @@
 package events
 
 import (
+	domain "easi/backend/internal/shared/eventsourcing"
 	"time"
-
-	"easi/backend/internal/shared/eventsourcing"
 )
 
 // ComponentRelationUpdated is raised when a component relation is updated

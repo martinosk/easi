@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { afterEach, beforeAll, afterAll, beforeEach, vi, expect } from 'vitest';
+import { afterEach, beforeAll, afterAll, beforeEach, expect } from 'vitest';
 import { cleanup, act } from '@testing-library/react';
 import { server } from './mocks/server';
 import { resetDb } from './mocks/db';

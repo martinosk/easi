@@ -9,9 +9,9 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
-	"easi/backend/internal/shared/eventsourcing"
-	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 	"easi/backend/internal/shared/events"
+	domain "easi/backend/internal/shared/eventsourcing"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 // EventStore defines the interface for event storage

@@ -11,15 +11,15 @@ const LAYOUT_STORAGE_KEY = 'easi-business-domains-dockview-layout';
 
 type BusinessDomainsHookReturn = ReturnType<typeof useBusinessDomainsPage>;
 
-interface DomainsSidebarPanelProps extends IDockviewPanelProps<{
+type DomainsSidebarPanelProps = IDockviewPanelProps<{
   domains: BusinessDomainsHookReturn['domains'];
   selectedDomainId: BusinessDomainsHookReturn['visualizedDomain'] extends infer T ? T extends null ? undefined : T extends { id: infer U } ? U : undefined : undefined;
   onCreateClick: BusinessDomainsHookReturn['dialogManager']['handleCreateClick'];
   onVisualize: BusinessDomainsHookReturn['handleVisualizeClick'];
   onContextMenu: BusinessDomainsHookReturn['domainContextMenu']['handleContextMenu'];
-}> {}
+}>;
 
-interface VisualizationPanelProps extends IDockviewPanelProps<{
+type VisualizationPanelProps = IDockviewPanelProps<{
   visualizedDomain: BusinessDomainsHookReturn['visualizedDomain'];
   capabilities: BusinessDomainsHookReturn['filtering']['capabilitiesWithDescendants'];
   capabilitiesLoading: BusinessDomainsHookReturn['capabilitiesLoading'];
@@ -37,20 +37,20 @@ interface VisualizationPanelProps extends IDockviewPanelProps<{
   onDragOver: BusinessDomainsHookReturn['dragHandlers']['handleDragOver'];
   onDragLeave: BusinessDomainsHookReturn['dragHandlers']['handleDragLeave'];
   onDrop: BusinessDomainsHookReturn['dragHandlers']['handleDrop'];
-}> {}
+}>;
 
-interface ExplorerPanelProps extends IDockviewPanelProps<{
+type ExplorerPanelProps = IDockviewPanelProps<{
   visualizedDomain: BusinessDomainsHookReturn['visualizedDomain'];
   capabilities: BusinessDomainsHookReturn['filtering']['allCapabilities'];
   assignedCapabilityIds: BusinessDomainsHookReturn['filtering']['assignedCapabilityIds'];
   onDragStart: BusinessDomainsHookReturn['dragHandlers']['handleDragStart'];
   onDragEnd: BusinessDomainsHookReturn['dragHandlers']['handleDragEnd'];
-}> {}
+}>;
 
-interface DetailsPanelProps extends IDockviewPanelProps<{
+type DetailsPanelProps = IDockviewPanelProps<{
   selectedCapability: BusinessDomainsHookReturn['selectedCapability'];
   selectedComponentId: BusinessDomainsHookReturn['selectedComponentId'];
-}> {}
+}>;
 
 const DomainsSidebarPanel = (props: DomainsSidebarPanelProps) => {
   return (

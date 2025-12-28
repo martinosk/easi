@@ -1,14 +1,14 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { VisualizationArea } from './VisualizationArea';
-import type { BusinessDomain, Capability, CapabilityId } from '../../../api/types';
+import type { BusinessDomain, BusinessDomainId, Capability, CapabilityId } from '../../../api/types';
 import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 
 const renderWithMantine = (ui: React.ReactElement) => render(<MantineTestWrapper>{ui}</MantineTestWrapper>);
 
 describe('VisualizationArea', () => {
   const mockDomain: BusinessDomain = {
-    id: 'domain-1' as any,
+    id: 'domain-1' as BusinessDomainId,
     name: 'Finance',
     description: '',
     createdAt: '2024-01-01',

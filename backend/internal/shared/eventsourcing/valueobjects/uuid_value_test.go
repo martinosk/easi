@@ -1,9 +1,8 @@
 package valueobjects
 
 import (
+	domain "easi/backend/internal/shared/eventsourcing"
 	"testing"
-
-	"easi/backend/internal/shared/eventsourcing"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"

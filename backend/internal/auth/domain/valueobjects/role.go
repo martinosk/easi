@@ -1,10 +1,9 @@
 package valueobjects
 
 import (
+	domain "easi/backend/internal/shared/eventsourcing"
 	"errors"
 	"strings"
-
-	"easi/backend/internal/shared/eventsourcing"
 )
 
 var ErrInvalidRole = errors.New("invalid role: must be admin, architect, or stakeholder")

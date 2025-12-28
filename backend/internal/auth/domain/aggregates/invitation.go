@@ -8,7 +8,7 @@ import (
 
 	"easi/backend/internal/auth/domain/events"
 	"easi/backend/internal/auth/domain/valueobjects"
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 const DefaultInvitationTTL = 7 * 24 * time.Hour

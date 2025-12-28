@@ -1,9 +1,8 @@
 package events
 
 import (
+	domain "easi/backend/internal/shared/eventsourcing"
 	"time"
-
-	"easi/backend/internal/shared/eventsourcing"
 )
 
 // ViewCreated is raised when a new architecture view is created

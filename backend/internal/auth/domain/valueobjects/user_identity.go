@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 	"easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 

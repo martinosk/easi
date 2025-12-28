@@ -1,6 +1,6 @@
 package repository
 
-import "easi/backend/internal/shared/eventsourcing"
+import domain "easi/backend/internal/shared/eventsourcing"
 
 type EventDeserializerFunc func(data map[string]interface{}) domain.DomainEvent
 

@@ -1,10 +1,9 @@
 package valueobjects
 
 import (
+	domain "easi/backend/internal/shared/eventsourcing"
 	"errors"
 	"strings"
-
-	"easi/backend/internal/shared/eventsourcing"
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"

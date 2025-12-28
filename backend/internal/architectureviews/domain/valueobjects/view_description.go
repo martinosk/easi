@@ -1,9 +1,8 @@
 package valueobjects
 
 import (
+	domain "easi/backend/internal/shared/eventsourcing"
 	"strings"
-
-	"easi/backend/internal/shared/eventsourcing"
 )
 
 const MaxDescriptionLength = 500

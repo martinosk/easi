@@ -107,7 +107,10 @@ func (tsm *testSessionManager) setupSession(email string) http.Handler {
 	})
 }
 
-func (tsm *testSessionManager) getSessionCookies(t interface{ Helper(); Fatalf(string, ...interface{}) }, email string) []*http.Cookie {
+func (tsm *testSessionManager) getSessionCookies(t interface {
+	Helper()
+	Fatalf(string, ...interface{})
+}, email string) []*http.Cookie {
 	t.Helper()
 	router := chi.NewRouter()
 	router.Use(tsm.scsManager.LoadAndSave)

@@ -1,9 +1,8 @@
 package events
 
 import (
+	domain "easi/backend/internal/shared/eventsourcing"
 	"time"
-
-	"easi/backend/internal/shared/eventsourcing"
 )
 
 type ImportSessionCreated struct {

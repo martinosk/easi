@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"easi/backend/internal/importing/application/readmodels"
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 type ImportSessionProjector struct {

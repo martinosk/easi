@@ -6,7 +6,7 @@ import (
 
 	"easi/backend/internal/importing/domain/events"
 	"easi/backend/internal/importing/domain/valueobjects"
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 var (

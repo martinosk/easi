@@ -1,9 +1,8 @@
 package valueobjects
 
 import (
+	domain "easi/backend/internal/shared/eventsourcing"
 	"errors"
-
-	"easi/backend/internal/shared/eventsourcing"
 )
 
 var ErrInvalidInvitationStatus = errors.New("invalid invitation status: must be pending, accepted, expired, or revoked")

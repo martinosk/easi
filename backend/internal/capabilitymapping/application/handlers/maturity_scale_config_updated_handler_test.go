@@ -2,10 +2,9 @@ package handlers
 
 import (
 	"context"
+	domain "easi/backend/internal/shared/eventsourcing"
 	"testing"
 	"time"
-
-	"easi/backend/internal/shared/eventsourcing"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -24,10 +23,10 @@ type mockEvent struct {
 	eventData   map[string]interface{}
 }
 
-func (e mockEvent) AggregateID() string                  { return e.aggregateID }
-func (e mockEvent) EventType() string                    { return e.eventType }
-func (e mockEvent) OccurredAt() time.Time                { return time.Now() }
-func (e mockEvent) EventData() map[string]interface{}   { return e.eventData }
+func (e mockEvent) AggregateID() string               { return e.aggregateID }
+func (e mockEvent) EventType() string                 { return e.eventType }
+func (e mockEvent) OccurredAt() time.Time             { return time.Now() }
+func (e mockEvent) EventData() map[string]interface{} { return e.eventData }
 
 var _ domain.DomainEvent = mockEvent{}
 

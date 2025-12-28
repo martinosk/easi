@@ -13,18 +13,18 @@ import (
 )
 
 type mockImportSessionReadModel struct {
-	insertedSessions []readmodels.ImportSessionDTO
-	statusUpdates    []statusUpdate
-	progressUpdates  []progressUpdate
-	completedCalls   []completedCall
-	failedCalls      []failedCall
-	cancelledIDs     []string
-	insertErr        error
-	updateStatusErr  error
+	insertedSessions  []readmodels.ImportSessionDTO
+	statusUpdates     []statusUpdate
+	progressUpdates   []progressUpdate
+	completedCalls    []completedCall
+	failedCalls       []failedCall
+	cancelledIDs      []string
+	insertErr         error
+	updateStatusErr   error
 	updateProgressErr error
-	markCompletedErr error
-	markFailedErr    error
-	markCancelledErr error
+	markCompletedErr  error
+	markFailedErr     error
+	markCancelledErr  error
 }
 
 type statusUpdate struct {

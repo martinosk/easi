@@ -6,7 +6,7 @@ import (
 
 	"easi/backend/internal/metamodel/application/commands"
 	"easi/backend/internal/shared/cqrs"
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 type TenantCreatedHandler struct {

@@ -1,16 +1,15 @@
 package events
 
 import (
+	domain "easi/backend/internal/shared/eventsourcing"
 	"time"
-
-	"easi/backend/internal/shared/eventsourcing"
 )
 
 type UserDisabled struct {
 	domain.BaseEvent
-	ID          string
-	DisabledBy  string
-	DisabledAt  time.Time
+	ID         string
+	DisabledBy string
+	DisabledAt time.Time
 }
 
 func NewUserDisabled(id string, disabledBy string) UserDisabled {

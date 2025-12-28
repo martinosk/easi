@@ -7,7 +7,7 @@ import (
 
 	"easi/backend/internal/metamodel/application/readmodels"
 	"easi/backend/internal/metamodel/domain/events"
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 type MetaModelConfigurationProjector struct {

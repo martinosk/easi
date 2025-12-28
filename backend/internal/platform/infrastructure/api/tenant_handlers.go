@@ -77,14 +77,14 @@ func (r *CreateTenantRequest) Validate() error {
 }
 
 type TenantResponse struct {
-	ID         string                   `json:"id"`
-	Name       string                   `json:"name"`
-	Status     string                   `json:"status"`
-	Domains    []string                 `json:"domains"`
-	OIDCConfig *OIDCConfigResponse      `json:"oidcConfig,omitempty"`
-	CreatedAt  time.Time                `json:"createdAt"`
+	ID         string                    `json:"id"`
+	Name       string                    `json:"name"`
+	Status     string                    `json:"status"`
+	Domains    []string                  `json:"domains"`
+	OIDCConfig *OIDCConfigResponse       `json:"oidcConfig,omitempty"`
+	CreatedAt  time.Time                 `json:"createdAt"`
 	Links      map[string]sharedAPI.Link `json:"_links,omitempty"`
-	Warnings   []string                 `json:"_warnings,omitempty"`
+	Warnings   []string                  `json:"_warnings,omitempty"`
 }
 
 type OIDCConfigResponse struct {
@@ -96,11 +96,11 @@ type OIDCConfigResponse struct {
 }
 
 type TenantListItem struct {
-	ID        string                   `json:"id"`
-	Name      string                   `json:"name"`
-	Status    string                   `json:"status"`
-	Domains   []string                 `json:"domains"`
-	CreatedAt time.Time                `json:"createdAt"`
+	ID        string                    `json:"id"`
+	Name      string                    `json:"name"`
+	Status    string                    `json:"status"`
+	Domains   []string                  `json:"domains"`
+	CreatedAt time.Time                 `json:"createdAt"`
 	Links     map[string]sharedAPI.Link `json:"_links,omitempty"`
 }
 

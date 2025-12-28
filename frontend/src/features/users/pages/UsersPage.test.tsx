@@ -9,7 +9,7 @@ vi.mock('react-hot-toast', () => ({
   default: { error: vi.fn(), success: vi.fn() },
 }));
 vi.mock('../../../store/userStore', () => ({
-  useUserStore: (selector: (state: { hasPermission: (p: string) => boolean; user: { id: string } | null }) => any) =>
+  useUserStore: <T,>(selector: (state: { hasPermission: (p: string) => boolean; user: { id: string } | null }) => T): T =>
     selector({ hasPermission: (p) => p === 'users:read' || p === 'users:manage', user: { id: 'current-user-id' } }),
 }));
 

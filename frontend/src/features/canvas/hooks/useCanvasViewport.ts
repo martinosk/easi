@@ -28,7 +28,7 @@ export const useCanvasViewport = (
         setIsFirstLoad(false);
       }, 100);
     }
-  }, [currentView?.id, reactFlowInstance, getViewportState, nodes.length, isFirstLoad]);
+  }, [currentView, reactFlowInstance, getViewportState, nodes.length, isFirstLoad]);
 
   const onMoveEnd = useCallback(() => {
     if (!currentView || !reactFlowInstance) return;

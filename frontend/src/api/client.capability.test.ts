@@ -23,21 +23,21 @@ const mockAxiosInstance = {
   },
 };
 
-(axios.create as MockedFunction<typeof axios.create>).mockReturnValue(mockAxiosInstance as any);
+(axios.create as MockedFunction<typeof axios.create>).mockReturnValue(mockAxiosInstance as ReturnType<typeof axios.create>);
 
 interface SetupResult {
   apiClient: typeof import('./client').apiClient;
-  responseInterceptorError?: (error: any) => never;
+  responseInterceptorError?: (error: unknown) => never;
 }
 
 async function setupApiClient(captureInterceptor = false): Promise<SetupResult> {
   vi.clearAllMocks();
   vi.resetModules();
 
-  let responseInterceptorError: ((error: any) => never) | undefined;
+  let responseInterceptorError: ((error: unknown) => never) | undefined;
   if (captureInterceptor) {
     mockAxiosInstance.interceptors.response.use.mockImplementation(
-      (_onFulfilled: any, onRejected: any) => {
+      (_onFulfilled: unknown, onRejected: (error: unknown) => never) => {
         responseInterceptorError = onRejected;
       }
     );
@@ -51,12 +51,9 @@ async function setupApiClient(captureInterceptor = false): Promise<SetupResult> 
 
 describe('API Client - Capability Operations', () => {
   let apiClient: typeof import('./client').apiClient;
-  let responseInterceptorError: (error: any) => never;
-
   beforeEach(async () => {
     const setup = await setupApiClient(true);
     apiClient = setup.apiClient;
-    responseInterceptorError = setup.responseInterceptorError!;
   });
 
   describe('getCapabilities', () => {
@@ -730,7 +727,7 @@ describe('API Client - Capability View Operations', () => {
 
 describe('API Client - Error Handling', () => {
   let ApiError: typeof import('./types').ApiError;
-  let responseInterceptorError: (error: any) => never;
+  let responseInterceptorError: (error: unknown) => never;
 
   beforeEach(async () => {
     const setup = await setupApiClient(true);

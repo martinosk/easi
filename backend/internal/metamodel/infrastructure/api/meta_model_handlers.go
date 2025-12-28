@@ -225,8 +225,12 @@ func (h *MetaModelHandlers) UpdateMaturityScale(w http.ResponseWriter, r *http.R
 	}
 
 	h.getAndRespondWithConfig(w,
-		func() (*readmodels.MetaModelConfigurationDTO, error) { return h.readModel.GetByID(r.Context(), config.ID) },
-		func(c *readmodels.MetaModelConfigurationDTO) map[string]string { return h.hateoas.MaturityScaleLinks(c.IsDefault) },
+		func() (*readmodels.MetaModelConfigurationDTO, error) {
+			return h.readModel.GetByID(r.Context(), config.ID)
+		},
+		func(c *readmodels.MetaModelConfigurationDTO) map[string]string {
+			return h.hateoas.MaturityScaleLinks(c.IsDefault)
+		},
 	)
 }
 
@@ -263,8 +267,12 @@ func (h *MetaModelHandlers) ResetMaturityScale(w http.ResponseWriter, r *http.Re
 	}
 
 	h.getAndRespondWithConfig(w,
-		func() (*readmodels.MetaModelConfigurationDTO, error) { return h.readModel.GetByID(r.Context(), config.ID) },
-		func(c *readmodels.MetaModelConfigurationDTO) map[string]string { return h.hateoas.MaturityScaleLinks(c.IsDefault) },
+		func() (*readmodels.MetaModelConfigurationDTO, error) {
+			return h.readModel.GetByID(r.Context(), config.ID)
+		},
+		func(c *readmodels.MetaModelConfigurationDTO) map[string]string {
+			return h.hateoas.MaturityScaleLinks(c.IsDefault)
+		},
 	)
 }
 
@@ -282,6 +290,8 @@ func (h *MetaModelHandlers) GetMaturityScaleByID(w http.ResponseWriter, r *http.
 	id := chi.URLParam(r, "id")
 	h.getAndRespondWithConfig(w,
 		func() (*readmodels.MetaModelConfigurationDTO, error) { return h.readModel.GetByID(r.Context(), id) },
-		func(c *readmodels.MetaModelConfigurationDTO) map[string]string { return h.hateoas.MetaModelConfigLinks(id, c.IsDefault) },
+		func(c *readmodels.MetaModelConfigurationDTO) map[string]string {
+			return h.hateoas.MetaModelConfigLinks(id, c.IsDefault)
+		},
 	)
 }

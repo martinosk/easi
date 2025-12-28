@@ -2,7 +2,7 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useGridPositions } from './useGridPositions';
 import { apiClient } from '../../../api/client';
-import type { BusinessDomainId, LayoutContainer, LayoutContainerId } from '../../../api/types';
+import type { BusinessDomainId, CapabilityId, LayoutContainer, LayoutContainerId } from '../../../api/types';
 
 vi.mock('../../../api/client', () => ({
   apiClient: {
@@ -101,7 +101,7 @@ describe('useGridPositions', () => {
       });
 
       await act(async () => {
-        await result.current.updatePosition('cap-1' as any, 2, 1);
+        await result.current.updatePosition('cap-1' as CapabilityId, 2, 1);
       });
 
       expect(apiClient.upsertElementPosition).toHaveBeenCalledWith(
@@ -129,7 +129,7 @@ describe('useGridPositions', () => {
       });
 
       await act(async () => {
-        await result.current.updatePosition('cap-new' as any, 0, 0);
+        await result.current.updatePosition('cap-new' as CapabilityId, 0, 0);
       });
 
       expect(apiClient.upsertElementPosition).toHaveBeenCalledWith(
@@ -153,7 +153,7 @@ describe('useGridPositions', () => {
 
       await act(async () => {
         try {
-          await result.current.updatePosition('cap-1' as any, 500, 600);
+          await result.current.updatePosition('cap-1' as CapabilityId, 500, 600);
         } catch {
           // Expected to throw
         }
@@ -178,7 +178,7 @@ describe('useGridPositions', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.getPositionForCapability('cap-1' as any)).toEqual({ x: 3, y: 2 });
+      expect(result.current.getPositionForCapability('cap-1' as CapabilityId)).toEqual({ x: 3, y: 2 });
     });
 
     it('should return null for unknown capability', async () => {
@@ -190,7 +190,7 @@ describe('useGridPositions', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.getPositionForCapability('cap-unknown' as any)).toBeNull();
+      expect(result.current.getPositionForCapability('cap-unknown' as CapabilityId)).toBeNull();
     });
   });
 });

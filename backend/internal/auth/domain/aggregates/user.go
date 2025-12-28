@@ -6,16 +6,16 @@ import (
 
 	"easi/backend/internal/auth/domain/events"
 	"easi/backend/internal/auth/domain/valueobjects"
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 var (
-	ErrCannotDisableSelf       = errors.New("cannot disable your own account")
-	ErrCannotDemoteLastAdmin   = errors.New("cannot demote last admin in tenant")
-	ErrCannotDisableLastAdmin  = errors.New("cannot disable last admin in tenant")
-	ErrUserAlreadyActive       = errors.New("user is already active")
-	ErrUserAlreadyDisabled     = errors.New("user is already disabled")
-	ErrSameRole                = errors.New("user already has this role")
+	ErrCannotDisableSelf      = errors.New("cannot disable your own account")
+	ErrCannotDemoteLastAdmin  = errors.New("cannot demote last admin in tenant")
+	ErrCannotDisableLastAdmin = errors.New("cannot disable last admin in tenant")
+	ErrUserAlreadyActive      = errors.New("user is already active")
+	ErrUserAlreadyDisabled    = errors.New("user is already disabled")
+	ErrSameRole               = errors.New("user already has this role")
 )
 
 type User struct {

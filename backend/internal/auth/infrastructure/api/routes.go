@@ -124,10 +124,10 @@ func WireLoginService(deps *AuthDependencies, invDeps *InvitationDependencies) {
 }
 
 type InvitationDependencies struct {
-	UserReadModel         *readmodels.UserReadModel
-	InvitationReadModel   *readmodels.InvitationReadModel
-	CommandBus            cqrs.CommandBus
-	UserAggregateRepo     *repositories.UserAggregateRepository
+	UserReadModel       *readmodels.UserReadModel
+	InvitationReadModel *readmodels.InvitationReadModel
+	CommandBus          cqrs.CommandBus
+	UserAggregateRepo   *repositories.UserAggregateRepository
 }
 
 type InvitationRoutesDeps struct {
@@ -155,10 +155,10 @@ func SetupInvitationRoutes(deps InvitationRoutesDeps) (*InvitationDependencies, 
 	registerInvitationRoutes(deps.Router, deps.AuthDeps.AuthMiddleware, invitationHandlers)
 
 	return &InvitationDependencies{
-		UserReadModel:         userReadModel,
-		InvitationReadModel:   invitationReadModel,
-		CommandBus:            deps.CommandBus,
-		UserAggregateRepo:     userAggregateRepo,
+		UserReadModel:       userReadModel,
+		InvitationReadModel: invitationReadModel,
+		CommandBus:          deps.CommandBus,
+		UserAggregateRepo:   userAggregateRepo,
 	}, nil
 }
 

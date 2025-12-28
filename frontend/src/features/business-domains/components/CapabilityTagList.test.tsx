@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { CapabilityTagList } from './CapabilityTagList';
-import type { Capability } from '../../../api/types';
+import type { Capability, CapabilityId } from '../../../api/types';
 
 describe('CapabilityTagList', () => {
   const mockCapabilities: Capability[] = [
     {
-      id: 'cap-1' as any,
+      id: 'cap-1' as CapabilityId,
       name: 'Customer Onboarding',
       description: 'Process for onboarding customers',
       level: 'L1',
@@ -17,7 +17,7 @@ describe('CapabilityTagList', () => {
       },
     },
     {
-      id: 'cap-2' as any,
+      id: 'cap-2' as CapabilityId,
       name: 'Customer Support',
       description: 'Support for existing customers',
       level: 'L1',

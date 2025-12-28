@@ -1,8 +1,6 @@
 package events
 
-import (
-	"easi/backend/internal/shared/eventsourcing"
-)
+import domain "easi/backend/internal/shared/eventsourcing"
 
 type CapabilityMetadataUpdated struct {
 	domain.BaseEvent

@@ -228,7 +228,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         ]
       );
 
-      const store = createMockStore(currentView, [
+      createMockStore(currentView, [
         { capabilityId: 'cap-1', x: 100, y: 200 },
         { capabilityId: 'cap-3', x: 100, y: 200 },
       ]);
@@ -252,7 +252,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         [{ capabilityId: 'cap-1', customColor: '#AA00FF' }]
       );
 
-      const store = createMockStore(currentView, [{ capabilityId: 'cap-1', x: 100, y: 200 }]);
+      createMockStore(currentView, [{ capabilityId: 'cap-1', x: 100, y: 200 }]);
 
       renderNavigationTree(currentView);
 
@@ -272,7 +272,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         [{ capabilityId: 'cap-1' }]
       );
 
-      const store = createMockStore(currentView, [{ capabilityId: 'cap-1', x: 100, y: 200 }]);
+      createMockStore(currentView, [{ capabilityId: 'cap-1', x: 100, y: 200 }]);
 
       renderNavigationTree(currentView);
 
@@ -295,7 +295,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         ]
       );
 
-      const store = createMockStore(currentView, [
+      createMockStore(currentView, [
         { capabilityId: 'cap-1', x: 100, y: 200 },
         { capabilityId: 'cap-3', x: 100, y: 200 },
       ]);
@@ -326,7 +326,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         ]
       );
 
-      const store = createMockStore(currentView, [
+      createMockStore(currentView, [
         { capabilityId: 'cap-1', x: 100, y: 200 },
         { capabilityId: 'cap-2', x: 100, y: 200 },
       ]);
@@ -494,7 +494,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         ]
       );
 
-      const store = createMockStore(currentView, [
+      createMockStore(currentView, [
         { capabilityId: 'cap-1', x: 100, y: 200 },
         { capabilityId: 'cap-3', x: 100, y: 200 },
       ]);

@@ -2,9 +2,8 @@ package handlers
 
 import (
 	"context"
+	domain "easi/backend/internal/shared/eventsourcing"
 	"log"
-
-	"easi/backend/internal/shared/eventsourcing"
 )
 
 type ComponentRelationDeletedHandler struct{}

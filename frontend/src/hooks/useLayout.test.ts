@@ -2,7 +2,7 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useLayout } from './useLayout';
 import { apiClient } from '../api/client';
-import type { LayoutContainer, LayoutContextType, LayoutContainerId } from '../api/types';
+import type { LayoutContainer, LayoutContainerId } from '../api/types';
 
 vi.mock('../api/client', () => ({
   apiClient: {

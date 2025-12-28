@@ -3,7 +3,7 @@ package handlers
 import (
 	"context"
 
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 	viewlayoutsDomain "easi/backend/internal/viewlayouts/domain"
 	"easi/backend/internal/viewlayouts/domain/valueobjects"
 )

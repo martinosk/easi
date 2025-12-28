@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import type { ImportSession, CreateImportSessionRequest } from '../types';
+import type { ImportSession, ImportSessionId, CreateImportSessionRequest } from '../types';
 
 const { mockPost, mockGet, mockDelete } = vi.hoisted(() => ({
   mockPost: vi.fn(),
@@ -38,7 +38,7 @@ describe('useImportSession', () => {
   describe('createSession', () => {
     it('should upload file and create import session', async () => {
       const mockSession: ImportSession = {
-        id: 'import-123' as any,
+        id: 'import-123' as ImportSessionId,
         status: 'pending',
         sourceFormat: 'archimate-openexchange',
         preview: {
@@ -109,7 +109,7 @@ describe('useImportSession', () => {
   describe('confirmSession', () => {
     it('should confirm import session and start importing', async () => {
       const pendingSession: ImportSession = {
-        id: 'import-123' as any,
+        id: 'import-123' as ImportSessionId,
         status: 'pending',
         sourceFormat: 'archimate-openexchange',
         createdAt: '2025-01-15T10:00:00Z',
@@ -153,7 +153,7 @@ describe('useImportSession', () => {
 
     it('should handle errors during confirmation', async () => {
       const mockSession: ImportSession = {
-        id: 'import-123' as any,
+        id: 'import-123' as ImportSessionId,
         status: 'pending',
         sourceFormat: 'archimate-openexchange',
         createdAt: '2025-01-15T10:00:00Z',
@@ -189,7 +189,7 @@ describe('useImportSession', () => {
   describe('cancelSession', () => {
     it('should cancel pending import session', async () => {
       const mockSession: ImportSession = {
-        id: 'import-123' as any,
+        id: 'import-123' as ImportSessionId,
         status: 'pending',
         sourceFormat: 'archimate-openexchange',
         createdAt: '2025-01-15T10:00:00Z',
@@ -223,7 +223,7 @@ describe('useImportSession', () => {
   describe('polling', () => {
     it('should poll for progress when status is importing', async () => {
       const importingSession: ImportSession = {
-        id: 'import-123' as any,
+        id: 'import-123' as ImportSessionId,
         status: 'importing',
         sourceFormat: 'archimate-openexchange',
         progress: {
@@ -277,7 +277,7 @@ describe('useImportSession', () => {
 
     it('should stop polling when status is completed', async () => {
       const completedSession: ImportSession = {
-        id: 'import-123' as any,
+        id: 'import-123' as ImportSessionId,
         status: 'completed',
         sourceFormat: 'archimate-openexchange',
         result: {
@@ -316,7 +316,7 @@ describe('useImportSession', () => {
   describe('reset', () => {
     it('should reset session state', async () => {
       const mockSession: ImportSession = {
-        id: 'import-123' as any,
+        id: 'import-123' as ImportSessionId,
         status: 'pending',
         sourceFormat: 'archimate-openexchange',
         createdAt: '2025-01-15T10:00:00Z',

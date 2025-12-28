@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"easi/backend/internal/infrastructure/eventstore"
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 type LoadFromHistoryFunc[T domain.EventSourcedAggregate] func(events []domain.DomainEvent) (T, error)

@@ -295,7 +295,6 @@ func (h *BusinessDomainHandlers) GetCapabilitiesInDomain(w http.ResponseWriter, 
 	sharedAPI.RespondCollection(w, http.StatusOK, capabilities, links)
 }
 
-
 // AssignCapabilityToDomain godoc
 // @Summary Assign a capability to a domain
 // @Description Assigns an L1 capability to a business domain

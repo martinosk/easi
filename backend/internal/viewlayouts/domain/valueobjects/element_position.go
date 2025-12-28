@@ -1,8 +1,6 @@
 package valueobjects
 
-import (
-	"easi/backend/internal/shared/eventsourcing"
-)
+import domain "easi/backend/internal/shared/eventsourcing"
 
 type ElementPosition struct {
 	elementID   ElementID

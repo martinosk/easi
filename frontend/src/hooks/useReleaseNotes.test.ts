@@ -209,9 +209,6 @@ describe('useReleaseNotes', () => {
     });
 
     it('should handle localStorage not being available', async () => {
-      const originalGetItem = localStorage.getItem;
-      const originalSetItem = localStorage.setItem;
-
       vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
         throw new Error('localStorage not available');
       });

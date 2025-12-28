@@ -1,7 +1,7 @@
 package valueobjects
 
 import (
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 	"errors"
 	"regexp"
 	"strings"

@@ -27,7 +27,7 @@ type InvalidateMutationOptions<TVariables, TData = void> = {
   errorMessage: string;
 };
 
-function createInvalidateMutation<TVariables, TData = void>(
+function useInvalidateMutation<TVariables, TData = void>(
   queryClient: QueryClient,
   options: InvalidateMutationOptions<TVariables, TData>
 ) {
@@ -169,7 +169,7 @@ export function useUpdateCapabilityMetadata() {
 
 export function useAddCapabilityExpert() {
   const queryClient = useQueryClient();
-  return createInvalidateMutation<{ id: CapabilityId; request: AddCapabilityExpertRequest }>(queryClient, {
+  return useInvalidateMutation<{ id: CapabilityId; request: AddCapabilityExpertRequest }>(queryClient, {
     mutationFn: ({ id, request }) => capabilitiesApi.addExpert(id, request),
     getInvalidateKeys: ({ id }) => [queryKeys.capabilities.detail(id), queryKeys.capabilities.lists()],
     successMessage: 'Expert added',
@@ -179,7 +179,7 @@ export function useAddCapabilityExpert() {
 
 export function useAddCapabilityTag() {
   const queryClient = useQueryClient();
-  return createInvalidateMutation<{ id: CapabilityId; request: AddCapabilityTagRequest }>(queryClient, {
+  return useInvalidateMutation<{ id: CapabilityId; request: AddCapabilityTagRequest }>(queryClient, {
     mutationFn: ({ id, request }) => capabilitiesApi.addTag(id, request),
     getInvalidateKeys: ({ id }) => [queryKeys.capabilities.detail(id), queryKeys.capabilities.lists()],
     successMessage: 'Tag added',
@@ -211,7 +211,7 @@ export function useDeleteCapability() {
 
 export function useChangeCapabilityParent() {
   const queryClient = useQueryClient();
-  return createInvalidateMutation<{ id: CapabilityId; parentId: CapabilityId | null }>(queryClient, {
+  return useInvalidateMutation<{ id: CapabilityId; parentId: CapabilityId | null }>(queryClient, {
     mutationFn: ({ id, parentId }) => capabilitiesApi.changeParent(id, parentId),
     getInvalidateKeys: () => [queryKeys.capabilities.all, queryKeys.businessDomains.all],
     successMessage: 'Capability parent updated',
@@ -285,7 +285,7 @@ export function useLinkSystemToCapability() {
 
 export function useUpdateRealization() {
   const queryClient = useQueryClient();
-  return createInvalidateMutation<{ id: RealizationId; request: UpdateRealizationRequest }, CapabilityRealization>(queryClient, {
+  return useInvalidateMutation<{ id: RealizationId; request: UpdateRealizationRequest }, CapabilityRealization>(queryClient, {
     mutationFn: ({ id, request }) => capabilitiesApi.updateRealization(id, request),
     getInvalidateKeys: () => [queryKeys.capabilities.all],
     successMessage: 'Realization updated',
@@ -295,7 +295,7 @@ export function useUpdateRealization() {
 
 export function useDeleteRealization() {
   const queryClient = useQueryClient();
-  return createInvalidateMutation<RealizationId>(queryClient, {
+  return useInvalidateMutation<RealizationId>(queryClient, {
     mutationFn: (id) => capabilitiesApi.deleteRealization(id),
     getInvalidateKeys: () => [queryKeys.capabilities.all],
     successMessage: 'Realization deleted',

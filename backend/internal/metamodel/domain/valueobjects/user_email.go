@@ -1,11 +1,10 @@
 package valueobjects
 
 import (
+	domain "easi/backend/internal/shared/eventsourcing"
 	"errors"
 	"regexp"
 	"strings"
-
-	"easi/backend/internal/shared/eventsourcing"
 )
 
 var (

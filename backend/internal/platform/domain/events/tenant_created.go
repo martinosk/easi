@@ -1,7 +1,7 @@
 package events
 
 import (
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 	"time"
 )
 

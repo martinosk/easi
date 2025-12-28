@@ -1,9 +1,8 @@
 package valueobjects
 
 import (
+	domain "easi/backend/internal/shared/eventsourcing"
 	"errors"
-
-	"easi/backend/internal/shared/eventsourcing"
 )
 
 var ErrInvalidPermission = errors.New("invalid permission")

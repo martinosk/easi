@@ -156,7 +156,7 @@ export const handlers = [
       (c) => c.capabilityId === params.capabilityId
     ) ?? -1;
     if (capIndex >= 0 && view.capabilities) {
-      const { color: _, ...rest } = view.capabilities[capIndex] as { color?: string; [key: string]: unknown };
+      const rest = Object.fromEntries(Object.entries(view.capabilities[capIndex]).filter(([key]) => key !== 'color')) as typeof view.capabilities[number];
       view.capabilities[capIndex] = rest as typeof view.capabilities[number];
       updateView(params.viewId as ViewId, { capabilities: view.capabilities });
     }
@@ -191,7 +191,7 @@ export const handlers = [
       (c) => c.componentId === params.componentId
     ) ?? -1;
     if (compIndex >= 0 && view.components) {
-      const { color: _, ...rest } = view.components[compIndex] as { color?: string; [key: string]: unknown };
+      const rest = Object.fromEntries(Object.entries(view.components[compIndex]).filter(([key]) => key !== 'color')) as typeof view.components[number];
       view.components[compIndex] = rest as typeof view.components[number];
       updateView(params.viewId as ViewId, { components: view.components });
     }

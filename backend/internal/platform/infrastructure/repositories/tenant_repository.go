@@ -220,4 +220,3 @@ func (r *TenantRepository) DomainExists(ctx context.Context, domain string) (boo
 	).Scan(&exists)
 	return exists, err
 }
-

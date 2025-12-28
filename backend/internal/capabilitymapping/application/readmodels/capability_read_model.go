@@ -12,9 +12,9 @@ import (
 )
 
 type MaturitySectionDTO struct {
-	Name  string         `json:"name"`
-	Order int            `json:"order"`
-	Range MaturityRange  `json:"range"`
+	Name  string        `json:"name"`
+	Order int           `json:"order"`
+	Range MaturityRange `json:"range"`
 }
 
 type MaturityRange struct {
@@ -23,23 +23,23 @@ type MaturityRange struct {
 }
 
 type CapabilityDTO struct {
-	ID              string             `json:"id"`
-	Name            string             `json:"name"`
-	Description     string             `json:"description,omitempty"`
-	ParentID        string             `json:"parentId,omitempty"`
-	Level           string             `json:"level"`
-	StrategyPillar  string             `json:"strategyPillar,omitempty"`
-	PillarWeight    int                `json:"pillarWeight,omitempty"`
-	MaturityValue   int                `json:"maturityValue"`
+	ID              string              `json:"id"`
+	Name            string              `json:"name"`
+	Description     string              `json:"description,omitempty"`
+	ParentID        string              `json:"parentId,omitempty"`
+	Level           string              `json:"level"`
+	StrategyPillar  string              `json:"strategyPillar,omitempty"`
+	PillarWeight    int                 `json:"pillarWeight,omitempty"`
+	MaturityValue   int                 `json:"maturityValue"`
 	MaturitySection *MaturitySectionDTO `json:"maturitySection,omitempty"`
-	OwnershipModel  string             `json:"ownershipModel,omitempty"`
-	PrimaryOwner    string             `json:"primaryOwner,omitempty"`
-	EAOwner         string             `json:"eaOwner,omitempty"`
-	Status          string             `json:"status,omitempty"`
-	Experts         []ExpertDTO        `json:"experts,omitempty"`
-	Tags            []string           `json:"tags,omitempty"`
-	CreatedAt       time.Time          `json:"createdAt"`
-	Links           map[string]string  `json:"_links,omitempty"`
+	OwnershipModel  string              `json:"ownershipModel,omitempty"`
+	PrimaryOwner    string              `json:"primaryOwner,omitempty"`
+	EAOwner         string              `json:"eaOwner,omitempty"`
+	Status          string              `json:"status,omitempty"`
+	Experts         []ExpertDTO         `json:"experts,omitempty"`
+	Tags            []string            `json:"tags,omitempty"`
+	CreatedAt       time.Time           `json:"createdAt"`
+	Links           map[string]string   `json:"_links,omitempty"`
 }
 
 type ExpertDTO struct {
@@ -317,29 +317,31 @@ func (r *capabilityScanResult) toDTO() *CapabilityDTO {
 }
 
 func calculateMaturitySection(value int) *MaturitySectionDTO {
-	if value <= 24 {
+	switch {
+	case value <= 24:
 		return &MaturitySectionDTO{
 			Name:  "Genesis",
 			Order: 1,
 			Range: MaturityRange{Min: 0, Max: 24},
 		}
-	} else if value <= 49 {
+	case value <= 49:
 		return &MaturitySectionDTO{
 			Name:  "Custom Build",
 			Order: 2,
 			Range: MaturityRange{Min: 25, Max: 49},
 		}
-	} else if value <= 74 {
+	case value <= 74:
 		return &MaturitySectionDTO{
 			Name:  "Product",
 			Order: 3,
 			Range: MaturityRange{Min: 50, Max: 74},
 		}
-	}
-	return &MaturitySectionDTO{
-		Name:  "Commodity",
-		Order: 4,
-		Range: MaturityRange{Min: 75, Max: 99},
+	default:
+		return &MaturitySectionDTO{
+			Name:  "Commodity",
+			Order: 4,
+			Range: MaturityRange{Min: 75, Max: 99},
+		}
 	}
 }
 

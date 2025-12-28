@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 // Link represents a HATEOAS link with optional HTTP method hint

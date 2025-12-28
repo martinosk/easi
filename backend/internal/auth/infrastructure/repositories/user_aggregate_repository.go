@@ -8,7 +8,7 @@ import (
 	"easi/backend/internal/auth/domain/aggregates"
 	"easi/backend/internal/auth/domain/events"
 	"easi/backend/internal/infrastructure/eventstore"
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 var (

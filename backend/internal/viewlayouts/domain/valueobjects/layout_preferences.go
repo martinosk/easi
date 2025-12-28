@@ -1,9 +1,8 @@
 package valueobjects
 
 import (
+	domain "easi/backend/internal/shared/eventsourcing"
 	"reflect"
-
-	"easi/backend/internal/shared/eventsourcing"
 )
 
 type LayoutPreferences struct {

@@ -5,7 +5,7 @@ import (
 
 	"easi/backend/internal/metamodel/domain/events"
 	"easi/backend/internal/metamodel/domain/valueobjects"
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 
 	"github.com/stretchr/testify/assert"

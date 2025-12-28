@@ -208,7 +208,7 @@ func (h *CapabilityHandlers) GetCapabilityChildren(w http.ResponseWriter, r *htt
 	}
 
 	links := sharedAPI.NewResourceLinks().
-		Self(sharedAPI.ResourcePath("/capabilities/" + id + "/children")).
+		Self(sharedAPI.ResourcePath("/capabilities/"+id+"/children")).
 		Related(sharedAPI.LinkRelation("parent"), sharedAPI.ResourcePath("/capabilities"), sharedAPI.ResourceID(id)).
 		Build()
 

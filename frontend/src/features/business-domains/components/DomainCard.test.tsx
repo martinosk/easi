@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { DomainCard } from './DomainCard';
-import type { BusinessDomain } from '../../../api/types';
+import type { BusinessDomain, BusinessDomainId } from '../../../api/types';
 
 describe('DomainCard', () => {
   const mockDomain: BusinessDomain = {
-    id: 'domain-1' as any,
+    id: 'domain-1' as BusinessDomainId,
     name: 'Customer Experience',
     description: 'All customer-facing capabilities',
     capabilityCount: 3,

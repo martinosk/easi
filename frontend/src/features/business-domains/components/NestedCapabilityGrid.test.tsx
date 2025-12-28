@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { NestedCapabilityGrid } from './NestedCapabilityGrid';
-import type { Capability } from '../../../api/types';
+import type { Capability, CapabilityId } from '../../../api/types';
 import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 
 const renderWithMantine = (ui: React.ReactElement) => render(<MantineTestWrapper>{ui}</MantineTestWrapper>);
@@ -13,10 +13,10 @@ describe('NestedCapabilityGrid', () => {
     level: 'L1' | 'L2' | 'L3' | 'L4',
     parentId?: string
   ): Capability => ({
-    id: id as any,
+    id: id as CapabilityId,
     name,
     level,
-    parentId: parentId as any,
+    parentId: parentId as CapabilityId | undefined,
     createdAt: '2024-01-01',
     _links: { self: { href: `/api/v1/capabilities/${id}` } },
   });

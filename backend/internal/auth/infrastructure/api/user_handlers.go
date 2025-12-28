@@ -37,15 +37,15 @@ func NewUserHandlers(
 }
 
 type UserResponse struct {
-	ID          string             `json:"id"`
-	Email       string             `json:"email"`
-	Name        *string            `json:"name,omitempty"`
-	Role        string             `json:"role"`
-	Status      string             `json:"status"`
-	CreatedAt   time.Time          `json:"createdAt"`
-	LastLoginAt *time.Time         `json:"lastLoginAt,omitempty"`
-	InvitedBy   *InvitedByInfo     `json:"invitedBy,omitempty"`
-	Links       map[string]string  `json:"_links"`
+	ID          string            `json:"id"`
+	Email       string            `json:"email"`
+	Name        *string           `json:"name,omitempty"`
+	Role        string            `json:"role"`
+	Status      string            `json:"status"`
+	CreatedAt   time.Time         `json:"createdAt"`
+	LastLoginAt *time.Time        `json:"lastLoginAt,omitempty"`
+	InvitedBy   *InvitedByInfo    `json:"invitedBy,omitempty"`
+	Links       map[string]string `json:"_links"`
 }
 
 type InvitedByInfo struct {

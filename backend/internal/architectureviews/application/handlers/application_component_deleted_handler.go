@@ -7,7 +7,7 @@ import (
 	"easi/backend/internal/architectureviews/application/commands"
 	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/shared/cqrs"
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 type ApplicationComponentDeletedHandler struct {

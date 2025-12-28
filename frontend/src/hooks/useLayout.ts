@@ -107,7 +107,7 @@ export function useLayout(
           if (previousPosition) {
             return { ...prev, [elementId]: previousPosition };
           }
-          const { [elementId]: _, ...rest } = prev;
+          const rest = Object.fromEntries(Object.entries(prev).filter(([key]) => key !== elementId));
           return rest;
         });
         throw err;

@@ -1,11 +1,10 @@
 package valueobjects
 
 import (
+	domain "easi/backend/internal/shared/eventsourcing"
 	"errors"
 
 	"golang.org/x/oauth2"
-
-	"easi/backend/internal/shared/eventsourcing"
 )
 
 var ErrEmptyNonce = errors.New("nonce cannot be empty")

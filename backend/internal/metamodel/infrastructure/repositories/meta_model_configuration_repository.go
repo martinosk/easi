@@ -8,7 +8,7 @@ import (
 	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/metamodel/domain/aggregates"
 	"easi/backend/internal/metamodel/domain/events"
-	"easi/backend/internal/shared/eventsourcing"
+	domain "easi/backend/internal/shared/eventsourcing"
 	"easi/backend/internal/shared/infrastructure/repository"
 )
 

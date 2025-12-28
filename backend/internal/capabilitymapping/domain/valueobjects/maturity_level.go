@@ -1,14 +1,13 @@
 package valueobjects
 
 import (
+	domain "easi/backend/internal/shared/eventsourcing"
 	"errors"
-
-	"easi/backend/internal/shared/eventsourcing"
 )
 
 var (
-	ErrInvalidMaturityLevel      = errors.New("invalid maturity level: must be Genesis, Custom Build, Product, or Commodity")
-	ErrMaturityValueOutOfRange   = errors.New("maturity value must be between 0 and 99")
+	ErrInvalidMaturityLevel    = errors.New("invalid maturity level: must be Genesis, Custom Build, Product, or Commodity")
+	ErrMaturityValueOutOfRange = errors.New("maturity value must be between 0 and 99")
 )
 
 const (
