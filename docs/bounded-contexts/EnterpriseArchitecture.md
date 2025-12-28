@@ -64,9 +64,9 @@ These contexts are complementary:
 - `DeleteEnterpriseCapability` - Soft delete grouping
 - `LinkCapabilityToEnterpriseCapability` - Connect domain capability to enterprise grouping
 - `UnlinkCapabilityFromEnterpriseCapability` - Remove connection
-- `AlignEnterpriseCapabilityToStrategyPillar` - Set standardization importance
-- `UpdateEnterpriseStrategicImportance` - Change importance level
-- `UnalignEnterpriseCapabilityFromStrategyPillar` - Remove alignment
+- `SetEnterpriseCapabilityImportance` - Rate importance for a strategy pillar (with optional rationale)
+- `UpdateEnterpriseCapabilityImportance` - Change importance level or rationale
+- `RemoveEnterpriseCapabilityImportance` - Remove importance rating
 
 **Events** (from other contexts):
 - From **MetaModel**:
@@ -96,9 +96,9 @@ These contexts are complementary:
 - `EnterpriseCapabilityDeleted` - Grouping removed
 - `CapabilityLinkedToEnterpriseCapability` - Domain capability connected
 - `CapabilityUnlinkedFromEnterpriseCapability` - Connection removed
-- `EnterpriseCapabilityAlignedToStrategyPillar` - Standardization importance set
-- `EnterpriseCapabilityStrategyAlignmentUpdated` - Importance changed
-- `EnterpriseCapabilityUnalignedFromStrategyPillar` - Alignment removed
+- `EnterpriseCapabilityImportanceSet` - Strategic importance rated for pillar
+- `EnterpriseCapabilityImportanceUpdated` - Importance or rationale changed
+- `EnterpriseCapabilityImportanceRemoved` - Importance rating removed
 
 **Queries** (to other contexts):
 - To **Capability Mapping**: Read capability details, maturity levels, business domains
@@ -126,8 +126,9 @@ These contexts are complementary:
 | **Domain Spread** | Number of different business domains with implementations of an enterprise capability |
 | **Maturity Spread** | Difference between highest and lowest maturity among linked domain capabilities |
 | **Maturity Gap** | Difference between a domain capability's current maturity and the target maturity |
-| **Enterprise Strategy Alignment** | How important is standardization for this enterprise capability (1-5 scale) |
-| **Standardization Candidate** | Enterprise capability marked for standardization with multiple implementations |
+| **Strategic Importance** | Rating (1-5) of how important an enterprise capability is for a strategy pillar, with optional rationale explaining why |
+| **Importance Rationale** | Free-text explanation of why a capability has a particular strategic importance rating |
+| **Standardization Candidate** | Enterprise capability with importance rating for standardization pillar and multiple implementations |
 | **Investment Priority** | Calculated priority based on maturity gap and strategic importance |
 | **Bottom-Up Discovery** | Process of identifying enterprise capabilities by linking existing domain capabilities |
 | **Canonical Name** | The enterprise-wide standard name for a capability (defined in enterprise capability) |
@@ -146,9 +147,10 @@ These contexts are complementary:
    - Soft delete preserves links for historical analysis
    - Cannot physically delete enterprise capability with active links
 
-3. **Strategy alignment constraints**:
-   - Same alignment rules as domain-scoped: importance 1-5, one alignment per pillar
-   - Enterprise-scoped alignment is separate from domain-scoped alignment
+3. **Strategic importance constraints**:
+   - Importance rating 1-5, one rating per pillar per enterprise capability
+   - Optional rationale (max 500 chars) explaining the rating
+   - Enterprise-scoped importance is separate from domain-scoped importance
 
 4. **Analysis constraints**:
    - Maturity gaps calculated from live capability mapping data
@@ -179,14 +181,14 @@ These contexts are complementary:
 
 ### Context Effectiveness Metrics
 - **Discovery coverage**: Percentage of domain capabilities linked to enterprise capabilities
-- **Standardization tracking**: Percentage of multi-implementation capabilities with standardization alignment
+- **Standardization tracking**: Percentage of multi-implementation capabilities with standardization importance rating
 - **Gap visibility**: Number of identified maturity gaps above threshold
 
 ### Business Value Metrics
 - **Overlap discovery**: Number of duplicate implementations identified
 - **Consolidation readiness**: Number of standardization candidates with complete analysis
 - **Investment clarity**: Reduction in time to identify investment priorities
-- **Strategic alignment**: Correlation between standardization importance and consolidation execution
+- **Strategic execution**: Correlation between standardization importance ratings and consolidation execution
 
 ## Open Questions
 
@@ -212,7 +214,7 @@ These contexts are complementary:
 `/backend/internal/enterprisearchitecture/`
 
 ### Key Packages
-- `domain/` - Aggregates (EnterpriseCapability, EnterpriseCapabilityLink, EnterpriseCapabilityStrategyAlignment), Value Objects, Domain Events
+- `domain/` - Aggregates (EnterpriseCapability, EnterpriseCapabilityLink, EnterpriseCapabilityStrategicImportance), Value Objects, Domain Events
 - `application/` - Commands, Command Handlers, Projectors, Read Models
 - `infrastructure/` - API routes, repository implementations, anti-corruption layer
 
@@ -275,16 +277,17 @@ Enterprise Architecture → Enterprise Strategy (data)
 
 ## Implementation Priority
 
-**Phase 1 (Specs 100-101)**:
+**Phase 1 (Spec 100: Create Enterprise Capability Groupings)**:
 - EnterpriseCapability aggregate with CRUD
-- EnterpriseCapabilityLink aggregate
-- Basic linking/unlinking operations
-- Enterprise strategy alignment
+- EnterpriseCapabilityLink aggregate for linking domain capabilities
+- EnterpriseCapabilityStrategicImportance aggregate with rationale
+- Frontend: Enterprise Architecture page with capability list and detail views
 
-**Phase 2 (Future)**:
-- Standardization candidates view
-- Maturity gap analysis
-- Investment prioritization scoring
+**Phase 2 (Spec 101: Discover and Analyze Standardization Opportunities)**:
+- Standardization candidates dashboard
+- Maturity gap analysis views
+- Investment priority indicators
+- Unlinked capabilities discovery
 
 **Phase 3 (Future)**:
 - Integration with Enterprise Strategy for consolidation workflow
