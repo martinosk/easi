@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useViews, useCreateView } from '../features/views/hooks/useViews';
 import { useAppStore } from '../store/appStore';
@@ -11,6 +11,15 @@ function findDefaultView(views: View[]): View {
   return views.find(v => v.isDefault) ?? views[0];
 }
 
+function shouldSkipInitialization(
+  isInitialized: boolean,
+  isLoadingViews: boolean,
+  views: View[] | undefined,
+  isInitializing: boolean
+): boolean {
+  return isInitialized || isLoadingViews || !views || isInitializing;
+}
+
 export function useAppInitialization() {
   const queryClient = useQueryClient();
   const { data: views, isLoading: isLoadingViews, error: viewsError } = useViews();
@@ -19,6 +28,7 @@ export function useAppInitialization() {
   const setInitialized = useAppStore((state) => state.setInitialized);
   const currentViewId = useAppStore((state) => state.currentViewId);
   const isInitialized = useAppStore((state) => state.isInitialized);
+  const isInitializingRef = useRef(false);
 
   useEffect(() => {
     queryClient.prefetchQuery({
@@ -43,13 +53,15 @@ export function useAppInitialization() {
   }, [setCurrentViewId]);
 
   useEffect(() => {
-    const shouldSkipInitialization = isInitialized || isLoadingViews || !views;
-    if (shouldSkipInitialization) return;
+    if (shouldSkipInitialization(isInitialized, isLoadingViews, views, isInitializingRef.current)) {
+      return;
+    }
+
+    isInitializingRef.current = true;
 
     const initializeView = async () => {
       try {
-        const hasNoViews = views.length === 0;
-        if (hasNoViews) {
+        if (views.length === 0) {
           await createDefaultView();
         } else {
           selectExistingView(views);
@@ -59,6 +71,7 @@ export function useAppInitialization() {
       } catch (error) {
         console.error('Failed to initialize:', error);
         toast.error('Failed to initialize application');
+        isInitializingRef.current = false;
       }
     };
 

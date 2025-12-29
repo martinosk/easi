@@ -17,12 +17,13 @@ import (
 )
 
 type routeConfig struct {
-	commandBus           *cqrs.InMemoryCommandBus
-	eventStore           eventstore.EventStore
-	eventBus             events.EventBus
-	db                   *database.TenantAwareDB
-	hateoas              *sharedAPI.HATEOASLinks
-	maturityScaleGateway metamodel.MaturityScaleGateway
+	commandBus            *cqrs.InMemoryCommandBus
+	eventStore            eventstore.EventStore
+	eventBus              events.EventBus
+	db                    *database.TenantAwareDB
+	hateoas               *sharedAPI.HATEOASLinks
+	maturityScaleGateway  metamodel.MaturityScaleGateway
+	strategyPillarsGateway metamodel.StrategyPillarsGateway
 }
 
 func SetupCapabilityMappingRoutes(
@@ -45,14 +46,27 @@ func SetupCapabilityMappingRoutesWithGateway(
 	hateoas *sharedAPI.HATEOASLinks,
 	gateway metamodel.MaturityScaleGateway,
 ) error {
-	config := &routeConfig{commandBus, eventStore, eventBus, db, hateoas, gateway}
+	return SetupCapabilityMappingRoutesWithGateways(r, commandBus, eventStore, eventBus, db, hateoas, gateway, nil)
+}
+
+func SetupCapabilityMappingRoutesWithGateways(
+	r chi.Router,
+	commandBus *cqrs.InMemoryCommandBus,
+	eventStore eventstore.EventStore,
+	eventBus events.EventBus,
+	db *database.TenantAwareDB,
+	hateoas *sharedAPI.HATEOASLinks,
+	maturityGateway metamodel.MaturityScaleGateway,
+	pillarsGateway metamodel.StrategyPillarsGateway,
+) error {
+	config := &routeConfig{commandBus, eventStore, eventBus, db, hateoas, maturityGateway, pillarsGateway}
 
 	repos := initializeRepositories(config.eventStore)
 	readModels := initializeReadModels(config.db)
 
-	setupEventSubscriptions(config.eventBus, readModels)
+	setupEventSubscriptions(config.eventBus, readModels, config.strategyPillarsGateway)
 	setupCascadingDeleteHandlers(config.eventBus, config.commandBus, readModels)
-	setupCommandHandlers(config.commandBus, repos, readModels)
+	setupCommandHandlers(config.commandBus, repos, readModels, config.strategyPillarsGateway)
 	setupMetaModelEventHandlers(config.eventBus, config.maturityScaleGateway)
 
 	httpHandlers := initializeHTTPHandlers(config.commandBus, readModels, config.hateoas, config.maturityScaleGateway)
@@ -72,63 +86,70 @@ func setupMetaModelEventHandlers(eventBus events.EventBus, gateway metamodel.Mat
 }
 
 type routeRepositories struct {
-	capability       *repositories.CapabilityRepository
-	dependency       *repositories.DependencyRepository
-	realization      *repositories.RealizationRepository
-	businessDomain   *repositories.BusinessDomainRepository
-	domainAssignment *repositories.BusinessDomainAssignmentRepository
+	capability         *repositories.CapabilityRepository
+	dependency         *repositories.DependencyRepository
+	realization        *repositories.RealizationRepository
+	businessDomain     *repositories.BusinessDomainRepository
+	domainAssignment   *repositories.BusinessDomainAssignmentRepository
+	strategyImportance *repositories.StrategyImportanceRepository
 }
 
 type routeReadModels struct {
-	capability       *readmodels.CapabilityReadModel
-	dependency       *readmodels.DependencyReadModel
-	realization      *readmodels.RealizationReadModel
-	component        *archReadModels.ApplicationComponentReadModel
-	businessDomain   *readmodels.BusinessDomainReadModel
-	domainAssignment *readmodels.DomainCapabilityAssignmentReadModel
+	capability         *readmodels.CapabilityReadModel
+	dependency         *readmodels.DependencyReadModel
+	realization        *readmodels.RealizationReadModel
+	component          *archReadModels.ApplicationComponentReadModel
+	businessDomain     *readmodels.BusinessDomainReadModel
+	domainAssignment   *readmodels.DomainCapabilityAssignmentReadModel
+	strategyImportance *readmodels.StrategyImportanceReadModel
 }
 
 type routeHTTPHandlers struct {
-	capability     *CapabilityHandlers
-	dependency     *DependencyHandlers
-	realization    *RealizationHandlers
-	maturityLevel  *MaturityLevelHandlers
-	businessDomain *BusinessDomainHandlers
+	capability         *CapabilityHandlers
+	dependency         *DependencyHandlers
+	realization        *RealizationHandlers
+	maturityLevel      *MaturityLevelHandlers
+	businessDomain     *BusinessDomainHandlers
+	strategyImportance *StrategyImportanceHandlers
 }
 
 func initializeRepositories(eventStore eventstore.EventStore) *routeRepositories {
 	return &routeRepositories{
-		capability:       repositories.NewCapabilityRepository(eventStore),
-		dependency:       repositories.NewDependencyRepository(eventStore),
-		realization:      repositories.NewRealizationRepository(eventStore),
-		businessDomain:   repositories.NewBusinessDomainRepository(eventStore),
-		domainAssignment: repositories.NewBusinessDomainAssignmentRepository(eventStore),
+		capability:         repositories.NewCapabilityRepository(eventStore),
+		dependency:         repositories.NewDependencyRepository(eventStore),
+		realization:        repositories.NewRealizationRepository(eventStore),
+		businessDomain:     repositories.NewBusinessDomainRepository(eventStore),
+		domainAssignment:   repositories.NewBusinessDomainAssignmentRepository(eventStore),
+		strategyImportance: repositories.NewStrategyImportanceRepository(eventStore),
 	}
 }
 
 func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 	return &routeReadModels{
-		capability:       readmodels.NewCapabilityReadModel(db),
-		dependency:       readmodels.NewDependencyReadModel(db),
-		realization:      readmodels.NewRealizationReadModel(db),
-		component:        archReadModels.NewApplicationComponentReadModel(db),
-		businessDomain:   readmodels.NewBusinessDomainReadModel(db),
-		domainAssignment: readmodels.NewDomainCapabilityAssignmentReadModel(db),
+		capability:         readmodels.NewCapabilityReadModel(db),
+		dependency:         readmodels.NewDependencyReadModel(db),
+		realization:        readmodels.NewRealizationReadModel(db),
+		component:          archReadModels.NewApplicationComponentReadModel(db),
+		businessDomain:     readmodels.NewBusinessDomainReadModel(db),
+		domainAssignment:   readmodels.NewDomainCapabilityAssignmentReadModel(db),
+		strategyImportance: readmodels.NewStrategyImportanceReadModel(db),
 	}
 }
 
-func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels) {
+func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pillarsGateway metamodel.StrategyPillarsGateway) {
 	capabilityProjector := projectors.NewCapabilityProjector(rm.capability, rm.domainAssignment)
 	dependencyProjector := projectors.NewDependencyProjector(rm.dependency)
 	realizationProjector := projectors.NewRealizationProjector(rm.realization, rm.capability, rm.component)
 	businessDomainProjector := projectors.NewBusinessDomainProjector(rm.businessDomain)
 	domainAssignmentProjector := projectors.NewBusinessDomainAssignmentProjector(rm.domainAssignment, rm.businessDomain, rm.capability)
+	strategyImportanceProjector := projectors.NewStrategyImportanceProjector(rm.strategyImportance, rm.businessDomain, rm.capability, pillarsGateway)
 
 	subscribeCapabilityEvents(eventBus, capabilityProjector)
 	subscribeDependencyEvents(eventBus, dependencyProjector)
 	subscribeRealizationEvents(eventBus, realizationProjector)
 	subscribeBusinessDomainEvents(eventBus, businessDomainProjector)
 	subscribeDomainAssignmentEvents(eventBus, domainAssignmentProjector)
+	subscribeStrategyImportanceEvents(eventBus, strategyImportanceProjector)
 }
 
 func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.CapabilityProjector) {
@@ -168,22 +189,40 @@ func subscribeDomainAssignmentEvents(eventBus events.EventBus, projector *projec
 	}
 }
 
+func subscribeStrategyImportanceEvents(eventBus events.EventBus, projector *projectors.StrategyImportanceProjector) {
+	events := []string{"StrategyImportanceSet", "StrategyImportanceUpdated", "StrategyImportanceRemoved"}
+	for _, event := range events {
+		eventBus.Subscribe(event, projector)
+	}
+}
+
 func setupCascadingDeleteHandlers(eventBus events.EventBus, commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels) {
 	onCapabilityDeletedHandler := handlers.NewOnCapabilityDeletedHandler(commandBus, rm.domainAssignment)
 	onBusinessDomainDeletedHandler := handlers.NewOnBusinessDomainDeletedHandler(commandBus, rm.domainAssignment)
 	onCapabilityParentChangedHandler := handlers.NewOnCapabilityParentChangedHandler(commandBus, rm.domainAssignment, rm.capability)
+	onCapabilityDeletedImportanceHandler := handlers.NewOnCapabilityDeletedImportanceHandler(rm.strategyImportance)
+	onBusinessDomainDeletedImportanceHandler := handlers.NewOnBusinessDomainDeletedImportanceHandler(rm.strategyImportance)
 
 	eventBus.Subscribe("CapabilityDeleted", onCapabilityDeletedHandler)
+	eventBus.Subscribe("CapabilityDeleted", onCapabilityDeletedImportanceHandler)
 	eventBus.Subscribe("BusinessDomainDeleted", onBusinessDomainDeletedHandler)
+	eventBus.Subscribe("BusinessDomainDeleted", onBusinessDomainDeletedImportanceHandler)
 	eventBus.Subscribe("CapabilityParentChanged", onCapabilityParentChangedHandler)
 }
 
-func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepositories, rm *routeReadModels) {
+func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepositories, rm *routeReadModels, pillarsGateway metamodel.StrategyPillarsGateway) {
 	registerCapabilityCommands(commandBus, repos.capability, rm.capability)
 	registerDependencyCommands(commandBus, repos.dependency, repos.capability)
 	registerRealizationCommands(commandBus, repos.realization, repos.capability, rm.component)
 	registerBusinessDomainCommands(commandBus, repos.businessDomain, rm.businessDomain, rm.domainAssignment)
 	registerDomainAssignmentCommands(commandBus, repos.domainAssignment, rm.businessDomain, rm.capability, rm.domainAssignment)
+	registerStrategyImportanceCommands(commandBus, handlers.StrategyImportanceDeps{
+		ImportanceRepo:   repos.strategyImportance,
+		DomainReader:     rm.businessDomain,
+		CapabilityReader: rm.capability,
+		ImportanceReader: rm.strategyImportance,
+		PillarsGateway:   pillarsGateway,
+	})
 }
 
 func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repositories.CapabilityRepository, rm *readmodels.CapabilityReadModel) {
@@ -218,6 +257,12 @@ func registerDomainAssignmentCommands(commandBus *cqrs.InMemoryCommandBus, assig
 	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(assignRepo))
 }
 
+func registerStrategyImportanceCommands(commandBus *cqrs.InMemoryCommandBus, deps handlers.StrategyImportanceDeps) {
+	commandBus.Register("SetStrategyImportance", handlers.NewSetStrategyImportanceHandler(deps))
+	commandBus.Register("UpdateStrategyImportance", handlers.NewUpdateStrategyImportanceHandler(deps.ImportanceRepo))
+	commandBus.Register("RemoveStrategyImportance", handlers.NewRemoveStrategyImportanceHandler(deps.ImportanceRepo))
+}
+
 func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels, hateoas *sharedAPI.HATEOASLinks, gateway metamodel.MaturityScaleGateway) *routeHTTPHandlers {
 	businessDomainReadModels := &BusinessDomainReadModels{
 		Domain:      rm.businessDomain,
@@ -227,11 +272,12 @@ func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadMo
 	}
 
 	return &routeHTTPHandlers{
-		capability:     NewCapabilityHandlers(commandBus, rm.capability, hateoas),
-		dependency:     NewDependencyHandlers(commandBus, rm.dependency, hateoas),
-		realization:    NewRealizationHandlers(commandBus, rm.realization, hateoas),
-		maturityLevel:  NewMaturityLevelHandlers(gateway),
-		businessDomain: NewBusinessDomainHandlers(commandBus, businessDomainReadModels, hateoas),
+		capability:         NewCapabilityHandlers(commandBus, rm.capability, hateoas),
+		dependency:         NewDependencyHandlers(commandBus, rm.dependency, hateoas),
+		realization:        NewRealizationHandlers(commandBus, rm.realization, hateoas),
+		maturityLevel:      NewMaturityLevelHandlers(gateway),
+		businessDomain:     NewBusinessDomainHandlers(commandBus, businessDomainReadModels, hateoas),
+		strategyImportance: NewStrategyImportanceHandlers(commandBus, rm.strategyImportance, hateoas),
 	}
 }
 
@@ -240,6 +286,7 @@ func registerRoutes(r chi.Router, h *routeHTTPHandlers) {
 	registerDependencyRoutes(r, h)
 	registerRealizationRoutes(r, h)
 	registerBusinessDomainRoutes(r, h)
+	registerStrategyImportanceRoutes(r, h)
 }
 
 func registerCapabilityRoutes(r chi.Router, h *routeHTTPHandlers) {
@@ -258,6 +305,7 @@ func registerCapabilityRoutes(r chi.Router, h *routeHTTPHandlers) {
 		r.Get("/{id}/dependencies/outgoing", h.dependency.GetOutgoingDependencies)
 		r.Get("/{id}/dependencies/incoming", h.dependency.GetIncomingDependencies)
 		r.Get("/{id}/business-domains", h.businessDomain.GetDomainsForCapability)
+		r.Get("/{id}/importance", h.strategyImportance.GetImportanceByCapability)
 		r.Put("/{id}", h.capability.UpdateCapability)
 		r.Put("/{id}/metadata", h.capability.UpdateCapabilityMetadata)
 		r.Patch("/{id}/parent", h.capability.ChangeCapabilityParent)
@@ -293,6 +341,16 @@ func registerBusinessDomainRoutes(r chi.Router, h *routeHTTPHandlers) {
 		r.Get("/{id}/capabilities", h.businessDomain.GetCapabilitiesInDomain)
 		r.Post("/{id}/capabilities", h.businessDomain.AssignCapabilityToDomain)
 		r.Get("/{id}/capability-realizations", h.businessDomain.GetCapabilityRealizationsByDomain)
-		r.Delete("/{domainId}/capabilities/{capabilityId}", h.businessDomain.RemoveCapabilityFromDomain)
+		r.Delete("/{id}/capabilities/{capabilityId}", h.businessDomain.RemoveCapabilityFromDomain)
+		r.Get("/{id}/importance", h.strategyImportance.GetImportanceByDomain)
+		r.Route("/{id}/capabilities/{capabilityId}/importance", func(r chi.Router) {
+			r.Get("/", h.strategyImportance.GetImportanceByDomainAndCapability)
+			r.Post("/", h.strategyImportance.SetImportance)
+			r.Put("/{importanceId}", h.strategyImportance.UpdateImportance)
+			r.Delete("/{importanceId}", h.strategyImportance.RemoveImportance)
+		})
 	})
+}
+
+func registerStrategyImportanceRoutes(r chi.Router, h *routeHTTPHandlers) {
 }

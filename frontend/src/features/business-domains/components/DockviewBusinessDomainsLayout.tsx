@@ -50,6 +50,7 @@ type ExplorerPanelProps = IDockviewPanelProps<{
 type DetailsPanelProps = IDockviewPanelProps<{
   selectedCapability: BusinessDomainsHookReturn['selectedCapability'];
   selectedComponentId: BusinessDomainsHookReturn['selectedComponentId'];
+  visualizedDomain: BusinessDomainsHookReturn['visualizedDomain'];
 }>;
 
 const DomainsSidebarPanel = (props: DomainsSidebarPanelProps) => {
@@ -113,6 +114,7 @@ const DetailsPanel = (props: DetailsPanelProps) => {
       <DetailsSidebar
         selectedCapability={props.params.selectedCapability}
         selectedComponentId={props.params.selectedComponentId}
+        visualizedDomain={props.params.visualizedDomain}
       />
     </div>
   );
@@ -177,6 +179,7 @@ export function DockviewBusinessDomainsLayout({ hookData }: DockviewBusinessDoma
         event.api.getPanel('details')?.api.updateParameters({
           selectedCapability: hookData.selectedCapability,
           selectedComponentId: hookData.selectedComponentId,
+          visualizedDomain: hookData.visualizedDomain,
         });
 
         return;
@@ -246,6 +249,7 @@ export function DockviewBusinessDomainsLayout({ hookData }: DockviewBusinessDoma
       params: {
         selectedCapability: hookData.selectedCapability,
         selectedComponentId: hookData.selectedComponentId,
+        visualizedDomain: hookData.visualizedDomain,
       },
     });
 
@@ -298,6 +302,7 @@ export function DockviewBusinessDomainsLayout({ hookData }: DockviewBusinessDoma
     api.getPanel('details')?.api.updateParameters({
       selectedCapability: hookData.selectedCapability,
       selectedComponentId: hookData.selectedComponentId,
+      visualizedDomain: hookData.visualizedDomain,
     });
   }, [hookData]);
 
@@ -388,6 +393,7 @@ export function DockviewBusinessDomainsLayout({ hookData }: DockviewBusinessDoma
           params: {
             selectedCapability: hookData.selectedCapability,
             selectedComponentId: hookData.selectedComponentId,
+            visualizedDomain: hookData.visualizedDomain,
           },
         });
       }

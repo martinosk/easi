@@ -89,4 +89,13 @@ export const queryKeys = {
     latest: () => [...queryKeys.releases.all, 'latest'] as const,
     detail: (version: string) => [...queryKeys.releases.all, 'detail', version] as const,
   },
+  strategyImportance: {
+    all: ['strategyImportance'] as const,
+    byDomainAndCapability: (domainId: string, capabilityId: string) =>
+      [...queryKeys.strategyImportance.all, 'byDomainAndCapability', domainId, capabilityId] as const,
+    byDomain: (domainId: string) =>
+      [...queryKeys.strategyImportance.all, 'byDomain', domainId] as const,
+    byCapability: (capabilityId: string) =>
+      [...queryKeys.strategyImportance.all, 'byCapability', capabilityId] as const,
+  },
 } as const;

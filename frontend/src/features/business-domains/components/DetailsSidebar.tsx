@@ -1,14 +1,16 @@
 import { useState, useCallback } from 'react';
-import type { Capability, ComponentId } from '../../../api/types';
+import type { BusinessDomain, Capability, CapabilityId, ComponentId } from '../../../api/types';
 import { useComponentDetails } from '../hooks/useComponentDetails';
 import { ComponentDetailsContent } from '../../components/components/ComponentDetails';
 import { EditComponentDialog } from '../../components/components/EditComponentDialog';
 import { useCapabilities, useCapabilitiesByComponent } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
+import { StrategicImportanceSection } from './StrategicImportanceSection';
 
 interface DetailsSidebarProps {
   selectedCapability: Capability | null;
   selectedComponentId: ComponentId | null;
+  visualizedDomain: BusinessDomain | null;
 }
 
 function EmptyState() {
@@ -26,7 +28,12 @@ function EmptyState() {
   );
 }
 
-function CapabilityContent({ capability }: { capability: Capability }) {
+interface CapabilityContentProps {
+  capability: Capability;
+  domain: BusinessDomain | null;
+}
+
+function CapabilityContent({ capability, domain }: CapabilityContentProps) {
   return (
     <div className="detail-panel">
       <div className="detail-header">
@@ -46,6 +53,14 @@ function CapabilityContent({ capability }: { capability: Capability }) {
             <span className="detail-label">Description</span>
             <span className="detail-value">{capability.description}</span>
           </div>
+        )}
+
+        {domain && (
+          <StrategicImportanceSection
+            domain={domain}
+            capabilityId={capability.id as CapabilityId}
+            capabilityName={capability.name}
+          />
         )}
       </div>
     </div>
@@ -126,6 +141,7 @@ function ApplicationContent({ componentId }: ApplicationContentProps) {
 export function DetailsSidebar({
   selectedCapability,
   selectedComponentId,
+  visualizedDomain,
 }: DetailsSidebarProps) {
   const hasSelection = selectedCapability || selectedComponentId;
 
@@ -139,7 +155,7 @@ export function DetailsSidebar({
       }}
     >
       {!hasSelection && <EmptyState />}
-      {selectedCapability && <CapabilityContent capability={selectedCapability} />}
+      {selectedCapability && <CapabilityContent capability={selectedCapability} domain={visualizedDomain} />}
       {selectedComponentId && !selectedCapability && (
         <ApplicationContent componentId={selectedComponentId} />
       )}

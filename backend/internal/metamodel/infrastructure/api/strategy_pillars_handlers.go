@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -165,13 +166,13 @@ func (h *StrategyPillarsHandlers) CreateStrategyPillar(w http.ResponseWriter, r 
 		return
 	}
 
-	config, ok := h.ensureConfigExists(w, r, authSession.UserEmail())
+	result, ok := h.ensureConfigExists(w, r, authSession.UserEmail())
 	if !ok {
 		return
 	}
 
 	cmd := &commands.AddStrategyPillar{
-		ConfigID:    config.ID,
+		ConfigID:    result.config.ID,
 		Name:        req.Name,
 		Description: req.Description,
 		ModifiedBy:  authSession.UserEmail(),
@@ -371,30 +372,43 @@ func (h *StrategyPillarsHandlers) BatchUpdateStrategyPillars(w http.ResponseWrit
 		return
 	}
 
-	config, ok := h.ensureConfigExists(w, r, authSession.UserEmail())
+	result, ok := h.ensureConfigExists(w, r, authSession.UserEmail())
 	if !ok {
 		return
 	}
 
+	if err := h.dispatchBatchUpdate(r.Context(), w, req, result, expectedVersion, authSession.UserEmail()); err != nil {
+		return
+	}
+
+	h.respondWithUpdatedPillars(w, r)
+}
+
+func (h *StrategyPillarsHandlers) dispatchBatchUpdate(ctx context.Context, w http.ResponseWriter, req BatchUpdateStrategyPillarsRequest, result *ensureConfigResult, expectedVersion int, userEmail string) error {
 	changes, err := mapPillarChanges(req.Changes)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, nil, err.Error())
-		return
+		return err
 	}
 
 	cmd := &commands.BatchUpdateStrategyPillars{
-		ConfigID:        config.ID,
-		Changes:         changes,
-		ModifiedBy:      authSession.UserEmail(),
-		ExpectedVersion: &expectedVersion,
+		ConfigID:   result.config.ID,
+		Changes:    changes,
+		ModifiedBy: userEmail,
+	}
+	if !result.wasCreated {
+		cmd.ExpectedVersion = &expectedVersion
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if err := h.commandBus.Dispatch(ctx, cmd); err != nil {
 		statusCode := sharedAPI.MapErrorToStatusCode(err, http.StatusBadRequest)
 		sharedAPI.RespondError(w, statusCode, err, "Failed to update strategy pillars")
-		return
+		return err
 	}
+	return nil
+}
 
+func (h *StrategyPillarsHandlers) respondWithUpdatedPillars(w http.ResponseWriter, r *http.Request) {
 	updatedConfig, err := h.readModel.GetByTenantID(r.Context())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve updated configuration")
@@ -402,12 +416,9 @@ func (h *StrategyPillarsHandlers) BatchUpdateStrategyPillars(w http.ResponseWrit
 	}
 
 	activePillars := filterActivePillars(updatedConfig.StrategyPillars)
-	data := h.buildPillarResponses(activePillars)
-	links := h.hateoas.StrategyPillarsCollectionLinks()
-
 	response := BatchUpdateStrategyPillarsResponse{
-		Data:  data,
-		Links: links,
+		Data:  h.buildPillarResponses(activePillars),
+		Links: h.hateoas.StrategyPillarsCollectionLinks(),
 	}
 
 	w.Header().Set("ETag", fmt.Sprintf(`"%d"`, updatedConfig.Version))
@@ -458,14 +469,19 @@ func mapOperation(operation string) (commands.PillarOperation, error) {
 	}
 }
 
-func (h *StrategyPillarsHandlers) ensureConfigExists(w http.ResponseWriter, r *http.Request, userEmail string) (*readmodels.MetaModelConfigurationDTO, bool) {
+type ensureConfigResult struct {
+	config     *readmodels.MetaModelConfigurationDTO
+	wasCreated bool
+}
+
+func (h *StrategyPillarsHandlers) ensureConfigExists(w http.ResponseWriter, r *http.Request, userEmail string) (*ensureConfigResult, bool) {
 	config, err := h.readModel.GetByTenantID(r.Context())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve configuration")
 		return nil, false
 	}
 	if config != nil {
-		return config, true
+		return &ensureConfigResult{config: config, wasCreated: false}, true
 	}
 
 	tenantID, err := sharedctx.GetTenant(r.Context())
@@ -489,7 +505,7 @@ func (h *StrategyPillarsHandlers) ensureConfigExists(w http.ResponseWriter, r *h
 		return nil, false
 	}
 
-	return config, true
+	return &ensureConfigResult{config: config, wasCreated: true}, true
 }
 
 func (h *StrategyPillarsHandlers) buildPillarResponse(pillar readmodels.StrategyPillarDTO) StrategyPillarResponse {

@@ -174,11 +174,11 @@ Capability Mapping context maintains a local cache of available strategy pillars
 
 ## Checklist
 
-- [ ] Specification approved
-- [ ] Domain model implemented
-- [ ] Anti-corruption layer for pillars
-- [ ] API implemented
-- [ ] Capability details UI updated
-- [ ] Business domain filtering
-- [ ] Tests passing
-- [ ] User sign-off
+- [x] Specification approved
+- [x] Domain model implemented
+- [x] Anti-corruption layer for pillars
+- [x] API implemented
+- [x] Capability details UI updated
+- [x] Business domain filtering
+- [x] Tests passing
+- [x] User sign-off

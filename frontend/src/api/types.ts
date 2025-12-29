@@ -502,3 +502,30 @@ export interface UpdateStrategyPillarRequest {
   name: string;
   description: string;
 }
+
+export type StrategyImportanceId = Branded<string, 'StrategyImportanceId'>;
+
+export interface StrategyImportance {
+  id: StrategyImportanceId;
+  businessDomainId: BusinessDomainId;
+  businessDomainName: string;
+  capabilityId: CapabilityId;
+  capabilityName: string;
+  pillarId: string;
+  pillarName: string;
+  importance: number;
+  importanceLabel: string;
+  rationale?: string;
+  _links: HATEOASLinks;
+}
+
+export interface SetStrategyImportanceRequest {
+  pillarId: string;
+  importance: number;
+  rationale?: string;
+}
+
+export interface UpdateStrategyImportanceRequest {
+  importance: number;
+  rationale?: string;
+}
