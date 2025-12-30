@@ -35,7 +35,10 @@ func (h *UpdateSystemRealizationHandler) Handle(ctx context.Context, cmd cqrs.Co
 		return err
 	}
 
-	notes := valueobjects.NewDescription(command.Notes)
+	notes, err := valueobjects.NewDescription(command.Notes)
+	if err != nil {
+		return err
+	}
 
 	if err := realization.Update(realizationLevel, notes); err != nil {
 		return err

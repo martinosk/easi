@@ -182,3 +182,59 @@ func (h *HATEOASLinks) StrategyPillarsCollectionLinks() map[string]string {
 		"create": fmt.Sprintf("%s/meta-model/strategy-pillars", h.baseURL),
 	}
 }
+
+func (h *HATEOASLinks) EnterpriseCapabilityLinks(id string) map[string]string {
+	return map[string]string{
+		"self":                fmt.Sprintf("%s/enterprise-capabilities/%s", h.baseURL, id),
+		"links":               fmt.Sprintf("%s/enterprise-capabilities/%s/links", h.baseURL, id),
+		"strategicImportance": fmt.Sprintf("%s/enterprise-capabilities/%s/strategic-importance", h.baseURL, id),
+	}
+}
+
+func (h *HATEOASLinks) EnterpriseCapabilityCollectionLinks() map[string]string {
+	return map[string]string{
+		"self": fmt.Sprintf("%s/enterprise-capabilities", h.baseURL),
+	}
+}
+
+func (h *HATEOASLinks) EnterpriseCapabilityLinkLinks(enterpriseCapabilityID, linkID string) map[string]string {
+	return map[string]string{
+		"self":                 fmt.Sprintf("%s/enterprise-capabilities/%s/links/%s", h.baseURL, enterpriseCapabilityID, linkID),
+		"enterpriseCapability": fmt.Sprintf("%s/enterprise-capabilities/%s", h.baseURL, enterpriseCapabilityID),
+	}
+}
+
+func (h *HATEOASLinks) EnterpriseCapabilityLinksCollectionLinks(enterpriseCapabilityID string) map[string]string {
+	return map[string]string{
+		"self":                 fmt.Sprintf("%s/enterprise-capabilities/%s/links", h.baseURL, enterpriseCapabilityID),
+		"enterpriseCapability": fmt.Sprintf("%s/enterprise-capabilities/%s", h.baseURL, enterpriseCapabilityID),
+	}
+}
+
+func (h *HATEOASLinks) EnterpriseStrategicImportanceLinks(enterpriseCapabilityID, importanceID string) map[string]string {
+	return map[string]string{
+		"self":                 fmt.Sprintf("%s/enterprise-capabilities/%s/strategic-importance/%s", h.baseURL, enterpriseCapabilityID, importanceID),
+		"enterpriseCapability": fmt.Sprintf("%s/enterprise-capabilities/%s", h.baseURL, enterpriseCapabilityID),
+	}
+}
+
+func (h *HATEOASLinks) EnterpriseStrategicImportanceCollectionLinks(enterpriseCapabilityID string) map[string]string {
+	return map[string]string{
+		"self":                 fmt.Sprintf("%s/enterprise-capabilities/%s/strategic-importance", h.baseURL, enterpriseCapabilityID),
+		"enterpriseCapability": fmt.Sprintf("%s/enterprise-capabilities/%s", h.baseURL, enterpriseCapabilityID),
+	}
+}
+
+func (h *HATEOASLinks) DomainCapabilityEnterpriseLinks(domainCapabilityID string) map[string]string {
+	return map[string]string{
+		"self": fmt.Sprintf("%s/domain-capabilities/%s/enterprise-capability", h.baseURL, domainCapabilityID),
+	}
+}
+
+func (h *HATEOASLinks) DomainCapabilityEnterpriseLinkedLinks(domainCapabilityID, enterpriseCapabilityID, linkID string) map[string]string {
+	return map[string]string{
+		"self":                 fmt.Sprintf("%s/domain-capabilities/%s/enterprise-capability", h.baseURL, domainCapabilityID),
+		"enterpriseCapability": fmt.Sprintf("%s/enterprise-capabilities/%s", h.baseURL, enterpriseCapabilityID),
+		"unlink":               fmt.Sprintf("%s/enterprise-capabilities/%s/links/%s", h.baseURL, enterpriseCapabilityID, linkID),
+	}
+}

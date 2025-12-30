@@ -91,7 +91,7 @@ func createRealization(t *testing.T) *aggregates.CapabilityRealization {
 	componentID, err := valueobjects.NewComponentIDFromString(valueobjects.NewCapabilityID().Value())
 	require.NoError(t, err)
 	level, _ := valueobjects.NewRealizationLevel("Full")
-	notes := valueobjects.NewDescription("Test notes")
+	notes := valueobjects.MustNewDescription("Test notes")
 
 	realization, err := aggregates.NewCapabilityRealization(capabilityID, componentID, level, notes)
 	require.NoError(t, err)

@@ -78,7 +78,7 @@ func (cd *CapabilityDependency) apply(event domain.DomainEvent) {
 		cd.sourceCapabilityID, _ = valueobjects.NewCapabilityIDFromString(e.SourceCapabilityID)
 		cd.targetCapabilityID, _ = valueobjects.NewCapabilityIDFromString(e.TargetCapabilityID)
 		cd.dependencyType, _ = valueobjects.NewDependencyType(e.DependencyType)
-		cd.description = valueobjects.NewDescription(e.Description)
+		cd.description = valueobjects.MustNewDescription(e.Description)
 		cd.createdAt = e.CreatedAt
 	case events.CapabilityDependencyDeleted:
 	}

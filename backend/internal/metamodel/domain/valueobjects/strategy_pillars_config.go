@@ -7,11 +7,11 @@ import (
 )
 
 var (
-	ErrTooManyPillars              = errors.New("cannot have more than 20 pillars")
-	ErrPillarNameDuplicate         = errors.New("pillar name already exists")
-	ErrPillarNotFound              = errors.New("pillar not found")
+	ErrTooManyPillars               = errors.New("cannot have more than 20 pillars")
+	ErrPillarNameDuplicate          = errors.New("pillar name already exists")
+	ErrPillarNotFound               = errors.New("pillar not found")
 	ErrCannotRemoveLastActivePillar = errors.New("cannot remove the last active pillar")
-	ErrPillarAlreadyInactive       = errors.New("pillar is already inactive")
+	ErrPillarAlreadyInactive        = errors.New("pillar is already inactive")
 )
 
 const MaxPillars = 20

@@ -35,7 +35,10 @@ func (h *UpdateCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) 
 		return err
 	}
 
-	description := valueobjects.NewDescription(command.Description)
+	description, err := valueobjects.NewDescription(command.Description)
+	if err != nil {
+		return err
+	}
 
 	if err := capability.Update(name, description); err != nil {
 		return err

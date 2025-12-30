@@ -115,7 +115,7 @@ func (h *testableLinkSystemToCapabilityHandler) Handle(ctx context.Context, cmd 
 		return err
 	}
 
-	notes := valueobjects.NewDescription(command.Notes)
+	notes := valueobjects.MustNewDescription(command.Notes)
 
 	realization, err := aggregates.NewCapabilityRealization(
 		capabilityID,
@@ -138,7 +138,7 @@ func createTestCapabilityForLink(t *testing.T, level string, parentID string) *a
 	name, err := valueobjects.NewCapabilityName("Test Capability")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Test description")
+	description := valueobjects.MustNewDescription("Test description")
 
 	capLevel, err := valueobjects.NewCapabilityLevel(level)
 	require.NoError(t, err)

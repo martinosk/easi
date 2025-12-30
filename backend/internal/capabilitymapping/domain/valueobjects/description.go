@@ -6,4 +6,8 @@ import (
 
 type Description = sharedvo.Description
 
-var NewDescription = sharedvo.NewDescription
+var (
+	NewDescription        = sharedvo.NewDescription
+	MustNewDescription    = sharedvo.MustNewDescription
+	ErrDescriptionTooLong = sharedvo.ErrDescriptionTooLong
+)

@@ -98,4 +98,12 @@ export const queryKeys = {
     byCapability: (capabilityId: string) =>
       [...queryKeys.strategyImportance.all, 'byCapability', capabilityId] as const,
   },
+  enterpriseCapabilities: {
+    all: ['enterpriseCapabilities'] as const,
+    lists: () => [...queryKeys.enterpriseCapabilities.all, 'list'] as const,
+    details: () => [...queryKeys.enterpriseCapabilities.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.enterpriseCapabilities.details(), id] as const,
+    links: (id: string) => [...queryKeys.enterpriseCapabilities.detail(id), 'links'] as const,
+    strategicImportance: (id: string) => [...queryKeys.enterpriseCapabilities.detail(id), 'strategicImportance'] as const,
+  },
 } as const;

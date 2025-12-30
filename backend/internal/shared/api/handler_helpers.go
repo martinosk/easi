@@ -20,7 +20,7 @@ func HandleError(w http.ResponseWriter, err error) {
 	}
 
 	statusCode = MapErrorToStatusCode(err, http.StatusInternalServerError)
-	RespondError(w, statusCode, err, "")
+	RespondError(w, statusCode, nil, "An unexpected error occurred")
 }
 
 func HandleErrorWithDefault(w http.ResponseWriter, err error, defaultMessage string) {
@@ -31,8 +31,5 @@ func HandleErrorWithDefault(w http.ResponseWriter, err error, defaultMessage str
 	}
 
 	statusCode = MapErrorToStatusCode(err, http.StatusInternalServerError)
-	if message == "" {
-		message = defaultMessage
-	}
-	RespondError(w, statusCode, err, message)
+	RespondError(w, statusCode, nil, defaultMessage)
 }

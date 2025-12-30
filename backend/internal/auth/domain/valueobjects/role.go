@@ -54,6 +54,7 @@ func (r Role) Permissions() []Permission {
 			PermUsersRead, PermUsersManage,
 			PermInvitationsManage,
 			PermMetaModelWrite,
+			PermEnterpriseArchRead, PermEnterpriseArchWrite, PermEnterpriseArchDelete,
 		}
 	case "architect":
 		return []Permission{
@@ -61,6 +62,7 @@ func (r Role) Permissions() []Permission {
 			PermViewsRead, PermViewsWrite,
 			PermCapabilitiesRead, PermCapabilitiesWrite,
 			PermDomainsRead, PermDomainsWrite,
+			PermEnterpriseArchRead, PermEnterpriseArchWrite,
 		}
 	case "stakeholder":
 		return []Permission{
@@ -68,6 +70,7 @@ func (r Role) Permissions() []Permission {
 			PermViewsRead,
 			PermCapabilitiesRead,
 			PermDomainsRead,
+			PermEnterpriseArchRead,
 		}
 	default:
 		return []Permission{}

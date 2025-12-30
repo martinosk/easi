@@ -4,12 +4,21 @@ import { UserMenu } from './UserMenu';
 import { ROUTES } from '../../routes/routes';
 import { useUserStore } from '../../store/userStore';
 
-type AppView = 'canvas' | 'business-domains' | 'invitations' | 'users' | 'settings';
+type AppView = 'canvas' | 'business-domains' | 'invitations' | 'users' | 'settings' | 'enterprise-architecture';
 
 interface AppNavigationProps {
   currentView: AppView;
   onOpenReleaseNotes?: () => void;
 }
+
+const viewRouteMap: Record<AppView, string> = {
+  'canvas': ROUTES.HOME,
+  'business-domains': ROUTES.BUSINESS_DOMAINS,
+  'enterprise-architecture': ROUTES.ENTERPRISE_ARCHITECTURE,
+  'invitations': ROUTES.INVITATIONS,
+  'users': ROUTES.USERS,
+  'settings': ROUTES.SETTINGS,
+};
 
 export function AppNavigation({ currentView, onOpenReleaseNotes }: AppNavigationProps) {
   const navigate = useNavigate();
@@ -18,19 +27,10 @@ export function AppNavigation({ currentView, onOpenReleaseNotes }: AppNavigation
   const canViewUsers = hasPermission('users:read');
   const canManageInvitations = hasPermission('invitations:manage');
   const canManageMetaModel = hasPermission('metamodel:write');
+  const canViewEnterpriseArch = hasPermission('enterprise-arch:read');
 
   const handleNavigate = (view: AppView) => {
-    if (view === 'business-domains') {
-      navigate(ROUTES.BUSINESS_DOMAINS);
-    } else if (view === 'invitations') {
-      navigate(ROUTES.INVITATIONS);
-    } else if (view === 'users') {
-      navigate(ROUTES.USERS);
-    } else if (view === 'settings') {
-      navigate(ROUTES.SETTINGS);
-    } else {
-      navigate(ROUTES.HOME);
-    }
+    navigate(viewRouteMap[view]);
   };
 
   return (
@@ -69,6 +69,21 @@ export function AppNavigation({ currentView, onOpenReleaseNotes }: AppNavigation
           </svg>
           Business Domains
         </button>
+        {canViewEnterpriseArch && (
+          <button
+            type="button"
+            className={`app-header-nav-item ${currentView === 'enterprise-architecture' ? 'app-header-nav-item-active' : ''}`}
+            onClick={() => handleNavigate('enterprise-architecture')}
+            data-testid="nav-enterprise-architecture"
+          >
+            <svg className="app-header-nav-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M3 9H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M9 21V9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Enterprise Architecture
+          </button>
+        )}
         {canViewUsers && (
           <button
             type="button"

@@ -41,8 +41,14 @@ func (h *CreateComponentRelationHandler) Handle(ctx context.Context, cmd cqrs.Co
 		return err
 	}
 
-	name := valueobjects.NewDescription(command.Name)
-	description := valueobjects.NewDescription(command.Description)
+	name, err := valueobjects.NewDescription(command.Name)
+	if err != nil {
+		return err
+	}
+	description, err := valueobjects.NewDescription(command.Description)
+	if err != nil {
+		return err
+	}
 
 	properties := valueobjects.NewRelationProperties(valueobjects.RelationPropertiesParams{
 		SourceID:     sourceID,

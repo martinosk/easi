@@ -39,7 +39,11 @@ const SettingsPage = lazy(() =>
   import('./features/settings').then(module => ({ default: module.SettingsPage }))
 );
 
-type AppView = 'canvas' | 'business-domains' | 'invitations' | 'users' | 'settings';
+const EnterpriseArchPage = lazy(() =>
+  import('./features/enterprise-architecture').then(module => ({ default: module.EnterpriseArchPage }))
+);
+
+type AppView = 'canvas' | 'business-domains' | 'invitations' | 'users' | 'settings' | 'enterprise-architecture';
 
 function useAuthErrorHandler() {
   const [authError, setAuthError] = useState<string | null>(null);
@@ -173,6 +177,9 @@ function MainContent({ view, canvasViewProps }: MainContentProps) {
   }
   if (view === 'settings') {
     return <LazyFeatureView featureName="Settings"><SettingsPage /></LazyFeatureView>;
+  }
+  if (view === 'enterprise-architecture') {
+    return <LazyFeatureView featureName="Enterprise Architecture"><EnterpriseArchPage /></LazyFeatureView>;
   }
   return <LazyFeatureView featureName="Business Domains"><BusinessDomainsRouter /></LazyFeatureView>;
 }

@@ -17,7 +17,7 @@ func TestNewCapabilityRealization(t *testing.T) {
 	realizationLevel, err := valueobjects.NewRealizationLevel("Full")
 	require.NoError(t, err)
 
-	notes := valueobjects.NewDescription("CRM system fully implements customer management capability")
+	notes := valueobjects.MustNewDescription("CRM system fully implements customer management capability")
 
 	realization, err := NewCapabilityRealization(capabilityID, componentID, realizationLevel, notes)
 	require.NoError(t, err)
@@ -39,7 +39,7 @@ func TestCapabilityRealization_RaisesLinkedEvent(t *testing.T) {
 	realizationLevel, err := valueobjects.NewRealizationLevel("Partial")
 	require.NoError(t, err)
 
-	notes := valueobjects.NewDescription("Partially implements the capability")
+	notes := valueobjects.MustNewDescription("Partially implements the capability")
 
 	realization, err := NewCapabilityRealization(capabilityID, componentID, realizationLevel, notes)
 	require.NoError(t, err)
@@ -57,7 +57,7 @@ func TestCapabilityRealization_Update(t *testing.T) {
 	realizationLevel, err := valueobjects.NewRealizationLevel("Planned")
 	require.NoError(t, err)
 
-	notes := valueobjects.NewDescription("Planned for Q3")
+	notes := valueobjects.MustNewDescription("Planned for Q3")
 
 	realization, err := NewCapabilityRealization(capabilityID, componentID, realizationLevel, notes)
 	require.NoError(t, err)
@@ -67,7 +67,7 @@ func TestCapabilityRealization_Update(t *testing.T) {
 	newLevel, err := valueobjects.NewRealizationLevel("Partial")
 	require.NoError(t, err)
 
-	newNotes := valueobjects.NewDescription("Now partially implemented")
+	newNotes := valueobjects.MustNewDescription("Now partially implemented")
 
 	err = realization.Update(newLevel, newNotes)
 	require.NoError(t, err)
@@ -88,7 +88,7 @@ func TestCapabilityRealization_Delete(t *testing.T) {
 	realizationLevel, err := valueobjects.NewRealizationLevel("Full")
 	require.NoError(t, err)
 
-	notes := valueobjects.NewDescription("Fully implemented")
+	notes := valueobjects.MustNewDescription("Fully implemented")
 
 	realization, err := NewCapabilityRealization(capabilityID, componentID, realizationLevel, notes)
 	require.NoError(t, err)
@@ -111,7 +111,7 @@ func TestCapabilityRealization_LoadFromHistory(t *testing.T) {
 	realizationLevel, err := valueobjects.NewRealizationLevel("Full")
 	require.NoError(t, err)
 
-	notes := valueobjects.NewDescription("Test realization")
+	notes := valueobjects.MustNewDescription("Test realization")
 
 	realization, err := NewCapabilityRealization(capabilityID, componentID, realizationLevel, notes)
 	require.NoError(t, err)
@@ -147,7 +147,7 @@ func TestCapabilityRealization_AllRealizationLevels(t *testing.T) {
 			realizationLevel, err := valueobjects.NewRealizationLevel(tt.realizationLevel)
 			require.NoError(t, err)
 
-			notes := valueobjects.NewDescription("Test realization")
+			notes := valueobjects.MustNewDescription("Test realization")
 
 			realization, err := NewCapabilityRealization(capabilityID, componentID, realizationLevel, notes)
 			require.NoError(t, err)

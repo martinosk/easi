@@ -17,12 +17,12 @@ import (
 )
 
 type routeConfig struct {
-	commandBus            *cqrs.InMemoryCommandBus
-	eventStore            eventstore.EventStore
-	eventBus              events.EventBus
-	db                    *database.TenantAwareDB
-	hateoas               *sharedAPI.HATEOASLinks
-	maturityScaleGateway  metamodel.MaturityScaleGateway
+	commandBus             *cqrs.InMemoryCommandBus
+	eventStore             eventstore.EventStore
+	eventBus               events.EventBus
+	db                     *database.TenantAwareDB
+	hateoas                *sharedAPI.HATEOASLinks
+	maturityScaleGateway   metamodel.MaturityScaleGateway
 	strategyPillarsGateway metamodel.StrategyPillarsGateway
 }
 

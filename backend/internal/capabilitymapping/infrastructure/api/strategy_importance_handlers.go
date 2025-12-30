@@ -12,9 +12,9 @@ import (
 )
 
 type StrategyImportanceHandlers struct {
-	commandBus      cqrs.CommandBus
-	importanceRM    *readmodels.StrategyImportanceReadModel
-	hateoas         *sharedAPI.HATEOASLinks
+	commandBus   cqrs.CommandBus
+	importanceRM *readmodels.StrategyImportanceReadModel
+	hateoas      *sharedAPI.HATEOASLinks
 }
 
 func NewStrategyImportanceHandlers(

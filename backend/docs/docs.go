@@ -316,6 +316,309 @@ const docTemplate = `{
                 }
             }
         },
+        "/business-domains/{domainId}/capabilities/{capabilityId}/importance": {
+            "get": {
+                "description": "Retrieves all strategic importance ratings for a specific capability within a business domain",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy-importance"
+                ],
+                "summary": "Get strategic importance ratings for a capability in a domain",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Business Domain ID",
+                        "name": "domainId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "capabilityId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.StrategyImportanceResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a new strategic importance rating for a capability-pillar combination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy-importance"
+                ],
+                "summary": "Set strategic importance for a capability in a domain",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Business Domain ID",
+                        "name": "domainId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "capabilityId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Importance rating",
+                        "name": "importance",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.SetStrategyImportanceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.StrategyImportanceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/business-domains/{domainId}/capabilities/{capabilityId}/importance/{importanceId}": {
+            "put": {
+                "description": "Updates an existing strategic importance rating",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy-importance"
+                ],
+                "summary": "Update strategic importance rating",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Business Domain ID",
+                        "name": "domainId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "capabilityId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Importance ID",
+                        "name": "importanceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated importance",
+                        "name": "importance",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.UpdateStrategyImportanceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.StrategyImportanceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Deletes an existing strategic importance rating",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy-importance"
+                ],
+                "summary": "Remove strategic importance rating",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Business Domain ID",
+                        "name": "domainId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "capabilityId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Importance ID",
+                        "name": "importanceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/business-domains/{domainId}/importance": {
+            "get": {
+                "description": "Retrieves all strategic importance ratings for all capabilities in a business domain",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy-importance"
+                ],
+                "summary": "Get all strategic importance ratings for a domain",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Business Domain ID",
+                        "name": "domainId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.StrategyImportanceResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/business-domains/{id}": {
             "get": {
                 "description": "Returns a single business domain with its details",
@@ -1294,6 +1597,59 @@ const docTemplate = `{
                 }
             }
         },
+        "/capabilities/{id}/importance": {
+            "get": {
+                "description": "Retrieves all strategic importance ratings for a capability across all domains",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy-importance"
+                ],
+                "summary": "Get all strategic importance ratings for a capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.StrategyImportanceResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/capabilities/{id}/metadata": {
             "put": {
                 "description": "Updates metadata fields like maturity level, ownership, and strategy alignment",
@@ -2013,6 +2369,669 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/domain-capabilities/{domainCapabilityId}/enterprise-capability": {
+            "get": {
+                "description": "Retrieves the enterprise capability linked to a specific domain capability",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Get enterprise capability for a domain capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Domain capability ID",
+                        "name": "domainCapabilityId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.DomainCapabilityEnterpriseResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/enterprise-capabilities": {
+            "get": {
+                "description": "Retrieves all active enterprise capabilities with optional pagination",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Get all enterprise capabilities",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Maximum number of results (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pagination cursor for next page",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a new enterprise capability for grouping domain capabilities",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Create a new enterprise capability",
+                "parameters": [
+                    {
+                        "description": "Enterprise capability data",
+                        "name": "capability",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.CreateEnterpriseCapabilityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/enterprise-capabilities/{id}": {
+            "get": {
+                "description": "Retrieves a specific enterprise capability by its ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Get an enterprise capability by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Updates the name, description, and category of an enterprise capability",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Update an enterprise capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated capability data",
+                        "name": "capability",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.UpdateEnterpriseCapabilityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Soft deletes an enterprise capability (marks as inactive)",
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Delete an enterprise capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/enterprise-capabilities/{id}/links": {
+            "get": {
+                "description": "Retrieves all domain capabilities linked to an enterprise capability",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Get linked domain capabilities",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityLinkDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Links a domain capability to an enterprise capability",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Link a domain capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Link data",
+                        "name": "link",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.LinkCapabilityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityLinkDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/enterprise-capabilities/{id}/links/{linkId}": {
+            "delete": {
+                "description": "Removes the link between a domain capability and an enterprise capability",
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Unlink a domain capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Link ID",
+                        "name": "linkId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/enterprise-capabilities/{id}/strategic-importance": {
+            "get": {
+                "description": "Retrieves all strategic importance ratings for an enterprise capability",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Get strategic importance ratings",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseStrategicImportanceDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Sets the strategic importance of an enterprise capability for a specific strategy pillar",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Set strategic importance",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Strategic importance data",
+                        "name": "importance",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.SetStrategicImportanceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseStrategicImportanceDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/enterprise-capabilities/{id}/strategic-importance/{importanceId}": {
+            "put": {
+                "description": "Updates the strategic importance rating for a specific pillar",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Update strategic importance",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Strategic importance ID",
+                        "name": "importanceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated importance data",
+                        "name": "importance",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.UpdateStrategicImportanceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseStrategicImportanceDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Removes the strategic importance rating for a specific pillar",
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Remove strategic importance",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Strategic importance ID",
+                        "name": "importanceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
                     },
                     "404": {
                         "description": "Not Found",
@@ -5256,6 +6275,120 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "active": {
+                    "type": "boolean"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "domainCount": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "linkCount": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityLinkDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "businessDomainId": {
+                    "type": "string"
+                },
+                "businessDomainName": {
+                    "type": "string"
+                },
+                "domainCapabilityId": {
+                    "type": "string"
+                },
+                "domainCapabilityName": {
+                    "type": "string"
+                },
+                "enterpriseCapabilityId": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "linkedAt": {
+                    "type": "string"
+                },
+                "linkedBy": {
+                    "type": "string"
+                },
+                "maturityLevel": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseStrategicImportanceDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "enterpriseCapabilityId": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "importance": {
+                    "type": "integer"
+                },
+                "importanceLabel": {
+                    "type": "string"
+                },
+                "pillarId": {
+                    "type": "string"
+                },
+                "pillarName": {
+                    "type": "string"
+                },
+                "rationale": {
+                    "type": "string"
+                },
+                "setAt": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
         "easi_backend_internal_importing_application_readmodels.ImportErrorDTO": {
             "type": "object",
             "properties": {
@@ -6074,6 +7207,20 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_capabilitymapping_infrastructure_api.SetStrategyImportanceRequest": {
+            "type": "object",
+            "properties": {
+                "importance": {
+                    "type": "integer"
+                },
+                "pillarId": {
+                    "type": "string"
+                },
+                "rationale": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_capabilitymapping_infrastructure_api.StatusDTO": {
             "type": "object",
             "properties": {
@@ -6088,6 +7235,47 @@ const docTemplate = `{
                 "value": {
                     "type": "string",
                     "example": "Active"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.StrategyImportanceResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "businessDomainId": {
+                    "type": "string"
+                },
+                "businessDomainName": {
+                    "type": "string"
+                },
+                "capabilityId": {
+                    "type": "string"
+                },
+                "capabilityName": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "importance": {
+                    "type": "integer"
+                },
+                "importanceLabel": {
+                    "type": "string"
+                },
+                "pillarId": {
+                    "type": "string"
+                },
+                "pillarName": {
+                    "type": "string"
+                },
+                "rationale": {
+                    "type": "string"
                 }
             }
         },
@@ -6162,6 +7350,104 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "realizationLevel": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.UpdateStrategyImportanceRequest": {
+            "type": "object",
+            "properties": {
+                "importance": {
+                    "type": "integer"
+                },
+                "rationale": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_enterprisearchitecture_infrastructure_api.CreateEnterpriseCapabilityRequest": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_enterprisearchitecture_infrastructure_api.DomainCapabilityEnterpriseResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "enterpriseCapabilityId": {
+                    "type": "string"
+                },
+                "enterpriseCapabilityName": {
+                    "type": "string"
+                },
+                "linkId": {
+                    "type": "string"
+                },
+                "linked": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_enterprisearchitecture_infrastructure_api.LinkCapabilityRequest": {
+            "type": "object",
+            "properties": {
+                "domainCapabilityId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_enterprisearchitecture_infrastructure_api.SetStrategicImportanceRequest": {
+            "type": "object",
+            "properties": {
+                "importance": {
+                    "type": "integer"
+                },
+                "pillarId": {
+                    "type": "string"
+                },
+                "pillarName": {
+                    "type": "string"
+                },
+                "rationale": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_enterprisearchitecture_infrastructure_api.UpdateEnterpriseCapabilityRequest": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_enterprisearchitecture_infrastructure_api.UpdateStrategicImportanceRequest": {
+            "type": "object",
+            "properties": {
+                "importance": {
+                    "type": "integer"
+                },
+                "rationale": {
                     "type": "string"
                 }
             }

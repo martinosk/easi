@@ -61,7 +61,7 @@ export function useAppInitialization() {
 
     const initializeView = async () => {
       try {
-        if (views.length === 0) {
+        if (!views || views.length === 0) {
           await createDefaultView();
         } else {
           selectExistingView(views);

@@ -85,11 +85,11 @@ func (cr *CapabilityRealization) apply(event domain.DomainEvent) {
 		cr.capabilityID, _ = valueobjects.NewCapabilityIDFromString(e.CapabilityID)
 		cr.componentID, _ = valueobjects.NewComponentIDFromString(e.ComponentID)
 		cr.realizationLevel, _ = valueobjects.NewRealizationLevel(e.RealizationLevel)
-		cr.notes = valueobjects.NewDescription(e.Notes)
+		cr.notes = valueobjects.MustNewDescription(e.Notes)
 		cr.linkedAt = e.LinkedAt
 	case events.SystemRealizationUpdated:
 		cr.realizationLevel, _ = valueobjects.NewRealizationLevel(e.RealizationLevel)
-		cr.notes = valueobjects.NewDescription(e.Notes)
+		cr.notes = valueobjects.MustNewDescription(e.Notes)
 	case events.SystemRealizationDeleted:
 	}
 }

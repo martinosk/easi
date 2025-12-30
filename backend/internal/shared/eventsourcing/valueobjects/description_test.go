@@ -1,20 +1,24 @@
 package valueobjects
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewDescription_WithValue(t *testing.T) {
-	description := NewDescription("This is a test description")
+	description, err := NewDescription("This is a test description")
+	require.NoError(t, err)
 
 	assert.Equal(t, "This is a test description", description.Value())
 	assert.False(t, description.IsEmpty())
 }
 
 func TestNewDescription_Empty(t *testing.T) {
-	description := NewDescription("")
+	description, err := NewDescription("")
+	require.NoError(t, err)
 
 	assert.Equal(t, "", description.Value())
 	assert.True(t, description.IsEmpty())
@@ -35,7 +39,8 @@ func TestNewDescription_TrimsWhitespace(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			description := NewDescription(tc.input)
+			description, err := NewDescription(tc.input)
+			require.NoError(t, err)
 
 			assert.Equal(t, tc.expected, description.Value())
 		})
@@ -55,7 +60,8 @@ func TestNewDescription_WhitespaceOnly(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			description := NewDescription(tc.input)
+			description, err := NewDescription(tc.input)
+			require.NoError(t, err)
 
 			assert.Equal(t, "", description.Value())
 			assert.True(t, description.IsEmpty())
@@ -64,22 +70,25 @@ func TestNewDescription_WhitespaceOnly(t *testing.T) {
 }
 
 func TestDescription_IsEmpty(t *testing.T) {
-	emptyDesc := NewDescription("")
+	emptyDesc, err := NewDescription("")
+	require.NoError(t, err)
 	assert.True(t, emptyDesc.IsEmpty())
 
-	whitespaceDesc := NewDescription("   ")
+	whitespaceDesc, err := NewDescription("   ")
+	require.NoError(t, err)
 	assert.True(t, whitespaceDesc.IsEmpty())
 
-	nonEmptyDesc := NewDescription("Some content")
+	nonEmptyDesc, err := NewDescription("Some content")
+	require.NoError(t, err)
 	assert.False(t, nonEmptyDesc.IsEmpty())
 }
 
 func TestDescription_Equals(t *testing.T) {
-	desc1 := NewDescription("User authentication module")
-	desc2 := NewDescription("User authentication module")
-	desc3 := NewDescription("Different description")
-	emptyDesc1 := NewDescription("")
-	emptyDesc2 := NewDescription("")
+	desc1, _ := NewDescription("User authentication module")
+	desc2, _ := NewDescription("User authentication module")
+	desc3, _ := NewDescription("Different description")
+	emptyDesc1, _ := NewDescription("")
+	emptyDesc2, _ := NewDescription("")
 
 	assert.True(t, desc1.Equals(desc2))
 	assert.True(t, desc2.Equals(desc1))
@@ -93,7 +102,7 @@ func TestDescription_Equals(t *testing.T) {
 }
 
 func TestDescription_Equals_WithDifferentValueObjectType(t *testing.T) {
-	description := NewDescription("some-uuid-value")
+	description, _ := NewDescription("some-uuid-value")
 
 	uuidValue := NewUUIDValue()
 
@@ -113,7 +122,8 @@ func TestDescription_String(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			description := NewDescription(tc.input)
+			description, err := NewDescription(tc.input)
+			require.NoError(t, err)
 
 			assert.Equal(t, tc.expected, description.String())
 		})
@@ -126,7 +136,8 @@ func TestDescription_LongText(t *testing.T) {
 		"functionality, and integration points. The description can span multiple lines " +
 		"and include technical details about the component's implementation."
 
-	description := NewDescription(longText)
+	description, err := NewDescription(longText)
+	require.NoError(t, err)
 
 	assert.Equal(t, longText, description.Value())
 	assert.False(t, description.IsEmpty())
@@ -146,10 +157,42 @@ func TestDescription_SpecialCharacters(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			description := NewDescription(tc.input)
+			description, err := NewDescription(tc.input)
+			require.NoError(t, err)
 
 			assert.Contains(t, description.Value(), tc.input)
 			assert.False(t, description.IsEmpty())
 		})
 	}
+}
+
+func TestNewDescription_TooLong(t *testing.T) {
+	longText := strings.Repeat("a", MaxDescriptionLength+1)
+
+	_, err := NewDescription(longText)
+
+	assert.ErrorIs(t, err, ErrDescriptionTooLong)
+}
+
+func TestNewDescription_ExactMaxLength(t *testing.T) {
+	exactText := strings.Repeat("a", MaxDescriptionLength)
+
+	description, err := NewDescription(exactText)
+	require.NoError(t, err)
+
+	assert.Equal(t, exactText, description.Value())
+}
+
+func TestMustNewDescription_Valid(t *testing.T) {
+	description := MustNewDescription("Valid description")
+
+	assert.Equal(t, "Valid description", description.Value())
+}
+
+func TestMustNewDescription_PanicsOnTooLong(t *testing.T) {
+	longText := strings.Repeat("a", MaxDescriptionLength+1)
+
+	assert.Panics(t, func() {
+		MustNewDescription(longText)
+	})
 }

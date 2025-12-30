@@ -142,7 +142,7 @@ func (c *Capability) apply(event domain.DomainEvent) {
 	case events.CapabilityCreated:
 		c.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
 		c.name, _ = valueobjects.NewCapabilityName(e.Name)
-		c.description = valueobjects.NewDescription(e.Description)
+		c.description = valueobjects.MustNewDescription(e.Description)
 		if e.ParentID != "" {
 			c.parentID, _ = valueobjects.NewCapabilityIDFromString(e.ParentID)
 		}
@@ -152,7 +152,7 @@ func (c *Capability) apply(event domain.DomainEvent) {
 		c.maturityLevel = valueobjects.MaturityGenesis
 	case events.CapabilityUpdated:
 		c.name, _ = valueobjects.NewCapabilityName(e.Name)
-		c.description = valueobjects.NewDescription(e.Description)
+		c.description = valueobjects.MustNewDescription(e.Description)
 	case events.CapabilityMetadataUpdated:
 		c.strategyPillar, _ = valueobjects.NewStrategyPillar(e.StrategyPillar)
 		c.pillarWeight, _ = valueobjects.NewPillarWeight(e.PillarWeight)

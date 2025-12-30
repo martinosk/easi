@@ -72,7 +72,10 @@ func (h *LinkSystemToCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Com
 		return err
 	}
 
-	notes := valueobjects.NewDescription(command.Notes)
+	notes, err := valueobjects.NewDescription(command.Notes)
+	if err != nil {
+		return err
+	}
 
 	realization, err := aggregates.NewCapabilityRealization(
 		capabilityID,

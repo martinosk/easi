@@ -95,12 +95,12 @@ func (c *ComponentRelation) apply(event domain.DomainEvent) {
 		c.sourceComponentID, _ = valueobjects.NewComponentIDFromString(e.SourceComponentID)
 		c.targetComponentID, _ = valueobjects.NewComponentIDFromString(e.TargetComponentID)
 		c.relationType, _ = valueobjects.NewRelationType(e.RelationType)
-		c.name = valueobjects.NewDescription(e.Name)
-		c.description = valueobjects.NewDescription(e.Description)
+		c.name = valueobjects.MustNewDescription(e.Name)
+		c.description = valueobjects.MustNewDescription(e.Description)
 		c.createdAt = e.CreatedAt
 	case events.ComponentRelationUpdated:
-		c.name = valueobjects.NewDescription(e.Name)
-		c.description = valueobjects.NewDescription(e.Description)
+		c.name = valueobjects.MustNewDescription(e.Name)
+		c.description = valueobjects.MustNewDescription(e.Description)
 	case events.ComponentRelationDeleted:
 		c.isDeleted = true
 	}

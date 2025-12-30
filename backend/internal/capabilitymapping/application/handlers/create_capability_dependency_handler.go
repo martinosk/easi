@@ -68,7 +68,10 @@ func (h *CreateCapabilityDependencyHandler) Handle(ctx context.Context, cmd cqrs
 		return err
 	}
 
-	description := valueobjects.NewDescription(command.Description)
+	description, err := valueobjects.NewDescription(command.Description)
+	if err != nil {
+		return err
+	}
 
 	dependency, err := aggregates.NewCapabilityDependency(
 		sourceCapabilityID,

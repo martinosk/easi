@@ -35,7 +35,10 @@ func (h *UpdateApplicationComponentHandler) Handle(ctx context.Context, cmd cqrs
 		return err
 	}
 
-	description := valueobjects.NewDescription(command.Description)
+	description, err := valueobjects.NewDescription(command.Description)
+	if err != nil {
+		return err
+	}
 
 	if err := component.Update(name, description); err != nil {
 		return err

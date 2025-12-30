@@ -103,7 +103,7 @@ func createTestCapability(t *testing.T) *aggregates.Capability {
 	name, err := valueobjects.NewCapabilityName("Test Capability")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Test description")
+	description := valueobjects.MustNewDescription("Test description")
 
 	level, err := valueobjects.NewCapabilityLevel("L1")
 	require.NoError(t, err)

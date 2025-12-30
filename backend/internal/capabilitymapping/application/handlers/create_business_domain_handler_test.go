@@ -81,7 +81,7 @@ func (h *testableCreateBusinessDomainHandler) Handle(ctx context.Context, cmd cq
 		return err
 	}
 
-	description := valueobjects.NewDescription(command.Description)
+	description := valueobjects.MustNewDescription(command.Description)
 
 	domain, err := aggregates.NewBusinessDomain(name, description)
 	if err != nil {

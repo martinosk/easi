@@ -77,11 +77,11 @@ func (a *ApplicationComponent) apply(event domain.DomainEvent) {
 	case events.ApplicationComponentCreated:
 		a.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
 		a.name, _ = valueobjects.NewComponentName(e.Name)
-		a.description = valueobjects.NewDescription(e.Description)
+		a.description = valueobjects.MustNewDescription(e.Description)
 		a.createdAt = e.CreatedAt
 	case events.ApplicationComponentUpdated:
 		a.name, _ = valueobjects.NewComponentName(e.Name)
-		a.description = valueobjects.NewDescription(e.Description)
+		a.description = valueobjects.MustNewDescription(e.Description)
 	case events.ApplicationComponentDeleted:
 		a.isDeleted = true
 	}

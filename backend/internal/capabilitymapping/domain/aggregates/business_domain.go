@@ -75,11 +75,11 @@ func (b *BusinessDomain) apply(event domain.DomainEvent) {
 	case events.BusinessDomainCreated:
 		b.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
 		b.name, _ = valueobjects.NewDomainName(e.Name)
-		b.description = valueobjects.NewDescription(e.Description)
+		b.description = valueobjects.MustNewDescription(e.Description)
 		b.createdAt = e.CreatedAt
 	case events.BusinessDomainUpdated:
 		b.name, _ = valueobjects.NewDomainName(e.Name)
-		b.description = valueobjects.NewDescription(e.Description)
+		b.description = valueobjects.MustNewDescription(e.Description)
 	case events.BusinessDomainDeleted:
 	}
 }

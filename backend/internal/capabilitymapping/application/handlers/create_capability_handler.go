@@ -31,7 +31,10 @@ func (h *CreateCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) 
 		return err
 	}
 
-	description := valueobjects.NewDescription(command.Description)
+	description, err := valueobjects.NewDescription(command.Description)
+	if err != nil {
+		return err
+	}
 
 	level, err := valueobjects.NewCapabilityLevel(command.Level)
 	if err != nil {

@@ -16,7 +16,7 @@ func TestNewCapabilityDependency(t *testing.T) {
 	dependencyType, err := valueobjects.NewDependencyType("Requires")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Payment processing requires customer management")
+	description := valueobjects.MustNewDescription("Payment processing requires customer management")
 
 	dependency, err := NewCapabilityDependency(sourceID, targetID, dependencyType, description)
 	require.NoError(t, err)
@@ -36,7 +36,7 @@ func TestNewCapabilityDependency_SelfDependency_ShouldFail(t *testing.T) {
 	dependencyType, err := valueobjects.NewDependencyType("Requires")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Test")
+	description := valueobjects.MustNewDescription("Test")
 
 	dependency, err := NewCapabilityDependency(sourceID, sourceID, dependencyType, description)
 	assert.Error(t, err)
@@ -51,7 +51,7 @@ func TestCapabilityDependency_RaisesCreatedEvent(t *testing.T) {
 	dependencyType, err := valueobjects.NewDependencyType("Enables")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Digital channels enable customer engagement")
+	description := valueobjects.MustNewDescription("Digital channels enable customer engagement")
 
 	dependency, err := NewCapabilityDependency(sourceID, targetID, dependencyType, description)
 	require.NoError(t, err)
@@ -68,7 +68,7 @@ func TestCapabilityDependency_Delete(t *testing.T) {
 	dependencyType, err := valueobjects.NewDependencyType("Supports")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Analytics supports decision making")
+	description := valueobjects.MustNewDescription("Analytics supports decision making")
 
 	dependency, err := NewCapabilityDependency(sourceID, targetID, dependencyType, description)
 	require.NoError(t, err)
@@ -90,7 +90,7 @@ func TestCapabilityDependency_LoadFromHistory(t *testing.T) {
 	dependencyType, err := valueobjects.NewDependencyType("Requires")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Test dependency")
+	description := valueobjects.MustNewDescription("Test dependency")
 
 	dependency, err := NewCapabilityDependency(sourceID, targetID, dependencyType, description)
 	require.NoError(t, err)
@@ -125,7 +125,7 @@ func TestCapabilityDependency_AllDependencyTypes(t *testing.T) {
 			dependencyType, err := valueobjects.NewDependencyType(tt.dependencyType)
 			require.NoError(t, err)
 
-			description := valueobjects.NewDescription("Test dependency")
+			description := valueobjects.MustNewDescription("Test dependency")
 
 			dependency, err := NewCapabilityDependency(sourceID, targetID, dependencyType, description)
 			require.NoError(t, err)

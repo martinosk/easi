@@ -10,6 +10,7 @@ import (
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
 	authAPI "easi/backend/internal/auth/infrastructure/api"
 	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
+	enterpriseArchAPI "easi/backend/internal/enterprisearchitecture/infrastructure/api"
 	importingAPI "easi/backend/internal/importing/infrastructure/api"
 	"easi/backend/internal/infrastructure/api/middleware"
 	"easi/backend/internal/infrastructure/database"
@@ -135,6 +136,15 @@ func registerAPIRoutes(r chi.Router, deps routerDependencies) {
 			mustSetup(architectureAPI.SetupArchitectureModelingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas), "architecture modeling routes")
 			mustSetup(viewsAPI.SetupArchitectureViewsRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas), "architecture views routes")
 			mustSetup(capabilityAPI.SetupCapabilityMappingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas), "capability mapping routes")
+			mustSetup(enterpriseArchAPI.SetupEnterpriseArchitectureRoutes(enterpriseArchAPI.EnterpriseArchRoutesDeps{
+				Router:         r,
+				CommandBus:     deps.commandBus,
+				EventStore:     deps.eventStore,
+				EventBus:       deps.eventBus,
+				DB:             deps.db,
+				AuthMiddleware: deps.authDeps.AuthMiddleware,
+				SessionManager: deps.authDeps.SessionManager,
+			}), "enterprise architecture routes")
 			mustSetup(releasesAPI.SetupReleasesRoutes(r, deps.db.DB()), "releases routes")
 			mustSetup(viewlayoutsAPI.SetupViewLayoutsRoutes(r, deps.eventBus, deps.db, deps.hateoas), "view layouts routes")
 			mustSetup(importingAPI.SetupImportingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db), "importing routes")

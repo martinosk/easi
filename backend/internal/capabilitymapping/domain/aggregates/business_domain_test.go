@@ -13,7 +13,7 @@ func TestNewBusinessDomain(t *testing.T) {
 	name, err := valueobjects.NewDomainName("Finance")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Financial business domain")
+	description := valueobjects.MustNewDescription("Financial business domain")
 
 	domain, err := NewBusinessDomain(name, description)
 	require.NoError(t, err)
@@ -29,7 +29,7 @@ func TestBusinessDomain_RaisesCreatedEvent(t *testing.T) {
 	name, err := valueobjects.NewDomainName("Customer Experience")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Customer-facing business domain")
+	description := valueobjects.MustNewDescription("Customer-facing business domain")
 
 	domain, err := NewBusinessDomain(name, description)
 	require.NoError(t, err)
@@ -49,7 +49,7 @@ func TestBusinessDomain_Update(t *testing.T) {
 	name, err := valueobjects.NewDomainName("Finance")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Financial capabilities")
+	description := valueobjects.MustNewDescription("Financial capabilities")
 
 	domain, err := NewBusinessDomain(name, description)
 	require.NoError(t, err)
@@ -59,7 +59,7 @@ func TestBusinessDomain_Update(t *testing.T) {
 	newName, err := valueobjects.NewDomainName("Finance & Accounting")
 	require.NoError(t, err)
 
-	newDescription := valueobjects.NewDescription("Financial and accounting capabilities")
+	newDescription := valueobjects.MustNewDescription("Financial and accounting capabilities")
 
 	err = domain.Update(newName, newDescription)
 	require.NoError(t, err)
@@ -76,7 +76,7 @@ func TestBusinessDomain_UpdateRaisesEvent(t *testing.T) {
 	name, err := valueobjects.NewDomainName("Operations")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Operational domain")
+	description := valueobjects.MustNewDescription("Operational domain")
 
 	domain, err := NewBusinessDomain(name, description)
 	require.NoError(t, err)
@@ -86,7 +86,7 @@ func TestBusinessDomain_UpdateRaisesEvent(t *testing.T) {
 	newName, err := valueobjects.NewDomainName("Operations & Support")
 	require.NoError(t, err)
 
-	newDescription := valueobjects.NewDescription("Operations and support domain")
+	newDescription := valueobjects.MustNewDescription("Operations and support domain")
 
 	err = domain.Update(newName, newDescription)
 	require.NoError(t, err)
@@ -124,7 +124,7 @@ func TestBusinessDomain_DeletePreservesState(t *testing.T) {
 	name, err := valueobjects.NewDomainName("Finance")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Financial capabilities")
+	description := valueobjects.MustNewDescription("Financial capabilities")
 
 	domain, err := NewBusinessDomain(name, description)
 	require.NoError(t, err)
@@ -144,7 +144,7 @@ func TestBusinessDomain_LoadFromHistory(t *testing.T) {
 	name, err := valueobjects.NewDomainName("Operations")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Operational capabilities")
+	description := valueobjects.MustNewDescription("Operational capabilities")
 
 	domain, err := NewBusinessDomain(name, description)
 	require.NoError(t, err)
@@ -163,7 +163,7 @@ func TestBusinessDomain_LoadFromHistoryWithMultipleEvents(t *testing.T) {
 	name, err := valueobjects.NewDomainName("Finance")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Financial domain")
+	description := valueobjects.MustNewDescription("Financial domain")
 
 	domain, err := NewBusinessDomain(name, description)
 	require.NoError(t, err)
@@ -171,7 +171,7 @@ func TestBusinessDomain_LoadFromHistoryWithMultipleEvents(t *testing.T) {
 	newName, err := valueobjects.NewDomainName("Finance & Accounting")
 	require.NoError(t, err)
 
-	newDescription := valueobjects.NewDescription("Financial and accounting domain")
+	newDescription := valueobjects.MustNewDescription("Financial and accounting domain")
 
 	err = domain.Update(newName, newDescription)
 	require.NoError(t, err)
@@ -207,7 +207,7 @@ func createBusinessDomain(t *testing.T, domainName string) *BusinessDomain {
 	name, err := valueobjects.NewDomainName(domainName)
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Test business domain")
+	description := valueobjects.MustNewDescription("Test business domain")
 
 	domain, err := NewBusinessDomain(name, description)
 	require.NoError(t, err)

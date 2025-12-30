@@ -13,7 +13,7 @@ func TestNewApplicationComponent(t *testing.T) {
 	name, err := valueobjects.NewComponentName("User Service")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Handles user authentication and authorization")
+	description := valueobjects.MustNewDescription("Handles user authentication and authorization")
 
 	component, err := NewApplicationComponent(name, description)
 	require.NoError(t, err)
@@ -29,7 +29,7 @@ func TestApplicationComponent_RaisesCreatedEvent(t *testing.T) {
 	name, err := valueobjects.NewComponentName("User Service")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Test description")
+	description := valueobjects.MustNewDescription("Test description")
 
 	component, err := NewApplicationComponent(name, description)
 	require.NoError(t, err)
@@ -44,7 +44,7 @@ func TestApplicationComponent_Update(t *testing.T) {
 	name, err := valueobjects.NewComponentName("User Service")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Handles user management")
+	description := valueobjects.MustNewDescription("Handles user management")
 
 	component, err := NewApplicationComponent(name, description)
 	require.NoError(t, err)
@@ -56,7 +56,7 @@ func TestApplicationComponent_Update(t *testing.T) {
 	newName, err := valueobjects.NewComponentName("Enhanced User Service")
 	require.NoError(t, err)
 
-	newDescription := valueobjects.NewDescription("Handles user management and authentication")
+	newDescription := valueobjects.MustNewDescription("Handles user management and authentication")
 
 	err = component.Update(newName, newDescription)
 
@@ -76,7 +76,7 @@ func TestApplicationComponent_UpdateWithEmptyDescription(t *testing.T) {
 	name, err := valueobjects.NewComponentName("Payment Service")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Processes payments")
+	description := valueobjects.MustNewDescription("Processes payments")
 
 	component, err := NewApplicationComponent(name, description)
 	require.NoError(t, err)
@@ -87,7 +87,7 @@ func TestApplicationComponent_UpdateWithEmptyDescription(t *testing.T) {
 	newName, err := valueobjects.NewComponentName("Payment Gateway")
 	require.NoError(t, err)
 
-	emptyDescription := valueobjects.NewDescription("")
+	emptyDescription := valueobjects.MustNewDescription("")
 
 	err = component.Update(newName, emptyDescription)
 
@@ -103,7 +103,7 @@ func TestLoadApplicationComponentFromHistory(t *testing.T) {
 	name, err := valueobjects.NewComponentName("Order Service")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Manages order processing")
+	description := valueobjects.MustNewDescription("Manages order processing")
 
 	originalComponent, err := NewApplicationComponent(name, description)
 	require.NoError(t, err)
@@ -130,7 +130,7 @@ func TestLoadApplicationComponentFromHistory_WithUpdateEvents(t *testing.T) {
 	name, err := valueobjects.NewComponentName("Notification Service")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Sends notifications")
+	description := valueobjects.MustNewDescription("Sends notifications")
 
 	component, err := NewApplicationComponent(name, description)
 	require.NoError(t, err)
@@ -139,7 +139,7 @@ func TestLoadApplicationComponentFromHistory_WithUpdateEvents(t *testing.T) {
 	updatedName, err := valueobjects.NewComponentName("Enhanced Notification Service")
 	require.NoError(t, err)
 
-	updatedDescription := valueobjects.NewDescription("Sends notifications via email and SMS")
+	updatedDescription := valueobjects.MustNewDescription("Sends notifications via email and SMS")
 
 	component.Update(updatedName, updatedDescription)
 
@@ -161,7 +161,7 @@ func TestApplicationComponent_EmptyDescription(t *testing.T) {
 	name, err := valueobjects.NewComponentName("API Gateway")
 	require.NoError(t, err)
 
-	emptyDescription := valueobjects.NewDescription("")
+	emptyDescription := valueobjects.MustNewDescription("")
 
 	// Act
 	component, err := NewApplicationComponent(name, emptyDescription)

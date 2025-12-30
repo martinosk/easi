@@ -97,7 +97,7 @@ func (h *testableUpdateBusinessDomainHandler) Handle(ctx context.Context, cmd cq
 		return err
 	}
 
-	description := valueobjects.NewDescription(command.Description)
+	description := valueobjects.MustNewDescription(command.Description)
 
 	if err := domain.Update(name, description); err != nil {
 		return err
@@ -112,7 +112,7 @@ func createTestBusinessDomain(t *testing.T, name, description string) *aggregate
 	domainName, err := valueobjects.NewDomainName(name)
 	require.NoError(t, err)
 
-	desc := valueobjects.NewDescription(description)
+	desc := valueobjects.MustNewDescription(description)
 
 	domain, err := aggregates.NewBusinessDomain(domainName, desc)
 	require.NoError(t, err)

@@ -13,7 +13,7 @@ func TestNewCapability_L1(t *testing.T) {
 	name, err := valueobjects.NewCapabilityName("Customer Engagement")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("All customer-facing capabilities")
+	description := valueobjects.MustNewDescription("All customer-facing capabilities")
 
 	level, err := valueobjects.NewCapabilityLevel("L1")
 	require.NoError(t, err)
@@ -36,7 +36,7 @@ func TestNewCapability_L1WithParent_ShouldFail(t *testing.T) {
 	name, err := valueobjects.NewCapabilityName("Customer Engagement")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Test")
+	description := valueobjects.MustNewDescription("Test")
 
 	level, err := valueobjects.NewCapabilityLevel("L1")
 	require.NoError(t, err)
@@ -53,7 +53,7 @@ func TestNewCapability_L2WithoutParent_OrphanAllowed(t *testing.T) {
 	name, err := valueobjects.NewCapabilityName("Digital Experience")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Test")
+	description := valueobjects.MustNewDescription("Test")
 
 	level, err := valueobjects.NewCapabilityLevel("L2")
 	require.NoError(t, err)
@@ -71,7 +71,7 @@ func TestNewCapability_L2WithParent(t *testing.T) {
 	name, err := valueobjects.NewCapabilityName("Digital Experience")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Customer digital touchpoints")
+	description := valueobjects.MustNewDescription("Customer digital touchpoints")
 
 	level, err := valueobjects.NewCapabilityLevel("L2")
 	require.NoError(t, err)
@@ -88,7 +88,7 @@ func TestCapability_RaisesCreatedEvent(t *testing.T) {
 	name, err := valueobjects.NewCapabilityName("Operations")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Test description")
+	description := valueobjects.MustNewDescription("Test description")
 
 	level, err := valueobjects.NewCapabilityLevel("L1")
 	require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestCapability_Update(t *testing.T) {
 	name, err := valueobjects.NewCapabilityName("Finance")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Financial capabilities")
+	description := valueobjects.MustNewDescription("Financial capabilities")
 
 	level, err := valueobjects.NewCapabilityLevel("L1")
 	require.NoError(t, err)
@@ -122,7 +122,7 @@ func TestCapability_Update(t *testing.T) {
 	newName, err := valueobjects.NewCapabilityName("Finance & Accounting")
 	require.NoError(t, err)
 
-	newDescription := valueobjects.NewDescription("Financial and accounting capabilities")
+	newDescription := valueobjects.MustNewDescription("Financial and accounting capabilities")
 
 	err = capability.Update(newName, newDescription)
 	require.NoError(t, err)
@@ -139,7 +139,7 @@ func TestCapability_LoadFromHistory(t *testing.T) {
 	name, err := valueobjects.NewCapabilityName("IT Infrastructure")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Infrastructure capabilities")
+	description := valueobjects.MustNewDescription("Infrastructure capabilities")
 
 	level, err := valueobjects.NewCapabilityLevel("L1")
 	require.NoError(t, err)
@@ -350,7 +350,7 @@ func TestChangeParent_PreservesOtherAggregateState(t *testing.T) {
 	name, err := valueobjects.NewCapabilityName("Customer Engagement")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Customer-facing capabilities")
+	description := valueobjects.MustNewDescription("Customer-facing capabilities")
 
 	level, err := valueobjects.NewCapabilityLevel("L1")
 	require.NoError(t, err)
@@ -378,7 +378,7 @@ func createL1Capability(t *testing.T, capabilityName string) *Capability {
 	name, err := valueobjects.NewCapabilityName(capabilityName)
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Test capability")
+	description := valueobjects.MustNewDescription("Test capability")
 
 	level, err := valueobjects.NewCapabilityLevel("L1")
 	require.NoError(t, err)
@@ -397,7 +397,7 @@ func createL2Capability(t *testing.T, capabilityName string) *Capability {
 	name, err := valueobjects.NewCapabilityName(capabilityName)
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Test capability")
+	description := valueobjects.MustNewDescription("Test capability")
 
 	level, err := valueobjects.NewCapabilityLevel("L2")
 	require.NoError(t, err)
@@ -416,7 +416,7 @@ func createL3Capability(t *testing.T, capabilityName string) *Capability {
 	name, err := valueobjects.NewCapabilityName(capabilityName)
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Test capability")
+	description := valueobjects.MustNewDescription("Test capability")
 
 	level, err := valueobjects.NewCapabilityLevel("L3")
 	require.NoError(t, err)
@@ -435,7 +435,7 @@ func createL4Capability(t *testing.T, capabilityName string) *Capability {
 	name, err := valueobjects.NewCapabilityName(capabilityName)
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Test capability")
+	description := valueobjects.MustNewDescription("Test capability")
 
 	level, err := valueobjects.NewCapabilityLevel("L4")
 	require.NoError(t, err)
@@ -483,7 +483,7 @@ func TestCapability_Delete_PreservesAggregateState(t *testing.T) {
 	name, err := valueobjects.NewCapabilityName("Finance")
 	require.NoError(t, err)
 
-	description := valueobjects.NewDescription("Financial capabilities")
+	description := valueobjects.MustNewDescription("Financial capabilities")
 
 	level, err := valueobjects.NewCapabilityLevel("L1")
 	require.NoError(t, err)

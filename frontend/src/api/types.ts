@@ -10,6 +10,9 @@ export type CapabilityDependencyId = Branded<string, 'CapabilityDependencyId'>;
 export type RealizationId = Branded<string, 'RealizationId'>;
 export type ReleaseVersion = Branded<string, 'ReleaseVersion'>;
 export type BusinessDomainId = Branded<string, 'BusinessDomainId'>;
+export type EnterpriseCapabilityId = Branded<string, 'EnterpriseCapabilityId'>;
+export type EnterpriseCapabilityLinkId = Branded<string, 'EnterpriseCapabilityLinkId'>;
+export type EnterpriseStrategicImportanceId = Branded<string, 'EnterpriseStrategicImportanceId'>;
 
 export interface Position {
   x: number;

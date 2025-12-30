@@ -34,25 +34,32 @@ var (
 	PermInvitationsManage = Permission{value: "invitations:manage"}
 
 	PermMetaModelWrite = Permission{value: "metamodel:write"}
+
+	PermEnterpriseArchRead   = Permission{value: "enterprise-arch:read"}
+	PermEnterpriseArchWrite  = Permission{value: "enterprise-arch:write"}
+	PermEnterpriseArchDelete = Permission{value: "enterprise-arch:delete"}
 )
 
 var validPermissions = map[string]Permission{
-	"components:read":     PermComponentsRead,
-	"components:write":    PermComponentsWrite,
-	"components:delete":   PermComponentsDelete,
-	"views:read":          PermViewsRead,
-	"views:write":         PermViewsWrite,
-	"views:delete":        PermViewsDelete,
-	"capabilities:read":   PermCapabilitiesRead,
-	"capabilities:write":  PermCapabilitiesWrite,
-	"capabilities:delete": PermCapabilitiesDelete,
-	"domains:read":        PermDomainsRead,
-	"domains:write":       PermDomainsWrite,
-	"domains:delete":      PermDomainsDelete,
-	"users:read":          PermUsersRead,
-	"users:manage":        PermUsersManage,
-	"invitations:manage":  PermInvitationsManage,
-	"metamodel:write":     PermMetaModelWrite,
+	"components:read":        PermComponentsRead,
+	"components:write":       PermComponentsWrite,
+	"components:delete":      PermComponentsDelete,
+	"views:read":             PermViewsRead,
+	"views:write":            PermViewsWrite,
+	"views:delete":           PermViewsDelete,
+	"capabilities:read":      PermCapabilitiesRead,
+	"capabilities:write":     PermCapabilitiesWrite,
+	"capabilities:delete":    PermCapabilitiesDelete,
+	"domains:read":           PermDomainsRead,
+	"domains:write":          PermDomainsWrite,
+	"domains:delete":         PermDomainsDelete,
+	"users:read":             PermUsersRead,
+	"users:manage":           PermUsersManage,
+	"invitations:manage":     PermInvitationsManage,
+	"metamodel:write":        PermMetaModelWrite,
+	"enterprise-arch:read":   PermEnterpriseArchRead,
+	"enterprise-arch:write":  PermEnterpriseArchWrite,
+	"enterprise-arch:delete": PermEnterpriseArchDelete,
 }
 
 func PermissionFromString(s string) (Permission, error) {

@@ -56,7 +56,6 @@ type StrategyPillarResponse struct {
 	Links       map[string]string `json:"_links"`
 }
 
-
 // GetStrategyPillars godoc
 // @Summary Get strategy pillars
 // @Description Retrieves the list of strategy pillars for the current tenant
@@ -547,4 +546,3 @@ func parseETag(etag string) (int, error) {
 func isValidETagFormat(etag string) bool {
 	return len(etag) >= 3 && etag[0] == '"' && etag[len(etag)-1] == '"'
 }
-

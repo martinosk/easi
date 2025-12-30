@@ -31,7 +31,10 @@ func (h *CreateApplicationComponentHandler) Handle(ctx context.Context, cmd cqrs
 		return err
 	}
 
-	description := valueobjects.NewDescription(command.Description)
+	description, err := valueobjects.NewDescription(command.Description)
+	if err != nil {
+		return err
+	}
 
 	component, err := aggregates.NewApplicationComponent(name, description)
 	if err != nil {

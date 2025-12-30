@@ -7,29 +7,29 @@ import (
 )
 
 func TestNewDescription_Empty(t *testing.T) {
-	description := NewDescription("")
+	description := MustNewDescription("")
 
 	assert.Equal(t, "", description.Value())
 	assert.True(t, description.IsEmpty())
 }
 
 func TestDescription_IsEmpty(t *testing.T) {
-	emptyDesc := NewDescription("")
+	emptyDesc := MustNewDescription("")
 	assert.True(t, emptyDesc.IsEmpty())
 
-	whitespaceDesc := NewDescription("   ")
+	whitespaceDesc := MustNewDescription("   ")
 	assert.True(t, whitespaceDesc.IsEmpty())
 
-	nonEmptyDesc := NewDescription("Some content")
+	nonEmptyDesc := MustNewDescription("Some content")
 	assert.False(t, nonEmptyDesc.IsEmpty())
 }
 
 func TestDescription_Equals(t *testing.T) {
-	desc1 := NewDescription("User authentication module")
-	desc2 := NewDescription("User authentication module")
-	desc3 := NewDescription("Different description")
-	emptyDesc1 := NewDescription("")
-	emptyDesc2 := NewDescription("")
+	desc1 := MustNewDescription("User authentication module")
+	desc2 := MustNewDescription("User authentication module")
+	desc3 := MustNewDescription("Different description")
+	emptyDesc1 := MustNewDescription("")
+	emptyDesc2 := MustNewDescription("")
 
 	assert.True(t, desc1.Equals(desc2))
 	assert.False(t, desc1.Equals(desc3))

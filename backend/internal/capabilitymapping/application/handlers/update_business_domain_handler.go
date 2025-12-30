@@ -53,7 +53,10 @@ func (h *UpdateBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Comma
 		return err
 	}
 
-	description := valueobjects.NewDescription(command.Description)
+	description, err := valueobjects.NewDescription(command.Description)
+	if err != nil {
+		return err
+	}
 
 	if err := domain.Update(name, description); err != nil {
 		return err

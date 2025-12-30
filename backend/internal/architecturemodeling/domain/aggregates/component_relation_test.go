@@ -20,8 +20,8 @@ func TestNewComponentRelation_ValidInputs(t *testing.T) {
 	relationType, err := valueobjects.NewRelationType("Triggers")
 	require.NoError(t, err)
 
-	name := valueobjects.NewDescription("User triggers order")
-	description := valueobjects.NewDescription("When user submits order, it triggers order processing")
+	name := valueobjects.MustNewDescription("User triggers order")
+	description := valueobjects.MustNewDescription("When user submits order, it triggers order processing")
 
 	properties := valueobjects.NewRelationProperties(valueobjects.RelationPropertiesParams{
 		SourceID:     sourceID,
@@ -50,8 +50,8 @@ func TestNewComponentRelation_SelfReference(t *testing.T) {
 	relationType, err := valueobjects.NewRelationType("Serves")
 	require.NoError(t, err)
 
-	name := valueobjects.NewDescription("Self relation")
-	description := valueobjects.NewDescription("Should not be allowed")
+	name := valueobjects.MustNewDescription("Self relation")
+	description := valueobjects.MustNewDescription("Should not be allowed")
 
 	properties := valueobjects.NewRelationProperties(valueobjects.RelationPropertiesParams{
 		SourceID:     componentID,
@@ -77,8 +77,8 @@ func TestNewComponentRelation_RaisesCreatedEvent(t *testing.T) {
 	relationType, err := valueobjects.NewRelationType("Triggers")
 	require.NoError(t, err)
 
-	name := valueobjects.NewDescription("Test relation")
-	description := valueobjects.NewDescription("Test description")
+	name := valueobjects.MustNewDescription("Test relation")
+	description := valueobjects.MustNewDescription("Test description")
 
 	properties := valueobjects.NewRelationProperties(valueobjects.RelationPropertiesParams{
 		SourceID:     sourceID,
@@ -105,8 +105,8 @@ func TestNewComponentRelation_WithServesType(t *testing.T) {
 	relationType, err := valueobjects.NewRelationType("Serves")
 	require.NoError(t, err)
 
-	name := valueobjects.NewDescription("API serves UI")
-	description := valueobjects.NewDescription("API provides services to UI")
+	name := valueobjects.MustNewDescription("API serves UI")
+	description := valueobjects.MustNewDescription("API provides services to UI")
 
 	properties := valueobjects.NewRelationProperties(valueobjects.RelationPropertiesParams{
 		SourceID:     sourceID,
@@ -133,8 +133,8 @@ func TestComponentRelation_Update(t *testing.T) {
 	relationType, err := valueobjects.NewRelationType("Triggers")
 	require.NoError(t, err)
 
-	name := valueobjects.NewDescription("Original name")
-	description := valueobjects.NewDescription("Original description")
+	name := valueobjects.MustNewDescription("Original name")
+	description := valueobjects.MustNewDescription("Original description")
 
 	properties := valueobjects.NewRelationProperties(valueobjects.RelationPropertiesParams{
 		SourceID:     sourceID,
@@ -150,8 +150,8 @@ func TestComponentRelation_Update(t *testing.T) {
 	relation.MarkChangesAsCommitted()
 
 	// Update the relation
-	newName := valueobjects.NewDescription("Updated name")
-	newDescription := valueobjects.NewDescription("Updated description")
+	newName := valueobjects.MustNewDescription("Updated name")
+	newDescription := valueobjects.MustNewDescription("Updated description")
 
 	err = relation.Update(newName, newDescription)
 
@@ -176,8 +176,8 @@ func TestLoadComponentRelationFromHistory(t *testing.T) {
 	relationType, err := valueobjects.NewRelationType("Triggers")
 	require.NoError(t, err)
 
-	name := valueobjects.NewDescription("Test relation")
-	description := valueobjects.NewDescription("Test description")
+	name := valueobjects.MustNewDescription("Test relation")
+	description := valueobjects.MustNewDescription("Test description")
 
 	properties := valueobjects.NewRelationProperties(valueobjects.RelationPropertiesParams{
 		SourceID:     sourceID,
@@ -214,8 +214,8 @@ func TestComponentRelation_WithEmptyNameAndDescription(t *testing.T) {
 	relationType, err := valueobjects.NewRelationType("Serves")
 	require.NoError(t, err)
 
-	name := valueobjects.NewDescription("")
-	description := valueobjects.NewDescription("")
+	name := valueobjects.MustNewDescription("")
+	description := valueobjects.MustNewDescription("")
 
 	properties := valueobjects.NewRelationProperties(valueobjects.RelationPropertiesParams{
 		SourceID:     sourceID,
