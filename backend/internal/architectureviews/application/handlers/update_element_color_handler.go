@@ -20,15 +20,15 @@ func NewUpdateElementColorHandler(layoutRepository *repositories.ViewLayoutRepos
 	}
 }
 
-func (h *UpdateElementColorHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *UpdateElementColorHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.UpdateElementColor)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	_, err := valueobjects.NewHexColor(command.Color)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	var elementType repositories.ElementType
@@ -38,8 +38,12 @@ func (h *UpdateElementColorHandler) Handle(ctx context.Context, cmd cqrs.Command
 	case "capability":
 		elementType = repositories.ElementTypeCapability
 	default:
-		return errors.New("invalid element type: must be 'component' or 'capability'")
+		return cqrs.EmptyResult(), errors.New("invalid element type: must be 'component' or 'capability'")
 	}
 
-	return h.layoutRepository.UpdateElementColor(ctx, command.ViewID, command.ElementID, elementType, command.Color)
+	if err := h.layoutRepository.UpdateElementColor(ctx, command.ViewID, command.ElementID, elementType, command.Color); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

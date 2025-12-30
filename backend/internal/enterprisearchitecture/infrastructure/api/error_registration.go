@@ -20,7 +20,13 @@ func init() {
 	registry.RegisterConflict(handlers.ErrImportanceAlreadySet, "Strategic importance for this pillar is already set")
 
 	registry.RegisterValidation(aggregates.ErrCannotLinkInactiveCapability, "Cannot link to an inactive enterprise capability")
+	registry.RegisterValidation(valueobjects.ErrEnterpriseCapabilityNameEmpty, "Enterprise capability name cannot be empty")
+	registry.RegisterValidation(valueobjects.ErrEnterpriseCapabilityNameTooLong, "Enterprise capability name cannot exceed 200 characters")
 	registry.RegisterValidation(valueobjects.ErrDescriptionTooLong, "Description exceeds maximum length of 1000 characters")
+	registry.RegisterValidation(valueobjects.ErrCategoryTooLong, "Category cannot exceed 100 characters")
+	registry.RegisterValidation(valueobjects.ErrImportanceOutOfRange, "Importance must be between 1 and 5")
+	registry.RegisterValidation(valueobjects.ErrRationaleTooLong, "Rationale cannot exceed 500 characters")
 	registry.RegisterValidation(valueobjects.ErrLinkedByEmpty, "LinkedBy cannot be empty")
 	registry.RegisterValidation(valueobjects.ErrLinkedByInvalid, "LinkedBy must be a valid email address or 'system'")
+	registry.RegisterValidation(valueobjects.ErrLinkedByTooLong, "LinkedBy cannot exceed 255 characters")
 }

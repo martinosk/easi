@@ -9,7 +9,6 @@ type CreateImportSession struct {
 	SourceFormat     string
 	BusinessDomainID string
 	ParseResult      *parsers.ParseResult
-	ID               string
 }
 
 func (c CreateImportSession) CommandName() string {

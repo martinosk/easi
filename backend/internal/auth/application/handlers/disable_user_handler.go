@@ -24,27 +24,31 @@ func NewDisableUserHandler(
 	}
 }
 
-func (h *DisableUserHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *DisableUserHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.DisableUser)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	isCurrentUser := command.UserID == command.DisabledByID
 
 	isLastAdmin, err := h.userReadModel.IsLastActiveAdmin(ctx, command.UserID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	user, err := h.repository.GetByID(ctx, command.UserID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := user.Disable(command.DisabledByID, isCurrentUser, isLastAdmin); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, user)
+	if err := h.repository.Save(ctx, user); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

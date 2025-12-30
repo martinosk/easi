@@ -96,8 +96,9 @@ func (h *EnterpriseCapabilityHandlers) CreateEnterpriseCapability(w http.Respons
 		Category:    req.Category,
 	}
 
-	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
-		h.respondWithCapability(w, r, cmd.ID, http.StatusCreated)
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(createdID string) {
+		h.respondWithCapability(w, r, createdID, http.StatusCreated)
 	})
 }
 
@@ -173,7 +174,8 @@ func (h *EnterpriseCapabilityHandlers) UpdateEnterpriseCapability(w http.Respons
 		Category:    req.Category,
 	}
 
-	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
 		h.respondWithCapability(w, r, id, http.StatusOK)
 	})
 }
@@ -193,7 +195,8 @@ func (h *EnterpriseCapabilityHandlers) DeleteEnterpriseCapability(w http.Respons
 		return
 	}
 
-	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), &commands.DeleteEnterpriseCapability{ID: id}), func() {
+	result, err := h.commandBus.Dispatch(r.Context(), &commands.DeleteEnterpriseCapability{ID: id})
+	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
 		sharedAPI.RespondDeleted(w)
 	})
 }
@@ -263,15 +266,16 @@ func (h *EnterpriseCapabilityHandlers) LinkCapability(w http.ResponseWriter, r *
 		LinkedBy:               linkedBy,
 	}
 
-	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
-		link, err := h.readModels.Link.GetByID(r.Context(), cmd.ID)
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(createdID string) {
+		link, err := h.readModels.Link.GetByID(r.Context(), createdID)
 		if err != nil || link == nil {
-			location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/links/"+cmd.ID))
+			location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/links/"+createdID))
 			sharedAPI.RespondCreatedNoBody(w, location)
 			return
 		}
 
-		location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/links/"+cmd.ID))
+		location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/links/"+createdID))
 		link.Links = h.hateoas.EnterpriseCapabilityLinkLinks(enterpriseCapabilityID, link.ID)
 		sharedAPI.RespondCreated(w, location, link)
 	})
@@ -293,7 +297,8 @@ func (h *EnterpriseCapabilityHandlers) UnlinkCapability(w http.ResponseWriter, r
 		return
 	}
 
-	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), &commands.UnlinkCapability{LinkID: linkID}), func() {
+	result, err := h.commandBus.Dispatch(r.Context(), &commands.UnlinkCapability{LinkID: linkID})
+	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
 		sharedAPI.RespondDeleted(w)
 	})
 }
@@ -359,15 +364,16 @@ func (h *EnterpriseCapabilityHandlers) SetStrategicImportance(w http.ResponseWri
 		Rationale:              req.Rationale,
 	}
 
-	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
-		rating, err := h.readModels.Importance.GetByID(r.Context(), cmd.ID)
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(createdID string) {
+		rating, err := h.readModels.Importance.GetByID(r.Context(), createdID)
 		if err != nil || rating == nil {
-			location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/strategic-importance/"+cmd.ID))
+			location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/strategic-importance/"+createdID))
 			sharedAPI.RespondCreatedNoBody(w, location)
 			return
 		}
 
-		location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/strategic-importance/"+cmd.ID))
+		location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/strategic-importance/"+createdID))
 		rating.Links = h.hateoas.EnterpriseStrategicImportanceLinks(enterpriseCapabilityID, rating.ID)
 		sharedAPI.RespondCreated(w, location, rating)
 	})
@@ -402,7 +408,8 @@ func (h *EnterpriseCapabilityHandlers) UpdateStrategicImportance(w http.Response
 		Rationale:  req.Rationale,
 	}
 
-	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
 		rating, err := h.readModels.Importance.GetByID(r.Context(), importanceID)
 		if err != nil || rating == nil {
 			w.WriteHeader(http.StatusNoContent)
@@ -429,7 +436,8 @@ func (h *EnterpriseCapabilityHandlers) RemoveStrategicImportance(w http.Response
 		return
 	}
 
-	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), &commands.RemoveEnterpriseStrategicImportance{ID: importanceID}), func() {
+	result, err := h.commandBus.Dispatch(r.Context(), &commands.RemoveEnterpriseStrategicImportance{ID: importanceID})
+	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
 		sharedAPI.RespondDeleted(w)
 	})
 }

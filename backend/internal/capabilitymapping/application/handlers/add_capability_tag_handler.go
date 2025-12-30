@@ -19,25 +19,29 @@ func NewAddCapabilityTagHandler(repository *repositories.CapabilityRepository) *
 	}
 }
 
-func (h *AddCapabilityTagHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *AddCapabilityTagHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.AddCapabilityTag)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	capability, err := h.repository.GetByID(ctx, command.CapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	tag, err := valueobjects.NewTag(command.Tag)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := capability.AddTag(tag); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, capability)
+	if err := h.repository.Save(ctx, capability); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

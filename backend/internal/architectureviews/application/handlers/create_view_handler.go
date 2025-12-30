@@ -23,31 +23,31 @@ func NewCreateViewHandler(repository *repositories.ArchitectureViewRepository, r
 	}
 }
 
-func (h *CreateViewHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *CreateViewHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.CreateView)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	name, err := valueobjects.NewViewName(command.Name)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	// Check if this is the first view (should be default)
 	existingViews, err := h.readModel.GetAll(ctx)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	isDefault := len(existingViews) == 0
 
 	view, err := aggregates.NewArchitectureView(name, command.Description, isDefault)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	// Set the ID on the command so the caller can retrieve it
-	command.ID = view.ID()
+	if err := h.repository.Save(ctx, view); err != nil {
+		return cqrs.EmptyResult(), err
+	}
 
-	return h.repository.Save(ctx, view)
+	return cqrs.NewResult(view.ID()), nil
 }

@@ -23,30 +23,30 @@ func NewConfirmImportHandler(repository *repositories.ImportSessionRepository, o
 	}
 }
 
-func (h *ConfirmImportHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *ConfirmImportHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.ConfirmImport)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	session, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := session.StartImport(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := h.repository.Save(ctx, session); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	tenantID := sharedctx.GetTenantOrDefault(ctx)
 	bgCtx := sharedctx.WithTenant(context.Background(), tenantID)
 	go h.executeImport(bgCtx, command.ID)
 
-	return nil
+	return cqrs.EmptyResult(), nil
 }
 
 func (h *ConfirmImportHandler) executeImport(ctx context.Context, sessionID string) {

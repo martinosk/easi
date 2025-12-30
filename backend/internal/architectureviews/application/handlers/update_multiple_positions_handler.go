@@ -18,10 +18,10 @@ func NewUpdateMultiplePositionsHandler(layoutRepository *repositories.ViewLayout
 	}
 }
 
-func (h *UpdateMultiplePositionsHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *UpdateMultiplePositionsHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(commands.UpdateMultiplePositions)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	positions := make([]repositories.ComponentPositionData, len(command.Positions))
@@ -33,5 +33,9 @@ func (h *UpdateMultiplePositionsHandler) Handle(ctx context.Context, cmd cqrs.Co
 		}
 	}
 
-	return h.layoutRepository.UpdateMultiplePositions(ctx, command.ViewID, positions)
+	if err := h.layoutRepository.UpdateMultiplePositions(ctx, command.ViewID, positions); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

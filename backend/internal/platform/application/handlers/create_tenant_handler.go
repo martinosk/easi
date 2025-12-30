@@ -23,25 +23,25 @@ func NewCreateTenantHandler(repository *repositories.TenantRepository, commandBu
 	return &CreateTenantHandler{repository: repository, commandBus: commandBus}
 }
 
-func (h *CreateTenantHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *CreateTenantHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.CreateTenant)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	tenantID, err := sharedvo.NewTenantID(command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	name, err := valueobjects.NewTenantName(command.Name)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	domains, err := valueobjects.NewEmailDomainList(command.Domains)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	oidcConfig, err := valueobjects.NewOIDCConfig(
@@ -51,12 +51,12 @@ func (h *CreateTenantHandler) Handle(ctx context.Context, cmd cqrs.Command) erro
 		command.Scopes,
 	)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	_, err = aggregates.NewTenant(tenantID, name, domains, oidcConfig, command.FirstAdminEmail)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	domainStrings := make([]string, len(domains))
@@ -80,7 +80,7 @@ func (h *CreateTenantHandler) Handle(ctx context.Context, cmd cqrs.Command) erro
 	}
 
 	if err := h.repository.Create(ctx, record); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	tenantCtx := sharedctx.WithTenant(ctx, tenantID)
@@ -89,5 +89,9 @@ func (h *CreateTenantHandler) Handle(ctx context.Context, cmd cqrs.Command) erro
 		Role:  "admin",
 	}
 
-	return h.commandBus.Dispatch(tenantCtx, createInvitationCmd)
+	if _, err := h.commandBus.Dispatch(tenantCtx, createInvitationCmd); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.NewResult(tenantID.Value()), nil
 }

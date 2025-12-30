@@ -16,20 +16,24 @@ func NewRemoveStrategyImportanceHandler(importanceRepo *repositories.StrategyImp
 	return &RemoveStrategyImportanceHandler{importanceRepo: importanceRepo}
 }
 
-func (h *RemoveStrategyImportanceHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *RemoveStrategyImportanceHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.RemoveStrategyImportance)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	aggregate, err := h.importanceRepo.GetByID(ctx, command.ImportanceID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := aggregate.Remove(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.importanceRepo.Save(ctx, aggregate)
+	if err := h.importanceRepo.Save(ctx, aggregate); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

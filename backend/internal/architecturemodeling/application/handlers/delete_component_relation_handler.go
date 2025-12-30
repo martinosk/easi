@@ -19,29 +19,33 @@ func NewDeleteComponentRelationHandler(repository *repositories.ComponentRelatio
 	}
 }
 
-func (h *DeleteComponentRelationHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *DeleteComponentRelationHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.DeleteComponentRelation)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	relationID, err := valueobjects.NewRelationIDFromString(command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	relation, err := h.repository.GetByID(ctx, relationID.Value())
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if relation.IsDeleted() {
-		return nil
+		return cqrs.EmptyResult(), nil
 	}
 
 	if err := relation.Delete(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, relation)
+	if err := h.repository.Save(ctx, relation); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

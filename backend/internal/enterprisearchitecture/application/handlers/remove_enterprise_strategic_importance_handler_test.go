@@ -56,22 +56,25 @@ func newTestableRemoveEnterpriseStrategicImportanceHandler(
 	}
 }
 
-func (h *testableRemoveEnterpriseStrategicImportanceHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *testableRemoveEnterpriseStrategicImportanceHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.RemoveEnterpriseStrategicImportance)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	si, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := si.Remove(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, si)
+	if err := h.repository.Save(ctx, si); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	return cqrs.EmptyResult(), nil
 }
 
 func TestRemoveEnterpriseStrategicImportanceHandler_RemovesRating(t *testing.T) {
@@ -87,7 +90,7 @@ func TestRemoveEnterpriseStrategicImportanceHandler_RemovesRating(t *testing.T) 
 		ID: existingImportance.ID(),
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	require.Len(t, mockRepo.savedImportances, 1)
@@ -106,7 +109,7 @@ func TestRemoveEnterpriseStrategicImportanceHandler_RaisesRemovedEvent(t *testin
 		ID: existingImportance.ID(),
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	removed := mockRepo.savedImportances[0]
@@ -126,7 +129,7 @@ func TestRemoveEnterpriseStrategicImportanceHandler_NonExistent_ReturnsError(t *
 		ID: "non-existent-id",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, repositories.ErrEnterpriseStrategicImportanceNotFound)
 }
 
@@ -144,6 +147,6 @@ func TestRemoveEnterpriseStrategicImportanceHandler_RepositoryError_ReturnsError
 		ID: existingImportance.ID(),
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 }

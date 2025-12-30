@@ -126,7 +126,8 @@ func (o *ImportOrchestrator) createComponents(ctx context.Context, components []
 			Description: comp.Description,
 		}
 
-		if err := o.commandBus.Dispatch(ctx, cmd); err != nil {
+		result, err := o.commandBus.Dispatch(ctx, cmd)
+		if err != nil {
 			errors = append(errors, valueobjects.NewImportError(
 				comp.SourceID,
 				comp.Name,
@@ -136,7 +137,7 @@ func (o *ImportOrchestrator) createComponents(ctx context.Context, components []
 			continue
 		}
 
-		sourceToID[comp.SourceID] = cmd.ID
+		sourceToID[comp.SourceID] = result.CreatedID
 		created++
 	}
 
@@ -174,7 +175,8 @@ func (o *ImportOrchestrator) createCapabilities(ctx context.Context, capabilitie
 				Level:       levelStr,
 			}
 
-			if err := o.commandBus.Dispatch(ctx, cmd); err != nil {
+			result, err := o.commandBus.Dispatch(ctx, cmd)
+			if err != nil {
 				errors = append(errors, valueobjects.NewImportError(
 					cap.SourceID,
 					cap.Name,
@@ -184,7 +186,7 @@ func (o *ImportOrchestrator) createCapabilities(ctx context.Context, capabilitie
 				continue
 			}
 
-			sourceToID[sourceID] = cmd.ID
+			sourceToID[sourceID] = result.CreatedID
 			created++
 		}
 	}
@@ -242,7 +244,7 @@ func (o *ImportOrchestrator) processRelationships(
 			notes:    buildNotes(rel.Name, rel.Documentation),
 		}
 
-		if err := o.commandBus.Dispatch(ctx, createCommand(relCtx)); err != nil {
+		if _, err := o.commandBus.Dispatch(ctx, createCommand(relCtx)); err != nil {
 			errors = append(errors, valueobjects.NewImportError(rel.SourceID, rel.Name, err.Error(), "skipped"))
 			continue
 		}
@@ -299,7 +301,7 @@ func (o *ImportOrchestrator) assignToDomain(ctx context.Context, assignCtx domai
 			BusinessDomainID: assignCtx.domainID,
 		}
 
-		if err := o.commandBus.Dispatch(ctx, cmd); err != nil {
+		if _, err := o.commandBus.Dispatch(ctx, cmd); err != nil {
 			errors = append(errors, valueobjects.NewImportError(capID, "", err.Error(), "skipped"))
 			continue
 		}

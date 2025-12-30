@@ -107,20 +107,21 @@ func (h *ImportHandlers) CreateImportSession(w http.ResponseWriter, r *http.Requ
 		ParseResult:      parseResult,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create import session")
 		return
 	}
 
-	session, err := h.readModel.GetByID(r.Context(), cmd.ID)
+	session, err := h.readModel.GetByID(r.Context(), result.CreatedID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve import session")
 		return
 	}
 
-	session.Links = h.getLinksForStatus(cmd.ID, session.Status)
+	session.Links = h.getLinksForStatus(result.CreatedID, session.Status)
 
-	location := fmt.Sprintf("/api/v1/imports/%s", cmd.ID)
+	location := fmt.Sprintf("/api/v1/imports/%s", result.CreatedID)
 	w.Header().Set("Location", location)
 	sharedAPI.RespondJSON(w, http.StatusCreated, session)
 }
@@ -208,7 +209,7 @@ func (h *ImportHandlers) ConfirmImport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmd := &commands.ConfirmImport{ID: id}
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		if errors.Is(err, aggregates.ErrImportAlreadyStarted) {
 			sharedAPI.RespondError(w, http.StatusConflict, err, "Import session has already been started")
 			return
@@ -273,7 +274,7 @@ func (h *ImportHandlers) DeleteImportSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	cmd := &commands.CancelImport{ID: id}
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		if errors.Is(err, aggregates.ErrCannotCancelStartedImport) {
 			sharedAPI.RespondError(w, http.StatusConflict, err, "Cannot cancel import that has already started")
 			return

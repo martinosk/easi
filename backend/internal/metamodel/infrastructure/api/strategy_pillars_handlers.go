@@ -177,7 +177,7 @@ func (h *StrategyPillarsHandlers) CreateStrategyPillar(w http.ResponseWriter, r 
 		ModifiedBy:  authSession.UserEmail(),
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		statusCode := sharedAPI.MapErrorToStatusCode(err, http.StatusBadRequest)
 		sharedAPI.RespondError(w, statusCode, err, "Failed to create pillar")
 		return
@@ -252,7 +252,7 @@ func (h *StrategyPillarsHandlers) UpdateStrategyPillar(w http.ResponseWriter, r 
 		ExpectedVersion: &expectedVersion,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		statusCode := sharedAPI.MapErrorToStatusCode(err, http.StatusBadRequest)
 		sharedAPI.RespondError(w, statusCode, err, "Failed to update pillar")
 		return
@@ -309,7 +309,7 @@ func (h *StrategyPillarsHandlers) DeleteStrategyPillar(w http.ResponseWriter, r 
 		ModifiedBy: authSession.UserEmail(),
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		statusCode := sharedAPI.MapErrorToStatusCode(err, http.StatusBadRequest)
 		sharedAPI.RespondError(w, statusCode, err, "Failed to delete pillar")
 		return
@@ -399,7 +399,7 @@ func (h *StrategyPillarsHandlers) dispatchBatchUpdate(ctx context.Context, w htt
 		cmd.ExpectedVersion = &expectedVersion
 	}
 
-	if err := h.commandBus.Dispatch(ctx, cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(ctx, cmd); err != nil {
 		statusCode := sharedAPI.MapErrorToStatusCode(err, http.StatusBadRequest)
 		sharedAPI.RespondError(w, statusCode, err, "Failed to update strategy pillars")
 		return err
@@ -493,7 +493,7 @@ func (h *StrategyPillarsHandlers) ensureConfigExists(w http.ResponseWriter, r *h
 		TenantID:  tenantID.Value(),
 		CreatedBy: userEmail,
 	}
-	if err := h.commandBus.Dispatch(r.Context(), createCmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), createCmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to initialize configuration")
 		return nil, false
 	}

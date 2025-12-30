@@ -225,7 +225,7 @@ func (h *UserHandlers) handleRoleUpdate(ctx userUpdateContext, newRole string) b
 		sharedAPI.RespondError(ctx.w, http.StatusBadRequest, err, "Invalid role")
 		return false
 	}
-	if err := h.commandBus.Dispatch(ctx.r.Context(), &commands.ChangeUserRole{UserID: ctx.userID, NewRole: newRole, ChangedByID: ctx.changedByID}); err != nil {
+	if _, err := h.commandBus.Dispatch(ctx.r.Context(), &commands.ChangeUserRole{UserID: ctx.userID, NewRole: newRole, ChangedByID: ctx.changedByID}); err != nil {
 		sharedAPI.HandleError(ctx.w, err)
 		return false
 	}
@@ -243,7 +243,7 @@ func (h *UserHandlers) handleStatusUpdate(ctx userUpdateContext, status string) 
 		sharedAPI.RespondError(ctx.w, http.StatusBadRequest, nil, "Invalid status. Must be 'active' or 'disabled'")
 		return false
 	}
-	if err := h.commandBus.Dispatch(ctx.r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(ctx.r.Context(), cmd); err != nil {
 		sharedAPI.HandleError(ctx.w, err)
 		return false
 	}

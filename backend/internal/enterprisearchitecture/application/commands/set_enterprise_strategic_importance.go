@@ -6,7 +6,6 @@ type SetEnterpriseStrategicImportance struct {
 	PillarName             string
 	Importance             int
 	Rationale              string
-	ID                     string
 }
 
 func (c SetEnterpriseStrategicImportance) CommandName() string {

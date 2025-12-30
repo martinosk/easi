@@ -57,32 +57,35 @@ func newTestableUpdateEnterpriseStrategicImportanceHandler(
 	}
 }
 
-func (h *testableUpdateEnterpriseStrategicImportanceHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *testableUpdateEnterpriseStrategicImportanceHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.UpdateEnterpriseStrategicImportance)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	si, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	importance, err := valueobjects.NewImportance(command.Importance)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	rationale, err := valueobjects.NewRationale(command.Rationale)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := si.Update(importance, rationale); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, si)
+	if err := h.repository.Save(ctx, si); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	return cqrs.EmptyResult(), nil
 }
 
 func createTestEnterpriseStrategicImportance(t *testing.T) *aggregates.EnterpriseStrategicImportance {
@@ -120,7 +123,7 @@ func TestUpdateEnterpriseStrategicImportanceHandler_UpdatesImportance(t *testing
 		Rationale:  "Updated rationale",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	require.Len(t, mockRepo.savedImportances, 1)
@@ -144,7 +147,7 @@ func TestUpdateEnterpriseStrategicImportanceHandler_RaisesUpdatedEvent(t *testin
 		Rationale:  "Updated rationale",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	updated := mockRepo.savedImportances[0]
@@ -166,7 +169,7 @@ func TestUpdateEnterpriseStrategicImportanceHandler_NonExistent_ReturnsError(t *
 		Rationale:  "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, repositories.ErrEnterpriseStrategicImportanceNotFound)
 }
 
@@ -185,7 +188,7 @@ func TestUpdateEnterpriseStrategicImportanceHandler_InvalidImportance_ReturnsErr
 		Rationale:  "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 	assert.Empty(t, mockRepo.savedImportances)
 }
@@ -206,6 +209,6 @@ func TestUpdateEnterpriseStrategicImportanceHandler_RepositoryError_ReturnsError
 		Rationale:  "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 }

@@ -19,32 +19,36 @@ func NewUpdateMaturityScaleHandler(repository *repositories.MetaModelConfigurati
 	}
 }
 
-func (h *UpdateMaturityScaleHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *UpdateMaturityScaleHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.UpdateMaturityScale)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	config, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	modifiedBy, err := valueobjects.NewUserEmail(command.ModifiedBy)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	scaleConfig, err := buildMaturityScaleConfig(command.Sections)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := config.UpdateMaturityScale(scaleConfig, modifiedBy); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, config)
+	if err := h.repository.Save(ctx, config); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }
 
 func buildMaturityScaleConfig(sectionData [4]commands.MaturitySectionInput) (valueobjects.MaturityScaleConfig, error) {

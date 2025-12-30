@@ -87,7 +87,8 @@ func (h *InvitationHandlers) CreateInvitation(w http.ResponseWriter, r *http.Req
 	}
 
 	cmd := &commands.CreateInvitation{Email: req.Email, Role: req.Role}
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	if err != nil {
 		if errors.Is(err, valueobjects.ErrInvalidEmailFormat) || errors.Is(err, valueobjects.ErrInvalidRole) {
 			sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request")
 			return
@@ -96,7 +97,7 @@ func (h *InvitationHandlers) CreateInvitation(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	h.respondCreated(w, r, cmd.ID)
+	h.respondCreated(w, r, result.CreatedID)
 }
 
 func (h *InvitationHandlers) parseRequest(r *http.Request) (*CreateInvitationRequest, error) {
@@ -224,7 +225,7 @@ func (h *InvitationHandlers) UpdateInvitation(w http.ResponseWriter, r *http.Req
 	switch req.Status {
 	case "revoked":
 		cmd := &commands.RevokeInvitation{ID: id}
-		if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 			h.handleUpdateError(w, err)
 			return
 		}

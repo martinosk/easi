@@ -84,46 +84,46 @@ func newTestableSetEnterpriseStrategicImportanceHandler(
 	}
 }
 
-func (h *testableSetEnterpriseStrategicImportanceHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *testableSetEnterpriseStrategicImportanceHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.SetEnterpriseStrategicImportance)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	capability, err := h.capabilityReadModel.GetByID(ctx, command.EnterpriseCapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	if capability == nil {
-		return repositories.ErrEnterpriseCapabilityNotFound
+		return cqrs.EmptyResult(), repositories.ErrEnterpriseCapabilityNotFound
 	}
 
 	existing, err := h.importanceReadModel.GetByCapabilityAndPillar(ctx, command.EnterpriseCapabilityID, command.PillarID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	if existing != nil {
-		return ErrImportanceAlreadySet
+		return cqrs.EmptyResult(), ErrImportanceAlreadySet
 	}
 
 	enterpriseCapabilityID, err := valueobjects.NewEnterpriseCapabilityIDFromString(command.EnterpriseCapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	pillarID, err := valueobjects.NewPillarIDFromString(command.PillarID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	importance, err := valueobjects.NewImportance(command.Importance)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	rationale, err := valueobjects.NewRationale(command.Rationale)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	si, err := aggregates.SetEnterpriseStrategicImportance(aggregates.NewEnterpriseImportanceParams{
@@ -134,12 +134,13 @@ func (h *testableSetEnterpriseStrategicImportanceHandler) Handle(ctx context.Con
 		Rationale:              rationale,
 	})
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.ID = si.ID()
-
-	return h.repository.Save(ctx, si)
+	if err := h.repository.Save(ctx, si); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	return cqrs.NewResult(si.ID()), nil
 }
 
 func TestSetEnterpriseStrategicImportanceHandler_SetsImportance(t *testing.T) {
@@ -163,7 +164,7 @@ func TestSetEnterpriseStrategicImportanceHandler_SetsImportance(t *testing.T) {
 
 	mockCapabilityReadModel.existingCapability.ID = capabilityID
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	require.Len(t, mockRepo.savedImportances, 1)
@@ -174,7 +175,7 @@ func TestSetEnterpriseStrategicImportanceHandler_SetsImportance(t *testing.T) {
 	assert.Equal(t, "Critical for business operations", importance.Rationale().Value())
 }
 
-func TestSetEnterpriseStrategicImportanceHandler_SetsCommandID(t *testing.T) {
+func TestSetEnterpriseStrategicImportanceHandler_ReturnsCreatedID(t *testing.T) {
 	mockRepo := &mockEnterpriseStrategicImportanceRepository{}
 	capabilityID := uuid.New().String()
 	mockCapabilityReadModel := &mockEnterpriseCapabilityReadModelForImportance{
@@ -193,11 +194,11 @@ func TestSetEnterpriseStrategicImportanceHandler_SetsCommandID(t *testing.T) {
 		Rationale:              "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	result, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, cmd.ID)
-	assert.Equal(t, mockRepo.savedImportances[0].ID(), cmd.ID)
+	assert.NotEmpty(t, result.CreatedID)
+	assert.Equal(t, mockRepo.savedImportances[0].ID(), result.CreatedID)
 }
 
 func TestSetEnterpriseStrategicImportanceHandler_RaisesSetEvent(t *testing.T) {
@@ -219,7 +220,7 @@ func TestSetEnterpriseStrategicImportanceHandler_RaisesSetEvent(t *testing.T) {
 		Rationale:              "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	si := mockRepo.savedImportances[0]
@@ -261,7 +262,7 @@ func TestSetEnterpriseStrategicImportanceHandler_ValidatesImportanceRange(t *tes
 				Rationale:              "",
 			}
 
-			err := handler.Handle(context.Background(), cmd)
+			_, err := handler.Handle(context.Background(), cmd)
 			if tc.shouldFail {
 				assert.Error(t, err)
 				assert.Empty(t, mockRepo.savedImportances)
@@ -290,7 +291,7 @@ func TestSetEnterpriseStrategicImportanceHandler_NonExistentCapability_ReturnsEr
 		Rationale:              "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, repositories.ErrEnterpriseCapabilityNotFound)
 }
 
@@ -314,7 +315,7 @@ func TestSetEnterpriseStrategicImportanceHandler_AlreadySet_ReturnsError(t *test
 		Rationale:              "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, ErrImportanceAlreadySet)
 	assert.Empty(t, mockRepo.savedImportances)
 }
@@ -336,7 +337,7 @@ func TestSetEnterpriseStrategicImportanceHandler_ReadModelError_ReturnsError(t *
 		Rationale:              "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 }
 
@@ -358,6 +359,6 @@ func TestSetEnterpriseStrategicImportanceHandler_RepositoryError_ReturnsError(t 
 		Rationale:              "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 }

@@ -21,28 +21,30 @@ func NewCreateMetaModelConfigurationHandler(repository *repositories.MetaModelCo
 	}
 }
 
-func (h *CreateMetaModelConfigurationHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *CreateMetaModelConfigurationHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.CreateMetaModelConfiguration)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	tenantID, err := sharedvo.NewTenantID(command.TenantID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	createdBy, err := valueobjects.NewUserEmail(command.CreatedBy)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	config, err := aggregates.NewMetaModelConfiguration(tenantID, createdBy)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.ID = config.ID()
+	if err := h.repository.Save(ctx, config); err != nil {
+		return cqrs.EmptyResult(), err
+	}
 
-	return h.repository.Save(ctx, config)
+	return cqrs.NewResult(config.ID()), nil
 }

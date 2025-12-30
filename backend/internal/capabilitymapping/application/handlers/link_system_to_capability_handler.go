@@ -35,46 +35,46 @@ func NewLinkSystemToCapabilityHandler(
 	}
 }
 
-func (h *LinkSystemToCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *LinkSystemToCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.LinkSystemToCapability)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	capabilityID, err := valueobjects.NewCapabilityIDFromString(command.CapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	componentID, err := valueobjects.NewComponentIDFromString(command.ComponentID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	_, err = h.capabilityRepository.GetByID(ctx, capabilityID.Value())
 	if err != nil {
 		if errors.Is(err, repositories.ErrCapabilityNotFound) {
-			return ErrCapabilityNotFoundForRealization
+			return cqrs.EmptyResult(), ErrCapabilityNotFoundForRealization
 		}
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	component, err := h.componentReadModel.GetByID(ctx, componentID.Value())
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	if component == nil {
-		return ErrComponentNotFound
+		return cqrs.EmptyResult(), ErrComponentNotFound
 	}
 
 	realizationLevel, err := valueobjects.NewRealizationLevel(command.RealizationLevel)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	notes, err := valueobjects.NewDescription(command.Notes)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	realization, err := aggregates.NewCapabilityRealization(
@@ -84,10 +84,12 @@ func (h *LinkSystemToCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Com
 		notes,
 	)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.ID = realization.ID()
+	if err := h.realizationRepository.Save(ctx, realization); err != nil {
+		return cqrs.EmptyResult(), err
+	}
 
-	return h.realizationRepository.Save(ctx, realization)
+	return cqrs.NewResult(realization.ID()), nil
 }

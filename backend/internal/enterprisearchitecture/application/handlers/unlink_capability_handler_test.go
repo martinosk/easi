@@ -57,22 +57,25 @@ func newTestableUnlinkCapabilityHandler(
 	}
 }
 
-func (h *testableUnlinkCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *testableUnlinkCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.UnlinkCapability)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	link, err := h.repository.GetByID(ctx, command.LinkID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := link.Unlink(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, link)
+	if err := h.repository.Save(ctx, link); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	return cqrs.EmptyResult(), nil
 }
 
 func createTestEnterpriseCapabilityLink(t *testing.T, enterpriseCapabilityName string) *aggregates.EnterpriseCapabilityLink {
@@ -101,7 +104,7 @@ func TestUnlinkCapabilityHandler_UnlinksCapability(t *testing.T) {
 		LinkID: existingLink.ID(),
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	require.Len(t, mockRepo.savedLinks, 1)
@@ -118,7 +121,7 @@ func TestUnlinkCapabilityHandler_NonExistentLink_ReturnsError(t *testing.T) {
 		LinkID: "non-existent-link-id",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, repositories.ErrEnterpriseCapabilityLinkNotFound)
 }
 
@@ -136,6 +139,6 @@ func TestUnlinkCapabilityHandler_RepositoryError_ReturnsError(t *testing.T) {
 		LinkID: existingLink.ID(),
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 }

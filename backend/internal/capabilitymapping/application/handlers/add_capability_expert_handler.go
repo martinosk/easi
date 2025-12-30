@@ -19,25 +19,29 @@ func NewAddCapabilityExpertHandler(repository *repositories.CapabilityRepository
 	}
 }
 
-func (h *AddCapabilityExpertHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *AddCapabilityExpertHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.AddCapabilityExpert)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	capability, err := h.repository.GetByID(ctx, command.CapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	expert, err := entities.NewExpert(command.ExpertName, command.ExpertRole, command.ContactInfo)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := capability.AddExpert(expert); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, capability)
+	if err := h.repository.Save(ctx, capability); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

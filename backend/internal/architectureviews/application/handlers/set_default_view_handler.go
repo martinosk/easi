@@ -21,40 +21,44 @@ func NewSetDefaultViewHandler(repository *repositories.ArchitectureViewRepositor
 	}
 }
 
-func (h *SetDefaultViewHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *SetDefaultViewHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.SetDefaultView)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	currentDefault, err := h.readModel.GetDefaultView(ctx)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if currentDefault != nil && currentDefault.ID != command.ViewID {
 		oldDefaultView, err := h.repository.GetByID(ctx, currentDefault.ID)
 		if err != nil {
-			return err
+			return cqrs.EmptyResult(), err
 		}
 
 		if err := oldDefaultView.UnsetAsDefault(); err != nil {
-			return err
+			return cqrs.EmptyResult(), err
 		}
 
 		if err := h.repository.Save(ctx, oldDefaultView); err != nil {
-			return err
+			return cqrs.EmptyResult(), err
 		}
 	}
 
 	view, err := h.repository.GetByID(ctx, command.ViewID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := view.SetAsDefault(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, view)
+	if err := h.repository.Save(ctx, view); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

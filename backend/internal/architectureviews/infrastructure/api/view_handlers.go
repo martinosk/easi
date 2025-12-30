@@ -42,7 +42,8 @@ func NewViewHandlers(
 }
 
 func (h *ViewHandlers) dispatchCommand(w http.ResponseWriter, r *http.Request, cmd cqrs.Command) {
-	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 }
@@ -66,7 +67,7 @@ func (h *ViewHandlers) updateElementColor(w http.ResponseWriter, r *http.Request
 		Color:       req.Color,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
@@ -81,7 +82,7 @@ func (h *ViewHandlers) clearElementColor(w http.ResponseWriter, r *http.Request,
 		ElementType: params.elementType,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, fmt.Sprintf("Failed to clear %s color", params.elementType))
 		return
 	}
@@ -174,13 +175,14 @@ func (h *ViewHandlers) CreateView(w http.ResponseWriter, r *http.Request) {
 		Description: req.Description,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create view")
 		return
 	}
 
-	location := sharedAPI.BuildResourceLink(sharedAPI.ResourcePath("/views"), sharedAPI.ResourceID(cmd.ID))
-	view, err := h.readModel.GetByID(r.Context(), cmd.ID)
+	location := sharedAPI.BuildResourceLink(sharedAPI.ResourcePath("/views"), sharedAPI.ResourceID(result.CreatedID))
+	view, err := h.readModel.GetByID(r.Context(), result.CreatedID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve created view")
 		return
@@ -188,7 +190,7 @@ func (h *ViewHandlers) CreateView(w http.ResponseWriter, r *http.Request) {
 
 	if view == nil {
 		sharedAPI.RespondCreated(w, location, map[string]string{
-			"id":      cmd.ID,
+			"id":      result.CreatedID,
 			"message": "View created, processing",
 		})
 		return
@@ -284,7 +286,7 @@ func (h *ViewHandlers) AddComponentToView(w http.ResponseWriter, r *http.Request
 		Y:           req.Y,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
@@ -344,7 +346,7 @@ func (h *ViewHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Re
 		Positions: positions,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
@@ -562,7 +564,7 @@ func (h *ViewHandlers) UpdateColorScheme(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), &commands.UpdateViewColorScheme{
+	if _, err := h.commandBus.Dispatch(r.Context(), &commands.UpdateViewColorScheme{
 		ViewID:      viewID,
 		ColorScheme: req.ColorScheme,
 	}); err != nil {

@@ -19,16 +19,20 @@ func NewUpdateViewColorSchemeHandler(layoutRepository *repositories.ViewLayoutRe
 	}
 }
 
-func (h *UpdateViewColorSchemeHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *UpdateViewColorSchemeHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.UpdateViewColorScheme)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	_, err := valueobjects.NewColorScheme(command.ColorScheme)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.layoutRepository.UpdateColorScheme(ctx, command.ViewID, command.ColorScheme)
+	if err := h.layoutRepository.UpdateColorScheme(ctx, command.ViewID, command.ColorScheme); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

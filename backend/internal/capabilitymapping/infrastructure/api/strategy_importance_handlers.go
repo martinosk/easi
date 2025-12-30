@@ -105,20 +105,21 @@ func (h *StrategyImportanceHandlers) SetImportance(w http.ResponseWriter, r *htt
 		Rationale:        req.Rationale,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	if err != nil {
 		statusCode := sharedAPI.MapErrorToStatusCode(err, http.StatusBadRequest)
 		sharedAPI.RespondError(w, statusCode, err, "Failed to set importance")
 		return
 	}
 
-	created, err := h.importanceRM.GetByID(r.Context(), cmd.ImportanceID)
+	created, err := h.importanceRM.GetByID(r.Context(), result.CreatedID)
 	if err != nil || created == nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve created importance")
 		return
 	}
 
 	response := h.buildImportanceResponse(*created, domainID)
-	location := "/api/v1/business-domains/" + domainID + "/capabilities/" + capabilityID + "/importance/" + cmd.ImportanceID
+	location := "/api/v1/business-domains/" + domainID + "/capabilities/" + capabilityID + "/importance/" + result.CreatedID
 	w.Header().Set("Location", location)
 	sharedAPI.RespondJSON(w, http.StatusCreated, response)
 }
@@ -153,7 +154,7 @@ func (h *StrategyImportanceHandlers) UpdateImportance(w http.ResponseWriter, r *
 		Rationale:    req.Rationale,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		statusCode := sharedAPI.MapErrorToStatusCode(err, http.StatusBadRequest)
 		sharedAPI.RespondError(w, statusCode, err, "Failed to update importance")
 		return
@@ -189,7 +190,7 @@ func (h *StrategyImportanceHandlers) RemoveImportance(w http.ResponseWriter, r *
 		ImportanceID: importanceID,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		statusCode := sharedAPI.MapErrorToStatusCode(err, http.StatusBadRequest)
 		sharedAPI.RespondError(w, statusCode, err, "Failed to remove importance")
 		return

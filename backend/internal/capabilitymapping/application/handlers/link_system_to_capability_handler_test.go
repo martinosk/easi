@@ -81,38 +81,38 @@ func newTestableLinkSystemToCapabilityHandler(
 	}
 }
 
-func (h *testableLinkSystemToCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *testableLinkSystemToCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.LinkSystemToCapability)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	capabilityID, err := valueobjects.NewCapabilityIDFromString(command.CapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	componentID, err := valueobjects.NewComponentIDFromString(command.ComponentID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	_, err = h.capabilityRepository.GetByID(ctx, capabilityID.Value())
 	if err != nil {
-		return ErrCapabilityNotFoundForRealization
+		return cqrs.EmptyResult(), ErrCapabilityNotFoundForRealization
 	}
 
 	component, err := h.componentReadModel.GetByID(ctx, componentID.Value())
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	if component == nil {
-		return ErrComponentNotFound
+		return cqrs.EmptyResult(), ErrComponentNotFound
 	}
 
 	realizationLevel, err := valueobjects.NewRealizationLevel(command.RealizationLevel)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	notes := valueobjects.MustNewDescription(command.Notes)
@@ -124,12 +124,13 @@ func (h *testableLinkSystemToCapabilityHandler) Handle(ctx context.Context, cmd 
 		notes,
 	)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.ID = realization.ID()
-
-	return h.realizationRepository.Save(ctx, realization)
+	if err := h.realizationRepository.Save(ctx, realization); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	return cqrs.NewResult(realization.ID()), nil
 }
 
 func createTestCapabilityForLink(t *testing.T, level string, parentID string) *aggregates.Capability {
@@ -182,7 +183,7 @@ func TestLinkSystemToCapabilityHandler_CreatesRealization(t *testing.T) {
 		Notes:            "Partially implements capability",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	require.Len(t, mockRealRepo.savedRealizations, 1, "Handler should create exactly 1 realization")
@@ -193,7 +194,7 @@ func TestLinkSystemToCapabilityHandler_CreatesRealization(t *testing.T) {
 	assert.Equal(t, "Partial", realization.RealizationLevel().Value())
 }
 
-func TestLinkSystemToCapabilityHandler_SetsCommandID(t *testing.T) {
+func TestLinkSystemToCapabilityHandler_ReturnsCreatedID(t *testing.T) {
 	l1Capability := createTestCapabilityForLink(t, "L1", "")
 	l1CapabilityID := l1Capability.ID()
 
@@ -219,11 +220,11 @@ func TestLinkSystemToCapabilityHandler_SetsCommandID(t *testing.T) {
 		Notes:            "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	result, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, cmd.ID, "Command ID should be set after handling")
-	assert.Equal(t, mockRealRepo.savedRealizations[0].ID(), cmd.ID)
+	assert.NotEmpty(t, result.CreatedID, "Result CreatedID should be set after handling")
+	assert.Equal(t, mockRealRepo.savedRealizations[0].ID(), result.CreatedID)
 }
 
 func TestLinkSystemToCapabilityHandler_ComponentNotFound_ReturnsError(t *testing.T) {
@@ -249,7 +250,7 @@ func TestLinkSystemToCapabilityHandler_ComponentNotFound_ReturnsError(t *testing
 		Notes:            "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, ErrComponentNotFound)
 }
 
@@ -262,6 +263,6 @@ func TestLinkSystemToCapabilityHandler_InvalidCommand_ReturnsError(t *testing.T)
 
 	invalidCmd := &commands.DeleteSystemRealization{}
 
-	err := handler.Handle(context.Background(), invalidCmd)
+	_, err := handler.Handle(context.Background(), invalidCmd)
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
 }

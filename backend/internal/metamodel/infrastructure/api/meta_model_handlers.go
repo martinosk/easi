@@ -143,7 +143,7 @@ func (h *MetaModelHandlers) ensureConfigExists(w http.ResponseWriter, r *http.Re
 		TenantID:  tenantID.Value(),
 		CreatedBy: userEmail,
 	}
-	if err := h.commandBus.Dispatch(r.Context(), createCmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), createCmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create configuration")
 		return nil, false
 	}
@@ -219,7 +219,7 @@ func (h *MetaModelHandlers) UpdateMaturityScale(w http.ResponseWriter, r *http.R
 		ModifiedBy: authSession.UserEmail(),
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Failed to update maturity scale")
 		return
 	}
@@ -261,7 +261,7 @@ func (h *MetaModelHandlers) ResetMaturityScale(w http.ResponseWriter, r *http.Re
 		ModifiedBy: authSession.UserEmail(),
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to reset maturity scale")
 		return
 	}

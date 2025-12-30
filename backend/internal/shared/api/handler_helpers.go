@@ -2,14 +2,16 @@ package api
 
 import (
 	"net/http"
+
+	"easi/backend/internal/shared/cqrs"
 )
 
-func HandleCommandResult(w http.ResponseWriter, err error, successHandler func()) {
+func HandleCommandResult(w http.ResponseWriter, result cqrs.CommandResult, err error, successHandler func(createdID string)) {
 	if err != nil {
 		HandleError(w, err)
 		return
 	}
-	successHandler()
+	successHandler(result.CreatedID)
 }
 
 func HandleError(w http.ResponseWriter, err error) {

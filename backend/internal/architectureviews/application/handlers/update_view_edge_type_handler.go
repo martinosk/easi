@@ -19,16 +19,20 @@ func NewUpdateViewEdgeTypeHandler(layoutRepository *repositories.ViewLayoutRepos
 	}
 }
 
-func (h *UpdateViewEdgeTypeHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *UpdateViewEdgeTypeHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.UpdateViewEdgeType)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	_, err := valueobjects.NewEdgeType(command.EdgeType)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.layoutRepository.UpdateEdgeType(ctx, command.ViewID, command.EdgeType)
+	if err := h.layoutRepository.UpdateEdgeType(ctx, command.ViewID, command.EdgeType); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

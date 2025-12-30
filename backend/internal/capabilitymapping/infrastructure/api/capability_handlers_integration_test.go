@@ -545,3 +545,102 @@ func TestDeleteCapability_HasChildren_Integration(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, parentCapability)
 }
+
+func TestCreateCapability_CommandResultFlow_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	handlers := setupHandlers(testCtx.db)
+
+	reqBody := CreateCapabilityRequest{
+		Name:        "CommandResult Flow Test",
+		Description: "Testing that CommandResult ID flows correctly through the API",
+		Level:       "L1",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/capabilities", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
+	w := httptest.NewRecorder()
+
+	handlers.CreateCapability(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	locationHeader := w.Header().Get("Location")
+	require.NotEmpty(t, locationHeader, "Location header must be set on 201 Created")
+	assert.Contains(t, locationHeader, "/api/v1/capabilities/", "Location header should contain resource path")
+
+	createdIDFromLocation := locationHeader[len("/api/v1/capabilities/"):]
+	require.NotEmpty(t, createdIDFromLocation, "Created ID must be present in Location header")
+
+	var response readmodels.CapabilityDTO
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+
+	assert.Equal(t, createdIDFromLocation, response.ID, "Response body ID must match Location header ID")
+	assert.Equal(t, "CommandResult Flow Test", response.Name)
+	assert.Equal(t, "L1", response.Level)
+
+	testCtx.trackID(response.ID)
+
+	testCtx.setTenantContext(t)
+	var eventAggregateID string
+	err = testCtx.db.QueryRow(
+		"SELECT aggregate_id FROM events WHERE event_type = 'CapabilityCreated' AND aggregate_id = $1",
+		response.ID,
+	).Scan(&eventAggregateID)
+	require.NoError(t, err)
+	assert.Equal(t, response.ID, eventAggregateID, "Event aggregate ID must match returned ID")
+}
+
+func TestCreateCapability_LocationHeaderFormat_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	handlers := setupHandlers(testCtx.db)
+
+	reqBody := CreateCapabilityRequest{
+		Name:        "Location Header Format Test",
+		Description: "Testing Location header format",
+		Level:       "L1",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/capabilities", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = withTestTenant(req)
+	w := httptest.NewRecorder()
+
+	handlers.CreateCapability(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	location := w.Header().Get("Location")
+	require.NotEmpty(t, location, "Location header is required")
+
+	assert.Regexp(t, `^/api/v1/capabilities/[a-f0-9-]+$`, location, "Location header must match expected format")
+
+	var response readmodels.CapabilityDTO
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+	testCtx.trackID(response.ID)
+
+	getReq := httptest.NewRequest(http.MethodGet, location, nil)
+	getReq = withTestTenant(getReq)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", response.ID)
+	getReq = getReq.WithContext(context.WithValue(getReq.Context(), chi.RouteCtxKey, rctx))
+	getW := httptest.NewRecorder()
+
+	handlers.GetCapabilityByID(getW, getReq)
+
+	assert.Equal(t, http.StatusOK, getW.Code, "GET on Location header URL should return 200")
+
+	var getResponse readmodels.CapabilityDTO
+	err = json.NewDecoder(getW.Body).Decode(&getResponse)
+	require.NoError(t, err)
+	assert.Equal(t, response.ID, getResponse.ID)
+	assert.Equal(t, "Location Header Format Test", getResponse.Name)
+}

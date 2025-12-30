@@ -24,13 +24,13 @@ func (b *InMemoryCommandBus) Register(commandName string, handler CommandHandler
 	b.handlers[commandName] = handler
 }
 
-func (b *InMemoryCommandBus) Dispatch(ctx context.Context, cmd Command) error {
+func (b *InMemoryCommandBus) Dispatch(ctx context.Context, cmd Command) (CommandResult, error) {
 	b.mu.RLock()
 	handler, exists := b.handlers[cmd.CommandName()]
 	b.mu.RUnlock()
 
 	if !exists {
-		return fmt.Errorf("no handler registered for command: %s", cmd.CommandName())
+		return EmptyResult(), fmt.Errorf("no handler registered for command: %s", cmd.CommandName())
 	}
 
 	return handler.Handle(ctx, cmd)

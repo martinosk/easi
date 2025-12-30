@@ -31,46 +31,46 @@ func NewCreateCapabilityDependencyHandler(
 	}
 }
 
-func (h *CreateCapabilityDependencyHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *CreateCapabilityDependencyHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.CreateCapabilityDependency)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	sourceCapabilityID, err := valueobjects.NewCapabilityIDFromString(command.SourceCapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	targetCapabilityID, err := valueobjects.NewCapabilityIDFromString(command.TargetCapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	_, err = h.capabilityRepository.GetByID(ctx, sourceCapabilityID.Value())
 	if err != nil {
 		if errors.Is(err, repositories.ErrCapabilityNotFound) {
-			return ErrSourceCapabilityNotFound
+			return cqrs.EmptyResult(), ErrSourceCapabilityNotFound
 		}
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	_, err = h.capabilityRepository.GetByID(ctx, targetCapabilityID.Value())
 	if err != nil {
 		if errors.Is(err, repositories.ErrCapabilityNotFound) {
-			return ErrTargetCapabilityNotFound
+			return cqrs.EmptyResult(), ErrTargetCapabilityNotFound
 		}
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	dependencyType, err := valueobjects.NewDependencyType(command.DependencyType)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	description, err := valueobjects.NewDescription(command.Description)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	dependency, err := aggregates.NewCapabilityDependency(
@@ -80,10 +80,12 @@ func (h *CreateCapabilityDependencyHandler) Handle(ctx context.Context, cmd cqrs
 		description,
 	)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.ID = dependency.ID()
+	if err := h.dependencyRepository.Save(ctx, dependency); err != nil {
+		return cqrs.EmptyResult(), err
+	}
 
-	return h.dependencyRepository.Save(ctx, dependency)
+	return cqrs.NewResult(dependency.ID()), nil
 }

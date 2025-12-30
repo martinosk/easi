@@ -18,20 +18,24 @@ func NewEnableUserHandler(repository *repositories.UserAggregateRepository) *Ena
 	}
 }
 
-func (h *EnableUserHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *EnableUserHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.EnableUser)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	user, err := h.repository.GetByID(ctx, command.UserID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := user.Enable(command.EnabledByID); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, user)
+	if err := h.repository.Save(ctx, user); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

@@ -21,12 +21,12 @@ type mockCommandBus struct {
 func (m *mockCommandBus) Register(commandName string, handler cqrs.CommandHandler) {
 }
 
-func (m *mockCommandBus) Dispatch(ctx context.Context, command cqrs.Command) error {
+func (m *mockCommandBus) Dispatch(ctx context.Context, command cqrs.Command) (cqrs.CommandResult, error) {
 	if m.dispatchError != nil {
-		return m.dispatchError
+		return cqrs.EmptyResult(), m.dispatchError
 	}
 	m.dispatchedCommands = append(m.dispatchedCommands, command)
-	return nil
+	return cqrs.EmptyResult(), nil
 }
 
 type mockAssignmentReadModel struct {

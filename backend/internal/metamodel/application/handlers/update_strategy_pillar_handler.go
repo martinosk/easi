@@ -21,26 +21,30 @@ func NewUpdateStrategyPillarHandler(repository *repositories.MetaModelConfigurat
 	}
 }
 
-func (h *UpdateStrategyPillarHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *UpdateStrategyPillarHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.UpdateStrategyPillar)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	config, err := h.repository.GetByID(ctx, command.ConfigID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if command.ExpectedVersion != nil && config.Version() != *command.ExpectedVersion {
-		return domain.ErrConcurrencyConflict
+		return cqrs.EmptyResult(), domain.ErrConcurrencyConflict
 	}
 
 	if err := h.executeUpdate(config, command); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, config)
+	if err := h.repository.Save(ctx, config); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }
 
 func (h *UpdateStrategyPillarHandler) executeUpdate(config *aggregates.MetaModelConfiguration, command *commands.UpdateStrategyPillar) error {

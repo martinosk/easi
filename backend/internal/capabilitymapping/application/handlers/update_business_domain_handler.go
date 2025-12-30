@@ -26,41 +26,45 @@ func NewUpdateBusinessDomainHandler(
 	}
 }
 
-func (h *UpdateBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *UpdateBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.UpdateBusinessDomain)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	domain, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
 		if errors.Is(err, repositories.ErrBusinessDomainNotFound) {
-			return ErrBusinessDomainNotFound
+			return cqrs.EmptyResult(), ErrBusinessDomainNotFound
 		}
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	exists, err := h.readModel.NameExists(ctx, command.Name, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	if exists {
-		return ErrBusinessDomainNameExists
+		return cqrs.EmptyResult(), ErrBusinessDomainNameExists
 	}
 
 	name, err := valueobjects.NewDomainName(command.Name)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	description, err := valueobjects.NewDescription(command.Description)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := domain.Update(name, description); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, domain)
+	if err := h.repository.Save(ctx, domain); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

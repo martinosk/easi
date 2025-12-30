@@ -74,7 +74,7 @@ func (h *OnCapabilityParentChangedHandler) Handle(ctx context.Context, event dom
 			AssignmentID: assignment.AssignmentID,
 		}
 
-		if err := h.commandBus.Dispatch(ctx, unassignCmd); err != nil {
+		if _, err := h.commandBus.Dispatch(ctx, unassignCmd); err != nil {
 			log.Printf("Error unassigning capability %s from domain %s: %v", e.CapabilityID, assignment.BusinessDomainID, err)
 			continue
 		}
@@ -97,7 +97,7 @@ func (h *OnCapabilityParentChangedHandler) Handle(ctx context.Context, event dom
 			CapabilityID:     l1AncestorID,
 		}
 
-		if err := h.commandBus.Dispatch(ctx, assignCmd); err != nil {
+		if _, err := h.commandBus.Dispatch(ctx, assignCmd); err != nil {
 			log.Printf("Error assigning L1 ancestor %s to domain %s: %v", l1AncestorID, assignment.BusinessDomainID, err)
 			continue
 		}

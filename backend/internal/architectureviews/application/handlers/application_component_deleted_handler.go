@@ -44,7 +44,7 @@ func (h *ApplicationComponentDeletedHandler) Handle(ctx context.Context, event d
 			ComponentID: componentID,
 		}
 
-		if err := h.commandBus.Dispatch(ctx, cmd); err != nil {
+		if _, err := h.commandBus.Dispatch(ctx, cmd); err != nil {
 			log.Printf("Error removing component %s from view %s: %v", componentID, viewID, err)
 			continue
 		}

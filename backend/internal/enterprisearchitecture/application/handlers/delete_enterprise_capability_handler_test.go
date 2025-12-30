@@ -56,22 +56,25 @@ func newTestableDeleteEnterpriseCapabilityHandler(
 	}
 }
 
-func (h *testableDeleteEnterpriseCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *testableDeleteEnterpriseCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.DeleteEnterpriseCapability)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	capability, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := capability.Delete(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, capability)
+	if err := h.repository.Save(ctx, capability); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	return cqrs.EmptyResult(), nil
 }
 
 func TestDeleteEnterpriseCapabilityHandler_DeletesCapability(t *testing.T) {
@@ -87,7 +90,7 @@ func TestDeleteEnterpriseCapabilityHandler_DeletesCapability(t *testing.T) {
 		ID: existingCapability.ID(),
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	require.Len(t, mockRepo.savedCapabilities, 1)
@@ -106,7 +109,7 @@ func TestDeleteEnterpriseCapabilityHandler_NonExistent_ReturnsError(t *testing.T
 		ID: "non-existent-id",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, repositories.ErrEnterpriseCapabilityNotFound)
 }
 
@@ -124,6 +127,6 @@ func TestDeleteEnterpriseCapabilityHandler_RepositoryError_ReturnsError(t *testi
 		ID: existingCapability.ID(),
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 }

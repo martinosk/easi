@@ -139,7 +139,7 @@ func (h *TenantHandlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
 		FirstAdminEmail: req.FirstAdminEmail,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		statusCode := mapTenantErrorToStatusCode(err)
 		sharedAPI.RespondError(w, statusCode, err, err.Error())
 		return
@@ -322,7 +322,7 @@ func (h *TenantHandlers) CreateTenantInvitation(w http.ResponseWriter, r *http.R
 		Role:  req.Role,
 	}
 
-	if err := h.commandBus.Dispatch(tenantCtx, cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(tenantCtx, cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create invitation")
 		return
 	}

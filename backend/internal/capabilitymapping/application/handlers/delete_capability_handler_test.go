@@ -70,31 +70,34 @@ func newTestableDeleteCapabilityHandler(
 	}
 }
 
-func (h *testableDeleteCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *testableDeleteCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.DeleteCapability)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	children, err := h.readModel.GetChildren(ctx, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if len(children) > 0 {
-		return ErrCapabilityHasChildren
+		return cqrs.EmptyResult(), ErrCapabilityHasChildren
 	}
 
 	capability, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := capability.Delete(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, capability)
+	if err := h.repository.Save(ctx, capability); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	return cqrs.EmptyResult(), nil
 }
 
 func createTestCapability(t *testing.T) *aggregates.Capability {
@@ -134,7 +137,7 @@ func TestDeleteCapabilityHandler_Success(t *testing.T) {
 		ID: capabilityID,
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	assert.NotNil(t, mockRepo.savedCap)
@@ -162,7 +165,7 @@ func TestDeleteCapabilityHandler_CapabilityHasChildren_ReturnsError(t *testing.T
 		ID: capabilityID,
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 	assert.Equal(t, ErrCapabilityHasChildren, err)
 
@@ -184,7 +187,7 @@ func TestDeleteCapabilityHandler_CapabilityNotFound_ReturnsError(t *testing.T) {
 		ID: "non-existent-id",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 	assert.Equal(t, notFoundErr, err)
 }
@@ -202,7 +205,7 @@ func TestDeleteCapabilityHandler_ReadModelError_ReturnsError(t *testing.T) {
 		ID: "some-id",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 	assert.Equal(t, readModelErr, err)
 }
@@ -226,7 +229,7 @@ func TestDeleteCapabilityHandler_SaveError_ReturnsError(t *testing.T) {
 		ID: capabilityID,
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 	assert.Equal(t, saveErr, err)
 }
@@ -242,7 +245,7 @@ func TestDeleteCapabilityHandler_InvalidCommand_ReturnsError(t *testing.T) {
 		Level: "L1",
 	}
 
-	err := handler.Handle(context.Background(), invalidCmd)
+	_, err := handler.Handle(context.Background(), invalidCmd)
 	assert.Error(t, err)
 	assert.Equal(t, cqrs.ErrInvalidCommand, err)
 }

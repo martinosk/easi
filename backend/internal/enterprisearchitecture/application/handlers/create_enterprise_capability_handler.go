@@ -29,41 +29,43 @@ func NewCreateEnterpriseCapabilityHandler(
 	}
 }
 
-func (h *CreateEnterpriseCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *CreateEnterpriseCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.CreateEnterpriseCapability)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	exists, err := h.readModel.NameExists(ctx, command.Name, "")
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	if exists {
-		return ErrEnterpriseCapabilityNameExists
+		return cqrs.EmptyResult(), ErrEnterpriseCapabilityNameExists
 	}
 
 	name, err := valueobjects.NewEnterpriseCapabilityName(command.Name)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	description, err := valueobjects.NewDescription(command.Description)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	category, err := valueobjects.NewCategory(command.Category)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	capability, err := aggregates.NewEnterpriseCapability(name, description, category)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.ID = capability.ID()
+	if err := h.repository.Save(ctx, capability); err != nil {
+		return cqrs.EmptyResult(), err
+	}
 
-	return h.repository.Save(ctx, capability)
+	return cqrs.NewResult(capability.ID()), nil
 }

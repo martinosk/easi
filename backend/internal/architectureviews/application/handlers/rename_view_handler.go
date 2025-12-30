@@ -19,25 +19,29 @@ func NewRenameViewHandler(repository *repositories.ArchitectureViewRepository) *
 	}
 }
 
-func (h *RenameViewHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *RenameViewHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.RenameView)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	view, err := h.repository.GetByID(ctx, command.ViewID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	newName, err := valueobjects.NewViewName(command.NewName)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := view.Rename(newName); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, view)
+	if err := h.repository.Save(ctx, view); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

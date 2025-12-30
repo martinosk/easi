@@ -588,3 +588,92 @@ func TestDeleteComponent_Idempotent_Integration(t *testing.T) {
 	handlers.DeleteApplicationComponent(w2, req2)
 	assert.Equal(t, http.StatusNoContent, w2.Code)
 }
+
+func TestCreateComponent_CommandResultFlow_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupHandlers(testCtx.db)
+
+	reqBody := CreateApplicationComponentRequest{
+		Name:        "CommandResult Test Component",
+		Description: "Testing that CommandResult ID flows correctly through the API",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/components", body, nil)
+	handlers.CreateApplicationComponent(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	locationHeader := w.Header().Get("Location")
+	require.NotEmpty(t, locationHeader, "Location header must be set on 201 Created")
+	assert.Contains(t, locationHeader, "/api/v1/components/", "Location header should contain resource path")
+
+	createdIDFromLocation := locationHeader[len("/api/v1/components/"):]
+	require.NotEmpty(t, createdIDFromLocation, "Created ID must be present in Location header")
+
+	var response readmodels.ApplicationComponentDTO
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+
+	assert.Equal(t, createdIDFromLocation, response.ID, "Response body ID must match Location header ID")
+	assert.Equal(t, "CommandResult Test Component", response.Name)
+	assert.Equal(t, "Testing that CommandResult ID flows correctly through the API", response.Description)
+
+	testCtx.trackID(response.ID)
+
+	testCtx.setTenantContext(t)
+	var eventAggregateID string
+	err = testCtx.db.QueryRow(
+		"SELECT aggregate_id FROM events WHERE event_type = 'ApplicationComponentCreated' AND aggregate_id = $1",
+		response.ID,
+	).Scan(&eventAggregateID)
+	require.NoError(t, err)
+	assert.Equal(t, response.ID, eventAggregateID, "Event aggregate ID must match returned ID")
+}
+
+func TestCreateComponent_LocationHeaderFormat_Integration(t *testing.T) {
+	testCtx, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	handlers, _ := setupHandlers(testCtx.db)
+
+	reqBody := CreateApplicationComponentRequest{
+		Name:        "Location Header Test",
+		Description: "Testing Location header format",
+	}
+	body, _ := json.Marshal(reqBody)
+
+	w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/components", body, nil)
+	handlers.CreateApplicationComponent(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	location := w.Header().Get("Location")
+	require.NotEmpty(t, location, "Location header is required")
+
+	assert.Regexp(t, `^/api/v1/components/[a-f0-9-]+$`, location, "Location header must match expected format")
+
+	var response readmodels.ApplicationComponentDTO
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+	testCtx.trackID(response.ID)
+
+	getReq := httptest.NewRequest(http.MethodGet, location, nil)
+	getReq = withTestTenant(getReq)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", response.ID)
+	getReq = getReq.WithContext(context.WithValue(getReq.Context(), chi.RouteCtxKey, rctx))
+	getW := httptest.NewRecorder()
+
+	handlers.GetComponentByID(getW, getReq)
+
+	assert.Equal(t, http.StatusOK, getW.Code, "GET on Location header URL should return 200")
+
+	var getResponse readmodels.ApplicationComponentDTO
+	err = json.NewDecoder(getW.Body).Decode(&getResponse)
+	require.NoError(t, err)
+	assert.Equal(t, response.ID, getResponse.ID)
+	assert.Equal(t, "Location Header Test", getResponse.Name)
+}

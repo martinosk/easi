@@ -72,12 +72,13 @@ func (h *CapabilityHandlers) CreateCapability(w http.ResponseWriter, r *http.Req
 		Level:       req.Level,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create capability")
 		return
 	}
 
-	h.handleCreateCapabilityResponse(w, r, cmd.ID)
+	h.handleCreateCapabilityResponse(w, r, result.CreatedID)
 }
 
 func (h *CapabilityHandlers) validateCapabilityRequest(req CreateCapabilityRequest) error {
@@ -247,7 +248,7 @@ func (h *CapabilityHandlers) UpdateCapability(w http.ResponseWriter, r *http.Req
 		Description: req.Description,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update capability")
 		return
 	}
@@ -295,7 +296,7 @@ func (h *CapabilityHandlers) DeleteCapability(w http.ResponseWriter, r *http.Req
 		ID: id,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		if errors.Is(err, handlers.ErrCapabilityHasChildren) {
 			sharedAPI.RespondError(w, http.StatusConflict, err, "Cannot delete capability with children. Delete child capabilities first.")
 			return

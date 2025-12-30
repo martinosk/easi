@@ -73,31 +73,34 @@ func newTestableDeleteBusinessDomainHandler(
 	}
 }
 
-func (h *testableDeleteBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *testableDeleteBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.DeleteBusinessDomain)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	assignments, err := h.assignmentReader.GetByDomainID(ctx, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if len(assignments) > 0 {
-		return ErrBusinessDomainHasAssignments
+		return cqrs.EmptyResult(), ErrBusinessDomainHasAssignments
 	}
 
 	domain, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := domain.Delete(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, domain)
+	if err := h.repository.Save(ctx, domain); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	return cqrs.EmptyResult(), nil
 }
 
 func TestDeleteBusinessDomainHandler_DeletesBusinessDomain(t *testing.T) {
@@ -113,7 +116,7 @@ func TestDeleteBusinessDomainHandler_DeletesBusinessDomain(t *testing.T) {
 		ID: domainID,
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, mockRepo.savedCount, "Handler should save domain once")
@@ -136,7 +139,7 @@ func TestDeleteBusinessDomainHandler_DomainHasAssignments_ReturnsError(t *testin
 		ID: domainID,
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, ErrBusinessDomainHasAssignments)
 	assert.Equal(t, 0, mockRepo.savedCount, "Should not save when domain has assignments")
 }
@@ -153,7 +156,7 @@ func TestDeleteBusinessDomainHandler_DomainNotFound_ReturnsError(t *testing.T) {
 		ID: "non-existent",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, repositories.ErrBusinessDomainNotFound)
 }
 
@@ -165,7 +168,7 @@ func TestDeleteBusinessDomainHandler_InvalidCommand_ReturnsError(t *testing.T) {
 
 	invalidCmd := &commands.CreateBusinessDomain{}
 
-	err := handler.Handle(context.Background(), invalidCmd)
+	_, err := handler.Handle(context.Background(), invalidCmd)
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
 }
 
@@ -184,7 +187,7 @@ func TestDeleteBusinessDomainHandler_AssignmentReaderError_ReturnsError(t *testi
 		ID: domainID,
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 	assert.Equal(t, 0, mockRepo.savedCount)
 }

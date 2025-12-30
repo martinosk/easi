@@ -185,7 +185,7 @@ func (ctx *assignmentConsistencyTestContext) executeParentChangeAndVerify(t *tes
 	require.NoError(t, err)
 
 	commandBus := ctx.setupParentChangeHandlers()
-	err = commandBus.Dispatch(tenantContext(), &commands.ChangeCapabilityParent{CapabilityID: p.childID, NewParentID: p.newParentID})
+	_, err = commandBus.Dispatch(tenantContext(), &commands.ChangeCapabilityParent{CapabilityID: p.childID, NewParentID: p.newParentID})
 	require.NoError(t, err)
 
 	time.Sleep(200 * time.Millisecond)

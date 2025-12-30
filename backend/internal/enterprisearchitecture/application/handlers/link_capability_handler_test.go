@@ -87,43 +87,44 @@ func newTestableLinkCapabilityHandler(
 	}
 }
 
-func (h *testableLinkCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *testableLinkCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.LinkCapability)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	capability, err := h.capabilityRepository.GetByID(ctx, command.EnterpriseCapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	existingLink, err := h.linkReadModel.GetByDomainCapabilityID(ctx, command.DomainCapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	if existingLink != nil {
-		return ErrDomainCapabilityAlreadyLinked
+		return cqrs.EmptyResult(), ErrDomainCapabilityAlreadyLinked
 	}
 
 	domainCapabilityID, err := valueobjects.NewDomainCapabilityIDFromString(command.DomainCapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	linkedBy, err := valueobjects.NewLinkedBy(command.LinkedBy)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	link, err := aggregates.NewEnterpriseCapabilityLink(capability, domainCapabilityID, linkedBy)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.ID = link.ID()
-
-	return h.linkRepository.Save(ctx, link)
+	if err := h.linkRepository.Save(ctx, link); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	return cqrs.NewResult(link.ID()), nil
 }
 
 func TestLinkCapabilityHandler_LinksCapability(t *testing.T) {
@@ -142,7 +143,7 @@ func TestLinkCapabilityHandler_LinksCapability(t *testing.T) {
 		LinkedBy:               "user@example.com",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	require.Len(t, mockLinkRepo.savedLinks, 1)
@@ -152,7 +153,7 @@ func TestLinkCapabilityHandler_LinksCapability(t *testing.T) {
 	assert.Equal(t, "user@example.com", link.LinkedBy().Value())
 }
 
-func TestLinkCapabilityHandler_SetsCommandID(t *testing.T) {
+func TestLinkCapabilityHandler_ReturnsCreatedID(t *testing.T) {
 	existingCapability := createTestEnterpriseCapability(t, "Enterprise Capability")
 
 	mockLinkRepo := &mockEnterpriseCapabilityLinkRepository{}
@@ -168,11 +169,11 @@ func TestLinkCapabilityHandler_SetsCommandID(t *testing.T) {
 		LinkedBy:               "user@example.com",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	result, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, cmd.ID)
-	assert.Equal(t, mockLinkRepo.savedLinks[0].ID(), cmd.ID)
+	assert.NotEmpty(t, result.CreatedID)
+	assert.Equal(t, mockLinkRepo.savedLinks[0].ID(), result.CreatedID)
 }
 
 func TestLinkCapabilityHandler_InactiveCapability_ReturnsError(t *testing.T) {
@@ -193,7 +194,7 @@ func TestLinkCapabilityHandler_InactiveCapability_ReturnsError(t *testing.T) {
 		LinkedBy:               "user@example.com",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, aggregates.ErrCannotLinkInactiveCapability)
 	assert.Empty(t, mockLinkRepo.savedLinks)
 }
@@ -216,7 +217,7 @@ func TestLinkCapabilityHandler_DuplicateLink_ReturnsError(t *testing.T) {
 		LinkedBy:               "user@example.com",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, ErrDomainCapabilityAlreadyLinked)
 	assert.Empty(t, mockLinkRepo.savedLinks)
 }
@@ -237,7 +238,7 @@ func TestLinkCapabilityHandler_NonExistentCapability_ReturnsError(t *testing.T) 
 		LinkedBy:               "user@example.com",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, repositories.ErrEnterpriseCapabilityNotFound)
 }
 
@@ -256,7 +257,7 @@ func TestLinkCapabilityHandler_InvalidDomainCapabilityID_ReturnsError(t *testing
 		LinkedBy:               "user@example.com",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 	assert.Empty(t, mockLinkRepo.savedLinks)
 }
@@ -277,7 +278,7 @@ func TestLinkCapabilityHandler_ReadModelError_ReturnsError(t *testing.T) {
 		LinkedBy:               "user@example.com",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 	assert.Empty(t, mockLinkRepo.savedLinks)
 }
@@ -298,6 +299,6 @@ func TestLinkCapabilityHandler_RepositoryError_ReturnsError(t *testing.T) {
 		LinkedBy:               "user@example.com",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 }

@@ -62,35 +62,36 @@ func newTestableCreateBusinessDomainHandler(
 	}
 }
 
-func (h *testableCreateBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *testableCreateBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.CreateBusinessDomain)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	exists, err := h.readModel.NameExists(ctx, command.Name, "")
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	if exists {
-		return ErrBusinessDomainNameExists
+		return cqrs.EmptyResult(), ErrBusinessDomainNameExists
 	}
 
 	name, err := valueobjects.NewDomainName(command.Name)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	description := valueobjects.MustNewDescription(command.Description)
 
 	domain, err := aggregates.NewBusinessDomain(name, description)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.ID = domain.ID()
-
-	return h.repository.Save(ctx, domain)
+	if err := h.repository.Save(ctx, domain); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	return cqrs.NewResult(domain.ID()), nil
 }
 
 func TestCreateBusinessDomainHandler_CreatesBusinessDomain(t *testing.T) {
@@ -104,7 +105,7 @@ func TestCreateBusinessDomainHandler_CreatesBusinessDomain(t *testing.T) {
 		Description: "Manages customer relationships",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	require.Len(t, mockRepo.savedDomains, 1, "Handler should create exactly 1 domain")
@@ -114,7 +115,7 @@ func TestCreateBusinessDomainHandler_CreatesBusinessDomain(t *testing.T) {
 	assert.Equal(t, "Manages customer relationships", domain.Description().Value())
 }
 
-func TestCreateBusinessDomainHandler_SetsCommandID(t *testing.T) {
+func TestCreateBusinessDomainHandler_ReturnsCreatedID(t *testing.T) {
 	mockRepo := &mockBusinessDomainRepository{}
 	mockReadModel := &mockBusinessDomainReadModel{nameExists: false}
 
@@ -125,11 +126,11 @@ func TestCreateBusinessDomainHandler_SetsCommandID(t *testing.T) {
 		Description: "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	result, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, cmd.ID, "Command ID should be set after handling")
-	assert.Equal(t, mockRepo.savedDomains[0].ID(), cmd.ID)
+	assert.NotEmpty(t, result.CreatedID, "Result CreatedID should be set after handling")
+	assert.Equal(t, mockRepo.savedDomains[0].ID(), result.CreatedID)
 }
 
 func TestCreateBusinessDomainHandler_NameExists_ReturnsError(t *testing.T) {
@@ -143,7 +144,7 @@ func TestCreateBusinessDomainHandler_NameExists_ReturnsError(t *testing.T) {
 		Description: "Should fail",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, ErrBusinessDomainNameExists)
 	assert.Empty(t, mockRepo.savedDomains, "Should not save domain when name exists")
 }
@@ -159,7 +160,7 @@ func TestCreateBusinessDomainHandler_InvalidName_ReturnsError(t *testing.T) {
 		Description: "Invalid name",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 	assert.Empty(t, mockRepo.savedDomains, "Should not save domain with invalid name")
 }
@@ -172,7 +173,7 @@ func TestCreateBusinessDomainHandler_InvalidCommand_ReturnsError(t *testing.T) {
 
 	invalidCmd := &commands.DeleteBusinessDomain{}
 
-	err := handler.Handle(context.Background(), invalidCmd)
+	_, err := handler.Handle(context.Background(), invalidCmd)
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
 }
 
@@ -187,7 +188,7 @@ func TestCreateBusinessDomainHandler_ReadModelError_ReturnsError(t *testing.T) {
 		Description: "Test",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 	assert.Empty(t, mockRepo.savedDomains)
 }

@@ -18,20 +18,24 @@ func NewRevokeInvitationHandler(repository *repositories.InvitationRepository) *
 	}
 }
 
-func (h *RevokeInvitationHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *RevokeInvitationHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.RevokeInvitation)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	invitation, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := invitation.Revoke(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, invitation)
+	if err := h.repository.Save(ctx, invitation); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

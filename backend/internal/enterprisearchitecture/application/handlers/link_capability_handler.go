@@ -32,41 +32,43 @@ func NewLinkCapabilityHandler(
 	}
 }
 
-func (h *LinkCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *LinkCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.LinkCapability)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	capability, err := h.capabilityRepository.GetByID(ctx, command.EnterpriseCapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	existingLink, err := h.linkReadModel.GetByDomainCapabilityID(ctx, command.DomainCapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	if existingLink != nil {
-		return ErrDomainCapabilityAlreadyLinked
+		return cqrs.EmptyResult(), ErrDomainCapabilityAlreadyLinked
 	}
 
 	domainCapabilityID, err := valueobjects.NewDomainCapabilityIDFromString(command.DomainCapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	linkedBy, err := valueobjects.NewLinkedBy(command.LinkedBy)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	link, err := aggregates.NewEnterpriseCapabilityLink(capability, domainCapabilityID, linkedBy)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.ID = link.ID()
+	if err := h.linkRepository.Save(ctx, link); err != nil {
+		return cqrs.EmptyResult(), err
+	}
 
-	return h.linkRepository.Save(ctx, link)
+	return cqrs.NewResult(link.ID()), nil
 }

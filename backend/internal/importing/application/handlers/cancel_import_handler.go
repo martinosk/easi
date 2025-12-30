@@ -16,20 +16,24 @@ func NewCancelImportHandler(repository *repositories.ImportSessionRepository) *C
 	return &CancelImportHandler{repository: repository}
 }
 
-func (h *CancelImportHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *CancelImportHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.CancelImport)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	session, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := session.Cancel(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, session)
+	if err := h.repository.Save(ctx, session); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

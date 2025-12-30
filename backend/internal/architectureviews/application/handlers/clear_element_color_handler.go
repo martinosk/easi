@@ -19,10 +19,10 @@ func NewClearElementColorHandler(layoutRepository *repositories.ViewLayoutReposi
 	}
 }
 
-func (h *ClearElementColorHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *ClearElementColorHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.ClearElementColor)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	var elementType repositories.ElementType
@@ -32,8 +32,12 @@ func (h *ClearElementColorHandler) Handle(ctx context.Context, cmd cqrs.Command)
 	case "capability":
 		elementType = repositories.ElementTypeCapability
 	default:
-		return errors.New("invalid element type: must be 'component' or 'capability'")
+		return cqrs.EmptyResult(), errors.New("invalid element type: must be 'component' or 'capability'")
 	}
 
-	return h.layoutRepository.ClearElementColor(ctx, command.ViewID, command.ElementID, elementType)
+	if err := h.layoutRepository.ClearElementColor(ctx, command.ViewID, command.ElementID, elementType); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

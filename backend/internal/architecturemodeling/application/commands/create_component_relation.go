@@ -6,8 +6,6 @@ type CreateComponentRelation struct {
 	RelationType      string
 	Name              string
 	Description       string
-	// ID will be populated by the handler after creation
-	ID string
 }
 
 func (c CreateComponentRelation) CommandName() string {

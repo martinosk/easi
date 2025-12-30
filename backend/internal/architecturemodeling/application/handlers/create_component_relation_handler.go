@@ -20,34 +20,34 @@ func NewCreateComponentRelationHandler(repository *repositories.ComponentRelatio
 	}
 }
 
-func (h *CreateComponentRelationHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *CreateComponentRelationHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.CreateComponentRelation)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	sourceID, err := valueobjects.NewComponentIDFromString(command.SourceComponentID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	targetID, err := valueobjects.NewComponentIDFromString(command.TargetComponentID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	relationType, err := valueobjects.NewRelationType(command.RelationType)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	name, err := valueobjects.NewDescription(command.Name)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	description, err := valueobjects.NewDescription(command.Description)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	properties := valueobjects.NewRelationProperties(valueobjects.RelationPropertiesParams{
@@ -60,10 +60,12 @@ func (h *CreateComponentRelationHandler) Handle(ctx context.Context, cmd cqrs.Co
 
 	relation, err := aggregates.NewComponentRelation(properties)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.ID = relation.ID()
+	if err := h.repository.Save(ctx, relation); err != nil {
+		return cqrs.EmptyResult(), err
+	}
 
-	return h.repository.Save(ctx, relation)
+	return cqrs.NewResult(relation.ID()), nil
 }

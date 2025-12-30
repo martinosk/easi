@@ -91,7 +91,7 @@ func (h *CapabilityHandlers) UpdateCapabilityMetadata(w http.ResponseWriter, r *
 		Status:         req.Status,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		if isNotFoundError(err) {
 			sharedAPI.RespondError(w, http.StatusNotFound, err, "Capability not found")
 			return
@@ -148,7 +148,7 @@ func (h *CapabilityHandlers) AddCapabilityExpert(w http.ResponseWriter, r *http.
 		ContactInfo:  req.ContactInfo,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		if isNotFoundError(err) {
 			sharedAPI.RespondError(w, http.StatusNotFound, err, "Capability not found")
 			return
@@ -190,7 +190,7 @@ func (h *CapabilityHandlers) AddCapabilityTag(w http.ResponseWriter, r *http.Req
 		Tag:          req.Tag,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		if isNotFoundError(err) {
 			sharedAPI.RespondError(w, http.StatusNotFound, err, "Capability not found")
 			return

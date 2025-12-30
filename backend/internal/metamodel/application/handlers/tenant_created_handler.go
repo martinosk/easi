@@ -35,12 +35,13 @@ func (h *TenantCreatedHandler) Handle(ctx context.Context, event domain.DomainEv
 		CreatedBy: firstAdminEmail,
 	}
 
-	if err := h.commandBus.Dispatch(ctx, cmd); err != nil {
+	result, err := h.commandBus.Dispatch(ctx, cmd)
+	if err != nil {
 		log.Printf("Error provisioning MetaModel configuration for tenant %s: %v", tenantID, err)
 		return err
 	}
 
-	log.Printf("MetaModel configuration provisioned for tenant %s with ID %s", tenantID, cmd.ID)
+	log.Printf("MetaModel configuration provisioned for tenant %s with ID %s", tenantID, result.CreatedID)
 
 	return nil
 }

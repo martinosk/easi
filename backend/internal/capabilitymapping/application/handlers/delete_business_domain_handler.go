@@ -27,32 +27,36 @@ func NewDeleteBusinessDomainHandler(
 	}
 }
 
-func (h *DeleteBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *DeleteBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.DeleteBusinessDomain)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	assignments, err := h.assignmentReader.GetByDomainID(ctx, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if len(assignments) > 0 {
-		return ErrBusinessDomainHasAssignments
+		return cqrs.EmptyResult(), ErrBusinessDomainHasAssignments
 	}
 
 	domain, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
 		if errors.Is(err, repositories.ErrBusinessDomainNotFound) {
-			return ErrBusinessDomainNotFound
+			return cqrs.EmptyResult(), ErrBusinessDomainNotFound
 		}
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := domain.Delete(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, domain)
+	if err := h.repository.Save(ctx, domain); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

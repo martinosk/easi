@@ -20,41 +20,43 @@ func NewCreateCapabilityHandler(repository *repositories.CapabilityRepository) *
 	}
 }
 
-func (h *CreateCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *CreateCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.CreateCapability)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	name, err := valueobjects.NewCapabilityName(command.Name)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	description, err := valueobjects.NewDescription(command.Description)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	level, err := valueobjects.NewCapabilityLevel(command.Level)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	var parentID valueobjects.CapabilityID
 	if command.ParentID != "" {
 		parentID, err = valueobjects.NewCapabilityIDFromString(command.ParentID)
 		if err != nil {
-			return err
+			return cqrs.EmptyResult(), err
 		}
 	}
 
 	capability, err := aggregates.NewCapability(name, description, parentID, level)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.ID = capability.ID()
+	if err := h.repository.Save(ctx, capability); err != nil {
+		return cqrs.EmptyResult(), err
+	}
 
-	return h.repository.Save(ctx, capability)
+	return cqrs.NewResult(capability.ID()), nil
 }

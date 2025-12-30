@@ -101,58 +101,59 @@ func newTestableAssignCapabilityToDomainHandler(
 	}
 }
 
-func (h *testableAssignCapabilityToDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *testableAssignCapabilityToDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.AssignCapabilityToDomain)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	domain, err := h.domainReader.GetByID(ctx, command.BusinessDomainID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	if domain == nil {
-		return ErrBusinessDomainNotFound
+		return cqrs.EmptyResult(), ErrBusinessDomainNotFound
 	}
 
 	capability, err := h.capabilityReader.GetByID(ctx, command.CapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	if capability == nil {
-		return ErrCapabilityNotFound
+		return cqrs.EmptyResult(), ErrCapabilityNotFound
 	}
 
 	if capability.Level != "L1" {
-		return ErrOnlyL1CapabilitiesCanBeAssigned
+		return cqrs.EmptyResult(), ErrOnlyL1CapabilitiesCanBeAssigned
 	}
 
 	exists, err := h.assignmentReader.AssignmentExists(ctx, command.BusinessDomainID, command.CapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	if exists {
-		return ErrAssignmentAlreadyExists
+		return cqrs.EmptyResult(), ErrAssignmentAlreadyExists
 	}
 
 	businessDomainID, err := valueobjects.NewBusinessDomainIDFromString(command.BusinessDomainID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	capabilityID, err := valueobjects.NewCapabilityIDFromString(command.CapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	assignment, err := aggregates.AssignCapabilityToDomain(businessDomainID, capabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.AssignmentID = assignment.ID()
-
-	return h.assignmentRepo.Save(ctx, assignment)
+	if err := h.assignmentRepo.Save(ctx, assignment); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	return cqrs.NewResult(assignment.ID()), nil
 }
 
 func TestAssignCapabilityToDomainHandler_CreatesAssignment(t *testing.T) {
@@ -180,11 +181,11 @@ func TestAssignCapabilityToDomainHandler_CreatesAssignment(t *testing.T) {
 		CapabilityID:     capabilityID,
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	result, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	require.Len(t, mockAssignmentRepo.savedAssignments, 1, "Handler should create exactly 1 assignment")
-	assert.NotEmpty(t, cmd.AssignmentID, "Command AssignmentID should be set")
+	assert.NotEmpty(t, result.CreatedID, "Result CreatedID should be set")
 }
 
 func TestAssignCapabilityToDomainHandler_BusinessDomainNotFound_ReturnsError(t *testing.T) {
@@ -207,7 +208,7 @@ func TestAssignCapabilityToDomainHandler_BusinessDomainNotFound_ReturnsError(t *
 		CapabilityID:     "cap-456",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, ErrBusinessDomainNotFound)
 	assert.Empty(t, mockAssignmentRepo.savedAssignments)
 }
@@ -232,7 +233,7 @@ func TestAssignCapabilityToDomainHandler_CapabilityNotFound_ReturnsError(t *test
 		CapabilityID:     "cap-nonexistent",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, ErrCapabilityNotFound)
 	assert.Empty(t, mockAssignmentRepo.savedAssignments)
 }
@@ -262,7 +263,7 @@ func TestAssignCapabilityToDomainHandler_CapabilityNotL1_ReturnsError(t *testing
 		CapabilityID:     capabilityID,
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, ErrOnlyL1CapabilitiesCanBeAssigned)
 	assert.Empty(t, mockAssignmentRepo.savedAssignments)
 }
@@ -292,7 +293,7 @@ func TestAssignCapabilityToDomainHandler_AssignmentExists_ReturnsError(t *testin
 		CapabilityID:     capabilityID,
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, ErrAssignmentAlreadyExists)
 	assert.Empty(t, mockAssignmentRepo.savedAssignments)
 }
@@ -312,7 +313,7 @@ func TestAssignCapabilityToDomainHandler_InvalidCommand_ReturnsError(t *testing.
 
 	invalidCmd := &commands.DeleteBusinessDomain{}
 
-	err := handler.Handle(context.Background(), invalidCmd)
+	_, err := handler.Handle(context.Background(), invalidCmd)
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
 }
 
@@ -341,7 +342,7 @@ func TestAssignCapabilityToDomainHandler_AssignmentReaderError_ReturnsError(t *t
 		CapabilityID:     capabilityID,
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 	assert.Empty(t, mockAssignmentRepo.savedAssignments)
 }

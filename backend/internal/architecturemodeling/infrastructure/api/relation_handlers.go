@@ -87,13 +87,14 @@ func (h *RelationHandlers) CreateComponentRelation(w http.ResponseWriter, r *htt
 		Description:       req.Description,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	if err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 		return
 	}
 
-	location := sharedAPI.BuildResourceLink(sharedAPI.ResourcePath("/relations"), sharedAPI.ResourceID(cmd.ID))
-	relation, err := h.readModel.GetByID(r.Context(), cmd.ID)
+	location := sharedAPI.BuildResourceLink(sharedAPI.ResourcePath("/relations"), sharedAPI.ResourceID(result.CreatedID))
+	relation, err := h.readModel.GetByID(r.Context(), result.CreatedID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve created relation")
 		return
@@ -101,7 +102,7 @@ func (h *RelationHandlers) CreateComponentRelation(w http.ResponseWriter, r *htt
 
 	if relation == nil {
 		sharedAPI.RespondCreated(w, location, map[string]string{
-			"id":      cmd.ID,
+			"id":      result.CreatedID,
 			"message": "Relation created, processing",
 		})
 		return
@@ -289,7 +290,7 @@ func (h *RelationHandlers) UpdateComponentRelation(w http.ResponseWriter, r *htt
 		Description: req.Description,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update relation")
 		return
 	}
@@ -316,7 +317,8 @@ func (h *RelationHandlers) DeleteComponentRelation(w http.ResponseWriter, r *htt
 		ID: id,
 	}
 
-	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
 		sharedAPI.RespondDeleted(w)
 	})
 }

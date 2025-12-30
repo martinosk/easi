@@ -20,29 +20,30 @@ func NewCreateApplicationComponentHandler(repository *repositories.ApplicationCo
 	}
 }
 
-func (h *CreateApplicationComponentHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *CreateApplicationComponentHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.CreateApplicationComponent)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	name, err := valueobjects.NewComponentName(command.Name)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	description, err := valueobjects.NewDescription(command.Description)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	component, err := aggregates.NewApplicationComponent(name, description)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	// Set the ID on the command so the caller can retrieve it
-	command.ID = component.ID()
+	if err := h.repository.Save(ctx, component); err != nil {
+		return cqrs.EmptyResult(), err
+	}
 
-	return h.repository.Save(ctx, component)
+	return cqrs.NewResult(component.ID()), nil
 }

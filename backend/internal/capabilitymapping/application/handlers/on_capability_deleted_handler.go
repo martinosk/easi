@@ -47,7 +47,7 @@ func (h *OnCapabilityDeletedHandler) Handle(ctx context.Context, event domain.Do
 			AssignmentID: assignment.AssignmentID,
 		}
 
-		if err := h.commandBus.Dispatch(ctx, cmd); err != nil {
+		if _, err := h.commandBus.Dispatch(ctx, cmd); err != nil {
 			log.Printf("Error unassigning capability %s from domain %s: %v",
 				assignment.CapabilityID, assignment.BusinessDomainID, err)
 			continue

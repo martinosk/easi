@@ -40,34 +40,36 @@ func NewAssignCapabilityToDomainHandler(
 	}
 }
 
-func (h *AssignCapabilityToDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *AssignCapabilityToDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.AssignCapabilityToDomain)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	if err := h.validateAssignment(ctx, command); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	businessDomainID, err := valueobjects.NewBusinessDomainIDFromString(command.BusinessDomainID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	capabilityID, err := valueobjects.NewCapabilityIDFromString(command.CapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	assignment, err := aggregates.AssignCapabilityToDomain(businessDomainID, capabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.AssignmentID = assignment.ID()
+	if err := h.assignmentRepo.Save(ctx, assignment); err != nil {
+		return cqrs.EmptyResult(), err
+	}
 
-	return h.assignmentRepo.Save(ctx, assignment)
+	return cqrs.NewResult(assignment.ID()), nil
 }
 
 func (h *AssignCapabilityToDomainHandler) validateAssignment(ctx context.Context, command *commands.AssignCapabilityToDomain) error {

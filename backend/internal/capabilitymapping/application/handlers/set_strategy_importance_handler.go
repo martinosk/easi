@@ -36,25 +36,27 @@ func NewSetStrategyImportanceHandler(deps StrategyImportanceDeps) *SetStrategyIm
 	return &SetStrategyImportanceHandler{deps: deps}
 }
 
-func (h *SetStrategyImportanceHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *SetStrategyImportanceHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.SetStrategyImportance)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	pillarName, err := h.validateAndGetPillarName(ctx, command)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	aggregate, err := h.createAggregate(command, pillarName)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.ImportanceID = aggregate.ID()
+	if err := h.deps.ImportanceRepo.Save(ctx, aggregate); err != nil {
+		return cqrs.EmptyResult(), err
+	}
 
-	return h.deps.ImportanceRepo.Save(ctx, aggregate)
+	return cqrs.NewResult(aggregate.ID()), nil
 }
 
 func (h *SetStrategyImportanceHandler) createAggregate(cmd *commands.SetStrategyImportance, pillarName string) (*aggregates.StrategyImportance, error) {

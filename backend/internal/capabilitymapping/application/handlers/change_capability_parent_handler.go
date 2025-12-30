@@ -31,35 +31,39 @@ func NewChangeCapabilityParentHandler(
 	}
 }
 
-func (h *ChangeCapabilityParentHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *ChangeCapabilityParentHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.ChangeCapabilityParent)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	capability, err := h.repository.GetByID(ctx, command.CapabilityID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	newParentID, newLevel, err := h.determineNewParentAndLevel(ctx, command)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := h.validateDepthConstraints(ctx, command.CapabilityID, newLevel); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := capability.ChangeParent(newParentID, newLevel); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := h.repository.Save(ctx, capability); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.updateDescendantLevels(ctx, command.CapabilityID, newLevel)
+	if err := h.updateDescendantLevels(ctx, command.CapabilityID, newLevel); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }
 
 func (h *ChangeCapabilityParentHandler) determineNewParentAndLevel(ctx context.Context, command *commands.ChangeCapabilityParent) (valueobjects.CapabilityID, valueobjects.CapabilityLevel, error) {

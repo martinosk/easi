@@ -66,25 +66,29 @@ func buildMetadata(cmd *commands.UpdateCapabilityMetadata) (valueobjects.Capabil
 	), nil
 }
 
-func (h *UpdateCapabilityMetadataHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *UpdateCapabilityMetadataHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.UpdateCapabilityMetadata)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	capability, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	metadata, err := buildMetadata(command)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := capability.UpdateMetadata(metadata); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, capability)
+	if err := h.repository.Save(ctx, capability); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

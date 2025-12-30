@@ -29,44 +29,44 @@ func NewDeleteApplicationComponentHandler(
 	}
 }
 
-func (h *DeleteApplicationComponentHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *DeleteApplicationComponentHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.DeleteApplicationComponent)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	componentID, err := valueobjects.NewComponentIDFromString(command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	component, err := h.repository.GetByID(ctx, componentID.Value())
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if component.IsDeleted() {
-		return nil
+		return cqrs.EmptyResult(), nil
 	}
 
 	if err := component.Delete(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := h.repository.Save(ctx, component); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	relationsAsSource, err := h.relationReader.GetBySourceID(ctx, componentID.Value())
 	if err != nil {
 		log.Printf("Error querying relations by source for component %s: %v", componentID.Value(), err)
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	relationsAsTarget, err := h.relationReader.GetByTargetID(ctx, componentID.Value())
 	if err != nil {
 		log.Printf("Error querying relations by target for component %s: %v", componentID.Value(), err)
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	allRelations := make([]readmodels.ComponentRelationDTO, 0, len(relationsAsSource)+len(relationsAsTarget))
@@ -79,7 +79,7 @@ func (h *DeleteApplicationComponentHandler) Handle(ctx context.Context, cmd cqrs
 			ID: relation.ID,
 		}
 
-		if err := h.commandBus.Dispatch(ctx, deleteRelCmd); err != nil {
+		if _, err := h.commandBus.Dispatch(ctx, deleteRelCmd); err != nil {
 			log.Printf("Error cascading delete for relation %s: %v", relation.ID, err)
 			continue
 		}
@@ -87,5 +87,5 @@ func (h *DeleteApplicationComponentHandler) Handle(ctx context.Context, cmd cqrs
 		log.Printf("Cascaded delete for relation %s", relation.ID)
 	}
 
-	return nil
+	return cqrs.EmptyResult(), nil
 }

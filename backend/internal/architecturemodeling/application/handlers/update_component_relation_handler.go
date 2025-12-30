@@ -19,29 +19,33 @@ func NewUpdateComponentRelationHandler(repository *repositories.ComponentRelatio
 	}
 }
 
-func (h *UpdateComponentRelationHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *UpdateComponentRelationHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.UpdateComponentRelation)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	relation, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	name, err := valueobjects.NewDescription(command.Name)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	description, err := valueobjects.NewDescription(command.Description)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := relation.Update(name, description); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, relation)
+	if err := h.repository.Save(ctx, relation); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

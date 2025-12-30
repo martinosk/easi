@@ -62,43 +62,44 @@ func newTestableCreateEnterpriseCapabilityHandler(
 	}
 }
 
-func (h *testableCreateEnterpriseCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *testableCreateEnterpriseCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.CreateEnterpriseCapability)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	exists, err := h.readModel.NameExists(ctx, command.Name, "")
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	if exists {
-		return ErrEnterpriseCapabilityNameExists
+		return cqrs.EmptyResult(), ErrEnterpriseCapabilityNameExists
 	}
 
 	name, err := valueobjects.NewEnterpriseCapabilityName(command.Name)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	description, err := valueobjects.NewDescription(command.Description)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	category, err := valueobjects.NewCategory(command.Category)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	capability, err := aggregates.NewEnterpriseCapability(name, description, category)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.ID = capability.ID()
-
-	return h.repository.Save(ctx, capability)
+	if err := h.repository.Save(ctx, capability); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	return cqrs.NewResult(capability.ID()), nil
 }
 
 func TestCreateEnterpriseCapabilityHandler_CreatesCapability(t *testing.T) {
@@ -113,7 +114,7 @@ func TestCreateEnterpriseCapabilityHandler_CreatesCapability(t *testing.T) {
 		Category:    "HR",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	require.Len(t, mockRepo.savedCapabilities, 1)
@@ -123,7 +124,7 @@ func TestCreateEnterpriseCapabilityHandler_CreatesCapability(t *testing.T) {
 	assert.Equal(t, "HR", capability.Category().Value())
 }
 
-func TestCreateEnterpriseCapabilityHandler_SetsCommandID(t *testing.T) {
+func TestCreateEnterpriseCapabilityHandler_ReturnsCreatedID(t *testing.T) {
 	mockRepo := &mockEnterpriseCapabilityRepository{}
 	mockReadModel := &mockEnterpriseCapabilityReadModel{nameExists: false}
 
@@ -135,11 +136,11 @@ func TestCreateEnterpriseCapabilityHandler_SetsCommandID(t *testing.T) {
 		Category:    "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	result, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, cmd.ID)
-	assert.Equal(t, mockRepo.savedCapabilities[0].ID(), cmd.ID)
+	assert.NotEmpty(t, result.CreatedID)
+	assert.Equal(t, mockRepo.savedCapabilities[0].ID(), result.CreatedID)
 }
 
 func TestCreateEnterpriseCapabilityHandler_NameExists_ReturnsError(t *testing.T) {
@@ -154,7 +155,7 @@ func TestCreateEnterpriseCapabilityHandler_NameExists_ReturnsError(t *testing.T)
 		Category:    "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, ErrEnterpriseCapabilityNameExists)
 	assert.Empty(t, mockRepo.savedCapabilities)
 }
@@ -171,7 +172,7 @@ func TestCreateEnterpriseCapabilityHandler_InvalidName_ReturnsError(t *testing.T
 		Category:    "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 	assert.Empty(t, mockRepo.savedCapabilities)
 }
@@ -188,7 +189,7 @@ func TestCreateEnterpriseCapabilityHandler_HandlesOptionalDescriptionAndCategory
 		Category:    "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	capability := mockRepo.savedCapabilities[0]
@@ -209,7 +210,7 @@ func TestCreateEnterpriseCapabilityHandler_ReadModelError_ReturnsError(t *testin
 		Category:    "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 	assert.Empty(t, mockRepo.savedCapabilities)
 }
@@ -226,6 +227,6 @@ func TestCreateEnterpriseCapabilityHandler_RepositoryError_ReturnsError(t *testi
 		Category:    "",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
 }

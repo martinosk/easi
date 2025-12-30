@@ -54,7 +54,7 @@ func (h *CapabilityHandlers) ChangeCapabilityParent(w http.ResponseWriter, r *ht
 		NewParentID:  req.ParentID,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		if errors.Is(err, repositories.ErrCapabilityNotFound) {
 			sharedAPI.RespondError(w, http.StatusNotFound, err, "Capability not found")
 			return

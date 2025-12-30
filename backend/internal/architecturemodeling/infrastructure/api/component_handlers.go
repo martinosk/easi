@@ -67,13 +67,14 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 		Description: req.Description,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create component")
 		return
 	}
 
-	location := sharedAPI.BuildResourceLink(sharedAPI.ResourcePath("/components"), sharedAPI.ResourceID(cmd.ID))
-	component, err := h.readModel.GetByID(r.Context(), cmd.ID)
+	location := sharedAPI.BuildResourceLink(sharedAPI.ResourcePath("/components"), sharedAPI.ResourceID(result.CreatedID))
+	component, err := h.readModel.GetByID(r.Context(), result.CreatedID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve created component")
 		return
@@ -81,7 +82,7 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 
 	if component == nil {
 		sharedAPI.RespondCreated(w, location, map[string]string{
-			"id":      cmd.ID,
+			"id":      result.CreatedID,
 			"message": "Component created, processing",
 		})
 		return
@@ -195,7 +196,7 @@ func (h *ComponentHandlers) UpdateApplicationComponent(w http.ResponseWriter, r 
 		Description: req.Description,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update component")
 		return
 	}
@@ -222,7 +223,8 @@ func (h *ComponentHandlers) DeleteApplicationComponent(w http.ResponseWriter, r 
 		ID: id,
 	}
 
-	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
 		sharedAPI.RespondDeleted(w)
 	})
 }

@@ -53,22 +53,25 @@ func newTestableUnassignCapabilityFromDomainHandler(
 	}
 }
 
-func (h *testableUnassignCapabilityFromDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *testableUnassignCapabilityFromDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.UnassignCapabilityFromDomain)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	assignment, err := h.repository.GetByID(ctx, command.AssignmentID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := assignment.Unassign(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, assignment)
+	if err := h.repository.Save(ctx, assignment); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	return cqrs.EmptyResult(), nil
 }
 
 func createTestAssignment(t *testing.T) *aggregates.BusinessDomainAssignment {
@@ -96,7 +99,7 @@ func TestUnassignCapabilityFromDomainHandler_UnassignsCapability(t *testing.T) {
 		AssignmentID: assignmentID,
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, mockRepo.savedCount, "Handler should save assignment once")
@@ -113,7 +116,7 @@ func TestUnassignCapabilityFromDomainHandler_AssignmentNotFound_ReturnsError(t *
 		AssignmentID: "non-existent",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, repositories.ErrAssignmentNotFound)
 }
 
@@ -124,6 +127,6 @@ func TestUnassignCapabilityFromDomainHandler_InvalidCommand_ReturnsError(t *test
 
 	invalidCmd := &commands.DeleteBusinessDomain{}
 
-	err := handler.Handle(context.Background(), invalidCmd)
+	_, err := handler.Handle(context.Background(), invalidCmd)
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
 }

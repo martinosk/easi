@@ -18,15 +18,15 @@ func NewCreateImportSessionHandler(repository *repositories.ImportSessionReposit
 	return &CreateImportSessionHandler{repository: repository}
 }
 
-func (h *CreateImportSessionHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *CreateImportSessionHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.CreateImportSession)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	sourceFormat, err := valueobjects.NewSourceFormat(command.SourceFormat)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	preview := command.Preview()
@@ -62,10 +62,12 @@ func (h *CreateImportSessionHandler) Handle(ctx context.Context, cmd cqrs.Comman
 
 	session, err := aggregates.NewImportSession(sourceFormat, command.BusinessDomainID, preview, parsedData)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.ID = session.ID()
+	if err := h.repository.Save(ctx, session); err != nil {
+		return cqrs.EmptyResult(), err
+	}
 
-	return h.repository.Save(ctx, session)
+	return cqrs.NewResult(session.ID()), nil
 }

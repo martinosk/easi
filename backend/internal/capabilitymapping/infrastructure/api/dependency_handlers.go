@@ -85,7 +85,8 @@ func (h *DependencyHandlers) CreateDependency(w http.ResponseWriter, r *http.Req
 		Description:        req.Description,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	if err != nil {
 		if errors.Is(err, handlers.ErrSourceCapabilityNotFound) || errors.Is(err, handlers.ErrTargetCapabilityNotFound) {
 			sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 			return
@@ -94,17 +95,17 @@ func (h *DependencyHandlers) CreateDependency(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	dependency, err := h.readModel.GetByID(r.Context(), cmd.ID)
+	dependency, err := h.readModel.GetByID(r.Context(), result.CreatedID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve created dependency")
 		return
 	}
 
 	if dependency == nil {
-		location := fmt.Sprintf("/api/capability-dependencies/%s", cmd.ID)
+		location := fmt.Sprintf("/api/capability-dependencies/%s", result.CreatedID)
 		w.Header().Set("Location", location)
 		sharedAPI.RespondJSON(w, http.StatusCreated, map[string]string{
-			"id":      cmd.ID,
+			"id":      result.CreatedID,
 			"message": "Dependency created, processing",
 		})
 		return
@@ -219,7 +220,7 @@ func (h *DependencyHandlers) DeleteDependency(w http.ResponseWriter, r *http.Req
 		ID: id,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		if errors.Is(err, repositories.ErrDependencyNotFound) {
 			sharedAPI.RespondError(w, http.StatusNotFound, err, "Dependency not found")
 			return

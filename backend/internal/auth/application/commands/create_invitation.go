@@ -5,7 +5,6 @@ type CreateInvitation struct {
 	Role         string
 	InviterID    string
 	InviterEmail string
-	ID           string
 }
 
 func (c CreateInvitation) CommandName() string {

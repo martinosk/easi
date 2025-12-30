@@ -18,20 +18,24 @@ func NewDeleteViewHandler(repository *repositories.ArchitectureViewRepository) *
 	}
 }
 
-func (h *DeleteViewHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *DeleteViewHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.DeleteView)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	view, err := h.repository.GetByID(ctx, command.ViewID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := view.Delete(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, view)
+	if err := h.repository.Save(ctx, view); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

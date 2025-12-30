@@ -22,35 +22,37 @@ func NewCreateInvitationHandler(repository *repositories.InvitationRepository) *
 	}
 }
 
-func (h *CreateInvitationHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *CreateInvitationHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.CreateInvitation)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	email, err := valueobjects.NewEmail(command.Email)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	role, err := valueobjects.RoleFromString(command.Role)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	inviterInfo, err := parseInviterInfo(command.InviterID, command.InviterEmail)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	invitation, err := aggregates.NewInvitation(email, role, inviterInfo)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.ID = invitation.ID()
+	if err := h.repository.Save(ctx, invitation); err != nil {
+		return cqrs.EmptyResult(), err
+	}
 
-	return h.repository.Save(ctx, invitation)
+	return cqrs.NewResult(invitation.ID()), nil
 }
 
 func parseInviterInfo(inviterID, inviterEmail string) (*valueobjects.InviterInfo, error) {

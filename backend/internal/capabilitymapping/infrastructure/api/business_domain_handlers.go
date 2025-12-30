@@ -96,12 +96,13 @@ func (h *BusinessDomainHandlers) CreateBusinessDomain(w http.ResponseWriter, r *
 		Description: req.Description,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "")
 		return
 	}
 
-	h.respondWithDomain(w, r, cmd.ID, http.StatusCreated)
+	h.respondWithDomain(w, r, result.CreatedID, http.StatusCreated)
 }
 
 // GetAllBusinessDomains godoc
@@ -190,7 +191,8 @@ func (h *BusinessDomainHandlers) UpdateBusinessDomain(w http.ResponseWriter, r *
 		Description: req.Description,
 	}
 
-	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
 		h.respondWithDomain(w, r, id, http.StatusOK)
 	})
 }
@@ -240,7 +242,8 @@ func (h *BusinessDomainHandlers) DeleteBusinessDomain(w http.ResponseWriter, r *
 		return
 	}
 
-	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), &commands.DeleteBusinessDomain{ID: id}), func() {
+	result, err := h.commandBus.Dispatch(r.Context(), &commands.DeleteBusinessDomain{ID: id})
+	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
 		sharedAPI.RespondDeleted(w)
 	})
 }
@@ -322,7 +325,8 @@ func (h *BusinessDomainHandlers) AssignCapabilityToDomain(w http.ResponseWriter,
 		CapabilityID:     req.CapabilityID,
 	}
 
-	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
 		h.respondWithAssignment(w, r, domainID, req.CapabilityID)
 	})
 }
@@ -383,7 +387,7 @@ func (h *BusinessDomainHandlers) RemoveCapabilityFromDomain(w http.ResponseWrite
 		AssignmentID: assignment.AssignmentID,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to remove capability from domain")
 		return
 	}

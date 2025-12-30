@@ -80,7 +80,7 @@ func (s *LoginService) ProcessLogin(ctx context.Context, email, name string) (*L
 		expireCmd := &commands.MarkInvitationExpired{
 			ID: invitation.ID,
 		}
-		if err := s.commandBus.Dispatch(ctx, expireCmd); err != nil {
+		if _, err := s.commandBus.Dispatch(ctx, expireCmd); err != nil {
 			return nil, err
 		}
 		return nil, ErrNoValidInvitation
@@ -89,7 +89,7 @@ func (s *LoginService) ProcessLogin(ctx context.Context, email, name string) (*L
 	cmd := &commands.AcceptInvitation{
 		Email: email,
 	}
-	if err := s.commandBus.Dispatch(ctx, cmd); err != nil {
+	if _, err := s.commandBus.Dispatch(ctx, cmd); err != nil {
 		return nil, err
 	}
 

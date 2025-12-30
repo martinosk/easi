@@ -20,20 +20,24 @@ func NewDeleteSystemRealizationHandler(
 	}
 }
 
-func (h *DeleteSystemRealizationHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *DeleteSystemRealizationHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.DeleteSystemRealization)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	realization, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := realization.Delete(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, realization)
+	if err := h.repository.Save(ctx, realization); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

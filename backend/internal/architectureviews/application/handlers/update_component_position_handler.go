@@ -18,11 +18,15 @@ func NewUpdateComponentPositionHandler(layoutRepository *repositories.ViewLayout
 	}
 }
 
-func (h *UpdateComponentPositionHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *UpdateComponentPositionHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(commands.UpdateComponentPosition)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
-	return h.layoutRepository.UpdateComponentPosition(ctx, command.ViewID, command.ComponentID, command.X, command.Y)
+	if err := h.layoutRepository.UpdateComponentPosition(ctx, command.ViewID, command.ComponentID, command.X, command.Y); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

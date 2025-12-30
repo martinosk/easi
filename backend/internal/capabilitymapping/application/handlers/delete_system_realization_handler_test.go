@@ -66,22 +66,25 @@ func newTestableDeleteSystemRealizationHandler(
 	}
 }
 
-func (h *testableDeleteSystemRealizationHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *testableDeleteSystemRealizationHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.DeleteSystemRealization)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	realization, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := realization.Delete(); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, realization)
+	if err := h.repository.Save(ctx, realization); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+	return cqrs.EmptyResult(), nil
 }
 
 func createRealization(t *testing.T) *aggregates.CapabilityRealization {
@@ -113,7 +116,7 @@ func TestDeleteSystemRealizationHandler_DeletesRealization(t *testing.T) {
 		ID: realizationID,
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	assert.Contains(t, mockRepo.savedIDs, realizationID, "Realization should be saved (deleted via event)")
@@ -128,7 +131,7 @@ func TestDeleteSystemRealizationHandler_RealizationNotFound_ReturnsError(t *test
 		ID: "non-existent-id",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, repositories.ErrRealizationNotFound)
 }
 
@@ -139,6 +142,6 @@ func TestDeleteSystemRealizationHandler_InvalidCommand_ReturnsError(t *testing.T
 
 	invalidCmd := &commands.LinkSystemToCapability{}
 
-	err := handler.Handle(context.Background(), invalidCmd)
+	_, err := handler.Handle(context.Background(), invalidCmd)
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
 }

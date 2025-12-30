@@ -20,33 +20,37 @@ func NewBatchUpdateStrategyPillarsHandler(repository *repositories.MetaModelConf
 	}
 }
 
-func (h *BatchUpdateStrategyPillarsHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *BatchUpdateStrategyPillarsHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.BatchUpdateStrategyPillars)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	config, err := h.repository.GetByID(ctx, command.ConfigID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if command.ExpectedVersion != nil && config.Version() != *command.ExpectedVersion {
-		return domain.ErrConcurrencyConflict
+		return cqrs.EmptyResult(), domain.ErrConcurrencyConflict
 	}
 
 	modifiedBy, err := valueobjects.NewUserEmail(command.ModifiedBy)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	for _, change := range command.Changes {
 		if err := applyPillarChange(config, change, modifiedBy); err != nil {
-			return err
+			return cqrs.EmptyResult(), err
 		}
 	}
 
-	return h.repository.Save(ctx, config)
+	if err := h.repository.Save(ctx, config); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }
 
 type pillarConfig interface {

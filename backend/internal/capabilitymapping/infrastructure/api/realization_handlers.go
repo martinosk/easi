@@ -85,22 +85,23 @@ func (h *RealizationHandlers) LinkSystemToCapability(w http.ResponseWriter, r *h
 		Notes:            req.Notes,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	if err != nil {
 		sharedAPI.HandleError(w, err)
 		return
 	}
 
-	realization, err := h.readModel.GetByID(r.Context(), cmd.ID)
+	realization, err := h.readModel.GetByID(r.Context(), result.CreatedID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve created realization")
 		return
 	}
 
 	if realization == nil {
-		location := fmt.Sprintf("/api/capability-realizations/%s", cmd.ID)
+		location := fmt.Sprintf("/api/capability-realizations/%s", result.CreatedID)
 		w.Header().Set("Location", location)
 		sharedAPI.RespondJSON(w, http.StatusCreated, map[string]string{
-			"id":      cmd.ID,
+			"id":      result.CreatedID,
 			"message": "Realization created, processing",
 		})
 		return
@@ -212,7 +213,7 @@ func (h *RealizationHandlers) UpdateRealization(w http.ResponseWriter, r *http.R
 		Notes:            req.Notes,
 	}
 
-	if err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.HandleError(w, err)
 		return
 	}
@@ -249,7 +250,8 @@ func (h *RealizationHandlers) DeleteRealization(w http.ResponseWriter, r *http.R
 		ID: id,
 	}
 
-	sharedAPI.HandleCommandResult(w, h.commandBus.Dispatch(r.Context(), cmd), func() {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 }

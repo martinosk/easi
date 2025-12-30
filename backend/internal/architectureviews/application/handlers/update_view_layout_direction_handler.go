@@ -19,16 +19,20 @@ func NewUpdateViewLayoutDirectionHandler(layoutRepository *repositories.ViewLayo
 	}
 }
 
-func (h *UpdateViewLayoutDirectionHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *UpdateViewLayoutDirectionHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.UpdateViewLayoutDirection)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	_, err := valueobjects.NewLayoutDirection(command.LayoutDirection)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.layoutRepository.UpdateLayoutDirection(ctx, command.ViewID, command.LayoutDirection)
+	if err := h.layoutRepository.UpdateLayoutDirection(ctx, command.ViewID, command.LayoutDirection); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

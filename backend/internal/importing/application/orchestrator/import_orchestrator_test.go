@@ -18,26 +18,27 @@ type mockCommandBus struct {
 	idCounter          int
 }
 
-func (m *mockCommandBus) Dispatch(ctx context.Context, cmd cqrs.Command) error {
+func (m *mockCommandBus) Dispatch(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	if m.dispatchError != nil {
-		return m.dispatchError
+		return cqrs.EmptyResult(), m.dispatchError
 	}
 	m.dispatchedCommands = append(m.dispatchedCommands, cmd)
 	m.idCounter++
 
-	switch c := cmd.(type) {
+	var createdID string
+	switch cmd.(type) {
 	case *architectureCommands.CreateApplicationComponent:
-		c.ID = fmt.Sprintf("comp-%d", m.idCounter)
+		createdID = fmt.Sprintf("comp-%d", m.idCounter)
 	case *architectureCommands.CreateComponentRelation:
-		c.ID = fmt.Sprintf("rel-%d", m.idCounter)
+		createdID = fmt.Sprintf("rel-%d", m.idCounter)
 	case *capabilityCommands.CreateCapability:
-		c.ID = fmt.Sprintf("cap-%d", m.idCounter)
+		createdID = fmt.Sprintf("cap-%d", m.idCounter)
 	case *capabilityCommands.LinkSystemToCapability:
-		c.ID = fmt.Sprintf("link-%d", m.idCounter)
+		createdID = fmt.Sprintf("link-%d", m.idCounter)
 	case *capabilityCommands.AssignCapabilityToDomain:
-		c.AssignmentID = fmt.Sprintf("assign-%d", m.idCounter)
+		createdID = fmt.Sprintf("assign-%d", m.idCounter)
 	}
-	return nil
+	return cqrs.NewResult(createdID), nil
 }
 
 func (m *mockCommandBus) Register(name string, handler cqrs.CommandHandler) {}

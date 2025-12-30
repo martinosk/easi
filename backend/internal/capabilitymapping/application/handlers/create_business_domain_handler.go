@@ -29,36 +29,38 @@ func NewCreateBusinessDomainHandler(
 	}
 }
 
-func (h *CreateBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *CreateBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.CreateBusinessDomain)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	exists, err := h.readModel.NameExists(ctx, command.Name, "")
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 	if exists {
-		return ErrBusinessDomainNameExists
+		return cqrs.EmptyResult(), ErrBusinessDomainNameExists
 	}
 
 	name, err := valueobjects.NewDomainName(command.Name)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	description, err := valueobjects.NewDescription(command.Description)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	domain, err := aggregates.NewBusinessDomain(name, description)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	command.ID = domain.ID()
+	if err := h.repository.Save(ctx, domain); err != nil {
+		return cqrs.EmptyResult(), err
+	}
 
-	return h.repository.Save(ctx, domain)
+	return cqrs.NewResult(domain.ID()), nil
 }

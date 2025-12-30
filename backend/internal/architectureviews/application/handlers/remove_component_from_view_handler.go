@@ -18,20 +18,24 @@ func NewRemoveComponentFromViewHandler(repository *repositories.ArchitectureView
 	}
 }
 
-func (h *RemoveComponentFromViewHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
+func (h *RemoveComponentFromViewHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
 	command, ok := cmd.(*commands.RemoveComponentFromView)
 	if !ok {
-		return cqrs.ErrInvalidCommand
+		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
 	view, err := h.repository.GetByID(ctx, command.ViewID)
 	if err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
 	if err := view.RemoveComponent(command.ComponentID); err != nil {
-		return err
+		return cqrs.EmptyResult(), err
 	}
 
-	return h.repository.Save(ctx, view)
+	if err := h.repository.Save(ctx, view); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.EmptyResult(), nil
 }

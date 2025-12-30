@@ -6,7 +6,6 @@ type SetStrategyImportance struct {
 	PillarID         string
 	Importance       int
 	Rationale        string
-	ImportanceID     string
 }
 
 func (c SetStrategyImportance) CommandName() string {
