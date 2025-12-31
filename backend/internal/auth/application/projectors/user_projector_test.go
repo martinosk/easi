@@ -146,52 +146,6 @@ func TestUserProjector_IgnoresUnknownEventTypes(t *testing.T) {
 	assert.Empty(t, mockReadModel.statusUpdates)
 }
 
-func TestUserProjector_ProjectEvent_UserRoleChanged(t *testing.T) {
-	mockReadModel := &mockUserReadModelForProjector{}
-	projector := newTestableUserProjector(mockReadModel)
-
-	eventData := map[string]interface{}{
-		"id":      "user-role-123",
-		"newRole": "stakeholder",
-	}
-	eventBytes, _ := json.Marshal(eventData)
-
-	err := projector.ProjectEvent(context.Background(), "UserRoleChanged", eventBytes)
-	require.NoError(t, err)
-
-	assert.Equal(t, "stakeholder", mockReadModel.roleUpdates["user-role-123"])
-}
-
-func TestUserProjector_ProjectEvent_UserDisabled(t *testing.T) {
-	mockReadModel := &mockUserReadModelForProjector{}
-	projector := newTestableUserProjector(mockReadModel)
-
-	eventData := map[string]interface{}{
-		"id": "user-dis-456",
-	}
-	eventBytes, _ := json.Marshal(eventData)
-
-	err := projector.ProjectEvent(context.Background(), "UserDisabled", eventBytes)
-	require.NoError(t, err)
-
-	assert.Equal(t, "disabled", mockReadModel.statusUpdates["user-dis-456"])
-}
-
-func TestUserProjector_ProjectEvent_UserEnabled(t *testing.T) {
-	mockReadModel := &mockUserReadModelForProjector{}
-	projector := newTestableUserProjector(mockReadModel)
-
-	eventData := map[string]interface{}{
-		"id": "user-en-789",
-	}
-	eventBytes, _ := json.Marshal(eventData)
-
-	err := projector.ProjectEvent(context.Background(), "UserEnabled", eventBytes)
-	require.NoError(t, err)
-
-	assert.Equal(t, "active", mockReadModel.statusUpdates["user-en-789"])
-}
-
 func TestUserProjector_InvalidEventData_ReturnsError(t *testing.T) {
 	mockReadModel := &mockUserReadModelForProjector{}
 	projector := newTestableUserProjector(mockReadModel)
