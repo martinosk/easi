@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"time"
 
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
 	"easi/backend/internal/enterprisearchitecture/domain/events"
@@ -73,18 +72,10 @@ func (p *EnterpriseCapabilityLinkProjector) handleUnlinked(ctx context.Context, 
 
 	if err := p.readModel.DeleteBlockingByBlocker(ctx, event.DomainCapabilityID); err != nil {
 		log.Printf("Failed to delete blocking records for capability %s: %v", event.DomainCapabilityID, err)
+		return err
 	}
 
 	return p.readModel.Delete(ctx, event.ID)
-}
-
-type capabilityParentChangedEvent struct {
-	CapabilityID string    `json:"capabilityId"`
-	OldParentID  string    `json:"oldParentId"`
-	NewParentID  string    `json:"newParentId"`
-	OldLevel     string    `json:"oldLevel"`
-	NewLevel     string    `json:"newLevel"`
-	Timestamp    time.Time `json:"timestamp"`
 }
 
 func (p *EnterpriseCapabilityLinkProjector) handleCapabilityParentChanged(ctx context.Context, eventData []byte) error {

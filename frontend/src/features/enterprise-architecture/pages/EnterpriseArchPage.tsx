@@ -22,7 +22,7 @@ function useEnterpriseArchPermissions() {
 
 export function EnterpriseArchPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedCapability, setSelectedCapability] = useState<EnterpriseCapability | null>(null);
+  const [selectedCapabilityId, setSelectedCapabilityId] = useState<EnterpriseCapabilityId | null>(null);
   const [capabilityToDelete, setCapabilityToDelete] = useState<EnterpriseCapability | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDockPanelOpen, setIsDockPanelOpen] = useState(false);
@@ -30,6 +30,11 @@ export function EnterpriseArchPage() {
   const { canRead, canWrite, canDelete } = useEnterpriseArchPermissions();
 
   const { capabilities, isLoading, error, createCapability, deleteCapability } = useEnterpriseCapabilities();
+
+  const selectedCapability = useMemo(
+    () => capabilities.find((c) => c.id === selectedCapabilityId) || null,
+    [capabilities, selectedCapabilityId]
+  );
 
   const {
     domainCapabilities,
@@ -54,14 +59,14 @@ export function EnterpriseArchPage() {
     try {
       setDeleteError(null);
       await deleteCapability(capabilityToDelete.id, capabilityToDelete.name);
-      if (selectedCapability?.id === capabilityToDelete.id) {
-        setSelectedCapability(null);
+      if (selectedCapabilityId === capabilityToDelete.id) {
+        setSelectedCapabilityId(null);
       }
       setCapabilityToDelete(null);
     } catch (err) {
       setDeleteError(getErrorMessage(err, 'Failed to delete capability'));
     }
-  }, [capabilityToDelete, selectedCapability, deleteCapability]);
+  }, [capabilityToDelete, selectedCapabilityId, deleteCapability]);
 
   const handleCancelDelete = useCallback(() => {
     setCapabilityToDelete(null);
@@ -69,8 +74,8 @@ export function EnterpriseArchPage() {
   }, []);
 
   const handleSelectCapability = useCallback((capability: EnterpriseCapability) => {
-    setSelectedCapability(capability.id === selectedCapability?.id ? null : capability);
-  }, [selectedCapability]);
+    setSelectedCapabilityId(capability.id === selectedCapabilityId ? null : capability.id);
+  }, [selectedCapabilityId]);
 
   const handleOpenModal = useCallback(() => {
     setIsModalOpen(true);

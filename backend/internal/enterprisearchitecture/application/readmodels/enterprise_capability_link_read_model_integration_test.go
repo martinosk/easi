@@ -19,11 +19,12 @@ import (
 )
 
 type testFixture struct {
-	db        *sql.DB
-	tenantDB  *database.TenantAwareDB
-	readModel *EnterpriseCapabilityLinkReadModel
-	ctx       context.Context
-	t         *testing.T
+	db                         *sql.DB
+	tenantDB                   *database.TenantAwareDB
+	readModel                  *EnterpriseCapabilityLinkReadModel
+	enterpriseCapabilityRM     *EnterpriseCapabilityReadModel
+	ctx                        context.Context
+	t                          *testing.T
 }
 
 func newTestFixture(t *testing.T) *testFixture {
@@ -34,11 +35,12 @@ func newTestFixture(t *testing.T) *testFixture {
 	require.NoError(t, err)
 
 	return &testFixture{
-		db:        db,
-		tenantDB:  tenantDB,
-		readModel: NewEnterpriseCapabilityLinkReadModel(tenantDB),
-		ctx:       sharedcontext.WithTenant(context.Background(), sharedvo.DefaultTenantID()),
-		t:         t,
+		db:                         db,
+		tenantDB:                   tenantDB,
+		readModel:                  NewEnterpriseCapabilityLinkReadModel(tenantDB),
+		enterpriseCapabilityRM:     NewEnterpriseCapabilityReadModel(tenantDB),
+		ctx:                        sharedcontext.WithTenant(context.Background(), sharedvo.DefaultTenantID()),
+		t:                          t,
 	}
 }
 
@@ -70,8 +72,8 @@ func (f *testFixture) createCapability(id, name string, parentID *string) {
 }
 
 func (f *testFixture) createEnterpriseCapability(id, name string) {
-	_, err := f.db.Exec(`INSERT INTO enterprise_capabilities (id, tenant_id, name, description, category, is_active, created_at)
-		VALUES ($1, 'default', $2, $2, 'Test', true, NOW())`, id, name)
+	_, err := f.db.Exec(`INSERT INTO enterprise_capabilities (id, tenant_id, name, description, category, active, link_count, domain_count, created_at)
+		VALUES ($1, 'default', $2, $2, 'Test', true, 0, 0, NOW())`, id, name)
 	require.NoError(f.t, err)
 	f.t.Cleanup(func() { f.db.Exec("DELETE FROM enterprise_capabilities WHERE id = $1", id) })
 }
@@ -220,4 +222,166 @@ func TestCheckHierarchyConflict_NoRelationship_NoConflict(t *testing.T) {
 	conflict, err := f.readModel.CheckHierarchyConflict(f.ctx, cap1ID, enterpriseCapID2)
 	require.NoError(t, err)
 	assert.Nil(t, conflict)
+}
+
+func (f *testFixture) getLinkCount(enterpriseCapID string) int {
+	var count int
+	err := f.db.QueryRow("SELECT link_count FROM enterprise_capabilities WHERE tenant_id = 'default' AND id = $1", enterpriseCapID).Scan(&count)
+	require.NoError(f.t, err)
+	return count
+}
+
+func (f *testFixture) getDomainCount(enterpriseCapID string) int {
+	var count int
+	err := f.db.QueryRow("SELECT domain_count FROM enterprise_capabilities WHERE tenant_id = 'default' AND id = $1", enterpriseCapID).Scan(&count)
+	require.NoError(f.t, err)
+	return count
+}
+
+func (f *testFixture) createBusinessDomainAssignment(capabilityID, domainID, domainName string) {
+	_, err := f.db.Exec(`INSERT INTO domain_capability_assignments (tenant_id, capability_id, business_domain_id, business_domain_name)
+		VALUES ('default', $1, $2, $3) ON CONFLICT DO NOTHING`, capabilityID, domainID, domainName)
+	require.NoError(f.t, err)
+	f.t.Cleanup(func() { f.db.Exec("DELETE FROM domain_capability_assignments WHERE capability_id = $1", capabilityID) })
+}
+
+func TestIncrementLinkCountAndRecalculateDomainCount_IncrementsLinkCount(t *testing.T) {
+	f := newTestFixture(t)
+
+	enterpriseCapID := f.uniqueID("ec")
+	f.createEnterpriseCapability(enterpriseCapID, "EC")
+
+	initialCount := f.getLinkCount(enterpriseCapID)
+	assert.Equal(t, 0, initialCount)
+
+	err := f.enterpriseCapabilityRM.IncrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+	require.NoError(t, err)
+
+	afterIncrement := f.getLinkCount(enterpriseCapID)
+	assert.Equal(t, 1, afterIncrement)
+
+	err = f.enterpriseCapabilityRM.IncrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+	require.NoError(t, err)
+
+	afterSecondIncrement := f.getLinkCount(enterpriseCapID)
+	assert.Equal(t, 2, afterSecondIncrement)
+}
+
+func TestDecrementLinkCountAndRecalculateDomainCount_DecrementsLinkCount(t *testing.T) {
+	f := newTestFixture(t)
+
+	enterpriseCapID := f.uniqueID("ec")
+	f.createEnterpriseCapability(enterpriseCapID, "EC")
+
+	_, err := f.db.Exec("UPDATE enterprise_capabilities SET link_count = 3 WHERE id = $1", enterpriseCapID)
+	require.NoError(t, err)
+
+	initialCount := f.getLinkCount(enterpriseCapID)
+	assert.Equal(t, 3, initialCount)
+
+	err = f.enterpriseCapabilityRM.DecrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+	require.NoError(t, err)
+
+	afterDecrement := f.getLinkCount(enterpriseCapID)
+	assert.Equal(t, 2, afterDecrement)
+}
+
+func TestDecrementLinkCountAndRecalculateDomainCount_DoesNotGoBelowZero(t *testing.T) {
+	f := newTestFixture(t)
+
+	enterpriseCapID := f.uniqueID("ec")
+	f.createEnterpriseCapability(enterpriseCapID, "EC")
+
+	initialCount := f.getLinkCount(enterpriseCapID)
+	assert.Equal(t, 0, initialCount)
+
+	err := f.enterpriseCapabilityRM.DecrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+	require.NoError(t, err)
+
+	afterDecrement := f.getLinkCount(enterpriseCapID)
+	assert.Equal(t, 0, afterDecrement)
+}
+
+func TestIncrementAndDecrement_CounterConsistency(t *testing.T) {
+	f := newTestFixture(t)
+
+	enterpriseCapID := f.uniqueID("ec")
+	f.createEnterpriseCapability(enterpriseCapID, "EC")
+
+	for i := 0; i < 5; i++ {
+		err := f.enterpriseCapabilityRM.IncrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+		require.NoError(t, err)
+	}
+	assert.Equal(t, 5, f.getLinkCount(enterpriseCapID))
+
+	for i := 0; i < 3; i++ {
+		err := f.enterpriseCapabilityRM.DecrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+		require.NoError(t, err)
+	}
+	assert.Equal(t, 2, f.getLinkCount(enterpriseCapID))
+
+	for i := 0; i < 5; i++ {
+		err := f.enterpriseCapabilityRM.DecrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+		require.NoError(t, err)
+	}
+	assert.Equal(t, 0, f.getLinkCount(enterpriseCapID))
+}
+
+func TestIncrementLinkCountAndRecalculateDomainCount_RecalculatesDomainCount(t *testing.T) {
+	f := newTestFixture(t)
+
+	enterpriseCapID := f.uniqueID("ec")
+	capID1 := f.uniqueID("cap-1")
+	capID2 := f.uniqueID("cap-2")
+	domainID1 := f.uniqueID("domain-1")
+	domainID2 := f.uniqueID("domain-2")
+
+	f.createEnterpriseCapability(enterpriseCapID, "EC")
+	f.createCapability(capID1, "Cap1", nil)
+	f.createCapability(capID2, "Cap2", nil)
+
+	f.createBusinessDomainAssignment(capID1, domainID1, "Domain 1")
+	f.createBusinessDomainAssignment(capID2, domainID2, "Domain 2")
+
+	f.createLink(f.uniqueID("link1"), enterpriseCapID, capID1)
+
+	err := f.enterpriseCapabilityRM.IncrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+	require.NoError(t, err)
+
+	domainCount := f.getDomainCount(enterpriseCapID)
+	assert.Equal(t, 1, domainCount)
+
+	f.createLink(f.uniqueID("link2"), enterpriseCapID, capID2)
+
+	err = f.enterpriseCapabilityRM.IncrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+	require.NoError(t, err)
+
+	domainCount = f.getDomainCount(enterpriseCapID)
+	assert.Equal(t, 2, domainCount)
+}
+
+func TestDecrementLinkCountAndRecalculateDomainCount_RecalculatesDomainCount(t *testing.T) {
+	f := newTestFixture(t)
+
+	enterpriseCapID := f.uniqueID("ec")
+	capID1 := f.uniqueID("cap-1")
+	domainID1 := f.uniqueID("domain-1")
+
+	f.createEnterpriseCapability(enterpriseCapID, "EC")
+	f.createCapability(capID1, "Cap1", nil)
+	f.createBusinessDomainAssignment(capID1, domainID1, "Domain 1")
+	f.createLink(f.uniqueID("link1"), enterpriseCapID, capID1)
+
+	_, err := f.db.Exec("UPDATE enterprise_capabilities SET link_count = 1, domain_count = 1 WHERE id = $1", enterpriseCapID)
+	require.NoError(t, err)
+
+	_, err = f.db.Exec("DELETE FROM enterprise_capability_links WHERE enterprise_capability_id = $1", enterpriseCapID)
+	require.NoError(t, err)
+
+	err = f.enterpriseCapabilityRM.DecrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+	require.NoError(t, err)
+
+	domainCount := f.getDomainCount(enterpriseCapID)
+	assert.Equal(t, 0, domainCount)
+	assert.Equal(t, 0, f.getLinkCount(enterpriseCapID))
 }

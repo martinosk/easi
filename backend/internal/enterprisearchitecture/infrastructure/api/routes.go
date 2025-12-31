@@ -38,6 +38,7 @@ type routeReadModels struct {
 	capability *readmodels.EnterpriseCapabilityReadModel
 	link       *readmodels.EnterpriseCapabilityLinkReadModel
 	importance *readmodels.EnterpriseStrategicImportanceReadModel
+	metadata   *readmodels.DomainCapabilityMetadataReadModel
 }
 
 type EnterpriseArchRoutesDeps struct {
@@ -77,6 +78,7 @@ func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 		capability: readmodels.NewEnterpriseCapabilityReadModel(db),
 		link:       readmodels.NewEnterpriseCapabilityLinkReadModel(db),
 		importance: readmodels.NewEnterpriseStrategicImportanceReadModel(db),
+		metadata:   readmodels.NewDomainCapabilityMetadataReadModel(db),
 	}
 }
 
@@ -84,10 +86,12 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels) {
 	capabilityProjector := projectors.NewEnterpriseCapabilityProjector(rm.capability)
 	linkProjector := projectors.NewEnterpriseCapabilityLinkProjector(rm.link)
 	importanceProjector := projectors.NewEnterpriseStrategicImportanceProjector(rm.importance)
+	metadataProjector := projectors.NewDomainCapabilityMetadataProjector(rm.metadata, rm.capability, rm.link)
 
 	subscribeCapabilityEvents(eventBus, capabilityProjector)
 	subscribeLinkEvents(eventBus, linkProjector)
 	subscribeImportanceEvents(eventBus, importanceProjector)
+	subscribeCapabilityMappingEvents(eventBus, metadataProjector)
 }
 
 func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.EnterpriseCapabilityProjector) {
@@ -119,6 +123,20 @@ func subscribeImportanceEvents(eventBus events.EventBus, projector *projectors.E
 		"EnterpriseStrategicImportanceSet",
 		"EnterpriseStrategicImportanceUpdated",
 		"EnterpriseStrategicImportanceRemoved",
+	}
+	for _, eventType := range eventTypes {
+		eventBus.Subscribe(eventType, projector)
+	}
+}
+
+func subscribeCapabilityMappingEvents(eventBus events.EventBus, projector *projectors.DomainCapabilityMetadataProjector) {
+	eventTypes := []string{
+		"CapabilityCreated",
+		"CapabilityUpdated",
+		"CapabilityDeleted",
+		"CapabilityParentChanged",
+		"CapabilityAssignedToDomain",
+		"CapabilityUnassignedFromDomain",
 	}
 	for _, eventType := range eventTypes {
 		eventBus.Subscribe(eventType, projector)

@@ -87,6 +87,7 @@ func (rm *EnterpriseCapabilityReadModel) DecrementLinkCount(ctx context.Context,
 	return rm.execByID(ctx, "UPDATE enterprise_capabilities SET link_count = GREATEST(0, link_count - 1) WHERE tenant_id = $1 AND id = $2", id)
 }
 
+
 func (rm *EnterpriseCapabilityReadModel) RecalculateDomainCount(ctx context.Context, enterpriseCapabilityID string) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
@@ -95,28 +96,14 @@ func (rm *EnterpriseCapabilityReadModel) RecalculateDomainCount(ctx context.Cont
 
 	query := `
 		UPDATE enterprise_capabilities SET domain_count = (
-			SELECT COUNT(DISTINCT dca.business_domain_id)
+			SELECT COUNT(DISTINCT dcm.business_domain_id)
 			FROM enterprise_capability_links ecl
-			JOIN capabilities c ON c.id = ecl.domain_capability_id AND c.tenant_id = ecl.tenant_id
-			LEFT JOIN domain_capability_assignments dca ON dca.capability_id = (
-				CASE c.level
-					WHEN 'L1' THEN c.id
-					ELSE (
-						WITH RECURSIVE ancestors AS (
-							SELECT id, parent_id, level, 1 as depth
-							FROM capabilities
-							WHERE tenant_id = $1 AND id = c.id
-							UNION ALL
-							SELECT cap.id, cap.parent_id, cap.level, a.depth + 1
-							FROM capabilities cap
-							INNER JOIN ancestors a ON cap.id = a.parent_id AND cap.tenant_id = $1
-							WHERE a.depth < 10
-						)
-						SELECT id FROM ancestors WHERE level = 'L1' LIMIT 1
-					)
-				END
-			) AND dca.tenant_id = ecl.tenant_id
-			WHERE ecl.tenant_id = $1 AND ecl.enterprise_capability_id = $2
+			JOIN domain_capability_metadata dcm
+				ON dcm.capability_id = ecl.domain_capability_id
+				AND dcm.tenant_id = ecl.tenant_id
+			WHERE ecl.tenant_id = $1
+				AND ecl.enterprise_capability_id = $2
+				AND dcm.business_domain_id IS NOT NULL
 		)
 		WHERE tenant_id = $1 AND id = $2`
 

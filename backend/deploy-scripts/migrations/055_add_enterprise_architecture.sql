@@ -90,5 +90,26 @@ CREATE INDEX IF NOT EXISTS idx_clb_domain_capability ON capability_link_blocking
 CREATE INDEX IF NOT EXISTS idx_clb_blocked_by ON capability_link_blocking(tenant_id, blocked_by_capability_id);
 
 -- ============================================================================
+-- Domain Capability Metadata Read Model (Anti-Corruption Layer)
+-- Pre-computed L1 ancestors and business domain mappings for Enterprise Architecture
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS domain_capability_metadata (
+    tenant_id VARCHAR(50) NOT NULL,
+    capability_id VARCHAR(255) NOT NULL,
+    capability_name VARCHAR(500) NOT NULL,
+    capability_level VARCHAR(2) NOT NULL,
+    parent_id VARCHAR(255),
+    l1_capability_id VARCHAR(255) NOT NULL,
+    business_domain_id VARCHAR(255),
+    business_domain_name VARCHAR(100),
+    PRIMARY KEY (tenant_id, capability_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_dcm_l1 ON domain_capability_metadata(tenant_id, l1_capability_id);
+CREATE INDEX IF NOT EXISTS idx_dcm_business_domain ON domain_capability_metadata(tenant_id, business_domain_id);
+CREATE INDEX IF NOT EXISTS idx_dcm_parent ON domain_capability_metadata(tenant_id, parent_id);
+
+-- ============================================================================
 -- Migration complete
 -- ============================================================================

@@ -16,16 +16,20 @@ import (
 )
 
 type mockEnterpriseCapabilityReadModel struct {
-	insertedDTOs       []readmodels.EnterpriseCapabilityDTO
-	updatedParams      []readmodels.UpdateCapabilityParams
-	deletedIDs         []string
-	incrementedLinkIDs []string
-	decrementedLinkIDs []string
-	insertErr          error
-	updateErr          error
-	deleteErr          error
-	incrementErr       error
-	decrementErr       error
+	insertedDTOs                          []readmodels.EnterpriseCapabilityDTO
+	updatedParams                         []readmodels.UpdateCapabilityParams
+	deletedIDs                            []string
+	incrementedLinkIDs                    []string
+	decrementedLinkIDs                    []string
+	incrementAndRecalculateIDs            []string
+	decrementAndRecalculateIDs            []string
+	insertErr                             error
+	updateErr                             error
+	deleteErr                             error
+	incrementErr                          error
+	decrementErr                          error
+	incrementAndRecalculateErr            error
+	decrementAndRecalculateErr            error
 }
 
 func (m *mockEnterpriseCapabilityReadModel) Insert(ctx context.Context, dto readmodels.EnterpriseCapabilityDTO) error {
@@ -68,12 +72,30 @@ func (m *mockEnterpriseCapabilityReadModel) DecrementLinkCount(ctx context.Conte
 	return nil
 }
 
+func (m *mockEnterpriseCapabilityReadModel) IncrementLinkCountAndRecalculateDomainCount(ctx context.Context, id string) error {
+	if m.incrementAndRecalculateErr != nil {
+		return m.incrementAndRecalculateErr
+	}
+	m.incrementAndRecalculateIDs = append(m.incrementAndRecalculateIDs, id)
+	return nil
+}
+
+func (m *mockEnterpriseCapabilityReadModel) DecrementLinkCountAndRecalculateDomainCount(ctx context.Context, id string) error {
+	if m.decrementAndRecalculateErr != nil {
+		return m.decrementAndRecalculateErr
+	}
+	m.decrementAndRecalculateIDs = append(m.decrementAndRecalculateIDs, id)
+	return nil
+}
+
 type enterpriseCapabilityReadModelForProjector interface {
 	Insert(ctx context.Context, dto readmodels.EnterpriseCapabilityDTO) error
 	Update(ctx context.Context, params readmodels.UpdateCapabilityParams) error
 	Delete(ctx context.Context, id string) error
 	IncrementLinkCount(ctx context.Context, id string) error
 	DecrementLinkCount(ctx context.Context, id string) error
+	IncrementLinkCountAndRecalculateDomainCount(ctx context.Context, id string) error
+	DecrementLinkCountAndRecalculateDomainCount(ctx context.Context, id string) error
 }
 
 type testableEnterpriseCapabilityProjector struct {
@@ -141,7 +163,7 @@ func (p *testableEnterpriseCapabilityProjector) handleLinked(ctx context.Context
 	if err := json.Unmarshal(eventData, &event); err != nil {
 		return err
 	}
-	return p.readModel.IncrementLinkCount(ctx, event.EnterpriseCapabilityID)
+	return p.readModel.IncrementLinkCountAndRecalculateDomainCount(ctx, event.EnterpriseCapabilityID)
 }
 
 func (p *testableEnterpriseCapabilityProjector) handleUnlinked(ctx context.Context, eventData []byte) error {
@@ -149,7 +171,7 @@ func (p *testableEnterpriseCapabilityProjector) handleUnlinked(ctx context.Conte
 	if err := json.Unmarshal(eventData, &event); err != nil {
 		return err
 	}
-	return p.readModel.DecrementLinkCount(ctx, event.EnterpriseCapabilityID)
+	return p.readModel.DecrementLinkCountAndRecalculateDomainCount(ctx, event.EnterpriseCapabilityID)
 }
 
 func TestEnterpriseCapabilityProjector_Created_InsertsReadModel(t *testing.T) {
@@ -219,7 +241,7 @@ func TestEnterpriseCapabilityProjector_Deleted_MarksInactive(t *testing.T) {
 	assert.Equal(t, event.ID, mockReadModel.deletedIDs[0])
 }
 
-func TestEnterpriseCapabilityProjector_Linked_IncrementsLinkCount(t *testing.T) {
+func TestEnterpriseCapabilityProjector_Linked_IncrementsLinkCountAndRecalculatesDomainCount(t *testing.T) {
 	mockReadModel := &mockEnterpriseCapabilityReadModel{}
 	projector := newTestableEnterpriseCapabilityProjector(mockReadModel)
 
@@ -237,11 +259,11 @@ func TestEnterpriseCapabilityProjector_Linked_IncrementsLinkCount(t *testing.T) 
 	err = projector.ProjectEvent(context.Background(), "EnterpriseCapabilityLinked", eventData)
 	require.NoError(t, err)
 
-	require.Len(t, mockReadModel.incrementedLinkIDs, 1)
-	assert.Equal(t, enterpriseCapabilityID, mockReadModel.incrementedLinkIDs[0])
+	require.Len(t, mockReadModel.incrementAndRecalculateIDs, 1)
+	assert.Equal(t, enterpriseCapabilityID, mockReadModel.incrementAndRecalculateIDs[0])
 }
 
-func TestEnterpriseCapabilityProjector_Unlinked_DecrementsLinkCount(t *testing.T) {
+func TestEnterpriseCapabilityProjector_Unlinked_DecrementsLinkCountAndRecalculatesDomainCount(t *testing.T) {
 	mockReadModel := &mockEnterpriseCapabilityReadModel{}
 	projector := newTestableEnterpriseCapabilityProjector(mockReadModel)
 
@@ -258,8 +280,8 @@ func TestEnterpriseCapabilityProjector_Unlinked_DecrementsLinkCount(t *testing.T
 	err = projector.ProjectEvent(context.Background(), "EnterpriseCapabilityUnlinked", eventData)
 	require.NoError(t, err)
 
-	require.Len(t, mockReadModel.decrementedLinkIDs, 1)
-	assert.Equal(t, enterpriseCapabilityID, mockReadModel.decrementedLinkIDs[0])
+	require.Len(t, mockReadModel.decrementAndRecalculateIDs, 1)
+	assert.Equal(t, enterpriseCapabilityID, mockReadModel.decrementAndRecalculateIDs[0])
 }
 
 func TestEnterpriseCapabilityProjector_UnknownEvent_Ignored(t *testing.T) {

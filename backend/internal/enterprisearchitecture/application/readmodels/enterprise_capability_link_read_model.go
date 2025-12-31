@@ -100,29 +100,13 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetByEnterpriseCapabilityID(ctx con
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			`SELECT ecl.id, ecl.enterprise_capability_id, ecl.domain_capability_id, ecl.linked_by, ecl.linked_at,
-			        c.name, dca.business_domain_id, dca.business_domain_name
+			        dcm.capability_name, dcm.business_domain_id, dcm.business_domain_name
 			 FROM enterprise_capability_links ecl
-			 JOIN capabilities c ON c.id = ecl.domain_capability_id AND c.tenant_id = ecl.tenant_id
-			 LEFT JOIN domain_capability_assignments dca ON dca.capability_id = (
-			     CASE c.level
-			         WHEN 'L1' THEN c.id
-			         ELSE (
-			             WITH RECURSIVE ancestors AS (
-			                 SELECT id, parent_id, level, 1 as depth
-			                 FROM capabilities
-			                 WHERE tenant_id = $1 AND id = c.id
-			                 UNION ALL
-			                 SELECT cap.id, cap.parent_id, cap.level, a.depth + 1
-			                 FROM capabilities cap
-			                 INNER JOIN ancestors a ON cap.id = a.parent_id AND cap.tenant_id = $1
-			                 WHERE a.depth < 10
-			             )
-			             SELECT id FROM ancestors WHERE level = 'L1' LIMIT 1
-			         )
-			     END
-			 ) AND dca.tenant_id = ecl.tenant_id
+			 JOIN domain_capability_metadata dcm
+			     ON dcm.capability_id = ecl.domain_capability_id
+			     AND dcm.tenant_id = ecl.tenant_id
 			 WHERE ecl.tenant_id = $1 AND ecl.enterprise_capability_id = $2
-			 ORDER BY dca.business_domain_name NULLS LAST, c.name`,
+			 ORDER BY dcm.business_domain_name NULLS LAST, dcm.capability_name`,
 			tenantID.Value(), enterpriseCapabilityID,
 		)
 		if err != nil {
@@ -517,16 +501,16 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetAncestorIDs(ctx context.Context,
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		query := `
 		WITH RECURSIVE ancestors AS (
-			SELECT id, parent_id, 1 as depth
-			FROM capabilities
-			WHERE tenant_id = $1 AND id = $2
+			SELECT capability_id, parent_id, 1 as depth
+			FROM domain_capability_metadata
+			WHERE tenant_id = $1 AND capability_id = $2
 			UNION ALL
-			SELECT c.id, c.parent_id, a.depth + 1
-			FROM capabilities c
-			INNER JOIN ancestors a ON c.id = a.parent_id AND c.tenant_id = $1
+			SELECT m.capability_id, m.parent_id, a.depth + 1
+			FROM domain_capability_metadata m
+			INNER JOIN ancestors a ON m.capability_id = a.parent_id AND m.tenant_id = $1
 			WHERE a.depth < 10
 		)
-		SELECT id FROM ancestors WHERE id != $2`
+		SELECT capability_id FROM ancestors WHERE capability_id != $2`
 
 		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), capabilityID)
 		if err != nil {
@@ -557,16 +541,16 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetDescendantIDs(ctx context.Contex
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		query := `
 		WITH RECURSIVE descendants AS (
-			SELECT id, 1 as depth
-			FROM capabilities
-			WHERE tenant_id = $1 AND id = $2
+			SELECT capability_id, 1 as depth
+			FROM domain_capability_metadata
+			WHERE tenant_id = $1 AND capability_id = $2
 			UNION ALL
-			SELECT c.id, d.depth + 1
-			FROM capabilities c
-			INNER JOIN descendants d ON c.parent_id = d.id AND c.tenant_id = $1
+			SELECT m.capability_id, d.depth + 1
+			FROM domain_capability_metadata m
+			INNER JOIN descendants d ON m.parent_id = d.capability_id AND m.tenant_id = $1
 			WHERE d.depth < 10
 		)
-		SELECT id FROM descendants WHERE id != $2`
+		SELECT capability_id FROM descendants WHERE capability_id != $2`
 
 		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), capabilityID)
 		if err != nil {
@@ -597,16 +581,16 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetSubtreeCapabilityIDs(ctx context
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		query := `
 		WITH RECURSIVE subtree AS (
-			SELECT id, 1 as depth
-			FROM capabilities
-			WHERE tenant_id = $1 AND id = $2
+			SELECT capability_id, 1 as depth
+			FROM domain_capability_metadata
+			WHERE tenant_id = $1 AND capability_id = $2
 			UNION ALL
-			SELECT c.id, s.depth + 1
-			FROM capabilities c
-			INNER JOIN subtree s ON c.parent_id = s.id AND c.tenant_id = $1
+			SELECT m.capability_id, s.depth + 1
+			FROM domain_capability_metadata m
+			INNER JOIN subtree s ON m.parent_id = s.capability_id AND m.tenant_id = $1
 			WHERE s.depth < 10
 		)
-		SELECT id FROM subtree`
+		SELECT capability_id FROM subtree`
 
 		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), rootID)
 		if err != nil {
@@ -636,7 +620,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetCapabilityName(ctx context.Conte
 	var name string
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
-			`SELECT name FROM capabilities WHERE tenant_id = $1 AND id = $2`,
+			`SELECT capability_name FROM domain_capability_metadata WHERE tenant_id = $1 AND capability_id = $2`,
 			tenantID.Value(), capabilityID,
 		).Scan(&name)
 	})

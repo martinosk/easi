@@ -139,6 +139,9 @@ export function useLinkDomainCapability() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.enterpriseCapabilities.links(enterpriseCapabilityId),
       });
+      queryClient.invalidateQueries({
+        queryKey: ['linkStatuses'],
+      });
       toast.success('Capability linked successfully');
     },
     onError: (error: unknown) => {
