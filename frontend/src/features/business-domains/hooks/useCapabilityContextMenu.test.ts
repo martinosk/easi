@@ -19,7 +19,7 @@ describe('useCapabilityContextMenu', () => {
   ];
 
   const mockDomainCapabilities: Capability[] = [
-    { ...createCapability('l1-1', 'Finance', 'L1'), _links: { self: { href: '/api/v1/capabilities/l1-1' }, dissociate: '/api/v1/dissociate/l1-1' } },
+    { ...createCapability('l1-1', 'Finance', 'L1'), _links: { self: '/api/v1/capabilities/l1-1', removeFromDomain: '/api/v1/business-domains/domain-1/capabilities/l1-1' } },
   ];
 
   const defaultProps = {
@@ -93,7 +93,7 @@ describe('useCapabilityContextMenu', () => {
     });
 
     expect(dissociateCapability).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'l1-1', level: 'L1', _links: expect.objectContaining({ dissociate: '/api/v1/dissociate/l1-1' }) })
+      expect.objectContaining({ id: 'l1-1', level: 'L1', _links: expect.objectContaining({ removeFromDomain: '/api/v1/business-domains/domain-1/capabilities/l1-1' }) })
     );
   });
 

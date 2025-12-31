@@ -362,14 +362,14 @@ func (h *BusinessDomainHandlers) respondWithAssignment(w http.ResponseWriter, r 
 // @Summary Remove a capability from a domain
 // @Description Removes the assignment between a capability and a business domain
 // @Tags business-domains
-// @Param domainId path string true "Business Domain ID"
+// @Param id path string true "Business Domain ID"
 // @Param capabilityId path string true "Capability ID"
 // @Success 204 "No Content"
 // @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
 // @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Router /business-domains/{domainId}/capabilities/{capabilityId} [delete]
+// @Router /business-domains/{id}/capabilities/{capabilityId} [delete]
 func (h *BusinessDomainHandlers) RemoveCapabilityFromDomain(w http.ResponseWriter, r *http.Request) {
-	domainID := sharedAPI.GetPathParam(r, "domainId")
+	domainID := sharedAPI.GetPathParam(r, "id")
 	capabilityID := sharedAPI.GetPathParam(r, "capabilityId")
 
 	assignment, err := h.readModels.Assignment.GetByDomainAndCapability(r.Context(), domainID, capabilityID)

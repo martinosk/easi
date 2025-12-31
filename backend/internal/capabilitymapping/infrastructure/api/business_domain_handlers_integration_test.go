@@ -670,7 +670,7 @@ func TestRemoveCapabilityFromDomain_Integration(t *testing.T) {
 		capLevel:     "L1",
 	})
 
-	w, req := makeRequest(t, http.MethodDelete, fmt.Sprintf("/api/v1/business-domains/%s/capabilities/%s", domainID, capID), nil, map[string]string{"domainId": domainID, "capabilityId": capID})
+	w, req := makeRequest(t, http.MethodDelete, fmt.Sprintf("/api/v1/business-domains/%s/capabilities/%s", domainID, capID), nil, map[string]string{"id": domainID, "capabilityId": capID})
 	handler.RemoveCapabilityFromDomain(w, req)
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
@@ -699,7 +699,7 @@ func TestRemoveCapabilityFromDomain_NotFound_Integration(t *testing.T) {
 	testCtx.createTestDomain(t, domainID, "Test Domain", "Description")
 	testCtx.createTestCapability(t, capID, "Test Capability", "L1")
 
-	w, req := makeRequest(t, http.MethodDelete, fmt.Sprintf("/api/v1/business-domains/%s/capabilities/%s", domainID, capID), nil, map[string]string{"domainId": domainID, "capabilityId": capID})
+	w, req := makeRequest(t, http.MethodDelete, fmt.Sprintf("/api/v1/business-domains/%s/capabilities/%s", domainID, capID), nil, map[string]string{"id": domainID, "capabilityId": capID})
 	handler.RemoveCapabilityFromDomain(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
