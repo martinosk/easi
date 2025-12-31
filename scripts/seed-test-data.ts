@@ -4,33 +4,70 @@
  * Test Data Seeding Script
  *
  * This script populates the test database with realistic enterprise architecture data
- * by calling the backend API. It requires AUTH_MODE=bypass to be set on the backend.
+ * by calling the backend API.
+ *
+ * AUTHENTICATION MODES:
+ *
+ * 1. Session Cookie (local dev with DEX) - RECOMMENDED for local dev:
+ *    - Log in to the app at http://localhost:3000 with testuser@acme.com
+ *    - Open DevTools > Application > Cookies > copy "easi_session" value
+ *    - Run: npm run seed -- --cookie "your_session_cookie_value"
+ *
+ * 2. Bypass Mode (CI/testing):
+ *    - Start backend with AUTH_MODE=bypass
+ *    - Run: npm run seed -- --bypass --tenant-id acme
  *
  * Usage:
- *   npx ts-node scripts/seed-test-data.ts
- *   npx ts-node scripts/seed-test-data.ts --base-url http://localhost:8080
- *   npx ts-node scripts/seed-test-data.ts --tenant-id acme
+ *   npm run seed -- --cookie "session_cookie_value"
+ *   npm run seed -- --bypass --tenant-id acme
+ *   npm run seed -- --bypass --base-url http://localhost:8080
  *
  * Prerequisites:
- *   - Backend running with AUTH_MODE=bypass
+ *   - Backend running (with DEX for cookie mode, or AUTH_MODE=bypass)
  *   - Test tenant "acme" exists (created by migration 041)
  */
 
-const BASE_URL = process.argv.includes("--base-url")
-  ? process.argv[process.argv.indexOf("--base-url") + 1]
-  : "http://localhost:8080";
+function getArg(flag: string): string | undefined {
+  const idx = process.argv.indexOf(flag);
+  if (idx !== -1 && process.argv[idx + 1]) {
+    return process.argv[idx + 1];
+  }
+  return undefined;
+}
 
-const TENANT_ID = process.argv.includes("--tenant-id")
-  ? process.argv[process.argv.indexOf("--tenant-id") + 1]
-  : "acme";
+const BASE_URL = getArg("--base-url") ?? "http://localhost:8080";
+const TENANT_ID = getArg("--tenant-id") ?? "acme";
+const SESSION_COOKIE = getArg("--cookie");
+const BYPASS_MODE = process.argv.includes("--bypass");
+
+if (!SESSION_COOKIE && !BYPASS_MODE) {
+  console.log(`
+Usage: npm run seed -- [options]
+
+Authentication (choose one):
+  --cookie <value>    Use session cookie from browser (local dev with DEX)
+  --bypass            Use X-Tenant-ID header (requires AUTH_MODE=bypass on backend)
+
+Options:
+  --base-url <url>    Backend URL (default: http://localhost:8080)
+  --tenant-id <id>    Tenant ID for bypass mode (default: acme)
+
+Examples:
+  # Local dev with DEX (get cookie from browser DevTools):
+  npm run seed -- --cookie "MTcz..."
+
+  # CI/testing with bypass mode:
+  npm run seed -- --bypass --tenant-id acme
+
+To get session cookie:
+  1. Open http://localhost:3000 and log in with testuser@acme.com / password
+  2. Open DevTools (F12) > Application > Cookies > localhost
+  3. Copy the value of "easi_session"
+`);
+  process.exit(0);
+}
 
 const API_URL = `${BASE_URL}/api/v1`;
-
-interface ApiResponse<T> {
-  data?: T;
-  id?: string;
-  _links?: Record<string, string>;
-}
 
 interface Component {
   id: string;
@@ -65,6 +102,20 @@ interface View {
   description: string;
 }
 
+function buildHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (SESSION_COOKIE) {
+    headers["Cookie"] = `easi_session=${SESSION_COOKIE}`;
+  } else if (BYPASS_MODE) {
+    headers["X-Tenant-ID"] = TENANT_ID;
+  }
+
+  return headers;
+}
+
 async function apiCall<T>(
   method: string,
   path: string,
@@ -73,10 +124,7 @@ async function apiCall<T>(
   const url = `${API_URL}${path}`;
   const options: RequestInit = {
     method,
-    headers: {
-      "Content-Type": "application/json",
-      "X-Tenant-ID": TENANT_ID,
-    },
+    headers: buildHeaders(),
   };
 
   if (body) {
@@ -90,8 +138,16 @@ async function apiCall<T>(
     throw new Error(`API call failed: ${method} ${path} - ${response.status}: ${text}`);
   }
 
-  if (response.status === 204) {
-    return {} as T;
+  if (response.status === 204 || response.status === 201) {
+    const text = await response.text();
+    if (!text) {
+      return {} as T;
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {} as T;
+    }
   }
 
   return response.json();
@@ -268,21 +324,21 @@ async function seedRelations(components: Map<string, Component>): Promise<void> 
   console.log("\n🔗 Seeding Component Relations...");
 
   const relations = [
-    { name: "User Authentication", source: "API Gateway", target: "User Service", type: "calls", description: "Authenticates API requests" },
-    { name: "Order Processing", source: "Order Service", target: "Payment Gateway", type: "calls", description: "Processes order payments" },
-    { name: "Inventory Check", source: "Order Service", target: "Inventory Service", type: "calls", description: "Validates inventory availability" },
-    { name: "Order Notifications", source: "Order Service", target: "Notification Service", type: "publishes", description: "Publishes order events for notifications" },
-    { name: "Cart Checkout", source: "Shopping Cart", target: "Order Service", type: "calls", description: "Creates orders from cart" },
-    { name: "Product Search", source: "Product Catalog", target: "Search Engine", type: "uses", description: "Indexes and searches products" },
-    { name: "Analytics Events", source: "API Gateway", target: "Analytics Platform", type: "publishes", description: "Sends analytics events" },
-    { name: "Cache Products", source: "Product Catalog", target: "Cache Layer", type: "uses", description: "Caches product data" },
-    { name: "Recommendations", source: "Product Catalog", target: "Recommendation Engine", type: "calls", description: "Gets product recommendations" },
-    { name: "Fraud Check", source: "Payment Gateway", target: "Fraud Detection", type: "calls", description: "Validates transactions for fraud" },
-    { name: "Shipping Rates", source: "Shopping Cart", target: "Shipping Service", type: "calls", description: "Gets shipping rate quotes" },
-    { name: "Price Calculation", source: "Shopping Cart", target: "Pricing Service", type: "calls", description: "Calculates final prices with discounts" },
-    { name: "Event Publishing", source: "Order Service", target: "Message Queue", type: "publishes", description: "Publishes domain events" },
-    { name: "Admin Reports", source: "Admin Dashboard", target: "Reporting Service", type: "calls", description: "Generates admin reports" },
-    { name: "Content Serving", source: "Customer Portal", target: "Content Management", type: "calls", description: "Retrieves dynamic content" },
+    { name: "User Authentication", source: "API Gateway", target: "User Service", type: "Triggers", description: "Authenticates API requests" },
+    { name: "Order Processing", source: "Order Service", target: "Payment Gateway", type: "Triggers", description: "Processes order payments" },
+    { name: "Inventory Check", source: "Order Service", target: "Inventory Service", type: "Triggers", description: "Validates inventory availability" },
+    { name: "Order Notifications", source: "Order Service", target: "Notification Service", type: "Triggers", description: "Publishes order events for notifications" },
+    { name: "Cart Checkout", source: "Shopping Cart", target: "Order Service", type: "Triggers", description: "Creates orders from cart" },
+    { name: "Product Search", source: "Search Engine", target: "Product Catalog", type: "Serves", description: "Indexes and searches products" },
+    { name: "Analytics Events", source: "API Gateway", target: "Analytics Platform", type: "Triggers", description: "Sends analytics events" },
+    { name: "Cache Products", source: "Cache Layer", target: "Product Catalog", type: "Serves", description: "Caches product data" },
+    { name: "Recommendations", source: "Product Catalog", target: "Recommendation Engine", type: "Triggers", description: "Gets product recommendations" },
+    { name: "Fraud Check", source: "Payment Gateway", target: "Fraud Detection", type: "Triggers", description: "Validates transactions for fraud" },
+    { name: "Shipping Rates", source: "Shopping Cart", target: "Shipping Service", type: "Triggers", description: "Gets shipping rate quotes" },
+    { name: "Price Calculation", source: "Shopping Cart", target: "Pricing Service", type: "Triggers", description: "Calculates final prices with discounts" },
+    { name: "Event Publishing", source: "Order Service", target: "Message Queue", type: "Triggers", description: "Publishes domain events" },
+    { name: "Admin Reports", source: "Admin Dashboard", target: "Reporting Service", type: "Triggers", description: "Generates admin reports" },
+    { name: "Content Serving", source: "Customer Portal", target: "Content Management", type: "Triggers", description: "Retrieves dynamic content" },
   ];
 
   for (const r of relations) {
@@ -352,14 +408,14 @@ async function seedCapabilities(): Promise<Map<string, Capability>> {
   }
 
   const metadataUpdates = [
-    { name: "Customer Authentication", status: "Active", maturityValue: 80, ownershipModel: "Platform" },
+    { name: "Customer Authentication", status: "Active", maturityValue: 80, ownershipModel: "EnterpriseService" },
     { name: "Order Creation", status: "Active", maturityValue: 75, ownershipModel: "TribeOwned" },
-    { name: "Payment Processing", status: "Active", maturityValue: 90, ownershipModel: "Platform" },
+    { name: "Payment Processing", status: "Active", maturityValue: 90, ownershipModel: "EnterpriseService" },
     { name: "Product Search", status: "Active", maturityValue: 60, ownershipModel: "Shared" },
     { name: "Inventory Management", status: "Active", maturityValue: 70, ownershipModel: "TribeOwned" },
-    { name: "Fraud Prevention", status: "Evolving", maturityValue: 55, ownershipModel: "Platform" },
-    { name: "Predictive Analytics", status: "Emerging", maturityValue: 30, ownershipModel: "Experimental" },
-    { name: "System Monitoring", status: "Active", maturityValue: 85, ownershipModel: "Platform" },
+    { name: "Fraud Prevention", status: "Active", maturityValue: 55, ownershipModel: "EnterpriseService" },
+    { name: "Predictive Analytics", status: "Planned", maturityValue: 30, ownershipModel: "TeamOwned" },
+    { name: "System Monitoring", status: "Active", maturityValue: 85, ownershipModel: "EnterpriseService" },
   ];
 
   for (const update of metadataUpdates) {
@@ -386,32 +442,32 @@ async function seedBusinessDomains(
     {
       name: "E-Commerce",
       description: "Online retail and shopping experience",
-      capabilities: ["Order Creation", "Order Processing", "Shopping Cart", "Product Search"],
+      capabilities: ["Order Fulfillment", "Product Management"],
     },
     {
       name: "Customer Experience",
       description: "Customer-facing services and support",
-      capabilities: ["Customer Onboarding", "Customer Authentication", "Customer Support", "Customer Loyalty"],
+      capabilities: ["Customer Management"],
     },
     {
       name: "Payments & Finance",
       description: "Financial transactions and accounting",
-      capabilities: ["Payment Processing", "Invoice Management", "Fraud Prevention"],
+      capabilities: ["Financial Operations"],
     },
     {
       name: "Logistics",
       description: "Inventory and shipping operations",
-      capabilities: ["Inventory Management", "Shipping & Logistics", "Order Tracking"],
+      capabilities: ["Supply Chain"],
     },
     {
       name: "Marketing",
       description: "Marketing and promotional activities",
-      capabilities: ["Campaign Management", "Promotions & Discounts", "Content Publishing"],
+      capabilities: ["Marketing & Sales"],
     },
     {
       name: "Data & Analytics",
       description: "Business intelligence and data science",
-      capabilities: ["Business Reporting", "Customer Analytics", "Predictive Analytics"],
+      capabilities: ["Analytics & Insights", "Platform Operations"],
     },
   ];
 
@@ -617,7 +673,14 @@ async function main(): Promise<void> {
   console.log("🌱 EASI Test Data Seeding Script");
   console.log("================================");
   console.log(`Base URL: ${BASE_URL}`);
-  console.log(`Tenant ID: ${TENANT_ID}`);
+
+  if (SESSION_COOKIE) {
+    console.log(`Auth Mode: Session Cookie (DEX)`);
+    console.log(`Cookie: ${SESSION_COOKIE.substring(0, 20)}...`);
+  } else {
+    console.log(`Auth Mode: Bypass (X-Tenant-ID header)`);
+    console.log(`Tenant ID: ${TENANT_ID}`);
+  }
   console.log("");
 
   console.log("Checking API health...");
