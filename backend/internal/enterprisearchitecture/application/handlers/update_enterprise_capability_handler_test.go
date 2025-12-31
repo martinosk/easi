@@ -118,18 +118,6 @@ func (h *testableUpdateEnterpriseCapabilityHandler) Handle(ctx context.Context, 
 	return cqrs.EmptyResult(), nil
 }
 
-func createTestEnterpriseCapability(t *testing.T, name string) *aggregates.EnterpriseCapability {
-	t.Helper()
-	capName, _ := valueobjects.NewEnterpriseCapabilityName(name)
-	description := valueobjects.MustNewDescription("Test description")
-	category, _ := valueobjects.NewCategory("Test")
-
-	capability, err := aggregates.NewEnterpriseCapability(capName, description, category)
-	require.NoError(t, err)
-	capability.MarkChangesAsCommitted()
-	return capability
-}
-
 func TestUpdateEnterpriseCapabilityHandler_UpdatesCapability(t *testing.T) {
 	existingCapability := createTestEnterpriseCapability(t, "Old Name")
 

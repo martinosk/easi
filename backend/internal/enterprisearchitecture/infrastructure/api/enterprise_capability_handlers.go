@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	"easi/backend/internal/auth/infrastructure/session"
 	"easi/backend/internal/enterprisearchitecture/application/commands"
@@ -549,4 +550,110 @@ func (h *EnterpriseCapabilityHandlers) getCurrentUserEmail(r *http.Request) (str
 		return "", err
 	}
 	return authSession.UserEmail(), nil
+}
+
+// GetCapabilityLinkStatus godoc
+// @Summary Get link eligibility status for a domain capability
+// @Description Checks if a domain capability can be linked to an enterprise capability
+// @Tags enterprise-capabilities
+// @Produce json
+// @Param domainCapabilityId path string true "Domain capability ID"
+// @Success 200 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.CapabilityLinkStatusDTO
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Router /domain-capabilities/{domainCapabilityId}/enterprise-link-status [get]
+func (h *EnterpriseCapabilityHandlers) GetCapabilityLinkStatus(w http.ResponseWriter, r *http.Request) {
+	capabilityID := sharedAPI.GetPathParam(r, "domainCapabilityId")
+
+	status, err := h.readModels.Link.GetLinkStatus(r.Context(), capabilityID)
+	if err != nil {
+		sharedAPI.HandleError(w, err)
+		return
+	}
+
+	var linkedToID *string
+	if status.LinkedTo != nil {
+		linkedToID = &status.LinkedTo.ID
+	}
+
+	var blockingCapabilityID *string
+	if status.BlockingCapability != nil {
+		blockingCapabilityID = &status.BlockingCapability.ID
+	}
+
+	status.Links = h.hateoas.CapabilityLinkStatusLinks(
+		capabilityID,
+		string(status.Status),
+		linkedToID,
+		blockingCapabilityID,
+		status.BlockingEnterpriseCapID,
+	)
+
+	sharedAPI.RespondJSON(w, http.StatusOK, status)
+}
+
+// GetBatchCapabilityLinkStatus godoc
+// @Summary Get link eligibility status for multiple domain capabilities
+// @Description Batch check link eligibility for domain capabilities, optionally filtered by business domain
+// @Tags enterprise-capabilities
+// @Produce json
+// @Param capabilityIds query string false "Comma-separated list of capability IDs"
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_enterprisearchitecture_application_readmodels.CapabilityLinkStatusDTO}
+// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Router /domain-capabilities/enterprise-link-status [get]
+func (h *EnterpriseCapabilityHandlers) GetBatchCapabilityLinkStatus(w http.ResponseWriter, r *http.Request) {
+	capabilityIDsParam := r.URL.Query().Get("capabilityIds")
+	if capabilityIDsParam == "" {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "capabilityIds query parameter is required")
+		return
+	}
+
+	capabilityIDs := splitAndTrim(capabilityIDsParam)
+	if len(capabilityIDs) == 0 {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "at least one capability ID is required")
+		return
+	}
+
+	if len(capabilityIDs) > 100 {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "maximum 100 capability IDs allowed per request")
+		return
+	}
+
+	statuses, err := h.readModels.Link.GetBatchLinkStatus(r.Context(), capabilityIDs)
+	if err != nil {
+		sharedAPI.HandleError(w, err)
+		return
+	}
+
+	for i := range statuses {
+		var linkedToID *string
+		if statuses[i].LinkedTo != nil {
+			linkedToID = &statuses[i].LinkedTo.ID
+		}
+
+		var blockingCapabilityID *string
+		if statuses[i].BlockingCapability != nil {
+			blockingCapabilityID = &statuses[i].BlockingCapability.ID
+		}
+
+		statuses[i].Links = h.hateoas.CapabilityLinkStatusLinks(
+			statuses[i].CapabilityID,
+			string(statuses[i].Status),
+			linkedToID,
+			blockingCapabilityID,
+			statuses[i].BlockingEnterpriseCapID,
+		)
+	}
+
+	sharedAPI.RespondCollection(w, http.StatusOK, statuses, nil)
+}
+
+func splitAndTrim(s string) []string {
+	parts := make([]string, 0)
+	for _, part := range strings.Split(s, ",") {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			parts = append(parts, trimmed)
+		}
+	}
+	return parts
 }

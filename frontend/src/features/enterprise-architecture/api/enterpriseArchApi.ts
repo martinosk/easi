@@ -14,6 +14,7 @@ import type {
   UpdateStrategicImportanceRequest,
   EnterpriseCapabilitiesListResponse,
   DomainCapabilityLinkStatus,
+  CapabilityLinkStatusResponse,
 } from '../types';
 
 export const enterpriseArchApi = {
@@ -99,5 +100,19 @@ export const enterpriseArchApi = {
       `/api/v1/domain-capabilities/${domainCapabilityId}/enterprise-capability`
     );
     return response.data;
+  },
+
+  async getLinkStatus(capabilityId: string): Promise<CapabilityLinkStatusResponse> {
+    const response = await httpClient.get<CapabilityLinkStatusResponse>(
+      `/api/v1/domain-capabilities/${capabilityId}/enterprise-link-status`
+    );
+    return response.data;
+  },
+
+  async getBatchLinkStatus(capabilityIds: string[]): Promise<CapabilityLinkStatusResponse[]> {
+    const response = await httpClient.get<{ data: CapabilityLinkStatusResponse[] }>(
+      `/api/v1/domain-capabilities/enterprise-link-status?capabilityIds=${capabilityIds.join(',')}`
+    );
+    return response.data.data;
   },
 };

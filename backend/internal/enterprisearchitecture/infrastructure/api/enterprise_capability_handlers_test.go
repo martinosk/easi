@@ -12,6 +12,7 @@ import (
 	"easi/backend/internal/enterprisearchitecture/application/handlers"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
 	"easi/backend/internal/enterprisearchitecture/domain/valueobjects"
+	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 
 	"github.com/go-chi/chi/v5"
@@ -124,6 +125,18 @@ func (m *mockLinkReadModel) Delete(ctx context.Context, id string) error {
 
 func (m *mockLinkReadModel) DeleteByDomainCapabilityID(ctx context.Context, domainCapabilityID string) error {
 	return nil
+}
+
+func (m *mockLinkReadModel) CheckHierarchyConflict(ctx context.Context, domainCapabilityID string, targetEnterpriseCapabilityID string) (*readmodels.HierarchyConflict, error) {
+	return nil, nil
+}
+
+func (m *mockLinkReadModel) GetLinkStatus(ctx context.Context, domainCapabilityID string) (*readmodels.CapabilityLinkStatusDTO, error) {
+	return nil, nil
+}
+
+func (m *mockLinkReadModel) GetBatchLinkStatus(ctx context.Context, domainCapabilityIDs []string) ([]readmodels.CapabilityLinkStatusDTO, error) {
+	return nil, nil
 }
 
 type mockImportanceReadModel struct {
@@ -431,4 +444,151 @@ func (h *testableEnterpriseCapabilityHandlers) handleSetImportance(w http.Respon
 	}
 
 	w.WriteHeader(http.StatusCreated)
+}
+
+func (h *testableEnterpriseCapabilityHandlers) handleLinkCapability(w http.ResponseWriter, r *http.Request) {
+	var req LinkCapabilityRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	err := h.commandBus.dispatchErr
+	if err != nil {
+		sharedAPI.HandleError(w, err)
+		return
+	}
+
+	linkID := uuid.New().String()
+	link := &readmodels.EnterpriseCapabilityLinkDTO{
+		ID:                     linkID,
+		EnterpriseCapabilityID: chi.URLParam(r, "id"),
+		DomainCapabilityID:     req.DomainCapabilityID,
+		LinkedBy:               "test@example.com",
+		LinkedAt:               time.Now(),
+	}
+	h.linkRM.links[linkID] = link
+
+	location := "/enterprise-capabilities/" + chi.URLParam(r, "id") + "/links/" + linkID
+	w.Header().Set("Location", location)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(link)
+}
+
+func TestLinkCapability_DomainCapabilityAlreadyLinked_Returns409(t *testing.T) {
+	th := newTestHandlers()
+
+	th.commandBus.dispatchErr = handlers.ErrDomainCapabilityAlreadyLinked
+
+	capID := uuid.New().String()
+	th.capabilityRM.capabilities[capID] = &readmodels.EnterpriseCapabilityDTO{
+		ID:     capID,
+		Name:   "Test Capability",
+		Active: true,
+	}
+
+	req := LinkCapabilityRequest{
+		DomainCapabilityID: uuid.New().String(),
+	}
+	body, _ := json.Marshal(req)
+
+	r := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities/"+capID+"/links", bytes.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", capID)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	th.handlers.handleLinkCapability(w, r)
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+}
+
+func TestLinkCapability_AncestorLinkedToDifferent_Returns409(t *testing.T) {
+	th := newTestHandlers()
+
+	th.commandBus.dispatchErr = handlers.ErrAncestorLinkedToDifferent
+
+	capID := uuid.New().String()
+	th.capabilityRM.capabilities[capID] = &readmodels.EnterpriseCapabilityDTO{
+		ID:     capID,
+		Name:   "Test Capability",
+		Active: true,
+	}
+
+	req := LinkCapabilityRequest{
+		DomainCapabilityID: uuid.New().String(),
+	}
+	body, _ := json.Marshal(req)
+
+	r := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities/"+capID+"/links", bytes.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", capID)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	th.handlers.handleLinkCapability(w, r)
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+}
+
+func TestLinkCapability_DescendantLinkedToDifferent_Returns409(t *testing.T) {
+	th := newTestHandlers()
+
+	th.commandBus.dispatchErr = handlers.ErrDescendantLinkedToDifferent
+
+	capID := uuid.New().String()
+	th.capabilityRM.capabilities[capID] = &readmodels.EnterpriseCapabilityDTO{
+		ID:     capID,
+		Name:   "Test Capability",
+		Active: true,
+	}
+
+	req := LinkCapabilityRequest{
+		DomainCapabilityID: uuid.New().String(),
+	}
+	body, _ := json.Marshal(req)
+
+	r := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities/"+capID+"/links", bytes.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", capID)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	th.handlers.handleLinkCapability(w, r)
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+}
+
+func TestLinkCapability_Success_Returns201WithLocation(t *testing.T) {
+	th := newTestHandlers()
+
+	capID := uuid.New().String()
+	th.capabilityRM.capabilities[capID] = &readmodels.EnterpriseCapabilityDTO{
+		ID:     capID,
+		Name:   "Test Capability",
+		Active: true,
+	}
+
+	req := LinkCapabilityRequest{
+		DomainCapabilityID: uuid.New().String(),
+	}
+	body, _ := json.Marshal(req)
+
+	r := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities/"+capID+"/links", bytes.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", capID)
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+	w := httptest.NewRecorder()
+
+	th.handlers.handleLinkCapability(w, r)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	location := w.Header().Get("Location")
+	assert.Contains(t, location, "/enterprise-capabilities/"+capID+"/links/")
+	assert.NotEmpty(t, location)
 }

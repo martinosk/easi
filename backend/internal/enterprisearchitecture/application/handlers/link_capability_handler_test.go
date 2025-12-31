@@ -10,19 +10,33 @@ import (
 	"easi/backend/internal/enterprisearchitecture/domain/aggregates"
 	"easi/backend/internal/enterprisearchitecture/domain/valueobjects"
 	"easi/backend/internal/enterprisearchitecture/infrastructure/repositories"
-	"easi/backend/internal/shared/cqrs"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type mockEnterpriseCapabilityLinkRepository struct {
+func createTestEnterpriseCapability(t *testing.T, name string) *aggregates.EnterpriseCapability {
+	t.Helper()
+	capName, err := valueobjects.NewEnterpriseCapabilityName(name)
+	require.NoError(t, err)
+	description, err := valueobjects.NewDescription("Test description")
+	require.NoError(t, err)
+	category, err := valueobjects.NewCategory("Test")
+	require.NoError(t, err)
+
+	capability, err := aggregates.NewEnterpriseCapability(capName, description, category)
+	require.NoError(t, err)
+	capability.MarkChangesAsCommitted()
+	return capability
+}
+
+type mockLinkRepository struct {
 	savedLinks []*aggregates.EnterpriseCapabilityLink
 	saveErr    error
 }
 
-func (m *mockEnterpriseCapabilityLinkRepository) Save(ctx context.Context, link *aggregates.EnterpriseCapabilityLink) error {
+func (m *mockLinkRepository) Save(ctx context.Context, link *aggregates.EnterpriseCapabilityLink) error {
 	if m.saveErr != nil {
 		return m.saveErr
 	}
@@ -30,12 +44,12 @@ func (m *mockEnterpriseCapabilityLinkRepository) Save(ctx context.Context, link 
 	return nil
 }
 
-type mockEnterpriseCapabilityRepositoryForLink struct {
+type mockCapabilityRepository struct {
 	existingCapability *aggregates.EnterpriseCapability
 	getByIDErr         error
 }
 
-func (m *mockEnterpriseCapabilityRepositoryForLink) GetByID(ctx context.Context, id string) (*aggregates.EnterpriseCapability, error) {
+func (m *mockCapabilityRepository) GetByID(ctx context.Context, id string) (*aggregates.EnterpriseCapability, error) {
 	if m.getByIDErr != nil {
 		return nil, m.getByIDErr
 	}
@@ -45,96 +59,35 @@ func (m *mockEnterpriseCapabilityRepositoryForLink) GetByID(ctx context.Context,
 	return nil, repositories.ErrEnterpriseCapabilityNotFound
 }
 
-type mockEnterpriseCapabilityLinkReadModel struct {
-	existingLink *readmodels.EnterpriseCapabilityLinkDTO
-	getByIDErr   error
+type mockLinkReadModel struct {
+	existingLink      *readmodels.EnterpriseCapabilityLinkDTO
+	getByIDErr        error
+	hierarchyConflict *readmodels.HierarchyConflict
+	hierarchyErr      error
 }
 
-func (m *mockEnterpriseCapabilityLinkReadModel) GetByDomainCapabilityID(ctx context.Context, domainCapabilityID string) (*readmodels.EnterpriseCapabilityLinkDTO, error) {
+func (m *mockLinkReadModel) GetByDomainCapabilityID(ctx context.Context, domainCapabilityID string) (*readmodels.EnterpriseCapabilityLinkDTO, error) {
 	if m.getByIDErr != nil {
 		return nil, m.getByIDErr
 	}
 	return m.existingLink, nil
 }
 
-type enterpriseCapabilityLinkRepository interface {
-	Save(ctx context.Context, link *aggregates.EnterpriseCapabilityLink) error
-}
-
-type enterpriseCapabilityRepositoryForLink interface {
-	GetByID(ctx context.Context, id string) (*aggregates.EnterpriseCapability, error)
-}
-
-type enterpriseCapabilityLinkReadModelForLink interface {
-	GetByDomainCapabilityID(ctx context.Context, domainCapabilityID string) (*readmodels.EnterpriseCapabilityLinkDTO, error)
-}
-
-type testableLinkCapabilityHandler struct {
-	linkRepository       enterpriseCapabilityLinkRepository
-	capabilityRepository enterpriseCapabilityRepositoryForLink
-	linkReadModel        enterpriseCapabilityLinkReadModelForLink
-}
-
-func newTestableLinkCapabilityHandler(
-	linkRepository enterpriseCapabilityLinkRepository,
-	capabilityRepository enterpriseCapabilityRepositoryForLink,
-	linkReadModel enterpriseCapabilityLinkReadModelForLink,
-) *testableLinkCapabilityHandler {
-	return &testableLinkCapabilityHandler{
-		linkRepository:       linkRepository,
-		capabilityRepository: capabilityRepository,
-		linkReadModel:        linkReadModel,
+func (m *mockLinkReadModel) CheckHierarchyConflict(ctx context.Context, domainCapabilityID string, targetEnterpriseCapabilityID string) (*readmodels.HierarchyConflict, error) {
+	if m.hierarchyErr != nil {
+		return nil, m.hierarchyErr
 	}
-}
-
-func (h *testableLinkCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
-	command, ok := cmd.(*commands.LinkCapability)
-	if !ok {
-		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
-	}
-
-	capability, err := h.capabilityRepository.GetByID(ctx, command.EnterpriseCapabilityID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	existingLink, err := h.linkReadModel.GetByDomainCapabilityID(ctx, command.DomainCapabilityID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	if existingLink != nil {
-		return cqrs.EmptyResult(), ErrDomainCapabilityAlreadyLinked
-	}
-
-	domainCapabilityID, err := valueobjects.NewDomainCapabilityIDFromString(command.DomainCapabilityID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	linkedBy, err := valueobjects.NewLinkedBy(command.LinkedBy)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	link, err := aggregates.NewEnterpriseCapabilityLink(capability, domainCapabilityID, linkedBy)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := h.linkRepository.Save(ctx, link); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	return cqrs.NewResult(link.ID()), nil
+	return m.hierarchyConflict, nil
 }
 
 func TestLinkCapabilityHandler_LinksCapability(t *testing.T) {
 	existingCapability := createTestEnterpriseCapability(t, "Enterprise Capability")
 
-	mockLinkRepo := &mockEnterpriseCapabilityLinkRepository{}
-	mockCapabilityRepo := &mockEnterpriseCapabilityRepositoryForLink{existingCapability: existingCapability}
-	mockLinkReadModel := &mockEnterpriseCapabilityLinkReadModel{existingLink: nil}
+	mockLinkRepo := &mockLinkRepository{}
+	mockCapabilityRepo := &mockCapabilityRepository{existingCapability: existingCapability}
+	mockReadModel := &mockLinkReadModel{existingLink: nil}
 
-	handler := newTestableLinkCapabilityHandler(mockLinkRepo, mockCapabilityRepo, mockLinkReadModel)
+	handler := NewLinkCapabilityHandler(mockLinkRepo, mockCapabilityRepo, mockReadModel)
 
 	domainCapabilityID := uuid.New().String()
 	cmd := &commands.LinkCapability{
@@ -143,7 +96,7 @@ func TestLinkCapabilityHandler_LinksCapability(t *testing.T) {
 		LinkedBy:               "user@example.com",
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
+	result, err := handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	require.Len(t, mockLinkRepo.savedLinks, 1)
@@ -151,16 +104,17 @@ func TestLinkCapabilityHandler_LinksCapability(t *testing.T) {
 	assert.Equal(t, existingCapability.ID(), link.EnterpriseCapabilityID().Value())
 	assert.Equal(t, domainCapabilityID, link.DomainCapabilityID().Value())
 	assert.Equal(t, "user@example.com", link.LinkedBy().Value())
+	assert.Equal(t, link.ID(), result.CreatedID)
 }
 
 func TestLinkCapabilityHandler_ReturnsCreatedID(t *testing.T) {
 	existingCapability := createTestEnterpriseCapability(t, "Enterprise Capability")
 
-	mockLinkRepo := &mockEnterpriseCapabilityLinkRepository{}
-	mockCapabilityRepo := &mockEnterpriseCapabilityRepositoryForLink{existingCapability: existingCapability}
-	mockLinkReadModel := &mockEnterpriseCapabilityLinkReadModel{existingLink: nil}
+	mockLinkRepo := &mockLinkRepository{}
+	mockCapabilityRepo := &mockCapabilityRepository{existingCapability: existingCapability}
+	mockReadModel := &mockLinkReadModel{existingLink: nil}
 
-	handler := newTestableLinkCapabilityHandler(mockLinkRepo, mockCapabilityRepo, mockLinkReadModel)
+	handler := NewLinkCapabilityHandler(mockLinkRepo, mockCapabilityRepo, mockReadModel)
 
 	domainCapabilityID := uuid.New().String()
 	cmd := &commands.LinkCapability{
@@ -181,11 +135,11 @@ func TestLinkCapabilityHandler_InactiveCapability_ReturnsError(t *testing.T) {
 	existingCapability.Delete()
 	existingCapability.MarkChangesAsCommitted()
 
-	mockLinkRepo := &mockEnterpriseCapabilityLinkRepository{}
-	mockCapabilityRepo := &mockEnterpriseCapabilityRepositoryForLink{existingCapability: existingCapability}
-	mockLinkReadModel := &mockEnterpriseCapabilityLinkReadModel{existingLink: nil}
+	mockLinkRepo := &mockLinkRepository{}
+	mockCapabilityRepo := &mockCapabilityRepository{existingCapability: existingCapability}
+	mockReadModel := &mockLinkReadModel{existingLink: nil}
 
-	handler := newTestableLinkCapabilityHandler(mockLinkRepo, mockCapabilityRepo, mockLinkReadModel)
+	handler := NewLinkCapabilityHandler(mockLinkRepo, mockCapabilityRepo, mockReadModel)
 
 	domainCapabilityID := uuid.New().String()
 	cmd := &commands.LinkCapability{
@@ -199,16 +153,155 @@ func TestLinkCapabilityHandler_InactiveCapability_ReturnsError(t *testing.T) {
 	assert.Empty(t, mockLinkRepo.savedLinks)
 }
 
-func TestLinkCapabilityHandler_DuplicateLink_ReturnsError(t *testing.T) {
-	existingCapability := createTestEnterpriseCapability(t, "Enterprise Capability")
-
-	mockLinkRepo := &mockEnterpriseCapabilityLinkRepository{}
-	mockCapabilityRepo := &mockEnterpriseCapabilityRepositoryForLink{existingCapability: existingCapability}
-	mockLinkReadModel := &mockEnterpriseCapabilityLinkReadModel{
-		existingLink: &readmodels.EnterpriseCapabilityLinkDTO{ID: "existing-link-id"},
+func TestLinkCapabilityHandler_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name               string
+		setupCapability    func(t *testing.T) *aggregates.EnterpriseCapability
+		linkRepoConfig     *mockLinkRepository
+		capRepoConfig      func(*aggregates.EnterpriseCapability) *mockCapabilityRepository
+		readModelConfig    *mockLinkReadModel
+		domainCapabilityID string
+		expectedErr        error
+		checkErrorIs       bool
+	}{
+		{
+			name:            "duplicate link returns error",
+			setupCapability: func(t *testing.T) *aggregates.EnterpriseCapability { return createTestEnterpriseCapability(t, "Enterprise Capability") },
+			linkRepoConfig:  &mockLinkRepository{},
+			capRepoConfig:   func(cap *aggregates.EnterpriseCapability) *mockCapabilityRepository { return &mockCapabilityRepository{existingCapability: cap} },
+			readModelConfig: &mockLinkReadModel{existingLink: &readmodels.EnterpriseCapabilityLinkDTO{ID: "existing-link-id"}},
+			expectedErr:     ErrDomainCapabilityAlreadyLinked,
+			checkErrorIs:    true,
+		},
+		{
+			name:            "non-existent capability returns error",
+			setupCapability: nil,
+			linkRepoConfig:  &mockLinkRepository{},
+			capRepoConfig:   func(_ *aggregates.EnterpriseCapability) *mockCapabilityRepository { return &mockCapabilityRepository{getByIDErr: repositories.ErrEnterpriseCapabilityNotFound} },
+			readModelConfig: &mockLinkReadModel{},
+			expectedErr:     repositories.ErrEnterpriseCapabilityNotFound,
+			checkErrorIs:    true,
+		},
+		{
+			name:               "invalid domain capability ID returns error",
+			setupCapability:    func(t *testing.T) *aggregates.EnterpriseCapability { return createTestEnterpriseCapability(t, "Enterprise Capability") },
+			linkRepoConfig:     &mockLinkRepository{},
+			capRepoConfig:      func(cap *aggregates.EnterpriseCapability) *mockCapabilityRepository { return &mockCapabilityRepository{existingCapability: cap} },
+			readModelConfig:    &mockLinkReadModel{existingLink: nil},
+			domainCapabilityID: "invalid-uuid",
+			checkErrorIs:       false,
+		},
+		{
+			name:            "read model error returns error",
+			setupCapability: func(t *testing.T) *aggregates.EnterpriseCapability { return createTestEnterpriseCapability(t, "Enterprise Capability") },
+			linkRepoConfig:  &mockLinkRepository{},
+			capRepoConfig:   func(cap *aggregates.EnterpriseCapability) *mockCapabilityRepository { return &mockCapabilityRepository{existingCapability: cap} },
+			readModelConfig: &mockLinkReadModel{getByIDErr: errors.New("database error")},
+			checkErrorIs:    false,
+		},
+		{
+			name:            "repository save error returns error",
+			setupCapability: func(t *testing.T) *aggregates.EnterpriseCapability { return createTestEnterpriseCapability(t, "Enterprise Capability") },
+			linkRepoConfig:  &mockLinkRepository{saveErr: errors.New("save error")},
+			capRepoConfig:   func(cap *aggregates.EnterpriseCapability) *mockCapabilityRepository { return &mockCapabilityRepository{existingCapability: cap} },
+			readModelConfig: &mockLinkReadModel{existingLink: nil},
+			checkErrorIs:    false,
+		},
+		{
+			name:            "hierarchy check error returns error",
+			setupCapability: func(t *testing.T) *aggregates.EnterpriseCapability { return createTestEnterpriseCapability(t, "Enterprise Capability") },
+			linkRepoConfig:  &mockLinkRepository{},
+			capRepoConfig:   func(cap *aggregates.EnterpriseCapability) *mockCapabilityRepository { return &mockCapabilityRepository{existingCapability: cap} },
+			readModelConfig: &mockLinkReadModel{existingLink: nil, hierarchyErr: errors.New("database error")},
+			checkErrorIs:    false,
+		},
 	}
 
-	handler := newTestableLinkCapabilityHandler(mockLinkRepo, mockCapabilityRepo, mockLinkReadModel)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var capability *aggregates.EnterpriseCapability
+			if tt.setupCapability != nil {
+				capability = tt.setupCapability(t)
+			}
+
+			domainCapabilityID := tt.domainCapabilityID
+			if domainCapabilityID == "" {
+				domainCapabilityID = uuid.New().String()
+			}
+
+			enterpriseCapID := "non-existent-id"
+			if capability != nil {
+				enterpriseCapID = capability.ID()
+			}
+
+			handler := NewLinkCapabilityHandler(tt.linkRepoConfig, tt.capRepoConfig(capability), tt.readModelConfig)
+
+			cmd := &commands.LinkCapability{
+				EnterpriseCapabilityID: enterpriseCapID,
+				DomainCapabilityID:     domainCapabilityID,
+				LinkedBy:               "user@example.com",
+			}
+
+			_, err := handler.Handle(context.Background(), cmd)
+			assert.Error(t, err)
+			if tt.checkErrorIs && tt.expectedErr != nil {
+				assert.ErrorIs(t, err, tt.expectedErr)
+			}
+			assert.Empty(t, tt.linkRepoConfig.savedLinks)
+		})
+	}
+}
+
+func TestLinkCapabilityHandler_HierarchyConflicts(t *testing.T) {
+	tests := []struct {
+		name        string
+		isAncestor  bool
+		expectedErr error
+	}{
+		{"ancestor linked to different capability", true, ErrAncestorLinkedToDifferent},
+		{"descendant linked to different capability", false, ErrDescendantLinkedToDifferent},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			existingCapability := createTestEnterpriseCapability(t, "Enterprise Capability")
+
+			mockLinkRepo := &mockLinkRepository{}
+			mockCapabilityRepo := &mockCapabilityRepository{existingCapability: existingCapability}
+			mockReadModel := &mockLinkReadModel{
+				existingLink: nil,
+				hierarchyConflict: &readmodels.HierarchyConflict{
+					ConflictingCapabilityID:   uuid.New().String(),
+					ConflictingCapabilityName: "Conflicting Capability",
+					LinkedToCapabilityID:      uuid.New().String(),
+					LinkedToCapabilityName:    "Different Enterprise Capability",
+					IsAncestor:                tt.isAncestor,
+				},
+			}
+
+			handler := NewLinkCapabilityHandler(mockLinkRepo, mockCapabilityRepo, mockReadModel)
+
+			cmd := &commands.LinkCapability{
+				EnterpriseCapabilityID: existingCapability.ID(),
+				DomainCapabilityID:     uuid.New().String(),
+				LinkedBy:               "user@example.com",
+			}
+
+			_, err := handler.Handle(context.Background(), cmd)
+			assert.ErrorIs(t, err, tt.expectedErr)
+			assert.Empty(t, mockLinkRepo.savedLinks)
+		})
+	}
+}
+
+func TestLinkCapabilityHandler_NoHierarchyConflict_Succeeds(t *testing.T) {
+	existingCapability := createTestEnterpriseCapability(t, "Enterprise Capability")
+
+	mockLinkRepo := &mockLinkRepository{}
+	mockCapabilityRepo := &mockCapabilityRepository{existingCapability: existingCapability}
+	mockReadModel := &mockLinkReadModel{existingLink: nil, hierarchyConflict: nil}
+
+	handler := NewLinkCapabilityHandler(mockLinkRepo, mockCapabilityRepo, mockReadModel)
 
 	domainCapabilityID := uuid.New().String()
 	cmd := &commands.LinkCapability{
@@ -218,87 +311,10 @@ func TestLinkCapabilityHandler_DuplicateLink_ReturnsError(t *testing.T) {
 	}
 
 	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, ErrDomainCapabilityAlreadyLinked)
-	assert.Empty(t, mockLinkRepo.savedLinks)
-}
+	require.NoError(t, err)
 
-func TestLinkCapabilityHandler_NonExistentCapability_ReturnsError(t *testing.T) {
-	mockLinkRepo := &mockEnterpriseCapabilityLinkRepository{}
-	mockCapabilityRepo := &mockEnterpriseCapabilityRepositoryForLink{
-		getByIDErr: repositories.ErrEnterpriseCapabilityNotFound,
-	}
-	mockLinkReadModel := &mockEnterpriseCapabilityLinkReadModel{}
-
-	handler := newTestableLinkCapabilityHandler(mockLinkRepo, mockCapabilityRepo, mockLinkReadModel)
-
-	domainCapabilityID := uuid.New().String()
-	cmd := &commands.LinkCapability{
-		EnterpriseCapabilityID: "non-existent-id",
-		DomainCapabilityID:     domainCapabilityID,
-		LinkedBy:               "user@example.com",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, repositories.ErrEnterpriseCapabilityNotFound)
-}
-
-func TestLinkCapabilityHandler_InvalidDomainCapabilityID_ReturnsError(t *testing.T) {
-	existingCapability := createTestEnterpriseCapability(t, "Enterprise Capability")
-
-	mockLinkRepo := &mockEnterpriseCapabilityLinkRepository{}
-	mockCapabilityRepo := &mockEnterpriseCapabilityRepositoryForLink{existingCapability: existingCapability}
-	mockLinkReadModel := &mockEnterpriseCapabilityLinkReadModel{existingLink: nil}
-
-	handler := newTestableLinkCapabilityHandler(mockLinkRepo, mockCapabilityRepo, mockLinkReadModel)
-
-	cmd := &commands.LinkCapability{
-		EnterpriseCapabilityID: existingCapability.ID(),
-		DomainCapabilityID:     "invalid-uuid",
-		LinkedBy:               "user@example.com",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Empty(t, mockLinkRepo.savedLinks)
-}
-
-func TestLinkCapabilityHandler_ReadModelError_ReturnsError(t *testing.T) {
-	existingCapability := createTestEnterpriseCapability(t, "Enterprise Capability")
-
-	mockLinkRepo := &mockEnterpriseCapabilityLinkRepository{}
-	mockCapabilityRepo := &mockEnterpriseCapabilityRepositoryForLink{existingCapability: existingCapability}
-	mockLinkReadModel := &mockEnterpriseCapabilityLinkReadModel{getByIDErr: errors.New("database error")}
-
-	handler := newTestableLinkCapabilityHandler(mockLinkRepo, mockCapabilityRepo, mockLinkReadModel)
-
-	domainCapabilityID := uuid.New().String()
-	cmd := &commands.LinkCapability{
-		EnterpriseCapabilityID: existingCapability.ID(),
-		DomainCapabilityID:     domainCapabilityID,
-		LinkedBy:               "user@example.com",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Empty(t, mockLinkRepo.savedLinks)
-}
-
-func TestLinkCapabilityHandler_RepositoryError_ReturnsError(t *testing.T) {
-	existingCapability := createTestEnterpriseCapability(t, "Enterprise Capability")
-
-	mockLinkRepo := &mockEnterpriseCapabilityLinkRepository{saveErr: errors.New("save error")}
-	mockCapabilityRepo := &mockEnterpriseCapabilityRepositoryForLink{existingCapability: existingCapability}
-	mockLinkReadModel := &mockEnterpriseCapabilityLinkReadModel{existingLink: nil}
-
-	handler := newTestableLinkCapabilityHandler(mockLinkRepo, mockCapabilityRepo, mockLinkReadModel)
-
-	domainCapabilityID := uuid.New().String()
-	cmd := &commands.LinkCapability{
-		EnterpriseCapabilityID: existingCapability.ID(),
-		DomainCapabilityID:     domainCapabilityID,
-		LinkedBy:               "user@example.com",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
+	require.Len(t, mockLinkRepo.savedLinks, 1)
+	link := mockLinkRepo.savedLinks[0]
+	assert.Equal(t, existingCapability.ID(), link.EnterpriseCapabilityID().Value())
+	assert.Equal(t, domainCapabilityID, link.DomainCapabilityID().Value())
 }

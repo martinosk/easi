@@ -39,8 +39,8 @@ const SettingsPage = lazy(() =>
   import('./features/settings').then(module => ({ default: module.SettingsPage }))
 );
 
-const EnterpriseArchPage = lazy(() =>
-  import('./features/enterprise-architecture').then(module => ({ default: module.EnterpriseArchPage }))
+const EnterpriseArchRouter = lazy(() =>
+  import('./features/enterprise-architecture').then(module => ({ default: module.EnterpriseArchRouter }))
 );
 
 type AppView = 'canvas' | 'business-domains' | 'invitations' | 'users' | 'settings' | 'enterprise-architecture';
@@ -179,7 +179,7 @@ function MainContent({ view, canvasViewProps }: MainContentProps) {
     return <LazyFeatureView featureName="Settings"><SettingsPage /></LazyFeatureView>;
   }
   if (view === 'enterprise-architecture') {
-    return <LazyFeatureView featureName="Enterprise Architecture"><EnterpriseArchPage /></LazyFeatureView>;
+    return <LazyFeatureView featureName="Enterprise Architecture"><EnterpriseArchRouter /></LazyFeatureView>;
   }
   return <LazyFeatureView featureName="Business Domains"><BusinessDomainsRouter /></LazyFeatureView>;
 }

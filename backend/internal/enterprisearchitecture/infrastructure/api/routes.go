@@ -172,5 +172,7 @@ func registerRoutes(r chi.Router, h *EnterpriseCapabilityHandlers, authMiddlewar
 	r.Group(func(r chi.Router) {
 		r.Use(authMiddleware.RequirePermission(authValueObjects.PermEnterpriseArchRead))
 		r.Get("/domain-capabilities/{domainCapabilityId}/enterprise-capability", h.GetEnterpriseCapabilityForDomainCapability)
+		r.Get("/domain-capabilities/{domainCapabilityId}/enterprise-link-status", h.GetCapabilityLinkStatus)
+		r.Get("/domain-capabilities/enterprise-link-status", h.GetBatchCapabilityLinkStatus)
 	})
 }

@@ -17,6 +17,8 @@ func init() {
 
 	registry.RegisterConflict(handlers.ErrEnterpriseCapabilityNameExists, "Enterprise capability with this name already exists")
 	registry.RegisterConflict(handlers.ErrDomainCapabilityAlreadyLinked, "Domain capability is already linked to an enterprise capability")
+	registry.RegisterConflict(handlers.ErrAncestorLinkedToDifferent, "Ancestor capability is linked to a different enterprise capability")
+	registry.RegisterConflict(handlers.ErrDescendantLinkedToDifferent, "Descendant capability is linked to a different enterprise capability")
 	registry.RegisterConflict(handlers.ErrImportanceAlreadySet, "Strategic importance for this pillar is already set")
 
 	registry.RegisterValidation(aggregates.ErrCannotLinkInactiveCapability, "Cannot link to an inactive enterprise capability")

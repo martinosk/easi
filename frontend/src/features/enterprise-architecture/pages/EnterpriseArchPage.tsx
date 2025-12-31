@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { EnterpriseArchHeader } from '../components/EnterpriseArchHeader';
 import { EnterpriseArchContent } from '../components/EnterpriseArchContent';
 import { CreateEnterpriseCapabilityModal } from '../components/CreateEnterpriseCapabilityModal';
@@ -8,15 +8,25 @@ import type { EnterpriseCapability, CreateEnterpriseCapabilityRequest } from '..
 import { useUserStore } from '../../../store/userStore';
 import './EnterpriseArchPage.css';
 
-export function EnterpriseArchPage() {
+interface EnterpriseArchPageProps {
+  onNavigateToLinking?: () => void;
+}
+
+function useEnterpriseArchPermissions() {
+  const hasPermission = useUserStore((state) => state.hasPermission);
+  return useMemo(() => ({
+    canRead: hasPermission('enterprise-arch:read'),
+    canWrite: hasPermission('enterprise-arch:write'),
+    canDelete: hasPermission('enterprise-arch:delete'),
+  }), [hasPermission]);
+}
+
+export function EnterpriseArchPage({ onNavigateToLinking }: EnterpriseArchPageProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCapability, setSelectedCapability] = useState<EnterpriseCapability | null>(null);
   const [capabilityToDelete, setCapabilityToDelete] = useState<EnterpriseCapability | null>(null);
 
-  const hasPermission = useUserStore((state) => state.hasPermission);
-  const canRead = hasPermission('enterprise-arch:read');
-  const canWrite = hasPermission('enterprise-arch:write');
-  const canDelete = hasPermission('enterprise-arch:delete');
+  const { canRead, canWrite, canDelete } = useEnterpriseArchPermissions();
 
   const { capabilities, isLoading, error, createCapability, deleteCapability } = useEnterpriseCapabilities();
 
@@ -72,6 +82,7 @@ export function EnterpriseArchPage() {
         <EnterpriseArchHeader
           canWrite={canWrite}
           onCreateNew={handleOpenModal}
+          onManageLinks={onNavigateToLinking}
         />
         <EnterpriseArchContent
           isLoading={isLoading}

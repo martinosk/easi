@@ -142,3 +142,203 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetByID(ctx context.Context, id str
 		id,
 	)
 }
+
+type HierarchyConflict struct {
+	ConflictingCapabilityID   string
+	ConflictingCapabilityName string
+	LinkedToCapabilityID      string
+	LinkedToCapabilityName    string
+	IsAncestor                bool
+}
+
+type LinkStatus string
+
+const (
+	LinkStatusAvailable       LinkStatus = "available"
+	LinkStatusLinked          LinkStatus = "linked"
+	LinkStatusBlockedByParent LinkStatus = "blocked_by_parent"
+	LinkStatusBlockedByChild  LinkStatus = "blocked_by_child"
+)
+
+type CapabilityLinkStatusDTO struct {
+	CapabilityID            string            `json:"capabilityId"`
+	Status                  LinkStatus        `json:"status"`
+	LinkedTo                *LinkedCapability `json:"linkedTo,omitempty"`
+	BlockingCapability      *LinkedCapability `json:"blockingCapability,omitempty"`
+	BlockingEnterpriseCapID *string           `json:"blockingEnterpriseCapabilityId,omitempty"`
+	Links                   map[string]string `json:"_links,omitempty"`
+}
+
+type LinkedCapability struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+func (rm *EnterpriseCapabilityLinkReadModel) CheckHierarchyConflict(ctx context.Context, domainCapabilityID string, targetEnterpriseCapabilityID string) (*HierarchyConflict, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var conflict *HierarchyConflict
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		query := `
+		WITH RECURSIVE ancestors AS (
+			SELECT id, name, parent_id, 1 as depth
+			FROM capabilities
+			WHERE tenant_id = $1 AND id = $2
+			UNION ALL
+			SELECT c.id, c.name, c.parent_id, a.depth + 1
+			FROM capabilities c
+			INNER JOIN ancestors a ON c.id = a.parent_id AND c.tenant_id = $1
+			WHERE a.depth < 10
+		),
+		descendants AS (
+			SELECT id, name, parent_id, 1 as depth
+			FROM capabilities
+			WHERE tenant_id = $1 AND id = $2
+			UNION ALL
+			SELECT c.id, c.name, c.parent_id, d.depth + 1
+			FROM capabilities c
+			INNER JOIN descendants d ON c.parent_id = d.id AND c.tenant_id = $1
+			WHERE d.depth < 10
+		),
+		related AS (
+			SELECT id, name, TRUE as is_ancestor FROM ancestors WHERE id != $2
+			UNION
+			SELECT id, name, FALSE as is_ancestor FROM descendants WHERE id != $2
+		)
+		SELECT r.id, r.name, r.is_ancestor, ecl.enterprise_capability_id, ec.name
+		FROM related r
+		INNER JOIN enterprise_capability_links ecl ON ecl.domain_capability_id = r.id AND ecl.tenant_id = $1
+		INNER JOIN enterprise_capabilities ec ON ec.id = ecl.enterprise_capability_id AND ec.tenant_id = $1
+		WHERE ecl.enterprise_capability_id != $3
+		LIMIT 1`
+
+		var conflictingID, conflictingName, linkedToID, linkedToName string
+		var isAncestor bool
+
+		err := tx.QueryRowContext(ctx, query, tenantID.Value(), domainCapabilityID, targetEnterpriseCapabilityID).Scan(
+			&conflictingID, &conflictingName, &isAncestor, &linkedToID, &linkedToName,
+		)
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		conflict = &HierarchyConflict{
+			ConflictingCapabilityID:   conflictingID,
+			ConflictingCapabilityName: conflictingName,
+			LinkedToCapabilityID:      linkedToID,
+			LinkedToCapabilityName:    linkedToName,
+			IsAncestor:                isAncestor,
+		}
+		return nil
+	})
+
+	return conflict, err
+}
+
+func (rm *EnterpriseCapabilityLinkReadModel) GetLinkStatus(ctx context.Context, domainCapabilityID string) (*CapabilityLinkStatusDTO, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &CapabilityLinkStatusDTO{
+		CapabilityID: domainCapabilityID,
+		Status:       LinkStatusAvailable,
+	}
+
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		var enterpriseCapID, enterpriseCapName string
+		err := tx.QueryRowContext(ctx,
+			`SELECT ecl.enterprise_capability_id, ec.name
+			 FROM enterprise_capability_links ecl
+			 JOIN enterprise_capabilities ec ON ec.id = ecl.enterprise_capability_id AND ec.tenant_id = $1
+			 WHERE ecl.tenant_id = $1 AND ecl.domain_capability_id = $2`,
+			tenantID.Value(), domainCapabilityID,
+		).Scan(&enterpriseCapID, &enterpriseCapName)
+
+		if err == nil {
+			result.Status = LinkStatusLinked
+			result.LinkedTo = &LinkedCapability{ID: enterpriseCapID, Name: enterpriseCapName}
+			return nil
+		}
+		if err != sql.ErrNoRows {
+			return err
+		}
+
+		hierarchyQuery := `
+		WITH RECURSIVE ancestors AS (
+			SELECT id, name, parent_id, 1 as depth
+			FROM capabilities
+			WHERE tenant_id = $1 AND id = $2
+			UNION ALL
+			SELECT c.id, c.name, c.parent_id, a.depth + 1
+			FROM capabilities c
+			INNER JOIN ancestors a ON c.id = a.parent_id AND c.tenant_id = $1
+			WHERE a.depth < 10
+		),
+		descendants AS (
+			SELECT id, name, parent_id, 1 as depth
+			FROM capabilities
+			WHERE tenant_id = $1 AND id = $2
+			UNION ALL
+			SELECT c.id, c.name, c.parent_id, d.depth + 1
+			FROM capabilities c
+			INNER JOIN descendants d ON c.parent_id = d.id AND c.tenant_id = $1
+			WHERE d.depth < 10
+		),
+		related AS (
+			SELECT id, name, TRUE as is_ancestor FROM ancestors WHERE id != $2
+			UNION
+			SELECT id, name, FALSE as is_ancestor FROM descendants WHERE id != $2
+		)
+		SELECT r.id, r.name, r.is_ancestor, ecl.enterprise_capability_id, ec.name
+		FROM related r
+		INNER JOIN enterprise_capability_links ecl ON ecl.domain_capability_id = r.id AND ecl.tenant_id = $1
+		INNER JOIN enterprise_capabilities ec ON ec.id = ecl.enterprise_capability_id AND ec.tenant_id = $1
+		LIMIT 1`
+
+		var conflictingID, conflictingName, linkedToID, linkedToName string
+		var isAncestor bool
+
+		err = tx.QueryRowContext(ctx, hierarchyQuery, tenantID.Value(), domainCapabilityID).Scan(
+			&conflictingID, &conflictingName, &isAncestor, &linkedToID, &linkedToName,
+		)
+
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		if isAncestor {
+			result.Status = LinkStatusBlockedByParent
+		} else {
+			result.Status = LinkStatusBlockedByChild
+		}
+		result.BlockingCapability = &LinkedCapability{ID: conflictingID, Name: conflictingName}
+		result.BlockingEnterpriseCapID = &linkedToID
+
+		return nil
+	})
+
+	return result, err
+}
+
+func (rm *EnterpriseCapabilityLinkReadModel) GetBatchLinkStatus(ctx context.Context, domainCapabilityIDs []string) ([]CapabilityLinkStatusDTO, error) {
+	results := make([]CapabilityLinkStatusDTO, 0, len(domainCapabilityIDs))
+	for _, id := range domainCapabilityIDs {
+		status, err := rm.GetLinkStatus(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, *status)
+	}
+	return results, nil
+}

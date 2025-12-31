@@ -238,3 +238,28 @@ func (h *HATEOASLinks) DomainCapabilityEnterpriseLinkedLinks(domainCapabilityID,
 		"unlink":               fmt.Sprintf("%s/enterprise-capabilities/%s/links/%s", h.baseURL, enterpriseCapabilityID, linkID),
 	}
 }
+
+func (h *HATEOASLinks) CapabilityLinkStatusLinks(capabilityID string, status string, linkedToID *string, blockingCapabilityID *string, blockingEnterpriseCapID *string) map[string]string {
+	links := map[string]string{
+		"self": fmt.Sprintf("%s/domain-capabilities/%s/enterprise-link-status", h.baseURL, capabilityID),
+	}
+
+	if status == "available" {
+		links["availableEnterpriseCapabilities"] = fmt.Sprintf("%s/enterprise-capabilities", h.baseURL)
+	}
+
+	if linkedToID != nil {
+		links["linkedTo"] = fmt.Sprintf("%s/enterprise-capabilities/%s", h.baseURL, *linkedToID)
+		links["enterpriseCapability"] = fmt.Sprintf("%s/domain-capabilities/%s/enterprise-capability", h.baseURL, capabilityID)
+	}
+
+	if blockingCapabilityID != nil {
+		links["blockingCapability"] = fmt.Sprintf("%s/capabilities/%s", h.baseURL, *blockingCapabilityID)
+	}
+
+	if blockingEnterpriseCapID != nil {
+		links["blockingEnterpriseCapability"] = fmt.Sprintf("%s/enterprise-capabilities/%s", h.baseURL, *blockingEnterpriseCapID)
+	}
+
+	return links
+}

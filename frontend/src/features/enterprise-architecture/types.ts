@@ -97,3 +97,13 @@ export interface DomainCapabilityLinkStatus {
     unlink?: string;
   };
 }
+
+export type CapabilityLinkStatus = 'available' | 'linked' | 'blocked_by_parent' | 'blocked_by_child';
+
+export interface CapabilityLinkStatusResponse {
+  capabilityId: string;
+  status: CapabilityLinkStatus;
+  linkedTo?: { id: string; name: string };
+  blockingCapability?: { id: string; name: string };
+  blockingEnterpriseCapabilityId?: string;
+}
