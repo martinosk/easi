@@ -18,83 +18,97 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupTestDB(t *testing.T) (*sql.DB, func()) {
-	dbHost := getEnv("INTEGRATION_TEST_DB_HOST", "localhost")
-	dbPort := getEnv("INTEGRATION_TEST_DB_PORT", "5432")
-	dbUser := getEnv("INTEGRATION_TEST_DB_USER", "easi_app")
-	dbPassword := getEnv("INTEGRATION_TEST_DB_PASSWORD", "localdev")
-	dbName := getEnv("INTEGRATION_TEST_DB_NAME", "easi")
-	dbSSLMode := getEnv("INTEGRATION_TEST_DB_SSLMODE", "disable")
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		dbHost, dbPort, dbUser, dbPassword, dbName, dbSSLMode)
-	db, err := sql.Open("postgres", connStr)
-	require.NoError(t, err)
-
-	err = db.Ping()
-	require.NoError(t, err)
-
-	cleanup := func() {
-		db.Close()
-	}
-
-	return db, cleanup
+type testFixture struct {
+	db        *sql.DB
+	tenantDB  *database.TenantAwareDB
+	readModel *EnterpriseCapabilityLinkReadModel
+	ctx       context.Context
+	t         *testing.T
 }
 
-func getEnv(key, defaultValue string) string {
-	return defaultValue
-}
+func newTestFixture(t *testing.T) *testFixture {
+	db := setupTestDB(t)
+	tenantDB := database.NewTenantAwareDB(db)
 
-func tenantContext() context.Context {
-	return sharedcontext.WithTenant(context.Background(), sharedvo.DefaultTenantID())
-}
-
-func setTenantContext(t *testing.T, db *sql.DB) {
 	_, err := db.Exec("SET app.current_tenant = 'default'")
 	require.NoError(t, err)
+
+	return &testFixture{
+		db:        db,
+		tenantDB:  tenantDB,
+		readModel: NewEnterpriseCapabilityLinkReadModel(tenantDB),
+		ctx:       sharedcontext.WithTenant(context.Background(), sharedvo.DefaultTenantID()),
+		t:         t,
+	}
+}
+
+func setupTestDB(t *testing.T) *sql.DB {
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		"localhost", "5432", "easi_app", "localdev", "easi", "disable")
+	db, err := sql.Open("postgres", connStr)
+	require.NoError(t, err)
+	require.NoError(t, db.Ping())
+	t.Cleanup(func() { db.Close() })
+	return db
+}
+
+func (f *testFixture) uniqueID(prefix string) string {
+	return fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano())
+}
+
+func (f *testFixture) createCapability(id, name string, parentID *string) {
+	var err error
+	if parentID == nil {
+		_, err = f.db.Exec(`INSERT INTO capabilities (id, tenant_id, name, level, parent_id, status, created_at)
+			VALUES ($1, 'default', $2, 'L1', NULL, 'active', NOW())`, id, name)
+	} else {
+		_, err = f.db.Exec(`INSERT INTO capabilities (id, tenant_id, name, level, parent_id, status, created_at)
+			VALUES ($1, 'default', $2, 'L1', $3, 'active', NOW())`, id, name, *parentID)
+	}
+	require.NoError(f.t, err)
+	f.t.Cleanup(func() { f.db.Exec("DELETE FROM capabilities WHERE id = $1", id) })
+}
+
+func (f *testFixture) createEnterpriseCapability(id, name string) {
+	_, err := f.db.Exec(`INSERT INTO enterprise_capabilities (id, tenant_id, name, description, category, is_active, created_at)
+		VALUES ($1, 'default', $2, $2, 'Test', true, NOW())`, id, name)
+	require.NoError(f.t, err)
+	f.t.Cleanup(func() { f.db.Exec("DELETE FROM enterprise_capabilities WHERE id = $1", id) })
+}
+
+func (f *testFixture) createLink(id, enterpriseCapID, domainCapID string) {
+	_, err := f.db.Exec(`INSERT INTO enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at)
+		VALUES ($1, 'default', $2, $3, 'test@example.com', NOW())`, id, enterpriseCapID, domainCapID)
+	require.NoError(f.t, err)
+	f.t.Cleanup(func() { f.db.Exec("DELETE FROM enterprise_capability_links WHERE id = $1", id) })
+}
+
+func (f *testFixture) createBlocking(domainCapID, blockedByCapID, blockedByEnterpriseID, blockedByCapName, blockedByEnterpriseName string, isAncestor bool) {
+	_, err := f.db.Exec(`INSERT INTO capability_link_blocking (tenant_id, domain_capability_id, blocked_by_capability_id, blocked_by_enterprise_id, blocked_by_capability_name, blocked_by_enterprise_name, is_ancestor)
+		VALUES ('default', $1, $2, $3, $4, $5, $6)`, domainCapID, blockedByCapID, blockedByEnterpriseID, blockedByCapName, blockedByEnterpriseName, isAncestor)
+	require.NoError(f.t, err)
+	f.t.Cleanup(func() { f.db.Exec("DELETE FROM capability_link_blocking WHERE tenant_id = 'default' AND blocked_by_capability_id = $1", blockedByCapID) })
 }
 
 func TestCheckHierarchyConflict_AncestorLinkedToDifferent(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	f := newTestFixture(t)
 
-	tenantDB := database.NewTenantAwareDB(db)
-	readModel := NewEnterpriseCapabilityLinkReadModel(tenantDB)
-	ctx := tenantContext()
+	grandparentID := f.uniqueID("cap-gp")
+	parentID := f.uniqueID("cap-p")
+	childID := f.uniqueID("cap-c")
+	enterpriseCapID1 := f.uniqueID("ec-1")
+	enterpriseCapID2 := f.uniqueID("ec-2")
 
-	setTenantContext(t, db)
+	f.createCapability(grandparentID, "Grandparent", nil)
+	f.createCapability(parentID, "Parent", &grandparentID)
+	f.createCapability(childID, "Child", &parentID)
+	f.createEnterpriseCapability(enterpriseCapID1, "EC1")
+	f.createEnterpriseCapability(enterpriseCapID2, "EC2")
+	f.createLink(f.uniqueID("link"), enterpriseCapID1, parentID)
+	f.createBlocking(grandparentID, parentID, enterpriseCapID1, "Parent", "EC1", false)
+	f.createBlocking(childID, parentID, enterpriseCapID1, "Parent", "EC1", true)
 
-	grandparentID := fmt.Sprintf("cap-gp-%d", time.Now().UnixNano())
-	parentID := fmt.Sprintf("cap-p-%d", time.Now().UnixNano())
-	childID := fmt.Sprintf("cap-c-%d", time.Now().UnixNano())
-	enterpriseCapID1 := fmt.Sprintf("ec-1-%d", time.Now().UnixNano())
-	enterpriseCapID2 := fmt.Sprintf("ec-2-%d", time.Now().UnixNano())
-
-	_, err := db.Exec(`
-		INSERT INTO capabilities (id, tenant_id, name, level, parent_id, status, created_at)
-		VALUES
-			($1, 'default', 'Grandparent', 'L1', NULL, 'active', NOW()),
-			($2, 'default', 'Parent', 'L1', $1, 'active', NOW()),
-			($3, 'default', 'Child', 'L1', $2, 'active', NOW())
-	`, grandparentID, parentID, childID)
-	require.NoError(t, err)
-
-	_, err = db.Exec(`
-		INSERT INTO enterprise_capabilities (id, tenant_id, name, description, category, is_active, created_at)
-		VALUES
-			($1, 'default', 'EC1', 'EC1 desc', 'Test', true, NOW()),
-			($2, 'default', 'EC2', 'EC2 desc', 'Test', true, NOW())
-	`, enterpriseCapID1, enterpriseCapID2)
-	require.NoError(t, err)
-
-	linkID := fmt.Sprintf("link-%d", time.Now().UnixNano())
-	_, err = db.Exec(`
-		INSERT INTO enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at)
-		VALUES ($1, 'default', $2, $3, 'test@example.com', NOW())
-	`, linkID, enterpriseCapID1, parentID)
-	require.NoError(t, err)
-
-	conflict, err := readModel.CheckHierarchyConflict(ctx, childID, enterpriseCapID2)
+	conflict, err := f.readModel.CheckHierarchyConflict(f.ctx, childID, enterpriseCapID2)
 	require.NoError(t, err)
 	require.NotNil(t, conflict)
 
@@ -103,54 +117,24 @@ func TestCheckHierarchyConflict_AncestorLinkedToDifferent(t *testing.T) {
 	assert.Equal(t, enterpriseCapID1, conflict.LinkedToCapabilityID)
 	assert.Equal(t, "EC1", conflict.LinkedToCapabilityName)
 	assert.True(t, conflict.IsAncestor)
-
-	_, err = db.Exec("DELETE FROM enterprise_capability_links WHERE id = $1", linkID)
-	require.NoError(t, err)
-	_, err = db.Exec("DELETE FROM enterprise_capabilities WHERE id IN ($1, $2)", enterpriseCapID1, enterpriseCapID2)
-	require.NoError(t, err)
-	_, err = db.Exec("DELETE FROM capabilities WHERE id IN ($1, $2, $3)", grandparentID, parentID, childID)
-	require.NoError(t, err)
 }
 
 func TestCheckHierarchyConflict_DescendantLinkedToDifferent(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	f := newTestFixture(t)
 
-	tenantDB := database.NewTenantAwareDB(db)
-	readModel := NewEnterpriseCapabilityLinkReadModel(tenantDB)
-	ctx := tenantContext()
+	parentID := f.uniqueID("cap-p")
+	childID := f.uniqueID("cap-c")
+	enterpriseCapID1 := f.uniqueID("ec-1")
+	enterpriseCapID2 := f.uniqueID("ec-2")
 
-	setTenantContext(t, db)
+	f.createCapability(parentID, "Parent", nil)
+	f.createCapability(childID, "Child", &parentID)
+	f.createEnterpriseCapability(enterpriseCapID1, "EC1")
+	f.createEnterpriseCapability(enterpriseCapID2, "EC2")
+	f.createLink(f.uniqueID("link"), enterpriseCapID1, childID)
+	f.createBlocking(parentID, childID, enterpriseCapID1, "Child", "EC1", false)
 
-	parentID := fmt.Sprintf("cap-p-%d", time.Now().UnixNano())
-	childID := fmt.Sprintf("cap-c-%d", time.Now().UnixNano())
-	enterpriseCapID1 := fmt.Sprintf("ec-1-%d", time.Now().UnixNano())
-	enterpriseCapID2 := fmt.Sprintf("ec-2-%d", time.Now().UnixNano())
-
-	_, err := db.Exec(`
-		INSERT INTO capabilities (id, tenant_id, name, level, parent_id, status, created_at)
-		VALUES
-			($1, 'default', 'Parent', 'L1', NULL, 'active', NOW()),
-			($2, 'default', 'Child', 'L1', $1, 'active', NOW())
-	`, parentID, childID)
-	require.NoError(t, err)
-
-	_, err = db.Exec(`
-		INSERT INTO enterprise_capabilities (id, tenant_id, name, description, category, is_active, created_at)
-		VALUES
-			($1, 'default', 'EC1', 'EC1 desc', 'Test', true, NOW()),
-			($2, 'default', 'EC2', 'EC2 desc', 'Test', true, NOW())
-	`, enterpriseCapID1, enterpriseCapID2)
-	require.NoError(t, err)
-
-	linkID := fmt.Sprintf("link-%d", time.Now().UnixNano())
-	_, err = db.Exec(`
-		INSERT INTO enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at)
-		VALUES ($1, 'default', $2, $3, 'test@example.com', NOW())
-	`, linkID, enterpriseCapID1, childID)
-	require.NoError(t, err)
-
-	conflict, err := readModel.CheckHierarchyConflict(ctx, parentID, enterpriseCapID2)
+	conflict, err := f.readModel.CheckHierarchyConflict(f.ctx, parentID, enterpriseCapID2)
 	require.NoError(t, err)
 	require.NotNil(t, conflict)
 
@@ -159,178 +143,81 @@ func TestCheckHierarchyConflict_DescendantLinkedToDifferent(t *testing.T) {
 	assert.Equal(t, enterpriseCapID1, conflict.LinkedToCapabilityID)
 	assert.Equal(t, "EC1", conflict.LinkedToCapabilityName)
 	assert.False(t, conflict.IsAncestor)
-
-	_, err = db.Exec("DELETE FROM enterprise_capability_links WHERE id = $1", linkID)
-	require.NoError(t, err)
-	_, err = db.Exec("DELETE FROM enterprise_capabilities WHERE id IN ($1, $2)", enterpriseCapID1, enterpriseCapID2)
-	require.NoError(t, err)
-	_, err = db.Exec("DELETE FROM capabilities WHERE id IN ($1, $2)", parentID, childID)
-	require.NoError(t, err)
 }
 
 func TestCheckHierarchyConflict_SameEnterpriseCapability_NoConflict(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	f := newTestFixture(t)
 
-	tenantDB := database.NewTenantAwareDB(db)
-	readModel := NewEnterpriseCapabilityLinkReadModel(tenantDB)
-	ctx := tenantContext()
+	parentID := f.uniqueID("cap-p")
+	childID := f.uniqueID("cap-c")
+	enterpriseCapID := f.uniqueID("ec")
 
-	setTenantContext(t, db)
+	f.createCapability(parentID, "Parent", nil)
+	f.createCapability(childID, "Child", &parentID)
+	f.createEnterpriseCapability(enterpriseCapID, "EC")
+	f.createLink(f.uniqueID("link"), enterpriseCapID, childID)
+	f.createBlocking(parentID, childID, enterpriseCapID, "Child", "EC", false)
 
-	parentID := fmt.Sprintf("cap-p-%d", time.Now().UnixNano())
-	childID := fmt.Sprintf("cap-c-%d", time.Now().UnixNano())
-	enterpriseCapID := fmt.Sprintf("ec-%d", time.Now().UnixNano())
-
-	_, err := db.Exec(`
-		INSERT INTO capabilities (id, tenant_id, name, level, parent_id, status, created_at)
-		VALUES
-			($1, 'default', 'Parent', 'L1', NULL, 'active', NOW()),
-			($2, 'default', 'Child', 'L1', $1, 'active', NOW())
-	`, parentID, childID)
-	require.NoError(t, err)
-
-	_, err = db.Exec(`
-		INSERT INTO enterprise_capabilities (id, tenant_id, name, description, category, is_active, created_at)
-		VALUES ($1, 'default', 'EC', 'EC desc', 'Test', true, NOW())
-	`, enterpriseCapID)
-	require.NoError(t, err)
-
-	linkID := fmt.Sprintf("link-%d", time.Now().UnixNano())
-	_, err = db.Exec(`
-		INSERT INTO enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at)
-		VALUES ($1, 'default', $2, $3, 'test@example.com', NOW())
-	`, linkID, enterpriseCapID, childID)
-	require.NoError(t, err)
-
-	conflict, err := readModel.CheckHierarchyConflict(ctx, parentID, enterpriseCapID)
+	conflict, err := f.readModel.CheckHierarchyConflict(f.ctx, parentID, enterpriseCapID)
 	require.NoError(t, err)
 	assert.Nil(t, conflict)
-
-	_, err = db.Exec("DELETE FROM enterprise_capability_links WHERE id = $1", linkID)
-	require.NoError(t, err)
-	_, err = db.Exec("DELETE FROM enterprise_capabilities WHERE id = $1", enterpriseCapID)
-	require.NoError(t, err)
-	_, err = db.Exec("DELETE FROM capabilities WHERE id IN ($1, $2)", parentID, childID)
-	require.NoError(t, err)
 }
 
 func TestCheckHierarchyConflict_DeepHierarchy_HandlesDepthLimit(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	tenantDB := database.NewTenantAwareDB(db)
-	readModel := NewEnterpriseCapabilityLinkReadModel(tenantDB)
-	ctx := tenantContext()
-
-	setTenantContext(t, db)
+	f := newTestFixture(t)
 
 	capabilityIDs := make([]string, 12)
 	for i := 0; i < 12; i++ {
-		capabilityIDs[i] = fmt.Sprintf("cap-deep-%d-%d", i, time.Now().UnixNano())
+		capabilityIDs[i] = f.uniqueID(fmt.Sprintf("cap-deep-%d", i))
 	}
 
-	enterpriseCapID1 := fmt.Sprintf("ec-1-%d", time.Now().UnixNano())
-	enterpriseCapID2 := fmt.Sprintf("ec-2-%d", time.Now().UnixNano())
+	enterpriseCapID1 := f.uniqueID("ec-1")
+	enterpriseCapID2 := f.uniqueID("ec-2")
 
-	_, err := db.Exec(`
-		INSERT INTO enterprise_capabilities (id, tenant_id, name, description, category, is_active, created_at)
-		VALUES
-			($1, 'default', 'EC1', 'EC1 desc', 'Test', true, NOW()),
-			($2, 'default', 'EC2', 'EC2 desc', 'Test', true, NOW())
-	`, enterpriseCapID1, enterpriseCapID2)
-	require.NoError(t, err)
+	f.createEnterpriseCapability(enterpriseCapID1, "EC1")
+	f.createEnterpriseCapability(enterpriseCapID2, "EC2")
 
 	var parentID *string
 	for i := 0; i < 12; i++ {
-		if i == 0 {
-			_, err = db.Exec(`
-				INSERT INTO capabilities (id, tenant_id, name, level, parent_id, status, created_at)
-				VALUES ($1, 'default', $2, 'L1', NULL, 'active', NOW())
-			`, capabilityIDs[i], fmt.Sprintf("Level %d", i))
-		} else {
-			_, err = db.Exec(`
-				INSERT INTO capabilities (id, tenant_id, name, level, parent_id, status, created_at)
-				VALUES ($1, 'default', $2, 'L1', $3, 'active', NOW())
-			`, capabilityIDs[i], fmt.Sprintf("Level %d", i), *parentID)
-		}
-		require.NoError(t, err)
+		f.createCapability(capabilityIDs[i], fmt.Sprintf("Level %d", i), parentID)
 		parentID = &capabilityIDs[i]
 	}
 
-	linkID := fmt.Sprintf("link-%d", time.Now().UnixNano())
-	_, err = db.Exec(`
-		INSERT INTO enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at)
-		VALUES ($1, 'default', $2, $3, 'test@example.com', NOW())
-	`, linkID, enterpriseCapID1, capabilityIDs[8])
-	require.NoError(t, err)
+	f.createLink(f.uniqueID("link"), enterpriseCapID1, capabilityIDs[8])
 
-	conflict, err := readModel.CheckHierarchyConflict(ctx, capabilityIDs[11], enterpriseCapID2)
+	for i := 0; i < 8; i++ {
+		f.createBlocking(capabilityIDs[i], capabilityIDs[8], enterpriseCapID1, "Level 8", "EC1", false)
+	}
+	for i := 9; i < 12; i++ {
+		f.createBlocking(capabilityIDs[i], capabilityIDs[8], enterpriseCapID1, "Level 8", "EC1", true)
+	}
+
+	conflict, err := f.readModel.CheckHierarchyConflict(f.ctx, capabilityIDs[11], enterpriseCapID2)
 	require.NoError(t, err)
 	require.NotNil(t, conflict)
 	assert.True(t, conflict.IsAncestor)
 
-	conflict, err = readModel.CheckHierarchyConflict(ctx, capabilityIDs[0], enterpriseCapID2)
+	conflict, err = f.readModel.CheckHierarchyConflict(f.ctx, capabilityIDs[0], enterpriseCapID2)
 	require.NoError(t, err)
 	require.NotNil(t, conflict)
 	assert.False(t, conflict.IsAncestor)
-
-	_, err = db.Exec("DELETE FROM enterprise_capability_links WHERE id = $1", linkID)
-	require.NoError(t, err)
-	_, err = db.Exec("DELETE FROM enterprise_capabilities WHERE id IN ($1, $2)", enterpriseCapID1, enterpriseCapID2)
-	require.NoError(t, err)
-	for i := len(capabilityIDs) - 1; i >= 0; i-- {
-		_, err = db.Exec("DELETE FROM capabilities WHERE id = $1", capabilityIDs[i])
-		require.NoError(t, err)
-	}
 }
 
 func TestCheckHierarchyConflict_NoRelationship_NoConflict(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	f := newTestFixture(t)
 
-	tenantDB := database.NewTenantAwareDB(db)
-	readModel := NewEnterpriseCapabilityLinkReadModel(tenantDB)
-	ctx := tenantContext()
+	cap1ID := f.uniqueID("cap-1")
+	cap2ID := f.uniqueID("cap-2")
+	enterpriseCapID1 := f.uniqueID("ec-1")
+	enterpriseCapID2 := f.uniqueID("ec-2")
 
-	setTenantContext(t, db)
+	f.createCapability(cap1ID, "Cap1", nil)
+	f.createCapability(cap2ID, "Cap2", nil)
+	f.createEnterpriseCapability(enterpriseCapID1, "EC1")
+	f.createEnterpriseCapability(enterpriseCapID2, "EC2")
+	f.createLink(f.uniqueID("link"), enterpriseCapID1, cap2ID)
 
-	cap1ID := fmt.Sprintf("cap-1-%d", time.Now().UnixNano())
-	cap2ID := fmt.Sprintf("cap-2-%d", time.Now().UnixNano())
-	enterpriseCapID1 := fmt.Sprintf("ec-1-%d", time.Now().UnixNano())
-	enterpriseCapID2 := fmt.Sprintf("ec-2-%d", time.Now().UnixNano())
-
-	_, err := db.Exec(`
-		INSERT INTO capabilities (id, tenant_id, name, level, parent_id, status, created_at)
-		VALUES
-			($1, 'default', 'Cap1', 'L1', NULL, 'active', NOW()),
-			($2, 'default', 'Cap2', 'L1', NULL, 'active', NOW())
-	`, cap1ID, cap2ID)
-	require.NoError(t, err)
-
-	_, err = db.Exec(`
-		INSERT INTO enterprise_capabilities (id, tenant_id, name, description, category, is_active, created_at)
-		VALUES
-			($1, 'default', 'EC1', 'EC1 desc', 'Test', true, NOW()),
-			($2, 'default', 'EC2', 'EC2 desc', 'Test', true, NOW())
-	`, enterpriseCapID1, enterpriseCapID2)
-	require.NoError(t, err)
-
-	linkID := fmt.Sprintf("link-%d", time.Now().UnixNano())
-	_, err = db.Exec(`
-		INSERT INTO enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at)
-		VALUES ($1, 'default', $2, $3, 'test@example.com', NOW())
-	`, linkID, enterpriseCapID1, cap2ID)
-	require.NoError(t, err)
-
-	conflict, err := readModel.CheckHierarchyConflict(ctx, cap1ID, enterpriseCapID2)
+	conflict, err := f.readModel.CheckHierarchyConflict(f.ctx, cap1ID, enterpriseCapID2)
 	require.NoError(t, err)
 	assert.Nil(t, conflict)
-
-	_, err = db.Exec("DELETE FROM enterprise_capability_links WHERE id = $1", linkID)
-	require.NoError(t, err)
-	_, err = db.Exec("DELETE FROM enterprise_capabilities WHERE id IN ($1, $2)", enterpriseCapID1, enterpriseCapID2)
-	require.NoError(t, err)
-	_, err = db.Exec("DELETE FROM capabilities WHERE id IN ($1, $2)", cap1ID, cap2ID)
-	require.NoError(t, err)
 }

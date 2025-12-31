@@ -101,6 +101,7 @@ func subscribeLinkEvents(eventBus events.EventBus, projector *projectors.Enterpr
 	eventTypes := []string{
 		"EnterpriseCapabilityLinked",
 		"EnterpriseCapabilityUnlinked",
+		"CapabilityParentChanged",
 	}
 	for _, eventType := range eventTypes {
 		eventBus.Subscribe(eventType, projector)

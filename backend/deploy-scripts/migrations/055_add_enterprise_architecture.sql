@@ -72,5 +72,23 @@ CREATE INDEX IF NOT EXISTS idx_esi_pillar ON enterprise_strategic_importance(ten
 CREATE INDEX IF NOT EXISTS idx_esi_importance ON enterprise_strategic_importance(tenant_id, importance);
 
 -- ============================================================================
+-- Capability Link Blocking Read Model (Pre-computed hierarchy blocking)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS capability_link_blocking (
+    tenant_id VARCHAR(50) NOT NULL,
+    domain_capability_id VARCHAR(255) NOT NULL,
+    blocked_by_capability_id VARCHAR(255) NOT NULL,
+    blocked_by_enterprise_id VARCHAR(255) NOT NULL,
+    blocked_by_capability_name VARCHAR(500) NOT NULL,
+    blocked_by_enterprise_name VARCHAR(500) NOT NULL,
+    is_ancestor BOOLEAN NOT NULL,
+    PRIMARY KEY (tenant_id, domain_capability_id, blocked_by_capability_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_clb_domain_capability ON capability_link_blocking(tenant_id, domain_capability_id);
+CREATE INDEX IF NOT EXISTS idx_clb_blocked_by ON capability_link_blocking(tenant_id, blocked_by_capability_id);
+
+-- ============================================================================
 -- Migration complete
 -- ============================================================================
