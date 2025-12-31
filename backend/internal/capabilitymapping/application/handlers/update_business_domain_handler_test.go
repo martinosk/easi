@@ -15,21 +15,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockBusinessDomainRepositoryForUpdate struct {
+type mockUpdateBusinessDomainRepository struct {
 	domain     *aggregates.BusinessDomain
 	savedCount int
 	getByIDErr error
 	saveErr    error
 }
 
-func (m *mockBusinessDomainRepositoryForUpdate) GetByID(ctx context.Context, id string) (*aggregates.BusinessDomain, error) {
+func (m *mockUpdateBusinessDomainRepository) GetByID(ctx context.Context, id string) (*aggregates.BusinessDomain, error) {
 	if m.getByIDErr != nil {
 		return nil, m.getByIDErr
 	}
 	return m.domain, nil
 }
 
-func (m *mockBusinessDomainRepositoryForUpdate) Save(ctx context.Context, domain *aggregates.BusinessDomain) error {
+func (m *mockUpdateBusinessDomainRepository) Save(ctx context.Context, domain *aggregates.BusinessDomain) error {
 	if m.saveErr != nil {
 		return m.saveErr
 	}
@@ -37,76 +37,16 @@ func (m *mockBusinessDomainRepositoryForUpdate) Save(ctx context.Context, domain
 	return nil
 }
 
-type mockBusinessDomainReadModelForUpdate struct {
+type mockUpdateBusinessDomainReadModel struct {
 	nameExists bool
 	checkErr   error
 }
 
-func (m *mockBusinessDomainReadModelForUpdate) NameExists(ctx context.Context, name, excludeID string) (bool, error) {
+func (m *mockUpdateBusinessDomainReadModel) NameExists(ctx context.Context, name, excludeID string) (bool, error) {
 	if m.checkErr != nil {
 		return false, m.checkErr
 	}
 	return m.nameExists, nil
-}
-
-type businessDomainRepositoryForUpdate interface {
-	GetByID(ctx context.Context, id string) (*aggregates.BusinessDomain, error)
-	Save(ctx context.Context, domain *aggregates.BusinessDomain) error
-}
-
-type businessDomainReadModelForUpdate interface {
-	NameExists(ctx context.Context, name, excludeID string) (bool, error)
-}
-
-type testableUpdateBusinessDomainHandler struct {
-	repository businessDomainRepositoryForUpdate
-	readModel  businessDomainReadModelForUpdate
-}
-
-func newTestableUpdateBusinessDomainHandler(
-	repository businessDomainRepositoryForUpdate,
-	readModel businessDomainReadModelForUpdate,
-) *testableUpdateBusinessDomainHandler {
-	return &testableUpdateBusinessDomainHandler{
-		repository: repository,
-		readModel:  readModel,
-	}
-}
-
-func (h *testableUpdateBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
-	command, ok := cmd.(*commands.UpdateBusinessDomain)
-	if !ok {
-		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
-	}
-
-	domain, err := h.repository.GetByID(ctx, command.ID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	exists, err := h.readModel.NameExists(ctx, command.Name, command.ID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	if exists {
-		return cqrs.EmptyResult(), ErrBusinessDomainNameExists
-	}
-
-	name, err := valueobjects.NewDomainName(command.Name)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	description := valueobjects.MustNewDescription(command.Description)
-
-	if err := domain.Update(name, description); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := h.repository.Save(ctx, domain); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	return cqrs.EmptyResult(), nil
 }
 
 func createTestBusinessDomain(t *testing.T, name, description string) *aggregates.BusinessDomain {
@@ -128,10 +68,10 @@ func TestUpdateBusinessDomainHandler_UpdatesBusinessDomain(t *testing.T) {
 	domain := createTestBusinessDomain(t, "Original Name", "Original Description")
 	domainID := domain.ID()
 
-	mockRepo := &mockBusinessDomainRepositoryForUpdate{domain: domain}
-	mockReadModel := &mockBusinessDomainReadModelForUpdate{nameExists: false}
+	mockRepo := &mockUpdateBusinessDomainRepository{domain: domain}
+	mockReadModel := &mockUpdateBusinessDomainReadModel{nameExists: false}
 
-	handler := newTestableUpdateBusinessDomainHandler(mockRepo, mockReadModel)
+	handler := NewUpdateBusinessDomainHandler(mockRepo, mockReadModel)
 
 	cmd := &commands.UpdateBusinessDomain{
 		ID:          domainID,
@@ -151,10 +91,10 @@ func TestUpdateBusinessDomainHandler_NameExistsForOtherDomain_ReturnsError(t *te
 	domain := createTestBusinessDomain(t, "Original Name", "Description")
 	domainID := domain.ID()
 
-	mockRepo := &mockBusinessDomainRepositoryForUpdate{domain: domain}
-	mockReadModel := &mockBusinessDomainReadModelForUpdate{nameExists: true}
+	mockRepo := &mockUpdateBusinessDomainRepository{domain: domain}
+	mockReadModel := &mockUpdateBusinessDomainReadModel{nameExists: true}
 
-	handler := newTestableUpdateBusinessDomainHandler(mockRepo, mockReadModel)
+	handler := NewUpdateBusinessDomainHandler(mockRepo, mockReadModel)
 
 	cmd := &commands.UpdateBusinessDomain{
 		ID:          domainID,
@@ -168,12 +108,12 @@ func TestUpdateBusinessDomainHandler_NameExistsForOtherDomain_ReturnsError(t *te
 }
 
 func TestUpdateBusinessDomainHandler_DomainNotFound_ReturnsError(t *testing.T) {
-	mockRepo := &mockBusinessDomainRepositoryForUpdate{
+	mockRepo := &mockUpdateBusinessDomainRepository{
 		getByIDErr: repositories.ErrBusinessDomainNotFound,
 	}
-	mockReadModel := &mockBusinessDomainReadModelForUpdate{nameExists: false}
+	mockReadModel := &mockUpdateBusinessDomainReadModel{nameExists: false}
 
-	handler := newTestableUpdateBusinessDomainHandler(mockRepo, mockReadModel)
+	handler := NewUpdateBusinessDomainHandler(mockRepo, mockReadModel)
 
 	cmd := &commands.UpdateBusinessDomain{
 		ID:          "non-existent",
@@ -182,17 +122,17 @@ func TestUpdateBusinessDomainHandler_DomainNotFound_ReturnsError(t *testing.T) {
 	}
 
 	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, repositories.ErrBusinessDomainNotFound)
+	assert.ErrorIs(t, err, ErrBusinessDomainNotFound)
 }
 
 func TestUpdateBusinessDomainHandler_InvalidName_ReturnsError(t *testing.T) {
 	domain := createTestBusinessDomain(t, "Original Name", "Description")
 	domainID := domain.ID()
 
-	mockRepo := &mockBusinessDomainRepositoryForUpdate{domain: domain}
-	mockReadModel := &mockBusinessDomainReadModelForUpdate{nameExists: false}
+	mockRepo := &mockUpdateBusinessDomainRepository{domain: domain}
+	mockReadModel := &mockUpdateBusinessDomainReadModel{nameExists: false}
 
-	handler := newTestableUpdateBusinessDomainHandler(mockRepo, mockReadModel)
+	handler := NewUpdateBusinessDomainHandler(mockRepo, mockReadModel)
 
 	cmd := &commands.UpdateBusinessDomain{
 		ID:          domainID,
@@ -206,10 +146,10 @@ func TestUpdateBusinessDomainHandler_InvalidName_ReturnsError(t *testing.T) {
 }
 
 func TestUpdateBusinessDomainHandler_InvalidCommand_ReturnsError(t *testing.T) {
-	mockRepo := &mockBusinessDomainRepositoryForUpdate{}
-	mockReadModel := &mockBusinessDomainReadModelForUpdate{}
+	mockRepo := &mockUpdateBusinessDomainRepository{}
+	mockReadModel := &mockUpdateBusinessDomainReadModel{}
 
-	handler := newTestableUpdateBusinessDomainHandler(mockRepo, mockReadModel)
+	handler := NewUpdateBusinessDomainHandler(mockRepo, mockReadModel)
 
 	invalidCmd := &commands.DeleteBusinessDomain{}
 
@@ -221,10 +161,10 @@ func TestUpdateBusinessDomainHandler_ReadModelError_ReturnsError(t *testing.T) {
 	domain := createTestBusinessDomain(t, "Original Name", "Description")
 	domainID := domain.ID()
 
-	mockRepo := &mockBusinessDomainRepositoryForUpdate{domain: domain}
-	mockReadModel := &mockBusinessDomainReadModelForUpdate{checkErr: errors.New("database error")}
+	mockRepo := &mockUpdateBusinessDomainRepository{domain: domain}
+	mockReadModel := &mockUpdateBusinessDomainReadModel{checkErr: errors.New("database error")}
 
-	handler := newTestableUpdateBusinessDomainHandler(mockRepo, mockReadModel)
+	handler := NewUpdateBusinessDomainHandler(mockRepo, mockReadModel)
 
 	cmd := &commands.UpdateBusinessDomain{
 		ID:          domainID,

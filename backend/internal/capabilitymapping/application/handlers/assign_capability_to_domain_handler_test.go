@@ -15,12 +15,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockAssignmentRepository struct {
+type mockAssignCapabilityAssignmentRepository struct {
 	savedAssignments []*aggregates.BusinessDomainAssignment
 	saveErr          error
 }
 
-func (m *mockAssignmentRepository) Save(ctx context.Context, assignment *aggregates.BusinessDomainAssignment) error {
+func (m *mockAssignCapabilityAssignmentRepository) Save(ctx context.Context, assignment *aggregates.BusinessDomainAssignment) error {
 	if m.saveErr != nil {
 		return m.saveErr
 	}
@@ -28,148 +28,56 @@ func (m *mockAssignmentRepository) Save(ctx context.Context, assignment *aggrega
 	return nil
 }
 
-type mockBusinessDomainReadModelForAssign struct {
+type mockAssignCapabilityDomainReader struct {
 	domain *readmodels.BusinessDomainDTO
 	getErr error
 }
 
-func (m *mockBusinessDomainReadModelForAssign) GetByID(ctx context.Context, id string) (*readmodels.BusinessDomainDTO, error) {
+func (m *mockAssignCapabilityDomainReader) GetByID(ctx context.Context, id string) (*readmodels.BusinessDomainDTO, error) {
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
 	return m.domain, nil
 }
 
-type mockCapabilityReadModelForAssign struct {
+type mockAssignCapabilityCapabilityReader struct {
 	capability *readmodels.CapabilityDTO
 	getErr     error
 }
 
-func (m *mockCapabilityReadModelForAssign) GetByID(ctx context.Context, id string) (*readmodels.CapabilityDTO, error) {
+func (m *mockAssignCapabilityCapabilityReader) GetByID(ctx context.Context, id string) (*readmodels.CapabilityDTO, error) {
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
 	return m.capability, nil
 }
 
-type mockAssignmentReadModelForAssign struct {
+type mockAssignCapabilityAssignmentReader struct {
 	exists   bool
 	checkErr error
 }
 
-func (m *mockAssignmentReadModelForAssign) AssignmentExists(ctx context.Context, domainID, capabilityID string) (bool, error) {
+func (m *mockAssignCapabilityAssignmentReader) AssignmentExists(ctx context.Context, domainID, capabilityID string) (bool, error) {
 	if m.checkErr != nil {
 		return false, m.checkErr
 	}
 	return m.exists, nil
 }
 
-type assignmentRepository interface {
-	Save(ctx context.Context, assignment *aggregates.BusinessDomainAssignment) error
-}
-
-type businessDomainReadModelForAssign interface {
-	GetByID(ctx context.Context, id string) (*readmodels.BusinessDomainDTO, error)
-}
-
-type capabilityReadModelForAssign interface {
-	GetByID(ctx context.Context, id string) (*readmodels.CapabilityDTO, error)
-}
-
-type assignmentReadModelForAssign interface {
-	AssignmentExists(ctx context.Context, domainID, capabilityID string) (bool, error)
-}
-
-type testableAssignCapabilityToDomainHandler struct {
-	assignmentRepo   assignmentRepository
-	domainReader     businessDomainReadModelForAssign
-	capabilityReader capabilityReadModelForAssign
-	assignmentReader assignmentReadModelForAssign
-}
-
-func newTestableAssignCapabilityToDomainHandler(
-	assignmentRepo assignmentRepository,
-	domainReader businessDomainReadModelForAssign,
-	capabilityReader capabilityReadModelForAssign,
-	assignmentReader assignmentReadModelForAssign,
-) *testableAssignCapabilityToDomainHandler {
-	return &testableAssignCapabilityToDomainHandler{
-		assignmentRepo:   assignmentRepo,
-		domainReader:     domainReader,
-		capabilityReader: capabilityReader,
-		assignmentReader: assignmentReader,
-	}
-}
-
-func (h *testableAssignCapabilityToDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
-	command, ok := cmd.(*commands.AssignCapabilityToDomain)
-	if !ok {
-		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
-	}
-
-	domain, err := h.domainReader.GetByID(ctx, command.BusinessDomainID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	if domain == nil {
-		return cqrs.EmptyResult(), ErrBusinessDomainNotFound
-	}
-
-	capability, err := h.capabilityReader.GetByID(ctx, command.CapabilityID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	if capability == nil {
-		return cqrs.EmptyResult(), ErrCapabilityNotFound
-	}
-
-	if capability.Level != "L1" {
-		return cqrs.EmptyResult(), ErrOnlyL1CapabilitiesCanBeAssigned
-	}
-
-	exists, err := h.assignmentReader.AssignmentExists(ctx, command.BusinessDomainID, command.CapabilityID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	if exists {
-		return cqrs.EmptyResult(), ErrAssignmentAlreadyExists
-	}
-
-	businessDomainID, err := valueobjects.NewBusinessDomainIDFromString(command.BusinessDomainID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	capabilityID, err := valueobjects.NewCapabilityIDFromString(command.CapabilityID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	assignment, err := aggregates.AssignCapabilityToDomain(businessDomainID, capabilityID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := h.assignmentRepo.Save(ctx, assignment); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	return cqrs.NewResult(assignment.ID()), nil
-}
-
 func TestAssignCapabilityToDomainHandler_CreatesAssignment(t *testing.T) {
 	businessDomainID := valueobjects.NewBusinessDomainID().Value()
 	capabilityID := valueobjects.NewCapabilityID().Value()
 
-	mockAssignmentRepo := &mockAssignmentRepository{}
-	mockDomainReader := &mockBusinessDomainReadModelForAssign{
+	mockAssignmentRepo := &mockAssignCapabilityAssignmentRepository{}
+	mockDomainReader := &mockAssignCapabilityDomainReader{
 		domain: &readmodels.BusinessDomainDTO{ID: businessDomainID, Name: "Test Domain"},
 	}
-	mockCapabilityReader := &mockCapabilityReadModelForAssign{
+	mockCapabilityReader := &mockAssignCapabilityCapabilityReader{
 		capability: &readmodels.CapabilityDTO{ID: capabilityID, Name: "Test Capability", Level: "L1"},
 	}
-	mockAssignmentReader := &mockAssignmentReadModelForAssign{exists: false}
+	mockAssignmentReader := &mockAssignCapabilityAssignmentReader{exists: false}
 
-	handler := newTestableAssignCapabilityToDomainHandler(
+	handler := NewAssignCapabilityToDomainHandler(
 		mockAssignmentRepo,
 		mockDomainReader,
 		mockCapabilityReader,
@@ -189,14 +97,14 @@ func TestAssignCapabilityToDomainHandler_CreatesAssignment(t *testing.T) {
 }
 
 func TestAssignCapabilityToDomainHandler_BusinessDomainNotFound_ReturnsError(t *testing.T) {
-	mockAssignmentRepo := &mockAssignmentRepository{}
-	mockDomainReader := &mockBusinessDomainReadModelForAssign{domain: nil}
-	mockCapabilityReader := &mockCapabilityReadModelForAssign{
+	mockAssignmentRepo := &mockAssignCapabilityAssignmentRepository{}
+	mockDomainReader := &mockAssignCapabilityDomainReader{domain: nil}
+	mockCapabilityReader := &mockAssignCapabilityCapabilityReader{
 		capability: &readmodels.CapabilityDTO{ID: "cap-456", Level: "L1"},
 	}
-	mockAssignmentReader := &mockAssignmentReadModelForAssign{exists: false}
+	mockAssignmentReader := &mockAssignCapabilityAssignmentReader{exists: false}
 
-	handler := newTestableAssignCapabilityToDomainHandler(
+	handler := NewAssignCapabilityToDomainHandler(
 		mockAssignmentRepo,
 		mockDomainReader,
 		mockCapabilityReader,
@@ -214,14 +122,14 @@ func TestAssignCapabilityToDomainHandler_BusinessDomainNotFound_ReturnsError(t *
 }
 
 func TestAssignCapabilityToDomainHandler_CapabilityNotFound_ReturnsError(t *testing.T) {
-	mockAssignmentRepo := &mockAssignmentRepository{}
-	mockDomainReader := &mockBusinessDomainReadModelForAssign{
+	mockAssignmentRepo := &mockAssignCapabilityAssignmentRepository{}
+	mockDomainReader := &mockAssignCapabilityDomainReader{
 		domain: &readmodels.BusinessDomainDTO{ID: "bd-123"},
 	}
-	mockCapabilityReader := &mockCapabilityReadModelForAssign{capability: nil}
-	mockAssignmentReader := &mockAssignmentReadModelForAssign{exists: false}
+	mockCapabilityReader := &mockAssignCapabilityCapabilityReader{capability: nil}
+	mockAssignmentReader := &mockAssignCapabilityAssignmentReader{exists: false}
 
-	handler := newTestableAssignCapabilityToDomainHandler(
+	handler := NewAssignCapabilityToDomainHandler(
 		mockAssignmentRepo,
 		mockDomainReader,
 		mockCapabilityReader,
@@ -242,16 +150,16 @@ func TestAssignCapabilityToDomainHandler_CapabilityNotL1_ReturnsError(t *testing
 	businessDomainID := valueobjects.NewBusinessDomainID().Value()
 	capabilityID := valueobjects.NewCapabilityID().Value()
 
-	mockAssignmentRepo := &mockAssignmentRepository{}
-	mockDomainReader := &mockBusinessDomainReadModelForAssign{
+	mockAssignmentRepo := &mockAssignCapabilityAssignmentRepository{}
+	mockDomainReader := &mockAssignCapabilityDomainReader{
 		domain: &readmodels.BusinessDomainDTO{ID: businessDomainID},
 	}
-	mockCapabilityReader := &mockCapabilityReadModelForAssign{
+	mockCapabilityReader := &mockAssignCapabilityCapabilityReader{
 		capability: &readmodels.CapabilityDTO{ID: capabilityID, Level: "L2"},
 	}
-	mockAssignmentReader := &mockAssignmentReadModelForAssign{exists: false}
+	mockAssignmentReader := &mockAssignCapabilityAssignmentReader{exists: false}
 
-	handler := newTestableAssignCapabilityToDomainHandler(
+	handler := NewAssignCapabilityToDomainHandler(
 		mockAssignmentRepo,
 		mockDomainReader,
 		mockCapabilityReader,
@@ -272,16 +180,16 @@ func TestAssignCapabilityToDomainHandler_AssignmentExists_ReturnsError(t *testin
 	businessDomainID := valueobjects.NewBusinessDomainID().Value()
 	capabilityID := valueobjects.NewCapabilityID().Value()
 
-	mockAssignmentRepo := &mockAssignmentRepository{}
-	mockDomainReader := &mockBusinessDomainReadModelForAssign{
+	mockAssignmentRepo := &mockAssignCapabilityAssignmentRepository{}
+	mockDomainReader := &mockAssignCapabilityDomainReader{
 		domain: &readmodels.BusinessDomainDTO{ID: businessDomainID},
 	}
-	mockCapabilityReader := &mockCapabilityReadModelForAssign{
+	mockCapabilityReader := &mockAssignCapabilityCapabilityReader{
 		capability: &readmodels.CapabilityDTO{ID: capabilityID, Level: "L1"},
 	}
-	mockAssignmentReader := &mockAssignmentReadModelForAssign{exists: true}
+	mockAssignmentReader := &mockAssignCapabilityAssignmentReader{exists: true}
 
-	handler := newTestableAssignCapabilityToDomainHandler(
+	handler := NewAssignCapabilityToDomainHandler(
 		mockAssignmentRepo,
 		mockDomainReader,
 		mockCapabilityReader,
@@ -299,12 +207,12 @@ func TestAssignCapabilityToDomainHandler_AssignmentExists_ReturnsError(t *testin
 }
 
 func TestAssignCapabilityToDomainHandler_InvalidCommand_ReturnsError(t *testing.T) {
-	mockAssignmentRepo := &mockAssignmentRepository{}
-	mockDomainReader := &mockBusinessDomainReadModelForAssign{}
-	mockCapabilityReader := &mockCapabilityReadModelForAssign{}
-	mockAssignmentReader := &mockAssignmentReadModelForAssign{}
+	mockAssignmentRepo := &mockAssignCapabilityAssignmentRepository{}
+	mockDomainReader := &mockAssignCapabilityDomainReader{}
+	mockCapabilityReader := &mockAssignCapabilityCapabilityReader{}
+	mockAssignmentReader := &mockAssignCapabilityAssignmentReader{}
 
-	handler := newTestableAssignCapabilityToDomainHandler(
+	handler := NewAssignCapabilityToDomainHandler(
 		mockAssignmentRepo,
 		mockDomainReader,
 		mockCapabilityReader,
@@ -321,16 +229,16 @@ func TestAssignCapabilityToDomainHandler_AssignmentReaderError_ReturnsError(t *t
 	businessDomainID := valueobjects.NewBusinessDomainID().Value()
 	capabilityID := valueobjects.NewCapabilityID().Value()
 
-	mockAssignmentRepo := &mockAssignmentRepository{}
-	mockDomainReader := &mockBusinessDomainReadModelForAssign{
+	mockAssignmentRepo := &mockAssignCapabilityAssignmentRepository{}
+	mockDomainReader := &mockAssignCapabilityDomainReader{
 		domain: &readmodels.BusinessDomainDTO{ID: businessDomainID},
 	}
-	mockCapabilityReader := &mockCapabilityReadModelForAssign{
+	mockCapabilityReader := &mockAssignCapabilityCapabilityReader{
 		capability: &readmodels.CapabilityDTO{ID: capabilityID, Level: "L1"},
 	}
-	mockAssignmentReader := &mockAssignmentReadModelForAssign{checkErr: errors.New("database error")}
+	mockAssignmentReader := &mockAssignCapabilityAssignmentReader{checkErr: errors.New("database error")}
 
-	handler := newTestableAssignCapabilityToDomainHandler(
+	handler := NewAssignCapabilityToDomainHandler(
 		mockAssignmentRepo,
 		mockDomainReader,
 		mockCapabilityReader,

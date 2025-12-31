@@ -14,16 +14,28 @@ import (
 
 var ErrImportanceAlreadySet = errors.New("strategic importance already set for this pillar")
 
+type SetImportanceRepository interface {
+	Save(ctx context.Context, importance *aggregates.EnterpriseStrategicImportance) error
+}
+
+type SetImportanceCapabilityReadModel interface {
+	GetByID(ctx context.Context, id string) (*readmodels.EnterpriseCapabilityDTO, error)
+}
+
+type SetImportanceReadModel interface {
+	GetByCapabilityAndPillar(ctx context.Context, enterpriseCapabilityID, pillarID string) (*readmodels.EnterpriseStrategicImportanceDTO, error)
+}
+
 type SetEnterpriseStrategicImportanceHandler struct {
-	repository          *repositories.EnterpriseStrategicImportanceRepository
-	capabilityReadModel *readmodels.EnterpriseCapabilityReadModel
-	importanceReadModel *readmodels.EnterpriseStrategicImportanceReadModel
+	repository          SetImportanceRepository
+	capabilityReadModel SetImportanceCapabilityReadModel
+	importanceReadModel SetImportanceReadModel
 }
 
 func NewSetEnterpriseStrategicImportanceHandler(
-	repository *repositories.EnterpriseStrategicImportanceRepository,
-	capabilityReadModel *readmodels.EnterpriseCapabilityReadModel,
-	importanceReadModel *readmodels.EnterpriseStrategicImportanceReadModel,
+	repository SetImportanceRepository,
+	capabilityReadModel SetImportanceCapabilityReadModel,
+	importanceReadModel SetImportanceReadModel,
 ) *SetEnterpriseStrategicImportanceHandler {
 	return &SetEnterpriseStrategicImportanceHandler{
 		repository:          repository,

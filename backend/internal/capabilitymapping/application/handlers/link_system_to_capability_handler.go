@@ -17,16 +17,28 @@ var (
 	ErrCapabilityNotFoundForRealization = errors.New("capability not found")
 )
 
+type LinkSystemRealizationRepository interface {
+	Save(ctx context.Context, realization *aggregates.CapabilityRealization) error
+}
+
+type LinkSystemCapabilityRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.Capability, error)
+}
+
+type LinkSystemComponentReadModel interface {
+	GetByID(ctx context.Context, id string) (*archReadModels.ApplicationComponentDTO, error)
+}
+
 type LinkSystemToCapabilityHandler struct {
-	realizationRepository *repositories.RealizationRepository
-	capabilityRepository  *repositories.CapabilityRepository
-	componentReadModel    *archReadModels.ApplicationComponentReadModel
+	realizationRepository LinkSystemRealizationRepository
+	capabilityRepository  LinkSystemCapabilityRepository
+	componentReadModel    LinkSystemComponentReadModel
 }
 
 func NewLinkSystemToCapabilityHandler(
-	realizationRepository *repositories.RealizationRepository,
-	capabilityRepository *repositories.CapabilityRepository,
-	componentReadModel *archReadModels.ApplicationComponentReadModel,
+	realizationRepository LinkSystemRealizationRepository,
+	capabilityRepository LinkSystemCapabilityRepository,
+	componentReadModel LinkSystemComponentReadModel,
 ) *LinkSystemToCapabilityHandler {
 	return &LinkSystemToCapabilityHandler{
 		realizationRepository: realizationRepository,

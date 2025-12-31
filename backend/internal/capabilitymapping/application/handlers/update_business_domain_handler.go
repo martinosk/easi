@@ -5,20 +5,29 @@ import (
 	"errors"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
-	"easi/backend/internal/capabilitymapping/application/readmodels"
+	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
+type UpdateBusinessDomainRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.BusinessDomain, error)
+	Save(ctx context.Context, domain *aggregates.BusinessDomain) error
+}
+
+type UpdateBusinessDomainReadModel interface {
+	NameExists(ctx context.Context, name, excludeID string) (bool, error)
+}
+
 type UpdateBusinessDomainHandler struct {
-	repository *repositories.BusinessDomainRepository
-	readModel  *readmodels.BusinessDomainReadModel
+	repository UpdateBusinessDomainRepository
+	readModel  UpdateBusinessDomainReadModel
 }
 
 func NewUpdateBusinessDomainHandler(
-	repository *repositories.BusinessDomainRepository,
-	readModel *readmodels.BusinessDomainReadModel,
+	repository UpdateBusinessDomainRepository,
+	readModel UpdateBusinessDomainReadModel,
 ) *UpdateBusinessDomainHandler {
 	return &UpdateBusinessDomainHandler{
 		repository: repository,

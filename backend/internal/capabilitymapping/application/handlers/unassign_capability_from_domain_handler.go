@@ -4,16 +4,21 @@ import (
 	"context"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
-	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
+	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/shared/cqrs"
 )
 
+type UnassignCapabilityRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.BusinessDomainAssignment, error)
+	Save(ctx context.Context, assignment *aggregates.BusinessDomainAssignment) error
+}
+
 type UnassignCapabilityFromDomainHandler struct {
-	repository *repositories.BusinessDomainAssignmentRepository
+	repository UnassignCapabilityRepository
 }
 
 func NewUnassignCapabilityFromDomainHandler(
-	repository *repositories.BusinessDomainAssignmentRepository,
+	repository UnassignCapabilityRepository,
 ) *UnassignCapabilityFromDomainHandler {
 	return &UnassignCapabilityFromDomainHandler{
 		repository: repository,

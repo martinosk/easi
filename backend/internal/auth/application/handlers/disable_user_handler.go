@@ -4,19 +4,27 @@ import (
 	"context"
 
 	"easi/backend/internal/auth/application/commands"
-	"easi/backend/internal/auth/application/readmodels"
-	"easi/backend/internal/auth/infrastructure/repositories"
+	"easi/backend/internal/auth/domain/aggregates"
 	"easi/backend/internal/shared/cqrs"
 )
 
+type DisableUserRepository interface {
+	Save(ctx context.Context, user *aggregates.User) error
+	GetByID(ctx context.Context, id string) (*aggregates.User, error)
+}
+
+type DisableUserReadModel interface {
+	IsLastActiveAdmin(ctx context.Context, userID string) (bool, error)
+}
+
 type DisableUserHandler struct {
-	repository    *repositories.UserAggregateRepository
-	userReadModel *readmodels.UserReadModel
+	repository    DisableUserRepository
+	userReadModel DisableUserReadModel
 }
 
 func NewDisableUserHandler(
-	repository *repositories.UserAggregateRepository,
-	userReadModel *readmodels.UserReadModel,
+	repository DisableUserRepository,
+	userReadModel DisableUserReadModel,
 ) *DisableUserHandler {
 	return &DisableUserHandler{
 		repository:    repository,

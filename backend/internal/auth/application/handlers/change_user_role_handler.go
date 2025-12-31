@@ -4,20 +4,28 @@ import (
 	"context"
 
 	"easi/backend/internal/auth/application/commands"
-	"easi/backend/internal/auth/application/readmodels"
+	"easi/backend/internal/auth/domain/aggregates"
 	"easi/backend/internal/auth/domain/valueobjects"
-	"easi/backend/internal/auth/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
+type ChangeUserRoleRepository interface {
+	Save(ctx context.Context, user *aggregates.User) error
+	GetByID(ctx context.Context, id string) (*aggregates.User, error)
+}
+
+type ChangeUserRoleReadModel interface {
+	IsLastActiveAdmin(ctx context.Context, userID string) (bool, error)
+}
+
 type ChangeUserRoleHandler struct {
-	repository    *repositories.UserAggregateRepository
-	userReadModel *readmodels.UserReadModel
+	repository    ChangeUserRoleRepository
+	userReadModel ChangeUserRoleReadModel
 }
 
 func NewChangeUserRoleHandler(
-	repository *repositories.UserAggregateRepository,
-	userReadModel *readmodels.UserReadModel,
+	repository ChangeUserRoleRepository,
+	userReadModel ChangeUserRoleReadModel,
 ) *ChangeUserRoleHandler {
 	return &ChangeUserRoleHandler{
 		repository:    repository,

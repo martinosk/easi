@@ -4,16 +4,21 @@ import (
 	"context"
 
 	"easi/backend/internal/enterprisearchitecture/application/commands"
-	"easi/backend/internal/enterprisearchitecture/infrastructure/repositories"
+	"easi/backend/internal/enterprisearchitecture/domain/aggregates"
 	"easi/backend/internal/shared/cqrs"
 )
 
+type RemoveImportanceRepository interface {
+	Save(ctx context.Context, importance *aggregates.EnterpriseStrategicImportance) error
+	GetByID(ctx context.Context, id string) (*aggregates.EnterpriseStrategicImportance, error)
+}
+
 type RemoveEnterpriseStrategicImportanceHandler struct {
-	repository *repositories.EnterpriseStrategicImportanceRepository
+	repository RemoveImportanceRepository
 }
 
 func NewRemoveEnterpriseStrategicImportanceHandler(
-	repository *repositories.EnterpriseStrategicImportanceRepository,
+	repository RemoveImportanceRepository,
 ) *RemoveEnterpriseStrategicImportanceHandler {
 	return &RemoveEnterpriseStrategicImportanceHandler{
 		repository: repository,

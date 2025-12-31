@@ -6,20 +6,30 @@ import (
 
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
+	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
 var ErrBusinessDomainHasAssignments = errors.New("cannot delete business domain with assigned capabilities. Unassign capabilities first")
 
+type DeleteBusinessDomainRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.BusinessDomain, error)
+	Save(ctx context.Context, domain *aggregates.BusinessDomain) error
+}
+
+type DeleteBusinessDomainAssignmentReader interface {
+	GetByDomainID(ctx context.Context, domainID string) ([]readmodels.AssignmentDTO, error)
+}
+
 type DeleteBusinessDomainHandler struct {
-	repository       *repositories.BusinessDomainRepository
-	assignmentReader *readmodels.DomainCapabilityAssignmentReadModel
+	repository       DeleteBusinessDomainRepository
+	assignmentReader DeleteBusinessDomainAssignmentReader
 }
 
 func NewDeleteBusinessDomainHandler(
-	repository *repositories.BusinessDomainRepository,
-	assignmentReader *readmodels.DomainCapabilityAssignmentReadModel,
+	repository DeleteBusinessDomainRepository,
+	assignmentReader DeleteBusinessDomainAssignmentReader,
 ) *DeleteBusinessDomainHandler {
 	return &DeleteBusinessDomainHandler{
 		repository:       repository,

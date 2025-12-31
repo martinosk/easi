@@ -8,7 +8,6 @@ import (
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
-	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
@@ -19,18 +18,34 @@ var (
 	ErrAssignmentAlreadyExists         = errors.New("this capability is already assigned to this business domain")
 )
 
+type AssignCapabilityAssignmentRepository interface {
+	Save(ctx context.Context, assignment *aggregates.BusinessDomainAssignment) error
+}
+
+type AssignCapabilityDomainReader interface {
+	GetByID(ctx context.Context, id string) (*readmodels.BusinessDomainDTO, error)
+}
+
+type AssignCapabilityCapabilityReader interface {
+	GetByID(ctx context.Context, id string) (*readmodels.CapabilityDTO, error)
+}
+
+type AssignCapabilityAssignmentReader interface {
+	AssignmentExists(ctx context.Context, domainID, capabilityID string) (bool, error)
+}
+
 type AssignCapabilityToDomainHandler struct {
-	assignmentRepo   *repositories.BusinessDomainAssignmentRepository
-	domainReader     *readmodels.BusinessDomainReadModel
-	capabilityReader *readmodels.CapabilityReadModel
-	assignmentReader *readmodels.DomainCapabilityAssignmentReadModel
+	assignmentRepo   AssignCapabilityAssignmentRepository
+	domainReader     AssignCapabilityDomainReader
+	capabilityReader AssignCapabilityCapabilityReader
+	assignmentReader AssignCapabilityAssignmentReader
 }
 
 func NewAssignCapabilityToDomainHandler(
-	assignmentRepo *repositories.BusinessDomainAssignmentRepository,
-	domainReader *readmodels.BusinessDomainReadModel,
-	capabilityReader *readmodels.CapabilityReadModel,
-	assignmentReader *readmodels.DomainCapabilityAssignmentReadModel,
+	assignmentRepo AssignCapabilityAssignmentRepository,
+	domainReader AssignCapabilityDomainReader,
+	capabilityReader AssignCapabilityCapabilityReader,
+	assignmentReader AssignCapabilityAssignmentReader,
 ) *AssignCapabilityToDomainHandler {
 	return &AssignCapabilityToDomainHandler{
 		assignmentRepo:   assignmentRepo,

@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type mockLayoutRepositoryForColor struct {
+type mockElementColorUpdater struct {
 	updateElementColorErr    error
 	updateElementColorCalled bool
 	viewID                   string
@@ -22,7 +22,7 @@ type mockLayoutRepositoryForColor struct {
 	color                    string
 }
 
-func (m *mockLayoutRepositoryForColor) UpdateElementColor(ctx context.Context, viewID, elementID string, elementType repositories.ElementType, color string) error {
+func (m *mockElementColorUpdater) UpdateElementColor(ctx context.Context, viewID, elementID string, elementType repositories.ElementType, color string) error {
 	m.updateElementColorCalled = true
 	m.viewID = viewID
 	m.elementID = elementID
@@ -31,47 +31,9 @@ func (m *mockLayoutRepositoryForColor) UpdateElementColor(ctx context.Context, v
 	return m.updateElementColorErr
 }
 
-type layoutRepositoryForElementColor interface {
-	UpdateElementColor(ctx context.Context, viewID, elementID string, elementType repositories.ElementType, color string) error
-}
-
-type testableUpdateElementColorHandler struct {
-	layoutRepository layoutRepositoryForElementColor
-}
-
-func newTestableUpdateElementColorHandler(layoutRepository layoutRepositoryForElementColor) *testableUpdateElementColorHandler {
-	return &testableUpdateElementColorHandler{
-		layoutRepository: layoutRepository,
-	}
-}
-
-func (h *testableUpdateElementColorHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
-	command, ok := cmd.(*commands.UpdateElementColor)
-	if !ok {
-		return cqrs.ErrInvalidCommand
-	}
-
-	_, err := valueobjects.NewHexColor(command.Color)
-	if err != nil {
-		return err
-	}
-
-	var elementType repositories.ElementType
-	switch command.ElementType {
-	case "component":
-		elementType = repositories.ElementTypeComponent
-	case "capability":
-		elementType = repositories.ElementTypeCapability
-	default:
-		return errors.New("invalid element type: must be 'component' or 'capability'")
-	}
-
-	return h.layoutRepository.UpdateElementColor(ctx, command.ViewID, command.ElementID, elementType, command.Color)
-}
-
 func TestUpdateElementColorHandler_ValidComponent(t *testing.T) {
-	mockRepo := &mockLayoutRepositoryForColor{}
-	handler := newTestableUpdateElementColorHandler(mockRepo)
+	mockRepo := &mockElementColorUpdater{}
+	handler := NewUpdateElementColorHandler(mockRepo)
 
 	cmd := &commands.UpdateElementColor{
 		ViewID:      "view-123",
@@ -80,7 +42,7 @@ func TestUpdateElementColorHandler_ValidComponent(t *testing.T) {
 		Color:       "#FF5733",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 
 	assert.NoError(t, err)
 	assert.True(t, mockRepo.updateElementColorCalled)
@@ -91,8 +53,8 @@ func TestUpdateElementColorHandler_ValidComponent(t *testing.T) {
 }
 
 func TestUpdateElementColorHandler_ValidCapability(t *testing.T) {
-	mockRepo := &mockLayoutRepositoryForColor{}
-	handler := newTestableUpdateElementColorHandler(mockRepo)
+	mockRepo := &mockElementColorUpdater{}
+	handler := NewUpdateElementColorHandler(mockRepo)
 
 	cmd := &commands.UpdateElementColor{
 		ViewID:      "view-789",
@@ -101,7 +63,7 @@ func TestUpdateElementColorHandler_ValidCapability(t *testing.T) {
 		Color:       "#00FF00",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 
 	assert.NoError(t, err)
 	assert.True(t, mockRepo.updateElementColorCalled)
@@ -112,8 +74,8 @@ func TestUpdateElementColorHandler_ValidCapability(t *testing.T) {
 }
 
 func TestUpdateElementColorHandler_InvalidHexColor(t *testing.T) {
-	mockRepo := &mockLayoutRepositoryForColor{}
-	handler := newTestableUpdateElementColorHandler(mockRepo)
+	mockRepo := &mockElementColorUpdater{}
+	handler := NewUpdateElementColorHandler(mockRepo)
 
 	cmd := &commands.UpdateElementColor{
 		ViewID:      "view-123",
@@ -122,7 +84,7 @@ func TestUpdateElementColorHandler_InvalidHexColor(t *testing.T) {
 		Color:       "invalid",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 
 	assert.Error(t, err)
 	assert.Equal(t, valueobjects.ErrInvalidHexColor, err)
@@ -130,8 +92,8 @@ func TestUpdateElementColorHandler_InvalidHexColor(t *testing.T) {
 }
 
 func TestUpdateElementColorHandler_InvalidHexColorMissingHash(t *testing.T) {
-	mockRepo := &mockLayoutRepositoryForColor{}
-	handler := newTestableUpdateElementColorHandler(mockRepo)
+	mockRepo := &mockElementColorUpdater{}
+	handler := NewUpdateElementColorHandler(mockRepo)
 
 	cmd := &commands.UpdateElementColor{
 		ViewID:      "view-123",
@@ -140,7 +102,7 @@ func TestUpdateElementColorHandler_InvalidHexColorMissingHash(t *testing.T) {
 		Color:       "FF5733",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 
 	assert.Error(t, err)
 	assert.Equal(t, valueobjects.ErrInvalidHexColor, err)
@@ -148,8 +110,8 @@ func TestUpdateElementColorHandler_InvalidHexColorMissingHash(t *testing.T) {
 }
 
 func TestUpdateElementColorHandler_InvalidHexColorTooShort(t *testing.T) {
-	mockRepo := &mockLayoutRepositoryForColor{}
-	handler := newTestableUpdateElementColorHandler(mockRepo)
+	mockRepo := &mockElementColorUpdater{}
+	handler := NewUpdateElementColorHandler(mockRepo)
 
 	cmd := &commands.UpdateElementColor{
 		ViewID:      "view-123",
@@ -158,7 +120,7 @@ func TestUpdateElementColorHandler_InvalidHexColorTooShort(t *testing.T) {
 		Color:       "#FFF",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 
 	assert.Error(t, err)
 	assert.Equal(t, valueobjects.ErrInvalidHexColor, err)
@@ -166,8 +128,8 @@ func TestUpdateElementColorHandler_InvalidHexColorTooShort(t *testing.T) {
 }
 
 func TestUpdateElementColorHandler_InvalidElementType(t *testing.T) {
-	mockRepo := &mockLayoutRepositoryForColor{}
-	handler := newTestableUpdateElementColorHandler(mockRepo)
+	mockRepo := &mockElementColorUpdater{}
+	handler := NewUpdateElementColorHandler(mockRepo)
 
 	cmd := &commands.UpdateElementColor{
 		ViewID:      "view-123",
@@ -176,7 +138,7 @@ func TestUpdateElementColorHandler_InvalidElementType(t *testing.T) {
 		Color:       "#FF5733",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid element type")
@@ -185,10 +147,10 @@ func TestUpdateElementColorHandler_InvalidElementType(t *testing.T) {
 
 func TestUpdateElementColorHandler_RepositoryError(t *testing.T) {
 	repositoryErr := errors.New("database connection failed")
-	mockRepo := &mockLayoutRepositoryForColor{
+	mockRepo := &mockElementColorUpdater{
 		updateElementColorErr: repositoryErr,
 	}
-	handler := newTestableUpdateElementColorHandler(mockRepo)
+	handler := NewUpdateElementColorHandler(mockRepo)
 
 	cmd := &commands.UpdateElementColor{
 		ViewID:      "view-123",
@@ -197,7 +159,7 @@ func TestUpdateElementColorHandler_RepositoryError(t *testing.T) {
 		Color:       "#FF5733",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 
 	assert.Error(t, err)
 	assert.Equal(t, repositoryErr, err)
@@ -205,14 +167,14 @@ func TestUpdateElementColorHandler_RepositoryError(t *testing.T) {
 }
 
 func TestUpdateElementColorHandler_InvalidCommand(t *testing.T) {
-	mockRepo := &mockLayoutRepositoryForColor{}
-	handler := newTestableUpdateElementColorHandler(mockRepo)
+	mockRepo := &mockElementColorUpdater{}
+	handler := NewUpdateElementColorHandler(mockRepo)
 
 	invalidCmd := &commands.CreateView{
 		Name: "Test",
 	}
 
-	err := handler.Handle(context.Background(), invalidCmd)
+	_, err := handler.Handle(context.Background(), invalidCmd)
 
 	assert.Error(t, err)
 	assert.Equal(t, cqrs.ErrInvalidCommand, err)
@@ -220,8 +182,8 @@ func TestUpdateElementColorHandler_InvalidCommand(t *testing.T) {
 }
 
 func TestUpdateElementColorHandler_ValidLowercaseColor(t *testing.T) {
-	mockRepo := &mockLayoutRepositoryForColor{}
-	handler := newTestableUpdateElementColorHandler(mockRepo)
+	mockRepo := &mockElementColorUpdater{}
+	handler := NewUpdateElementColorHandler(mockRepo)
 
 	cmd := &commands.UpdateElementColor{
 		ViewID:      "view-123",
@@ -230,7 +192,7 @@ func TestUpdateElementColorHandler_ValidLowercaseColor(t *testing.T) {
 		Color:       "#ffffff",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 
 	assert.NoError(t, err)
 	assert.True(t, mockRepo.updateElementColorCalled)
@@ -238,8 +200,8 @@ func TestUpdateElementColorHandler_ValidLowercaseColor(t *testing.T) {
 }
 
 func TestUpdateElementColorHandler_ValidMixedCaseColor(t *testing.T) {
-	mockRepo := &mockLayoutRepositoryForColor{}
-	handler := newTestableUpdateElementColorHandler(mockRepo)
+	mockRepo := &mockElementColorUpdater{}
+	handler := NewUpdateElementColorHandler(mockRepo)
 
 	cmd := &commands.UpdateElementColor{
 		ViewID:      "view-123",
@@ -248,7 +210,7 @@ func TestUpdateElementColorHandler_ValidMixedCaseColor(t *testing.T) {
 		Color:       "#FfA5b3",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 
 	assert.NoError(t, err)
 	assert.True(t, mockRepo.updateElementColorCalled)

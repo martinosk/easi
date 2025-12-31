@@ -4,20 +4,28 @@ import (
 	"context"
 
 	"easi/backend/internal/enterprisearchitecture/application/commands"
-	"easi/backend/internal/enterprisearchitecture/application/readmodels"
+	"easi/backend/internal/enterprisearchitecture/domain/aggregates"
 	"easi/backend/internal/enterprisearchitecture/domain/valueobjects"
-	"easi/backend/internal/enterprisearchitecture/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
+type UpdateCapabilityRepository interface {
+	Save(ctx context.Context, capability *aggregates.EnterpriseCapability) error
+	GetByID(ctx context.Context, id string) (*aggregates.EnterpriseCapability, error)
+}
+
+type UpdateCapabilityReadModel interface {
+	NameExists(ctx context.Context, name, excludeID string) (bool, error)
+}
+
 type UpdateEnterpriseCapabilityHandler struct {
-	repository *repositories.EnterpriseCapabilityRepository
-	readModel  *readmodels.EnterpriseCapabilityReadModel
+	repository UpdateCapabilityRepository
+	readModel  UpdateCapabilityReadModel
 }
 
 func NewUpdateEnterpriseCapabilityHandler(
-	repository *repositories.EnterpriseCapabilityRepository,
-	readModel *readmodels.EnterpriseCapabilityReadModel,
+	repository UpdateCapabilityRepository,
+	readModel UpdateCapabilityReadModel,
 ) *UpdateEnterpriseCapabilityHandler {
 	return &UpdateEnterpriseCapabilityHandler{
 		repository: repository,

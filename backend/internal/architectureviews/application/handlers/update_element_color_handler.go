@@ -10,11 +10,15 @@ import (
 	"easi/backend/internal/shared/cqrs"
 )
 
-type UpdateElementColorHandler struct {
-	layoutRepository *repositories.ViewLayoutRepository
+type ElementColorUpdater interface {
+	UpdateElementColor(ctx context.Context, viewID, elementID string, elementType repositories.ElementType, color string) error
 }
 
-func NewUpdateElementColorHandler(layoutRepository *repositories.ViewLayoutRepository) *UpdateElementColorHandler {
+type UpdateElementColorHandler struct {
+	layoutRepository ElementColorUpdater
+}
+
+func NewUpdateElementColorHandler(layoutRepository ElementColorUpdater) *UpdateElementColorHandler {
 	return &UpdateElementColorHandler{
 		layoutRepository: layoutRepository,
 	}

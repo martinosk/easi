@@ -6,20 +6,29 @@ import (
 
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
-	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
+	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/shared/cqrs"
 )
 
 var ErrCapabilityHasChildren = errors.New("cannot delete capability with children. Delete child capabilities first")
 
+type DeleteCapabilityRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.Capability, error)
+	Save(ctx context.Context, capability *aggregates.Capability) error
+}
+
+type DeleteCapabilityReadModel interface {
+	GetChildren(ctx context.Context, parentID string) ([]readmodels.CapabilityDTO, error)
+}
+
 type DeleteCapabilityHandler struct {
-	repository *repositories.CapabilityRepository
-	readModel  *readmodels.CapabilityReadModel
+	repository DeleteCapabilityRepository
+	readModel  DeleteCapabilityReadModel
 }
 
 func NewDeleteCapabilityHandler(
-	repository *repositories.CapabilityRepository,
-	readModel *readmodels.CapabilityReadModel,
+	repository DeleteCapabilityRepository,
+	readModel DeleteCapabilityReadModel,
 ) *DeleteCapabilityHandler {
 	return &DeleteCapabilityHandler{
 		repository: repository,

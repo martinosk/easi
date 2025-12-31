@@ -8,20 +8,19 @@ import (
 	"easi/backend/internal/enterprisearchitecture/application/commands"
 	"easi/backend/internal/enterprisearchitecture/domain/aggregates"
 	"easi/backend/internal/enterprisearchitecture/infrastructure/repositories"
-	"easi/backend/internal/shared/cqrs"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type mockEnterpriseStrategicImportanceRepositoryForRemove struct {
+type mockRemoveImportanceRepository struct {
 	savedImportances   []*aggregates.EnterpriseStrategicImportance
 	existingImportance *aggregates.EnterpriseStrategicImportance
 	saveErr            error
 	getByIDErr         error
 }
 
-func (m *mockEnterpriseStrategicImportanceRepositoryForRemove) Save(ctx context.Context, importance *aggregates.EnterpriseStrategicImportance) error {
+func (m *mockRemoveImportanceRepository) Save(ctx context.Context, importance *aggregates.EnterpriseStrategicImportance) error {
 	if m.saveErr != nil {
 		return m.saveErr
 	}
@@ -29,7 +28,7 @@ func (m *mockEnterpriseStrategicImportanceRepositoryForRemove) Save(ctx context.
 	return nil
 }
 
-func (m *mockEnterpriseStrategicImportanceRepositoryForRemove) GetByID(ctx context.Context, id string) (*aggregates.EnterpriseStrategicImportance, error) {
+func (m *mockRemoveImportanceRepository) GetByID(ctx context.Context, id string) (*aggregates.EnterpriseStrategicImportance, error) {
 	if m.getByIDErr != nil {
 		return nil, m.getByIDErr
 	}
@@ -39,52 +38,12 @@ func (m *mockEnterpriseStrategicImportanceRepositoryForRemove) GetByID(ctx conte
 	return nil, repositories.ErrEnterpriseStrategicImportanceNotFound
 }
 
-type enterpriseStrategicImportanceRepositoryForRemove interface {
-	Save(ctx context.Context, importance *aggregates.EnterpriseStrategicImportance) error
-	GetByID(ctx context.Context, id string) (*aggregates.EnterpriseStrategicImportance, error)
-}
-
-type testableRemoveEnterpriseStrategicImportanceHandler struct {
-	repository enterpriseStrategicImportanceRepositoryForRemove
-}
-
-func newTestableRemoveEnterpriseStrategicImportanceHandler(
-	repository enterpriseStrategicImportanceRepositoryForRemove,
-) *testableRemoveEnterpriseStrategicImportanceHandler {
-	return &testableRemoveEnterpriseStrategicImportanceHandler{
-		repository: repository,
-	}
-}
-
-func (h *testableRemoveEnterpriseStrategicImportanceHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
-	command, ok := cmd.(*commands.RemoveEnterpriseStrategicImportance)
-	if !ok {
-		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
-	}
-
-	si, err := h.repository.GetByID(ctx, command.ID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := si.Remove(); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := h.repository.Save(ctx, si); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	return cqrs.EmptyResult(), nil
-}
-
 func TestRemoveEnterpriseStrategicImportanceHandler_RemovesRating(t *testing.T) {
 	existingImportance := createTestEnterpriseStrategicImportance(t)
 
-	mockRepo := &mockEnterpriseStrategicImportanceRepositoryForRemove{
-		existingImportance: existingImportance,
-	}
+	mockRepo := &mockRemoveImportanceRepository{existingImportance: existingImportance}
 
-	handler := newTestableRemoveEnterpriseStrategicImportanceHandler(mockRepo)
+	handler := NewRemoveEnterpriseStrategicImportanceHandler(mockRepo)
 
 	cmd := &commands.RemoveEnterpriseStrategicImportance{
 		ID: existingImportance.ID(),
@@ -99,11 +58,9 @@ func TestRemoveEnterpriseStrategicImportanceHandler_RemovesRating(t *testing.T) 
 func TestRemoveEnterpriseStrategicImportanceHandler_RaisesRemovedEvent(t *testing.T) {
 	existingImportance := createTestEnterpriseStrategicImportance(t)
 
-	mockRepo := &mockEnterpriseStrategicImportanceRepositoryForRemove{
-		existingImportance: existingImportance,
-	}
+	mockRepo := &mockRemoveImportanceRepository{existingImportance: existingImportance}
 
-	handler := newTestableRemoveEnterpriseStrategicImportanceHandler(mockRepo)
+	handler := NewRemoveEnterpriseStrategicImportanceHandler(mockRepo)
 
 	cmd := &commands.RemoveEnterpriseStrategicImportance{
 		ID: existingImportance.ID(),
@@ -119,11 +76,9 @@ func TestRemoveEnterpriseStrategicImportanceHandler_RaisesRemovedEvent(t *testin
 }
 
 func TestRemoveEnterpriseStrategicImportanceHandler_NonExistent_ReturnsError(t *testing.T) {
-	mockRepo := &mockEnterpriseStrategicImportanceRepositoryForRemove{
-		getByIDErr: repositories.ErrEnterpriseStrategicImportanceNotFound,
-	}
+	mockRepo := &mockRemoveImportanceRepository{getByIDErr: repositories.ErrEnterpriseStrategicImportanceNotFound}
 
-	handler := newTestableRemoveEnterpriseStrategicImportanceHandler(mockRepo)
+	handler := NewRemoveEnterpriseStrategicImportanceHandler(mockRepo)
 
 	cmd := &commands.RemoveEnterpriseStrategicImportance{
 		ID: "non-existent-id",
@@ -136,12 +91,12 @@ func TestRemoveEnterpriseStrategicImportanceHandler_NonExistent_ReturnsError(t *
 func TestRemoveEnterpriseStrategicImportanceHandler_RepositoryError_ReturnsError(t *testing.T) {
 	existingImportance := createTestEnterpriseStrategicImportance(t)
 
-	mockRepo := &mockEnterpriseStrategicImportanceRepositoryForRemove{
+	mockRepo := &mockRemoveImportanceRepository{
 		existingImportance: existingImportance,
 		saveErr:            errors.New("save error"),
 	}
 
-	handler := newTestableRemoveEnterpriseStrategicImportanceHandler(mockRepo)
+	handler := NewRemoveEnterpriseStrategicImportanceHandler(mockRepo)
 
 	cmd := &commands.RemoveEnterpriseStrategicImportance{
 		ID: existingImportance.ID(),

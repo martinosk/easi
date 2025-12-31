@@ -7,19 +7,18 @@ import (
 
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
-	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type mockBusinessDomainRepository struct {
+type mockCreateBusinessDomainRepository struct {
 	savedDomains []*aggregates.BusinessDomain
 	saveErr      error
 }
 
-func (m *mockBusinessDomainRepository) Save(ctx context.Context, domain *aggregates.BusinessDomain) error {
+func (m *mockCreateBusinessDomainRepository) Save(ctx context.Context, domain *aggregates.BusinessDomain) error {
 	if m.saveErr != nil {
 		return m.saveErr
 	}
@@ -27,78 +26,23 @@ func (m *mockBusinessDomainRepository) Save(ctx context.Context, domain *aggrega
 	return nil
 }
 
-type mockBusinessDomainReadModel struct {
+type mockCreateBusinessDomainReadModel struct {
 	nameExists bool
 	checkErr   error
 }
 
-func (m *mockBusinessDomainReadModel) NameExists(ctx context.Context, name, excludeID string) (bool, error) {
+func (m *mockCreateBusinessDomainReadModel) NameExists(ctx context.Context, name, excludeID string) (bool, error) {
 	if m.checkErr != nil {
 		return false, m.checkErr
 	}
 	return m.nameExists, nil
 }
 
-type businessDomainRepository interface {
-	Save(ctx context.Context, domain *aggregates.BusinessDomain) error
-}
-
-type businessDomainReadModelForCreate interface {
-	NameExists(ctx context.Context, name, excludeID string) (bool, error)
-}
-
-type testableCreateBusinessDomainHandler struct {
-	repository businessDomainRepository
-	readModel  businessDomainReadModelForCreate
-}
-
-func newTestableCreateBusinessDomainHandler(
-	repository businessDomainRepository,
-	readModel businessDomainReadModelForCreate,
-) *testableCreateBusinessDomainHandler {
-	return &testableCreateBusinessDomainHandler{
-		repository: repository,
-		readModel:  readModel,
-	}
-}
-
-func (h *testableCreateBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
-	command, ok := cmd.(*commands.CreateBusinessDomain)
-	if !ok {
-		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
-	}
-
-	exists, err := h.readModel.NameExists(ctx, command.Name, "")
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	if exists {
-		return cqrs.EmptyResult(), ErrBusinessDomainNameExists
-	}
-
-	name, err := valueobjects.NewDomainName(command.Name)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	description := valueobjects.MustNewDescription(command.Description)
-
-	domain, err := aggregates.NewBusinessDomain(name, description)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := h.repository.Save(ctx, domain); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	return cqrs.NewResult(domain.ID()), nil
-}
-
 func TestCreateBusinessDomainHandler_CreatesBusinessDomain(t *testing.T) {
-	mockRepo := &mockBusinessDomainRepository{}
-	mockReadModel := &mockBusinessDomainReadModel{nameExists: false}
+	mockRepo := &mockCreateBusinessDomainRepository{}
+	mockReadModel := &mockCreateBusinessDomainReadModel{nameExists: false}
 
-	handler := newTestableCreateBusinessDomainHandler(mockRepo, mockReadModel)
+	handler := NewCreateBusinessDomainHandler(mockRepo, mockReadModel)
 
 	cmd := &commands.CreateBusinessDomain{
 		Name:        "Customer Management",
@@ -116,10 +60,10 @@ func TestCreateBusinessDomainHandler_CreatesBusinessDomain(t *testing.T) {
 }
 
 func TestCreateBusinessDomainHandler_ReturnsCreatedID(t *testing.T) {
-	mockRepo := &mockBusinessDomainRepository{}
-	mockReadModel := &mockBusinessDomainReadModel{nameExists: false}
+	mockRepo := &mockCreateBusinessDomainRepository{}
+	mockReadModel := &mockCreateBusinessDomainReadModel{nameExists: false}
 
-	handler := newTestableCreateBusinessDomainHandler(mockRepo, mockReadModel)
+	handler := NewCreateBusinessDomainHandler(mockRepo, mockReadModel)
 
 	cmd := &commands.CreateBusinessDomain{
 		Name:        "Order Processing",
@@ -134,10 +78,10 @@ func TestCreateBusinessDomainHandler_ReturnsCreatedID(t *testing.T) {
 }
 
 func TestCreateBusinessDomainHandler_NameExists_ReturnsError(t *testing.T) {
-	mockRepo := &mockBusinessDomainRepository{}
-	mockReadModel := &mockBusinessDomainReadModel{nameExists: true}
+	mockRepo := &mockCreateBusinessDomainRepository{}
+	mockReadModel := &mockCreateBusinessDomainReadModel{nameExists: true}
 
-	handler := newTestableCreateBusinessDomainHandler(mockRepo, mockReadModel)
+	handler := NewCreateBusinessDomainHandler(mockRepo, mockReadModel)
 
 	cmd := &commands.CreateBusinessDomain{
 		Name:        "Duplicate Name",
@@ -150,10 +94,10 @@ func TestCreateBusinessDomainHandler_NameExists_ReturnsError(t *testing.T) {
 }
 
 func TestCreateBusinessDomainHandler_InvalidName_ReturnsError(t *testing.T) {
-	mockRepo := &mockBusinessDomainRepository{}
-	mockReadModel := &mockBusinessDomainReadModel{nameExists: false}
+	mockRepo := &mockCreateBusinessDomainRepository{}
+	mockReadModel := &mockCreateBusinessDomainReadModel{nameExists: false}
 
-	handler := newTestableCreateBusinessDomainHandler(mockRepo, mockReadModel)
+	handler := NewCreateBusinessDomainHandler(mockRepo, mockReadModel)
 
 	cmd := &commands.CreateBusinessDomain{
 		Name:        "",
@@ -166,10 +110,10 @@ func TestCreateBusinessDomainHandler_InvalidName_ReturnsError(t *testing.T) {
 }
 
 func TestCreateBusinessDomainHandler_InvalidCommand_ReturnsError(t *testing.T) {
-	mockRepo := &mockBusinessDomainRepository{}
-	mockReadModel := &mockBusinessDomainReadModel{}
+	mockRepo := &mockCreateBusinessDomainRepository{}
+	mockReadModel := &mockCreateBusinessDomainReadModel{}
 
-	handler := newTestableCreateBusinessDomainHandler(mockRepo, mockReadModel)
+	handler := NewCreateBusinessDomainHandler(mockRepo, mockReadModel)
 
 	invalidCmd := &commands.DeleteBusinessDomain{}
 
@@ -178,10 +122,10 @@ func TestCreateBusinessDomainHandler_InvalidCommand_ReturnsError(t *testing.T) {
 }
 
 func TestCreateBusinessDomainHandler_ReadModelError_ReturnsError(t *testing.T) {
-	mockRepo := &mockBusinessDomainRepository{}
-	mockReadModel := &mockBusinessDomainReadModel{checkErr: errors.New("database error")}
+	mockRepo := &mockCreateBusinessDomainRepository{}
+	mockReadModel := &mockCreateBusinessDomainReadModel{checkErr: errors.New("database error")}
 
-	handler := newTestableCreateBusinessDomainHandler(mockRepo, mockReadModel)
+	handler := NewCreateBusinessDomainHandler(mockRepo, mockReadModel)
 
 	cmd := &commands.CreateBusinessDomain{
 		Name:        "Test Domain",

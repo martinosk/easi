@@ -4,15 +4,20 @@ import (
 	"context"
 
 	"easi/backend/internal/auth/application/commands"
-	"easi/backend/internal/auth/infrastructure/repositories"
+	"easi/backend/internal/auth/domain/aggregates"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type EnableUserHandler struct {
-	repository *repositories.UserAggregateRepository
+type EnableUserRepository interface {
+	Save(ctx context.Context, user *aggregates.User) error
+	GetByID(ctx context.Context, id string) (*aggregates.User, error)
 }
 
-func NewEnableUserHandler(repository *repositories.UserAggregateRepository) *EnableUserHandler {
+type EnableUserHandler struct {
+	repository EnableUserRepository
+}
+
+func NewEnableUserHandler(repository EnableUserRepository) *EnableUserHandler {
 	return &EnableUserHandler{
 		repository: repository,
 	}

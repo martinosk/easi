@@ -4,16 +4,21 @@ import (
 	"context"
 
 	"easi/backend/internal/enterprisearchitecture/application/commands"
-	"easi/backend/internal/enterprisearchitecture/infrastructure/repositories"
+	"easi/backend/internal/enterprisearchitecture/domain/aggregates"
 	"easi/backend/internal/shared/cqrs"
 )
 
+type DeleteCapabilityRepository interface {
+	Save(ctx context.Context, capability *aggregates.EnterpriseCapability) error
+	GetByID(ctx context.Context, id string) (*aggregates.EnterpriseCapability, error)
+}
+
 type DeleteEnterpriseCapabilityHandler struct {
-	repository *repositories.EnterpriseCapabilityRepository
+	repository DeleteCapabilityRepository
 }
 
 func NewDeleteEnterpriseCapabilityHandler(
-	repository *repositories.EnterpriseCapabilityRepository,
+	repository DeleteCapabilityRepository,
 ) *DeleteEnterpriseCapabilityHandler {
 	return &DeleteEnterpriseCapabilityHandler{
 		repository: repository,

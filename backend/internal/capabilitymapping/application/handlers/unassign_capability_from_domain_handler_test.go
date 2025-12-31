@@ -14,64 +14,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockAssignmentRepositoryForUnassign struct {
+type mockUnassignCapabilityRepository struct {
 	assignment *aggregates.BusinessDomainAssignment
 	savedCount int
 	getByIDErr error
 	saveErr    error
 }
 
-func (m *mockAssignmentRepositoryForUnassign) GetByID(ctx context.Context, id string) (*aggregates.BusinessDomainAssignment, error) {
+func (m *mockUnassignCapabilityRepository) GetByID(ctx context.Context, id string) (*aggregates.BusinessDomainAssignment, error) {
 	if m.getByIDErr != nil {
 		return nil, m.getByIDErr
 	}
 	return m.assignment, nil
 }
 
-func (m *mockAssignmentRepositoryForUnassign) Save(ctx context.Context, assignment *aggregates.BusinessDomainAssignment) error {
+func (m *mockUnassignCapabilityRepository) Save(ctx context.Context, assignment *aggregates.BusinessDomainAssignment) error {
 	if m.saveErr != nil {
 		return m.saveErr
 	}
 	m.savedCount++
 	return nil
-}
-
-type assignmentRepositoryForUnassign interface {
-	GetByID(ctx context.Context, id string) (*aggregates.BusinessDomainAssignment, error)
-	Save(ctx context.Context, assignment *aggregates.BusinessDomainAssignment) error
-}
-
-type testableUnassignCapabilityFromDomainHandler struct {
-	repository assignmentRepositoryForUnassign
-}
-
-func newTestableUnassignCapabilityFromDomainHandler(
-	repository assignmentRepositoryForUnassign,
-) *testableUnassignCapabilityFromDomainHandler {
-	return &testableUnassignCapabilityFromDomainHandler{
-		repository: repository,
-	}
-}
-
-func (h *testableUnassignCapabilityFromDomainHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
-	command, ok := cmd.(*commands.UnassignCapabilityFromDomain)
-	if !ok {
-		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
-	}
-
-	assignment, err := h.repository.GetByID(ctx, command.AssignmentID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := assignment.Unassign(); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := h.repository.Save(ctx, assignment); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	return cqrs.EmptyResult(), nil
 }
 
 func createTestAssignment(t *testing.T) *aggregates.BusinessDomainAssignment {
@@ -91,9 +53,9 @@ func TestUnassignCapabilityFromDomainHandler_UnassignsCapability(t *testing.T) {
 	assignment := createTestAssignment(t)
 	assignmentID := assignment.ID()
 
-	mockRepo := &mockAssignmentRepositoryForUnassign{assignment: assignment}
+	mockRepo := &mockUnassignCapabilityRepository{assignment: assignment}
 
-	handler := newTestableUnassignCapabilityFromDomainHandler(mockRepo)
+	handler := NewUnassignCapabilityFromDomainHandler(mockRepo)
 
 	cmd := &commands.UnassignCapabilityFromDomain{
 		AssignmentID: assignmentID,
@@ -106,11 +68,11 @@ func TestUnassignCapabilityFromDomainHandler_UnassignsCapability(t *testing.T) {
 }
 
 func TestUnassignCapabilityFromDomainHandler_AssignmentNotFound_ReturnsError(t *testing.T) {
-	mockRepo := &mockAssignmentRepositoryForUnassign{
+	mockRepo := &mockUnassignCapabilityRepository{
 		getByIDErr: repositories.ErrAssignmentNotFound,
 	}
 
-	handler := newTestableUnassignCapabilityFromDomainHandler(mockRepo)
+	handler := NewUnassignCapabilityFromDomainHandler(mockRepo)
 
 	cmd := &commands.UnassignCapabilityFromDomain{
 		AssignmentID: "non-existent",
@@ -121,9 +83,9 @@ func TestUnassignCapabilityFromDomainHandler_AssignmentNotFound_ReturnsError(t *
 }
 
 func TestUnassignCapabilityFromDomainHandler_InvalidCommand_ReturnsError(t *testing.T) {
-	mockRepo := &mockAssignmentRepositoryForUnassign{}
+	mockRepo := &mockUnassignCapabilityRepository{}
 
-	handler := newTestableUnassignCapabilityFromDomainHandler(mockRepo)
+	handler := NewUnassignCapabilityFromDomainHandler(mockRepo)
 
 	invalidCmd := &commands.DeleteBusinessDomain{}
 

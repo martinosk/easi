@@ -9,11 +9,15 @@ import (
 	"easi/backend/internal/shared/cqrs"
 )
 
-type ClearElementColorHandler struct {
-	layoutRepository *repositories.ViewLayoutRepository
+type ElementColorClearer interface {
+	ClearElementColor(ctx context.Context, viewID, elementID string, elementType repositories.ElementType) error
 }
 
-func NewClearElementColorHandler(layoutRepository *repositories.ViewLayoutRepository) *ClearElementColorHandler {
+type ClearElementColorHandler struct {
+	layoutRepository ElementColorClearer
+}
+
+func NewClearElementColorHandler(layoutRepository ElementColorClearer) *ClearElementColorHandler {
 	return &ClearElementColorHandler{
 		layoutRepository: layoutRepository,
 	}

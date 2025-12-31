@@ -5,15 +5,18 @@ import (
 
 	"easi/backend/internal/architectureviews/application/commands"
 	"easi/backend/internal/architectureviews/domain/valueobjects"
-	"easi/backend/internal/architectureviews/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
-type UpdateViewColorSchemeHandler struct {
-	layoutRepository *repositories.ViewLayoutRepository
+type ColorSchemeUpdater interface {
+	UpdateColorScheme(ctx context.Context, viewID, colorScheme string) error
 }
 
-func NewUpdateViewColorSchemeHandler(layoutRepository *repositories.ViewLayoutRepository) *UpdateViewColorSchemeHandler {
+type UpdateViewColorSchemeHandler struct {
+	layoutRepository ColorSchemeUpdater
+}
+
+func NewUpdateViewColorSchemeHandler(layoutRepository ColorSchemeUpdater) *UpdateViewColorSchemeHandler {
 	return &UpdateViewColorSchemeHandler{
 		layoutRepository: layoutRepository,
 	}

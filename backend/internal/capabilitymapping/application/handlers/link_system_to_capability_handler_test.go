@@ -8,18 +8,19 @@ import (
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
+	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type mockRealizationRepository struct {
+type mockLinkSystemRealizationRepository struct {
 	savedRealizations []*aggregates.CapabilityRealization
 	saveErr           error
 }
 
-func (m *mockRealizationRepository) Save(ctx context.Context, realization *aggregates.CapabilityRealization) error {
+func (m *mockLinkSystemRealizationRepository) Save(ctx context.Context, realization *aggregates.CapabilityRealization) error {
 	if m.saveErr != nil {
 		return m.saveErr
 	}
@@ -27,110 +28,28 @@ func (m *mockRealizationRepository) Save(ctx context.Context, realization *aggre
 	return nil
 }
 
-type mockCapabilityRepositoryForLink struct {
+type mockLinkSystemCapabilityRepository struct {
 	capability *aggregates.Capability
 	getByIDErr error
 }
 
-func (m *mockCapabilityRepositoryForLink) GetByID(ctx context.Context, id string) (*aggregates.Capability, error) {
+func (m *mockLinkSystemCapabilityRepository) GetByID(ctx context.Context, id string) (*aggregates.Capability, error) {
 	if m.getByIDErr != nil {
 		return nil, m.getByIDErr
 	}
 	return m.capability, nil
 }
 
-type mockComponentReadModel struct {
+type mockLinkSystemComponentReadModel struct {
 	component *archReadModels.ApplicationComponentDTO
 	getErr    error
 }
 
-func (m *mockComponentReadModel) GetByID(ctx context.Context, id string) (*archReadModels.ApplicationComponentDTO, error) {
+func (m *mockLinkSystemComponentReadModel) GetByID(ctx context.Context, id string) (*archReadModels.ApplicationComponentDTO, error) {
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
 	return m.component, nil
-}
-
-type capabilityRepositoryForLink interface {
-	GetByID(ctx context.Context, id string) (*aggregates.Capability, error)
-}
-
-type realizationRepository interface {
-	Save(ctx context.Context, realization *aggregates.CapabilityRealization) error
-}
-
-type componentReadModelForLink interface {
-	GetByID(ctx context.Context, id string) (*archReadModels.ApplicationComponentDTO, error)
-}
-
-type testableLinkSystemToCapabilityHandler struct {
-	realizationRepository realizationRepository
-	capabilityRepository  capabilityRepositoryForLink
-	componentReadModel    componentReadModelForLink
-}
-
-func newTestableLinkSystemToCapabilityHandler(
-	realizationRepository realizationRepository,
-	capabilityRepository capabilityRepositoryForLink,
-	componentReadModel componentReadModelForLink,
-) *testableLinkSystemToCapabilityHandler {
-	return &testableLinkSystemToCapabilityHandler{
-		realizationRepository: realizationRepository,
-		capabilityRepository:  capabilityRepository,
-		componentReadModel:    componentReadModel,
-	}
-}
-
-func (h *testableLinkSystemToCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
-	command, ok := cmd.(*commands.LinkSystemToCapability)
-	if !ok {
-		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
-	}
-
-	capabilityID, err := valueobjects.NewCapabilityIDFromString(command.CapabilityID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	componentID, err := valueobjects.NewComponentIDFromString(command.ComponentID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	_, err = h.capabilityRepository.GetByID(ctx, capabilityID.Value())
-	if err != nil {
-		return cqrs.EmptyResult(), ErrCapabilityNotFoundForRealization
-	}
-
-	component, err := h.componentReadModel.GetByID(ctx, componentID.Value())
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	if component == nil {
-		return cqrs.EmptyResult(), ErrComponentNotFound
-	}
-
-	realizationLevel, err := valueobjects.NewRealizationLevel(command.RealizationLevel)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	notes := valueobjects.MustNewDescription(command.Notes)
-
-	realization, err := aggregates.NewCapabilityRealization(
-		capabilityID,
-		componentID,
-		realizationLevel,
-		notes,
-	)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := h.realizationRepository.Save(ctx, realization); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	return cqrs.NewResult(realization.ID()), nil
 }
 
 func createTestCapabilityForLink(t *testing.T, level string, parentID string) *aggregates.Capability {
@@ -163,18 +82,18 @@ func TestLinkSystemToCapabilityHandler_CreatesRealization(t *testing.T) {
 
 	componentID := valueobjects.NewCapabilityID().Value()
 
-	mockCapRepo := &mockCapabilityRepositoryForLink{
+	mockCapRepo := &mockLinkSystemCapabilityRepository{
 		capability: l1Capability,
 	}
-	mockRealRepo := &mockRealizationRepository{}
-	mockCompReadModel := &mockComponentReadModel{
+	mockRealRepo := &mockLinkSystemRealizationRepository{}
+	mockCompReadModel := &mockLinkSystemComponentReadModel{
 		component: &archReadModels.ApplicationComponentDTO{
 			ID:   componentID,
 			Name: "Test Component",
 		},
 	}
 
-	handler := newTestableLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCompReadModel)
+	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCompReadModel)
 
 	cmd := &commands.LinkSystemToCapability{
 		CapabilityID:     l1CapabilityID,
@@ -200,18 +119,18 @@ func TestLinkSystemToCapabilityHandler_ReturnsCreatedID(t *testing.T) {
 
 	componentID := valueobjects.NewCapabilityID().Value()
 
-	mockCapRepo := &mockCapabilityRepositoryForLink{
+	mockCapRepo := &mockLinkSystemCapabilityRepository{
 		capability: l1Capability,
 	}
-	mockRealRepo := &mockRealizationRepository{}
-	mockCompReadModel := &mockComponentReadModel{
+	mockRealRepo := &mockLinkSystemRealizationRepository{}
+	mockCompReadModel := &mockLinkSystemComponentReadModel{
 		component: &archReadModels.ApplicationComponentDTO{
 			ID:   componentID,
 			Name: "Test Component",
 		},
 	}
 
-	handler := newTestableLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCompReadModel)
+	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCompReadModel)
 
 	cmd := &commands.LinkSystemToCapability{
 		CapabilityID:     l1CapabilityID,
@@ -233,15 +152,15 @@ func TestLinkSystemToCapabilityHandler_ComponentNotFound_ReturnsError(t *testing
 
 	componentID := valueobjects.NewCapabilityID().Value()
 
-	mockCapRepo := &mockCapabilityRepositoryForLink{
+	mockCapRepo := &mockLinkSystemCapabilityRepository{
 		capability: l1Capability,
 	}
-	mockRealRepo := &mockRealizationRepository{}
-	mockCompReadModel := &mockComponentReadModel{
+	mockRealRepo := &mockLinkSystemRealizationRepository{}
+	mockCompReadModel := &mockLinkSystemComponentReadModel{
 		component: nil,
 	}
 
-	handler := newTestableLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCompReadModel)
+	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCompReadModel)
 
 	cmd := &commands.LinkSystemToCapability{
 		CapabilityID:     l1CapabilityID,
@@ -254,12 +173,40 @@ func TestLinkSystemToCapabilityHandler_ComponentNotFound_ReturnsError(t *testing
 	assert.ErrorIs(t, err, ErrComponentNotFound)
 }
 
-func TestLinkSystemToCapabilityHandler_InvalidCommand_ReturnsError(t *testing.T) {
-	mockCapRepo := &mockCapabilityRepositoryForLink{}
-	mockRealRepo := &mockRealizationRepository{}
-	mockCompReadModel := &mockComponentReadModel{}
+func TestLinkSystemToCapabilityHandler_CapabilityNotFound_ReturnsError(t *testing.T) {
+	componentID := valueobjects.NewCapabilityID().Value()
+	capabilityID := valueobjects.NewCapabilityID().Value()
 
-	handler := newTestableLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCompReadModel)
+	mockCapRepo := &mockLinkSystemCapabilityRepository{
+		getByIDErr: repositories.ErrCapabilityNotFound,
+	}
+	mockRealRepo := &mockLinkSystemRealizationRepository{}
+	mockCompReadModel := &mockLinkSystemComponentReadModel{
+		component: &archReadModels.ApplicationComponentDTO{
+			ID:   componentID,
+			Name: "Test Component",
+		},
+	}
+
+	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCompReadModel)
+
+	cmd := &commands.LinkSystemToCapability{
+		CapabilityID:     capabilityID,
+		ComponentID:      componentID,
+		RealizationLevel: "Full",
+		Notes:            "",
+	}
+
+	_, err := handler.Handle(context.Background(), cmd)
+	assert.ErrorIs(t, err, ErrCapabilityNotFoundForRealization)
+}
+
+func TestLinkSystemToCapabilityHandler_InvalidCommand_ReturnsError(t *testing.T) {
+	mockCapRepo := &mockLinkSystemCapabilityRepository{}
+	mockRealRepo := &mockLinkSystemRealizationRepository{}
+	mockCompReadModel := &mockLinkSystemComponentReadModel{}
+
+	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCompReadModel)
 
 	invalidCmd := &commands.DeleteSystemRealization{}
 

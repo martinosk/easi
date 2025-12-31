@@ -7,21 +7,21 @@ import (
 
 	"easi/backend/internal/enterprisearchitecture/application/commands"
 	"easi/backend/internal/enterprisearchitecture/domain/aggregates"
+	"easi/backend/internal/enterprisearchitecture/domain/valueobjects"
 	"easi/backend/internal/enterprisearchitecture/infrastructure/repositories"
-	"easi/backend/internal/shared/cqrs"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type mockEnterpriseCapabilityRepositoryForDelete struct {
+type mockDeleteCapabilityRepository struct {
 	savedCapabilities  []*aggregates.EnterpriseCapability
 	existingCapability *aggregates.EnterpriseCapability
 	saveErr            error
 	getByIDErr         error
 }
 
-func (m *mockEnterpriseCapabilityRepositoryForDelete) Save(ctx context.Context, capability *aggregates.EnterpriseCapability) error {
+func (m *mockDeleteCapabilityRepository) Save(ctx context.Context, capability *aggregates.EnterpriseCapability) error {
 	if m.saveErr != nil {
 		return m.saveErr
 	}
@@ -29,7 +29,7 @@ func (m *mockEnterpriseCapabilityRepositoryForDelete) Save(ctx context.Context, 
 	return nil
 }
 
-func (m *mockEnterpriseCapabilityRepositoryForDelete) GetByID(ctx context.Context, id string) (*aggregates.EnterpriseCapability, error) {
+func (m *mockDeleteCapabilityRepository) GetByID(ctx context.Context, id string) (*aggregates.EnterpriseCapability, error) {
 	if m.getByIDErr != nil {
 		return nil, m.getByIDErr
 	}
@@ -39,52 +39,27 @@ func (m *mockEnterpriseCapabilityRepositoryForDelete) GetByID(ctx context.Contex
 	return nil, repositories.ErrEnterpriseCapabilityNotFound
 }
 
-type enterpriseCapabilityRepositoryForDelete interface {
-	Save(ctx context.Context, capability *aggregates.EnterpriseCapability) error
-	GetByID(ctx context.Context, id string) (*aggregates.EnterpriseCapability, error)
-}
+func createDeleteTestCapability(t *testing.T, name string) *aggregates.EnterpriseCapability {
+	t.Helper()
+	capName, err := valueobjects.NewEnterpriseCapabilityName(name)
+	require.NoError(t, err)
+	description, err := valueobjects.NewDescription("Test description")
+	require.NoError(t, err)
+	category, err := valueobjects.NewCategory("Test")
+	require.NoError(t, err)
 
-type testableDeleteEnterpriseCapabilityHandler struct {
-	repository enterpriseCapabilityRepositoryForDelete
-}
-
-func newTestableDeleteEnterpriseCapabilityHandler(
-	repository enterpriseCapabilityRepositoryForDelete,
-) *testableDeleteEnterpriseCapabilityHandler {
-	return &testableDeleteEnterpriseCapabilityHandler{
-		repository: repository,
-	}
-}
-
-func (h *testableDeleteEnterpriseCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
-	command, ok := cmd.(*commands.DeleteEnterpriseCapability)
-	if !ok {
-		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
-	}
-
-	capability, err := h.repository.GetByID(ctx, command.ID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := capability.Delete(); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := h.repository.Save(ctx, capability); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	return cqrs.EmptyResult(), nil
+	capability, err := aggregates.NewEnterpriseCapability(capName, description, category)
+	require.NoError(t, err)
+	capability.MarkChangesAsCommitted()
+	return capability
 }
 
 func TestDeleteEnterpriseCapabilityHandler_DeletesCapability(t *testing.T) {
-	existingCapability := createTestEnterpriseCapability(t, "To Be Deleted")
+	existingCapability := createDeleteTestCapability(t, "To Be Deleted")
 
-	mockRepo := &mockEnterpriseCapabilityRepositoryForDelete{
-		existingCapability: existingCapability,
-	}
+	mockRepo := &mockDeleteCapabilityRepository{existingCapability: existingCapability}
 
-	handler := newTestableDeleteEnterpriseCapabilityHandler(mockRepo)
+	handler := NewDeleteEnterpriseCapabilityHandler(mockRepo)
 
 	cmd := &commands.DeleteEnterpriseCapability{
 		ID: existingCapability.ID(),
@@ -99,11 +74,9 @@ func TestDeleteEnterpriseCapabilityHandler_DeletesCapability(t *testing.T) {
 }
 
 func TestDeleteEnterpriseCapabilityHandler_NonExistent_ReturnsError(t *testing.T) {
-	mockRepo := &mockEnterpriseCapabilityRepositoryForDelete{
-		getByIDErr: repositories.ErrEnterpriseCapabilityNotFound,
-	}
+	mockRepo := &mockDeleteCapabilityRepository{getByIDErr: repositories.ErrEnterpriseCapabilityNotFound}
 
-	handler := newTestableDeleteEnterpriseCapabilityHandler(mockRepo)
+	handler := NewDeleteEnterpriseCapabilityHandler(mockRepo)
 
 	cmd := &commands.DeleteEnterpriseCapability{
 		ID: "non-existent-id",
@@ -114,14 +87,14 @@ func TestDeleteEnterpriseCapabilityHandler_NonExistent_ReturnsError(t *testing.T
 }
 
 func TestDeleteEnterpriseCapabilityHandler_RepositoryError_ReturnsError(t *testing.T) {
-	existingCapability := createTestEnterpriseCapability(t, "To Be Deleted")
+	existingCapability := createDeleteTestCapability(t, "To Be Deleted")
 
-	mockRepo := &mockEnterpriseCapabilityRepositoryForDelete{
+	mockRepo := &mockDeleteCapabilityRepository{
 		existingCapability: existingCapability,
 		saveErr:            errors.New("save error"),
 	}
 
-	handler := newTestableDeleteEnterpriseCapabilityHandler(mockRepo)
+	handler := NewDeleteEnterpriseCapabilityHandler(mockRepo)
 
 	cmd := &commands.DeleteEnterpriseCapability{
 		ID: existingCapability.ID(),

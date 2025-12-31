@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type mockLayoutRepositoryForClearColor struct {
+type mockElementColorClearer struct {
 	clearElementColorErr    error
 	clearElementColorCalled bool
 	viewID                  string
@@ -20,7 +20,7 @@ type mockLayoutRepositoryForClearColor struct {
 	elementType             repositories.ElementType
 }
 
-func (m *mockLayoutRepositoryForClearColor) ClearElementColor(ctx context.Context, viewID, elementID string, elementType repositories.ElementType) error {
+func (m *mockElementColorClearer) ClearElementColor(ctx context.Context, viewID, elementID string, elementType repositories.ElementType) error {
 	m.clearElementColorCalled = true
 	m.viewID = viewID
 	m.elementID = elementID
@@ -28,42 +28,9 @@ func (m *mockLayoutRepositoryForClearColor) ClearElementColor(ctx context.Contex
 	return m.clearElementColorErr
 }
 
-type layoutRepositoryForClearElementColor interface {
-	ClearElementColor(ctx context.Context, viewID, elementID string, elementType repositories.ElementType) error
-}
-
-type testableClearElementColorHandler struct {
-	layoutRepository layoutRepositoryForClearElementColor
-}
-
-func newTestableClearElementColorHandler(layoutRepository layoutRepositoryForClearElementColor) *testableClearElementColorHandler {
-	return &testableClearElementColorHandler{
-		layoutRepository: layoutRepository,
-	}
-}
-
-func (h *testableClearElementColorHandler) Handle(ctx context.Context, cmd cqrs.Command) error {
-	command, ok := cmd.(*commands.ClearElementColor)
-	if !ok {
-		return cqrs.ErrInvalidCommand
-	}
-
-	var elementType repositories.ElementType
-	switch command.ElementType {
-	case "component":
-		elementType = repositories.ElementTypeComponent
-	case "capability":
-		elementType = repositories.ElementTypeCapability
-	default:
-		return errors.New("invalid element type: must be 'component' or 'capability'")
-	}
-
-	return h.layoutRepository.ClearElementColor(ctx, command.ViewID, command.ElementID, elementType)
-}
-
 func TestClearElementColorHandler_ValidComponent(t *testing.T) {
-	mockRepo := &mockLayoutRepositoryForClearColor{}
-	handler := newTestableClearElementColorHandler(mockRepo)
+	mockRepo := &mockElementColorClearer{}
+	handler := NewClearElementColorHandler(mockRepo)
 
 	cmd := &commands.ClearElementColor{
 		ViewID:      "view-123",
@@ -71,7 +38,7 @@ func TestClearElementColorHandler_ValidComponent(t *testing.T) {
 		ElementType: "component",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 
 	assert.NoError(t, err)
 	assert.True(t, mockRepo.clearElementColorCalled)
@@ -81,8 +48,8 @@ func TestClearElementColorHandler_ValidComponent(t *testing.T) {
 }
 
 func TestClearElementColorHandler_ValidCapability(t *testing.T) {
-	mockRepo := &mockLayoutRepositoryForClearColor{}
-	handler := newTestableClearElementColorHandler(mockRepo)
+	mockRepo := &mockElementColorClearer{}
+	handler := NewClearElementColorHandler(mockRepo)
 
 	cmd := &commands.ClearElementColor{
 		ViewID:      "view-789",
@@ -90,7 +57,7 @@ func TestClearElementColorHandler_ValidCapability(t *testing.T) {
 		ElementType: "capability",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 
 	assert.NoError(t, err)
 	assert.True(t, mockRepo.clearElementColorCalled)
@@ -100,8 +67,8 @@ func TestClearElementColorHandler_ValidCapability(t *testing.T) {
 }
 
 func TestClearElementColorHandler_InvalidElementType(t *testing.T) {
-	mockRepo := &mockLayoutRepositoryForClearColor{}
-	handler := newTestableClearElementColorHandler(mockRepo)
+	mockRepo := &mockElementColorClearer{}
+	handler := NewClearElementColorHandler(mockRepo)
 
 	cmd := &commands.ClearElementColor{
 		ViewID:      "view-123",
@@ -109,7 +76,7 @@ func TestClearElementColorHandler_InvalidElementType(t *testing.T) {
 		ElementType: "invalid-type",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid element type")
@@ -118,10 +85,10 @@ func TestClearElementColorHandler_InvalidElementType(t *testing.T) {
 
 func TestClearElementColorHandler_RepositoryError(t *testing.T) {
 	repositoryErr := errors.New("database connection failed")
-	mockRepo := &mockLayoutRepositoryForClearColor{
+	mockRepo := &mockElementColorClearer{
 		clearElementColorErr: repositoryErr,
 	}
-	handler := newTestableClearElementColorHandler(mockRepo)
+	handler := NewClearElementColorHandler(mockRepo)
 
 	cmd := &commands.ClearElementColor{
 		ViewID:      "view-123",
@@ -129,7 +96,7 @@ func TestClearElementColorHandler_RepositoryError(t *testing.T) {
 		ElementType: "component",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 
 	assert.Error(t, err)
 	assert.Equal(t, repositoryErr, err)
@@ -137,14 +104,14 @@ func TestClearElementColorHandler_RepositoryError(t *testing.T) {
 }
 
 func TestClearElementColorHandler_InvalidCommand(t *testing.T) {
-	mockRepo := &mockLayoutRepositoryForClearColor{}
-	handler := newTestableClearElementColorHandler(mockRepo)
+	mockRepo := &mockElementColorClearer{}
+	handler := NewClearElementColorHandler(mockRepo)
 
 	invalidCmd := &commands.CreateView{
 		Name: "Test",
 	}
 
-	err := handler.Handle(context.Background(), invalidCmd)
+	_, err := handler.Handle(context.Background(), invalidCmd)
 
 	assert.Error(t, err)
 	assert.Equal(t, cqrs.ErrInvalidCommand, err)
@@ -152,8 +119,8 @@ func TestClearElementColorHandler_InvalidCommand(t *testing.T) {
 }
 
 func TestClearElementColorHandler_EmptyViewID(t *testing.T) {
-	mockRepo := &mockLayoutRepositoryForClearColor{}
-	handler := newTestableClearElementColorHandler(mockRepo)
+	mockRepo := &mockElementColorClearer{}
+	handler := NewClearElementColorHandler(mockRepo)
 
 	cmd := &commands.ClearElementColor{
 		ViewID:      "",
@@ -161,7 +128,7 @@ func TestClearElementColorHandler_EmptyViewID(t *testing.T) {
 		ElementType: "component",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 
 	assert.NoError(t, err)
 	assert.True(t, mockRepo.clearElementColorCalled)
@@ -169,8 +136,8 @@ func TestClearElementColorHandler_EmptyViewID(t *testing.T) {
 }
 
 func TestClearElementColorHandler_EmptyElementID(t *testing.T) {
-	mockRepo := &mockLayoutRepositoryForClearColor{}
-	handler := newTestableClearElementColorHandler(mockRepo)
+	mockRepo := &mockElementColorClearer{}
+	handler := NewClearElementColorHandler(mockRepo)
 
 	cmd := &commands.ClearElementColor{
 		ViewID:      "view-123",
@@ -178,7 +145,7 @@ func TestClearElementColorHandler_EmptyElementID(t *testing.T) {
 		ElementType: "component",
 	}
 
-	err := handler.Handle(context.Background(), cmd)
+	_, err := handler.Handle(context.Background(), cmd)
 
 	assert.NoError(t, err)
 	assert.True(t, mockRepo.clearElementColorCalled)

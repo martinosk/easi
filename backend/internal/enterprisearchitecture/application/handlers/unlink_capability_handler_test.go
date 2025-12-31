@@ -9,20 +9,19 @@ import (
 	"easi/backend/internal/enterprisearchitecture/domain/aggregates"
 	"easi/backend/internal/enterprisearchitecture/domain/valueobjects"
 	"easi/backend/internal/enterprisearchitecture/infrastructure/repositories"
-	"easi/backend/internal/shared/cqrs"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type mockEnterpriseCapabilityLinkRepositoryForUnlink struct {
+type mockUnlinkRepository struct {
 	savedLinks   []*aggregates.EnterpriseCapabilityLink
 	existingLink *aggregates.EnterpriseCapabilityLink
 	saveErr      error
 	getByIDErr   error
 }
 
-func (m *mockEnterpriseCapabilityLinkRepositoryForUnlink) Save(ctx context.Context, link *aggregates.EnterpriseCapabilityLink) error {
+func (m *mockUnlinkRepository) Save(ctx context.Context, link *aggregates.EnterpriseCapabilityLink) error {
 	if m.saveErr != nil {
 		return m.saveErr
 	}
@@ -30,7 +29,7 @@ func (m *mockEnterpriseCapabilityLinkRepositoryForUnlink) Save(ctx context.Conte
 	return nil
 }
 
-func (m *mockEnterpriseCapabilityLinkRepositoryForUnlink) GetByID(ctx context.Context, id string) (*aggregates.EnterpriseCapabilityLink, error) {
+func (m *mockUnlinkRepository) GetByID(ctx context.Context, id string) (*aggregates.EnterpriseCapabilityLink, error) {
 	if m.getByIDErr != nil {
 		return nil, m.getByIDErr
 	}
@@ -38,44 +37,6 @@ func (m *mockEnterpriseCapabilityLinkRepositoryForUnlink) GetByID(ctx context.Co
 		return m.existingLink, nil
 	}
 	return nil, repositories.ErrEnterpriseCapabilityLinkNotFound
-}
-
-type enterpriseCapabilityLinkRepositoryForUnlink interface {
-	Save(ctx context.Context, link *aggregates.EnterpriseCapabilityLink) error
-	GetByID(ctx context.Context, id string) (*aggregates.EnterpriseCapabilityLink, error)
-}
-
-type testableUnlinkCapabilityHandler struct {
-	repository enterpriseCapabilityLinkRepositoryForUnlink
-}
-
-func newTestableUnlinkCapabilityHandler(
-	repository enterpriseCapabilityLinkRepositoryForUnlink,
-) *testableUnlinkCapabilityHandler {
-	return &testableUnlinkCapabilityHandler{
-		repository: repository,
-	}
-}
-
-func (h *testableUnlinkCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
-	command, ok := cmd.(*commands.UnlinkCapability)
-	if !ok {
-		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
-	}
-
-	link, err := h.repository.GetByID(ctx, command.LinkID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := link.Unlink(); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := h.repository.Save(ctx, link); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	return cqrs.EmptyResult(), nil
 }
 
 func createTestEnterpriseCapabilityLink(t *testing.T, enterpriseCapabilityName string) *aggregates.EnterpriseCapabilityLink {
@@ -94,11 +55,9 @@ func createTestEnterpriseCapabilityLink(t *testing.T, enterpriseCapabilityName s
 func TestUnlinkCapabilityHandler_UnlinksCapability(t *testing.T) {
 	existingLink := createTestEnterpriseCapabilityLink(t, "Enterprise Capability")
 
-	mockRepo := &mockEnterpriseCapabilityLinkRepositoryForUnlink{
-		existingLink: existingLink,
-	}
+	mockRepo := &mockUnlinkRepository{existingLink: existingLink}
 
-	handler := newTestableUnlinkCapabilityHandler(mockRepo)
+	handler := NewUnlinkCapabilityHandler(mockRepo)
 
 	cmd := &commands.UnlinkCapability{
 		LinkID: existingLink.ID(),
@@ -111,11 +70,9 @@ func TestUnlinkCapabilityHandler_UnlinksCapability(t *testing.T) {
 }
 
 func TestUnlinkCapabilityHandler_NonExistentLink_ReturnsError(t *testing.T) {
-	mockRepo := &mockEnterpriseCapabilityLinkRepositoryForUnlink{
-		getByIDErr: repositories.ErrEnterpriseCapabilityLinkNotFound,
-	}
+	mockRepo := &mockUnlinkRepository{getByIDErr: repositories.ErrEnterpriseCapabilityLinkNotFound}
 
-	handler := newTestableUnlinkCapabilityHandler(mockRepo)
+	handler := NewUnlinkCapabilityHandler(mockRepo)
 
 	cmd := &commands.UnlinkCapability{
 		LinkID: "non-existent-link-id",
@@ -128,12 +85,12 @@ func TestUnlinkCapabilityHandler_NonExistentLink_ReturnsError(t *testing.T) {
 func TestUnlinkCapabilityHandler_RepositoryError_ReturnsError(t *testing.T) {
 	existingLink := createTestEnterpriseCapabilityLink(t, "Enterprise Capability")
 
-	mockRepo := &mockEnterpriseCapabilityLinkRepositoryForUnlink{
+	mockRepo := &mockUnlinkRepository{
 		existingLink: existingLink,
 		saveErr:      errors.New("save error"),
 	}
 
-	handler := newTestableUnlinkCapabilityHandler(mockRepo)
+	handler := NewUnlinkCapabilityHandler(mockRepo)
 
 	cmd := &commands.UnlinkCapability{
 		LinkID: existingLink.ID(),

@@ -4,17 +4,22 @@ import (
 	"context"
 
 	"easi/backend/internal/enterprisearchitecture/application/commands"
+	"easi/backend/internal/enterprisearchitecture/domain/aggregates"
 	"easi/backend/internal/enterprisearchitecture/domain/valueobjects"
-	"easi/backend/internal/enterprisearchitecture/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
+type UpdateImportanceRepository interface {
+	Save(ctx context.Context, importance *aggregates.EnterpriseStrategicImportance) error
+	GetByID(ctx context.Context, id string) (*aggregates.EnterpriseStrategicImportance, error)
+}
+
 type UpdateEnterpriseStrategicImportanceHandler struct {
-	repository *repositories.EnterpriseStrategicImportanceRepository
+	repository UpdateImportanceRepository
 }
 
 func NewUpdateEnterpriseStrategicImportanceHandler(
-	repository *repositories.EnterpriseStrategicImportanceRepository,
+	repository UpdateImportanceRepository,
 ) *UpdateEnterpriseStrategicImportanceHandler {
 	return &UpdateEnterpriseStrategicImportanceHandler{
 		repository: repository,

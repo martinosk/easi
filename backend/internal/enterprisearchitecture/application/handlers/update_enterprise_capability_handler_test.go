@@ -9,20 +9,19 @@ import (
 	"easi/backend/internal/enterprisearchitecture/domain/aggregates"
 	"easi/backend/internal/enterprisearchitecture/domain/valueobjects"
 	"easi/backend/internal/enterprisearchitecture/infrastructure/repositories"
-	"easi/backend/internal/shared/cqrs"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type mockEnterpriseCapabilityRepositoryForUpdate struct {
+type mockUpdateCapabilityRepository struct {
 	savedCapabilities  []*aggregates.EnterpriseCapability
 	existingCapability *aggregates.EnterpriseCapability
 	saveErr            error
 	getByIDErr         error
 }
 
-func (m *mockEnterpriseCapabilityRepositoryForUpdate) Save(ctx context.Context, capability *aggregates.EnterpriseCapability) error {
+func (m *mockUpdateCapabilityRepository) Save(ctx context.Context, capability *aggregates.EnterpriseCapability) error {
 	if m.saveErr != nil {
 		return m.saveErr
 	}
@@ -30,7 +29,7 @@ func (m *mockEnterpriseCapabilityRepositoryForUpdate) Save(ctx context.Context, 
 	return nil
 }
 
-func (m *mockEnterpriseCapabilityRepositoryForUpdate) GetByID(ctx context.Context, id string) (*aggregates.EnterpriseCapability, error) {
+func (m *mockUpdateCapabilityRepository) GetByID(ctx context.Context, id string) (*aggregates.EnterpriseCapability, error) {
 	if m.getByIDErr != nil {
 		return nil, m.getByIDErr
 	}
@@ -40,13 +39,13 @@ func (m *mockEnterpriseCapabilityRepositoryForUpdate) GetByID(ctx context.Contex
 	return nil, repositories.ErrEnterpriseCapabilityNotFound
 }
 
-type mockEnterpriseCapabilityReadModelForUpdate struct {
+type mockUpdateCapabilityReadModel struct {
 	nameExists      bool
 	checkErr        error
 	excludedIDCheck string
 }
 
-func (m *mockEnterpriseCapabilityReadModelForUpdate) NameExists(ctx context.Context, name, excludeID string) (bool, error) {
+func (m *mockUpdateCapabilityReadModel) NameExists(ctx context.Context, name, excludeID string) (bool, error) {
 	m.excludedIDCheck = excludeID
 	if m.checkErr != nil {
 		return false, m.checkErr
@@ -54,79 +53,28 @@ func (m *mockEnterpriseCapabilityReadModelForUpdate) NameExists(ctx context.Cont
 	return m.nameExists, nil
 }
 
-type enterpriseCapabilityRepositoryForUpdate interface {
-	Save(ctx context.Context, capability *aggregates.EnterpriseCapability) error
-	GetByID(ctx context.Context, id string) (*aggregates.EnterpriseCapability, error)
-}
+func createTestCapability(t *testing.T, name string) *aggregates.EnterpriseCapability {
+	t.Helper()
+	capName, err := valueobjects.NewEnterpriseCapabilityName(name)
+	require.NoError(t, err)
+	description, err := valueobjects.NewDescription("Test description")
+	require.NoError(t, err)
+	category, err := valueobjects.NewCategory("Test")
+	require.NoError(t, err)
 
-type testableUpdateEnterpriseCapabilityHandler struct {
-	repository enterpriseCapabilityRepositoryForUpdate
-	readModel  enterpriseCapabilityReadModelForCreate
-}
-
-func newTestableUpdateEnterpriseCapabilityHandler(
-	repository enterpriseCapabilityRepositoryForUpdate,
-	readModel enterpriseCapabilityReadModelForCreate,
-) *testableUpdateEnterpriseCapabilityHandler {
-	return &testableUpdateEnterpriseCapabilityHandler{
-		repository: repository,
-		readModel:  readModel,
-	}
-}
-
-func (h *testableUpdateEnterpriseCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
-	command, ok := cmd.(*commands.UpdateEnterpriseCapability)
-	if !ok {
-		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
-	}
-
-	exists, err := h.readModel.NameExists(ctx, command.Name, command.ID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	if exists {
-		return cqrs.EmptyResult(), ErrEnterpriseCapabilityNameExists
-	}
-
-	capability, err := h.repository.GetByID(ctx, command.ID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	name, err := valueobjects.NewEnterpriseCapabilityName(command.Name)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	description, err := valueobjects.NewDescription(command.Description)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	category, err := valueobjects.NewCategory(command.Category)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := capability.Update(name, description, category); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := h.repository.Save(ctx, capability); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	return cqrs.EmptyResult(), nil
+	capability, err := aggregates.NewEnterpriseCapability(capName, description, category)
+	require.NoError(t, err)
+	capability.MarkChangesAsCommitted()
+	return capability
 }
 
 func TestUpdateEnterpriseCapabilityHandler_UpdatesCapability(t *testing.T) {
-	existingCapability := createTestEnterpriseCapability(t, "Old Name")
+	existingCapability := createTestCapability(t, "Old Name")
 
-	mockRepo := &mockEnterpriseCapabilityRepositoryForUpdate{
-		existingCapability: existingCapability,
-	}
-	mockReadModel := &mockEnterpriseCapabilityReadModelForUpdate{nameExists: false}
+	mockRepo := &mockUpdateCapabilityRepository{existingCapability: existingCapability}
+	mockReadModel := &mockUpdateCapabilityReadModel{nameExists: false}
 
-	handler := newTestableUpdateEnterpriseCapabilityHandler(mockRepo, mockReadModel)
+	handler := NewUpdateEnterpriseCapabilityHandler(mockRepo, mockReadModel)
 
 	cmd := &commands.UpdateEnterpriseCapability{
 		ID:          existingCapability.ID(),
@@ -146,14 +94,12 @@ func TestUpdateEnterpriseCapabilityHandler_UpdatesCapability(t *testing.T) {
 }
 
 func TestUpdateEnterpriseCapabilityHandler_ExcludesSelfFromDuplicateCheck(t *testing.T) {
-	existingCapability := createTestEnterpriseCapability(t, "Existing Name")
+	existingCapability := createTestCapability(t, "Existing Name")
 
-	mockRepo := &mockEnterpriseCapabilityRepositoryForUpdate{
-		existingCapability: existingCapability,
-	}
-	mockReadModel := &mockEnterpriseCapabilityReadModelForUpdate{nameExists: false}
+	mockRepo := &mockUpdateCapabilityRepository{existingCapability: existingCapability}
+	mockReadModel := &mockUpdateCapabilityReadModel{nameExists: false}
 
-	handler := newTestableUpdateEnterpriseCapabilityHandler(mockRepo, mockReadModel)
+	handler := NewUpdateEnterpriseCapabilityHandler(mockRepo, mockReadModel)
 
 	cmd := &commands.UpdateEnterpriseCapability{
 		ID:          existingCapability.ID(),
@@ -169,14 +115,12 @@ func TestUpdateEnterpriseCapabilityHandler_ExcludesSelfFromDuplicateCheck(t *tes
 }
 
 func TestUpdateEnterpriseCapabilityHandler_DuplicateName_ReturnsError(t *testing.T) {
-	existingCapability := createTestEnterpriseCapability(t, "Existing Name")
+	existingCapability := createTestCapability(t, "Existing Name")
 
-	mockRepo := &mockEnterpriseCapabilityRepositoryForUpdate{
-		existingCapability: existingCapability,
-	}
-	mockReadModel := &mockEnterpriseCapabilityReadModelForUpdate{nameExists: true}
+	mockRepo := &mockUpdateCapabilityRepository{existingCapability: existingCapability}
+	mockReadModel := &mockUpdateCapabilityReadModel{nameExists: true}
 
-	handler := newTestableUpdateEnterpriseCapabilityHandler(mockRepo, mockReadModel)
+	handler := NewUpdateEnterpriseCapabilityHandler(mockRepo, mockReadModel)
 
 	cmd := &commands.UpdateEnterpriseCapability{
 		ID:          existingCapability.ID(),
@@ -191,12 +135,10 @@ func TestUpdateEnterpriseCapabilityHandler_DuplicateName_ReturnsError(t *testing
 }
 
 func TestUpdateEnterpriseCapabilityHandler_NonExistent_ReturnsError(t *testing.T) {
-	mockRepo := &mockEnterpriseCapabilityRepositoryForUpdate{
-		getByIDErr: repositories.ErrEnterpriseCapabilityNotFound,
-	}
-	mockReadModel := &mockEnterpriseCapabilityReadModelForUpdate{nameExists: false}
+	mockRepo := &mockUpdateCapabilityRepository{getByIDErr: repositories.ErrEnterpriseCapabilityNotFound}
+	mockReadModel := &mockUpdateCapabilityReadModel{nameExists: false}
 
-	handler := newTestableUpdateEnterpriseCapabilityHandler(mockRepo, mockReadModel)
+	handler := NewUpdateEnterpriseCapabilityHandler(mockRepo, mockReadModel)
 
 	cmd := &commands.UpdateEnterpriseCapability{
 		ID:          "non-existent-id",
@@ -210,14 +152,12 @@ func TestUpdateEnterpriseCapabilityHandler_NonExistent_ReturnsError(t *testing.T
 }
 
 func TestUpdateEnterpriseCapabilityHandler_ReadModelError_ReturnsError(t *testing.T) {
-	existingCapability := createTestEnterpriseCapability(t, "Existing Name")
+	existingCapability := createTestCapability(t, "Existing Name")
 
-	mockRepo := &mockEnterpriseCapabilityRepositoryForUpdate{
-		existingCapability: existingCapability,
-	}
-	mockReadModel := &mockEnterpriseCapabilityReadModelForUpdate{checkErr: errors.New("database error")}
+	mockRepo := &mockUpdateCapabilityRepository{existingCapability: existingCapability}
+	mockReadModel := &mockUpdateCapabilityReadModel{checkErr: errors.New("database error")}
 
-	handler := newTestableUpdateEnterpriseCapabilityHandler(mockRepo, mockReadModel)
+	handler := NewUpdateEnterpriseCapabilityHandler(mockRepo, mockReadModel)
 
 	cmd := &commands.UpdateEnterpriseCapability{
 		ID:          existingCapability.ID(),
@@ -232,15 +172,15 @@ func TestUpdateEnterpriseCapabilityHandler_ReadModelError_ReturnsError(t *testin
 }
 
 func TestUpdateEnterpriseCapabilityHandler_RepositoryError_ReturnsError(t *testing.T) {
-	existingCapability := createTestEnterpriseCapability(t, "Existing Name")
+	existingCapability := createTestCapability(t, "Existing Name")
 
-	mockRepo := &mockEnterpriseCapabilityRepositoryForUpdate{
+	mockRepo := &mockUpdateCapabilityRepository{
 		existingCapability: existingCapability,
 		saveErr:            errors.New("save error"),
 	}
-	mockReadModel := &mockEnterpriseCapabilityReadModelForUpdate{nameExists: false}
+	mockReadModel := &mockUpdateCapabilityReadModel{nameExists: false}
 
-	handler := newTestableUpdateEnterpriseCapabilityHandler(mockRepo, mockReadModel)
+	handler := NewUpdateEnterpriseCapabilityHandler(mockRepo, mockReadModel)
 
 	cmd := &commands.UpdateEnterpriseCapability{
 		ID:          existingCapability.ID(),

@@ -4,16 +4,21 @@ import (
 	"context"
 
 	"easi/backend/internal/enterprisearchitecture/application/commands"
-	"easi/backend/internal/enterprisearchitecture/infrastructure/repositories"
+	"easi/backend/internal/enterprisearchitecture/domain/aggregates"
 	"easi/backend/internal/shared/cqrs"
 )
 
+type UnlinkRepository interface {
+	Save(ctx context.Context, link *aggregates.EnterpriseCapabilityLink) error
+	GetByID(ctx context.Context, id string) (*aggregates.EnterpriseCapabilityLink, error)
+}
+
 type UnlinkCapabilityHandler struct {
-	repository *repositories.EnterpriseCapabilityLinkRepository
+	repository UnlinkRepository
 }
 
 func NewUnlinkCapabilityHandler(
-	repository *repositories.EnterpriseCapabilityLinkRepository,
+	repository UnlinkRepository,
 ) *UnlinkCapabilityHandler {
 	return &UnlinkCapabilityHandler{
 		repository: repository,

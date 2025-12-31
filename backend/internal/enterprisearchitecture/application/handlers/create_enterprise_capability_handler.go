@@ -5,23 +5,29 @@ import (
 	"errors"
 
 	"easi/backend/internal/enterprisearchitecture/application/commands"
-	"easi/backend/internal/enterprisearchitecture/application/readmodels"
 	"easi/backend/internal/enterprisearchitecture/domain/aggregates"
 	"easi/backend/internal/enterprisearchitecture/domain/valueobjects"
-	"easi/backend/internal/enterprisearchitecture/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
 var ErrEnterpriseCapabilityNameExists = errors.New("enterprise capability with this name already exists")
 
+type CreateCapabilityRepository interface {
+	Save(ctx context.Context, capability *aggregates.EnterpriseCapability) error
+}
+
+type CreateCapabilityReadModel interface {
+	NameExists(ctx context.Context, name, excludeID string) (bool, error)
+}
+
 type CreateEnterpriseCapabilityHandler struct {
-	repository *repositories.EnterpriseCapabilityRepository
-	readModel  *readmodels.EnterpriseCapabilityReadModel
+	repository CreateCapabilityRepository
+	readModel  CreateCapabilityReadModel
 }
 
 func NewCreateEnterpriseCapabilityHandler(
-	repository *repositories.EnterpriseCapabilityRepository,
-	readModel *readmodels.EnterpriseCapabilityReadModel,
+	repository CreateCapabilityRepository,
+	readModel CreateCapabilityReadModel,
 ) *CreateEnterpriseCapabilityHandler {
 	return &CreateEnterpriseCapabilityHandler{
 		repository: repository,
