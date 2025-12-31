@@ -28,6 +28,9 @@ export interface EnterpriseCapabilityLink {
   id: EnterpriseCapabilityLinkId;
   enterpriseCapabilityId: EnterpriseCapabilityId;
   domainCapabilityId: CapabilityId;
+  domainCapabilityName?: string;
+  businessDomainId?: string;
+  businessDomainName?: string;
   linkedBy: string;
   linkedAt: string;
   _links: {

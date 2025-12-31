@@ -1501,6 +1501,15 @@ body {
   font-weight: 600;
 }
 
+.dialog-error {
+  color: var(--color-error);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  background: rgba(239, 68, 68, 0.1);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+}
+
 .dialog-input {
   width: 100%;
   padding: var(--spacing-md);

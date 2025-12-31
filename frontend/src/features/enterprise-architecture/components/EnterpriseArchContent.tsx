@@ -1,7 +1,10 @@
 import React from 'react';
 import { EnterpriseCapabilitiesTable } from './EnterpriseCapabilitiesTable';
 import { EnterpriseCapabilitiesEmptyState } from './EnterpriseCapabilitiesEmptyState';
-import type { EnterpriseCapability } from '../types';
+import { EnterpriseCapabilityDetailPanel } from './EnterpriseCapabilityDetailPanel';
+import { DomainCapabilityDockPanel } from './DomainCapabilityDockPanel';
+import type { EnterpriseCapability, EnterpriseCapabilityId, CapabilityLinkStatusResponse } from '../types';
+import type { Capability } from '../../../api/types';
 
 interface EnterpriseArchContentProps {
   isLoading: boolean;
@@ -13,6 +16,12 @@ interface EnterpriseArchContentProps {
   onSelect: (capability: EnterpriseCapability) => void;
   onDelete: (capability: EnterpriseCapability) => void;
   onCreateNew: () => void;
+  isDockPanelOpen: boolean;
+  domainCapabilities: Capability[];
+  linkStatuses: Map<string, CapabilityLinkStatusResponse>;
+  isLoadingDomainCapabilities: boolean;
+  onCloseDockPanel: () => void;
+  onLinkCapability: (enterpriseCapabilityId: EnterpriseCapabilityId, domainCapability: Capability) => void;
 }
 
 export const EnterpriseArchContent = React.memo<EnterpriseArchContentProps>(({
@@ -25,6 +34,12 @@ export const EnterpriseArchContent = React.memo<EnterpriseArchContentProps>(({
   onSelect,
   onDelete,
   onCreateNew,
+  isDockPanelOpen,
+  domainCapabilities,
+  linkStatuses,
+  isLoadingDomainCapabilities,
+  onCloseDockPanel,
+  onLinkCapability,
 }) => {
   if (isLoading) {
     return (
@@ -43,14 +58,44 @@ export const EnterpriseArchContent = React.memo<EnterpriseArchContentProps>(({
     return <EnterpriseCapabilitiesEmptyState onCreateNew={onCreateNew} canWrite={canWrite} />;
   }
 
+  const hasAnyPanel = selectedCapability || isDockPanelOpen;
+  const hasBothPanels = selectedCapability && isDockPanelOpen;
+
+  const getTableContainerClass = () => {
+    if (hasBothPanels) return 'table-container with-both-panels';
+    if (hasAnyPanel) return 'table-container with-panel';
+    return 'table-container';
+  };
+
   return (
-    <EnterpriseCapabilitiesTable
-      capabilities={capabilities}
-      selectedId={selectedCapability?.id}
-      onSelect={onSelect}
-      onDelete={onDelete}
-      canDelete={canDelete}
-    />
+    <div className="enterprise-arch-content-layout">
+      <div className={getTableContainerClass()}>
+        <EnterpriseCapabilitiesTable
+          capabilities={capabilities}
+          selectedId={selectedCapability?.id}
+          onSelect={onSelect}
+          onDelete={onDelete}
+          canDelete={canDelete}
+          isDockPanelOpen={isDockPanelOpen}
+          onLinkCapability={onLinkCapability}
+        />
+      </div>
+      {selectedCapability && (
+        <EnterpriseCapabilityDetailPanel
+          capability={selectedCapability}
+          canWrite={canWrite}
+          onClose={() => onSelect(selectedCapability)}
+        />
+      )}
+      {isDockPanelOpen && (
+        <DomainCapabilityDockPanel
+          capabilities={domainCapabilities}
+          linkStatuses={linkStatuses}
+          isLoading={isLoadingDomainCapabilities}
+          onClose={onCloseDockPanel}
+        />
+      )}
+    </div>
   );
 });
 

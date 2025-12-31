@@ -6,7 +6,9 @@ import { getErrorMessage } from '../utils/errorMessages';
 import type {
   EnterpriseCapability,
   EnterpriseCapabilityId,
+  EnterpriseCapabilityLinkId,
   CreateEnterpriseCapabilityRequest,
+  LinkCapabilityRequest,
 } from '../types';
 import toast from 'react-hot-toast';
 
@@ -104,6 +106,75 @@ export function useDeleteEnterpriseCapability() {
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, 'Failed to delete capability'));
+    },
+  });
+}
+
+export function useEnterpriseCapabilityLinks(enterpriseCapabilityId: EnterpriseCapabilityId | undefined) {
+  return useQuery({
+    queryKey: queryKeys.enterpriseCapabilities.links(enterpriseCapabilityId!),
+    queryFn: () => enterpriseArchApi.getLinks(enterpriseCapabilityId!),
+    enabled: !!enterpriseCapabilityId,
+  });
+}
+
+export function useLinkDomainCapability() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      enterpriseCapabilityId,
+      request,
+    }: {
+      enterpriseCapabilityId: EnterpriseCapabilityId;
+      request: LinkCapabilityRequest;
+    }) => enterpriseArchApi.linkDomainCapability(enterpriseCapabilityId, request),
+    onSuccess: (_, { enterpriseCapabilityId }) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.enterpriseCapabilities.lists(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.enterpriseCapabilities.detail(enterpriseCapabilityId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.enterpriseCapabilities.links(enterpriseCapabilityId),
+      });
+      toast.success('Capability linked successfully');
+    },
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, 'Failed to link capability'));
+    },
+  });
+}
+
+export function useUnlinkDomainCapability() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      enterpriseCapabilityId,
+      linkId,
+    }: {
+      enterpriseCapabilityId: EnterpriseCapabilityId;
+      linkId: EnterpriseCapabilityLinkId;
+    }) => enterpriseArchApi.unlinkDomainCapability(enterpriseCapabilityId, linkId),
+    onSuccess: (_, { enterpriseCapabilityId }) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.enterpriseCapabilities.lists(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.enterpriseCapabilities.detail(enterpriseCapabilityId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.enterpriseCapabilities.links(enterpriseCapabilityId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['linkStatuses'],
+      });
+      toast.success('Capability unlinked successfully');
+    },
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, 'Failed to unlink capability'));
     },
   });
 }

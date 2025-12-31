@@ -1,5 +1,7 @@
-import React from 'react';
-import type { EnterpriseCapability } from '../types';
+import React, { useState, useCallback } from 'react';
+import toast from 'react-hot-toast';
+import type { EnterpriseCapability, EnterpriseCapabilityId } from '../types';
+import type { Capability } from '../../../api/types';
 
 interface EnterpriseCapabilitiesTableProps {
   capabilities: EnterpriseCapability[];
@@ -7,6 +9,8 @@ interface EnterpriseCapabilitiesTableProps {
   onDelete: (capability: EnterpriseCapability) => void;
   selectedId?: string;
   canDelete?: boolean;
+  isDockPanelOpen?: boolean;
+  onLinkCapability?: (enterpriseCapabilityId: EnterpriseCapabilityId, domainCapability: Capability) => void;
 }
 
 export const EnterpriseCapabilitiesTable = React.memo<EnterpriseCapabilitiesTableProps>(({
@@ -14,13 +18,54 @@ export const EnterpriseCapabilitiesTable = React.memo<EnterpriseCapabilitiesTabl
   onSelect,
   onDelete,
   selectedId,
-  canDelete = false
+  canDelete = false,
+  isDockPanelOpen = false,
+  onLinkCapability,
 }) => {
+  const [dragOverRowId, setDragOverRowId] = useState<string | null>(null);
+
   const handleKeyDown = (e: React.KeyboardEvent, capability: EnterpriseCapability) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       onSelect(capability);
     }
+  };
+
+  const handleDragOver = useCallback((e: React.DragEvent, capabilityId: string) => {
+    if (!isDockPanelOpen) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverRowId(capabilityId);
+  }, [isDockPanelOpen]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    if (!isDockPanelOpen) return;
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (!relatedTarget || !e.currentTarget.contains(relatedTarget)) {
+      setDragOverRowId(null);
+    }
+  }, [isDockPanelOpen]);
+
+  const handleDrop = useCallback((e: React.DragEvent, enterpriseCapability: EnterpriseCapability) => {
+    if (!isDockPanelOpen || !onLinkCapability) return;
+    e.preventDefault();
+    setDragOverRowId(null);
+
+    try {
+      const data = e.dataTransfer.getData('application/json');
+      if (!data) return;
+      const domainCapability = JSON.parse(data) as Capability;
+      onLinkCapability(enterpriseCapability.id, domainCapability);
+    } catch {
+      toast.error('Invalid drag data');
+    }
+  }, [isDockPanelOpen, onLinkCapability]);
+
+  const getRowClassName = (capability: EnterpriseCapability) => {
+    const classes: string[] = [];
+    if (selectedId === capability.id) classes.push('selected');
+    if (dragOverRowId === capability.id) classes.push('drag-over');
+    return classes.join(' ');
   };
 
   return (
@@ -39,9 +84,12 @@ export const EnterpriseCapabilitiesTable = React.memo<EnterpriseCapabilitiesTabl
           {capabilities.map((capability) => (
             <tr
               key={capability.id}
-              className={selectedId === capability.id ? 'selected' : ''}
+              className={getRowClassName(capability)}
               onClick={() => onSelect(capability)}
               onKeyDown={(e) => handleKeyDown(e, capability)}
+              onDragOver={(e) => handleDragOver(e, capability.id)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, capability)}
               tabIndex={0}
               role="button"
               aria-label={`Select enterprise capability ${capability.name}`}

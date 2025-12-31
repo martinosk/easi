@@ -9,6 +9,7 @@ interface ConfirmationDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
   isLoading?: boolean;
+  error?: string | null;
 }
 
 export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
@@ -20,6 +21,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   onConfirm,
   onCancel,
   isLoading = false,
+  error = null,
 }) => {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -49,7 +51,8 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
         <h3 id="dialog-title">{title}</h3>
         <p id="dialog-description">{message}</p>
         {itemName && <p className="dialog-item-name">"{itemName}"</p>}
-        <p className="dialog-warning">This action cannot be undone.</p>
+        {error && <p className="dialog-error">{error}</p>}
+        {!error && <p className="dialog-warning">This action cannot be undone.</p>}
         <div className="dialog-actions">
           <button
             onClick={onCancel}

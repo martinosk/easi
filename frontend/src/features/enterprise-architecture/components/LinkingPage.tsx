@@ -1,97 +1,60 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { EnterpriseCapabilityLinkingPanel } from './EnterpriseCapabilityLinkingPanel';
 import { DomainCapabilityPanel } from './DomainCapabilityPanel';
 import { enterpriseArchApi } from '../api/enterpriseArchApi';
 import { capabilitiesApi } from '../../capabilities/api/capabilitiesApi';
-import type { EnterpriseCapability, EnterpriseCapabilityId, CapabilityLinkStatusResponse } from '../types';
+import { queryKeys } from '../../../lib/queryClient';
+import { useEnterpriseCapabilitiesQuery, useLinkDomainCapability } from '../hooks/useEnterpriseCapabilities';
+import type { EnterpriseCapabilityId, CapabilityLinkStatusResponse } from '../types';
 import type { Capability } from '../../../api/types';
 
 function useLinkingData() {
-  const [enterpriseCapabilities, setEnterpriseCapabilities] = useState<EnterpriseCapability[]>([]);
-  const [domainCapabilities, setDomainCapabilities] = useState<Capability[]>([]);
-  const [linkStatuses, setLinkStatuses] = useState<Map<string, CapabilityLinkStatusResponse>>(new Map());
-  const [isLoadingEnterprise, setIsLoadingEnterprise] = useState(true);
-  const [isLoadingDomain, setIsLoadingDomain] = useState(true);
-  const [isLoadingStatuses, setIsLoadingStatuses] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const initialLoadDone = useRef(false);
+  const queryClient = useQueryClient();
 
-  const loadEnterpriseCapabilities = useCallback(async () => {
-    try {
-      setIsLoadingEnterprise(true);
-      setError(null);
-      const capabilities = await enterpriseArchApi.getAll();
-      setEnterpriseCapabilities(capabilities);
-    } catch (err) {
-      console.error('Failed to load enterprise capabilities:', err);
-      setError('Failed to load enterprise capabilities');
-    } finally {
-      setIsLoadingEnterprise(false);
-    }
-  }, []);
+  const enterpriseQuery = useEnterpriseCapabilitiesQuery();
 
-  const loadDomainCapabilities = useCallback(async () => {
-    try {
-      setIsLoadingDomain(true);
-      setError(null);
-      const capabilities = await capabilitiesApi.getAll();
-      setDomainCapabilities(capabilities);
-      return capabilities;
-    } catch (err) {
-      console.error('Failed to load domain capabilities:', err);
-      setError('Failed to load domain capabilities');
-      return [];
-    } finally {
-      setIsLoadingDomain(false);
-    }
-  }, []);
+  const domainQuery = useQuery({
+    queryKey: queryKeys.capabilities.lists(),
+    queryFn: () => capabilitiesApi.getAll(),
+  });
 
-  const loadLinkStatuses = useCallback(async (capabilities: Capability[]) => {
-    if (capabilities.length === 0) {
-      setLinkStatuses(new Map());
-      return;
-    }
-    try {
-      setIsLoadingStatuses(true);
-      const statuses = await enterpriseArchApi.getBatchLinkStatus(capabilities.map((c) => c.id));
-      setLinkStatuses(new Map(statuses.map((s) => [s.capabilityId, s])));
-    } catch (err) {
-      console.error('Failed to load link statuses:', err);
-    } finally {
-      setIsLoadingStatuses(false);
-    }
-  }, []);
+  const domainCapabilityIds = useMemo(
+    () => domainQuery.data?.map((c) => c.id) ?? [],
+    [domainQuery.data]
+  );
 
-  const refreshAll = useCallback(async () => {
-    await loadEnterpriseCapabilities();
-    const capabilities = await loadDomainCapabilities();
-    await loadLinkStatuses(capabilities);
-  }, [loadEnterpriseCapabilities, loadDomainCapabilities, loadLinkStatuses]);
+  const linkStatusQuery = useQuery({
+    queryKey: ['linkStatuses', domainCapabilityIds],
+    queryFn: () => enterpriseArchApi.getBatchLinkStatus(domainCapabilityIds),
+    enabled: domainCapabilityIds.length > 0,
+  });
 
-  useEffect(() => {
-    if (!initialLoadDone.current) {
-      initialLoadDone.current = true;
-      refreshAll();
-    }
-  }, []);
+  const linkStatuses = useMemo(() => {
+    if (!linkStatusQuery.data) return new Map<string, CapabilityLinkStatusResponse>();
+    return new Map(linkStatusQuery.data.map((s) => [s.capabilityId, s]));
+  }, [linkStatusQuery.data]);
 
-  const handleLinkCapability = useCallback(async (enterpriseCapabilityId: EnterpriseCapabilityId, domainCapability: Capability) => {
-    try {
-      await enterpriseArchApi.linkDomainCapability(enterpriseCapabilityId, { domainCapabilityId: domainCapability.id });
-      await refreshAll();
-    } catch (err) {
-      console.error('Failed to link capability:', err);
-      setError('Failed to link capability');
-    }
-  }, [refreshAll]);
+  const linkMutation = useLinkDomainCapability();
+
+  const handleLinkCapability = useCallback(
+    async (enterpriseCapabilityId: EnterpriseCapabilityId, domainCapability: Capability) => {
+      await linkMutation.mutateAsync({
+        enterpriseCapabilityId,
+        request: { domainCapabilityId: domainCapability.id },
+      });
+      queryClient.invalidateQueries({ queryKey: ['linkStatuses'] });
+    },
+    [linkMutation, queryClient]
+  );
 
   return {
-    enterpriseCapabilities,
-    domainCapabilities,
+    enterpriseCapabilities: enterpriseQuery.data ?? [],
+    domainCapabilities: domainQuery.data ?? [],
     linkStatuses,
-    isLoadingEnterprise,
-    isLoadingDomain: isLoadingDomain || isLoadingStatuses,
-    error,
+    isLoadingEnterprise: enterpriseQuery.isLoading,
+    isLoadingDomain: domainQuery.isLoading || linkStatusQuery.isLoading,
+    error: enterpriseQuery.error?.message || domainQuery.error?.message || null,
     handleLinkCapability,
   };
 }

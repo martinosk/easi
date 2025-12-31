@@ -74,6 +74,22 @@ func (rm *EnterpriseCapabilityLinkReadModel) DeleteByDomainCapabilityID(ctx cont
 	return rm.execByID(ctx, "DELETE FROM enterprise_capability_links WHERE tenant_id = $1 AND domain_capability_id = $2", domainCapabilityID)
 }
 
+func (rm *EnterpriseCapabilityLinkReadModel) CountByEnterpriseCapabilityID(ctx context.Context, enterpriseCapabilityID string) (int, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	var count int
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		return tx.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM enterprise_capability_links WHERE tenant_id = $1 AND enterprise_capability_id = $2`,
+			tenantID.Value(), enterpriseCapabilityID,
+		).Scan(&count)
+	})
+	return count, err
+}
+
 func (rm *EnterpriseCapabilityLinkReadModel) GetByEnterpriseCapabilityID(ctx context.Context, enterpriseCapabilityID string) ([]EnterpriseCapabilityLinkDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
@@ -83,10 +99,30 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetByEnterpriseCapabilityID(ctx con
 	var links []EnterpriseCapabilityLinkDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			`SELECT ecl.id, ecl.enterprise_capability_id, ecl.domain_capability_id, ecl.linked_by, ecl.linked_at
+			`SELECT ecl.id, ecl.enterprise_capability_id, ecl.domain_capability_id, ecl.linked_by, ecl.linked_at,
+			        c.name, dca.business_domain_id, dca.business_domain_name
 			 FROM enterprise_capability_links ecl
+			 JOIN capabilities c ON c.id = ecl.domain_capability_id AND c.tenant_id = ecl.tenant_id
+			 LEFT JOIN domain_capability_assignments dca ON dca.capability_id = (
+			     CASE c.level
+			         WHEN 'L1' THEN c.id
+			         ELSE (
+			             WITH RECURSIVE ancestors AS (
+			                 SELECT id, parent_id, level, 1 as depth
+			                 FROM capabilities
+			                 WHERE tenant_id = $1 AND id = c.id
+			                 UNION ALL
+			                 SELECT cap.id, cap.parent_id, cap.level, a.depth + 1
+			                 FROM capabilities cap
+			                 INNER JOIN ancestors a ON cap.id = a.parent_id AND cap.tenant_id = $1
+			                 WHERE a.depth < 10
+			             )
+			             SELECT id FROM ancestors WHERE level = 'L1' LIMIT 1
+			         )
+			     END
+			 ) AND dca.tenant_id = ecl.tenant_id
 			 WHERE ecl.tenant_id = $1 AND ecl.enterprise_capability_id = $2
-			 ORDER BY ecl.linked_at DESC`,
+			 ORDER BY dca.business_domain_name NULLS LAST, c.name`,
 			tenantID.Value(), enterpriseCapabilityID,
 		)
 		if err != nil {
@@ -96,8 +132,23 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetByEnterpriseCapabilityID(ctx con
 
 		for rows.Next() {
 			var dto EnterpriseCapabilityLinkDTO
-			if err := rows.Scan(&dto.ID, &dto.EnterpriseCapabilityID, &dto.DomainCapabilityID, &dto.LinkedBy, &dto.LinkedAt); err != nil {
+			var domainCapName sql.NullString
+			var businessDomainID, businessDomainName sql.NullString
+			if err := rows.Scan(
+				&dto.ID, &dto.EnterpriseCapabilityID, &dto.DomainCapabilityID,
+				&dto.LinkedBy, &dto.LinkedAt,
+				&domainCapName, &businessDomainID, &businessDomainName,
+			); err != nil {
 				return err
+			}
+			if domainCapName.Valid {
+				dto.DomainCapabilityName = domainCapName.String
+			}
+			if businessDomainID.Valid {
+				dto.BusinessDomainID = businessDomainID.String
+			}
+			if businessDomainName.Valid {
+				dto.BusinessDomainName = businessDomainName.String
 			}
 			links = append(links, dto)
 		}

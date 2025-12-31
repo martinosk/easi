@@ -1,11 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LinkingPage } from './LinkingPage';
 import { enterpriseArchApi } from '../api/enterpriseArchApi';
 import { capabilitiesApi } from '../../capabilities/api/capabilitiesApi';
 
 vi.mock('../api/enterpriseArchApi');
 vi.mock('../../capabilities/api/capabilitiesApi');
+vi.mock('react-hot-toast', () => ({
+  default: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+      mutations: {
+        retry: false,
+      },
+    },
+  });
+}
+
+function renderWithQueryClient(ui: React.ReactNode) {
+  const queryClient = createTestQueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+  );
+}
 
 describe('LinkingPage', () => {
   beforeEach(() => {
@@ -23,7 +50,7 @@ describe('LinkingPage', () => {
           domainCount: 0,
           createdAt: '2025-01-01T00:00:00Z',
           updatedAt: '2025-01-01T00:00:00Z',
-          _links: { self: { href: '/api/v1/enterprise-capabilities/ec-1' } },
+          _links: { self: '/api/v1/enterprise-capabilities/ec-1', links: '', strategicImportance: '' },
         },
       ];
 
@@ -31,7 +58,7 @@ describe('LinkingPage', () => {
       vi.mocked(capabilitiesApi.getAll).mockResolvedValue([]);
       vi.mocked(enterpriseArchApi.getBatchLinkStatus).mockResolvedValue([]);
 
-      render(<LinkingPage />);
+      renderWithQueryClient(<LinkingPage />);
 
       await waitFor(() => {
         expect(enterpriseArchApi.getAll).toHaveBeenCalledTimes(1);
@@ -47,7 +74,7 @@ describe('LinkingPage', () => {
           status: 'active' as const,
           createdAt: '2025-01-01T00:00:00Z',
           updatedAt: '2025-01-01T00:00:00Z',
-          _links: { self: { href: '/api/v1/capabilities/cap-1' } },
+          _links: { self: '/api/v1/capabilities/cap-1' },
         },
       ];
 
@@ -55,7 +82,7 @@ describe('LinkingPage', () => {
       vi.mocked(capabilitiesApi.getAll).mockResolvedValue(mockDomainCapabilities);
       vi.mocked(enterpriseArchApi.getBatchLinkStatus).mockResolvedValue([]);
 
-      render(<LinkingPage />);
+      renderWithQueryClient(<LinkingPage />);
 
       await waitFor(() => {
         expect(capabilitiesApi.getAll).toHaveBeenCalledTimes(1);
@@ -71,7 +98,7 @@ describe('LinkingPage', () => {
           status: 'active' as const,
           createdAt: '2025-01-01T00:00:00Z',
           updatedAt: '2025-01-01T00:00:00Z',
-          _links: { self: { href: '/api/v1/capabilities/cap-1' } },
+          _links: { self: '/api/v1/capabilities/cap-1' },
         },
       ];
 
@@ -81,14 +108,14 @@ describe('LinkingPage', () => {
         { capabilityId: 'cap-1', status: 'available' },
       ]);
 
-      render(<LinkingPage />);
+      renderWithQueryClient(<LinkingPage />);
 
       await waitFor(() => {
         expect(enterpriseArchApi.getBatchLinkStatus).toHaveBeenCalledWith(['cap-1']);
       });
     });
 
-    it('shows enterprise capabilities panel with loading state initially', () => {
+    it('shows loading state initially', () => {
       vi.mocked(enterpriseArchApi.getAll).mockImplementation(
         () => new Promise(() => {})
       );
@@ -96,7 +123,7 @@ describe('LinkingPage', () => {
         () => new Promise(() => {})
       );
 
-      render(<LinkingPage />);
+      renderWithQueryClient(<LinkingPage />);
 
       expect(screen.queryByText('Loading domain capabilities...')).toBeInTheDocument();
     });
@@ -111,7 +138,7 @@ describe('LinkingPage', () => {
           domainCount: 0,
           createdAt: '2025-01-01T00:00:00Z',
           updatedAt: '2025-01-01T00:00:00Z',
-          _links: { self: { href: '/api/v1/enterprise-capabilities/ec-1' } },
+          _links: { self: '/api/v1/enterprise-capabilities/ec-1', links: '', strategicImportance: '' },
         },
       ];
 
@@ -119,7 +146,7 @@ describe('LinkingPage', () => {
       vi.mocked(capabilitiesApi.getAll).mockResolvedValue([]);
       vi.mocked(enterpriseArchApi.getBatchLinkStatus).mockResolvedValue([]);
 
-      render(<LinkingPage />);
+      renderWithQueryClient(<LinkingPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Customer Management')).toBeInTheDocument();
@@ -135,7 +162,7 @@ describe('LinkingPage', () => {
           status: 'active' as const,
           createdAt: '2025-01-01T00:00:00Z',
           updatedAt: '2025-01-01T00:00:00Z',
-          _links: { self: { href: '/api/v1/capabilities/cap-1' } },
+          _links: { self: '/api/v1/capabilities/cap-1' },
         },
       ];
 
@@ -145,7 +172,7 @@ describe('LinkingPage', () => {
         { capabilityId: 'cap-1', status: 'available' },
       ]);
 
-      render(<LinkingPage />);
+      renderWithQueryClient(<LinkingPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Payment Processing')).toBeInTheDocument();
@@ -154,44 +181,6 @@ describe('LinkingPage', () => {
   });
 
   describe('Error Handling', () => {
-    it('logs error when enterprise capability loading fails', async () => {
-      vi.mocked(enterpriseArchApi.getAll).mockRejectedValue(new Error('Network error'));
-      vi.mocked(capabilitiesApi.getAll).mockResolvedValue([]);
-      vi.mocked(enterpriseArchApi.getBatchLinkStatus).mockResolvedValue([]);
-
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      render(<LinkingPage />);
-
-      await waitFor(() => {
-        expect(consoleErrorSpy).toHaveBeenCalledWith(
-          'Failed to load enterprise capabilities:',
-          expect.any(Error)
-        );
-      });
-
-      consoleErrorSpy.mockRestore();
-    });
-
-    it('logs error when domain capability loading fails', async () => {
-      vi.mocked(enterpriseArchApi.getAll).mockResolvedValue([]);
-      vi.mocked(capabilitiesApi.getAll).mockRejectedValue(new Error('Network error'));
-      vi.mocked(enterpriseArchApi.getBatchLinkStatus).mockResolvedValue([]);
-
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      render(<LinkingPage />);
-
-      await waitFor(() => {
-        expect(consoleErrorSpy).toHaveBeenCalledWith(
-          'Failed to load domain capabilities:',
-          expect.any(Error)
-        );
-      });
-
-      consoleErrorSpy.mockRestore();
-    });
-
     it('does not crash when link status loading fails', async () => {
       const mockDomainCapabilities = [
         {
@@ -201,7 +190,7 @@ describe('LinkingPage', () => {
           status: 'active' as const,
           createdAt: '2025-01-01T00:00:00Z',
           updatedAt: '2025-01-01T00:00:00Z',
-          _links: { self: { href: '/api/v1/capabilities/cap-1' } },
+          _links: { self: '/api/v1/capabilities/cap-1' },
         },
       ];
 
@@ -213,7 +202,7 @@ describe('LinkingPage', () => {
 
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      render(<LinkingPage />);
+      renderWithQueryClient(<LinkingPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Payment Processing')).toBeInTheDocument();
@@ -223,62 +212,13 @@ describe('LinkingPage', () => {
     });
   });
 
-  describe('Linking Capability', () => {
-    it('calls API to link capability and refreshes data', async () => {
-      const mockEnterpriseCapabilities = [
-        {
-          id: 'ec-1',
-          name: 'Customer Management',
-          category: 'Business',
-          linkCount: 0,
-          domainCount: 0,
-          createdAt: '2025-01-01T00:00:00Z',
-          updatedAt: '2025-01-01T00:00:00Z',
-          _links: { self: { href: '/api/v1/enterprise-capabilities/ec-1' } },
-        },
-      ];
-
-      const mockDomainCapabilities = [
-        {
-          id: 'cap-1',
-          name: 'Payment Processing',
-          level: 'L1' as const,
-          status: 'active' as const,
-          createdAt: '2025-01-01T00:00:00Z',
-          updatedAt: '2025-01-01T00:00:00Z',
-          _links: { self: { href: '/api/v1/capabilities/cap-1' } },
-        },
-      ];
-
-      vi.mocked(enterpriseArchApi.getAll).mockResolvedValue(mockEnterpriseCapabilities);
-      vi.mocked(capabilitiesApi.getAll).mockResolvedValue(mockDomainCapabilities);
-      vi.mocked(enterpriseArchApi.getBatchLinkStatus).mockResolvedValue([
-        { capabilityId: 'cap-1', status: 'available' },
-      ]);
-      vi.mocked(enterpriseArchApi.linkDomainCapability).mockResolvedValue(undefined);
-
-      const { rerender } = render(<LinkingPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Payment Processing')).toBeInTheDocument();
-      });
-
-      rerender(<LinkingPage />);
-
-      await waitFor(() => {
-        expect(enterpriseArchApi.getAll).toHaveBeenCalled();
-        expect(capabilitiesApi.getAll).toHaveBeenCalled();
-      });
-    });
-  });
-
   describe('Layout', () => {
     it('renders in split-panel layout', async () => {
       vi.mocked(enterpriseArchApi.getAll).mockResolvedValue([]);
       vi.mocked(capabilitiesApi.getAll).mockResolvedValue([]);
       vi.mocked(enterpriseArchApi.getBatchLinkStatus).mockResolvedValue([]);
 
-      const { container } = render(<LinkingPage />);
+      const { container } = renderWithQueryClient(<LinkingPage />);
 
       await waitFor(() => {
         const splitPanels = container.querySelectorAll('div[style*="width: 50%"]');

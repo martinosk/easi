@@ -4,13 +4,12 @@ import { EnterpriseArchContent } from '../components/EnterpriseArchContent';
 import { CreateEnterpriseCapabilityModal } from '../components/CreateEnterpriseCapabilityModal';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import { useEnterpriseCapabilities } from '../hooks/useEnterpriseCapabilities';
-import type { EnterpriseCapability, CreateEnterpriseCapabilityRequest } from '../types';
+import { useDomainCapabilityLinking } from '../hooks/useDomainCapabilityLinking';
+import { getErrorMessage } from '../utils/errorMessages';
+import type { EnterpriseCapability, CreateEnterpriseCapabilityRequest, EnterpriseCapabilityId } from '../types';
+import type { Capability } from '../../../api/types';
 import { useUserStore } from '../../../store/userStore';
 import './EnterpriseArchPage.css';
-
-interface EnterpriseArchPageProps {
-  onNavigateToLinking?: () => void;
-}
 
 function useEnterpriseArchPermissions() {
   const hasPermission = useUserStore((state) => state.hasPermission);
@@ -21,14 +20,23 @@ function useEnterpriseArchPermissions() {
   }), [hasPermission]);
 }
 
-export function EnterpriseArchPage({ onNavigateToLinking }: EnterpriseArchPageProps) {
+export function EnterpriseArchPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCapability, setSelectedCapability] = useState<EnterpriseCapability | null>(null);
   const [capabilityToDelete, setCapabilityToDelete] = useState<EnterpriseCapability | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDockPanelOpen, setIsDockPanelOpen] = useState(false);
 
   const { canRead, canWrite, canDelete } = useEnterpriseArchPermissions();
 
   const { capabilities, isLoading, error, createCapability, deleteCapability } = useEnterpriseCapabilities();
+
+  const {
+    domainCapabilities,
+    linkStatuses,
+    isLoading: isLoadingDomainCapabilities,
+    linkCapability,
+  } = useDomainCapabilityLinking(isDockPanelOpen);
 
   const handleCreateCapability = useCallback(async (request: CreateEnterpriseCapabilityRequest) => {
     await createCapability(request);
@@ -37,21 +45,27 @@ export function EnterpriseArchPage({ onNavigateToLinking }: EnterpriseArchPagePr
 
   const handleDeleteClick = useCallback((capability: EnterpriseCapability) => {
     setCapabilityToDelete(capability);
+    setDeleteError(null);
   }, []);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!capabilityToDelete) return;
 
-    await deleteCapability(capabilityToDelete.id, capabilityToDelete.name);
-
-    if (selectedCapability?.id === capabilityToDelete.id) {
-      setSelectedCapability(null);
+    try {
+      setDeleteError(null);
+      await deleteCapability(capabilityToDelete.id, capabilityToDelete.name);
+      if (selectedCapability?.id === capabilityToDelete.id) {
+        setSelectedCapability(null);
+      }
+      setCapabilityToDelete(null);
+    } catch (err) {
+      setDeleteError(getErrorMessage(err, 'Failed to delete capability'));
     }
-    setCapabilityToDelete(null);
   }, [capabilityToDelete, selectedCapability, deleteCapability]);
 
   const handleCancelDelete = useCallback(() => {
     setCapabilityToDelete(null);
+    setDeleteError(null);
   }, []);
 
   const handleSelectCapability = useCallback((capability: EnterpriseCapability) => {
@@ -65,6 +79,21 @@ export function EnterpriseArchPage({ onNavigateToLinking }: EnterpriseArchPagePr
   const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
   }, []);
+
+  const handleToggleDockPanel = useCallback(() => {
+    setIsDockPanelOpen((prev) => !prev);
+  }, []);
+
+  const handleCloseDockPanel = useCallback(() => {
+    setIsDockPanelOpen(false);
+  }, []);
+
+  const handleLinkCapability = useCallback(
+    async (enterpriseCapabilityId: EnterpriseCapabilityId, domainCapability: Capability) => {
+      await linkCapability(enterpriseCapabilityId, domainCapability);
+    },
+    [linkCapability]
+  );
 
   if (!canRead) {
     return (
@@ -82,7 +111,8 @@ export function EnterpriseArchPage({ onNavigateToLinking }: EnterpriseArchPagePr
         <EnterpriseArchHeader
           canWrite={canWrite}
           onCreateNew={handleOpenModal}
-          onManageLinks={onNavigateToLinking}
+          isDockPanelOpen={isDockPanelOpen}
+          onToggleDockPanel={handleToggleDockPanel}
         />
         <EnterpriseArchContent
           isLoading={isLoading}
@@ -94,6 +124,12 @@ export function EnterpriseArchPage({ onNavigateToLinking }: EnterpriseArchPagePr
           onSelect={handleSelectCapability}
           onDelete={handleDeleteClick}
           onCreateNew={handleOpenModal}
+          isDockPanelOpen={isDockPanelOpen}
+          domainCapabilities={domainCapabilities}
+          linkStatuses={linkStatuses}
+          isLoadingDomainCapabilities={isLoadingDomainCapabilities}
+          onCloseDockPanel={handleCloseDockPanel}
+          onLinkCapability={handleLinkCapability}
         />
       </div>
       {canWrite && (
@@ -111,6 +147,7 @@ export function EnterpriseArchPage({ onNavigateToLinking }: EnterpriseArchPagePr
           cancelText="Cancel"
           onConfirm={handleConfirmDelete}
           onCancel={handleCancelDelete}
+          error={deleteError}
         />
       )}
     </div>

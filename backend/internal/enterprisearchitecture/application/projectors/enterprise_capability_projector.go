@@ -91,7 +91,10 @@ func (p *EnterpriseCapabilityProjector) handleLinked(ctx context.Context, eventD
 		log.Printf("Failed to unmarshal EnterpriseCapabilityLinked event: %v", err)
 		return err
 	}
-	return p.readModel.IncrementLinkCount(ctx, event.EnterpriseCapabilityID)
+	if err := p.readModel.IncrementLinkCount(ctx, event.EnterpriseCapabilityID); err != nil {
+		return err
+	}
+	return p.readModel.RecalculateDomainCount(ctx, event.EnterpriseCapabilityID)
 }
 
 func (p *EnterpriseCapabilityProjector) handleUnlinked(ctx context.Context, eventData []byte) error {
@@ -100,5 +103,8 @@ func (p *EnterpriseCapabilityProjector) handleUnlinked(ctx context.Context, even
 		log.Printf("Failed to unmarshal EnterpriseCapabilityUnlinked event: %v", err)
 		return err
 	}
-	return p.readModel.DecrementLinkCount(ctx, event.EnterpriseCapabilityID)
+	if err := p.readModel.DecrementLinkCount(ctx, event.EnterpriseCapabilityID); err != nil {
+		return err
+	}
+	return p.readModel.RecalculateDomainCount(ctx, event.EnterpriseCapabilityID)
 }

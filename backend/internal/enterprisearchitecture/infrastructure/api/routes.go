@@ -12,11 +12,17 @@ import (
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	platformAPI "easi/backend/internal/platform/infrastructure/api"
+	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
 
 	"github.com/go-chi/chi/v5"
 )
+
+func init() {
+	registry := sharedAPI.GetErrorRegistry()
+	registry.RegisterConflict(handlers.ErrCapabilityHasLinks, "Cannot delete enterprise capability: unlink all domain capabilities first")
+}
 
 type AuthMiddleware interface {
 	RequirePermission(permission authValueObjects.Permission) func(http.Handler) http.Handler
@@ -122,7 +128,7 @@ func subscribeImportanceEvents(eventBus events.EventBus, projector *projectors.E
 func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepositories, rm *routeReadModels) {
 	commandBus.Register("CreateEnterpriseCapability", handlers.NewCreateEnterpriseCapabilityHandler(repos.capability, rm.capability))
 	commandBus.Register("UpdateEnterpriseCapability", handlers.NewUpdateEnterpriseCapabilityHandler(repos.capability, rm.capability))
-	commandBus.Register("DeleteEnterpriseCapability", handlers.NewDeleteEnterpriseCapabilityHandler(repos.capability))
+	commandBus.Register("DeleteEnterpriseCapability", handlers.NewDeleteEnterpriseCapabilityHandler(repos.capability, rm.link))
 
 	commandBus.Register("LinkCapability", handlers.NewLinkCapabilityHandler(repos.link, repos.capability, rm.link))
 	commandBus.Register("UnlinkCapability", handlers.NewUnlinkCapabilityHandler(repos.link))
