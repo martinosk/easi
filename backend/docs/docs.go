@@ -2385,6 +2385,79 @@ const docTemplate = `{
                 }
             }
         },
+        "/components/{id}/fit-comparisons": {
+            "get": {
+                "description": "Returns fit scores compared with importance ratings for a component realizing a capability in a business domain",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "application-fit-scores"
+                ],
+                "summary": "Get fit comparisons for a component in a capability context",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "capabilityId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Business Domain ID",
+                        "name": "businessDomainId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.FitComparisonResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/components/{id}/fit-scores": {
             "get": {
                 "description": "Retrieves all strategic fit scores for a specific application component",
@@ -2440,7 +2513,12 @@ const docTemplate = `{
         },
         "/components/{id}/fit-scores/{pillarId}": {
             "put": {
-                "description": "Creates or updates a strategic fit score for a component-pillar combination",
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Creates or updates a strategic fit score for a component-pillar combination. Requires components:write permission (Admin or Architect role).",
                 "consumes": [
                     "application/json"
                 ],
@@ -2490,7 +2568,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid component/pillar ID format or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient permissions - requires components:write",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -2504,7 +2594,12 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Deletes an existing strategic fit score",
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Deletes an existing strategic fit score. Requires components:write permission (Admin or Architect role).",
                 "consumes": [
                     "application/json"
                 ],
@@ -2535,8 +2630,26 @@ const docTemplate = `{
                     "204": {
                         "description": "No Content"
                     },
+                    "400": {
+                        "description": "Invalid component/pillar ID format",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient permissions - requires components:write",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Fit score not found",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -5562,7 +5675,12 @@ const docTemplate = `{
         },
         "/strategic-fit-analysis/{pillarId}": {
             "get": {
-                "description": "Analyzes the gap between capability importance and application fit scores for a strategic pillar",
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Analyzes the gap between capability importance and application fit scores for a strategic pillar. Requires enterprise-arch:read permission (Admin, Architect, or Stakeholder role).",
                 "consumes": [
                     "application/json"
                 ],
@@ -5590,13 +5708,25 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid pillar ID format or fit scoring not enabled",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient permissions - requires enterprise-arch:read",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Strategy pillar not found",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -8086,6 +8216,38 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_capabilitymapping_infrastructure_api.FitComparisonResponse": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "fitRationale": {
+                    "type": "string"
+                },
+                "fitScore": {
+                    "type": "integer"
+                },
+                "fitScoreLabel": {
+                    "type": "string"
+                },
+                "gap": {
+                    "type": "integer"
+                },
+                "importance": {
+                    "type": "integer"
+                },
+                "importanceLabel": {
+                    "type": "string"
+                },
+                "pillarId": {
+                    "type": "string"
+                },
+                "pillarName": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_capabilitymapping_infrastructure_api.LinkSystemRequest": {
             "type": "object",
             "properties": {
@@ -8578,6 +8740,12 @@ const docTemplate = `{
             "properties": {
                 "description": {
                     "type": "string"
+                },
+                "fitCriteria": {
+                    "type": "string"
+                },
+                "fitScoringEnabled": {
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "string"
