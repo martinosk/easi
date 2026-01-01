@@ -201,7 +201,10 @@ export const SetImportanceDialog: React.FC<SetImportanceDialogProps> = ({
             label="Why? (optional)"
             placeholder="Explain why this capability has this importance level..."
             value={form.rationale}
-            onChange={(e) => setForm((prev) => ({ ...prev, rationale: e.currentTarget.value }))}
+            onChange={(e) => {
+              const value = e.currentTarget.value;
+              setForm((prev) => ({ ...prev, rationale: value }));
+            }}
             maxLength={500}
             minRows={2}
             maxRows={4}
