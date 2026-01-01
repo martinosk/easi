@@ -1,5 +1,5 @@
 import { httpClient } from '../../../api/core/httpClient';
-import type { CapabilityId } from '../../../api/types';
+import type { CapabilityId, StrategicFitAnalysis } from '../../../api/types';
 import type {
   EnterpriseCapability,
   EnterpriseCapabilityId,
@@ -151,6 +151,13 @@ export const enterpriseArchApi = {
     const queryString = queryParams.toString();
     const response = await httpClient.get<UnlinkedCapabilitiesResponse>(
       `/api/v1/domain-capabilities/unlinked${queryString ? `?${queryString}` : ''}`
+    );
+    return response.data;
+  },
+
+  async getStrategicFitAnalysis(pillarId: string): Promise<StrategicFitAnalysis> {
+    const response = await httpClient.get<StrategicFitAnalysis>(
+      `/api/v1/strategic-fit-analysis/${pillarId}`
     );
     return response.data;
   },

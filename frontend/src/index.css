@@ -1596,6 +1596,21 @@ body {
   border-radius: var(--radius-sm);
 }
 
+.realization-item-with-fit {
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.realization-item-with-fit:last-child {
+  border-bottom: none;
+}
+
+.realization-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
 .origin-direct {
   background: rgba(59, 130, 246, 0.1);
   color: var(--color-primary);

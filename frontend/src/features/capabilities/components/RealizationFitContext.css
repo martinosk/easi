@@ -1,0 +1,91 @@
+.realization-fit-context {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--color-gray-200);
+}
+
+.fit-context-label {
+  font-size: 0.6875rem;
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+
+.fit-comparisons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.fit-comparison {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.fit-comparison.fit-liability {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.fit-comparison.fit-concern {
+  background-color: rgba(245, 158, 11, 0.1);
+}
+
+.fit-comparison.fit-aligned {
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+.pillar-label {
+  font-weight: 500;
+  color: var(--color-gray-700);
+  min-width: 80px;
+}
+
+.fit-values {
+  color: var(--color-gray-600);
+}
+
+.fit-value,
+.importance-value {
+  font-weight: 600;
+}
+
+.gap-indicator {
+  color: var(--color-gray-600);
+}
+
+.gap-label {
+  font-weight: 600;
+}
+
+.gap-label.gap-liability {
+  color: var(--color-error);
+}
+
+.gap-label.gap-concern {
+  color: var(--color-warning);
+}
+
+.gap-label.gap-aligned {
+  color: var(--color-success);
+}
+
+@media (max-width: 768px) {
+  .fit-comparison {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .pillar-label {
+    min-width: auto;
+  }
+
+  .fit-values {
+    font-size: 0.6875rem;
+  }
+}

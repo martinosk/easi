@@ -1,10 +1,12 @@
 package events
 
 type StrategyPillarData struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Active      bool   `json:"active"`
+	ID                string `json:"id"`
+	Name              string `json:"name"`
+	Description       string `json:"description"`
+	Active            bool   `json:"active"`
+	FitScoringEnabled bool   `json:"fitScoringEnabled"`
+	FitCriteria       string `json:"fitCriteria"`
 }
 
 type PillarEventParams struct {
@@ -25,4 +27,10 @@ type UpdatePillarParams struct {
 	PillarEventParams
 	NewName        string
 	NewDescription string
+}
+
+type UpdatePillarFitConfigParams struct {
+	PillarEventParams
+	FitScoringEnabled bool
+	FitCriteria       string
 }

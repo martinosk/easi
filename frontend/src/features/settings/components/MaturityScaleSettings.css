@@ -16,13 +16,13 @@
 .maturity-scale-title {
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--gray-900);
+  color: var(--color-gray-900);
   margin: 0 0 0.5rem 0;
 }
 
 .maturity-scale-description {
   font-size: 0.875rem;
-  color: var(--gray-600);
+  color: var(--color-gray-600);
   margin: 0;
 }
 
@@ -59,13 +59,13 @@
   justify-content: center;
   padding: 3rem;
   gap: 1rem;
-  color: var(--gray-600);
+  color: var(--color-gray-600);
 }
 
 .loading-spinner {
   width: 2rem;
   height: 2rem;
-  border: 3px solid var(--gray-200);
+  border: 3px solid var(--color-gray-200);
   border-top-color: var(--blue-600);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -141,7 +141,7 @@
 .section-name {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--gray-800);
+  color: var(--color-gray-800);
   text-align: center;
 }
 
@@ -151,10 +151,10 @@
   font-size: 0.875rem;
   font-weight: 600;
   text-align: center;
-  border: 2px solid var(--gray-300);
+  border: 2px solid var(--color-gray-300);
   border-radius: 0.375rem;
   background-color: white;
-  color: var(--gray-800);
+  color: var(--color-gray-800);
   transition: border-color 0.2s;
 }
 
@@ -169,7 +169,7 @@
 
 .section-range {
   font-size: 0.75rem;
-  color: var(--gray-600);
+  color: var(--color-gray-600);
   font-weight: 500;
 }
 
@@ -189,7 +189,7 @@
   gap: 1rem;
   margin-top: 1.5rem;
   padding: 1rem;
-  background-color: var(--gray-50);
+  background-color: var(--color-gray-50);
   border-radius: 0.5rem;
 }
 
@@ -207,7 +207,7 @@
 .boundary-label {
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--gray-600);
+  color: var(--color-gray-600);
 }
 
 .boundary-input {
@@ -216,10 +216,10 @@
   font-size: 0.875rem;
   font-weight: 600;
   text-align: center;
-  border: 2px solid var(--gray-300);
+  border: 2px solid var(--color-gray-300);
   border-radius: 0.375rem;
   background-color: white;
-  color: var(--gray-800);
+  color: var(--color-gray-800);
   transition: border-color 0.2s;
 }
 
@@ -243,7 +243,7 @@
   justify-content: flex-end;
   gap: 0.75rem;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--gray-200);
+  border-top: 1px solid var(--color-gray-200);
 }
 
 @media (max-width: 768px) {

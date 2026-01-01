@@ -488,6 +488,8 @@ export interface StrategyPillar {
   name: string;
   description: string;
   active: boolean;
+  fitScoringEnabled: boolean;
+  fitCriteria: string;
   _links: HATEOASLinks;
 }
 
@@ -531,4 +533,83 @@ export interface SetStrategyImportanceRequest {
 export interface UpdateStrategyImportanceRequest {
   importance: number;
   rationale?: string;
+}
+
+export interface ApplicationFitScore {
+  id: string;
+  componentId: ComponentId;
+  componentName: string;
+  pillarId: string;
+  pillarName: string;
+  score: number;
+  scoreLabel: string;
+  rationale?: string;
+  scoredAt: string;
+  scoredBy: string;
+  _links: HATEOASLinks;
+}
+
+export interface ApplicationFitScoresResponse {
+  data: ApplicationFitScore[];
+  _links: HATEOASLinks;
+}
+
+export interface SetApplicationFitScoreRequest {
+  score: number;
+  rationale?: string;
+}
+
+export type FitCategory = 'liability' | 'concern' | 'aligned';
+
+export interface FitComparison {
+  pillarId: string;
+  pillarName: string;
+  fitScore: number;
+  fitScoreLabel: string;
+  importance: number;
+  importanceLabel: string;
+  gap: number;
+  category: FitCategory;
+  fitRationale?: string;
+}
+
+export interface FitComparisonsResponse {
+  data: FitComparison[];
+  _links: HATEOASLinks;
+}
+
+export interface RealizationFit {
+  realizationId: string;
+  componentId: ComponentId;
+  componentName: string;
+  capabilityId: CapabilityId;
+  capabilityName: string;
+  businessDomainId?: BusinessDomainId;
+  businessDomainName?: string;
+  importance: number;
+  importanceLabel: string;
+  fitScore: number;
+  fitScoreLabel: string;
+  gap: number;
+  fitRationale?: string;
+  category: FitCategory;
+}
+
+export interface StrategicFitSummary {
+  totalRealizations: number;
+  scoredRealizations: number;
+  liabilityCount: number;
+  concernCount: number;
+  alignedCount: number;
+  averageGap: number;
+}
+
+export interface StrategicFitAnalysis {
+  pillarId: string;
+  pillarName: string;
+  summary: StrategicFitSummary;
+  liabilities: RealizationFit[];
+  concerns: RealizationFit[];
+  aligned: RealizationFit[];
+  _links: HATEOASLinks;
 }

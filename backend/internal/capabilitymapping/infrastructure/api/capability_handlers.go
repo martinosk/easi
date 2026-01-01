@@ -51,8 +51,8 @@ type UpdateCapabilityRequest struct {
 // @Produce json
 // @Param capability body CreateCapabilityRequest true "Capability data"
 // @Success 201 {object} easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capabilities [post]
 func (h *CapabilityHandlers) CreateCapability(w http.ResponseWriter, r *http.Request) {
 	req, ok := sharedAPI.DecodeRequestOrFail[CreateCapabilityRequest](w, r)
@@ -126,7 +126,7 @@ func (h *CapabilityHandlers) handleCreateCapabilityResponse(w http.ResponseWrite
 // @Tags capabilities
 // @Produce json
 // @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO}
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capabilities [get]
 func (h *CapabilityHandlers) GetAllCapabilities(w http.ResponseWriter, r *http.Request) {
 	capabilities, err := h.readModel.GetAll(r.Context())
@@ -153,8 +153,8 @@ func (h *CapabilityHandlers) GetAllCapabilities(w http.ResponseWriter, r *http.R
 // @Produce json
 // @Param id path string true "Capability ID"
 // @Success 200 {object} easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capabilities/{id} [get]
 func (h *CapabilityHandlers) GetCapabilityByID(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")
@@ -181,8 +181,8 @@ func (h *CapabilityHandlers) GetCapabilityByID(w http.ResponseWriter, r *http.Re
 // @Produce json
 // @Param id path string true "Capability ID"
 // @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO}
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capabilities/{id}/children [get]
 func (h *CapabilityHandlers) GetCapabilityChildren(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")
@@ -225,9 +225,9 @@ func (h *CapabilityHandlers) GetCapabilityChildren(w http.ResponseWriter, r *htt
 // @Param id path string true "Capability ID"
 // @Param capability body UpdateCapabilityRequest true "Updated capability data"
 // @Success 200 {object} easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capabilities/{id} [put]
 func (h *CapabilityHandlers) UpdateCapability(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")
@@ -274,9 +274,9 @@ func (h *CapabilityHandlers) UpdateCapability(w http.ResponseWriter, r *http.Req
 // @Tags capabilities
 // @Param id path string true "Capability ID"
 // @Success 204 "No Content"
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 409 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 409 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capabilities/{id} [delete]
 func (h *CapabilityHandlers) DeleteCapability(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")

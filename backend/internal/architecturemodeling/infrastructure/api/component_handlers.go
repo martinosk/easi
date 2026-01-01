@@ -48,8 +48,8 @@ type UpdateApplicationComponentRequest struct {
 // @Produce json
 // @Param component body CreateApplicationComponentRequest true "Component data"
 // @Success 201 {object} readmodels.ApplicationComponentDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components [post]
 func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r *http.Request) {
 	req, ok := sharedAPI.DecodeRequestOrFail[CreateApplicationComponentRequest](w, r)
@@ -100,7 +100,7 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 // @Param limit query int false "Number of items per page (max 100)" default(50)
 // @Param after query string false "Cursor for pagination (opaque token)"
 // @Success 200 {object} easi_backend_internal_shared_api.PaginatedResponse{data=[]readmodels.ApplicationComponentDTO}
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components [get]
 func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Request) {
 	params := sharedAPI.ParsePaginationParams(r)
@@ -143,8 +143,8 @@ func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Requ
 // @Produce json
 // @Param id path string true "Component ID"
 // @Success 200 {object} readmodels.ApplicationComponentDTO
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components/{id} [get]
 func (h *ComponentHandlers) GetComponentByID(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")
@@ -173,9 +173,9 @@ func (h *ComponentHandlers) GetComponentByID(w http.ResponseWriter, r *http.Requ
 // @Param id path string true "Component ID"
 // @Param component body UpdateApplicationComponentRequest true "Updated component data"
 // @Success 200 {object} readmodels.ApplicationComponentDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components/{id} [put]
 func (h *ComponentHandlers) UpdateApplicationComponent(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")

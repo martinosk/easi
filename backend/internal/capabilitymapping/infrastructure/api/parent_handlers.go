@@ -36,9 +36,9 @@ type ChangeCapabilityParentRequest struct {
 // @Param id path string true "Capability ID"
 // @Param parent body ChangeCapabilityParentRequest true "New parent data"
 // @Success 204 "No Content"
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capabilities/{id}/parent [patch]
 func (h *CapabilityHandlers) ChangeCapabilityParent(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")

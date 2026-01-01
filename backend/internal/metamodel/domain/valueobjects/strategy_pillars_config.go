@@ -183,6 +183,25 @@ func (s StrategyPillarsConfig) WithRemovedPillar(id StrategyPillarID) (StrategyP
 	return StrategyPillarsConfig{pillars: newPillars}, nil
 }
 
+func (s StrategyPillarsConfig) WithUpdatedPillarFitConfiguration(id StrategyPillarID, enabled bool, criteria FitCriteria) (StrategyPillarsConfig, error) {
+	found := false
+	var idx int
+	for i, p := range s.pillars {
+		if p.ID().Equals(id) {
+			found = true
+			idx = i
+			break
+		}
+	}
+	if !found {
+		return StrategyPillarsConfig{}, ErrPillarNotFound
+	}
+	newPillars := make([]StrategyPillar, len(s.pillars))
+	copy(newPillars, s.pillars)
+	newPillars[idx] = newPillars[idx].WithFitConfiguration(enabled, criteria)
+	return StrategyPillarsConfig{pillars: newPillars}, nil
+}
+
 func (s StrategyPillarsConfig) Equals(other domain.ValueObject) bool {
 	otherConfig, ok := other.(StrategyPillarsConfig)
 	if !ok {

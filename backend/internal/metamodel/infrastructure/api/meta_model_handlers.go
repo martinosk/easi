@@ -162,7 +162,7 @@ func (h *MetaModelHandlers) ensureConfigExists(w http.ResponseWriter, r *http.Re
 // @Tags meta-model
 // @Produce json
 // @Success 200 {object} readmodels.MetaModelConfigurationDTO
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /meta-model/maturity-scale [get]
 func (h *MetaModelHandlers) GetMaturityScale(w http.ResponseWriter, r *http.Request) {
 	config, err := h.loadConfigOrDefault(func() (*readmodels.MetaModelConfigurationDTO, error) {
@@ -185,11 +185,11 @@ func (h *MetaModelHandlers) GetMaturityScale(w http.ResponseWriter, r *http.Requ
 // @Produce json
 // @Param scale body UpdateMaturityScaleRequest true "Maturity scale configuration"
 // @Success 200 {object} readmodels.MetaModelConfigurationDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 401 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 403 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 409 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 401 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 409 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /meta-model/maturity-scale [put]
 func (h *MetaModelHandlers) UpdateMaturityScale(w http.ResponseWriter, r *http.Request) {
 	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
@@ -240,9 +240,9 @@ func (h *MetaModelHandlers) UpdateMaturityScale(w http.ResponseWriter, r *http.R
 // @Tags meta-model
 // @Produce json
 // @Success 200 {object} readmodels.MetaModelConfigurationDTO
-// @Failure 401 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 403 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 401 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /meta-model/maturity-scale/reset [post]
 func (h *MetaModelHandlers) ResetMaturityScale(w http.ResponseWriter, r *http.Request) {
 	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
@@ -283,8 +283,8 @@ func (h *MetaModelHandlers) ResetMaturityScale(w http.ResponseWriter, r *http.Re
 // @Produce json
 // @Param id path string true "Configuration ID"
 // @Success 200 {object} readmodels.MetaModelConfigurationDTO
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /meta-model/configurations/{id} [get]
 func (h *MetaModelHandlers) GetMaturityScaleByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")

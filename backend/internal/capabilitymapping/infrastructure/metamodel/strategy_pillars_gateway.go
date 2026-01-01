@@ -13,10 +13,12 @@ import (
 )
 
 type StrategyPillarDTO struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Active      bool   `json:"active"`
+	ID                string `json:"id"`
+	Name              string `json:"name"`
+	Description       string `json:"description"`
+	Active            bool   `json:"active"`
+	FitScoringEnabled bool   `json:"fitScoringEnabled"`
+	FitCriteria       string `json:"fitCriteria"`
 }
 
 type StrategyPillarsConfigDTO struct {

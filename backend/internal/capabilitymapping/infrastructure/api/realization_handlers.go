@@ -47,9 +47,9 @@ type LinkSystemRequest struct {
 // @Param id path string true "Capability ID"
 // @Param system body LinkSystemRequest true "System link data"
 // @Success 201 {object} easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capabilities/{id}/systems [post]
 func (h *RealizationHandlers) LinkSystemToCapability(w http.ResponseWriter, r *http.Request) {
 	capabilityID := chi.URLParam(r, "id")
@@ -121,7 +121,7 @@ func (h *RealizationHandlers) LinkSystemToCapability(w http.ResponseWriter, r *h
 // @Produce json
 // @Param id path string true "Capability ID"
 // @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO}
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capabilities/{id}/systems [get]
 func (h *RealizationHandlers) GetSystemsByCapability(w http.ResponseWriter, r *http.Request) {
 	capabilityID := chi.URLParam(r, "id")
@@ -151,7 +151,7 @@ func (h *RealizationHandlers) GetSystemsByCapability(w http.ResponseWriter, r *h
 // @Produce json
 // @Param componentId path string true "Component ID"
 // @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO}
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capability-realizations/by-component/{componentId} [get]
 func (h *RealizationHandlers) GetCapabilitiesByComponent(w http.ResponseWriter, r *http.Request) {
 	componentID := chi.URLParam(r, "componentId")
@@ -188,9 +188,9 @@ type UpdateRealizationRequest struct {
 // @Param id path string true "Realization ID"
 // @Param realization body UpdateRealizationRequest true "Updated realization data"
 // @Success 200 {object} easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capability-realizations/{id} [put]
 func (h *RealizationHandlers) UpdateRealization(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -240,8 +240,8 @@ func (h *RealizationHandlers) UpdateRealization(w http.ResponseWriter, r *http.R
 // @Tags capability-realizations
 // @Param id path string true "Realization ID"
 // @Success 204 "No Content"
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capability-realizations/{id} [delete]
 func (h *RealizationHandlers) DeleteRealization(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")

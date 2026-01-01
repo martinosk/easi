@@ -86,9 +86,9 @@ type DomainCapabilityEnterpriseResponse struct {
 // @Produce json
 // @Param capability body CreateEnterpriseCapabilityRequest true "Enterprise capability data"
 // @Success 201 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 409 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 409 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities [post]
 func (h *EnterpriseCapabilityHandlers) CreateEnterpriseCapability(w http.ResponseWriter, r *http.Request) {
 	req, ok := sharedAPI.DecodeRequestOrFail[CreateEnterpriseCapabilityRequest](w, r)
@@ -116,7 +116,7 @@ func (h *EnterpriseCapabilityHandlers) CreateEnterpriseCapability(w http.Respons
 // @Param limit query int false "Maximum number of results (default 20, max 100)"
 // @Param cursor query string false "Pagination cursor for next page"
 // @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO}
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities [get]
 func (h *EnterpriseCapabilityHandlers) GetAllEnterpriseCapabilities(w http.ResponseWriter, r *http.Request) {
 	capabilities, err := h.readModels.Capability.GetAll(r.Context())
@@ -139,8 +139,8 @@ func (h *EnterpriseCapabilityHandlers) GetAllEnterpriseCapabilities(w http.Respo
 // @Produce json
 // @Param id path string true "Enterprise capability ID"
 // @Success 200 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id} [get]
 func (h *EnterpriseCapabilityHandlers) GetEnterpriseCapabilityByID(w http.ResponseWriter, r *http.Request) {
 	capability := h.getCapabilityOrNotFound(w, r, sharedAPI.GetPathParam(r, "id"))
@@ -160,10 +160,10 @@ func (h *EnterpriseCapabilityHandlers) GetEnterpriseCapabilityByID(w http.Respon
 // @Param id path string true "Enterprise capability ID"
 // @Param capability body UpdateEnterpriseCapabilityRequest true "Updated capability data"
 // @Success 200 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 409 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 409 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id} [put]
 func (h *EnterpriseCapabilityHandlers) UpdateEnterpriseCapability(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")
@@ -192,8 +192,8 @@ func (h *EnterpriseCapabilityHandlers) UpdateEnterpriseCapability(w http.Respons
 // @Tags enterprise-capabilities
 // @Param id path string true "Enterprise capability ID"
 // @Success 204 "No Content"
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id} [delete]
 func (h *EnterpriseCapabilityHandlers) DeleteEnterpriseCapability(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")
@@ -214,8 +214,8 @@ func (h *EnterpriseCapabilityHandlers) DeleteEnterpriseCapability(w http.Respons
 // @Produce json
 // @Param id path string true "Enterprise capability ID"
 // @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityLinkDTO}
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id}/links [get]
 func (h *EnterpriseCapabilityHandlers) GetLinkedCapabilities(w http.ResponseWriter, r *http.Request) {
 	enterpriseCapabilityID := sharedAPI.GetPathParam(r, "id")
@@ -247,10 +247,10 @@ func (h *EnterpriseCapabilityHandlers) GetLinkedCapabilities(w http.ResponseWrit
 // @Param id path string true "Enterprise capability ID"
 // @Param link body LinkCapabilityRequest true "Link data"
 // @Success 201 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityLinkDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 409 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 409 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id}/links [post]
 func (h *EnterpriseCapabilityHandlers) LinkCapability(w http.ResponseWriter, r *http.Request) {
 	enterpriseCapabilityID := sharedAPI.GetPathParam(r, "id")
@@ -294,8 +294,8 @@ func (h *EnterpriseCapabilityHandlers) LinkCapability(w http.ResponseWriter, r *
 // @Param id path string true "Enterprise capability ID"
 // @Param linkId path string true "Link ID"
 // @Success 204 "No Content"
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id}/links/{linkId} [delete]
 func (h *EnterpriseCapabilityHandlers) UnlinkCapability(w http.ResponseWriter, r *http.Request) {
 	linkID := sharedAPI.GetPathParam(r, "linkId")
@@ -316,8 +316,8 @@ func (h *EnterpriseCapabilityHandlers) UnlinkCapability(w http.ResponseWriter, r
 // @Produce json
 // @Param id path string true "Enterprise capability ID"
 // @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseStrategicImportanceDTO}
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id}/strategic-importance [get]
 func (h *EnterpriseCapabilityHandlers) GetStrategicImportance(w http.ResponseWriter, r *http.Request) {
 	enterpriseCapabilityID := sharedAPI.GetPathParam(r, "id")
@@ -349,10 +349,10 @@ func (h *EnterpriseCapabilityHandlers) GetStrategicImportance(w http.ResponseWri
 // @Param id path string true "Enterprise capability ID"
 // @Param importance body SetStrategicImportanceRequest true "Strategic importance data"
 // @Success 201 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseStrategicImportanceDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 409 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 409 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id}/strategic-importance [post]
 func (h *EnterpriseCapabilityHandlers) SetStrategicImportance(w http.ResponseWriter, r *http.Request) {
 	enterpriseCapabilityID := sharedAPI.GetPathParam(r, "id")
@@ -395,9 +395,9 @@ func (h *EnterpriseCapabilityHandlers) SetStrategicImportance(w http.ResponseWri
 // @Param importanceId path string true "Strategic importance ID"
 // @Param importance body UpdateStrategicImportanceRequest true "Updated importance data"
 // @Success 200 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseStrategicImportanceDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id}/strategic-importance/{importanceId} [put]
 func (h *EnterpriseCapabilityHandlers) UpdateStrategicImportance(w http.ResponseWriter, r *http.Request) {
 	enterpriseCapabilityID := sharedAPI.GetPathParam(r, "id")
@@ -417,8 +417,12 @@ func (h *EnterpriseCapabilityHandlers) UpdateStrategicImportance(w http.Response
 	result, err := h.commandBus.Dispatch(r.Context(), cmd)
 	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
 		rating, err := h.readModels.Importance.GetByID(r.Context(), importanceID)
-		if err != nil || rating == nil {
-			w.WriteHeader(http.StatusNoContent)
+		if err != nil {
+			sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Update succeeded but failed to retrieve updated resource")
+			return
+		}
+		if rating == nil {
+			sharedAPI.RespondError(w, http.StatusInternalServerError, nil, "Update succeeded but resource not found")
 			return
 		}
 		rating.Links = h.hateoas.EnterpriseStrategicImportanceLinks(enterpriseCapabilityID, rating.ID)
@@ -433,8 +437,8 @@ func (h *EnterpriseCapabilityHandlers) UpdateStrategicImportance(w http.Response
 // @Param id path string true "Enterprise capability ID"
 // @Param importanceId path string true "Strategic importance ID"
 // @Success 204 "No Content"
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id}/strategic-importance/{importanceId} [delete]
 func (h *EnterpriseCapabilityHandlers) RemoveStrategicImportance(w http.ResponseWriter, r *http.Request) {
 	importanceID := sharedAPI.GetPathParam(r, "importanceId")
@@ -455,7 +459,7 @@ func (h *EnterpriseCapabilityHandlers) RemoveStrategicImportance(w http.Response
 // @Produce json
 // @Param domainCapabilityId path string true "Domain capability ID"
 // @Success 200 {object} DomainCapabilityEnterpriseResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /domain-capabilities/{domainCapabilityId}/enterprise-capability [get]
 func (h *EnterpriseCapabilityHandlers) GetEnterpriseCapabilityForDomainCapability(w http.ResponseWriter, r *http.Request) {
 	domainCapabilityID := sharedAPI.GetPathParam(r, "domainCapabilityId")
@@ -564,7 +568,7 @@ func (h *EnterpriseCapabilityHandlers) getCurrentUserEmail(r *http.Request) (str
 // @Produce json
 // @Param domainCapabilityId path string true "Domain capability ID"
 // @Success 200 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.CapabilityLinkStatusDTO
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /domain-capabilities/{domainCapabilityId}/enterprise-link-status [get]
 func (h *EnterpriseCapabilityHandlers) GetCapabilityLinkStatus(w http.ResponseWriter, r *http.Request) {
 	capabilityID := sharedAPI.GetPathParam(r, "domainCapabilityId")
@@ -603,8 +607,8 @@ func (h *EnterpriseCapabilityHandlers) GetCapabilityLinkStatus(w http.ResponseWr
 // @Produce json
 // @Param capabilityIds query string false "Comma-separated list of capability IDs"
 // @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_enterprisearchitecture_application_readmodels.CapabilityLinkStatusDTO}
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /domain-capabilities/enterprise-link-status [get]
 func (h *EnterpriseCapabilityHandlers) GetBatchCapabilityLinkStatus(w http.ResponseWriter, r *http.Request) {
 	capabilityIDsParam := r.URL.Query().Get("capabilityIds")
@@ -672,9 +676,9 @@ func splitAndTrim(s string) []string {
 // @Param id path string true "Enterprise capability ID"
 // @Param maturity body SetTargetMaturityRequest true "Target maturity data"
 // @Success 200 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id}/target-maturity [put]
 func (h *EnterpriseCapabilityHandlers) SetTargetMaturity(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")
@@ -706,7 +710,7 @@ func (h *EnterpriseCapabilityHandlers) SetTargetMaturity(w http.ResponseWriter, 
 // @Produce json
 // @Param sortBy query string false "Sort order: 'gap' or 'implementations' (default: gap)"
 // @Success 200 {object} object{summary=easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityAnalysisSummaryDTO,data=[]easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityAnalysisCandidateDTO}
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/maturity-analysis [get]
 func (h *EnterpriseCapabilityHandlers) GetMaturityAnalysisCandidates(w http.ResponseWriter, r *http.Request) {
 	sortBy := r.URL.Query().Get("sortBy")
@@ -741,8 +745,8 @@ func (h *EnterpriseCapabilityHandlers) GetMaturityAnalysisCandidates(w http.Resp
 // @Produce json
 // @Param id path string true "Enterprise capability ID"
 // @Success 200 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityGapDetailDTO
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id}/maturity-gap [get]
 func (h *EnterpriseCapabilityHandlers) GetMaturityGapDetail(w http.ResponseWriter, r *http.Request) {
 	enterpriseCapabilityID := sharedAPI.GetPathParam(r, "id")
@@ -774,7 +778,7 @@ func (h *EnterpriseCapabilityHandlers) GetMaturityGapDetail(w http.ResponseWrite
 // @Param businessDomainId query string false "Filter by business domain ID"
 // @Param search query string false "Search by capability name"
 // @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_enterprisearchitecture_application_readmodels.UnlinkedCapabilityDTO}
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /domain-capabilities/unlinked [get]
 func (h *EnterpriseCapabilityHandlers) GetUnlinkedCapabilities(w http.ResponseWriter, r *http.Request) {
 	businessDomainID := r.URL.Query().Get("businessDomainId")

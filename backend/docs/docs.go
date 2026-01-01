@@ -2385,6 +2385,171 @@ const docTemplate = `{
                 }
             }
         },
+        "/components/{id}/fit-scores": {
+            "get": {
+                "description": "Retrieves all strategic fit scores for a specific application component",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "application-fit-scores"
+                ],
+                "summary": "Get strategic fit scores for a component",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ApplicationFitScoreResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/components/{id}/fit-scores/{pillarId}": {
+            "put": {
+                "description": "Creates or updates a strategic fit score for a component-pillar combination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "application-fit-scores"
+                ],
+                "summary": "Set or update strategic fit score for a component-pillar",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Strategy Pillar ID",
+                        "name": "pillarId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fit score",
+                        "name": "fitScore",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.SetApplicationFitScoreRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ApplicationFitScoreResponse"
+                        }
+                    },
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ApplicationFitScoreResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Deletes an existing strategic fit score",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "application-fit-scores"
+                ],
+                "summary": "Remove strategic fit score",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Strategy Pillar ID",
+                        "name": "pillarId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/domain-capabilities/enterprise-link-status": {
             "get": {
                 "description": "Batch check link eligibility for domain capabilities, optionally filtered by business domain",
@@ -2429,6 +2594,61 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/domain-capabilities/unlinked": {
+            "get": {
+                "description": "Retrieves domain capabilities that are not yet linked to an enterprise capability",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Get domain capabilities not linked to any enterprise capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by business domain ID",
+                        "name": "businessDomainId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by capability name",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.UnlinkedCapabilityDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
@@ -2604,6 +2824,51 @@ const docTemplate = `{
                         "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/enterprise-capabilities/maturity-analysis": {
+            "get": {
+                "description": "Retrieves enterprise capabilities that have 2+ implementations with varying maturity levels",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Get enterprise capabilities with maturity gaps",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Sort order: 'gap' or 'implementations' (default: gap)",
+                        "name": "sortBy",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityAnalysisCandidateDTO"
+                                    }
+                                },
+                                "summary": {
+                                    "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityAnalysisSummaryDTO"
+                                }
+                            }
                         }
                     },
                     "500": {
@@ -2913,6 +3178,47 @@ const docTemplate = `{
                 }
             }
         },
+        "/enterprise-capabilities/{id}/maturity-gap": {
+            "get": {
+                "description": "Retrieves detailed maturity gap analysis for a specific enterprise capability",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Get detailed maturity gap analysis",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityGapDetailDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/enterprise-capabilities/{id}/strategic-importance": {
             "get": {
                 "description": "Retrieves all strategic importance ratings for an enterprise capability",
@@ -3122,6 +3428,65 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/enterprise-capabilities/{id}/target-maturity": {
+            "put": {
+                "description": "Sets the target maturity level (0-99) for an enterprise capability used in gap analysis",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "enterprise-capabilities"
+                ],
+                "summary": "Set target maturity for enterprise capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Enterprise capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Target maturity data",
+                        "name": "maturity",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_enterprisearchitecture_infrastructure_api.SetTargetMaturityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
                     },
                     "404": {
                         "description": "Not Found",
@@ -4531,6 +4896,84 @@ const docTemplate = `{
                 }
             }
         },
+        "/meta-model/strategy-pillars/{id}/fit-configuration": {
+            "put": {
+                "description": "Updates a strategy pillar's fit scoring configuration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "meta-model"
+                ],
+                "summary": "Update pillar fit configuration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pillar ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ETag for optimistic locking",
+                        "name": "If-Match",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Fit configuration",
+                        "name": "config",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.UpdatePillarFitConfigurationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_metamodel_infrastructure_api.StrategyPillarResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "412": {
+                        "description": "Precondition Failed",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/platform/tenants": {
             "get": {
                 "description": "Retrieves a list of all tenants with optional filtering",
@@ -5106,6 +5549,109 @@ const docTemplate = `{
                         "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/strategic-fit-analysis/{pillarId}": {
+            "get": {
+                "description": "Analyzes the gap between capability importance and application fit scores for a strategic pillar",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategic-fit-analysis"
+                ],
+                "summary": "Get strategic fit analysis for a pillar",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Strategy Pillar ID",
+                        "name": "pillarId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.StrategicFitAnalysisResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/strategy-pillars/{pillarId}/fit-scores": {
+            "get": {
+                "description": "Retrieves all strategic fit scores for a specific strategy pillar across all components",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "application-fit-scores"
+                ],
+                "summary": "Get all fit scores for a strategy pillar",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Strategy Pillar ID",
+                        "name": "pillarId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.ApplicationFitScoreResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
@@ -6424,6 +6970,9 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "targetMaturity": {
+                    "type": "integer"
+                },
                 "updatedAt": {
                     "type": "string"
                 }
@@ -6505,6 +7054,64 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_enterprisearchitecture_application_readmodels.ImplementationDetailDTO": {
+            "type": "object",
+            "properties": {
+                "businessDomainId": {
+                    "type": "string"
+                },
+                "businessDomainName": {
+                    "type": "string"
+                },
+                "domainCapabilityId": {
+                    "type": "string"
+                },
+                "domainCapabilityName": {
+                    "type": "string"
+                },
+                "gap": {
+                    "type": "integer"
+                },
+                "maturitySection": {
+                    "type": "string"
+                },
+                "maturityValue": {
+                    "type": "integer"
+                },
+                "priority": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_enterprisearchitecture_application_readmodels.InvestmentPrioritiesDTO": {
+            "type": "object",
+            "properties": {
+                "high": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.ImplementationDetailDTO"
+                    }
+                },
+                "low": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.ImplementationDetailDTO"
+                    }
+                },
+                "medium": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.ImplementationDetailDTO"
+                    }
+                },
+                "onTarget": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.ImplementationDetailDTO"
+                    }
+                }
+            }
+        },
         "easi_backend_internal_enterprisearchitecture_application_readmodels.LinkStatus": {
             "type": "string",
             "enum": [
@@ -6528,6 +7135,148 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityAnalysisCandidateDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "averageMaturity": {
+                    "type": "integer"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "domainCount": {
+                    "type": "integer"
+                },
+                "enterpriseCapabilityId": {
+                    "type": "string"
+                },
+                "enterpriseCapabilityName": {
+                    "type": "string"
+                },
+                "implementationCount": {
+                    "type": "integer"
+                },
+                "maturityDistribution": {
+                    "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityDistributionDTO"
+                },
+                "maxGap": {
+                    "type": "integer"
+                },
+                "maxMaturity": {
+                    "type": "integer"
+                },
+                "minMaturity": {
+                    "type": "integer"
+                },
+                "targetMaturity": {
+                    "type": "integer"
+                },
+                "targetMaturitySection": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityAnalysisSummaryDTO": {
+            "type": "object",
+            "properties": {
+                "averageGap": {
+                    "type": "integer"
+                },
+                "candidateCount": {
+                    "type": "integer"
+                },
+                "totalImplementations": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityDistributionDTO": {
+            "type": "object",
+            "properties": {
+                "commodity": {
+                    "type": "integer"
+                },
+                "customBuild": {
+                    "type": "integer"
+                },
+                "genesis": {
+                    "type": "integer"
+                },
+                "product": {
+                    "type": "integer"
+                }
+            }
+        },
+        "easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityGapDetailDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "category": {
+                    "type": "string"
+                },
+                "enterpriseCapabilityId": {
+                    "type": "string"
+                },
+                "enterpriseCapabilityName": {
+                    "type": "string"
+                },
+                "implementations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.ImplementationDetailDTO"
+                    }
+                },
+                "investmentPriorities": {
+                    "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.InvestmentPrioritiesDTO"
+                },
+                "targetMaturity": {
+                    "type": "integer"
+                },
+                "targetMaturitySection": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_enterprisearchitecture_application_readmodels.UnlinkedCapabilityDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "businessDomainId": {
+                    "type": "string"
+                },
+                "businessDomainName": {
+                    "type": "string"
+                },
+                "capabilityId": {
+                    "type": "string"
+                },
+                "capabilityName": {
+                    "type": "string"
+                },
+                "maturitySection": {
+                    "type": "string"
+                },
+                "maturityValue": {
+                    "type": "integer"
                 }
             }
         },
@@ -6743,6 +7492,12 @@ const docTemplate = `{
                 },
                 "description": {
                     "type": "string"
+                },
+                "fitCriteria": {
+                    "type": "string"
+                },
+                "fitScoringEnabled": {
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "string"
@@ -7140,6 +7895,47 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_capabilitymapping_infrastructure_api.ApplicationFitScoreResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "componentId": {
+                    "type": "string"
+                },
+                "componentName": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "pillarId": {
+                    "type": "string"
+                },
+                "pillarName": {
+                    "type": "string"
+                },
+                "rationale": {
+                    "type": "string"
+                },
+                "score": {
+                    "type": "integer"
+                },
+                "scoreLabel": {
+                    "type": "string"
+                },
+                "scoredAt": {
+                    "type": "string"
+                },
+                "scoredBy": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_capabilitymapping_infrastructure_api.AssignCapabilityRequest": {
             "type": "object",
             "properties": {
@@ -7349,6 +8145,64 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_capabilitymapping_infrastructure_api.RealizationFitResponse": {
+            "type": "object",
+            "properties": {
+                "businessDomainId": {
+                    "type": "string"
+                },
+                "businessDomainName": {
+                    "type": "string"
+                },
+                "capabilityId": {
+                    "type": "string"
+                },
+                "capabilityName": {
+                    "type": "string"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "componentId": {
+                    "type": "string"
+                },
+                "componentName": {
+                    "type": "string"
+                },
+                "fitRationale": {
+                    "type": "string"
+                },
+                "fitScore": {
+                    "type": "integer"
+                },
+                "fitScoreLabel": {
+                    "type": "string"
+                },
+                "gap": {
+                    "type": "integer"
+                },
+                "importance": {
+                    "type": "integer"
+                },
+                "importanceLabel": {
+                    "type": "string"
+                },
+                "realizationId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.SetApplicationFitScoreRequest": {
+            "type": "object",
+            "properties": {
+                "rationale": {
+                    "type": "string"
+                },
+                "score": {
+                    "type": "integer"
+                }
+            }
+        },
         "internal_capabilitymapping_infrastructure_api.SetStrategyImportanceRequest": {
             "type": "object",
             "properties": {
@@ -7377,6 +8231,67 @@ const docTemplate = `{
                 "value": {
                     "type": "string",
                     "example": "Active"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.StrategicFitAnalysisResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "aligned": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.RealizationFitResponse"
+                    }
+                },
+                "concerns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.RealizationFitResponse"
+                    }
+                },
+                "liabilities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.RealizationFitResponse"
+                    }
+                },
+                "pillarId": {
+                    "type": "string"
+                },
+                "pillarName": {
+                    "type": "string"
+                },
+                "summary": {
+                    "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.StrategicFitSummaryResponse"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.StrategicFitSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "alignedCount": {
+                    "type": "integer"
+                },
+                "averageGap": {
+                    "type": "number"
+                },
+                "concernCount": {
+                    "type": "integer"
+                },
+                "liabilityCount": {
+                    "type": "integer"
+                },
+                "scoredRealizations": {
+                    "type": "integer"
+                },
+                "totalRealizations": {
+                    "type": "integer"
                 }
             }
         },
@@ -7569,6 +8484,14 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_enterprisearchitecture_infrastructure_api.SetTargetMaturityRequest": {
+            "type": "object",
+            "properties": {
+                "targetMaturity": {
+                    "type": "integer"
+                }
+            }
+        },
         "internal_enterprisearchitecture_infrastructure_api.UpdateEnterpriseCapabilityRequest": {
             "type": "object",
             "properties": {
@@ -7682,6 +8605,12 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "fitCriteria": {
+                    "type": "string"
+                },
+                "fitScoringEnabled": {
+                    "type": "boolean"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -7701,6 +8630,17 @@ const docTemplate = `{
                 },
                 "version": {
                     "type": "integer"
+                }
+            }
+        },
+        "internal_metamodel_infrastructure_api.UpdatePillarFitConfigurationRequest": {
+            "type": "object",
+            "properties": {
+                "fitCriteria": {
+                    "type": "string"
+                },
+                "fitScoringEnabled": {
+                    "type": "boolean"
                 }
             }
         },

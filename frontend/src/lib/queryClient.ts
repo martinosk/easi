@@ -113,4 +113,19 @@ export const queryKeys = {
     unlinked: (filters?: { businessDomainId?: string; search?: string }) =>
       [...queryKeys.maturityAnalysis.all, 'unlinked', filters] as const,
   },
+  fitScores: {
+    all: ['fitScores'] as const,
+    byComponent: (componentId: string) =>
+      [...queryKeys.fitScores.all, 'byComponent', componentId] as const,
+  },
+  fitComparisons: {
+    all: ['fitComparisons'] as const,
+    byContext: (componentId: string, capabilityId: string, businessDomainId: string) =>
+      [...queryKeys.fitComparisons.all, componentId, capabilityId, businessDomainId] as const,
+  },
+  strategicFitAnalysis: {
+    all: ['strategicFitAnalysis'] as const,
+    byPillar: (pillarId: string) =>
+      [...queryKeys.strategicFitAnalysis.all, 'byPillar', pillarId] as const,
+  },
 } as const;

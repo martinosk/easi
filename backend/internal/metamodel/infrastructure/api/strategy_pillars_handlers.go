@@ -49,11 +49,18 @@ type UpdateStrategyPillarRequest struct {
 }
 
 type StrategyPillarResponse struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Active      bool              `json:"active"`
-	Links       map[string]string `json:"_links"`
+	ID                string            `json:"id"`
+	Name              string            `json:"name"`
+	Description       string            `json:"description"`
+	Active            bool              `json:"active"`
+	FitScoringEnabled bool              `json:"fitScoringEnabled"`
+	FitCriteria       string            `json:"fitCriteria"`
+	Links             map[string]string `json:"_links"`
+}
+
+type UpdatePillarFitConfigurationRequest struct {
+	FitScoringEnabled bool   `json:"fitScoringEnabled"`
+	FitCriteria       string `json:"fitCriteria"`
 }
 
 // GetStrategyPillars godoc
@@ -319,10 +326,12 @@ func (h *StrategyPillarsHandlers) DeleteStrategyPillar(w http.ResponseWriter, r 
 }
 
 type PillarChangeRequest struct {
-	Operation   string `json:"operation"`
-	ID          string `json:"id,omitempty"`
-	Name        string `json:"name,omitempty"`
-	Description string `json:"description,omitempty"`
+	Operation         string `json:"operation"`
+	ID                string `json:"id,omitempty"`
+	Name              string `json:"name,omitempty"`
+	Description       string `json:"description,omitempty"`
+	FitScoringEnabled *bool  `json:"fitScoringEnabled,omitempty"`
+	FitCriteria       string `json:"fitCriteria,omitempty"`
 }
 
 type BatchUpdateStrategyPillarsRequest struct {
@@ -446,10 +455,12 @@ func mapPillarChanges(requests []PillarChangeRequest) ([]commands.PillarChange, 
 			return nil, err
 		}
 		changes[i] = commands.PillarChange{
-			Operation:   op,
-			PillarID:    change.ID,
-			Name:        change.Name,
-			Description: change.Description,
+			Operation:         op,
+			PillarID:          change.ID,
+			Name:              change.Name,
+			Description:       change.Description,
+			FitScoringEnabled: change.FitScoringEnabled,
+			FitCriteria:       change.FitCriteria,
 		}
 	}
 	return changes, nil
@@ -509,12 +520,78 @@ func (h *StrategyPillarsHandlers) ensureConfigExists(w http.ResponseWriter, r *h
 
 func (h *StrategyPillarsHandlers) buildPillarResponse(pillar readmodels.StrategyPillarDTO) StrategyPillarResponse {
 	return StrategyPillarResponse{
-		ID:          pillar.ID,
-		Name:        pillar.Name,
-		Description: pillar.Description,
-		Active:      pillar.Active,
-		Links:       h.hateoas.StrategyPillarLinks(pillar.ID, pillar.Active),
+		ID:                pillar.ID,
+		Name:              pillar.Name,
+		Description:       pillar.Description,
+		Active:            pillar.Active,
+		FitScoringEnabled: pillar.FitScoringEnabled,
+		FitCriteria:       pillar.FitCriteria,
+		Links:             h.hateoas.StrategyPillarLinks(pillar.ID, pillar.Active),
 	}
+}
+
+// UpdatePillarFitConfiguration godoc
+// @Summary Update pillar fit configuration
+// @Description Updates a strategy pillar's fit scoring configuration
+// @Tags meta-model
+// @Accept json
+// @Produce json
+// @Param id path string true "Pillar ID"
+// @Param If-Match header string true "ETag for optimistic locking"
+// @Param config body UpdatePillarFitConfigurationRequest true "Fit configuration"
+// @Success 200 {object} StrategyPillarResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 401 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 412 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /meta-model/strategy-pillars/{id}/fit-configuration [put]
+func (h *StrategyPillarsHandlers) UpdatePillarFitConfiguration(w http.ResponseWriter, r *http.Request) {
+	pillarID := chi.URLParam(r, "id")
+
+	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Authentication required")
+		return
+	}
+
+	expectedVersion, ok := h.requireETag(w, r)
+	if !ok {
+		return
+	}
+
+	req, ok := sharedAPI.DecodeRequestOrFail[UpdatePillarFitConfigurationRequest](w, r)
+	if !ok {
+		return
+	}
+
+	config, err := h.readModel.GetByTenantID(r.Context())
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve configuration")
+		return
+	}
+
+	if config == nil {
+		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Configuration not found")
+		return
+	}
+
+	cmd := &commands.UpdatePillarFitConfiguration{
+		ConfigID:          config.ID,
+		PillarID:          pillarID,
+		FitScoringEnabled: req.FitScoringEnabled,
+		FitCriteria:       req.FitCriteria,
+		ModifiedBy:        authSession.UserEmail(),
+		ExpectedVersion:   &expectedVersion,
+	}
+
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		statusCode := sharedAPI.MapErrorToStatusCode(err, http.StatusBadRequest)
+		sharedAPI.RespondError(w, statusCode, err, "Failed to update pillar fit configuration")
+		return
+	}
+
+	h.respondWithUpdatedPillar(w, r, pillarID)
 }
 
 func (h *StrategyPillarsHandlers) buildPillarResponses(pillars []readmodels.StrategyPillarDTO) []StrategyPillarResponse {

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useAppStore } from '../../../store/appStore';
 import { DetailField } from '../../../components/shared/DetailField';
 import { ColorPicker } from '../../../components/shared/ColorPicker';
+import { ComponentFitScores } from './ComponentFitScores';
 import { useCapabilities, useCapabilitiesByComponent } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../hooks/useComponents';
 import { useUpdateComponentColor, useClearComponentColor } from '../../views/hooks/useViews';
@@ -218,6 +219,8 @@ const ComponentContentInternal: React.FC<ComponentContentProps> = ({
       )}
 
       <RealizationsField realizations={realizations} capabilities={capabilities} />
+
+      <ComponentFitScores componentId={component.id} />
     </div>
   );
 };

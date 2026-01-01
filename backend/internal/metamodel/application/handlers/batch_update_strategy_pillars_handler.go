@@ -57,6 +57,7 @@ type pillarConfig interface {
 	AddStrategyPillar(name valueobjects.PillarName, desc valueobjects.PillarDescription, modifiedBy valueobjects.UserEmail) error
 	UpdateStrategyPillar(id valueobjects.StrategyPillarID, name valueobjects.PillarName, desc valueobjects.PillarDescription, modifiedBy valueobjects.UserEmail) error
 	RemoveStrategyPillar(id valueobjects.StrategyPillarID, modifiedBy valueobjects.UserEmail) error
+	UpdatePillarFitConfiguration(id valueobjects.StrategyPillarID, enabled bool, criteria valueobjects.FitCriteria, modifiedBy valueobjects.UserEmail) error
 }
 
 func applyPillarChange(config pillarConfig, change commands.PillarChange, modifiedBy valueobjects.UserEmail) error {
@@ -96,7 +97,19 @@ func updatePillar(config pillarConfig, change commands.PillarChange, modifiedBy 
 	if err != nil {
 		return err
 	}
-	return config.UpdateStrategyPillar(pillarID, pillarName, pillarDesc, modifiedBy)
+	if err := config.UpdateStrategyPillar(pillarID, pillarName, pillarDesc, modifiedBy); err != nil {
+		return err
+	}
+	if change.FitScoringEnabled != nil {
+		criteria, err := valueobjects.NewFitCriteria(change.FitCriteria)
+		if err != nil {
+			return err
+		}
+		if err := config.UpdatePillarFitConfiguration(pillarID, *change.FitScoringEnabled, criteria, modifiedBy); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func removePillar(config pillarConfig, change commands.PillarChange, modifiedBy valueobjects.UserEmail) error {

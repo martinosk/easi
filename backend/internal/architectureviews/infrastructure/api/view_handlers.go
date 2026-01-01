@@ -156,8 +156,8 @@ type UpdateColorSchemeRequest struct {
 // @Produce json
 // @Param view body CreateViewRequest true "View data"
 // @Success 201 {object} readmodels.ArchitectureViewDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views [post]
 func (h *ViewHandlers) CreateView(w http.ResponseWriter, r *http.Request) {
 	req, ok := sharedAPI.DecodeRequestOrFail[CreateViewRequest](w, r)
@@ -206,7 +206,7 @@ func (h *ViewHandlers) CreateView(w http.ResponseWriter, r *http.Request) {
 // @Tags views
 // @Produce json
 // @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_architectureviews_application_readmodels.ArchitectureViewDTO}
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views [get]
 func (h *ViewHandlers) GetAllViews(w http.ResponseWriter, r *http.Request) {
 	views, err := h.readModel.GetAll(r.Context())
@@ -234,8 +234,8 @@ func (h *ViewHandlers) GetAllViews(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "View ID"
 // @Success 200 {object} readmodels.ArchitectureViewDTO
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id} [get]
 func (h *ViewHandlers) GetViewByID(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")
@@ -266,10 +266,10 @@ func (h *ViewHandlers) GetViewByID(w http.ResponseWriter, r *http.Request) {
 // @Param id path string true "View ID"
 // @Param component body AddComponentRequest true "Component data"
 // @Success 201
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 409 {object} easi_backend_internal_shared_api.ErrorResponse "Component already in view"
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 409 {object} sharedAPI.ErrorResponse "Component already in view"
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/components [post]
 func (h *ViewHandlers) AddComponentToView(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
@@ -305,9 +305,9 @@ func (h *ViewHandlers) AddComponentToView(w http.ResponseWriter, r *http.Request
 // @Param componentId path string true "Component ID"
 // @Param position body UpdatePositionRequest true "Position data"
 // @Success 204
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse "View or component not found"
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse "View or component not found"
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/components/{componentId}/position [patch]
 func (h *ViewHandlers) UpdateComponentPosition(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
@@ -363,9 +363,9 @@ func (h *ViewHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Re
 // @Param id path string true "View ID"
 // @Param view body RenameViewRequest true "New view name"
 // @Success 204
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/name [patch]
 func (h *ViewHandlers) RenameView(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
@@ -390,9 +390,9 @@ func (h *ViewHandlers) RenameView(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param id path string true "View ID"
 // @Success 204
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 409 {object} easi_backend_internal_shared_api.ErrorResponse "Cannot delete default view"
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 409 {object} sharedAPI.ErrorResponse "Cannot delete default view"
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id} [delete]
 func (h *ViewHandlers) DeleteView(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
@@ -410,8 +410,8 @@ func (h *ViewHandlers) DeleteView(w http.ResponseWriter, r *http.Request) {
 // @Param id path string true "View ID"
 // @Param componentId path string true "Component ID"
 // @Success 204
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse "View or component not found"
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse "View or component not found"
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/components/{componentId} [delete]
 func (h *ViewHandlers) RemoveComponentFromView(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
@@ -430,8 +430,8 @@ func (h *ViewHandlers) RemoveComponentFromView(w http.ResponseWriter, r *http.Re
 // @Produce json
 // @Param id path string true "View ID"
 // @Success 204
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/default [put]
 func (h *ViewHandlers) SetDefaultView(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
@@ -548,8 +548,8 @@ func (h *ViewHandlers) RemoveCapabilityFromView(w http.ResponseWriter, r *http.R
 // @Param id path string true "View ID"
 // @Param colorScheme body UpdateColorSchemeRequest true "Color scheme update request"
 // @Success 200 {object} object{colorScheme=string,_links=map[string]string}
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/color-scheme [patch]
 func (h *ViewHandlers) UpdateColorScheme(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
@@ -601,8 +601,8 @@ type UpdateElementColorRequest struct {
 // @Param componentId path string true "Component ID"
 // @Param color body UpdateElementColorRequest true "Color update request with hex color (e.g., #FF5733)"
 // @Success 204
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse "Invalid hex color format"
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid hex color format"
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/components/{componentId}/color [patch]
 func (h *ViewHandlers) UpdateComponentColor(w http.ResponseWriter, r *http.Request) {
 	h.updateElementColor(w, r, elementParams{
@@ -621,8 +621,8 @@ func (h *ViewHandlers) UpdateComponentColor(w http.ResponseWriter, r *http.Reque
 // @Param capabilityId path string true "Capability ID"
 // @Param color body UpdateElementColorRequest true "Color update request with hex color (e.g., #FF5733)"
 // @Success 204
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse "Invalid hex color format"
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse "Invalid hex color format"
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/capabilities/{capabilityId}/color [patch]
 func (h *ViewHandlers) UpdateCapabilityColor(w http.ResponseWriter, r *http.Request) {
 	h.updateElementColor(w, r, elementParams{
@@ -639,7 +639,7 @@ func (h *ViewHandlers) UpdateCapabilityColor(w http.ResponseWriter, r *http.Requ
 // @Param id path string true "View ID"
 // @Param componentId path string true "Component ID"
 // @Success 204
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/components/{componentId}/color [delete]
 func (h *ViewHandlers) ClearComponentColor(w http.ResponseWriter, r *http.Request) {
 	h.clearElementColor(w, r, elementParams{
@@ -656,7 +656,7 @@ func (h *ViewHandlers) ClearComponentColor(w http.ResponseWriter, r *http.Reques
 // @Param id path string true "View ID"
 // @Param capabilityId path string true "Capability ID"
 // @Success 204
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/capabilities/{capabilityId}/color [delete]
 func (h *ViewHandlers) ClearCapabilityColor(w http.ResponseWriter, r *http.Request) {
 	h.clearElementColor(w, r, elementParams{

@@ -61,9 +61,9 @@ type AddCapabilityTagRequest struct {
 // @Param id path string true "Capability ID"
 // @Param metadata body UpdateCapabilityMetadataRequest true "Metadata"
 // @Success 200 {object} easi_backend_internal_capabilitymapping_application_readmodels.CapabilityDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capabilities/{id}/metadata [put]
 func (h *CapabilityHandlers) UpdateCapabilityMetadata(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -128,9 +128,9 @@ func (h *CapabilityHandlers) UpdateCapabilityMetadata(w http.ResponseWriter, r *
 // @Param id path string true "Capability ID"
 // @Param expert body AddCapabilityExpertRequest true "Expert data"
 // @Success 204 "No Content"
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capabilities/{id}/experts [post]
 func (h *CapabilityHandlers) AddCapabilityExpert(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -172,9 +172,9 @@ func (h *CapabilityHandlers) AddCapabilityExpert(w http.ResponseWriter, r *http.
 // @Param id path string true "Capability ID"
 // @Param tag body AddCapabilityTagRequest true "Tag data"
 // @Success 204 "No Content"
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capabilities/{id}/tags [post]
 func (h *CapabilityHandlers) AddCapabilityTag(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")

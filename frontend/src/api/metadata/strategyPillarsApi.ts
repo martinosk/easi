@@ -15,6 +15,13 @@ export interface PillarChange {
   id?: string;
   name?: string;
   description?: string;
+  fitScoringEnabled?: boolean;
+  fitCriteria?: string;
+}
+
+export interface UpdateFitConfigurationRequest {
+  fitScoringEnabled: boolean;
+  fitCriteria: string;
 }
 
 export interface BatchUpdateRequest {
@@ -77,6 +84,23 @@ export const strategyPillarsApi = {
 
   async deletePillar(id: string): Promise<void> {
     await httpClient.delete(`/api/v1/meta-model/strategy-pillars/${id}`);
+  },
+
+  async updateFitConfiguration(
+    id: string,
+    request: UpdateFitConfigurationRequest,
+    version: number
+  ): Promise<StrategyPillar> {
+    const response = await httpClient.put<StrategyPillar>(
+      `/api/v1/meta-model/strategy-pillars/${id}/fit-configuration`,
+      request,
+      {
+        headers: {
+          'If-Match': `"${version}"`,
+        },
+      }
+    );
+    return response.data;
   },
 };
 

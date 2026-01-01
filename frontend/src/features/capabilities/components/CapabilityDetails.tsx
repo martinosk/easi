@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAppStore } from '../../../store/appStore';
 import { EditCapabilityDialog } from './EditCapabilityDialog';
 import { DetailField } from '../../../components/shared/DetailField';
 import { ColorPicker } from '../../../components/shared/ColorPicker';
+import { RealizationFitContext } from './RealizationFitContext';
 import { useCapabilities, useCapabilityRealizations } from '../hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useUpdateCapabilityColor } from '../../views/hooks/useViews';
 import { useCurrentView } from '../../../hooks/useCurrentView';
 import { useMaturityScale } from '../../../hooks/useMaturityScale';
+import { useStrategyImportanceByCapability } from '../../business-domains/hooks/useStrategyImportance';
 import { deriveLegacyMaturityValue, getDefaultSections } from '../../../utils/maturity';
-import type { Capability, Component, CapabilityRealization, Expert, View, ViewCapability, ViewId, CapabilityId } from '../../../api/types';
+import type { Capability, Component, CapabilityRealization, Expert, View, ViewCapability, ViewId, CapabilityId, StrategyImportance, ComponentId } from '../../../api/types';
 import toast from 'react-hot-toast';
 
 interface CapabilityDetailsProps {
@@ -62,18 +64,57 @@ const TagList: React.FC<{ tags: string[] }> = ({ tags }) => (
 interface RealizingComponentsProps {
   realizations: CapabilityRealization[];
   components: Component[];
+  capabilityId: CapabilityId;
+  importanceRatings: StrategyImportance[];
 }
 
-const RealizingComponentsList: React.FC<RealizingComponentsProps> = ({ realizations, components }) => (
-  <ul className="realization-list">
-    {realizations.map((r) => (
-      <li key={r.id} className="realization-item">
-        <span className="realization-name">{getComponentName(components, r.componentId)}</span>
-        <span className="realization-level">{getLevelBadge(r.realizationLevel)}</span>
-      </li>
-    ))}
-  </ul>
-);
+const RealizingComponentsList: React.FC<RealizingComponentsProps> = ({
+  realizations,
+  components,
+  capabilityId,
+  importanceRatings,
+}) => {
+  const uniqueDomainIds = useMemo(() => {
+    const ids = new Set(importanceRatings.map((r) => r.businessDomainId));
+    return Array.from(ids);
+  }, [importanceRatings]);
+
+  if (uniqueDomainIds.length === 0) {
+    return (
+      <ul className="realization-list">
+        {realizations.map((r) => (
+          <li key={r.id} className="realization-item-with-fit">
+            <div className="realization-header">
+              <span className="realization-name">{getComponentName(components, r.componentId)}</span>
+              <span className="realization-level">{getLevelBadge(r.realizationLevel)}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  return (
+    <ul className="realization-list">
+      {realizations.map((r) => (
+        <li key={r.id} className="realization-item-with-fit">
+          <div className="realization-header">
+            <span className="realization-name">{getComponentName(components, r.componentId)}</span>
+            <span className="realization-level">{getLevelBadge(r.realizationLevel)}</span>
+          </div>
+          {uniqueDomainIds.map((domainId) => (
+            <RealizationFitContext
+              key={`${r.componentId}-${domainId}`}
+              componentId={r.componentId as ComponentId}
+              capabilityId={capabilityId}
+              businessDomainId={domainId}
+            />
+          ))}
+        </li>
+      ))}
+    </ul>
+  );
+};
 
 interface OptionalFieldProps<T> {
   value: T | undefined | null;
@@ -158,13 +199,25 @@ const ColorPickerField: React.FC<ColorPickerFieldProps> = ({ capabilityInView, c
 interface RealizationsFieldProps {
   realizations: CapabilityRealization[];
   components: Component[];
+  capabilityId: CapabilityId;
+  importanceRatings: StrategyImportance[];
 }
 
-const RealizationsField: React.FC<RealizationsFieldProps> = ({ realizations, components }) => {
+const RealizationsField: React.FC<RealizationsFieldProps> = ({
+  realizations,
+  components,
+  capabilityId,
+  importanceRatings,
+}) => {
   if (realizations.length === 0) return null;
   return (
     <DetailField label="Realized By">
-      <RealizingComponentsList realizations={realizations} components={components} />
+      <RealizingComponentsList
+        realizations={realizations}
+        components={components}
+        capabilityId={capabilityId}
+        importanceRatings={importanceRatings}
+      />
     </DetailField>
   );
 };
@@ -175,6 +228,7 @@ interface CapabilityContentProps {
   currentView: View | null;
   realizations: CapabilityRealization[];
   components: Component[];
+  importanceRatings: StrategyImportance[];
   onColorChange: (color: string) => void;
   onEdit: () => void;
   onRemoveFromView: () => void;
@@ -186,6 +240,7 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
   currentView,
   realizations,
   components,
+  importanceRatings,
   onColorChange,
   onEdit,
   onRemoveFromView,
@@ -226,7 +281,12 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
         />
       )}
 
-      <RealizationsField realizations={realizations} components={components} />
+      <RealizationsField
+        realizations={realizations}
+        components={components}
+        capabilityId={capability.id as CapabilityId}
+        importanceRatings={importanceRatings}
+      />
     </div>
   );
 };
@@ -237,6 +297,7 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
   const { data: components = [] } = useComponents();
   const { currentView } = useCurrentView();
   const { data: capabilityRealizationsForThis = [] } = useCapabilityRealizations(selectedCapabilityId ?? undefined);
+  const { data: importanceRatings = [] } = useStrategyImportanceByCapability(selectedCapabilityId as CapabilityId | undefined);
   const updateCapabilityColorMutation = useUpdateCapabilityColor();
   const [showEditDialog, setShowEditDialog] = useState(false);
 
@@ -273,6 +334,7 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
         currentView={currentView}
         realizations={capabilityRealizationsForThis}
         components={components}
+        importanceRatings={importanceRatings}
         onColorChange={handleColorChange}
         onEdit={() => setShowEditDialog(true)}
         onRemoveFromView={onRemoveFromView}

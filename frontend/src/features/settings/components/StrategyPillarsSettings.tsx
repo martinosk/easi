@@ -14,6 +14,8 @@ interface EditablePillar {
   name: string;
   description: string;
   active: boolean;
+  fitScoringEnabled: boolean;
+  fitCriteria: string;
   isNew: boolean;
   markedForDeletion: boolean;
 }
@@ -60,7 +62,12 @@ function isExistingPillarToUpdate(pillar: EditablePillar): boolean {
 
 function hasPillarChanged(pillar: EditablePillar, original: StrategyPillar | undefined): boolean {
   if (!original) return false;
-  return original.name !== pillar.name.trim() || original.description !== pillar.description.trim();
+  return (
+    original.name !== pillar.name.trim() ||
+    original.description !== pillar.description.trim() ||
+    original.fitScoringEnabled !== pillar.fitScoringEnabled ||
+    original.fitCriteria !== pillar.fitCriteria.trim()
+  );
 }
 
 function buildSinglePillarChange(
@@ -68,7 +75,13 @@ function buildSinglePillarChange(
   originalPillars: StrategyPillar[]
 ): PillarChange | null {
   if (isNewPillarToAdd(pillar)) {
-    return { operation: 'add', name: pillar.name.trim(), description: pillar.description.trim() };
+    return {
+      operation: 'add',
+      name: pillar.name.trim(),
+      description: pillar.description.trim(),
+      fitScoringEnabled: pillar.fitScoringEnabled,
+      fitCriteria: pillar.fitCriteria.trim(),
+    };
   }
 
   if (isExistingPillarToRemove(pillar)) {
@@ -78,7 +91,14 @@ function buildSinglePillarChange(
   if (isExistingPillarToUpdate(pillar)) {
     const original = originalPillars.find((p) => p.id === pillar.id);
     if (hasPillarChanged(pillar, original)) {
-      return { operation: 'update', id: pillar.id, name: pillar.name.trim(), description: pillar.description.trim() };
+      return {
+        operation: 'update',
+        id: pillar.id,
+        name: pillar.name.trim(),
+        description: pillar.description.trim(),
+        fitScoringEnabled: pillar.fitScoringEnabled,
+        fitCriteria: pillar.fitCriteria.trim(),
+      };
     }
   }
 
@@ -106,6 +126,8 @@ export function StrategyPillarsSettings() {
       setEditedPillars(
         config.data.map((p) => ({
           ...p,
+          fitScoringEnabled: p.fitScoringEnabled ?? false,
+          fitCriteria: p.fitCriteria ?? '',
           isNew: false,
           markedForDeletion: false,
         }))
@@ -154,6 +176,8 @@ export function StrategyPillarsSettings() {
       setEditedPillars(
         config.data.map((p) => ({
           ...p,
+          fitScoringEnabled: p.fitScoringEnabled ?? false,
+          fitCriteria: p.fitCriteria ?? '',
           isNew: false,
           markedForDeletion: false,
         }))
@@ -231,6 +255,8 @@ export function StrategyPillarsSettings() {
       name: '',
       description: '',
       active: true,
+      fitScoringEnabled: false,
+      fitCriteria: '',
       isNew: true,
       markedForDeletion: false,
     };
@@ -240,6 +266,18 @@ export function StrategyPillarsSettings() {
 
     const errors = validatePillars(updated);
     setValidationErrors(errors);
+  };
+
+  const handleFitScoringEnabledChange = (index: number, enabled: boolean) => {
+    const updated = [...editedPillars];
+    updated[index] = { ...updated[index], fitScoringEnabled: enabled };
+    setEditedPillars(updated);
+  };
+
+  const handleFitCriteriaChange = (index: number, criteria: string) => {
+    const updated = [...editedPillars];
+    updated[index] = { ...updated[index], fitCriteria: criteria };
+    setEditedPillars(updated);
   };
 
   const handleDeletePillar = (index: number) => {
@@ -377,12 +415,44 @@ export function StrategyPillarsSettings() {
                       maxLength={500}
                       disabled={isMarkedForDeletion}
                     />
+                    <div className="pillar-fit-config">
+                      <label className="fit-scoring-toggle">
+                        <input
+                          type="checkbox"
+                          checked={'fitScoringEnabled' in pillar ? pillar.fitScoringEnabled : false}
+                          onChange={(e) => handleFitScoringEnabledChange(index, e.target.checked)}
+                          disabled={isMarkedForDeletion}
+                          data-testid={`pillar-fit-scoring-checkbox-${index}`}
+                        />
+                        <span>Enable fit scoring for realizations</span>
+                      </label>
+                      {'fitScoringEnabled' in pillar && pillar.fitScoringEnabled && (
+                        <input
+                          type="text"
+                          className="pillar-fit-criteria-input"
+                          value={'fitCriteria' in pillar ? pillar.fitCriteria : ''}
+                          onChange={(e) => handleFitCriteriaChange(index, e.target.value)}
+                          placeholder="Fit criteria (e.g., Reliability, uptime SLA, disaster recovery)"
+                          data-testid={`pillar-fit-criteria-input-${index}`}
+                          maxLength={500}
+                          disabled={isMarkedForDeletion}
+                        />
+                      )}
+                    </div>
                   </>
                 ) : (
                   <>
                     <span className="pillar-name">{pillar.name}</span>
                     {pillar.description && (
                       <span className="pillar-description-view">{pillar.description}</span>
+                    )}
+                    {pillar.fitScoringEnabled && (
+                      <div className="pillar-fit-info">
+                        <span className="fit-scoring-badge">Fit Scoring Enabled</span>
+                        {pillar.fitCriteria && (
+                          <span className="fit-criteria-view">{pillar.fitCriteria}</span>
+                        )}
+                      </div>
                     )}
                   </>
                 )}

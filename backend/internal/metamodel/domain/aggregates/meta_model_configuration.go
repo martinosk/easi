@@ -108,6 +108,8 @@ func (m *MetaModelConfiguration) apply(event domain.DomainEvent) {
 		m.applyPillarUpdated(e)
 	case events.StrategyPillarRemoved:
 		m.applyPillarRemoved(e)
+	case events.PillarFitConfigurationUpdated:
+		m.applyPillarFitConfigurationUpdated(e)
 	}
 }
 
@@ -133,6 +135,14 @@ func (m *MetaModelConfiguration) applyPillarUpdated(e events.StrategyPillarUpdat
 func (m *MetaModelConfiguration) applyPillarRemoved(e events.StrategyPillarRemoved) {
 	pillarID, _ := valueobjects.NewStrategyPillarIDFromString(e.PillarID)
 	m.strategyPillarsConfig, _ = m.strategyPillarsConfig.WithRemovedPillar(pillarID)
+	m.modifiedAt, _ = valueobjects.NewTimestamp(e.ModifiedAt)
+	m.modifiedBy, _ = valueobjects.NewUserEmail(e.ModifiedBy)
+}
+
+func (m *MetaModelConfiguration) applyPillarFitConfigurationUpdated(e events.PillarFitConfigurationUpdated) {
+	pillarID, _ := valueobjects.NewStrategyPillarIDFromString(e.PillarID)
+	criteria, _ := valueobjects.NewFitCriteria(e.FitCriteria)
+	m.strategyPillarsConfig, _ = m.strategyPillarsConfig.WithUpdatedPillarFitConfiguration(pillarID, e.FitScoringEnabled, criteria)
 	m.modifiedAt, _ = valueobjects.NewTimestamp(e.ModifiedAt)
 	m.modifiedBy, _ = valueobjects.NewUserEmail(e.ModifiedBy)
 }
@@ -223,6 +233,26 @@ func (m *MetaModelConfiguration) RemoveStrategyPillar(id valueobjects.StrategyPi
 	return nil
 }
 
+func (m *MetaModelConfiguration) UpdatePillarFitConfiguration(id valueobjects.StrategyPillarID, enabled bool, criteria valueobjects.FitCriteria, modifiedBy valueobjects.UserEmail) error {
+	if _, err := m.strategyPillarsConfig.WithUpdatedPillarFitConfiguration(id, enabled, criteria); err != nil {
+		return err
+	}
+
+	event := events.NewPillarFitConfigurationUpdated(events.UpdatePillarFitConfigParams{
+		PillarEventParams: events.PillarEventParams{
+			ConfigID:   m.ID(),
+			TenantID:   m.tenantID.Value(),
+			Version:    m.Version() + 1,
+			PillarID:   id.Value(),
+			ModifiedBy: modifiedBy.Value(),
+		},
+		FitScoringEnabled: enabled,
+		FitCriteria:       criteria.Value(),
+	})
+	m.applyAndRaise(event)
+	return nil
+}
+
 func maturityScaleConfigToEventData(config valueobjects.MaturityScaleConfig) []events.MaturitySectionData {
 	sections := config.Sections()
 	data := make([]events.MaturitySectionData, 4)
@@ -255,10 +285,12 @@ func strategyPillarsConfigToEventData(config valueobjects.StrategyPillarsConfig)
 	data := make([]events.StrategyPillarData, len(pillars))
 	for i, pillar := range pillars {
 		data[i] = events.StrategyPillarData{
-			ID:          pillar.ID().Value(),
-			Name:        pillar.Name().Value(),
-			Description: pillar.Description().Value(),
-			Active:      pillar.IsActive(),
+			ID:                pillar.ID().Value(),
+			Name:              pillar.Name().Value(),
+			Description:       pillar.Description().Value(),
+			Active:            pillar.IsActive(),
+			FitScoringEnabled: pillar.FitScoringEnabled(),
+			FitCriteria:       pillar.FitCriteria().Value(),
 		}
 	}
 	return data
@@ -270,11 +302,14 @@ func eventDataToStrategyPillarsConfig(data []events.StrategyPillarData) valueobj
 		id, _ := valueobjects.NewStrategyPillarIDFromString(d.ID)
 		name, _ := valueobjects.NewPillarName(d.Name)
 		desc, _ := valueobjects.NewPillarDescription(d.Description)
+		criteria, _ := valueobjects.NewFitCriteria(d.FitCriteria)
+		var pillar valueobjects.StrategyPillar
 		if d.Active {
-			pillars[i], _ = valueobjects.NewStrategyPillar(id, name, desc)
+			pillar, _ = valueobjects.NewStrategyPillar(id, name, desc)
 		} else {
-			pillars[i], _ = valueobjects.NewInactiveStrategyPillar(id, name, desc)
+			pillar, _ = valueobjects.NewInactiveStrategyPillar(id, name, desc)
 		}
+		pillars[i] = pillar.WithFitConfiguration(d.FitScoringEnabled, criteria)
 	}
 	config, _ := valueobjects.NewStrategyPillarsConfig(pillars)
 	return config

@@ -1,7 +1,11 @@
 package api
 
 import (
+	"net/http"
+
 	archReadModels "easi/backend/internal/architecturemodeling/application/readmodels"
+	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
+	"easi/backend/internal/auth/infrastructure/session"
 	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/application/projectors"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
@@ -9,12 +13,17 @@ import (
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
+	platformAPI "easi/backend/internal/platform/infrastructure/api"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
 
 	"github.com/go-chi/chi/v5"
 )
+
+type AuthMiddleware interface {
+	RequirePermission(permission authValueObjects.Permission) func(http.Handler) http.Handler
+}
 
 type routeConfig struct {
 	commandBus             *cqrs.InMemoryCommandBus
@@ -24,6 +33,8 @@ type routeConfig struct {
 	hateoas                *sharedAPI.HATEOASLinks
 	maturityScaleGateway   metamodel.MaturityScaleGateway
 	strategyPillarsGateway metamodel.StrategyPillarsGateway
+	sessionManager         *session.SessionManager
+	authMiddleware         AuthMiddleware
 }
 
 func SetupCapabilityMappingRoutes(
@@ -33,8 +44,11 @@ func SetupCapabilityMappingRoutes(
 	eventBus events.EventBus,
 	db *database.TenantAwareDB,
 	hateoas *sharedAPI.HATEOASLinks,
+	sessionManager *session.SessionManager,
+	authMiddleware AuthMiddleware,
 ) error {
-	return SetupCapabilityMappingRoutesWithGateway(r, commandBus, eventStore, eventBus, db, hateoas, nil)
+	pillarsGateway := metamodel.NewDirectStrategyPillarsGateway(db.DB())
+	return SetupCapabilityMappingRoutesWithGateways(r, commandBus, eventStore, eventBus, db, hateoas, nil, pillarsGateway, sessionManager, authMiddleware)
 }
 
 func SetupCapabilityMappingRoutesWithGateway(
@@ -45,8 +59,10 @@ func SetupCapabilityMappingRoutesWithGateway(
 	db *database.TenantAwareDB,
 	hateoas *sharedAPI.HATEOASLinks,
 	gateway metamodel.MaturityScaleGateway,
+	sessionManager *session.SessionManager,
+	authMiddleware AuthMiddleware,
 ) error {
-	return SetupCapabilityMappingRoutesWithGateways(r, commandBus, eventStore, eventBus, db, hateoas, gateway, nil)
+	return SetupCapabilityMappingRoutesWithGateways(r, commandBus, eventStore, eventBus, db, hateoas, gateway, nil, sessionManager, authMiddleware)
 }
 
 func SetupCapabilityMappingRoutesWithGateways(
@@ -58,8 +74,10 @@ func SetupCapabilityMappingRoutesWithGateways(
 	hateoas *sharedAPI.HATEOASLinks,
 	maturityGateway metamodel.MaturityScaleGateway,
 	pillarsGateway metamodel.StrategyPillarsGateway,
+	sessionManager *session.SessionManager,
+	authMiddleware AuthMiddleware,
 ) error {
-	config := &routeConfig{commandBus, eventStore, eventBus, db, hateoas, maturityGateway, pillarsGateway}
+	config := &routeConfig{commandBus, eventStore, eventBus, db, hateoas, maturityGateway, pillarsGateway, sessionManager, authMiddleware}
 
 	repos := initializeRepositories(config.eventStore)
 	readModels := initializeReadModels(config.db)
@@ -69,8 +87,9 @@ func SetupCapabilityMappingRoutesWithGateways(
 	setupCommandHandlers(config.commandBus, repos, readModels, config.strategyPillarsGateway)
 	setupMetaModelEventHandlers(config.eventBus, config.maturityScaleGateway)
 
-	httpHandlers := initializeHTTPHandlers(config.commandBus, readModels, config.hateoas, config.maturityScaleGateway)
-	registerRoutes(r, httpHandlers)
+	rateLimiter := platformAPI.NewRateLimiter(100, 60)
+	httpHandlers := initializeHTTPHandlers(config.commandBus, readModels, config.hateoas, config.maturityScaleGateway, config.strategyPillarsGateway, config.sessionManager)
+	registerRoutes(r, httpHandlers, config.authMiddleware, rateLimiter)
 
 	return nil
 }
@@ -86,53 +105,63 @@ func setupMetaModelEventHandlers(eventBus events.EventBus, gateway metamodel.Mat
 }
 
 type routeRepositories struct {
-	capability         *repositories.CapabilityRepository
-	dependency         *repositories.DependencyRepository
-	realization        *repositories.RealizationRepository
-	businessDomain     *repositories.BusinessDomainRepository
-	domainAssignment   *repositories.BusinessDomainAssignmentRepository
-	strategyImportance *repositories.StrategyImportanceRepository
+	capability          *repositories.CapabilityRepository
+	dependency          *repositories.DependencyRepository
+	realization         *repositories.RealizationRepository
+	businessDomain      *repositories.BusinessDomainRepository
+	domainAssignment    *repositories.BusinessDomainAssignmentRepository
+	strategyImportance  *repositories.StrategyImportanceRepository
+	applicationFitScore *repositories.ApplicationFitScoreRepository
 }
 
 type routeReadModels struct {
-	capability         *readmodels.CapabilityReadModel
-	dependency         *readmodels.DependencyReadModel
-	realization        *readmodels.RealizationReadModel
-	component          *archReadModels.ApplicationComponentReadModel
-	businessDomain     *readmodels.BusinessDomainReadModel
-	domainAssignment   *readmodels.DomainCapabilityAssignmentReadModel
-	strategyImportance *readmodels.StrategyImportanceReadModel
+	capability             *readmodels.CapabilityReadModel
+	dependency             *readmodels.DependencyReadModel
+	realization            *readmodels.RealizationReadModel
+	component              *archReadModels.ApplicationComponentReadModel
+	businessDomain         *readmodels.BusinessDomainReadModel
+	domainAssignment       *readmodels.DomainCapabilityAssignmentReadModel
+	strategyImportance     *readmodels.StrategyImportanceReadModel
+	applicationFitScore    *readmodels.ApplicationFitScoreReadModel
+	strategicFitAnalysis   *readmodels.StrategicFitAnalysisReadModel
+	componentFitComparison *readmodels.ComponentFitComparisonReadModel
 }
 
 type routeHTTPHandlers struct {
-	capability         *CapabilityHandlers
-	dependency         *DependencyHandlers
-	realization        *RealizationHandlers
-	maturityLevel      *MaturityLevelHandlers
-	businessDomain     *BusinessDomainHandlers
-	strategyImportance *StrategyImportanceHandlers
+	capability           *CapabilityHandlers
+	dependency           *DependencyHandlers
+	realization          *RealizationHandlers
+	maturityLevel        *MaturityLevelHandlers
+	businessDomain       *BusinessDomainHandlers
+	strategyImportance   *StrategyImportanceHandlers
+	applicationFitScore  *ApplicationFitScoreHandlers
+	strategicFitAnalysis *StrategicFitAnalysisHandlers
 }
 
 func initializeRepositories(eventStore eventstore.EventStore) *routeRepositories {
 	return &routeRepositories{
-		capability:         repositories.NewCapabilityRepository(eventStore),
-		dependency:         repositories.NewDependencyRepository(eventStore),
-		realization:        repositories.NewRealizationRepository(eventStore),
-		businessDomain:     repositories.NewBusinessDomainRepository(eventStore),
-		domainAssignment:   repositories.NewBusinessDomainAssignmentRepository(eventStore),
-		strategyImportance: repositories.NewStrategyImportanceRepository(eventStore),
+		capability:          repositories.NewCapabilityRepository(eventStore),
+		dependency:          repositories.NewDependencyRepository(eventStore),
+		realization:         repositories.NewRealizationRepository(eventStore),
+		businessDomain:      repositories.NewBusinessDomainRepository(eventStore),
+		domainAssignment:    repositories.NewBusinessDomainAssignmentRepository(eventStore),
+		strategyImportance:  repositories.NewStrategyImportanceRepository(eventStore),
+		applicationFitScore: repositories.NewApplicationFitScoreRepository(eventStore),
 	}
 }
 
 func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 	return &routeReadModels{
-		capability:         readmodels.NewCapabilityReadModel(db),
-		dependency:         readmodels.NewDependencyReadModel(db),
-		realization:        readmodels.NewRealizationReadModel(db),
-		component:          archReadModels.NewApplicationComponentReadModel(db),
-		businessDomain:     readmodels.NewBusinessDomainReadModel(db),
-		domainAssignment:   readmodels.NewDomainCapabilityAssignmentReadModel(db),
-		strategyImportance: readmodels.NewStrategyImportanceReadModel(db),
+		capability:             readmodels.NewCapabilityReadModel(db),
+		dependency:             readmodels.NewDependencyReadModel(db),
+		realization:            readmodels.NewRealizationReadModel(db),
+		component:              archReadModels.NewApplicationComponentReadModel(db),
+		businessDomain:         readmodels.NewBusinessDomainReadModel(db),
+		domainAssignment:       readmodels.NewDomainCapabilityAssignmentReadModel(db),
+		strategyImportance:     readmodels.NewStrategyImportanceReadModel(db),
+		applicationFitScore:    readmodels.NewApplicationFitScoreReadModel(db),
+		strategicFitAnalysis:   readmodels.NewStrategicFitAnalysisReadModel(db),
+		componentFitComparison: readmodels.NewComponentFitComparisonReadModel(db),
 	}
 }
 
@@ -143,6 +172,7 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pill
 	businessDomainProjector := projectors.NewBusinessDomainProjector(rm.businessDomain)
 	domainAssignmentProjector := projectors.NewBusinessDomainAssignmentProjector(rm.domainAssignment, rm.businessDomain, rm.capability)
 	strategyImportanceProjector := projectors.NewStrategyImportanceProjector(rm.strategyImportance, rm.businessDomain, rm.capability, pillarsGateway)
+	applicationFitScoreProjector := projectors.NewApplicationFitScoreProjector(rm.applicationFitScore, rm.component, pillarsGateway)
 
 	subscribeCapabilityEvents(eventBus, capabilityProjector)
 	subscribeDependencyEvents(eventBus, dependencyProjector)
@@ -150,6 +180,7 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pill
 	subscribeBusinessDomainEvents(eventBus, businessDomainProjector)
 	subscribeDomainAssignmentEvents(eventBus, domainAssignmentProjector)
 	subscribeStrategyImportanceEvents(eventBus, strategyImportanceProjector)
+	subscribeApplicationFitScoreEvents(eventBus, applicationFitScoreProjector)
 }
 
 func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.CapabilityProjector) {
@@ -196,6 +227,13 @@ func subscribeStrategyImportanceEvents(eventBus events.EventBus, projector *proj
 	}
 }
 
+func subscribeApplicationFitScoreEvents(eventBus events.EventBus, projector *projectors.ApplicationFitScoreProjector) {
+	events := []string{"ApplicationFitScoreSet", "ApplicationFitScoreUpdated", "ApplicationFitScoreRemoved"}
+	for _, event := range events {
+		eventBus.Subscribe(event, projector)
+	}
+}
+
 func setupCascadingDeleteHandlers(eventBus events.EventBus, commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels) {
 	onCapabilityDeletedHandler := handlers.NewOnCapabilityDeletedHandler(commandBus, rm.domainAssignment)
 	onBusinessDomainDeletedHandler := handlers.NewOnBusinessDomainDeletedHandler(commandBus, rm.domainAssignment)
@@ -222,6 +260,11 @@ func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepos
 		CapabilityReader: rm.capability,
 		ImportanceReader: rm.strategyImportance,
 		PillarsGateway:   pillarsGateway,
+	})
+	registerApplicationFitScoreCommands(commandBus, handlers.ApplicationFitScoreDeps{
+		FitScoreRepo:   repos.applicationFitScore,
+		FitScoreReader: rm.applicationFitScore,
+		PillarsGateway: pillarsGateway,
 	})
 }
 
@@ -263,7 +306,13 @@ func registerStrategyImportanceCommands(commandBus *cqrs.InMemoryCommandBus, dep
 	commandBus.Register("RemoveStrategyImportance", handlers.NewRemoveStrategyImportanceHandler(deps.ImportanceRepo))
 }
 
-func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels, hateoas *sharedAPI.HATEOASLinks, gateway metamodel.MaturityScaleGateway) *routeHTTPHandlers {
+func registerApplicationFitScoreCommands(commandBus *cqrs.InMemoryCommandBus, deps handlers.ApplicationFitScoreDeps) {
+	commandBus.Register("SetApplicationFitScore", handlers.NewSetApplicationFitScoreHandler(deps))
+	commandBus.Register("UpdateApplicationFitScore", handlers.NewUpdateApplicationFitScoreHandler(deps.FitScoreRepo))
+	commandBus.Register("RemoveApplicationFitScore", handlers.NewRemoveApplicationFitScoreHandler(deps.FitScoreRepo))
+}
+
+func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels, hateoas *sharedAPI.HATEOASLinks, maturityGateway metamodel.MaturityScaleGateway, pillarsGateway metamodel.StrategyPillarsGateway, sessionManager *session.SessionManager) *routeHTTPHandlers {
 	businessDomainReadModels := &BusinessDomainReadModels{
 		Domain:      rm.businessDomain,
 		Assignment:  rm.domainAssignment,
@@ -272,21 +321,25 @@ func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadMo
 	}
 
 	return &routeHTTPHandlers{
-		capability:         NewCapabilityHandlers(commandBus, rm.capability, hateoas),
-		dependency:         NewDependencyHandlers(commandBus, rm.dependency, hateoas),
-		realization:        NewRealizationHandlers(commandBus, rm.realization, hateoas),
-		maturityLevel:      NewMaturityLevelHandlers(gateway),
-		businessDomain:     NewBusinessDomainHandlers(commandBus, businessDomainReadModels, hateoas),
-		strategyImportance: NewStrategyImportanceHandlers(commandBus, rm.strategyImportance, hateoas),
+		capability:           NewCapabilityHandlers(commandBus, rm.capability, hateoas),
+		dependency:           NewDependencyHandlers(commandBus, rm.dependency, hateoas),
+		realization:          NewRealizationHandlers(commandBus, rm.realization, hateoas),
+		maturityLevel:        NewMaturityLevelHandlers(maturityGateway),
+		businessDomain:       NewBusinessDomainHandlers(commandBus, businessDomainReadModels, hateoas),
+		strategyImportance:   NewStrategyImportanceHandlers(commandBus, rm.strategyImportance, hateoas),
+		applicationFitScore:  NewApplicationFitScoreHandlers(commandBus, rm.applicationFitScore, rm.componentFitComparison, hateoas, sessionManager),
+		strategicFitAnalysis: NewStrategicFitAnalysisHandlers(rm.strategicFitAnalysis, pillarsGateway, sessionManager),
 	}
 }
 
-func registerRoutes(r chi.Router, h *routeHTTPHandlers) {
+func registerRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
 	registerCapabilityRoutes(r, h)
 	registerDependencyRoutes(r, h)
 	registerRealizationRoutes(r, h)
 	registerBusinessDomainRoutes(r, h)
 	registerStrategyImportanceRoutes(r, h)
+	registerApplicationFitScoreRoutes(r, h, authMiddleware, rateLimiter)
+	registerStrategicFitAnalysisRoutes(r, h, authMiddleware)
 }
 
 func registerCapabilityRoutes(r chi.Router, h *routeHTTPHandlers) {
@@ -353,4 +406,26 @@ func registerBusinessDomainRoutes(r chi.Router, h *routeHTTPHandlers) {
 }
 
 func registerStrategyImportanceRoutes(r chi.Router, h *routeHTTPHandlers) {
+}
+
+func registerApplicationFitScoreRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
+	r.Route("/components/{id}/fit-scores", func(r chi.Router) {
+		r.Get("/", h.applicationFitScore.GetFitScoresByComponent)
+
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsWrite))
+			r.Use(platformAPI.RateLimitMiddleware(rateLimiter))
+			r.Put("/{pillarId}", h.applicationFitScore.SetFitScore)
+			r.Delete("/{pillarId}", h.applicationFitScore.RemoveFitScore)
+		})
+	})
+	r.Get("/components/{id}/fit-comparisons", h.applicationFitScore.GetFitComparisons)
+	r.Get("/strategy-pillars/{pillarId}/fit-scores", h.applicationFitScore.GetFitScoresByPillar)
+}
+
+func registerStrategicFitAnalysisRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware) {
+	r.Group(func(r chi.Router) {
+		r.Use(authMiddleware.RequirePermission(authValueObjects.PermEnterpriseArchRead))
+		r.Get("/strategic-fit-analysis/{pillarId}", h.strategicFitAnalysis.GetStrategicFitAnalysis)
+	})
 }

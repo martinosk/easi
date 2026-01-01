@@ -46,6 +46,7 @@ func SetupMetaModelRoutes(deps MetaModelRoutesDeps) error {
 	deps.EventBus.Subscribe("StrategyPillarAdded", configProjector)
 	deps.EventBus.Subscribe("StrategyPillarUpdated", configProjector)
 	deps.EventBus.Subscribe("StrategyPillarRemoved", configProjector)
+	deps.EventBus.Subscribe("PillarFitConfigurationUpdated", configProjector)
 
 	createConfigHandler := handlers.NewCreateMetaModelConfigurationHandler(configRepo)
 	updateScaleHandler := handlers.NewUpdateMaturityScaleHandler(configRepo)
@@ -59,11 +60,13 @@ func SetupMetaModelRoutes(deps MetaModelRoutesDeps) error {
 	updatePillarHandler := handlers.NewUpdateStrategyPillarHandler(configRepo)
 	removePillarHandler := handlers.NewRemoveStrategyPillarHandler(configRepo)
 	batchUpdatePillarsHandler := handlers.NewBatchUpdateStrategyPillarsHandler(configRepo)
+	updatePillarFitConfigHandler := handlers.NewUpdatePillarFitConfigurationHandler(configRepo)
 
 	deps.CommandBus.Register("AddStrategyPillar", addPillarHandler)
 	deps.CommandBus.Register("UpdateStrategyPillar", updatePillarHandler)
 	deps.CommandBus.Register("RemoveStrategyPillar", removePillarHandler)
 	deps.CommandBus.Register("BatchUpdateStrategyPillars", batchUpdatePillarsHandler)
+	deps.CommandBus.Register("UpdatePillarFitConfiguration", updatePillarFitConfigHandler)
 
 	tenantCreatedHandler := handlers.NewTenantCreatedHandler(deps.CommandBus)
 	deps.EventBus.Subscribe("TenantCreated", tenantCreatedHandler)
@@ -86,6 +89,7 @@ func SetupMetaModelRoutes(deps MetaModelRoutesDeps) error {
 			r.Patch("/strategy-pillars", strategyPillarsHandlers.BatchUpdateStrategyPillars)
 			r.Post("/strategy-pillars", strategyPillarsHandlers.CreateStrategyPillar)
 			r.Put("/strategy-pillars/{id}", strategyPillarsHandlers.UpdateStrategyPillar)
+			r.Put("/strategy-pillars/{id}/fit-configuration", strategyPillarsHandlers.UpdatePillarFitConfiguration)
 			r.Delete("/strategy-pillars/{id}", strategyPillarsHandlers.DeleteStrategyPillar)
 		})
 	})

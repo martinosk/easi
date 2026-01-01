@@ -44,6 +44,8 @@ func (p *MetaModelConfigurationProjector) ProjectEvent(ctx context.Context, even
 		return p.handlePillarUpdated(ctx, eventData)
 	case "StrategyPillarRemoved":
 		return p.handlePillarRemoved(ctx, eventData)
+	case "PillarFitConfigurationUpdated":
+		return p.handlePillarFitConfigurationUpdated(ctx, eventData)
 	}
 	return nil
 }
@@ -179,6 +181,30 @@ func (p *MetaModelConfigurationProjector) handlePillarRemoved(ctx context.Contex
 	})
 }
 
+func (p *MetaModelConfigurationProjector) handlePillarFitConfigurationUpdated(ctx context.Context, eventData []byte) error {
+	var event events.PillarFitConfigurationUpdated
+	if err := json.Unmarshal(eventData, &event); err != nil {
+		log.Printf("Failed to unmarshal PillarFitConfigurationUpdated event: %v", err)
+		return err
+	}
+
+	return p.updatePillarsWithModification(ctx, pillarEventData{
+		ID:         event.ID,
+		Version:    event.Version,
+		ModifiedAt: event.ModifiedAt,
+		ModifiedBy: event.ModifiedBy,
+	}, func(pillars []readmodels.StrategyPillarDTO) []readmodels.StrategyPillarDTO {
+		for i, pillar := range pillars {
+			if pillar.ID == event.PillarID {
+				pillars[i].FitScoringEnabled = event.FitScoringEnabled
+				pillars[i].FitCriteria = event.FitCriteria
+				break
+			}
+		}
+		return pillars
+	})
+}
+
 func (p *MetaModelConfigurationProjector) updatePillarsWithModification(
 	ctx context.Context,
 	eventData pillarEventData,
@@ -224,10 +250,12 @@ func toPillarDTOs(pillars []events.StrategyPillarData) []readmodels.StrategyPill
 	result := make([]readmodels.StrategyPillarDTO, len(pillars))
 	for i, p := range pillars {
 		result[i] = readmodels.StrategyPillarDTO{
-			ID:          p.ID,
-			Name:        p.Name,
-			Description: p.Description,
-			Active:      p.Active,
+			ID:                p.ID,
+			Name:              p.Name,
+			Description:       p.Description,
+			Active:            p.Active,
+			FitScoringEnabled: p.FitScoringEnabled,
+			FitCriteria:       p.FitCriteria,
 		}
 	}
 	return result

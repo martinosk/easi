@@ -55,8 +55,8 @@ type UpdateComponentRelationRequest struct {
 // @Produce json
 // @Param relation body CreateComponentRelationRequest true "Relation data"
 // @Success 201 {object} readmodels.ComponentRelationDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /relations [post]
 func (h *RelationHandlers) CreateComponentRelation(w http.ResponseWriter, r *http.Request) {
 	req, ok := sharedAPI.DecodeRequestOrFail[CreateComponentRelationRequest](w, r)
@@ -120,7 +120,7 @@ func (h *RelationHandlers) CreateComponentRelation(w http.ResponseWriter, r *htt
 // @Param limit query int false "Number of items per page (max 100)" default(50)
 // @Param after query string false "Cursor for pagination (opaque token)"
 // @Success 200 {object} easi_backend_internal_shared_api.PaginatedResponse{data=[]readmodels.ComponentRelationDTO}
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /relations [get]
 func (h *RelationHandlers) GetAllRelations(w http.ResponseWriter, r *http.Request) {
 	params := sharedAPI.ParsePaginationParams(r)
@@ -195,8 +195,8 @@ func (h *RelationHandlers) addLinksToRelations(relations []readmodels.ComponentR
 // @Produce json
 // @Param id path string true "Relation ID"
 // @Success 200 {object} readmodels.ComponentRelationDTO
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /relations/{id} [get]
 func (h *RelationHandlers) GetRelationByID(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")
@@ -223,7 +223,7 @@ func (h *RelationHandlers) GetRelationByID(w http.ResponseWriter, r *http.Reques
 // @Produce json
 // @Param componentId path string true "Component ID"
 // @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]readmodels.ComponentRelationDTO}
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /relations/from/{componentId} [get]
 func (h *RelationHandlers) GetRelationsFromComponent(w http.ResponseWriter, r *http.Request) {
 	h.getRelationsByComponent(w, r, "from", h.readModel.GetBySourceID)
@@ -236,7 +236,7 @@ func (h *RelationHandlers) GetRelationsFromComponent(w http.ResponseWriter, r *h
 // @Produce json
 // @Param componentId path string true "Component ID"
 // @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]readmodels.ComponentRelationDTO}
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /relations/to/{componentId} [get]
 func (h *RelationHandlers) GetRelationsToComponent(w http.ResponseWriter, r *http.Request) {
 	h.getRelationsByComponent(w, r, "to", h.readModel.GetByTargetID)
@@ -272,9 +272,9 @@ func (h *RelationHandlers) getRelationsByComponent(w http.ResponseWriter, r *htt
 // @Param id path string true "Relation ID"
 // @Param relation body UpdateComponentRelationRequest true "Updated relation data"
 // @Success 200 {object} readmodels.ComponentRelationDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /relations/{id} [put]
 func (h *RelationHandlers) UpdateComponentRelation(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")

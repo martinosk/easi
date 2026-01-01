@@ -9,10 +9,12 @@ const (
 )
 
 type PillarChange struct {
-	Operation   PillarOperation
-	PillarID    string
-	Name        string
-	Description string
+	Operation         PillarOperation
+	PillarID          string
+	Name              string
+	Description       string
+	FitScoringEnabled *bool
+	FitCriteria       string
 }
 
 type BatchUpdateStrategyPillars struct {

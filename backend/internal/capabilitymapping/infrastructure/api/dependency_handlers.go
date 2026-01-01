@@ -50,8 +50,8 @@ type CreateDependencyRequest struct {
 // @Produce json
 // @Param dependency body CreateDependencyRequest true "Dependency data"
 // @Success 201 {object} easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO
-// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capability-dependencies [post]
 func (h *DependencyHandlers) CreateDependency(w http.ResponseWriter, r *http.Request) {
 	var req CreateDependencyRequest
@@ -124,7 +124,7 @@ func (h *DependencyHandlers) CreateDependency(w http.ResponseWriter, r *http.Req
 // @Tags capability-dependencies
 // @Produce json
 // @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO}
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capability-dependencies [get]
 func (h *DependencyHandlers) GetAllDependencies(w http.ResponseWriter, r *http.Request) {
 	dependencies, err := h.readModel.GetAll(r.Context())
@@ -151,7 +151,7 @@ func (h *DependencyHandlers) GetAllDependencies(w http.ResponseWriter, r *http.R
 // @Produce json
 // @Param id path string true "Capability ID"
 // @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO}
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capabilities/{id}/dependencies/outgoing [get]
 func (h *DependencyHandlers) GetOutgoingDependencies(w http.ResponseWriter, r *http.Request) {
 	capabilityID := chi.URLParam(r, "id")
@@ -181,7 +181,7 @@ func (h *DependencyHandlers) GetOutgoingDependencies(w http.ResponseWriter, r *h
 // @Produce json
 // @Param id path string true "Capability ID"
 // @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_capabilitymapping_application_readmodels.DependencyDTO}
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capabilities/{id}/dependencies/incoming [get]
 func (h *DependencyHandlers) GetIncomingDependencies(w http.ResponseWriter, r *http.Request) {
 	capabilityID := chi.URLParam(r, "id")
@@ -210,8 +210,8 @@ func (h *DependencyHandlers) GetIncomingDependencies(w http.ResponseWriter, r *h
 // @Tags capability-dependencies
 // @Param id path string true "Dependency ID"
 // @Success 204 "No Content"
-// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
-// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /capability-dependencies/{id} [delete]
 func (h *DependencyHandlers) DeleteDependency(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
