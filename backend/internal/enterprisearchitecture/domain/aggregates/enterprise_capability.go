@@ -10,11 +10,12 @@ import (
 
 type EnterpriseCapability struct {
 	domain.AggregateRoot
-	name        valueobjects.EnterpriseCapabilityName
-	description valueobjects.Description
-	category    valueobjects.Category
-	active      bool
-	createdAt   time.Time
+	name           valueobjects.EnterpriseCapabilityName
+	description    valueobjects.Description
+	category       valueobjects.Category
+	targetMaturity *valueobjects.TargetMaturity
+	active         bool
+	createdAt      time.Time
 }
 
 func NewEnterpriseCapability(
@@ -79,6 +80,15 @@ func (e *EnterpriseCapability) Delete() error {
 	return nil
 }
 
+func (e *EnterpriseCapability) SetTargetMaturity(targetMaturity valueobjects.TargetMaturity) error {
+	event := events.NewEnterpriseCapabilityTargetMaturitySet(e.ID(), targetMaturity.Value())
+
+	e.apply(event)
+	e.RaiseEvent(event)
+
+	return nil
+}
+
 func (e *EnterpriseCapability) apply(event domain.DomainEvent) {
 	switch evt := event.(type) {
 	case events.EnterpriseCapabilityCreated:
@@ -94,6 +104,9 @@ func (e *EnterpriseCapability) apply(event domain.DomainEvent) {
 		e.category = mustNewCategory(evt.Category)
 	case events.EnterpriseCapabilityDeleted:
 		e.active = false
+	case events.EnterpriseCapabilityTargetMaturitySet:
+		maturity := mustNewTargetMaturity(evt.TargetMaturity)
+		e.targetMaturity = &maturity
 	}
 }
 
@@ -111,6 +124,14 @@ func mustNewCategory(value string) valueobjects.Category {
 		panic("corrupted event store: invalid category: " + value)
 	}
 	return cat
+}
+
+func mustNewTargetMaturity(value int) valueobjects.TargetMaturity {
+	maturity, err := valueobjects.NewTargetMaturity(value)
+	if err != nil {
+		panic("corrupted event store: invalid target maturity")
+	}
+	return maturity
 }
 
 func (e *EnterpriseCapability) Name() valueobjects.EnterpriseCapabilityName {
@@ -131,4 +152,8 @@ func (e *EnterpriseCapability) IsActive() bool {
 
 func (e *EnterpriseCapability) CreatedAt() time.Time {
 	return e.createdAt
+}
+
+func (e *EnterpriseCapability) TargetMaturity() *valueobjects.TargetMaturity {
+	return e.targetMaturity
 }

@@ -11,16 +11,17 @@ import (
 )
 
 type EnterpriseCapabilityDTO struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description,omitempty"`
-	Category    string            `json:"category,omitempty"`
-	Active      bool              `json:"active"`
-	LinkCount   int               `json:"linkCount"`
-	DomainCount int               `json:"domainCount"`
-	CreatedAt   time.Time         `json:"createdAt"`
-	UpdatedAt   *time.Time        `json:"updatedAt,omitempty"`
-	Links       map[string]string `json:"_links,omitempty"`
+	ID             string            `json:"id"`
+	Name           string            `json:"name"`
+	Description    string            `json:"description,omitempty"`
+	Category       string            `json:"category,omitempty"`
+	Active         bool              `json:"active"`
+	TargetMaturity *int              `json:"targetMaturity,omitempty"`
+	LinkCount      int               `json:"linkCount"`
+	DomainCount    int               `json:"domainCount"`
+	CreatedAt      time.Time         `json:"createdAt"`
+	UpdatedAt      *time.Time        `json:"updatedAt,omitempty"`
+	Links          map[string]string `json:"_links,omitempty"`
 }
 
 type EnterpriseCapabilityReadModel struct {
@@ -120,7 +121,7 @@ func (rm *EnterpriseCapabilityReadModel) GetAll(ctx context.Context) ([]Enterpri
 	var capabilities []EnterpriseCapabilityDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			`SELECT id, name, description, category, active, link_count, domain_count, created_at, updated_at
+			`SELECT id, name, description, category, active, target_maturity, link_count, domain_count, created_at, updated_at
 			 FROM enterprise_capabilities WHERE tenant_id = $1 AND active = true ORDER BY name`,
 			tenantID.Value(),
 		)
@@ -132,12 +133,17 @@ func (rm *EnterpriseCapabilityReadModel) GetAll(ctx context.Context) ([]Enterpri
 		for rows.Next() {
 			var dto EnterpriseCapabilityDTO
 			var updatedAt sql.NullTime
+			var targetMaturity sql.NullInt64
 			var description, category sql.NullString
-			if err := rows.Scan(&dto.ID, &dto.Name, &description, &category, &dto.Active, &dto.LinkCount, &dto.DomainCount, &dto.CreatedAt, &updatedAt); err != nil {
+			if err := rows.Scan(&dto.ID, &dto.Name, &description, &category, &dto.Active, &targetMaturity, &dto.LinkCount, &dto.DomainCount, &dto.CreatedAt, &updatedAt); err != nil {
 				return err
 			}
 			if updatedAt.Valid {
 				dto.UpdatedAt = &updatedAt.Time
+			}
+			if targetMaturity.Valid {
+				tm := int(targetMaturity.Int64)
+				dto.TargetMaturity = &tm
 			}
 			if description.Valid {
 				dto.Description = description.String
@@ -162,15 +168,16 @@ func (rm *EnterpriseCapabilityReadModel) GetByID(ctx context.Context, id string)
 
 	var dto EnterpriseCapabilityDTO
 	var updatedAt sql.NullTime
+	var targetMaturity sql.NullInt64
 	var description, category sql.NullString
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			`SELECT id, name, description, category, active, link_count, domain_count, created_at, updated_at
+			`SELECT id, name, description, category, active, target_maturity, link_count, domain_count, created_at, updated_at
 			 FROM enterprise_capabilities WHERE tenant_id = $1 AND id = $2`,
 			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.Name, &description, &category, &dto.Active, &dto.LinkCount, &dto.DomainCount, &dto.CreatedAt, &updatedAt)
+		).Scan(&dto.ID, &dto.Name, &description, &category, &dto.Active, &targetMaturity, &dto.LinkCount, &dto.DomainCount, &dto.CreatedAt, &updatedAt)
 
 		if err == sql.ErrNoRows {
 			notFound = true
@@ -188,6 +195,10 @@ func (rm *EnterpriseCapabilityReadModel) GetByID(ctx context.Context, id string)
 
 	if updatedAt.Valid {
 		dto.UpdatedAt = &updatedAt.Time
+	}
+	if targetMaturity.Valid {
+		tm := int(targetMaturity.Int64)
+		dto.TargetMaturity = &tm
 	}
 	if description.Valid {
 		dto.Description = description.String
@@ -224,4 +235,18 @@ func (rm *EnterpriseCapabilityReadModel) NameExists(ctx context.Context, name, e
 	}
 
 	return count > 0, nil
+}
+
+func (rm *EnterpriseCapabilityReadModel) UpdateTargetMaturity(ctx context.Context, id string, targetMaturity int) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`UPDATE enterprise_capabilities SET target_maturity = $1, updated_at = CURRENT_TIMESTAMP
+		 WHERE tenant_id = $2 AND id = $3`,
+		targetMaturity, tenantID.Value(), id,
+	)
+	return err
 }

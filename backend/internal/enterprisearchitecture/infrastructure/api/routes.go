@@ -35,10 +35,11 @@ type routeRepositories struct {
 }
 
 type routeReadModels struct {
-	capability *readmodels.EnterpriseCapabilityReadModel
-	link       *readmodels.EnterpriseCapabilityLinkReadModel
-	importance *readmodels.EnterpriseStrategicImportanceReadModel
-	metadata   *readmodels.DomainCapabilityMetadataReadModel
+	capability       *readmodels.EnterpriseCapabilityReadModel
+	link             *readmodels.EnterpriseCapabilityLinkReadModel
+	importance       *readmodels.EnterpriseStrategicImportanceReadModel
+	metadata         *readmodels.DomainCapabilityMetadataReadModel
+	maturityAnalysis *readmodels.MaturityAnalysisReadModel
 }
 
 type EnterpriseArchRoutesDeps struct {
@@ -75,10 +76,11 @@ func initializeRepositories(eventStore eventstore.EventStore) *routeRepositories
 
 func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 	return &routeReadModels{
-		capability: readmodels.NewEnterpriseCapabilityReadModel(db),
-		link:       readmodels.NewEnterpriseCapabilityLinkReadModel(db),
-		importance: readmodels.NewEnterpriseStrategicImportanceReadModel(db),
-		metadata:   readmodels.NewDomainCapabilityMetadataReadModel(db),
+		capability:       readmodels.NewEnterpriseCapabilityReadModel(db),
+		link:             readmodels.NewEnterpriseCapabilityLinkReadModel(db),
+		importance:       readmodels.NewEnterpriseStrategicImportanceReadModel(db),
+		metadata:         readmodels.NewDomainCapabilityMetadataReadModel(db),
+		maturityAnalysis: readmodels.NewMaturityAnalysisReadModel(db),
 	}
 }
 
@@ -101,6 +103,7 @@ func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.E
 		"EnterpriseCapabilityDeleted",
 		"EnterpriseCapabilityLinked",
 		"EnterpriseCapabilityUnlinked",
+		"EnterpriseCapabilityTargetMaturitySet",
 	}
 	for _, eventType := range eventTypes {
 		eventBus.Subscribe(eventType, projector)
@@ -147,6 +150,7 @@ func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepos
 	commandBus.Register("CreateEnterpriseCapability", handlers.NewCreateEnterpriseCapabilityHandler(repos.capability, rm.capability))
 	commandBus.Register("UpdateEnterpriseCapability", handlers.NewUpdateEnterpriseCapabilityHandler(repos.capability, rm.capability))
 	commandBus.Register("DeleteEnterpriseCapability", handlers.NewDeleteEnterpriseCapabilityHandler(repos.capability, rm.link))
+	commandBus.Register("SetTargetMaturity", handlers.NewSetTargetMaturityHandler(repos.capability))
 
 	commandBus.Register("LinkCapability", handlers.NewLinkCapabilityHandler(repos.link, repos.capability, rm.link))
 	commandBus.Register("UnlinkCapability", handlers.NewUnlinkCapabilityHandler(repos.link))
@@ -158,9 +162,10 @@ func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepos
 
 func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels, sessionManager *session.SessionManager) *EnterpriseCapabilityHandlers {
 	readModels := &EnterpriseCapabilityReadModels{
-		Capability: rm.capability,
-		Link:       rm.link,
-		Importance: rm.importance,
+		Capability:       rm.capability,
+		Link:             rm.link,
+		Importance:       rm.importance,
+		MaturityAnalysis: rm.maturityAnalysis,
 	}
 	return NewEnterpriseCapabilityHandlers(commandBus, readModels, sessionManager)
 }
@@ -170,9 +175,11 @@ func registerRoutes(r chi.Router, h *EnterpriseCapabilityHandlers, authMiddlewar
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authValueObjects.PermEnterpriseArchRead))
 			r.Get("/", h.GetAllEnterpriseCapabilities)
+			r.Get("/maturity-analysis", h.GetMaturityAnalysisCandidates)
 			r.Get("/{id}", h.GetEnterpriseCapabilityByID)
 			r.Get("/{id}/links", h.GetLinkedCapabilities)
 			r.Get("/{id}/strategic-importance", h.GetStrategicImportance)
+			r.Get("/{id}/maturity-gap", h.GetMaturityGapDetail)
 		})
 
 		r.Group(func(r chi.Router) {
@@ -180,6 +187,7 @@ func registerRoutes(r chi.Router, h *EnterpriseCapabilityHandlers, authMiddlewar
 			r.Use(platformAPI.RateLimitMiddleware(rateLimiter))
 			r.Post("/", h.CreateEnterpriseCapability)
 			r.Put("/{id}", h.UpdateEnterpriseCapability)
+			r.Put("/{id}/target-maturity", h.SetTargetMaturity)
 			r.Post("/{id}/links", h.LinkCapability)
 			r.Post("/{id}/strategic-importance", h.SetStrategicImportance)
 			r.Put("/{id}/strategic-importance/{importanceId}", h.UpdateStrategicImportance)
@@ -199,5 +207,6 @@ func registerRoutes(r chi.Router, h *EnterpriseCapabilityHandlers, authMiddlewar
 		r.Get("/domain-capabilities/{domainCapabilityId}/enterprise-capability", h.GetEnterpriseCapabilityForDomainCapability)
 		r.Get("/domain-capabilities/{domainCapabilityId}/enterprise-link-status", h.GetCapabilityLinkStatus)
 		r.Get("/domain-capabilities/enterprise-link-status", h.GetBatchCapabilityLinkStatus)
+		r.Get("/domain-capabilities/unlinked", h.GetUnlinkedCapabilities)
 	})
 }

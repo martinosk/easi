@@ -105,5 +105,12 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.enterpriseCapabilities.details(), id] as const,
     links: (id: string) => [...queryKeys.enterpriseCapabilities.detail(id), 'links'] as const,
     strategicImportance: (id: string) => [...queryKeys.enterpriseCapabilities.detail(id), 'strategicImportance'] as const,
+    maturityGap: (id: string) => [...queryKeys.enterpriseCapabilities.detail(id), 'maturityGap'] as const,
+  },
+  maturityAnalysis: {
+    all: ['maturityAnalysis'] as const,
+    candidates: (sortBy?: string) => [...queryKeys.maturityAnalysis.all, 'candidates', sortBy] as const,
+    unlinked: (filters?: { businessDomainId?: string; search?: string }) =>
+      [...queryKeys.maturityAnalysis.all, 'unlinked', filters] as const,
   },
 } as const;

@@ -15,6 +15,9 @@ import type {
   EnterpriseCapabilitiesListResponse,
   DomainCapabilityLinkStatus,
   CapabilityLinkStatusResponse,
+  MaturityAnalysisResponse,
+  MaturityGapDetail,
+  UnlinkedCapabilitiesResponse,
 } from '../types';
 
 export const enterpriseArchApi = {
@@ -114,5 +117,41 @@ export const enterpriseArchApi = {
       `/api/v1/domain-capabilities/enterprise-link-status?capabilityIds=${capabilityIds.join(',')}`
     );
     return response.data.data;
+  },
+
+  async setTargetMaturity(enterpriseCapabilityId: EnterpriseCapabilityId, targetMaturity: number): Promise<void> {
+    await httpClient.put(
+      `/api/v1/enterprise-capabilities/${enterpriseCapabilityId}/target-maturity`,
+      { targetMaturity }
+    );
+  },
+
+  async getMaturityAnalysisCandidates(sortBy?: string): Promise<MaturityAnalysisResponse> {
+    const params = sortBy ? `?sortBy=${sortBy}` : '';
+    const response = await httpClient.get<MaturityAnalysisResponse>(
+      `/api/v1/enterprise-capabilities/maturity-analysis${params}`
+    );
+    return response.data;
+  },
+
+  async getMaturityGapDetail(enterpriseCapabilityId: EnterpriseCapabilityId): Promise<MaturityGapDetail> {
+    const response = await httpClient.get<MaturityGapDetail>(
+      `/api/v1/enterprise-capabilities/${enterpriseCapabilityId}/maturity-gap`
+    );
+    return response.data;
+  },
+
+  async getUnlinkedCapabilities(params?: {
+    businessDomainId?: string;
+    search?: string;
+  }): Promise<UnlinkedCapabilitiesResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.businessDomainId) queryParams.set('businessDomainId', params.businessDomainId);
+    if (params?.search) queryParams.set('search', params.search);
+    const queryString = queryParams.toString();
+    const response = await httpClient.get<UnlinkedCapabilitiesResponse>(
+      `/api/v1/domain-capabilities/unlinked${queryString ? `?${queryString}` : ''}`
+    );
+    return response.data;
   },
 };

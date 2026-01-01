@@ -12,9 +12,10 @@ import (
 )
 
 type EnterpriseCapabilityReadModels struct {
-	Capability *readmodels.EnterpriseCapabilityReadModel
-	Link       *readmodels.EnterpriseCapabilityLinkReadModel
-	Importance *readmodels.EnterpriseStrategicImportanceReadModel
+	Capability       *readmodels.EnterpriseCapabilityReadModel
+	Link             *readmodels.EnterpriseCapabilityLinkReadModel
+	Importance       *readmodels.EnterpriseStrategicImportanceReadModel
+	MaturityAnalysis *readmodels.MaturityAnalysisReadModel
 }
 
 type EnterpriseCapabilityHandlers struct {
@@ -63,6 +64,10 @@ type SetStrategicImportanceRequest struct {
 type UpdateStrategicImportanceRequest struct {
 	Importance int    `json:"importance"`
 	Rationale  string `json:"rationale,omitempty"`
+}
+
+type SetTargetMaturityRequest struct {
+	TargetMaturity int `json:"targetMaturity"`
 }
 
 type DomainCapabilityEnterpriseResponse struct {
@@ -656,4 +661,137 @@ func splitAndTrim(s string) []string {
 		}
 	}
 	return parts
+}
+
+// SetTargetMaturity godoc
+// @Summary Set target maturity for enterprise capability
+// @Description Sets the target maturity level (0-99) for an enterprise capability used in gap analysis
+// @Tags enterprise-capabilities
+// @Accept json
+// @Produce json
+// @Param id path string true "Enterprise capability ID"
+// @Param maturity body SetTargetMaturityRequest true "Target maturity data"
+// @Success 200 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.EnterpriseCapabilityDTO
+// @Failure 400 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Router /enterprise-capabilities/{id}/target-maturity [put]
+func (h *EnterpriseCapabilityHandlers) SetTargetMaturity(w http.ResponseWriter, r *http.Request) {
+	id := sharedAPI.GetPathParam(r, "id")
+
+	if h.getCapabilityOrNotFound(w, r, id) == nil {
+		return
+	}
+
+	req, ok := sharedAPI.DecodeRequestOrFail[SetTargetMaturityRequest](w, r)
+	if !ok {
+		return
+	}
+
+	cmd := &commands.SetTargetMaturity{
+		ID:             id,
+		TargetMaturity: req.TargetMaturity,
+	}
+
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
+		h.respondWithCapability(w, r, id, http.StatusOK)
+	})
+}
+
+// GetMaturityAnalysisCandidates godoc
+// @Summary Get enterprise capabilities with maturity gaps
+// @Description Retrieves enterprise capabilities that have 2+ implementations with varying maturity levels
+// @Tags enterprise-capabilities
+// @Produce json
+// @Param sortBy query string false "Sort order: 'gap' or 'implementations' (default: gap)"
+// @Success 200 {object} object{summary=easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityAnalysisSummaryDTO,data=[]easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityAnalysisCandidateDTO}
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Router /enterprise-capabilities/maturity-analysis [get]
+func (h *EnterpriseCapabilityHandlers) GetMaturityAnalysisCandidates(w http.ResponseWriter, r *http.Request) {
+	sortBy := r.URL.Query().Get("sortBy")
+
+	candidates, summary, err := h.readModels.MaturityAnalysis.GetMaturityAnalysisCandidates(r.Context(), sortBy)
+	if err != nil {
+		sharedAPI.HandleError(w, err)
+		return
+	}
+
+	for i := range candidates {
+		candidates[i].Links = map[string]string{
+			"self":        "/api/v1/enterprise-capabilities/" + candidates[i].EnterpriseCapabilityID,
+			"maturityGap": "/api/v1/enterprise-capabilities/" + candidates[i].EnterpriseCapabilityID + "/maturity-gap",
+		}
+	}
+
+	response := map[string]interface{}{
+		"summary": summary,
+		"data":    candidates,
+		"_links": map[string]string{
+			"self": "/api/v1/enterprise-capabilities/maturity-analysis",
+		},
+	}
+	sharedAPI.RespondJSON(w, http.StatusOK, response)
+}
+
+// GetMaturityGapDetail godoc
+// @Summary Get detailed maturity gap analysis
+// @Description Retrieves detailed maturity gap analysis for a specific enterprise capability
+// @Tags enterprise-capabilities
+// @Produce json
+// @Param id path string true "Enterprise capability ID"
+// @Success 200 {object} easi_backend_internal_enterprisearchitecture_application_readmodels.MaturityGapDetailDTO
+// @Failure 404 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Router /enterprise-capabilities/{id}/maturity-gap [get]
+func (h *EnterpriseCapabilityHandlers) GetMaturityGapDetail(w http.ResponseWriter, r *http.Request) {
+	enterpriseCapabilityID := sharedAPI.GetPathParam(r, "id")
+
+	detail, err := h.readModels.MaturityAnalysis.GetMaturityGapDetail(r.Context(), enterpriseCapabilityID)
+	if err != nil {
+		sharedAPI.HandleError(w, err)
+		return
+	}
+
+	if detail == nil {
+		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Enterprise capability not found")
+		return
+	}
+
+	detail.Links = map[string]string{
+		"self":                 "/api/v1/enterprise-capabilities/" + enterpriseCapabilityID + "/maturity-gap",
+		"enterpriseCapability": "/api/v1/enterprise-capabilities/" + enterpriseCapabilityID,
+	}
+
+	sharedAPI.RespondJSON(w, http.StatusOK, detail)
+}
+
+// GetUnlinkedCapabilities godoc
+// @Summary Get domain capabilities not linked to any enterprise capability
+// @Description Retrieves domain capabilities that are not yet linked to an enterprise capability
+// @Tags enterprise-capabilities
+// @Produce json
+// @Param businessDomainId query string false "Filter by business domain ID"
+// @Param search query string false "Search by capability name"
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_enterprisearchitecture_application_readmodels.UnlinkedCapabilityDTO}
+// @Failure 500 {object} easi_backend_internal_shared_api.ErrorResponse
+// @Router /domain-capabilities/unlinked [get]
+func (h *EnterpriseCapabilityHandlers) GetUnlinkedCapabilities(w http.ResponseWriter, r *http.Request) {
+	businessDomainID := r.URL.Query().Get("businessDomainId")
+	search := r.URL.Query().Get("search")
+
+	capabilities, total, err := h.readModels.MaturityAnalysis.GetUnlinkedCapabilities(r.Context(), businessDomainID, search)
+	if err != nil {
+		sharedAPI.HandleError(w, err)
+		return
+	}
+
+	response := map[string]interface{}{
+		"data":  capabilities,
+		"total": total,
+		"_links": map[string]string{
+			"self": "/api/v1/domain-capabilities/unlinked",
+		},
+	}
+	sharedAPI.RespondJSON(w, http.StatusOK, response)
 }

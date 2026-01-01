@@ -31,11 +31,12 @@ func (p *EnterpriseCapabilityProjector) Handle(ctx context.Context, event domain
 
 func (p *EnterpriseCapabilityProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	handlers := map[string]func(context.Context, []byte) error{
-		"EnterpriseCapabilityCreated":  p.handleCreated,
-		"EnterpriseCapabilityUpdated":  p.handleUpdated,
-		"EnterpriseCapabilityDeleted":  p.handleDeleted,
-		"EnterpriseCapabilityLinked":   p.handleLinked,
-		"EnterpriseCapabilityUnlinked": p.handleUnlinked,
+		"EnterpriseCapabilityCreated":          p.handleCreated,
+		"EnterpriseCapabilityUpdated":          p.handleUpdated,
+		"EnterpriseCapabilityDeleted":          p.handleDeleted,
+		"EnterpriseCapabilityLinked":           p.handleLinked,
+		"EnterpriseCapabilityUnlinked":         p.handleUnlinked,
+		"EnterpriseCapabilityTargetMaturitySet": p.handleTargetMaturitySet,
 	}
 
 	if handler, exists := handlers[eventType]; exists {
@@ -107,4 +108,13 @@ func (p *EnterpriseCapabilityProjector) handleUnlinked(ctx context.Context, even
 		return err
 	}
 	return p.readModel.RecalculateDomainCount(ctx, event.EnterpriseCapabilityID)
+}
+
+func (p *EnterpriseCapabilityProjector) handleTargetMaturitySet(ctx context.Context, eventData []byte) error {
+	var event events.EnterpriseCapabilityTargetMaturitySet
+	if err := json.Unmarshal(eventData, &event); err != nil {
+		log.Printf("Failed to unmarshal EnterpriseCapabilityTargetMaturitySet event: %v", err)
+		return err
+	}
+	return p.readModel.UpdateTargetMaturity(ctx, event.ID, event.TargetMaturity)
 }

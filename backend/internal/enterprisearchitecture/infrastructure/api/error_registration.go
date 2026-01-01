@@ -31,4 +31,5 @@ func init() {
 	registry.RegisterValidation(valueobjects.ErrLinkedByEmpty, "LinkedBy cannot be empty")
 	registry.RegisterValidation(valueobjects.ErrLinkedByInvalid, "LinkedBy must be a valid email address or 'system'")
 	registry.RegisterValidation(valueobjects.ErrLinkedByTooLong, "LinkedBy cannot exceed 255 characters")
+	registry.RegisterValidation(valueobjects.ErrTargetMaturityOutOfRange, "Target maturity must be between 0 and 99")
 }

@@ -57,5 +57,11 @@ var enterpriseCapabilityEventDeserializers = repository.NewEventDeserializers(
 
 			return events.NewEnterpriseCapabilityDeleted(id)
 		},
+		"EnterpriseCapabilityTargetMaturitySet": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			targetMaturity, _ := data["targetMaturity"].(float64)
+
+			return events.NewEnterpriseCapabilityTargetMaturitySet(id, int(targetMaturity))
+		},
 	},
 )

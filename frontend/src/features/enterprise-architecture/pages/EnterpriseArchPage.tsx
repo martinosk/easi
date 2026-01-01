@@ -3,6 +3,9 @@ import { EnterpriseArchHeader } from '../components/EnterpriseArchHeader';
 import { EnterpriseArchContent } from '../components/EnterpriseArchContent';
 import { CreateEnterpriseCapabilityModal } from '../components/CreateEnterpriseCapabilityModal';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
+import { MaturityAnalysisTab } from '../components/MaturityAnalysisTab';
+import { UnlinkedCapabilitiesTab } from '../components/UnlinkedCapabilitiesTab';
+import { MaturityGapDetailPanel } from '../components/MaturityGapDetailPanel';
 import { useEnterpriseCapabilities } from '../hooks/useEnterpriseCapabilities';
 import { useDomainCapabilityLinking } from '../hooks/useDomainCapabilityLinking';
 import { getErrorMessage } from '../utils/errorMessages';
@@ -10,6 +13,8 @@ import type { EnterpriseCapability, CreateEnterpriseCapabilityRequest, Enterpris
 import type { Capability } from '../../../api/types';
 import { useUserStore } from '../../../store/userStore';
 import './EnterpriseArchPage.css';
+
+type TabType = 'capabilities' | 'maturity-analysis' | 'unlinked';
 
 function useEnterpriseArchPermissions() {
   const hasPermission = useUserStore((state) => state.hasPermission);
@@ -21,11 +26,13 @@ function useEnterpriseArchPermissions() {
 }
 
 export function EnterpriseArchPage() {
+  const [activeTab, setActiveTab] = useState<TabType>('capabilities');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCapabilityId, setSelectedCapabilityId] = useState<EnterpriseCapabilityId | null>(null);
   const [capabilityToDelete, setCapabilityToDelete] = useState<EnterpriseCapability | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDockPanelOpen, setIsDockPanelOpen] = useState(false);
+  const [maturityGapDetailId, setMaturityGapDetailId] = useState<EnterpriseCapabilityId | null>(null);
 
   const { canRead, canWrite, canDelete } = useEnterpriseArchPermissions();
 
@@ -100,6 +107,19 @@ export function EnterpriseArchPage() {
     [linkCapability]
   );
 
+  const handleTabChange = useCallback((tab: TabType) => {
+    setActiveTab(tab);
+    setMaturityGapDetailId(null);
+  }, []);
+
+  const handleViewMaturityGapDetail = useCallback((id: EnterpriseCapabilityId) => {
+    setMaturityGapDetailId(id);
+  }, []);
+
+  const handleBackFromMaturityGapDetail = useCallback(() => {
+    setMaturityGapDetailId(null);
+  }, []);
+
   if (!canRead) {
     return (
       <div className="enterprise-arch-page">
@@ -110,6 +130,44 @@ export function EnterpriseArchPage() {
     );
   }
 
+  const renderTabContent = () => {
+    if (activeTab === 'maturity-analysis') {
+      if (maturityGapDetailId) {
+        return (
+          <MaturityGapDetailPanel
+            enterpriseCapabilityId={maturityGapDetailId}
+            onBack={handleBackFromMaturityGapDetail}
+          />
+        );
+      }
+      return <MaturityAnalysisTab onViewDetail={handleViewMaturityGapDetail} />;
+    }
+
+    if (activeTab === 'unlinked') {
+      return <UnlinkedCapabilitiesTab />;
+    }
+
+    return (
+      <EnterpriseArchContent
+        isLoading={isLoading}
+        error={error?.message || null}
+        capabilities={capabilities}
+        selectedCapability={selectedCapability}
+        canWrite={canWrite}
+        canDelete={canDelete}
+        onSelect={handleSelectCapability}
+        onDelete={handleDeleteClick}
+        onCreateNew={handleOpenModal}
+        isDockPanelOpen={isDockPanelOpen}
+        domainCapabilities={domainCapabilities}
+        linkStatuses={linkStatuses}
+        isLoadingDomainCapabilities={isLoadingDomainCapabilities}
+        onCloseDockPanel={handleCloseDockPanel}
+        onLinkCapability={handleLinkCapability}
+      />
+    );
+  };
+
   return (
     <div className="enterprise-arch-page">
       <div className="enterprise-arch-container">
@@ -118,24 +176,33 @@ export function EnterpriseArchPage() {
           onCreateNew={handleOpenModal}
           isDockPanelOpen={isDockPanelOpen}
           onToggleDockPanel={handleToggleDockPanel}
+          activeTab={activeTab}
+          showTabActions={activeTab === 'capabilities'}
         />
-        <EnterpriseArchContent
-          isLoading={isLoading}
-          error={error?.message || null}
-          capabilities={capabilities}
-          selectedCapability={selectedCapability}
-          canWrite={canWrite}
-          canDelete={canDelete}
-          onSelect={handleSelectCapability}
-          onDelete={handleDeleteClick}
-          onCreateNew={handleOpenModal}
-          isDockPanelOpen={isDockPanelOpen}
-          domainCapabilities={domainCapabilities}
-          linkStatuses={linkStatuses}
-          isLoadingDomainCapabilities={isLoadingDomainCapabilities}
-          onCloseDockPanel={handleCloseDockPanel}
-          onLinkCapability={handleLinkCapability}
-        />
+        <div className="tab-navigation">
+          <button
+            type="button"
+            className={`tab-button ${activeTab === 'capabilities' ? 'active' : ''}`}
+            onClick={() => handleTabChange('capabilities')}
+          >
+            Enterprise Capabilities
+          </button>
+          <button
+            type="button"
+            className={`tab-button ${activeTab === 'maturity-analysis' ? 'active' : ''}`}
+            onClick={() => handleTabChange('maturity-analysis')}
+          >
+            Maturity Analysis
+          </button>
+          <button
+            type="button"
+            className={`tab-button ${activeTab === 'unlinked' ? 'active' : ''}`}
+            onClick={() => handleTabChange('unlinked')}
+          >
+            Unlinked Capabilities
+          </button>
+        </div>
+        {renderTabContent()}
       </div>
       {canWrite && (
         <CreateEnterpriseCapabilityModal

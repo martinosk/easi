@@ -13,6 +13,7 @@ export interface EnterpriseCapability {
   description: string;
   category: string;
   active: boolean;
+  targetMaturity?: number;
   linkCount: number;
   domainCount: number;
   createdAt: string;
@@ -109,4 +110,93 @@ export interface CapabilityLinkStatusResponse {
   linkedTo?: { id: string; name: string };
   blockingCapability?: { id: string; name: string };
   blockingEnterpriseCapabilityId?: string;
+}
+
+export interface MaturityDistribution {
+  genesis: number;
+  customBuild: number;
+  product: number;
+  commodity: number;
+}
+
+export interface MaturityAnalysisCandidate {
+  enterpriseCapabilityId: string;
+  enterpriseCapabilityName: string;
+  category?: string;
+  targetMaturity: number | null;
+  targetMaturitySection?: string;
+  implementationCount: number;
+  domainCount: number;
+  maxMaturity: number;
+  minMaturity: number;
+  averageMaturity: number;
+  maxGap: number;
+  maturityDistribution: MaturityDistribution;
+  _links: {
+    self: string;
+    maturityGap: string;
+  };
+}
+
+export interface MaturityAnalysisSummary {
+  candidateCount: number;
+  totalImplementations: number;
+  averageGap: number;
+}
+
+export interface MaturityAnalysisResponse {
+  summary: MaturityAnalysisSummary;
+  data: MaturityAnalysisCandidate[];
+  _links: {
+    self: string;
+  };
+}
+
+export interface ImplementationDetail {
+  domainCapabilityId: string;
+  domainCapabilityName: string;
+  businessDomainId?: string;
+  businessDomainName?: string;
+  maturityValue: number;
+  maturitySection: string;
+  gap: number;
+  priority: 'High' | 'Medium' | 'Low' | 'None';
+}
+
+export interface InvestmentPriorities {
+  high: ImplementationDetail[];
+  medium: ImplementationDetail[];
+  low: ImplementationDetail[];
+  onTarget: ImplementationDetail[];
+}
+
+export interface MaturityGapDetail {
+  enterpriseCapabilityId: string;
+  enterpriseCapabilityName: string;
+  category?: string;
+  targetMaturity: number | null;
+  targetMaturitySection?: string;
+  implementations: ImplementationDetail[];
+  investmentPriorities: InvestmentPriorities;
+  _links: {
+    self: string;
+    enterpriseCapability: string;
+  };
+}
+
+export interface UnlinkedCapability {
+  capabilityId: string;
+  capabilityName: string;
+  businessDomainId?: string;
+  businessDomainName?: string;
+  maturityValue: number;
+  maturitySection: string;
+}
+
+export interface UnlinkedCapabilitiesResponse {
+  data: UnlinkedCapability[];
+  total: number;
+  _links: {
+    self: string;
+  };
 }

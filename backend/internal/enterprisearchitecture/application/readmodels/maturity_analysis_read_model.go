@@ -1,0 +1,456 @@
+package readmodels
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"strings"
+
+	"easi/backend/internal/infrastructure/database"
+	sharedctx "easi/backend/internal/shared/context"
+)
+
+type MaturityDistributionDTO struct {
+	Genesis     int `json:"genesis"`
+	CustomBuild int `json:"customBuild"`
+	Product     int `json:"product"`
+	Commodity   int `json:"commodity"`
+}
+
+type MaturityAnalysisCandidateDTO struct {
+	EnterpriseCapabilityID   string                  `json:"enterpriseCapabilityId"`
+	EnterpriseCapabilityName string                  `json:"enterpriseCapabilityName"`
+	Category                 string                  `json:"category,omitempty"`
+	TargetMaturity           *int                    `json:"targetMaturity,omitempty"`
+	TargetMaturitySection    string                  `json:"targetMaturitySection,omitempty"`
+	ImplementationCount      int                     `json:"implementationCount"`
+	DomainCount              int                     `json:"domainCount"`
+	MaxMaturity              int                     `json:"maxMaturity"`
+	MinMaturity              int                     `json:"minMaturity"`
+	AverageMaturity          int                     `json:"averageMaturity"`
+	MaxGap                   int                     `json:"maxGap"`
+	MaturityDistribution     MaturityDistributionDTO `json:"maturityDistribution"`
+	Links                    map[string]string       `json:"_links,omitempty"`
+}
+
+type MaturityAnalysisSummaryDTO struct {
+	CandidateCount       int `json:"candidateCount"`
+	TotalImplementations int `json:"totalImplementations"`
+	AverageGap           int `json:"averageGap"`
+}
+
+type ImplementationDetailDTO struct {
+	DomainCapabilityID   string `json:"domainCapabilityId"`
+	DomainCapabilityName string `json:"domainCapabilityName"`
+	BusinessDomainID     string `json:"businessDomainId,omitempty"`
+	BusinessDomainName   string `json:"businessDomainName,omitempty"`
+	MaturityValue        int    `json:"maturityValue"`
+	MaturitySection      string `json:"maturitySection"`
+	Gap                  int    `json:"gap"`
+	Priority             string `json:"priority"`
+}
+
+type InvestmentPrioritiesDTO struct {
+	High     []ImplementationDetailDTO `json:"high"`
+	Medium   []ImplementationDetailDTO `json:"medium"`
+	Low      []ImplementationDetailDTO `json:"low"`
+	OnTarget []ImplementationDetailDTO `json:"onTarget"`
+}
+
+type MaturityGapDetailDTO struct {
+	EnterpriseCapabilityID   string                  `json:"enterpriseCapabilityId"`
+	EnterpriseCapabilityName string                  `json:"enterpriseCapabilityName"`
+	Category                 string                  `json:"category,omitempty"`
+	TargetMaturity           *int                    `json:"targetMaturity,omitempty"`
+	TargetMaturitySection    string                  `json:"targetMaturitySection,omitempty"`
+	Implementations          []ImplementationDetailDTO `json:"implementations"`
+	InvestmentPriorities     InvestmentPrioritiesDTO `json:"investmentPriorities"`
+	Links                    map[string]string       `json:"_links,omitempty"`
+}
+
+type UnlinkedCapabilityDTO struct {
+	CapabilityID       string            `json:"capabilityId"`
+	CapabilityName     string            `json:"capabilityName"`
+	BusinessDomainID   string            `json:"businessDomainId,omitempty"`
+	BusinessDomainName string            `json:"businessDomainName,omitempty"`
+	MaturityValue      int               `json:"maturityValue"`
+	MaturitySection    string            `json:"maturitySection"`
+	Links              map[string]string `json:"_links,omitempty"`
+}
+
+type MaturityAnalysisReadModel struct {
+	db *database.TenantAwareDB
+}
+
+func NewMaturityAnalysisReadModel(db *database.TenantAwareDB) *MaturityAnalysisReadModel {
+	return &MaturityAnalysisReadModel{db: db}
+}
+
+func (rm *MaturityAnalysisReadModel) GetMaturityAnalysisCandidates(ctx context.Context, sortBy string) ([]MaturityAnalysisCandidateDTO, MaturityAnalysisSummaryDTO, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, MaturityAnalysisSummaryDTO{}, err
+	}
+
+	orderBy := "max_gap DESC, impl_count DESC"
+	switch sortBy {
+	case "implementations":
+		orderBy = "impl_count DESC, max_gap DESC"
+	case "gap":
+		orderBy = "max_gap DESC, impl_count DESC"
+	}
+
+	query := `
+		SELECT
+			ec.id, ec.name, ec.category, ec.target_maturity,
+			COUNT(DISTINCT ecl.domain_capability_id) as impl_count,
+			COUNT(DISTINCT dcm.business_domain_id) as domain_count,
+			COALESCE(MAX(c.maturity_value), 0) as max_maturity,
+			COALESCE(MIN(c.maturity_value), 0) as min_maturity,
+			COALESCE(AVG(c.maturity_value)::int, 0) as avg_maturity,
+			GREATEST(0, COALESCE(ec.target_maturity, COALESCE(MAX(c.maturity_value), 0)) - COALESCE(MIN(c.maturity_value), 0)) as max_gap
+		FROM enterprise_capabilities ec
+		LEFT JOIN enterprise_capability_links ecl ON ec.id = ecl.enterprise_capability_id AND ec.tenant_id = ecl.tenant_id
+		LEFT JOIN domain_capability_metadata dcm ON ecl.domain_capability_id = dcm.capability_id AND ecl.tenant_id = dcm.tenant_id
+		LEFT JOIN capabilities c ON ecl.domain_capability_id = c.id AND ecl.tenant_id = c.tenant_id
+		WHERE ec.tenant_id = $1 AND ec.active = true
+		GROUP BY ec.id, ec.name, ec.category, ec.target_maturity
+		ORDER BY ` + orderBy
+
+	var candidates []MaturityAnalysisCandidateDTO
+	var totalGap int
+
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, query, tenantID.Value())
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var dto MaturityAnalysisCandidateDTO
+			var category sql.NullString
+			var targetMaturity sql.NullInt64
+
+			if err := rows.Scan(
+				&dto.EnterpriseCapabilityID, &dto.EnterpriseCapabilityName, &category, &targetMaturity,
+				&dto.ImplementationCount, &dto.DomainCount,
+				&dto.MaxMaturity, &dto.MinMaturity, &dto.AverageMaturity, &dto.MaxGap,
+			); err != nil {
+				return err
+			}
+
+			if category.Valid {
+				dto.Category = category.String
+			}
+			if targetMaturity.Valid {
+				tm := int(targetMaturity.Int64)
+				dto.TargetMaturity = &tm
+				dto.TargetMaturitySection = getMaturitySection(tm)
+			}
+
+			totalGap += dto.MaxGap
+			candidates = append(candidates, dto)
+		}
+
+		return rows.Err()
+	})
+
+	if err != nil {
+		return nil, MaturityAnalysisSummaryDTO{}, err
+	}
+
+	for i := range candidates {
+		dist, _ := rm.getMaturityDistribution(ctx, candidates[i].EnterpriseCapabilityID)
+		candidates[i].MaturityDistribution = dist
+	}
+
+	var totalImplementations int
+	for _, c := range candidates {
+		totalImplementations += c.ImplementationCount
+	}
+
+	avgGap := 0
+	if len(candidates) > 0 {
+		avgGap = totalGap / len(candidates)
+	}
+
+	summary := MaturityAnalysisSummaryDTO{
+		CandidateCount:       len(candidates),
+		TotalImplementations: totalImplementations,
+		AverageGap:           avgGap,
+	}
+
+	return candidates, summary, nil
+}
+
+func (rm *MaturityAnalysisReadModel) getMaturityDistribution(ctx context.Context, enterpriseCapabilityID string) (MaturityDistributionDTO, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return MaturityDistributionDTO{}, err
+	}
+
+	query := `
+		SELECT
+			COUNT(*) FILTER (WHERE c.maturity_value <= 24) as genesis,
+			COUNT(*) FILTER (WHERE c.maturity_value > 24 AND c.maturity_value <= 49) as custom_build,
+			COUNT(*) FILTER (WHERE c.maturity_value > 49 AND c.maturity_value <= 74) as product,
+			COUNT(*) FILTER (WHERE c.maturity_value > 74) as commodity
+		FROM enterprise_capability_links ecl
+		JOIN capabilities c ON ecl.domain_capability_id = c.id AND ecl.tenant_id = c.tenant_id
+		WHERE ecl.tenant_id = $1 AND ecl.enterprise_capability_id = $2`
+
+	var dist MaturityDistributionDTO
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		return tx.QueryRowContext(ctx, query, tenantID.Value(), enterpriseCapabilityID).Scan(
+			&dist.Genesis, &dist.CustomBuild, &dist.Product, &dist.Commodity,
+		)
+	})
+
+	return dist, err
+}
+
+func (rm *MaturityAnalysisReadModel) GetMaturityGapDetail(ctx context.Context, enterpriseCapabilityID string) (*MaturityGapDetailDTO, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var dto MaturityGapDetailDTO
+	var category sql.NullString
+	var targetMaturity sql.NullInt64
+	var maxMaturity int
+	var notFound bool
+
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		err := tx.QueryRowContext(ctx,
+			`SELECT ec.id, ec.name, ec.category, ec.target_maturity,
+			        (SELECT MAX(c.maturity_value) FROM enterprise_capability_links ecl
+			         JOIN capabilities c ON ecl.domain_capability_id = c.id AND ecl.tenant_id = c.tenant_id
+			         WHERE ecl.enterprise_capability_id = ec.id AND ecl.tenant_id = ec.tenant_id) as max_mat
+			 FROM enterprise_capabilities ec
+			 WHERE ec.tenant_id = $1 AND ec.id = $2 AND ec.active = true`,
+			tenantID.Value(), enterpriseCapabilityID,
+		).Scan(&dto.EnterpriseCapabilityID, &dto.EnterpriseCapabilityName, &category, &targetMaturity, &maxMaturity)
+
+		if err == sql.ErrNoRows {
+			notFound = true
+			return nil
+		}
+		return err
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	if notFound {
+		return nil, nil
+	}
+
+	if category.Valid {
+		dto.Category = category.String
+	}
+	if targetMaturity.Valid {
+		tm := int(targetMaturity.Int64)
+		dto.TargetMaturity = &tm
+		dto.TargetMaturitySection = getMaturitySection(tm)
+	}
+
+	target := maxMaturity
+	if dto.TargetMaturity != nil {
+		target = *dto.TargetMaturity
+	}
+
+	implementations, err := rm.getImplementations(ctx, enterpriseCapabilityID, target)
+	if err != nil {
+		return nil, err
+	}
+
+	dto.Implementations = implementations
+	dto.InvestmentPriorities = categorizeByPriority(implementations)
+
+	return &dto, nil
+}
+
+func (rm *MaturityAnalysisReadModel) getImplementations(ctx context.Context, enterpriseCapabilityID string, target int) ([]ImplementationDetailDTO, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		SELECT ecl.domain_capability_id, dcm.capability_name,
+		       dcm.business_domain_id, dcm.business_domain_name,
+		       c.maturity_value
+		FROM enterprise_capability_links ecl
+		JOIN capabilities c ON ecl.domain_capability_id = c.id AND ecl.tenant_id = c.tenant_id
+		LEFT JOIN domain_capability_metadata dcm ON ecl.domain_capability_id = dcm.capability_id AND ecl.tenant_id = dcm.tenant_id
+		WHERE ecl.tenant_id = $1 AND ecl.enterprise_capability_id = $2
+		ORDER BY c.maturity_value ASC`
+
+	var implementations []ImplementationDetailDTO
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), enterpriseCapabilityID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var impl ImplementationDetailDTO
+			var capabilityName, businessDomainID, businessDomainName sql.NullString
+
+			if err := rows.Scan(
+				&impl.DomainCapabilityID, &capabilityName,
+				&businessDomainID, &businessDomainName,
+				&impl.MaturityValue,
+			); err != nil {
+				return err
+			}
+
+			if capabilityName.Valid {
+				impl.DomainCapabilityName = capabilityName.String
+			}
+			if businessDomainID.Valid {
+				impl.BusinessDomainID = businessDomainID.String
+			}
+			if businessDomainName.Valid {
+				impl.BusinessDomainName = businessDomainName.String
+			}
+
+			impl.MaturitySection = getMaturitySection(impl.MaturityValue)
+			impl.Gap = target - impl.MaturityValue
+			if impl.Gap < 0 {
+				impl.Gap = 0
+			}
+			impl.Priority = getPriority(impl.Gap)
+
+			implementations = append(implementations, impl)
+		}
+
+		return rows.Err()
+	})
+
+	return implementations, err
+}
+
+func (rm *MaturityAnalysisReadModel) GetUnlinkedCapabilities(ctx context.Context, businessDomainFilter, search string) ([]UnlinkedCapabilityDTO, int, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	args := []interface{}{tenantID.Value()}
+	argIdx := 2
+
+	whereConditions := []string{"c.tenant_id = $1"}
+	whereConditions = append(whereConditions, `NOT EXISTS (
+		SELECT 1 FROM enterprise_capability_links ecl
+		WHERE ecl.domain_capability_id = c.id AND ecl.tenant_id = c.tenant_id
+	)`)
+
+	if businessDomainFilter != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("dcm.business_domain_id = $%d", argIdx))
+		args = append(args, businessDomainFilter)
+		argIdx++
+	}
+
+	if search != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("c.name ILIKE $%d", argIdx))
+		args = append(args, "%"+search+"%")
+	}
+
+	query := `
+		SELECT c.id, c.name, dcm.business_domain_id, dcm.business_domain_name, COALESCE(c.maturity_value, 0)
+		FROM capabilities c
+		LEFT JOIN domain_capability_metadata dcm ON c.id = dcm.capability_id AND c.tenant_id = dcm.tenant_id
+		WHERE ` + strings.Join(whereConditions, " AND ") + `
+		ORDER BY dcm.business_domain_name NULLS LAST, c.name
+		LIMIT 100`
+
+	var capabilities []UnlinkedCapabilityDTO
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, query, args...)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var dto UnlinkedCapabilityDTO
+			var businessDomainID, businessDomainName sql.NullString
+			var maturityValue sql.NullInt64
+
+			if err := rows.Scan(&dto.CapabilityID, &dto.CapabilityName, &businessDomainID, &businessDomainName, &maturityValue); err != nil {
+				return err
+			}
+
+			if businessDomainID.Valid {
+				dto.BusinessDomainID = businessDomainID.String
+			}
+			if businessDomainName.Valid {
+				dto.BusinessDomainName = businessDomainName.String
+			}
+			if maturityValue.Valid {
+				dto.MaturityValue = int(maturityValue.Int64)
+			}
+			dto.MaturitySection = getMaturitySection(dto.MaturityValue)
+
+			capabilities = append(capabilities, dto)
+		}
+
+		return rows.Err()
+	})
+
+	return capabilities, len(capabilities), err
+}
+
+func getMaturitySection(value int) string {
+	switch {
+	case value <= 24:
+		return "Genesis"
+	case value <= 49:
+		return "Custom Build"
+	case value <= 74:
+		return "Product"
+	default:
+		return "Commodity"
+	}
+}
+
+func getPriority(gap int) string {
+	switch {
+	case gap > 40:
+		return "High"
+	case gap >= 15:
+		return "Medium"
+	case gap >= 1:
+		return "Low"
+	default:
+		return "None"
+	}
+}
+
+func categorizeByPriority(implementations []ImplementationDetailDTO) InvestmentPrioritiesDTO {
+	result := InvestmentPrioritiesDTO{
+		High:     []ImplementationDetailDTO{},
+		Medium:   []ImplementationDetailDTO{},
+		Low:      []ImplementationDetailDTO{},
+		OnTarget: []ImplementationDetailDTO{},
+	}
+
+	for _, impl := range implementations {
+		switch impl.Priority {
+		case "High":
+			result.High = append(result.High, impl)
+		case "Medium":
+			result.Medium = append(result.Medium, impl)
+		case "Low":
+			result.Low = append(result.Low, impl)
+		default:
+			result.OnTarget = append(result.OnTarget, impl)
+		}
+	}
+
+	return result
+}
