@@ -6,8 +6,9 @@ import (
 	"testing"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
-	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
+	"easi/backend/internal/capabilitymapping/domain/services"
+	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 
@@ -37,16 +38,12 @@ func (m *mockDeleteBusinessDomainRepository) Save(ctx context.Context, domain *a
 	return nil
 }
 
-type mockDeleteBusinessDomainAssignmentReader struct {
-	assignments []readmodels.AssignmentDTO
-	getErr      error
+type mockBusinessDomainDeletionService struct {
+	canDeleteErr error
 }
 
-func (m *mockDeleteBusinessDomainAssignmentReader) GetByDomainID(ctx context.Context, domainID string) ([]readmodels.AssignmentDTO, error) {
-	if m.getErr != nil {
-		return nil, m.getErr
-	}
-	return m.assignments, nil
+func (m *mockBusinessDomainDeletionService) CanDelete(ctx context.Context, domainID valueobjects.BusinessDomainID) error {
+	return m.canDeleteErr
 }
 
 func TestDeleteBusinessDomainHandler_DeletesBusinessDomain(t *testing.T) {
@@ -54,9 +51,9 @@ func TestDeleteBusinessDomainHandler_DeletesBusinessDomain(t *testing.T) {
 	domainID := domain.ID()
 
 	mockRepo := &mockDeleteBusinessDomainRepository{domain: domain}
-	mockAssignmentReader := &mockDeleteBusinessDomainAssignmentReader{assignments: []readmodels.AssignmentDTO{}}
+	mockDeletionService := &mockBusinessDomainDeletionService{}
 
-	handler := NewDeleteBusinessDomainHandler(mockRepo, mockAssignmentReader)
+	handler := NewDeleteBusinessDomainHandler(mockRepo, mockDeletionService)
 
 	cmd := &commands.DeleteBusinessDomain{
 		ID: domainID,
@@ -73,20 +70,18 @@ func TestDeleteBusinessDomainHandler_DomainHasAssignments_ReturnsError(t *testin
 	domainID := domain.ID()
 
 	mockRepo := &mockDeleteBusinessDomainRepository{domain: domain}
-	mockAssignmentReader := &mockDeleteBusinessDomainAssignmentReader{
-		assignments: []readmodels.AssignmentDTO{
-			{AssignmentID: "assignment-1"},
-		},
+	mockDeletionService := &mockBusinessDomainDeletionService{
+		canDeleteErr: services.ErrBusinessDomainHasAssignments,
 	}
 
-	handler := NewDeleteBusinessDomainHandler(mockRepo, mockAssignmentReader)
+	handler := NewDeleteBusinessDomainHandler(mockRepo, mockDeletionService)
 
 	cmd := &commands.DeleteBusinessDomain{
 		ID: domainID,
 	}
 
 	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, ErrBusinessDomainHasAssignments)
+	assert.ErrorIs(t, err, services.ErrBusinessDomainHasAssignments)
 	assert.Equal(t, 0, mockRepo.savedCount, "Should not save when domain has assignments")
 }
 
@@ -94,12 +89,12 @@ func TestDeleteBusinessDomainHandler_DomainNotFound_ReturnsError(t *testing.T) {
 	mockRepo := &mockDeleteBusinessDomainRepository{
 		getByIDErr: repositories.ErrBusinessDomainNotFound,
 	}
-	mockAssignmentReader := &mockDeleteBusinessDomainAssignmentReader{assignments: []readmodels.AssignmentDTO{}}
+	mockDeletionService := &mockBusinessDomainDeletionService{}
 
-	handler := NewDeleteBusinessDomainHandler(mockRepo, mockAssignmentReader)
+	handler := NewDeleteBusinessDomainHandler(mockRepo, mockDeletionService)
 
 	cmd := &commands.DeleteBusinessDomain{
-		ID: "non-existent",
+		ID: valueobjects.NewBusinessDomainID().Value(),
 	}
 
 	_, err := handler.Handle(context.Background(), cmd)
@@ -108,9 +103,9 @@ func TestDeleteBusinessDomainHandler_DomainNotFound_ReturnsError(t *testing.T) {
 
 func TestDeleteBusinessDomainHandler_InvalidCommand_ReturnsError(t *testing.T) {
 	mockRepo := &mockDeleteBusinessDomainRepository{}
-	mockAssignmentReader := &mockDeleteBusinessDomainAssignmentReader{}
+	mockDeletionService := &mockBusinessDomainDeletionService{}
 
-	handler := NewDeleteBusinessDomainHandler(mockRepo, mockAssignmentReader)
+	handler := NewDeleteBusinessDomainHandler(mockRepo, mockDeletionService)
 
 	invalidCmd := &commands.CreateBusinessDomain{}
 
@@ -118,16 +113,16 @@ func TestDeleteBusinessDomainHandler_InvalidCommand_ReturnsError(t *testing.T) {
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
 }
 
-func TestDeleteBusinessDomainHandler_AssignmentReaderError_ReturnsError(t *testing.T) {
+func TestDeleteBusinessDomainHandler_DeletionServiceError_ReturnsError(t *testing.T) {
 	domain := createTestBusinessDomain(t, "Test Domain", "Description")
 	domainID := domain.ID()
 
 	mockRepo := &mockDeleteBusinessDomainRepository{domain: domain}
-	mockAssignmentReader := &mockDeleteBusinessDomainAssignmentReader{
-		getErr: errors.New("database error"),
+	mockDeletionService := &mockBusinessDomainDeletionService{
+		canDeleteErr: errors.New("database error"),
 	}
 
-	handler := NewDeleteBusinessDomainHandler(mockRepo, mockAssignmentReader)
+	handler := NewDeleteBusinessDomainHandler(mockRepo, mockDeletionService)
 
 	cmd := &commands.DeleteBusinessDomain{
 		ID: domainID,

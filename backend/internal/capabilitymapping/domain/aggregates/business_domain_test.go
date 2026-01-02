@@ -214,3 +214,4 @@ func createBusinessDomain(t *testing.T, domainName string) *BusinessDomain {
 
 	return domain
 }
+

@@ -12,22 +12,21 @@ import (
 )
 
 var (
-	ErrBusinessDomainNotFound          = errors.New("business domain not found")
-	ErrCapabilityNotFound              = errors.New("capability not found")
-	ErrOnlyL1CapabilitiesCanBeAssigned = errors.New("only L1 capabilities can be assigned to business domains")
-	ErrAssignmentAlreadyExists         = errors.New("this capability is already assigned to this business domain")
+	ErrBusinessDomainNotFound  = errors.New("business domain not found")
+	ErrCapabilityNotFound      = errors.New("capability not found")
+	ErrAssignmentAlreadyExists = errors.New("this capability is already assigned to this business domain")
 )
 
 type AssignCapabilityAssignmentRepository interface {
 	Save(ctx context.Context, assignment *aggregates.BusinessDomainAssignment) error
 }
 
-type AssignCapabilityDomainReader interface {
-	GetByID(ctx context.Context, id string) (*readmodels.BusinessDomainDTO, error)
+type AssignCapabilityCapabilityRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.Capability, error)
 }
 
-type AssignCapabilityCapabilityReader interface {
-	GetByID(ctx context.Context, id string) (*readmodels.CapabilityDTO, error)
+type AssignCapabilityDomainReader interface {
+	GetByID(ctx context.Context, id string) (*readmodels.BusinessDomainDTO, error)
 }
 
 type AssignCapabilityAssignmentReader interface {
@@ -36,21 +35,21 @@ type AssignCapabilityAssignmentReader interface {
 
 type AssignCapabilityToDomainHandler struct {
 	assignmentRepo   AssignCapabilityAssignmentRepository
+	capabilityRepo   AssignCapabilityCapabilityRepository
 	domainReader     AssignCapabilityDomainReader
-	capabilityReader AssignCapabilityCapabilityReader
 	assignmentReader AssignCapabilityAssignmentReader
 }
 
 func NewAssignCapabilityToDomainHandler(
 	assignmentRepo AssignCapabilityAssignmentRepository,
+	capabilityRepo AssignCapabilityCapabilityRepository,
 	domainReader AssignCapabilityDomainReader,
-	capabilityReader AssignCapabilityCapabilityReader,
 	assignmentReader AssignCapabilityAssignmentReader,
 ) *AssignCapabilityToDomainHandler {
 	return &AssignCapabilityToDomainHandler{
 		assignmentRepo:   assignmentRepo,
+		capabilityRepo:   capabilityRepo,
 		domainReader:     domainReader,
-		capabilityReader: capabilityReader,
 		assignmentReader: assignmentReader,
 	}
 }
@@ -61,10 +60,6 @@ func (h *AssignCapabilityToDomainHandler) Handle(ctx context.Context, cmd cqrs.C
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
-	if err := h.validateAssignment(ctx, command); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
 	businessDomainID, err := valueobjects.NewBusinessDomainIDFromString(command.BusinessDomainID)
 	if err != nil {
 		return cqrs.EmptyResult(), err
@@ -72,6 +67,23 @@ func (h *AssignCapabilityToDomainHandler) Handle(ctx context.Context, cmd cqrs.C
 
 	capabilityID, err := valueobjects.NewCapabilityIDFromString(command.CapabilityID)
 	if err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	if err := h.validateBusinessDomainExists(ctx, command.BusinessDomainID); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	capability, err := h.capabilityRepo.GetByID(ctx, command.CapabilityID)
+	if err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	if err := capability.CanBeAssignedToDomain(); err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	if err := h.validateAssignmentDoesNotExist(ctx, command.BusinessDomainID, command.CapabilityID); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
@@ -87,18 +99,6 @@ func (h *AssignCapabilityToDomainHandler) Handle(ctx context.Context, cmd cqrs.C
 	return cqrs.NewResult(assignment.ID()), nil
 }
 
-func (h *AssignCapabilityToDomainHandler) validateAssignment(ctx context.Context, command *commands.AssignCapabilityToDomain) error {
-	if err := h.validateBusinessDomainExists(ctx, command.BusinessDomainID); err != nil {
-		return err
-	}
-
-	if err := h.validateCapabilityIsL1(ctx, command.CapabilityID); err != nil {
-		return err
-	}
-
-	return h.validateAssignmentDoesNotExist(ctx, command.BusinessDomainID, command.CapabilityID)
-}
-
 func (h *AssignCapabilityToDomainHandler) validateBusinessDomainExists(ctx context.Context, domainID string) error {
 	domain, err := h.domainReader.GetByID(ctx, domainID)
 	if err != nil {
@@ -106,20 +106,6 @@ func (h *AssignCapabilityToDomainHandler) validateBusinessDomainExists(ctx conte
 	}
 	if domain == nil {
 		return ErrBusinessDomainNotFound
-	}
-	return nil
-}
-
-func (h *AssignCapabilityToDomainHandler) validateCapabilityIsL1(ctx context.Context, capabilityID string) error {
-	capability, err := h.capabilityReader.GetByID(ctx, capabilityID)
-	if err != nil {
-		return err
-	}
-	if capability == nil {
-		return ErrCapabilityNotFound
-	}
-	if capability.Level != "L1" {
-		return ErrOnlyL1CapabilitiesCanBeAssigned
 	}
 	return nil
 }

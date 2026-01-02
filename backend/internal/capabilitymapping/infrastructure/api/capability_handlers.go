@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
-	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
+	"easi/backend/internal/capabilitymapping/domain/services"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
@@ -297,7 +297,7 @@ func (h *CapabilityHandlers) DeleteCapability(w http.ResponseWriter, r *http.Req
 	}
 
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		if errors.Is(err, handlers.ErrCapabilityHasChildren) {
+		if errors.Is(err, services.ErrCapabilityHasChildren) {
 			sharedAPI.RespondError(w, http.StatusConflict, err, "Cannot delete capability with children. Delete child capabilities first.")
 			return
 		}

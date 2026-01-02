@@ -2,37 +2,31 @@ package handlers
 
 import (
 	"context"
-	"errors"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
-	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
+	"easi/backend/internal/capabilitymapping/domain/services"
+	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
 )
-
-var ErrCapabilityHasChildren = errors.New("cannot delete capability with children. Delete child capabilities first")
 
 type DeleteCapabilityRepository interface {
 	GetByID(ctx context.Context, id string) (*aggregates.Capability, error)
 	Save(ctx context.Context, capability *aggregates.Capability) error
 }
 
-type DeleteCapabilityReadModel interface {
-	GetChildren(ctx context.Context, parentID string) ([]readmodels.CapabilityDTO, error)
-}
-
 type DeleteCapabilityHandler struct {
-	repository DeleteCapabilityRepository
-	readModel  DeleteCapabilityReadModel
+	repository      DeleteCapabilityRepository
+	deletionService services.CapabilityDeletionService
 }
 
 func NewDeleteCapabilityHandler(
 	repository DeleteCapabilityRepository,
-	readModel DeleteCapabilityReadModel,
+	deletionService services.CapabilityDeletionService,
 ) *DeleteCapabilityHandler {
 	return &DeleteCapabilityHandler{
-		repository: repository,
-		readModel:  readModel,
+		repository:      repository,
+		deletionService: deletionService,
 	}
 }
 
@@ -42,13 +36,13 @@ func (h *DeleteCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command) 
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
-	children, err := h.readModel.GetChildren(ctx, command.ID)
+	capabilityID, err := valueobjects.NewCapabilityIDFromString(command.ID)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
-	if len(children) > 0 {
-		return cqrs.EmptyResult(), ErrCapabilityHasChildren
+	if err := h.deletionService.CanDelete(ctx, capabilityID); err != nil {
+		return cqrs.EmptyResult(), err
 	}
 
 	capability, err := h.repository.GetByID(ctx, command.ID)

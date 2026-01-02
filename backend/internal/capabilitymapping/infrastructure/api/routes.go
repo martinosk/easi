@@ -9,6 +9,8 @@ import (
 	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/application/projectors"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
+	"easi/backend/internal/capabilitymapping/domain/services"
+	"easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	"easi/backend/internal/capabilitymapping/infrastructure/metamodel"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/database"
@@ -253,7 +255,7 @@ func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepos
 	registerDependencyCommands(commandBus, repos.dependency, repos.capability)
 	registerRealizationCommands(commandBus, repos.realization, repos.capability, rm.component)
 	registerBusinessDomainCommands(commandBus, repos.businessDomain, rm.businessDomain, rm.domainAssignment)
-	registerDomainAssignmentCommands(commandBus, repos.domainAssignment, rm.businessDomain, rm.capability, rm.domainAssignment)
+	registerDomainAssignmentCommands(commandBus, repos.domainAssignment, repos.capability, rm.businessDomain, rm.domainAssignment)
 	registerStrategyImportanceCommands(commandBus, handlers.StrategyImportanceDeps{
 		ImportanceRepo:   repos.strategyImportance,
 		DomainReader:     rm.businessDomain,
@@ -269,13 +271,16 @@ func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepos
 }
 
 func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repositories.CapabilityRepository, rm *readmodels.CapabilityReadModel) {
+	childrenChecker := adapters.NewCapabilityChildrenCheckerAdapter(rm)
+	deletionService := services.NewCapabilityDeletionService(childrenChecker)
+
 	commandBus.Register("CreateCapability", handlers.NewCreateCapabilityHandler(repo))
 	commandBus.Register("UpdateCapability", handlers.NewUpdateCapabilityHandler(repo))
 	commandBus.Register("UpdateCapabilityMetadata", handlers.NewUpdateCapabilityMetadataHandler(repo))
 	commandBus.Register("AddCapabilityExpert", handlers.NewAddCapabilityExpertHandler(repo))
 	commandBus.Register("AddCapabilityTag", handlers.NewAddCapabilityTagHandler(repo))
 	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(repo, rm))
-	commandBus.Register("DeleteCapability", handlers.NewDeleteCapabilityHandler(repo, rm))
+	commandBus.Register("DeleteCapability", handlers.NewDeleteCapabilityHandler(repo, deletionService))
 }
 
 func registerDependencyCommands(commandBus *cqrs.InMemoryCommandBus, depRepo *repositories.DependencyRepository, capRepo *repositories.CapabilityRepository) {
@@ -290,13 +295,16 @@ func registerRealizationCommands(commandBus *cqrs.InMemoryCommandBus, realRepo *
 }
 
 func registerBusinessDomainCommands(commandBus *cqrs.InMemoryCommandBus, domainRepo *repositories.BusinessDomainRepository, domainRM *readmodels.BusinessDomainReadModel, assignmentRM *readmodels.DomainCapabilityAssignmentReadModel) {
+	assignmentChecker := adapters.NewBusinessDomainAssignmentCheckerAdapter(assignmentRM)
+	deletionService := services.NewBusinessDomainDeletionService(assignmentChecker)
+
 	commandBus.Register("CreateBusinessDomain", handlers.NewCreateBusinessDomainHandler(domainRepo, domainRM))
 	commandBus.Register("UpdateBusinessDomain", handlers.NewUpdateBusinessDomainHandler(domainRepo, domainRM))
-	commandBus.Register("DeleteBusinessDomain", handlers.NewDeleteBusinessDomainHandler(domainRepo, assignmentRM))
+	commandBus.Register("DeleteBusinessDomain", handlers.NewDeleteBusinessDomainHandler(domainRepo, deletionService))
 }
 
-func registerDomainAssignmentCommands(commandBus *cqrs.InMemoryCommandBus, assignRepo *repositories.BusinessDomainAssignmentRepository, domainRM *readmodels.BusinessDomainReadModel, capRM *readmodels.CapabilityReadModel, assignmentRM *readmodels.DomainCapabilityAssignmentReadModel) {
-	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(assignRepo, domainRM, capRM, assignmentRM))
+func registerDomainAssignmentCommands(commandBus *cqrs.InMemoryCommandBus, assignRepo *repositories.BusinessDomainAssignmentRepository, capRepo *repositories.CapabilityRepository, domainRM *readmodels.BusinessDomainReadModel, assignmentRM *readmodels.DomainCapabilityAssignmentReadModel) {
+	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(assignRepo, capRepo, domainRM, assignmentRM))
 	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(assignRepo))
 }
 

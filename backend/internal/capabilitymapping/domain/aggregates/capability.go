@@ -11,12 +11,13 @@ import (
 )
 
 var (
-	ErrL1CannotHaveParent           = errors.New("L1 capabilities cannot have a parent")
-	ErrNonL1MustHaveParent          = errors.New("L2-L4 capabilities must have a parent")
-	ErrParentMustBeOneLevelAbove    = errors.New("parent must be exactly one level above")
-	ErrCapabilityCannotBeOwnParent  = errors.New("capability cannot be its own parent")
-	ErrWouldCreateCircularReference = errors.New("operation would create circular reference")
-	ErrWouldExceedMaximumDepth      = errors.New("operation would create L5+ hierarchy")
+	ErrL1CannotHaveParent            = errors.New("L1 capabilities cannot have a parent")
+	ErrNonL1MustHaveParent           = errors.New("L2-L4 capabilities must have a parent")
+	ErrParentMustBeOneLevelAbove     = errors.New("parent must be exactly one level above")
+	ErrCapabilityCannotBeOwnParent   = errors.New("capability cannot be its own parent")
+	ErrWouldCreateCircularReference  = errors.New("operation would create circular reference")
+	ErrWouldExceedMaximumDepth       = errors.New("operation would create L5+ hierarchy")
+	ErrOnlyL1CanBeAssignedToDomain   = errors.New("only L1 capabilities can be assigned to business domains")
 )
 
 type Capability struct {
@@ -242,6 +243,13 @@ func (c *Capability) ChangeParent(newParentID valueobjects.CapabilityID, newLeve
 	c.apply(event)
 	c.RaiseEvent(event)
 
+	return nil
+}
+
+func (c *Capability) CanBeAssignedToDomain() error {
+	if c.level != valueobjects.LevelL1 {
+		return ErrOnlyL1CanBeAssignedToDomain
+	}
 	return nil
 }
 

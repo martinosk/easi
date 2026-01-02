@@ -503,3 +503,34 @@ func TestCapability_Delete_PreservesAggregateState(t *testing.T) {
 	assert.Equal(t, originalID, capability.ID())
 	assert.Equal(t, originalName, capability.Name().Value())
 }
+
+func TestCapability_CanBeAssignedToDomain_L1_Succeeds(t *testing.T) {
+	capability := createL1Capability(t, "Customer Engagement")
+
+	err := capability.CanBeAssignedToDomain()
+	assert.NoError(t, err)
+}
+
+func TestCapability_CanBeAssignedToDomain_L2_Fails(t *testing.T) {
+	capability := createL2Capability(t, "Digital Experience")
+
+	err := capability.CanBeAssignedToDomain()
+	assert.Error(t, err)
+	assert.Equal(t, ErrOnlyL1CanBeAssignedToDomain, err)
+}
+
+func TestCapability_CanBeAssignedToDomain_L3_Fails(t *testing.T) {
+	capability := createL3Capability(t, "Customer Portal")
+
+	err := capability.CanBeAssignedToDomain()
+	assert.Error(t, err)
+	assert.Equal(t, ErrOnlyL1CanBeAssignedToDomain, err)
+}
+
+func TestCapability_CanBeAssignedToDomain_L4_Fails(t *testing.T) {
+	capability := createL4Capability(t, "Deep Feature")
+
+	err := capability.CanBeAssignedToDomain()
+	assert.Error(t, err)
+	assert.Equal(t, ErrOnlyL1CanBeAssignedToDomain, err)
+}

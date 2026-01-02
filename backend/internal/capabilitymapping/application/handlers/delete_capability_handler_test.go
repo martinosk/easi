@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
-	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
+	"easi/backend/internal/capabilitymapping/domain/services"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
 
@@ -34,16 +34,12 @@ func (m *mockDeleteCapabilityRepository) Save(ctx context.Context, capability *a
 	return m.saveErr
 }
 
-type mockDeleteCapabilityReadModel struct {
-	children       []readmodels.CapabilityDTO
-	getChildrenErr error
+type mockCapabilityDeletionService struct {
+	canDeleteErr error
 }
 
-func (m *mockDeleteCapabilityReadModel) GetChildren(ctx context.Context, parentID string) ([]readmodels.CapabilityDTO, error) {
-	if m.getChildrenErr != nil {
-		return nil, m.getChildrenErr
-	}
-	return m.children, nil
+func (m *mockCapabilityDeletionService) CanDelete(ctx context.Context, capabilityID valueobjects.CapabilityID) error {
+	return m.canDeleteErr
 }
 
 func createTestCapability(t *testing.T) *aggregates.Capability {
@@ -73,11 +69,9 @@ func TestDeleteCapabilityHandler_Success(t *testing.T) {
 	mockRepo := &mockDeleteCapabilityRepository{
 		capability: capability,
 	}
-	mockReadModel := &mockDeleteCapabilityReadModel{
-		children: []readmodels.CapabilityDTO{},
-	}
+	mockDeletionService := &mockCapabilityDeletionService{}
 
-	handler := NewDeleteCapabilityHandler(mockRepo, mockReadModel)
+	handler := NewDeleteCapabilityHandler(mockRepo, mockDeletionService)
 
 	cmd := &commands.DeleteCapability{
 		ID: capabilityID,
@@ -99,13 +93,11 @@ func TestDeleteCapabilityHandler_CapabilityHasChildren_ReturnsError(t *testing.T
 	mockRepo := &mockDeleteCapabilityRepository{
 		capability: capability,
 	}
-	mockReadModel := &mockDeleteCapabilityReadModel{
-		children: []readmodels.CapabilityDTO{
-			{ID: "child-1", Name: "Child Capability"},
-		},
+	mockDeletionService := &mockCapabilityDeletionService{
+		canDeleteErr: services.ErrCapabilityHasChildren,
 	}
 
-	handler := NewDeleteCapabilityHandler(mockRepo, mockReadModel)
+	handler := NewDeleteCapabilityHandler(mockRepo, mockDeletionService)
 
 	cmd := &commands.DeleteCapability{
 		ID: capabilityID,
@@ -113,7 +105,7 @@ func TestDeleteCapabilityHandler_CapabilityHasChildren_ReturnsError(t *testing.T
 
 	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
-	assert.Equal(t, ErrCapabilityHasChildren, err)
+	assert.Equal(t, services.ErrCapabilityHasChildren, err)
 
 	assert.Nil(t, mockRepo.savedCap)
 }
@@ -123,14 +115,12 @@ func TestDeleteCapabilityHandler_CapabilityNotFound_ReturnsError(t *testing.T) {
 	mockRepo := &mockDeleteCapabilityRepository{
 		getByIDErr: notFoundErr,
 	}
-	mockReadModel := &mockDeleteCapabilityReadModel{
-		children: []readmodels.CapabilityDTO{},
-	}
+	mockDeletionService := &mockCapabilityDeletionService{}
 
-	handler := NewDeleteCapabilityHandler(mockRepo, mockReadModel)
+	handler := NewDeleteCapabilityHandler(mockRepo, mockDeletionService)
 
 	cmd := &commands.DeleteCapability{
-		ID: "non-existent-id",
+		ID: "550e8400-e29b-41d4-a716-446655440000",
 	}
 
 	_, err := handler.Handle(context.Background(), cmd)
@@ -138,22 +128,27 @@ func TestDeleteCapabilityHandler_CapabilityNotFound_ReturnsError(t *testing.T) {
 	assert.Equal(t, notFoundErr, err)
 }
 
-func TestDeleteCapabilityHandler_ReadModelError_ReturnsError(t *testing.T) {
-	readModelErr := errors.New("database connection error")
-	mockRepo := &mockDeleteCapabilityRepository{}
-	mockReadModel := &mockDeleteCapabilityReadModel{
-		getChildrenErr: readModelErr,
+func TestDeleteCapabilityHandler_DeletionServiceError_ReturnsError(t *testing.T) {
+	capability := createTestCapability(t)
+	capabilityID := capability.ID()
+
+	serviceErr := errors.New("database connection error")
+	mockRepo := &mockDeleteCapabilityRepository{
+		capability: capability,
+	}
+	mockDeletionService := &mockCapabilityDeletionService{
+		canDeleteErr: serviceErr,
 	}
 
-	handler := NewDeleteCapabilityHandler(mockRepo, mockReadModel)
+	handler := NewDeleteCapabilityHandler(mockRepo, mockDeletionService)
 
 	cmd := &commands.DeleteCapability{
-		ID: "some-id",
+		ID: capabilityID,
 	}
 
 	_, err := handler.Handle(context.Background(), cmd)
 	assert.Error(t, err)
-	assert.Equal(t, readModelErr, err)
+	assert.Equal(t, serviceErr, err)
 }
 
 func TestDeleteCapabilityHandler_SaveError_ReturnsError(t *testing.T) {
@@ -165,11 +160,9 @@ func TestDeleteCapabilityHandler_SaveError_ReturnsError(t *testing.T) {
 		capability: capability,
 		saveErr:    saveErr,
 	}
-	mockReadModel := &mockDeleteCapabilityReadModel{
-		children: []readmodels.CapabilityDTO{},
-	}
+	mockDeletionService := &mockCapabilityDeletionService{}
 
-	handler := NewDeleteCapabilityHandler(mockRepo, mockReadModel)
+	handler := NewDeleteCapabilityHandler(mockRepo, mockDeletionService)
 
 	cmd := &commands.DeleteCapability{
 		ID: capabilityID,
@@ -182,9 +175,9 @@ func TestDeleteCapabilityHandler_SaveError_ReturnsError(t *testing.T) {
 
 func TestDeleteCapabilityHandler_InvalidCommand_ReturnsError(t *testing.T) {
 	mockRepo := &mockDeleteCapabilityRepository{}
-	mockReadModel := &mockDeleteCapabilityReadModel{}
+	mockDeletionService := &mockCapabilityDeletionService{}
 
-	handler := NewDeleteCapabilityHandler(mockRepo, mockReadModel)
+	handler := NewDeleteCapabilityHandler(mockRepo, mockDeletionService)
 
 	invalidCmd := &commands.CreateCapability{
 		Name:  "Test",

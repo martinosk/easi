@@ -10,8 +10,15 @@ import (
 )
 
 var (
-	ErrCannotCreateSelfDependency = errors.New("cannot create self-dependency")
+	ErrCannotCreateSelfDependency    = errors.New("cannot create self-dependency")
+	ErrCircularDependencyDetected    = errors.New("circular dependency detected")
+	ErrDuplicateDependencyExists     = errors.New("dependency already exists between these capabilities")
 )
+
+type ExistingDependency struct {
+	SourceID valueobjects.CapabilityID
+	TargetID valueobjects.CapabilityID
+}
 
 type CapabilityDependency struct {
 	domain.AggregateRoot
@@ -20,6 +27,52 @@ type CapabilityDependency struct {
 	dependencyType     valueobjects.DependencyType
 	description        valueobjects.Description
 	createdAt          time.Time
+}
+
+func ValidateNewDependency(
+	sourceID valueobjects.CapabilityID,
+	targetID valueobjects.CapabilityID,
+	existingDeps []ExistingDependency,
+) error {
+	if sourceID.Value() == targetID.Value() {
+		return ErrCannotCreateSelfDependency
+	}
+
+	for _, dep := range existingDeps {
+		if dep.SourceID.Value() == sourceID.Value() && dep.TargetID.Value() == targetID.Value() {
+			return ErrDuplicateDependencyExists
+		}
+	}
+
+	if wouldCreateCycle(sourceID, targetID, existingDeps) {
+		return ErrCircularDependencyDetected
+	}
+
+	return nil
+}
+
+func wouldCreateCycle(sourceID, targetID valueobjects.CapabilityID, existingDeps []ExistingDependency) bool {
+	visited := make(map[string]bool)
+	return canReach(targetID.Value(), sourceID.Value(), existingDeps, visited)
+}
+
+func canReach(from, to string, deps []ExistingDependency, visited map[string]bool) bool {
+	if from == to {
+		return true
+	}
+	if visited[from] {
+		return false
+	}
+	visited[from] = true
+
+	for _, dep := range deps {
+		if dep.SourceID.Value() == from {
+			if canReach(dep.TargetID.Value(), to, deps, visited) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func NewCapabilityDependency(

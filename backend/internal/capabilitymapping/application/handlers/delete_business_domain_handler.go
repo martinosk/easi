@@ -5,35 +5,30 @@ import (
 	"errors"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
-	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
+	"easi/backend/internal/capabilitymapping/domain/services"
+	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
-
-var ErrBusinessDomainHasAssignments = errors.New("cannot delete business domain with assigned capabilities. Unassign capabilities first")
 
 type DeleteBusinessDomainRepository interface {
 	GetByID(ctx context.Context, id string) (*aggregates.BusinessDomain, error)
 	Save(ctx context.Context, domain *aggregates.BusinessDomain) error
 }
 
-type DeleteBusinessDomainAssignmentReader interface {
-	GetByDomainID(ctx context.Context, domainID string) ([]readmodels.AssignmentDTO, error)
-}
-
 type DeleteBusinessDomainHandler struct {
-	repository       DeleteBusinessDomainRepository
-	assignmentReader DeleteBusinessDomainAssignmentReader
+	repository      DeleteBusinessDomainRepository
+	deletionService services.BusinessDomainDeletionService
 }
 
 func NewDeleteBusinessDomainHandler(
 	repository DeleteBusinessDomainRepository,
-	assignmentReader DeleteBusinessDomainAssignmentReader,
+	deletionService services.BusinessDomainDeletionService,
 ) *DeleteBusinessDomainHandler {
 	return &DeleteBusinessDomainHandler{
-		repository:       repository,
-		assignmentReader: assignmentReader,
+		repository:      repository,
+		deletionService: deletionService,
 	}
 }
 
@@ -43,13 +38,13 @@ func (h *DeleteBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Comma
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
-	assignments, err := h.assignmentReader.GetByDomainID(ctx, command.ID)
+	domainID, err := valueobjects.NewBusinessDomainIDFromString(command.ID)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
-	if len(assignments) > 0 {
-		return cqrs.EmptyResult(), ErrBusinessDomainHasAssignments
+	if err := h.deletionService.CanDelete(ctx, domainID); err != nil {
+		return cqrs.EmptyResult(), err
 	}
 
 	domain, err := h.repository.GetByID(ctx, command.ID)

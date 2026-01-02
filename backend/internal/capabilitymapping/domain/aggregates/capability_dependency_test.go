@@ -134,3 +134,75 @@ func TestCapabilityDependency_AllDependencyTypes(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateNewDependency_Valid(t *testing.T) {
+	sourceID := valueobjects.NewCapabilityID()
+	targetID := valueobjects.NewCapabilityID()
+
+	err := ValidateNewDependency(sourceID, targetID, nil)
+	assert.NoError(t, err)
+}
+
+func TestValidateNewDependency_SelfDependency_Fails(t *testing.T) {
+	sourceID := valueobjects.NewCapabilityID()
+
+	err := ValidateNewDependency(sourceID, sourceID, nil)
+	assert.Error(t, err)
+	assert.Equal(t, ErrCannotCreateSelfDependency, err)
+}
+
+func TestValidateNewDependency_DuplicateDependency_Fails(t *testing.T) {
+	sourceID := valueobjects.NewCapabilityID()
+	targetID := valueobjects.NewCapabilityID()
+
+	existingDeps := []ExistingDependency{
+		{SourceID: sourceID, TargetID: targetID},
+	}
+
+	err := ValidateNewDependency(sourceID, targetID, existingDeps)
+	assert.Error(t, err)
+	assert.Equal(t, ErrDuplicateDependencyExists, err)
+}
+
+func TestValidateNewDependency_DirectCircularDependency_Fails(t *testing.T) {
+	capA := valueobjects.NewCapabilityID()
+	capB := valueobjects.NewCapabilityID()
+
+	existingDeps := []ExistingDependency{
+		{SourceID: capA, TargetID: capB},
+	}
+
+	err := ValidateNewDependency(capB, capA, existingDeps)
+	assert.Error(t, err)
+	assert.Equal(t, ErrCircularDependencyDetected, err)
+}
+
+func TestValidateNewDependency_IndirectCircularDependency_Fails(t *testing.T) {
+	capA := valueobjects.NewCapabilityID()
+	capB := valueobjects.NewCapabilityID()
+	capC := valueobjects.NewCapabilityID()
+
+	existingDeps := []ExistingDependency{
+		{SourceID: capA, TargetID: capB},
+		{SourceID: capB, TargetID: capC},
+	}
+
+	err := ValidateNewDependency(capC, capA, existingDeps)
+	assert.Error(t, err)
+	assert.Equal(t, ErrCircularDependencyDetected, err)
+}
+
+func TestValidateNewDependency_NoCircularWithDifferentTarget(t *testing.T) {
+	capA := valueobjects.NewCapabilityID()
+	capB := valueobjects.NewCapabilityID()
+	capC := valueobjects.NewCapabilityID()
+	capD := valueobjects.NewCapabilityID()
+
+	existingDeps := []ExistingDependency{
+		{SourceID: capA, TargetID: capB},
+		{SourceID: capB, TargetID: capC},
+	}
+
+	err := ValidateNewDependency(capD, capA, existingDeps)
+	assert.NoError(t, err)
+}

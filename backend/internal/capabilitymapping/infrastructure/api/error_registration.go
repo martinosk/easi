@@ -3,6 +3,7 @@ package api
 import (
 	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
+	"easi/backend/internal/capabilitymapping/domain/services"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -29,11 +30,11 @@ func init() {
 	registry.RegisterValidation(valueobjects.ErrDomainNameTooLong, "Domain name cannot exceed 100 characters")
 	registry.RegisterValidation(valueobjects.ErrCapabilityNameEmpty, "Capability name cannot be empty")
 
-	registry.RegisterConflict(handlers.ErrOnlyL1CapabilitiesCanBeAssigned, "Only L1 capabilities can be assigned to business domains")
+	registry.RegisterConflict(aggregates.ErrOnlyL1CanBeAssignedToDomain, "Only L1 capabilities can be assigned to business domains")
 	registry.RegisterConflict(handlers.ErrAssignmentAlreadyExists, "Capability is already assigned to this domain")
 	registry.RegisterConflict(handlers.ErrBusinessDomainNameExists, "Business domain with this name already exists")
-	registry.RegisterConflict(handlers.ErrBusinessDomainHasAssignments, "Cannot delete domain with assigned capabilities")
-	registry.RegisterConflict(handlers.ErrCapabilityHasChildren, "Cannot delete capability with children")
+	registry.RegisterConflict(services.ErrBusinessDomainHasAssignments, "Cannot delete domain with assigned capabilities")
+	registry.RegisterConflict(services.ErrCapabilityHasChildren, "Cannot delete capability with children")
 
 	registry.RegisterConflict(aggregates.ErrL1CannotHaveParent, "L1 capabilities cannot have a parent")
 	registry.RegisterConflict(aggregates.ErrNonL1MustHaveParent, "L2-L4 capabilities must have a parent")
