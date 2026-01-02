@@ -102,6 +102,14 @@ interface View {
   description: string;
 }
 
+interface StrategyPillar {
+  id: string;
+  name: string;
+  description: string;
+  active: boolean;
+  fitScoringEnabled: boolean;
+}
+
 function buildHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -282,6 +290,124 @@ async function createDependency(
     targetCapabilityId,
     dependencyType,
     description,
+  });
+}
+
+interface StrategyPillarsResponse {
+  data: StrategyPillar[];
+  etag?: string;
+}
+
+async function getStrategyPillarsWithETag(): Promise<{ pillars: StrategyPillar[]; etag: string }> {
+  console.log(`  Fetching strategy pillars`);
+  const url = `${API_URL}/meta-model/strategy-pillars?includeInactive=false`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: buildHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch strategy pillars: ${response.status}`);
+  }
+
+  const etag = response.headers.get("etag") || '"0"';
+  const data = await response.json();
+  return { pillars: data.data || [], etag };
+}
+
+async function getStrategyPillars(): Promise<StrategyPillar[]> {
+  const result = await getStrategyPillarsWithETag();
+  return result.pillars;
+}
+
+async function enableFitScoringOnPillar(
+  pillarId: string,
+  fitCriteria: string,
+  etag: string
+): Promise<string> {
+  console.log(`  Enabling fit scoring on pillar`);
+  const url = `${API_URL}/meta-model/strategy-pillars/${pillarId}/fit-configuration`;
+  const headers = buildHeaders();
+  headers["If-Match"] = etag;
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ fitScoringEnabled: true, fitCriteria }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to enable fit scoring: ${response.status}: ${text}`);
+  }
+
+  return response.headers.get("etag") || etag;
+}
+
+interface PillarChange {
+  operation: string;
+  id?: string;
+  name?: string;
+  description?: string;
+  fitScoringEnabled?: boolean;
+  fitCriteria?: string;
+}
+
+async function batchUpdatePillars(
+  changes: PillarChange[],
+  etag: string
+): Promise<string> {
+  console.log(`  Batch updating ${changes.length} pillars`);
+  const url = `${API_URL}/meta-model/strategy-pillars`;
+  const headers = buildHeaders();
+  headers["If-Match"] = etag;
+
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({ changes }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to batch update pillars: ${response.status}: ${text}`);
+  }
+
+  return response.headers.get("etag") || etag;
+}
+
+async function createStrategyPillar(
+  name: string,
+  description: string
+): Promise<{ pillar: StrategyPillar; etag: string }> {
+  console.log(`  Creating strategy pillar: ${name}`);
+  const url = `${API_URL}/meta-model/strategy-pillars`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ name, description }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to create pillar: ${response.status}: ${text}`);
+  }
+
+  const etag = response.headers.get("etag") || '"0"';
+  const pillar = await response.json();
+  return { pillar, etag };
+}
+
+async function setApplicationFitScore(
+  componentId: string,
+  pillarId: string,
+  score: number,
+  rationale: string
+): Promise<void> {
+  console.log(`  Setting fit score for component`);
+  await apiCall("PUT", `/components/${componentId}/fit-scores/${pillarId}`, {
+    score,
+    rationale,
   });
 }
 
@@ -660,6 +786,194 @@ async function seedViews(components: Map<string, Component>): Promise<void> {
   }
 }
 
+async function batchUpdatePillarsWithRetry(
+  changes: PillarChange[],
+  maxRetries: number = 5
+): Promise<void> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const { etag } = await getStrategyPillarsWithETag();
+    try {
+      await batchUpdatePillars(changes, etag);
+      return;
+    } catch (e) {
+      if (attempt === maxRetries) {
+        throw e;
+      }
+      console.log(`    (Retry ${attempt}/${maxRetries} for batch update...)`);
+      await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+    }
+  }
+}
+
+async function ensureStrategyPillarsWithFitScoring(): Promise<Map<string, StrategyPillar>> {
+  console.log("\n🎯 Ensuring Strategy Pillars with Fit Scoring...");
+
+  const pillarDefinitions = [
+    { name: "Cloud Native", description: "Embrace cloud-native technologies and patterns", fitCriteria: "Containerization, Kubernetes orchestration, auto-scaling, CI/CD pipelines" },
+    { name: "API First", description: "Design and build APIs as first-class products", fitCriteria: "OpenAPI documentation, versioned APIs, RESTful design, developer portal" },
+    { name: "Security", description: "Security-first approach to all systems", fitCriteria: "Authentication, authorization, encryption, audit logging, vulnerability scanning" },
+  ];
+
+  let { pillars: existingPillars } = await getStrategyPillarsWithETag();
+  const existingNames = new Set(existingPillars.map(p => p.name));
+
+  for (const def of pillarDefinitions) {
+    if (!existingNames.has(def.name)) {
+      try {
+        await createStrategyPillar(def.name, def.description);
+      } catch (e) {
+        console.log(`    (Pillar ${def.name} may already exist)`);
+      }
+    }
+  }
+
+  const { pillars: allPillars } = await getStrategyPillarsWithETag();
+  const pillarMap = new Map<string, StrategyPillar>();
+  for (const p of allPillars) {
+    pillarMap.set(p.name, p);
+  }
+
+  const fitScoringChanges: PillarChange[] = [];
+  for (const def of pillarDefinitions) {
+    const pillar = pillarMap.get(def.name);
+    if (pillar && !pillar.fitScoringEnabled) {
+      fitScoringChanges.push({
+        operation: "update",
+        id: pillar.id,
+        name: pillar.name,
+        description: pillar.description,
+        fitScoringEnabled: true,
+        fitCriteria: def.fitCriteria,
+      });
+    }
+  }
+
+  if (fitScoringChanges.length > 0) {
+    try {
+      await batchUpdatePillarsWithRetry(fitScoringChanges);
+    } catch (e) {
+      console.log(`    (Failed to batch enable fit scoring: ${e})`);
+    }
+  }
+
+  const { pillars: finalPillars } = await getStrategyPillarsWithETag();
+  const enabledPillars = new Map<string, StrategyPillar>();
+  for (const p of finalPillars) {
+    if (p.fitScoringEnabled) {
+      enabledPillars.set(p.name, p);
+    }
+  }
+
+  console.log(`  ${enabledPillars.size} pillars with fit scoring enabled`);
+  return enabledPillars;
+}
+
+async function seedApplicationFitScores(
+  components: Map<string, Component>
+): Promise<void> {
+  console.log("\n📊 Seeding Application Fit Scores...");
+
+  const enabledPillars = await ensureStrategyPillarsWithFitScoring();
+
+  if (enabledPillars.size === 0) {
+    console.log("  No pillars with fit scoring enabled, skipping fit scores");
+    return;
+  }
+
+  console.log(`  Setting fit scores for ${enabledPillars.size} pillars`);
+
+  const fitScoreData: {
+    componentName: string;
+    scores: { pillarName: string; score: number; rationale: string }[];
+  }[] = [
+    {
+      componentName: "User Service",
+      scores: [
+        { pillarName: "Cloud Native", score: 4, rationale: "Fully containerized with Kubernetes orchestration" },
+        { pillarName: "API First", score: 5, rationale: "Well-documented REST APIs with OpenAPI specs" },
+        { pillarName: "Security", score: 4, rationale: "OAuth2/OIDC implementation, regular security audits" },
+      ],
+    },
+    {
+      componentName: "Order Service",
+      scores: [
+        { pillarName: "Cloud Native", score: 3, rationale: "Containerized but with some legacy dependencies" },
+        { pillarName: "API First", score: 4, rationale: "REST API with documentation, some inconsistencies" },
+        { pillarName: "Security", score: 3, rationale: "Basic authentication, needs improved audit logging" },
+      ],
+    },
+    {
+      componentName: "Payment Gateway",
+      scores: [
+        { pillarName: "Cloud Native", score: 4, rationale: "Cloud-hosted with auto-scaling capabilities" },
+        { pillarName: "API First", score: 5, rationale: "Industry-standard payment APIs" },
+        { pillarName: "Security", score: 5, rationale: "PCI-DSS compliant, encryption at rest and transit" },
+      ],
+    },
+    {
+      componentName: "Inventory Service",
+      scores: [
+        { pillarName: "Cloud Native", score: 2, rationale: "Still running on VMs with manual scaling" },
+        { pillarName: "API First", score: 3, rationale: "API exists but lacks proper versioning" },
+        { pillarName: "Security", score: 3, rationale: "Basic access controls, needs improvement" },
+      ],
+    },
+    {
+      componentName: "Analytics Platform",
+      scores: [
+        { pillarName: "Cloud Native", score: 5, rationale: "Fully serverless architecture" },
+        { pillarName: "API First", score: 4, rationale: "GraphQL and REST APIs available" },
+        { pillarName: "Security", score: 4, rationale: "Role-based access, data encryption" },
+      ],
+    },
+    {
+      componentName: "Search Engine",
+      scores: [
+        { pillarName: "Cloud Native", score: 4, rationale: "Elasticsearch cluster on Kubernetes" },
+        { pillarName: "API First", score: 4, rationale: "Standard search APIs" },
+        { pillarName: "Security", score: 3, rationale: "API keys only, needs better auth" },
+      ],
+    },
+    {
+      componentName: "Notification Service",
+      scores: [
+        { pillarName: "Cloud Native", score: 5, rationale: "Event-driven serverless functions" },
+        { pillarName: "API First", score: 3, rationale: "Internal APIs, limited documentation" },
+        { pillarName: "Security", score: 4, rationale: "Secure message handling, encrypted queues" },
+      ],
+    },
+    {
+      componentName: "Admin Dashboard",
+      scores: [
+        { pillarName: "Cloud Native", score: 2, rationale: "Monolithic deployment, manual updates" },
+        { pillarName: "API First", score: 2, rationale: "Server-rendered pages, limited API usage" },
+        { pillarName: "Security", score: 3, rationale: "Basic RBAC, needs MFA implementation" },
+      ],
+    },
+  ];
+
+  for (const data of fitScoreData) {
+    const component = components.get(data.componentName);
+    if (!component) continue;
+
+    for (const scoreData of data.scores) {
+      const pillar = enabledPillars.get(scoreData.pillarName);
+      if (!pillar) continue;
+
+      try {
+        await setApplicationFitScore(
+          component.id,
+          pillar.id,
+          scoreData.score,
+          scoreData.rationale
+        );
+      } catch (e) {
+        console.log(`    (Skipping fit score - may already exist or pillar not enabled)`);
+      }
+    }
+  }
+}
+
 async function checkApiHealth(): Promise<boolean> {
   try {
     const response = await fetch(`${BASE_URL}/health`);
@@ -705,12 +1019,15 @@ async function main(): Promise<void> {
 
     await seedViews(components);
 
+    await seedApplicationFitScores(components);
+
     console.log("\n✅ Test data seeding complete!");
     console.log("\nSummary:");
     console.log(`  - ${components.size} components created`);
     console.log(`  - ${capabilities.size} capabilities created`);
     console.log(`  - Business domains, enterprise capabilities, and views created`);
     console.log(`  - System realizations and dependencies linked`);
+    console.log(`  - Application fit scores set for strategic pillars`);
   } catch (error) {
     console.error("\n❌ Seeding failed:", error);
     process.exit(1);
