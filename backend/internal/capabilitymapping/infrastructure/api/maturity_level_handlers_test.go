@@ -290,42 +290,6 @@ func TestGetOwnershipModels_ReturnsAllModels(t *testing.T) {
 	assert.Equal(t, "/api/v1/capabilities/metadata/ownership-models", response.Links["self"])
 }
 
-func TestGetStrategyPillars_ReturnsAllPillars(t *testing.T) {
-	handlers := NewMaturityLevelHandlers(nil)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/capabilities/metadata/strategy-pillars", nil)
-	w := httptest.NewRecorder()
-
-	handlers.GetStrategyPillars(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var response struct {
-		Data  []StrategyPillarDTO `json:"data"`
-		Links map[string]string   `json:"_links"`
-	}
-	err := json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
-
-	assert.Equal(t, 3, len(response.Data))
-
-	expectedPillars := []struct {
-		value       string
-		displayName string
-	}{
-		{"AlwaysOn", "Always On"},
-		{"Grow", "Grow"},
-		{"Transform", "Transform"},
-	}
-
-	for i, expected := range expectedPillars {
-		assert.Equal(t, expected.value, response.Data[i].Value)
-		assert.Equal(t, expected.displayName, response.Data[i].DisplayName)
-	}
-
-	assert.Equal(t, "/api/v1/capabilities/metadata/strategy-pillars", response.Links["self"])
-}
-
 func TestGetMetadataIndex_ReturnsAllLinks(t *testing.T) {
 	handlers := NewMaturityLevelHandlers(nil)
 
@@ -344,5 +308,4 @@ func TestGetMetadataIndex_ReturnsAllLinks(t *testing.T) {
 	assert.Equal(t, "/api/v1/capabilities/metadata/maturity-levels", response.Links["maturityLevels"])
 	assert.Equal(t, "/api/v1/capabilities/metadata/statuses", response.Links["statuses"])
 	assert.Equal(t, "/api/v1/capabilities/metadata/ownership-models", response.Links["ownershipModels"])
-	assert.Equal(t, "/api/v1/capabilities/metadata/strategy-pillars", response.Links["strategyPillars"])
 }

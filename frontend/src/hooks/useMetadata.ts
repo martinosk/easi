@@ -26,14 +26,6 @@ export function useOwnershipModels() {
   });
 }
 
-export function useStrategyPillars() {
-  return useQuery({
-    queryKey: queryKeys.metadata.strategyPillars(),
-    queryFn: () => metadataApi.getStrategyPillars(),
-    staleTime: Infinity,
-  });
-}
-
 export function useVersion() {
   return useQuery({
     queryKey: queryKeys.metadata.version(),

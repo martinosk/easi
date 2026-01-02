@@ -26,8 +26,6 @@ type Capability struct {
 	parentID       valueobjects.CapabilityID
 	level          valueobjects.CapabilityLevel
 	createdAt      time.Time
-	strategyPillar valueobjects.StrategyPillar
-	pillarWeight   valueobjects.PillarWeight
 	maturityLevel  valueobjects.MaturityLevel
 	ownershipModel valueobjects.OwnershipModel
 	primaryOwner   valueobjects.Owner
@@ -93,8 +91,8 @@ func (c *Capability) Update(name valueobjects.CapabilityName, description valueo
 func (c *Capability) UpdateMetadata(metadata valueobjects.CapabilityMetadata) error {
 	event := events.NewCapabilityMetadataUpdated(
 		c.ID(),
-		metadata.StrategyPillar().Value(),
-		metadata.PillarWeight().Value(),
+		"",
+		0,
 		metadata.MaturityLevel().Value(),
 		metadata.OwnershipModel().Value(),
 		metadata.PrimaryOwner().Value(),
@@ -154,8 +152,6 @@ func (c *Capability) apply(event domain.DomainEvent) {
 		c.name, _ = valueobjects.NewCapabilityName(e.Name)
 		c.description = valueobjects.MustNewDescription(e.Description)
 	case events.CapabilityMetadataUpdated:
-		c.strategyPillar, _ = valueobjects.NewStrategyPillar(e.StrategyPillar)
-		c.pillarWeight, _ = valueobjects.NewPillarWeight(e.PillarWeight)
 		c.maturityLevel, _ = valueobjects.NewMaturityLevelFromValue(e.MaturityValue)
 		c.ownershipModel, _ = valueobjects.NewOwnershipModel(e.OwnershipModel)
 		c.primaryOwner = valueobjects.NewOwner(e.PrimaryOwner)
@@ -196,14 +192,6 @@ func (c *Capability) Level() valueobjects.CapabilityLevel {
 
 func (c *Capability) CreatedAt() time.Time {
 	return c.createdAt
-}
-
-func (c *Capability) StrategyPillar() valueobjects.StrategyPillar {
-	return c.strategyPillar
-}
-
-func (c *Capability) PillarWeight() valueobjects.PillarWeight {
-	return c.pillarWeight
 }
 
 func (c *Capability) MaturityLevel() valueobjects.MaturityLevel {

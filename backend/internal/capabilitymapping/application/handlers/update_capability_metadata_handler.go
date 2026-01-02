@@ -30,16 +30,6 @@ func resolveMaturityLevel(maturityValue int, maturityLevel string) (valueobjects
 }
 
 func buildMetadata(cmd *commands.UpdateCapabilityMetadata) (valueobjects.CapabilityMetadata, error) {
-	strategyPillar, err := valueobjects.NewStrategyPillar(cmd.StrategyPillar)
-	if err != nil {
-		return valueobjects.CapabilityMetadata{}, err
-	}
-
-	pillarWeight, err := valueobjects.NewPillarWeight(cmd.PillarWeight)
-	if err != nil {
-		return valueobjects.CapabilityMetadata{}, err
-	}
-
 	maturityLevel, err := resolveMaturityLevel(cmd.MaturityValue, cmd.MaturityLevel)
 	if err != nil {
 		return valueobjects.CapabilityMetadata{}, err
@@ -56,8 +46,6 @@ func buildMetadata(cmd *commands.UpdateCapabilityMetadata) (valueobjects.Capabil
 	}
 
 	return valueobjects.NewCapabilityMetadata(
-		strategyPillar,
-		pillarWeight,
 		maturityLevel,
 		ownershipModel,
 		valueobjects.NewOwner(cmd.PrimaryOwner),

@@ -206,8 +206,6 @@ export interface Capability {
   description?: string;
   parentId?: CapabilityId;
   level: CapabilityLevel;
-  strategyPillar?: string;
-  pillarWeight?: number;
   maturityLevel?: string;
   maturityValue?: number;
   maturitySection?: MaturitySection;
@@ -259,8 +257,6 @@ export interface UpdateCapabilityRequest {
 }
 
 export interface UpdateCapabilityMetadataRequest {
-  strategyPillar?: string;
-  pillarWeight?: number;
   maturityLevel?: string;
   maturityValue?: number;
   ownershipModel?: string;
@@ -313,10 +309,6 @@ export interface OwnershipModelOption {
   displayName: string;
 }
 
-export interface StrategyPillarOption {
-  value: string;
-  displayName: string;
-}
 
 export interface MaturityScaleSection {
   name: string;
@@ -342,7 +334,6 @@ export interface UpdateMaturityScaleRequest {
 export type MaturityLevelsResponse = CollectionResponse<MaturityLevelOption>;
 export type StatusesResponse = CollectionResponse<StatusOption>;
 export type OwnershipModelsResponse = CollectionResponse<OwnershipModelOption>;
-export type StrategyPillarsResponse = CollectionResponse<StrategyPillarOption>;
 
 export interface VersionResponse {
   version: string;

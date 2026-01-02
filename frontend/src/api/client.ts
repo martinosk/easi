@@ -40,7 +40,6 @@ import type {
   UpdateRealizationRequest,
   StatusOption,
   OwnershipModelOption,
-  StrategyPillarOption,
   Release,
   ReleaseVersion,
   BusinessDomain,
@@ -277,10 +276,6 @@ class ApiClient {
 
   async getOwnershipModels(): Promise<OwnershipModelOption[]> {
     return metadataApi.getOwnershipModels();
-  }
-
-  async getStrategyPillars(): Promise<StrategyPillarOption[]> {
-    return metadataApi.getStrategyPillars();
   }
 
   async getVersion(): Promise<string> {

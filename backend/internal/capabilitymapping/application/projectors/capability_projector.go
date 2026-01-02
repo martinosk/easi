@@ -103,8 +103,6 @@ func (p *CapabilityProjector) handleCapabilityMetadataUpdated(ctx context.Contex
 	}
 
 	return p.readModel.UpdateMetadata(ctx, event.ID, readmodels.CapabilityMetadataUpdate{
-		StrategyPillar: event.StrategyPillar,
-		PillarWeight:   event.PillarWeight,
 		MaturityValue:  event.MaturityValue,
 		OwnershipModel: event.OwnershipModel,
 		PrimaryOwner:   event.PrimaryOwner,

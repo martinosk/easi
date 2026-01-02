@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, TextInput, Textarea, Select, NumberInput, Button, Group, Stack, Alert, SimpleGrid, Box, Badge, Text } from '@mantine/core';
+import { Modal, TextInput, Textarea, Select, Button, Group, Stack, Alert, SimpleGrid, Box, Badge, Text } from '@mantine/core';
 import { useCapabilities, useUpdateCapability, useUpdateCapabilityMetadata } from '../hooks/useCapabilities';
-import { useStatuses, useOwnershipModels, useStrategyPillars } from '../../../hooks/useMetadata';
+import { useStatuses, useOwnershipModels } from '../../../hooks/useMetadata';
 import { useMaturityScale } from '../../../hooks/useMaturityScale';
+import { useActiveUsers } from '../../users/hooks/useUsers';
 import type { Capability, Expert } from '../../../api/types';
 import { AddExpertDialog } from './AddExpertDialog';
 import { AddTagDialog } from './AddTagDialog';
@@ -26,11 +27,6 @@ const DEFAULT_OWNERSHIP_MODELS = [
   { value: 'Shared', displayName: 'Shared' },
   { value: 'EnterpriseService', displayName: 'Enterprise Service' },
 ];
-const DEFAULT_STRATEGY_PILLARS = [
-  { value: 'AlwaysOn', displayName: 'Always On' },
-  { value: 'Grow', displayName: 'Grow' },
-  { value: 'Transform', displayName: 'Transform' },
-];
 
 interface FormState {
   name: string;
@@ -40,14 +36,11 @@ interface FormState {
   ownershipModel: string;
   primaryOwner: string;
   eaOwner: string;
-  strategyPillar: string;
-  pillarWeight: number;
 }
 
 interface FormErrors {
   name?: string;
   description?: string;
-  pillarWeight?: string;
 }
 
 const validateForm = (form: FormState): FormErrors => {
@@ -60,9 +53,6 @@ const validateForm = (form: FormState): FormErrors => {
   if (form.description.length > 1000) {
     errors.description = 'Description must be 1000 characters or less';
   }
-  if (form.pillarWeight < 0 || form.pillarWeight > 100) {
-    errors.pillarWeight = 'Pillar weight must be between 0 and 100';
-  }
   return errors;
 };
 
@@ -74,8 +64,6 @@ const EMPTY_FORM: FormState = {
   ownershipModel: '',
   primaryOwner: '',
   eaOwner: '',
-  strategyPillar: '',
-  pillarWeight: 0,
 };
 
 const createInitialFormState = (cap?: Capability, sections = getDefaultSections()): FormState => {
@@ -94,8 +82,6 @@ const createInitialFormState = (cap?: Capability, sections = getDefaultSections(
     ownershipModel: cap.ownershipModel ?? '',
     primaryOwner: cap.primaryOwner ?? '',
     eaOwner: cap.eaOwner ?? '',
-    strategyPillar: cap.strategyPillar ?? '',
-    pillarWeight: cap.pillarWeight ?? 0,
   };
 };
 
@@ -247,50 +233,28 @@ const OwnershipFields: React.FC<OwnershipFieldsProps> = ({
   </SimpleGrid>
 );
 
-interface StrategyFieldsProps {
+interface EAOwnerFieldProps {
   form: FormState;
-  errors: FormErrors;
-  strategyPillarOptions: SelectOption[];
-  isLoadingStrategyPillars: boolean;
+  userOptions: SelectOption[];
+  isLoadingUsers: boolean;
   isSaving: boolean;
   onFieldChange: (field: keyof FormState, value: string | number) => void;
 }
 
-const StrategyFields: React.FC<StrategyFieldsProps> = ({
-  form, errors, strategyPillarOptions, isLoadingStrategyPillars, isSaving, onFieldChange,
+const EAOwnerField: React.FC<EAOwnerFieldProps> = ({
+  form, userOptions, isLoadingUsers, isSaving, onFieldChange,
 }) => (
-  <>
-    <SimpleGrid cols={2}>
-      <TextInput
-        label="EA Owner"
-        placeholder="Enter EA owner"
-        value={form.eaOwner}
-        onChange={(e) => onFieldChange('eaOwner', e.currentTarget.value)}
-        disabled={isSaving}
-        data-testid="edit-capability-ea-owner-input"
-      />
-      <Select
-        label="Strategy Pillar"
-        placeholder="Select strategy pillar"
-        value={form.strategyPillar}
-        onChange={(value) => onFieldChange('strategyPillar', value || '')}
-        data={isLoadingStrategyPillars ? [] : strategyPillarOptions}
-        disabled={isSaving || isLoadingStrategyPillars}
-        clearable
-        data-testid="edit-capability-strategy-pillar-select"
-      />
-    </SimpleGrid>
-    <NumberInput
-      label="Pillar Weight (0-100)"
-      value={form.pillarWeight}
-      onChange={(value) => onFieldChange('pillarWeight', typeof value === 'number' ? value : 0)}
-      min={0}
-      max={100}
-      disabled={isSaving}
-      error={errors.pillarWeight}
-      data-testid="edit-capability-pillar-weight-input"
-    />
-  </>
+  <Select
+    label="EA Owner"
+    placeholder="Select EA owner"
+    value={form.eaOwner}
+    onChange={(value) => onFieldChange('eaOwner', value || '')}
+    data={isLoadingUsers ? [] : userOptions}
+    disabled={isSaving || isLoadingUsers}
+    clearable
+    searchable
+    data-testid="edit-capability-ea-owner-select"
+  />
 );
 
 function useEditCapabilityForm(capability: Capability | null, isOpen: boolean, onClose: () => void) {
@@ -306,12 +270,11 @@ function useEditCapabilityForm(capability: Capability | null, isOpen: boolean, o
   const { data: maturityScale } = useMaturityScale();
   const { data: statusesData, isLoading: isLoadingStatuses } = useStatuses();
   const { data: ownershipModelsData, isLoading: isLoadingOwnershipModels } = useOwnershipModels();
-  const { data: strategyPillarsData, isLoading: isLoadingStrategyPillars } = useStrategyPillars();
+  const { data: usersData, isLoading: isLoadingUsers } = useActiveUsers();
 
   const sections = maturityScale?.sections ?? getDefaultSections();
   const statuses = statusesData ?? DEFAULT_STATUSES;
   const ownershipModels = ownershipModelsData ?? DEFAULT_OWNERSHIP_MODELS;
-  const strategyPillars = strategyPillarsData ?? DEFAULT_STRATEGY_PILLARS;
 
   useEffect(() => {
     if (capability) {
@@ -360,9 +323,7 @@ function useEditCapabilityForm(capability: Capability | null, isOpen: boolean, o
         maturityValue: form.maturityValue,
         ownershipModel: form.ownershipModel || undefined,
         primaryOwner: form.primaryOwner.trim() || undefined,
-        eaOwner: form.eaOwner.trim() || undefined,
-        strategyPillar: form.strategyPillar || undefined,
-        pillarWeight: form.pillarWeight || undefined,
+        eaOwner: form.eaOwner || undefined,
       };
       await updateCapabilityMutation.mutateAsync({ id: capability.id, request: { name: form.name.trim(), description } });
       await updateCapabilityMetadataMutation.mutateAsync({ id: capability.id, request: metadataRequest });
@@ -375,7 +336,7 @@ function useEditCapabilityForm(capability: Capability | null, isOpen: boolean, o
 
   const statusOptions = [...statuses].sort((a, b) => a.sortOrder - b.sortOrder).map((s) => ({ value: s.value, label: s.displayName }));
   const ownershipModelOptions = ownershipModels.map((om) => ({ value: om.value, label: om.displayName }));
-  const strategyPillarOptions = strategyPillars.map((sp) => ({ value: sp.value, label: sp.displayName }));
+  const userOptions = (usersData ?? []).map((u) => ({ value: u.id, label: u.name || u.email }));
 
   return {
     form,
@@ -384,12 +345,12 @@ function useEditCapabilityForm(capability: Capability | null, isOpen: boolean, o
     currentCapability,
     statusOptions,
     ownershipModelOptions,
-    strategyPillarOptions,
+    userOptions,
     isSaving: updateCapabilityMutation.isPending || updateCapabilityMetadataMutation.isPending,
-    isLoadingMetadata: isLoadingStatuses || isLoadingOwnershipModels || isLoadingStrategyPillars,
+    isLoadingMetadata: isLoadingStatuses || isLoadingOwnershipModels || isLoadingUsers,
     isLoadingStatuses,
     isLoadingOwnershipModels,
-    isLoadingStrategyPillars,
+    isLoadingUsers,
     handleClose,
     handleFieldChange,
     handleSubmit,
@@ -431,11 +392,10 @@ export const EditCapabilityDialog: React.FC<EditCapabilityDialogProps> = ({ isOp
               isSaving={isSaving}
               onFieldChange={handleFieldChange}
             />
-            <StrategyFields
+            <EAOwnerField
               form={form}
-              errors={errors}
-              strategyPillarOptions={formProps.strategyPillarOptions}
-              isLoadingStrategyPillars={formProps.isLoadingStrategyPillars}
+              userOptions={formProps.userOptions}
+              isLoadingUsers={formProps.isLoadingUsers}
               isSaving={isSaving}
               onFieldChange={handleFieldChange}
             />

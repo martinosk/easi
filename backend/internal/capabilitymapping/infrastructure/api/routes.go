@@ -348,7 +348,6 @@ func registerCapabilityRoutes(r chi.Router, h *routeHTTPHandlers) {
 		r.Get("/metadata/maturity-levels", h.maturityLevel.GetMaturityLevels)
 		r.Get("/metadata/statuses", h.maturityLevel.GetStatuses)
 		r.Get("/metadata/ownership-models", h.maturityLevel.GetOwnershipModels)
-		r.Get("/metadata/strategy-pillars", h.maturityLevel.GetStrategyPillars)
 		r.Post("/", h.capability.CreateCapability)
 		r.Get("/", h.capability.GetAllCapabilities)
 		r.Get("/{id}", h.capability.GetCapabilityByID)

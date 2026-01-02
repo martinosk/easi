@@ -20,7 +20,6 @@ export function useBatchUpdateStrategyPillars() {
       strategyPillarsApi.batchUpdate(request, version),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.metadata.strategyPillarsConfig() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.metadata.strategyPillars() });
       toast.success('Strategy pillars updated successfully');
     },
     onError: (error: unknown) => {

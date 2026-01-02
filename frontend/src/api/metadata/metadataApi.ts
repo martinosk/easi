@@ -2,11 +2,9 @@ import { httpClient } from '../core';
 import type {
   StatusOption,
   OwnershipModelOption,
-  StrategyPillarOption,
   MaturityLevelsResponse,
   StatusesResponse,
   OwnershipModelsResponse,
-  StrategyPillarsResponse,
   VersionResponse,
   Release,
   ReleasesResponse,
@@ -32,13 +30,6 @@ export const metadataApi = {
   async getOwnershipModels(): Promise<OwnershipModelOption[]> {
     const response = await httpClient.get<OwnershipModelsResponse>(
       '/api/v1/capabilities/metadata/ownership-models'
-    );
-    return response.data.data;
-  },
-
-  async getStrategyPillars(): Promise<StrategyPillarOption[]> {
-    const response = await httpClient.get<StrategyPillarsResponse>(
-      '/api/v1/capabilities/metadata/strategy-pillars'
     );
     return response.data.data;
   },

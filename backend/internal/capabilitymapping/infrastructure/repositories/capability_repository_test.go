@@ -71,15 +71,13 @@ func TestCapabilityDeserializers_RoundTripWithMetadata(t *testing.T) {
 	original, err := aggregates.NewCapability(name, description, valueobjects.CapabilityID{}, valueobjects.LevelL1)
 	require.NoError(t, err)
 
-	strategyPillar, _ := valueobjects.NewStrategyPillar("Growth")
-	pillarWeight, _ := valueobjects.NewPillarWeight(3)
 	maturityLevel, _ := valueobjects.NewMaturityLevelFromValue(50)
 	ownershipModel, _ := valueobjects.NewOwnershipModel("IT")
 	primaryOwner := valueobjects.NewOwner("john@example.com")
 	eaOwner := valueobjects.NewOwner("ea@example.com")
 	status, _ := valueobjects.NewCapabilityStatus("active")
 
-	metadata := valueobjects.NewCapabilityMetadata(strategyPillar, pillarWeight, maturityLevel, ownershipModel, primaryOwner, eaOwner, status)
+	metadata := valueobjects.NewCapabilityMetadata(maturityLevel, ownershipModel, primaryOwner, eaOwner, status)
 	_ = original.UpdateMetadata(metadata)
 
 	events := original.GetUncommittedChanges()
@@ -93,8 +91,8 @@ func TestCapabilityDeserializers_RoundTripWithMetadata(t *testing.T) {
 	loaded, err := aggregates.LoadCapabilityFromHistory(deserializedEvents)
 	require.NoError(t, err)
 
-	assert.Equal(t, strategyPillar.Value(), loaded.StrategyPillar().Value())
-	assert.Equal(t, pillarWeight.Value(), loaded.PillarWeight().Value())
+	assert.Equal(t, maturityLevel.Value(), loaded.MaturityLevel().Value())
+	assert.Equal(t, ownershipModel.Value(), loaded.OwnershipModel().Value())
 }
 
 func TestCapabilityDeserializers_RoundTripWithExpertAndTag(t *testing.T) {
@@ -161,14 +159,12 @@ func TestCapabilityDeserializers_AllEventsCanBeDeserialized(t *testing.T) {
 	newDescription := valueobjects.MustNewDescription("Updated description")
 	_ = capability.Update(newName, newDescription)
 
-	strategyPillar, _ := valueobjects.NewStrategyPillar("Efficiency")
-	pillarWeight, _ := valueobjects.NewPillarWeight(2)
 	maturityLevel, _ := valueobjects.NewMaturityLevelFromValue(30)
 	ownershipModel, _ := valueobjects.NewOwnershipModel("Business")
 	primaryOwner := valueobjects.NewOwner("owner@example.com")
 	eaOwner := valueobjects.NewOwner("ea@example.com")
 	status, _ := valueobjects.NewCapabilityStatus("active")
-	metadata := valueobjects.NewCapabilityMetadata(strategyPillar, pillarWeight, maturityLevel, ownershipModel, primaryOwner, eaOwner, status)
+	metadata := valueobjects.NewCapabilityMetadata(maturityLevel, ownershipModel, primaryOwner, eaOwner, status)
 	_ = capability.UpdateMetadata(metadata)
 
 	expert, _ := entities.NewExpert("Expert", "Role", "contact")

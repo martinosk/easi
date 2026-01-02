@@ -2,8 +2,6 @@ package commands
 
 type UpdateCapabilityMetadata struct {
 	ID             string
-	StrategyPillar string
-	PillarWeight   int
 	MaturityValue  int
 	MaturityLevel  string
 	OwnershipModel string

@@ -28,11 +28,6 @@ type OwnershipModelDTO struct {
 	DisplayName string `json:"displayName" example:"Tribe Owned"`
 }
 
-type StrategyPillarDTO struct {
-	Value       string `json:"value" example:"AlwaysOn"`
-	DisplayName string `json:"displayName" example:"Always On"`
-}
-
 type MetadataIndexDTO struct {
 	Links map[string]string `json:"_links"`
 }
@@ -72,7 +67,6 @@ func (h *MaturityLevelHandlers) GetMetadataIndex(w http.ResponseWriter, r *http.
 			"maturityLevels":  "/api/v1/capabilities/metadata/maturity-levels",
 			"statuses":        "/api/v1/capabilities/metadata/statuses",
 			"ownershipModels": "/api/v1/capabilities/metadata/ownership-models",
-			"strategyPillars": "/api/v1/capabilities/metadata/strategy-pillars",
 		},
 	}
 
@@ -174,25 +168,3 @@ func (h *MaturityLevelHandlers) GetOwnershipModels(w http.ResponseWriter, r *htt
 	sharedAPI.RespondCollection(w, http.StatusOK, models, links)
 }
 
-// GetStrategyPillars godoc
-// @Summary Get valid strategy pillars
-// @Description Returns strategic alignment categories (AlwaysOn, Grow, Transform)
-// @Tags capabilities
-// @Produce json
-// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]StrategyPillarDTO}
-// @Router /capabilities/metadata/strategy-pillars [get]
-func (h *MaturityLevelHandlers) GetStrategyPillars(w http.ResponseWriter, r *http.Request) {
-	setCacheHeaders(w)
-
-	pillars := []StrategyPillarDTO{
-		{Value: string(valueobjects.PillarAlwaysOn), DisplayName: "Always On"},
-		{Value: string(valueobjects.PillarGrow), DisplayName: "Grow"},
-		{Value: string(valueobjects.PillarTransform), DisplayName: "Transform"},
-	}
-
-	links := map[string]string{
-		"self": "/api/v1/capabilities/metadata/strategy-pillars",
-	}
-
-	sharedAPI.RespondCollection(w, http.StatusOK, pillars, links)
-}
