@@ -117,11 +117,34 @@ func TestMetaModelConfigurationDeserializers_AllEventsCanBeDeserialized(t *testi
 		newName, _ := valueobjects.NewPillarName("Updated Name")
 		newDesc, _ := valueobjects.NewPillarDescription("Updated desc")
 		_ = config.UpdateStrategyPillar(addedPillarID, newName, newDesc, userEmail)
+
+		fitCriteria, _ := valueobjects.NewFitCriteria("Test criteria")
+		_ = config.UpdatePillarFitConfiguration(addedPillarID, true, fitCriteria, userEmail)
+
 		_ = config.RemoveStrategyPillar(addedPillarID, userEmail)
 	}
 
 	events := config.GetUncommittedChanges()
-	require.GreaterOrEqual(t, len(events), 3, "Expected at least 3 events")
+
+	expectedEventTypes := map[string]bool{
+		"MetaModelConfigurationCreated":   false,
+		"MaturityScaleConfigUpdated":      false,
+		"MaturityScaleConfigReset":        false,
+		"StrategyPillarAdded":             false,
+		"StrategyPillarUpdated":           false,
+		"PillarFitConfigurationUpdated":   false,
+		"StrategyPillarRemoved":           false,
+	}
+
+	for _, e := range events {
+		if _, exists := expectedEventTypes[e.EventType()]; exists {
+			expectedEventTypes[e.EventType()] = true
+		}
+	}
+
+	for eventType, found := range expectedEventTypes {
+		require.True(t, found, "Test should generate %s event to ensure deserializer coverage", eventType)
+	}
 
 	storedEvents := simulateMetaModelEventStoreRoundTrip(t, events)
 	deserializedEvents := metaModelEventDeserializers.Deserialize(storedEvents)
@@ -133,6 +156,75 @@ func TestMetaModelConfigurationDeserializers_AllEventsCanBeDeserialized(t *testi
 		assert.Equal(t, originalEvent.EventType(), deserializedEvents[i].EventType(),
 			"Event type mismatch at index %d", i)
 	}
+
+	loaded, err := aggregates.LoadMetaModelConfigurationFromHistory(deserializedEvents)
+	require.NoError(t, err)
+	assert.Equal(t, config.Version(), loaded.Version(),
+		"Loaded aggregate version must match original after deserializing all events")
+}
+
+func TestMetaModelConfigurationDeserializers_PillarFitConfigurationUpdated(t *testing.T) {
+	tenantID, _ := sharedvo.NewTenantID("tenant-fit-config")
+	userEmail, _ := valueobjects.NewUserEmail("admin@example.com")
+
+	config, err := aggregates.NewMetaModelConfiguration(tenantID, userEmail)
+	require.NoError(t, err)
+
+	pillarName, _ := valueobjects.NewPillarName("Cloud Native")
+	pillarDesc, _ := valueobjects.NewPillarDescription("Cloud native capabilities")
+	err = config.AddStrategyPillar(pillarName, pillarDesc, userEmail)
+	require.NoError(t, err)
+
+	pillars := config.StrategyPillarsConfig().Pillars()
+	var addedPillarID valueobjects.StrategyPillarID
+	for _, p := range pillars {
+		if p.Name().Value() == "Cloud Native" {
+			addedPillarID = p.ID()
+			break
+		}
+	}
+	require.NotEmpty(t, addedPillarID.Value(), "Should find added pillar")
+
+	fitCriteria, _ := valueobjects.NewFitCriteria("Containerization, Kubernetes, CI/CD")
+	err = config.UpdatePillarFitConfiguration(addedPillarID, true, fitCriteria, userEmail)
+	require.NoError(t, err)
+
+	events := config.GetUncommittedChanges()
+	require.Len(t, events, 3, "Expected 3 events: Created, PillarAdded, FitConfigUpdated")
+
+	var hasFitConfigEvent bool
+	for _, e := range events {
+		if e.EventType() == "PillarFitConfigurationUpdated" {
+			hasFitConfigEvent = true
+			break
+		}
+	}
+	require.True(t, hasFitConfigEvent, "Should have PillarFitConfigurationUpdated event")
+
+	storedEvents := simulateMetaModelEventStoreRoundTrip(t, events)
+	deserializedEvents := metaModelEventDeserializers.Deserialize(storedEvents)
+
+	require.Len(t, deserializedEvents, len(events),
+		"All events including PillarFitConfigurationUpdated must be deserialized - "+
+			"missing deserializer causes version mismatch and false concurrency conflicts")
+
+	loaded, err := aggregates.LoadMetaModelConfigurationFromHistory(deserializedEvents)
+	require.NoError(t, err)
+
+	assert.Equal(t, config.Version(), loaded.Version(),
+		"Loaded aggregate version must match original - version mismatch causes optimistic locking failures")
+
+	loadedPillars := loaded.StrategyPillarsConfig().Pillars()
+	var loadedPillar valueobjects.StrategyPillar
+	for _, p := range loadedPillars {
+		if p.ID().Value() == addedPillarID.Value() {
+			loadedPillar = p
+			break
+		}
+	}
+	assert.True(t, loadedPillar.FitScoringEnabled(), "Fit scoring should be enabled after rehydration")
+	assert.Equal(t, "Containerization, Kubernetes, CI/CD", loadedPillar.FitCriteria().Value(),
+		"Fit criteria should be preserved after rehydration")
 }
 
 type metaModelStoredEventWrapper struct {

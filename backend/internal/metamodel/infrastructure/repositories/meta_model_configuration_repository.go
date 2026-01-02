@@ -152,6 +152,31 @@ var metaModelEventDeserializers = repository.NewEventDeserializers(
 			evt.ModifiedAt = modifiedAt
 			return evt
 		},
+		"PillarFitConfigurationUpdated": func(data map[string]interface{}) domain.DomainEvent {
+			id, _ := data["id"].(string)
+			tenantID, _ := data["tenantId"].(string)
+			version, _ := data["version"].(float64)
+			pillarID, _ := data["pillarId"].(string)
+			fitScoringEnabled, _ := data["fitScoringEnabled"].(bool)
+			fitCriteria, _ := data["fitCriteria"].(string)
+			modifiedBy, _ := data["modifiedBy"].(string)
+			modifiedAtStr, _ := data["modifiedAt"].(string)
+			modifiedAt, _ := time.Parse(time.RFC3339Nano, modifiedAtStr)
+
+			evt := events.NewPillarFitConfigurationUpdated(events.UpdatePillarFitConfigParams{
+				PillarEventParams: events.PillarEventParams{
+					ConfigID:   id,
+					TenantID:   tenantID,
+					Version:    int(version),
+					PillarID:   pillarID,
+					ModifiedBy: modifiedBy,
+				},
+				FitScoringEnabled: fitScoringEnabled,
+				FitCriteria:       fitCriteria,
+			})
+			evt.ModifiedAt = modifiedAt
+			return evt
+		},
 	},
 )
 
