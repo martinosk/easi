@@ -44,15 +44,13 @@ export function useBusinessDomainsPage() {
 
   const { positions, updatePosition } = useGridPositions(visualizedDomain?.id ?? null);
 
-  const capabilitiesLink = visualizedDomain?._links.capabilities;
-
   const {
     capabilities,
     isLoading: capabilitiesLoading,
     associateCapability,
     dissociateCapability,
     refetch: refetchCapabilities,
-  } = useDomainCapabilities(capabilitiesLink);
+  } = useDomainCapabilities(visualizedDomain?.id);
 
   const filtering = useCapabilityFiltering(tree, capabilities);
 

@@ -30,7 +30,7 @@ export function useDomainCapabilityLinking(enabled: boolean): UseDomainCapabilit
   );
 
   const linkStatusQuery = useQuery({
-    queryKey: ['linkStatuses', domainCapabilityIds],
+    queryKey: [...queryKeys.enterpriseCapabilities.linkStatuses(), domainCapabilityIds] as const,
     queryFn: () => enterpriseArchApi.getBatchLinkStatus(domainCapabilityIds),
     enabled: enabled && domainCapabilityIds.length > 0,
   });
@@ -48,7 +48,7 @@ export function useDomainCapabilityLinking(enabled: boolean): UseDomainCapabilit
         enterpriseCapabilityId,
         request: { domainCapabilityId: domainCapability.id },
       });
-      queryClient.invalidateQueries({ queryKey: ['linkStatuses'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.enterpriseCapabilities.linkStatuses() });
     },
     [linkMutation, queryClient]
   );

@@ -4,7 +4,7 @@ import { useCurrentView } from '../../../hooks/useCurrentView';
 import { useCapabilities, useRealizationsForComponents } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useRelations } from '../../relations/hooks/useRelations';
-import type { Component, Capability, Relation, CapabilityRealization, ComponentId } from '../../../api/types';
+import type { Component, Capability, Relation, CapabilityRealization, ComponentId, CapabilityId } from '../../../api/types';
 
 export interface NodeContextMenu {
   x: number;
@@ -21,6 +21,8 @@ export interface EdgeContextMenu {
   edgeName: string;
   edgeType: 'relation' | 'parent' | 'realization';
   realizationId?: string;
+  capabilityId?: CapabilityId;
+  componentId?: ComponentId;
   isInherited?: boolean;
 }
 
@@ -97,6 +99,8 @@ function resolveRealizationEdge(
     edgeName,
     edgeType: 'realization',
     realizationId,
+    capabilityId: realization.capabilityId,
+    componentId: realization.componentId,
     isInherited: realization.origin === 'Inherited',
   };
 }

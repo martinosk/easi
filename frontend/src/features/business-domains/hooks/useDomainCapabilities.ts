@@ -1,8 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '../../../api/client';
+import { useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { businessDomainsApi } from '../api';
 import { queryKeys } from '../../../lib/queryClient';
-import type { Capability, CapabilityId } from '../../../api/types';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { mutationEffects } from '../../../lib/mutationEffects';
+import type { Capability, CapabilityId, BusinessDomainId } from '../../../api/types';
+import toast from 'react-hot-toast';
 
 export interface UseDomainCapabilitiesResult {
   capabilities: Capability[];
@@ -14,62 +17,75 @@ export interface UseDomainCapabilitiesResult {
 }
 
 export function useDomainCapabilities(
-  capabilitiesLink: string | undefined
+  domainId: BusinessDomainId | undefined
 ): UseDomainCapabilitiesResult {
   const queryClient = useQueryClient();
-  const [capabilities, setCapabilities] = useState<Capability[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
 
-  const fetchCapabilities = useCallback(async () => {
-    if (!capabilitiesLink) {
-      setIsLoading(false);
-      return;
-    }
+  const query = useQuery({
+    queryKey: queryKeys.businessDomains.capabilities(domainId!),
+    queryFn: () => businessDomainsApi.getCapabilitiesByDomainId(domainId!),
+    enabled: !!domainId,
+  });
 
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await apiClient.getDomainCapabilities(capabilitiesLink);
-      setCapabilities(data);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch capabilities'));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [capabilitiesLink]);
+  const associateMutation = useMutation({
+    mutationFn: (capabilityId: CapabilityId) =>
+      businessDomainsApi.associateCapabilityByDomainId(domainId!, { capabilityId }),
+    onSuccess: (_, capabilityId) => {
+      invalidateFor(
+        queryClient,
+        mutationEffects.businessDomains.associateCapability(domainId!, capabilityId)
+      );
+      toast.success('Capability associated with domain');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to associate capability');
+    },
+  });
 
-  useEffect(() => {
-    fetchCapabilities();
-  }, [fetchCapabilities]);
+  const dissociateMutation = useMutation({
+    mutationFn: (capabilityId: CapabilityId) =>
+      businessDomainsApi.dissociateCapabilityByDomainId(domainId!, capabilityId),
+    onSuccess: (_, capabilityId) => {
+      invalidateFor(
+        queryClient,
+        mutationEffects.businessDomains.dissociateCapability(domainId!, capabilityId)
+      );
+      toast.success('Capability removed from domain');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to remove capability');
+    },
+  });
 
   const associateCapability = useCallback(
-    async (capabilityId: CapabilityId, capability: Capability) => {
-      if (!capabilitiesLink) {
-        throw new Error('Capabilities link not available');
+    async (capabilityId: CapabilityId, _capability: Capability) => {
+      if (!domainId) {
+        throw new Error('Domain ID not available');
       }
-      await apiClient.associateCapabilityWithDomain(capabilitiesLink, { capabilityId });
-      setCapabilities((prev) => [...prev, capability]);
-      queryClient.invalidateQueries({ queryKey: queryKeys.businessDomains.all });
+      await associateMutation.mutateAsync(capabilityId);
     },
-    [capabilitiesLink, queryClient]
+    [domainId, associateMutation]
   );
 
-  const dissociateCapability = useCallback(async (capability: Capability) => {
-    const dissociateLink = capability._links.removeFromDomain;
-    if (!dissociateLink) {
-      throw new Error('Dissociate link not available');
-    }
-    await apiClient.dissociateCapabilityFromDomain(dissociateLink);
-    setCapabilities((prev) => prev.filter((c) => c.id !== capability.id));
-    queryClient.invalidateQueries({ queryKey: queryKeys.businessDomains.all });
-  }, [queryClient]);
+  const dissociateCapability = useCallback(
+    async (capability: Capability) => {
+      if (!domainId) {
+        throw new Error('Domain ID not available');
+      }
+      await dissociateMutation.mutateAsync(capability.id);
+    },
+    [domainId, dissociateMutation]
+  );
+
+  const refetch = useCallback(async () => {
+    await query.refetch();
+  }, [query]);
 
   return {
-    capabilities,
-    isLoading,
-    error,
-    refetch: fetchCapabilities,
+    capabilities: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch,
     associateCapability,
     dissociateCapability,
   };

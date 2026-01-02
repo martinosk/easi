@@ -3,16 +3,16 @@ import toast from 'react-hot-toast';
 import { CapabilityTagList } from './CapabilityTagList';
 import { CapabilitySelectorModal } from './CapabilitySelectorModal';
 import { useDomainCapabilities } from '../hooks/useDomainCapabilities';
-import type { Capability } from '../../../api/types';
+import type { BusinessDomainId, Capability } from '../../../api/types';
 
 interface CapabilityAssociationManagerProps {
-  capabilitiesLink?: string;
+  domainId?: BusinessDomainId;
 }
 
-export function CapabilityAssociationManager({ capabilitiesLink }: CapabilityAssociationManagerProps) {
+export function CapabilityAssociationManager({ domainId }: CapabilityAssociationManagerProps) {
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const { capabilities, isLoading, error, associateCapability, dissociateCapability } = useDomainCapabilities(
-    capabilitiesLink
+    domainId
   );
 
   const handleAddCapabilities = async (selectedCapabilities: Capability[]) => {
@@ -52,7 +52,7 @@ export function CapabilityAssociationManager({ capabilitiesLink }: CapabilityAss
     <div className="capability-association-manager" data-testid="capability-association-manager">
       <div className="capability-association-header">
         <h3>Associated Capabilities</h3>
-        {capabilitiesLink && (
+        {domainId && (
           <button
             type="button"
             className="btn btn-primary"

@@ -2,12 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { businessDomainsApi } from '../api';
 import { queryKeys } from '../../../lib/queryClient';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { mutationEffects } from '../../../lib/mutationEffects';
 import type {
   BusinessDomain,
   BusinessDomainId,
   CreateBusinessDomainRequest,
   UpdateBusinessDomainRequest,
-  AssociateCapabilityRequest,
 } from '../../../api/types';
 import toast from 'react-hot-toast';
 
@@ -104,10 +105,7 @@ export function useCreateBusinessDomain() {
     mutationFn: (request: CreateBusinessDomainRequest) =>
       businessDomainsApi.create(request),
     onSuccess: (newDomain) => {
-      queryClient.setQueryData<BusinessDomain[]>(
-        queryKeys.businessDomains.lists(),
-        (old) => (old ? [...old, newDomain] : [newDomain])
-      );
+      invalidateFor(queryClient, mutationEffects.businessDomains.create());
       toast.success(`Business domain "${newDomain.name}" created`);
     },
     onError: (error: Error) => {
@@ -128,17 +126,7 @@ export function useUpdateBusinessDomain() {
       request: UpdateBusinessDomainRequest;
     }) => businessDomainsApi.update(id, request),
     onSuccess: (updatedDomain) => {
-      queryClient.setQueryData<BusinessDomain[]>(
-        queryKeys.businessDomains.lists(),
-        (old) =>
-          old?.map((d) =>
-            d.id === updatedDomain.id ? updatedDomain : d
-          ) ?? []
-      );
-      queryClient.setQueryData(
-        queryKeys.businessDomains.detail(updatedDomain.id),
-        updatedDomain
-      );
+      invalidateFor(queryClient, mutationEffects.businessDomains.update(updatedDomain.id));
       toast.success(`Business domain "${updatedDomain.name}" updated`);
     },
     onError: (error: Error) => {
@@ -153,13 +141,7 @@ export function useDeleteBusinessDomain() {
   return useMutation({
     mutationFn: (id: BusinessDomainId) => businessDomainsApi.delete(id),
     onSuccess: (_, deletedId) => {
-      queryClient.setQueryData<BusinessDomain[]>(
-        queryKeys.businessDomains.lists(),
-        (old) => old?.filter((d) => d.id !== deletedId) ?? []
-      );
-      queryClient.removeQueries({
-        queryKey: queryKeys.businessDomains.detail(deletedId),
-      });
+      invalidateFor(queryClient, mutationEffects.businessDomains.delete(deletedId));
       toast.success('Business domain deleted');
     },
     onError: (error: Error) => {
@@ -168,37 +150,3 @@ export function useDeleteBusinessDomain() {
   });
 }
 
-function useCapabilityDomainMutation<TVariables>(
-  mutationFn: (variables: TVariables) => Promise<void>,
-  successMessage: string,
-  errorMessage: string
-) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.businessDomains.all });
-      toast.success(successMessage);
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || errorMessage);
-    },
-  });
-}
-
-export function useAssociateCapabilityWithDomain() {
-  return useCapabilityDomainMutation(
-    ({ associateLink, request }: { associateLink: string; request: AssociateCapabilityRequest }) =>
-      businessDomainsApi.associateCapability(associateLink, request),
-    'Capability associated with domain',
-    'Failed to associate capability'
-  );
-}
-
-export function useDissociateCapabilityFromDomain() {
-  return useCapabilityDomainMutation(
-    (dissociateLink: string) => businessDomainsApi.dissociateCapability(dissociateLink),
-    'Capability removed from domain',
-    'Failed to dissociate capability'
-  );
-}

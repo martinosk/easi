@@ -140,14 +140,10 @@ describe('useCapabilities hooks', () => {
   });
 
   describe('useCreateCapability', () => {
-    it('should create a capability and update cache', async () => {
-      const existingCapabilities = [
-        buildCapability({ id: 'cap-1' as CapabilityId, name: 'Existing' }),
-      ];
+    it('should create a capability and invalidate cache', async () => {
       const newCapability = buildCapability({ id: 'cap-2' as CapabilityId, name: 'New Capability' });
-
-      queryClient.setQueryData(queryKeys.capabilities.lists(), existingCapabilities);
       vi.mocked(capabilitiesApi.create).mockResolvedValue(newCapability);
+      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const { result } = renderHook(() => useCreateCapability(), {
         wrapper: createWrapper(queryClient),
@@ -167,12 +163,36 @@ describe('useCapabilities hooks', () => {
         level: 'L1',
       });
 
-      const cachedCapabilities = queryClient.getQueryData<Capability[]>(
-        queryKeys.capabilities.lists()
-      );
-      expect(cachedCapabilities).toHaveLength(2);
-      expect(cachedCapabilities?.[1]).toEqual(newCapability);
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.capabilities.lists(),
+      });
       expect(toast.success).toHaveBeenCalledWith('Capability "New Capability" created');
+    });
+
+    it('should invalidate parent children query when parentId is set', async () => {
+      const newCapability = buildCapability({
+        id: 'cap-2' as CapabilityId,
+        name: 'Child Capability',
+        parentId: 'parent-1' as CapabilityId,
+      });
+      vi.mocked(capabilitiesApi.create).mockResolvedValue(newCapability);
+      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+      const { result } = renderHook(() => useCreateCapability(), {
+        wrapper: createWrapper(queryClient),
+      });
+
+      await act(async () => {
+        await result.current.mutateAsync({
+          name: 'Child Capability',
+          level: 'L2',
+          parentId: 'parent-1' as CapabilityId,
+        });
+      });
+
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.capabilities.children('parent-1'),
+      });
     });
 
     it('should show error toast on failure', async () => {
@@ -238,14 +258,13 @@ describe('useCapabilities hooks', () => {
   });
 
   describe('useDeleteCapability', () => {
-    it('should delete capability and remove from cache', async () => {
+    it('should delete capability and invalidate relevant queries', async () => {
       const capability = buildCapability({ id: 'cap-1' as CapabilityId, name: 'To Delete' });
 
       queryClient.setQueryData(queryKeys.capabilities.lists(), [capability]);
       queryClient.setQueryData(queryKeys.capabilities.detail('cap-1'), capability);
       vi.mocked(capabilitiesApi.delete).mockResolvedValue(undefined);
 
-      const removeQueriesSpy = vi.spyOn(queryClient, 'removeQueries');
       const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const { result } = renderHook(() => useDeleteCapability(), {
@@ -253,23 +272,58 @@ describe('useCapabilities hooks', () => {
       });
 
       await act(async () => {
-        await result.current.mutateAsync('cap-1' as CapabilityId);
-      });
-
-      const cachedCapabilities = queryClient.getQueryData<Capability[]>(
-        queryKeys.capabilities.lists()
-      );
-      expect(cachedCapabilities).toHaveLength(0);
-
-      expect(removeQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.capabilities.detail('cap-1'),
+        await result.current.mutateAsync({ id: 'cap-1' as CapabilityId });
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.businessDomains.all,
+        queryKey: queryKeys.capabilities.lists(),
+      });
+
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.capabilities.detail('cap-1'),
       });
 
       expect(toast.success).toHaveBeenCalledWith('Capability deleted');
+    });
+
+    it('should invalidate parent children query when parentId provided', async () => {
+      vi.mocked(capabilitiesApi.delete).mockResolvedValue(undefined);
+      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+      const { result } = renderHook(() => useDeleteCapability(), {
+        wrapper: createWrapper(queryClient),
+      });
+
+      await act(async () => {
+        await result.current.mutateAsync({
+          id: 'cap-1' as CapabilityId,
+          parentId: 'parent-1',
+        });
+      });
+
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.capabilities.children('parent-1'),
+      });
+    });
+
+    it('should invalidate domain capabilities query when domainId provided', async () => {
+      vi.mocked(capabilitiesApi.delete).mockResolvedValue(undefined);
+      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+      const { result } = renderHook(() => useDeleteCapability(), {
+        wrapper: createWrapper(queryClient),
+      });
+
+      await act(async () => {
+        await result.current.mutateAsync({
+          id: 'cap-1' as CapabilityId,
+          domainId: 'domain-1',
+        });
+      });
+
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.businessDomains.capabilities('domain-1'),
+      });
     });
   });
 
@@ -342,14 +396,21 @@ describe('useCapabilities hooks', () => {
       });
 
       await act(async () => {
-        await result.current.mutateAsync('dep-1' as CapabilityDependencyId);
+        await result.current.mutateAsync({
+          id: 'dep-1' as CapabilityDependencyId,
+          sourceCapabilityId: 'cap-1' as CapabilityId,
+          targetCapabilityId: 'cap-2' as CapabilityId,
+        });
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
         queryKey: queryKeys.capabilities.dependencies(),
       });
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.capabilities.all,
+        queryKey: queryKeys.capabilities.outgoing('cap-1'),
+      });
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.capabilities.incoming('cap-2'),
       });
       expect(toast.success).toHaveBeenCalledWith('Dependency deleted');
     });

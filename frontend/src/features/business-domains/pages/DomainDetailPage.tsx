@@ -132,9 +132,7 @@ export function DomainDetailPage({ domainId }: DomainDetailPageProps) {
       )}
 
       <div className="domain-capabilities-section">
-        <CapabilityAssociationManager
-          capabilitiesLink={domain._links.capabilities}
-        />
+        <CapabilityAssociationManager domainId={domain.id} />
       </div>
     </div>
   );

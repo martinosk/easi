@@ -70,6 +70,8 @@ export const EditRealizationDialog: React.FC<EditRealizationDialogProps> = ({
     try {
       await updateRealizationMutation.mutateAsync({
         id: realization.id,
+        capabilityId: realization.capabilityId,
+        componentId: realization.componentId,
         request: {
           realizationLevel,
           notes: notes.trim() || undefined,

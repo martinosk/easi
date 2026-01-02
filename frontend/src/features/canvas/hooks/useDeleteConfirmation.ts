@@ -20,6 +20,8 @@ export interface DeleteTarget {
   id: string;
   name: string;
   childId?: string;
+  capabilityId?: CapabilityId;
+  componentId?: ComponentId;
 }
 
 type DeleteHandler = (target: DeleteTarget, viewId: ViewId | null) => Promise<void>;
@@ -55,17 +57,23 @@ function useDeleteHandlers() {
       });
     },
     'capability-from-model': async (target) => {
-      await deleteCapabilityMutation.mutateAsync(target.id as CapabilityId);
+      await deleteCapabilityMutation.mutateAsync({ id: target.id as CapabilityId });
     },
     'parent-relation': async (target) => {
       if (!target.childId) return;
       await changeCapabilityParentMutation.mutateAsync({
         id: target.childId as CapabilityId,
-        parentId: null,
+        oldParentId: target.id,
+        newParentId: null,
       });
     },
     'realization': async (target) => {
-      await deleteRealizationMutation.mutateAsync(target.id as RealizationId);
+      if (!target.capabilityId || !target.componentId) return;
+      await deleteRealizationMutation.mutateAsync({
+        id: target.id as RealizationId,
+        capabilityId: target.capabilityId,
+        componentId: target.componentId,
+      });
     },
   }), [
     removeComponentFromViewMutation,

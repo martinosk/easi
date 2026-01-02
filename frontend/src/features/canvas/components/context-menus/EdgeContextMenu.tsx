@@ -1,5 +1,6 @@
 import { ContextMenu, type ContextMenuItem } from '../../../../components/shared/ContextMenu';
 import type { EdgeContextMenu as EdgeContextMenuType } from '../../hooks/useContextMenu';
+import type { CapabilityId, ComponentId } from '../../../../api/types';
 
 interface EdgeContextMenuProps {
   menu: EdgeContextMenuType | null;
@@ -9,6 +10,8 @@ interface EdgeContextMenuProps {
     id: string;
     name: string;
     childId?: string;
+    capabilityId?: CapabilityId;
+    componentId?: ComponentId;
   }) => void;
 }
 
@@ -52,6 +55,8 @@ export const EdgeContextMenu = ({ menu, onClose, onRequestDelete }: EdgeContextM
               type: 'realization',
               id: menu.realizationId!,
               name: menu.edgeName,
+              capabilityId: menu.capabilityId,
+              componentId: menu.componentId,
             });
             onClose();
           },

@@ -41,12 +41,27 @@ export const businessDomainsApi = {
     return response.data.data || [];
   },
 
+  async getCapabilitiesByDomainId(domainId: BusinessDomainId): Promise<Capability[]> {
+    const response = await httpClient.get<CollectionResponse<Capability>>(
+      `/api/v1/business-domains/${domainId}/capabilities`
+    );
+    return response.data.data || [];
+  },
+
   async associateCapability(associateLink: string, request: AssociateCapabilityRequest): Promise<void> {
     await httpClient.post(associateLink, request);
   },
 
+  async associateCapabilityByDomainId(domainId: BusinessDomainId, request: AssociateCapabilityRequest): Promise<void> {
+    await httpClient.post(`/api/v1/business-domains/${domainId}/capabilities`, request);
+  },
+
   async dissociateCapability(dissociateLink: string): Promise<void> {
     await httpClient.delete(dissociateLink);
+  },
+
+  async dissociateCapabilityByDomainId(domainId: BusinessDomainId, capabilityId: string): Promise<void> {
+    await httpClient.delete(`/api/v1/business-domains/${domainId}/capabilities/${capabilityId}`);
   },
 
   async getCapabilityRealizations(

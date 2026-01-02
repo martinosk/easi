@@ -54,6 +54,10 @@ export const queryKeys = {
     realizations: (id: string) => [...queryKeys.capabilities.detail(id), 'realizations'] as const,
     byComponent: (componentId: string) =>
       [...queryKeys.capabilities.all, 'byComponent', componentId] as const,
+    realizationsByComponents: (componentIds?: string[]) =>
+      componentIds
+        ? (['realizations', 'byComponents', componentIds.sort().join(',')] as const)
+        : (['realizations', 'byComponents'] as const),
   },
   businessDomains: {
     all: ['businessDomains'] as const,
@@ -106,6 +110,7 @@ export const queryKeys = {
     links: (id: string) => [...queryKeys.enterpriseCapabilities.detail(id), 'links'] as const,
     strategicImportance: (id: string) => [...queryKeys.enterpriseCapabilities.detail(id), 'strategicImportance'] as const,
     maturityGap: (id: string) => [...queryKeys.enterpriseCapabilities.detail(id), 'maturityGap'] as const,
+    linkStatuses: () => ['linkStatuses'] as const,
   },
   maturityAnalysis: {
     all: ['maturityAnalysis'] as const,

@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { enterpriseArchApi } from '../api/enterpriseArchApi';
 import { queryKeys } from '../../../lib/queryClient';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { mutationEffects } from '../../../lib/mutationEffects';
 import { getErrorMessage } from '../utils/errorMessages';
 import type {
   EnterpriseCapabilityId,
@@ -117,18 +119,10 @@ export function useSetTargetMaturity() {
       targetMaturity: number;
     }) => enterpriseArchApi.setTargetMaturity(enterpriseCapabilityId, targetMaturity),
     onSuccess: (_, { enterpriseCapabilityId }) => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.enterpriseCapabilities.detail(enterpriseCapabilityId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.enterpriseCapabilities.lists(),
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.maturityAnalysis.all,
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.enterpriseCapabilities.maturityGap(enterpriseCapabilityId),
-      });
+      invalidateFor(
+        queryClient,
+        mutationEffects.enterpriseCapabilities.setTargetMaturity(enterpriseCapabilityId)
+      );
       toast.success('Target maturity updated successfully');
     },
     onError: (error: unknown) => {

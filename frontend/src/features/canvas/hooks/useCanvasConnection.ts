@@ -36,7 +36,10 @@ export const useCanvasConnection = (
       const childId = extractCapabilityId(source) as CapabilityId;
 
       try {
-        await changeCapabilityParentMutation.mutateAsync({ id: childId, parentId });
+        await changeCapabilityParentMutation.mutateAsync({
+          id: childId,
+          newParentId: parentId,
+        });
       } catch (error) {
         const errorMessage = getErrorMessage(error, 'Failed to create parent relationship');
         if (isHierarchyDepthError(errorMessage)) {
