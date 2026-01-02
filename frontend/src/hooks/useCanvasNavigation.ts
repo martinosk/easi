@@ -11,27 +11,30 @@ export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRe
 
   const navigateToComponent = useCallback(
     (componentId: string) => {
+      selectNode(componentId as ComponentId);
+      selectCapability(null);
+
       const isInCurrentView = currentView?.components.some(
         (vc: ViewComponent) => vc.componentId === componentId
       );
 
       if (isInCurrentView) {
-        selectNode(componentId as ComponentId);
         canvasRef.current?.centerOnNode(componentId);
       }
     },
-    [currentView, selectNode, canvasRef]
+    [currentView, selectNode, selectCapability, canvasRef]
   );
 
   const navigateToCapability = useCallback(
     (capabilityId: string) => {
+      selectCapability(capabilityId as CapabilityId);
+      selectNode(null);
+
       const isOnCanvas = (currentView?.capabilities || []).some(
         (vc: ViewCapability) => vc.capabilityId === capabilityId
       );
 
       if (isOnCanvas) {
-        selectCapability(capabilityId as CapabilityId);
-        selectNode(null);
         canvasRef.current?.centerOnNode(`cap-${capabilityId}`);
       }
     },
