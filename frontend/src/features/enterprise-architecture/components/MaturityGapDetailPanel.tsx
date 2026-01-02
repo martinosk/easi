@@ -1,22 +1,9 @@
 import { useState, useCallback } from 'react';
 import { useMaturityGapDetailHook, useSetTargetMaturity } from '../hooks/useMaturityAnalysis';
+import { useMaturityColorScale } from '../../../hooks/useMaturityColorScale';
+import { HelpTooltip } from '../../../components/shared/HelpTooltip';
 import type { EnterpriseCapabilityId, ImplementationDetail } from '../types';
 import './MaturityGapDetailPanel.css';
-
-function getMaturitySectionColor(section: string): string {
-  switch (section) {
-    case 'Genesis':
-      return 'var(--color-purple-500, #8b5cf6)';
-    case 'Custom Build':
-      return 'var(--color-blue-500, #3b82f6)';
-    case 'Product':
-      return 'var(--color-green-500, #22c55e)';
-    case 'Commodity':
-      return 'var(--color-gray-500, #6b7280)';
-    default:
-      return 'var(--color-gray-400)';
-  }
-}
 
 function getPriorityColor(priority: string): string {
   switch (priority) {
@@ -34,9 +21,10 @@ function getPriorityColor(priority: string): string {
 interface ImplementationBarProps {
   implementation: ImplementationDetail;
   targetMaturity: number;
+  getColorForValue: (value: number) => string;
 }
 
-function ImplementationBar({ implementation, targetMaturity }: ImplementationBarProps) {
+function ImplementationBar({ implementation, targetMaturity, getColorForValue }: ImplementationBarProps) {
   const percentage = implementation.maturityValue;
   const targetPercentage = targetMaturity;
 
@@ -54,12 +42,13 @@ function ImplementationBar({ implementation, targetMaturity }: ImplementationBar
             className="maturity-fill"
             style={{
               width: `${percentage}%`,
-              backgroundColor: getMaturitySectionColor(implementation.maturitySection),
+              backgroundColor: getColorForValue(implementation.maturityValue),
             }}
           />
           <div
             className="target-marker"
             style={{ left: `${targetPercentage}%` }}
+            title="Target maturity level"
           />
         </div>
         <div className="bar-labels">
@@ -81,15 +70,20 @@ interface PrioritySectionProps {
   priority: string;
   implementations: ImplementationDetail[];
   targetMaturity: number;
+  tooltip: string;
+  getColorForValue: (value: number) => string;
 }
 
-function PrioritySection({ title, priority, implementations, targetMaturity }: PrioritySectionProps) {
+function PrioritySection({ title, priority, implementations, targetMaturity, tooltip, getColorForValue }: PrioritySectionProps) {
   if (implementations.length === 0) return null;
 
   return (
     <div className="priority-section">
       <div className="priority-header" style={{ borderLeftColor: getPriorityColor(priority) }}>
-        <h4 className="priority-title">{title}</h4>
+        <h4 className="priority-title">
+          {title}
+          <HelpTooltip content={tooltip} iconOnly />
+        </h4>
         <span className="priority-count">{implementations.length}</span>
       </div>
       <div className="priority-implementations">
@@ -98,6 +92,7 @@ function PrioritySection({ title, priority, implementations, targetMaturity }: P
             key={impl.domainCapabilityId}
             implementation={impl}
             targetMaturity={targetMaturity}
+            getColorForValue={getColorForValue}
           />
         ))}
       </div>
@@ -111,9 +106,11 @@ interface SetTargetMaturityModalProps {
   onClose: () => void;
   onSave: (value: number) => void;
   isSaving: boolean;
+  getColorForValue: (value: number) => string;
+  getSectionNameForValue: (value: number) => string;
 }
 
-function SetTargetMaturityModal({ isOpen, currentValue, onClose, onSave, isSaving }: SetTargetMaturityModalProps) {
+function SetTargetMaturityModal({ isOpen, currentValue, onClose, onSave, isSaving, getColorForValue, getSectionNameForValue }: SetTargetMaturityModalProps) {
   const [value, setValue] = useState<number>(currentValue ?? 50);
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
@@ -123,7 +120,7 @@ function SetTargetMaturityModal({ isOpen, currentValue, onClose, onSave, isSavin
 
   if (!isOpen) return null;
 
-  const section = value <= 24 ? 'Genesis' : value <= 49 ? 'Custom Build' : value <= 74 ? 'Product' : 'Commodity';
+  const section = getSectionNameForValue(value);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -148,7 +145,7 @@ function SetTargetMaturityModal({ isOpen, currentValue, onClose, onSave, isSavin
                 <span className="slider-value">{value}</span>
                 <span
                   className="slider-section"
-                  style={{ color: getMaturitySectionColor(section) }}
+                  style={{ color: getColorForValue(value) }}
                 >
                   {section}
                 </span>
@@ -187,6 +184,7 @@ export function MaturityGapDetailPanel({ enterpriseCapabilityId, onBack }: Matur
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { detail, isLoading, error } = useMaturityGapDetailHook(enterpriseCapabilityId);
   const setTargetMaturityMutation = useSetTargetMaturity();
+  const { getColorForValue, getSectionNameForValue } = useMaturityColorScale();
 
   const handleOpenModal = useCallback(() => {
     setIsModalOpen(true);
@@ -230,7 +228,7 @@ export function MaturityGapDetailPanel({ enterpriseCapabilityId, onBack }: Matur
 
   const targetMaturity = detail.targetMaturity ?? Math.max(...detail.implementations.map(i => i.maturityValue));
   const targetSection = detail.targetMaturity !== null
-    ? (detail.targetMaturity <= 24 ? 'Genesis' : detail.targetMaturity <= 49 ? 'Custom Build' : detail.targetMaturity <= 74 ? 'Product' : 'Commodity')
+    ? getSectionNameForValue(detail.targetMaturity)
     : null;
 
   return (
@@ -254,7 +252,7 @@ export function MaturityGapDetailPanel({ enterpriseCapabilityId, onBack }: Matur
               {detail.targetMaturity}
               <span
                 className="target-section"
-                style={{ color: getMaturitySectionColor(targetSection) }}
+                style={{ color: getColorForValue(detail.targetMaturity) }}
               >
                 ({targetSection})
               </span>
@@ -275,6 +273,10 @@ export function MaturityGapDetailPanel({ enterpriseCapabilityId, onBack }: Matur
       <div className="implementations-section">
         <h3 className="section-title">
           Implementations ({detail.implementations.length})
+          <HelpTooltip
+            content="Each bar shows current maturity level. The vertical line marks the target. Gap is the difference between current and target maturity."
+            iconOnly
+          />
         </h3>
 
         <PrioritySection
@@ -282,6 +284,8 @@ export function MaturityGapDetailPanel({ enterpriseCapabilityId, onBack }: Matur
           priority="High"
           implementations={detail.investmentPriorities.high}
           targetMaturity={targetMaturity}
+          tooltip="Implementations that need significant work to reach the target"
+          getColorForValue={getColorForValue}
         />
 
         <PrioritySection
@@ -289,6 +293,8 @@ export function MaturityGapDetailPanel({ enterpriseCapabilityId, onBack }: Matur
           priority="Medium"
           implementations={detail.investmentPriorities.medium}
           targetMaturity={targetMaturity}
+          tooltip="Implementations that need moderate work to reach the target"
+          getColorForValue={getColorForValue}
         />
 
         <PrioritySection
@@ -296,6 +302,8 @@ export function MaturityGapDetailPanel({ enterpriseCapabilityId, onBack }: Matur
           priority="Low"
           implementations={detail.investmentPriorities.low}
           targetMaturity={targetMaturity}
+          tooltip="Implementations that need minor work to reach the target"
+          getColorForValue={getColorForValue}
         />
 
         <PrioritySection
@@ -303,6 +311,8 @@ export function MaturityGapDetailPanel({ enterpriseCapabilityId, onBack }: Matur
           priority="None"
           implementations={detail.investmentPriorities.onTarget}
           targetMaturity={targetMaturity}
+          tooltip="Implementations that meet or exceed the target maturity level"
+          getColorForValue={getColorForValue}
         />
       </div>
 
@@ -312,6 +322,8 @@ export function MaturityGapDetailPanel({ enterpriseCapabilityId, onBack }: Matur
         onClose={handleCloseModal}
         onSave={handleSaveTargetMaturity}
         isSaving={setTargetMaturityMutation.isPending}
+        getColorForValue={getColorForValue}
+        getSectionNameForValue={getSectionNameForValue}
       />
     </div>
   );

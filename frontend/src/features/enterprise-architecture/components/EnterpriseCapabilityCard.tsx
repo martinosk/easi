@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { HelpTooltip } from '../../../components/shared/HelpTooltip';
 import type { EnterpriseCapability } from '../types';
 import type { Capability } from '../../../api/types';
 
@@ -76,15 +77,30 @@ export function EnterpriseCapabilityCard({ capability, onDrop }: EnterpriseCapab
       )}
 
       <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem' }}>
-        <div style={{ fontSize: '0.875rem', color: '#374151' }}>
+        <div style={{ fontSize: '0.875rem', color: '#374151', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
           <span style={{ fontWeight: 500 }}>Links:</span>{' '}
           <span style={{ color: '#3b82f6' }}>{capability.linkCount}</span>
+          <HelpTooltip content="Number of domain capabilities linked to this enterprise capability" iconOnly />
         </div>
-        <div style={{ fontSize: '0.875rem', color: '#374151' }}>
+        <div style={{ fontSize: '0.875rem', color: '#374151', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
           <span style={{ fontWeight: 500 }}>Domains:</span>{' '}
           <span style={{ color: '#3b82f6' }}>{capability.domainCount}</span>
+          <HelpTooltip content="Number of business domains containing linked capabilities" iconOnly />
         </div>
       </div>
+      {capability.linkCount === 0 && (
+        <div style={{
+          fontSize: '0.75rem',
+          color: '#6b7280',
+          marginTop: '0.5rem',
+          fontStyle: 'italic',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.25rem'
+        }}>
+          Drag domain capabilities here to link them
+        </div>
+      )}
     </div>
   );
 }

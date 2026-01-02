@@ -1,0 +1,26 @@
+.help-tooltip-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.help-tooltip-label {
+  font-size: inherit;
+}
+
+.help-tooltip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  cursor: help;
+  transition: color 0.15s ease;
+}
+
+.help-tooltip-icon:hover {
+  color: #6b7280;
+}
+
+.help-tooltip-icon svg {
+  display: block;
+}

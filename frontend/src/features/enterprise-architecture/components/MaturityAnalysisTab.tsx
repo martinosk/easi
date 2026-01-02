@@ -1,28 +1,42 @@
 import { useState, useCallback } from 'react';
 import { useMaturityAnalysis } from '../hooks/useMaturityAnalysis';
+import { useMaturityScale } from '../../../hooks/useMaturityScale';
+import { useMaturityColorScale } from '../../../hooks/useMaturityColorScale';
+import { HelpTooltip } from '../../../components/shared/HelpTooltip';
 import type { MaturityAnalysisCandidate, EnterpriseCapabilityId } from '../types';
 import './MaturityAnalysisTab.css';
 
-function getMaturitySectionColor(section: string): string {
-  switch (section) {
-    case 'Genesis':
-      return 'var(--color-purple-500, #8b5cf6)';
-    case 'Custom Build':
-      return 'var(--color-blue-500, #3b82f6)';
-    case 'Product':
-      return 'var(--color-green-500, #22c55e)';
-    case 'Commodity':
-      return 'var(--color-gray-500, #6b7280)';
-    default:
-      return 'var(--color-gray-400)';
-  }
-}
+function MaturitySectionLegend() {
+  const { data: maturityScale } = useMaturityScale();
+  const { getBaseSectionColor } = useMaturityColorScale();
 
-function getMaturitySection(value: number): string {
-  if (value <= 24) return 'Genesis';
-  if (value <= 49) return 'Custom Build';
-  if (value <= 74) return 'Product';
-  return 'Commodity';
+  if (!maturityScale?.sections) return null;
+
+  const sortedSections = [...maturityScale.sections].sort((a, b) => a.order - b.order);
+
+  return (
+    <div className="maturity-section-legend">
+      <span className="legend-title">
+        Maturity Sections
+        <HelpTooltip
+          content="Color coding for the maturity distribution bar. Sections are configured in Settings."
+          iconOnly
+        />
+      </span>
+      <div className="legend-items">
+        {sortedSections.map(section => (
+          <div key={section.order} className="legend-section-item">
+            <span
+              className="legend-section-dot"
+              style={{ backgroundColor: getBaseSectionColor(section.order) }}
+            />
+            <span className="legend-section-name">{section.name}</span>
+            <span className="legend-section-range">({section.minValue}-{section.maxValue})</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 interface MaturityDistributionBarProps {
@@ -35,15 +49,30 @@ interface MaturityDistributionBarProps {
 }
 
 function MaturityDistributionBar({ distribution }: MaturityDistributionBarProps) {
+  const { data: maturityScale } = useMaturityScale();
+  const { getBaseSectionColor } = useMaturityColorScale();
+
   const total = distribution.genesis + distribution.customBuild + distribution.product + distribution.commodity;
   if (total === 0) return null;
 
-  const segments = [
-    { name: 'Genesis', count: distribution.genesis, color: getMaturitySectionColor('Genesis') },
-    { name: 'Custom Build', count: distribution.customBuild, color: getMaturitySectionColor('Custom Build') },
-    { name: 'Product', count: distribution.product, color: getMaturitySectionColor('Product') },
-    { name: 'Commodity', count: distribution.commodity, color: getMaturitySectionColor('Commodity') },
-  ].filter(s => s.count > 0);
+  const sortedSections = maturityScale?.sections
+    ? [...maturityScale.sections].sort((a, b) => a.order - b.order)
+    : [];
+
+  const distributionByOrder = [
+    distribution.genesis,
+    distribution.customBuild,
+    distribution.product,
+    distribution.commodity,
+  ];
+
+  const segments = sortedSections
+    .map((section, index) => ({
+      name: section.name,
+      count: distributionByOrder[index] || 0,
+      color: getBaseSectionColor(section.order),
+    }))
+    .filter(s => s.count > 0);
 
   return (
     <div className="maturity-distribution">
@@ -78,9 +107,14 @@ interface CandidateCardProps {
 }
 
 function CandidateCard({ candidate, onViewDetail }: CandidateCardProps) {
+  const { getColorForValue, getSectionNameForValue } = useMaturityColorScale();
+
   const targetSection = candidate.targetMaturity !== null
-    ? getMaturitySection(candidate.targetMaturity)
+    ? getSectionNameForValue(candidate.targetMaturity)
     : null;
+  const targetColor = candidate.targetMaturity !== null
+    ? getColorForValue(candidate.targetMaturity)
+    : undefined;
 
   return (
     <div className="candidate-card">
@@ -102,11 +136,14 @@ function CandidateCard({ candidate, onViewDetail }: CandidateCardProps) {
 
       <div className="candidate-stats">
         <div className="stat-group">
-          <span className="stat-label">Target Maturity</span>
+          <span className="stat-label">
+            Target Maturity
+            <HelpTooltip content="Click View Details to set the target maturity level" iconOnly />
+          </span>
           {candidate.targetMaturity !== null && targetSection ? (
             <span className="stat-value">
               {candidate.targetMaturity}
-              <span className="maturity-section" style={{ color: getMaturitySectionColor(targetSection) }}>
+              <span className="maturity-section" style={{ color: targetColor }}>
                 ({targetSection})
               </span>
             </span>
@@ -115,15 +152,24 @@ function CandidateCard({ candidate, onViewDetail }: CandidateCardProps) {
           )}
         </div>
         <div className="stat-group">
-          <span className="stat-label">Implementations</span>
+          <span className="stat-label">
+            Implementations
+            <HelpTooltip content="Number of domain capabilities linked to this enterprise capability" iconOnly />
+          </span>
           <span className="stat-value">{candidate.implementationCount}</span>
         </div>
         <div className="stat-group">
-          <span className="stat-label">Domains</span>
+          <span className="stat-label">
+            Domains
+            <HelpTooltip content="Number of distinct business domains containing implementations" iconOnly />
+          </span>
           <span className="stat-value">{candidate.domainCount}</span>
         </div>
         <div className="stat-group">
-          <span className="stat-label">Max Gap</span>
+          <span className="stat-label">
+            Max Gap
+            <HelpTooltip content="Largest maturity difference from target among all implementations" iconOnly />
+          </span>
           <span className={`stat-value gap-value ${candidate.maxGap > 40 ? 'gap-high' : candidate.maxGap >= 15 ? 'gap-medium' : ''}`}>
             {candidate.maxGap}
           </span>
@@ -180,15 +226,33 @@ export function MaturityAnalysisTab({ onViewDetail }: MaturityAnalysisTabProps) 
             <>
               <div className="summary-stat">
                 <span className="summary-value">{summary.candidateCount}</span>
-                <span className="summary-label">Capabilities</span>
+                <span className="summary-label">
+                  Capabilities
+                  <HelpTooltip
+                    content="Enterprise capabilities with linked domain capabilities that can be analyzed for maturity variance"
+                    iconOnly
+                  />
+                </span>
               </div>
               <div className="summary-stat">
                 <span className="summary-value">{summary.totalImplementations}</span>
-                <span className="summary-label">Implementations</span>
+                <span className="summary-label">
+                  Implementations
+                  <HelpTooltip
+                    content="Total domain capabilities linked to these enterprise capabilities"
+                    iconOnly
+                  />
+                </span>
               </div>
               <div className="summary-stat">
                 <span className="summary-value">{summary.averageGap}</span>
-                <span className="summary-label">Avg Gap</span>
+                <span className="summary-label">
+                  Avg Gap
+                  <HelpTooltip
+                    content="Average difference between implementation maturity and target (or highest implementation if no target set)"
+                    iconOnly
+                  />
+                </span>
               </div>
             </>
           )}
@@ -206,6 +270,8 @@ export function MaturityAnalysisTab({ onViewDetail }: MaturityAnalysisTabProps) 
           </select>
         </div>
       </div>
+
+      <MaturitySectionLegend />
 
       {candidates.length === 0 ? (
         <div className="empty-state">

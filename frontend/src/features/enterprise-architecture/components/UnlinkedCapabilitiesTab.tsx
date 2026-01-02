@@ -1,29 +1,17 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useUnlinkedCapabilities } from '../hooks/useMaturityAnalysis';
 import { useBusinessDomains } from '../../business-domains/hooks/useBusinessDomains';
+import { useMaturityColorScale } from '../../../hooks/useMaturityColorScale';
+import { HelpTooltip } from '../../../components/shared/HelpTooltip';
 import type { UnlinkedCapability } from '../types';
 import './UnlinkedCapabilitiesTab.css';
 
-function getMaturitySectionColor(section: string): string {
-  switch (section) {
-    case 'Genesis':
-      return 'var(--color-purple-500, #8b5cf6)';
-    case 'Custom Build':
-      return 'var(--color-blue-500, #3b82f6)';
-    case 'Product':
-      return 'var(--color-green-500, #22c55e)';
-    case 'Commodity':
-      return 'var(--color-gray-500, #6b7280)';
-    default:
-      return 'var(--color-gray-400)';
-  }
-}
-
 interface UnlinkedCapabilityItemProps {
   capability: UnlinkedCapability;
+  getColorForValue: (value: number) => string;
 }
 
-function UnlinkedCapabilityItem({ capability }: UnlinkedCapabilityItemProps) {
+function UnlinkedCapabilityItem({ capability, getColorForValue }: UnlinkedCapabilityItemProps) {
   return (
     <div className="unlinked-capability-item">
       <div className="capability-info">
@@ -31,7 +19,7 @@ function UnlinkedCapabilityItem({ capability }: UnlinkedCapabilityItemProps) {
         <div className="capability-meta">
           <span
             className="maturity-badge"
-            style={{ backgroundColor: getMaturitySectionColor(capability.maturitySection) }}
+            style={{ backgroundColor: getColorForValue(capability.maturityValue) }}
           >
             {capability.maturitySection}
           </span>
@@ -45,15 +33,20 @@ function UnlinkedCapabilityItem({ capability }: UnlinkedCapabilityItemProps) {
 interface DomainGroupProps {
   domainName: string;
   capabilities: UnlinkedCapability[];
+  getColorForValue: (value: number) => string;
 }
 
-function DomainGroup({ domainName, capabilities }: DomainGroupProps) {
+function DomainGroup({ domainName, capabilities, getColorForValue }: DomainGroupProps) {
   return (
     <div className="domain-group">
       <h3 className="domain-group-header">{domainName}</h3>
       <div className="capability-list">
         {capabilities.map(capability => (
-          <UnlinkedCapabilityItem key={capability.capabilityId} capability={capability} />
+          <UnlinkedCapabilityItem
+            key={capability.capabilityId}
+            capability={capability}
+            getColorForValue={getColorForValue}
+          />
         ))}
       </div>
     </div>
@@ -66,6 +59,7 @@ export function UnlinkedCapabilitiesTab() {
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
 
   const { domains } = useBusinessDomains();
+  const { getColorForValue } = useMaturityColorScale();
   const { capabilities, total, isLoading, error } = useUnlinkedCapabilities(
     businessDomainFilter || undefined,
     debouncedSearch || undefined
@@ -132,7 +126,13 @@ export function UnlinkedCapabilitiesTab() {
       <div className="unlinked-header">
         <div className="unlinked-summary">
           <span className="summary-count">{total}</span>
-          <span className="summary-label">unlinked capabilities</span>
+          <span className="summary-label">
+            unlinked capabilities
+            <HelpTooltip
+              content="Domain capabilities not yet associated with any enterprise capability. Link them to enable maturity analysis and strategic planning."
+              iconOnly
+            />
+          </span>
         </div>
         <div className="unlinked-filters">
           <form onSubmit={handleSearchSubmit} className="search-form">
@@ -180,6 +180,7 @@ export function UnlinkedCapabilitiesTab() {
               key={domainName}
               domainName={domainName}
               capabilities={domainCapabilities}
+              getColorForValue={getColorForValue}
             />
           ))}
         </div>

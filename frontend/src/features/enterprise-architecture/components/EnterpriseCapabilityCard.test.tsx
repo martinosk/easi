@@ -1,8 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MantineProvider } from '@mantine/core';
 import { EnterpriseCapabilityCard } from './EnterpriseCapabilityCard';
 import type { EnterpriseCapability } from '../types';
 import type { Capability } from '../../../api/types';
+
+function renderWithMantine(ui: React.ReactElement) {
+  return render(<MantineProvider>{ui}</MantineProvider>);
+}
 
 describe('EnterpriseCapabilityCard', () => {
   const mockCapability: EnterpriseCapability = {
@@ -31,7 +36,7 @@ describe('EnterpriseCapabilityCard', () => {
     it('renders capability name', () => {
       const onDrop = vi.fn();
 
-      render(<EnterpriseCapabilityCard capability={mockCapability} onDrop={onDrop} />);
+      renderWithMantine(<EnterpriseCapabilityCard capability={mockCapability} onDrop={onDrop} />);
 
       expect(screen.getByText('Customer Management')).toBeInTheDocument();
     });
@@ -39,7 +44,7 @@ describe('EnterpriseCapabilityCard', () => {
     it('renders category badge', () => {
       const onDrop = vi.fn();
 
-      render(<EnterpriseCapabilityCard capability={mockCapability} onDrop={onDrop} />);
+      renderWithMantine(<EnterpriseCapabilityCard capability={mockCapability} onDrop={onDrop} />);
 
       expect(screen.getByText('Business')).toBeInTheDocument();
     });
@@ -47,7 +52,7 @@ describe('EnterpriseCapabilityCard', () => {
     it('renders description when provided', () => {
       const onDrop = vi.fn();
 
-      render(<EnterpriseCapabilityCard capability={mockCapability} onDrop={onDrop} />);
+      renderWithMantine(<EnterpriseCapabilityCard capability={mockCapability} onDrop={onDrop} />);
 
       expect(screen.getByText('Managing customer relationships')).toBeInTheDocument();
     });
@@ -59,7 +64,7 @@ describe('EnterpriseCapabilityCard', () => {
       };
       const onDrop = vi.fn();
 
-      render(<EnterpriseCapabilityCard capability={capabilityWithoutDescription} onDrop={onDrop} />);
+      renderWithMantine(<EnterpriseCapabilityCard capability={capabilityWithoutDescription} onDrop={onDrop} />);
 
       expect(screen.queryByText('Managing customer relationships')).not.toBeInTheDocument();
     });
@@ -67,7 +72,7 @@ describe('EnterpriseCapabilityCard', () => {
     it('renders link count', () => {
       const onDrop = vi.fn();
 
-      render(<EnterpriseCapabilityCard capability={mockCapability} onDrop={onDrop} />);
+      renderWithMantine(<EnterpriseCapabilityCard capability={mockCapability} onDrop={onDrop} />);
 
       expect(screen.getByText('Links:')).toBeInTheDocument();
       expect(screen.getByText('5')).toBeInTheDocument();
@@ -76,7 +81,7 @@ describe('EnterpriseCapabilityCard', () => {
     it('renders domain count', () => {
       const onDrop = vi.fn();
 
-      render(<EnterpriseCapabilityCard capability={mockCapability} onDrop={onDrop} />);
+      renderWithMantine(<EnterpriseCapabilityCard capability={mockCapability} onDrop={onDrop} />);
 
       expect(screen.getByText('Domains:')).toBeInTheDocument();
       expect(screen.getByText('3')).toBeInTheDocument();
@@ -86,11 +91,11 @@ describe('EnterpriseCapabilityCard', () => {
   describe('Drag and Drop Interactions', () => {
     it('calls onDrop with capability data when dropped', () => {
       const onDrop = vi.fn();
-      const { container } = render(
+      renderWithMantine(
         <EnterpriseCapabilityCard capability={mockCapability} onDrop={onDrop} />
       );
 
-      const card = container.firstChild as HTMLElement;
+      const card = screen.getByText('Customer Management').closest('div')?.parentElement as HTMLElement;
       fireEvent.drop(card, {
         dataTransfer: {
           getData: () => JSON.stringify(mockDomainCapability),
@@ -104,11 +109,11 @@ describe('EnterpriseCapabilityCard', () => {
       const onDrop = vi.fn();
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      const { container } = render(
+      renderWithMantine(
         <EnterpriseCapabilityCard capability={mockCapability} onDrop={onDrop} />
       );
 
-      const card = container.firstChild as HTMLElement;
+      const card = screen.getByText('Customer Management').closest('div')?.parentElement as HTMLElement;
       fireEvent.drop(card, {
         dataTransfer: {
           getData: () => 'invalid json',
@@ -124,11 +129,11 @@ describe('EnterpriseCapabilityCard', () => {
       const onDrop = vi.fn();
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      const { container } = render(
+      renderWithMantine(
         <EnterpriseCapabilityCard capability={mockCapability} onDrop={onDrop} />
       );
 
-      const card = container.firstChild as HTMLElement;
+      const card = screen.getByText('Customer Management').closest('div')?.parentElement as HTMLElement;
       fireEvent.drop(card, {
         dataTransfer: {
           getData: () => '',

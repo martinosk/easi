@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@mantine/core';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
+import { HelpTooltip } from '../../../components/shared/HelpTooltip';
 import {
   useStrategyPillarsConfig,
   useBatchUpdateStrategyPillars,
@@ -349,7 +350,13 @@ export function StrategyPillarsSettings() {
     <div className="strategy-pillars-settings">
       <div className="strategy-pillars-header">
         <div>
-          <h2 className="strategy-pillars-title">Strategy Pillars</h2>
+          <h2 className="strategy-pillars-title">
+            Strategy Pillars
+            <HelpTooltip
+              content="Strategic pillars represent your organization's key strategic themes. Use them to align capabilities with business strategy and measure strategic fit."
+              iconOnly
+            />
+          </h2>
           <p className="strategy-pillars-description">
             Define the strategic pillars used to categorize capabilities across your organization.
           </p>
@@ -425,6 +432,10 @@ export function StrategyPillarsSettings() {
                           data-testid={`pillar-fit-scoring-checkbox-${index}`}
                         />
                         <span>Enable fit scoring for realizations</span>
+                        <HelpTooltip
+                          content="When enabled, realizations can be scored on how well they support this strategic pillar"
+                          iconOnly
+                        />
                       </label>
                       {'fitScoringEnabled' in pillar && pillar.fitScoringEnabled && (
                         <input

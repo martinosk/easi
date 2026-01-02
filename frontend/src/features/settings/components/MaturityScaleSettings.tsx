@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@mantine/core';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
+import { HelpTooltip } from '../../../components/shared/HelpTooltip';
 import { useMaturityScale, useUpdateMaturityScale, useResetMaturityScale } from '../../../hooks/useMaturityScale';
 import type { MaturityScaleSection } from '../../../api/types';
 import { ApiError } from '../../../api/types';
@@ -164,7 +165,13 @@ export function MaturityScaleSettings() {
     <div className="maturity-scale-settings">
       <div className="maturity-scale-header">
         <div>
-          <h2 className="maturity-scale-title">Maturity Scale Configuration</h2>
+          <h2 className="maturity-scale-title">
+            Maturity Scale Configuration
+            <HelpTooltip
+              content="Define how capability maturity is categorized. Each section represents a stage of evolution from experimental (Genesis) to fully commoditized (Commodity)."
+              iconOnly
+            />
+          </h2>
           <p className="maturity-scale-description">
             Configure the names and boundaries of maturity sections (0-99 range).
           </p>
