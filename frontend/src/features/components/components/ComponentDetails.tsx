@@ -132,18 +132,23 @@ const RealizationsField: React.FC<RealizationsFieldProps> = ({ realizations, cap
   );
 };
 
-interface ReferenceLinkFieldProps {
-  href: string | undefined;
+interface TypeFieldProps {
+  referenceUrl: string | undefined;
 }
 
-const ReferenceLinkField: React.FC<ReferenceLinkFieldProps> = ({ href }) => {
-  if (!href) return null;
+const TypeField: React.FC<TypeFieldProps> = ({ referenceUrl }) => {
+  const hasReference = referenceUrl && referenceUrl.trim() !== '';
+
   return (
-    <div className="detail-reference">
-      <a href={href} target="_blank" rel="noopener noreferrer" className="reference-link">
-        Reference Documentation
-      </a>
-    </div>
+    <DetailField label="Type">
+      {hasReference ? (
+        <a href={referenceUrl} target="_blank" rel="noopener noreferrer" className="type-link">
+          Application Component
+        </a>
+      ) : (
+        'Application Component'
+      )}
+    </DetailField>
   );
 };
 
@@ -204,10 +209,7 @@ const ComponentContentInternal: React.FC<ComponentContentProps> = ({
       <OptionalField value={component.description} label="Description" render={(desc) => desc} />
 
       <DetailField label="Created"><span className="detail-date">{formattedDate}</span></DetailField>
-      <DetailField label="Type">Application Component</DetailField>
-      <DetailField label="ID"><span className="detail-id">{component.id}</span></DetailField>
-
-      <ReferenceLinkField href={component._links.reference} />
+      <TypeField referenceUrl={component._links.reference} />
 
       {componentInView && currentView && onColorChange && onClearColor && (
         <ColorPickerField

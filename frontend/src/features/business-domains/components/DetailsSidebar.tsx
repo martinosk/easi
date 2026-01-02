@@ -59,7 +59,6 @@ function CapabilityContent({ capability, domain }: CapabilityContentProps) {
           <StrategicImportanceSection
             domain={domain}
             capabilityId={capability.id as CapabilityId}
-            capabilityName={capability.name}
           />
         )}
       </div>

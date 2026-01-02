@@ -260,4 +260,4 @@ For each realization R of capability C:
 - [x] Fit context display in capability realization view
 - [x] Strategic Fit dashboard tab
 - [x] Tests passing
-- [ ] User sign-off
+- [x] User sign-off

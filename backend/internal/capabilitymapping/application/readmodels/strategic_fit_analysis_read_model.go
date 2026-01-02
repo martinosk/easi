@@ -68,8 +68,8 @@ func (rm *StrategicFitAnalysisReadModel) GetStrategicFitAnalysis(ctx context.Con
 				r.component_name,
 				r.capability_id,
 				c.name as capability_name,
-				COALESCE(dca.domain_id, '') as business_domain_id,
-				COALESCE(bd.name, '') as business_domain_name,
+				COALESCE(dcm.business_domain_id, '') as business_domain_id,
+				COALESCE(dcm.business_domain_name, '') as business_domain_name,
 				COALESCE(si.importance, 0) as importance,
 				COALESCE(si.importance_label, '') as importance_label,
 				COALESCE(afs.score, 0) as fit_score,
@@ -77,11 +77,10 @@ func (rm *StrategicFitAnalysisReadModel) GetStrategicFitAnalysis(ctx context.Con
 				COALESCE(afs.rationale, '') as fit_rationale
 			FROM capability_realizations r
 			JOIN capabilities c ON r.tenant_id = c.tenant_id AND r.capability_id = c.id
-			LEFT JOIN domain_capability_assignments dca ON r.tenant_id = dca.tenant_id AND r.capability_id = dca.capability_id
-			LEFT JOIN business_domains bd ON dca.tenant_id = bd.tenant_id AND dca.domain_id = bd.id
+			LEFT JOIN domain_capability_metadata dcm ON r.tenant_id = dcm.tenant_id AND r.capability_id = dcm.capability_id
 			LEFT JOIN strategy_importance si ON r.tenant_id = si.tenant_id
-				AND r.capability_id = si.capability_id
-				AND dca.domain_id = si.business_domain_id
+				AND dcm.l1_capability_id = si.capability_id
+				AND dcm.business_domain_id = si.business_domain_id
 				AND si.pillar_id = $2
 			LEFT JOIN application_fit_scores afs ON r.tenant_id = afs.tenant_id
 				AND r.component_id = afs.component_id
