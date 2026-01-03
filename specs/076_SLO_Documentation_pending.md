@@ -38,22 +38,7 @@ Enable users to define SLOs with maturity tracking on existing capability realiz
 - [ ] Read model for querying SLOs by capability realization
 - [ ] REST API for CRUD operations on SLOs
 
-**Frontend:**
-- [ ] Add SLO to a capability realization from the UI
-- [ ] Edit SLO properties (type, target, owner)
-- [ ] Change maturity state (dropdown or explicit progression)
-- [ ] Delete SLO
-- [ ] Display SLOs when viewing a capability realization
-
-### Slice 2: SLO Variance Analysis (Future)
-
-Provide views that surface applications with high SLO variance across their realized capabilities, enabling data-driven architectural decisions about monolith decomposition.
-
-Example query: "Show me apps where capability SLOs vary by more than one 9 of availability."
-
-*Details to be defined when this slice is prioritized.*
-
-**API Endpoints (Slice 1):**
+**API Endpoints:**
 ```
 POST   /api/v1/capability-realizations/{id}/slos
 GET    /api/v1/capability-realizations/{id}/slos
@@ -62,6 +47,24 @@ PUT    /api/v1/slos/{id}
 PATCH  /api/v1/slos/{id}/maturity
 DELETE /api/v1/slos/{id}
 ```
+
+**HATEOAS Links:**
+- Single SLO response includes:
+  - `self`: link to the SLO
+  - `capability-realization`: link to the parent capability realization
+  - `update`: link to PUT endpoint
+  - `update-maturity`: link to PATCH maturity endpoint
+  - `delete`: link to DELETE endpoint
+- SLO collection response includes:
+  - `self`: link to the collection
+  - `capability-realization`: link to the parent capability realization
+
+**Frontend:**
+- [ ] Add SLO to a capability realization from the UI
+- [ ] Edit SLO properties (type, target, owner)
+- [ ] Change maturity state (dropdown or explicit progression)
+- [ ] Delete SLO
+- [ ] Display SLOs when viewing a capability realization
 
 ---
 
@@ -84,18 +87,22 @@ DELETE /api/v1/slos/{id}
 - CapabilityRealizationID (reference)
 - Type (value object: availability | latency_p99 | error_rate | throughput)
 - TargetValue (structured value object, type-specific):
-  - availability: numeric percentage (e.g., 99.9)
-  - latency_p99: numeric value + unit (e.g., 200, "ms")
-  - error_rate: numeric percentage (e.g., 0.1)
-  - throughput: numeric value + unit (e.g., 1000, "req/s")
-- Owner (value object: string)
+  - availability: percentage, range 0-100 (e.g., 99.9)
+  - latency_p99: positive integer + unit, units: ms | s (e.g., 200, "ms")
+  - error_rate: percentage, range 0-100 (e.g., 0.1)
+  - throughput: positive integer + unit, units: req/s | req/min (e.g., 1000, "req/s")
+- Owner (value object: string, 1-100 characters)
 - MaturityState (value object: proposed | agreed | tracking | active)
 
 **Invariants:**
 - Type must be one of the allowed values
 - Maturity state must be one of the allowed values
-- Target value must be non-empty
-- Owner must be non-empty
+- Target value validation by type:
+  - availability: must be > 0 and <= 100
+  - latency_p99: must be > 0, unit must be "ms" or "s"
+  - error_rate: must be >= 0 and <= 100
+  - throughput: must be > 0, unit must be "req/s" or "req/min"
+- Owner must be 1-100 characters, non-whitespace-only
 
 ---
 
