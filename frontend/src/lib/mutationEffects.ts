@@ -332,4 +332,96 @@ export const mutationEffects = {
       queryKeys.enterpriseCapabilities.maturityGap(enterpriseCapabilityId),
     ],
   },
+
+  views: {
+    create: () => [
+      queryKeys.views.lists(),
+    ],
+
+    delete: (viewId: string) => [
+      queryKeys.views.lists(),
+      queryKeys.views.detail(viewId),
+    ],
+
+    rename: (viewId: string) => [
+      queryKeys.views.lists(),
+      queryKeys.views.detail(viewId),
+    ],
+
+    setDefault: () => [
+      queryKeys.views.lists(),
+    ],
+
+    updateDetail: (viewId: string) => [
+      queryKeys.views.detail(viewId),
+    ],
+  },
+
+  layouts: {
+    upsert: (contextType: string, contextRef: string) => [
+      queryKeys.layouts.detail(contextType, contextRef),
+    ],
+
+    delete: (contextType: string, contextRef: string) => [
+      queryKeys.layouts.detail(contextType, contextRef),
+    ],
+
+    updatePreferences: (contextType: string, contextRef: string) => [
+      queryKeys.layouts.detail(contextType, contextRef),
+    ],
+
+    updateElement: (contextType: string, contextRef: string) => [
+      queryKeys.layouts.detail(contextType, contextRef),
+    ],
+  },
+
+  fitScores: {
+    set: (componentId: string) => [
+      queryKeys.fitScores.byComponent(componentId),
+      queryKeys.strategicFitAnalysis.all,
+    ],
+
+    delete: (componentId: string) => [
+      queryKeys.fitScores.byComponent(componentId),
+      queryKeys.strategicFitAnalysis.all,
+    ],
+  },
+
+  strategyPillars: {
+    batchUpdate: () => [
+      queryKeys.metadata.strategyPillarsConfig(),
+    ],
+  },
+
+  strategyImportance: {
+    set: (domainId: string, capabilityId: string) => [
+      queryKeys.strategyImportance.byDomainAndCapability(domainId, capabilityId),
+      queryKeys.strategyImportance.byDomain(domainId),
+      queryKeys.strategyImportance.byCapability(capabilityId),
+    ],
+
+    update: (domainId: string, capabilityId: string) => [
+      queryKeys.strategyImportance.byDomainAndCapability(domainId, capabilityId),
+      queryKeys.strategyImportance.byDomain(domainId),
+      queryKeys.strategyImportance.byCapability(capabilityId),
+    ],
+
+    remove: (domainId: string, capabilityId: string) => [
+      queryKeys.strategyImportance.byDomainAndCapability(domainId, capabilityId),
+      queryKeys.strategyImportance.byDomain(domainId),
+      queryKeys.strategyImportance.byCapability(capabilityId),
+    ],
+  },
+
+  maturityScale: {
+    update: () => [
+      queryKeys.metadata.maturityScale(),
+      queryKeys.metadata.maturityLevels(),
+    ],
+
+    reset: () => [
+      queryKeys.metadata.maturityScale(),
+      queryKeys.metadata.maturityLevels(),
+    ],
+  },
 } as const;

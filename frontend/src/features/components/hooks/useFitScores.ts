@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fitScoresApi } from '../api';
 import { queryKeys } from '../../../lib/queryClient';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { mutationEffects } from '../../../lib/mutationEffects';
 import type {
   ComponentId,
   CapabilityId,
   BusinessDomainId,
-  ApplicationFitScore,
   SetApplicationFitScoreRequest,
   ApiError,
 } from '../../../api/types';
@@ -53,21 +54,8 @@ export function useSetFitScore() {
       pillarId: string;
       request: SetApplicationFitScoreRequest;
     }) => fitScoresApi.setScore(componentId, pillarId, request),
-    onSuccess: (newScore, { componentId }) => {
-      queryClient.setQueryData<ApplicationFitScore[]>(
-        queryKeys.fitScores.byComponent(componentId),
-        (old) => {
-          if (!old) return [newScore];
-          const index = old.findIndex((s) => s.pillarId === newScore.pillarId);
-          if (index >= 0) {
-            const updated = [...old];
-            updated[index] = newScore;
-            return updated;
-          }
-          return [...old, newScore];
-        }
-      );
-      queryClient.invalidateQueries({ queryKey: queryKeys.strategicFitAnalysis.all });
+    onSuccess: (_, { componentId }) => {
+      invalidateFor(queryClient, mutationEffects.fitScores.set(componentId));
       toast.success('Fit score saved');
     },
     onError: (error: unknown) => {
@@ -87,12 +75,8 @@ export function useDeleteFitScore() {
       componentId: ComponentId;
       pillarId: string;
     }) => fitScoresApi.deleteScore(componentId, pillarId),
-    onSuccess: (_, { componentId, pillarId }) => {
-      queryClient.setQueryData<ApplicationFitScore[]>(
-        queryKeys.fitScores.byComponent(componentId),
-        (old) => old?.filter((s) => s.pillarId !== pillarId) ?? []
-      );
-      queryClient.invalidateQueries({ queryKey: queryKeys.strategicFitAnalysis.all });
+    onSuccess: (_, { componentId }) => {
+      invalidateFor(queryClient, mutationEffects.fitScores.delete(componentId));
       toast.success('Fit score removed');
     },
     onError: (error: unknown) => {

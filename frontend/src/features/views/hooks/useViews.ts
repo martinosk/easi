@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient, QueryClient } from '@tanstack/react-query';
 import { viewsApi } from '../api';
 import { queryKeys } from '../../../lib/queryClient';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { mutationEffects } from '../../../lib/mutationEffects';
 import type {
-  View,
   ViewId,
   CreateViewRequest,
   AddComponentToViewRequest,
@@ -32,7 +33,7 @@ function useViewMutation<TVariables extends { viewId: ViewId }, TData = void>(
   return useMutation({
     mutationFn,
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.views.detail(variables.viewId) });
+      invalidateFor(queryClient, mutationEffects.views.updateDetail(variables.viewId));
     },
     onError: showErrorToast
       ? (error: Error) => {
@@ -71,10 +72,7 @@ export function useCreateView() {
   return useMutation({
     mutationFn: (request: CreateViewRequest) => viewsApi.create(request),
     onSuccess: (newView) => {
-      queryClient.setQueryData<View[]>(
-        queryKeys.views.lists(),
-        (old) => (old ? [...old, newView] : [newView])
-      );
+      invalidateFor(queryClient, mutationEffects.views.create());
       toast.success(`View "${newView.name}" created`);
     },
     onError: (error: Error) => {
@@ -89,13 +87,7 @@ export function useDeleteView() {
   return useMutation({
     mutationFn: (id: ViewId) => viewsApi.delete(id),
     onSuccess: (_, deletedId) => {
-      queryClient.setQueryData<View[]>(
-        queryKeys.views.lists(),
-        (old) => old?.filter((v) => v.id !== deletedId) ?? []
-      );
-      queryClient.removeQueries({
-        queryKey: queryKeys.views.detail(deletedId),
-      });
+      invalidateFor(queryClient, mutationEffects.views.delete(deletedId));
       toast.success('View deleted');
     },
     onError: (error: Error) => {
@@ -110,12 +102,8 @@ export function useRenameView() {
   return useMutation({
     mutationFn: ({ viewId, request }: { viewId: ViewId; request: RenameViewRequest }) =>
       viewsApi.rename(viewId, request),
-    onSuccess: (_, { viewId, request }) => {
-      queryClient.setQueryData<View[]>(
-        queryKeys.views.lists(),
-        (old) => old?.map((v) => (v.id === viewId ? { ...v, name: request.name } : v)) ?? []
-      );
-      queryClient.invalidateQueries({ queryKey: queryKeys.views.detail(viewId) });
+    onSuccess: (_, { viewId }) => {
+      invalidateFor(queryClient, mutationEffects.views.rename(viewId));
       toast.success('View renamed');
     },
     onError: (error: Error) => {
@@ -129,15 +117,8 @@ export function useSetDefaultView() {
 
   return useMutation({
     mutationFn: (viewId: ViewId) => viewsApi.setDefault(viewId),
-    onSuccess: (_, viewId) => {
-      queryClient.setQueryData<View[]>(
-        queryKeys.views.lists(),
-        (old) =>
-          old?.map((v) => ({
-            ...v,
-            isDefault: v.id === viewId,
-          })) ?? []
-      );
+    onSuccess: () => {
+      invalidateFor(queryClient, mutationEffects.views.setDefault());
       toast.success('Default view updated');
     },
     onError: (error: Error) => {

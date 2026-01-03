@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { maturityScaleApi } from '../api/metadata';
 import { queryKeys } from '../lib/queryClient';
+import { invalidateFor } from '../lib/invalidateFor';
+import { mutationEffects } from '../lib/mutationEffects';
 import type { UpdateMaturityScaleRequest } from '../api/types';
 
 export function useMaturityScale() {
@@ -18,9 +20,8 @@ export function useUpdateMaturityScale() {
   return useMutation({
     mutationFn: (request: UpdateMaturityScaleRequest) =>
       maturityScaleApi.updateConfiguration(request),
-    onSuccess: (data) => {
-      queryClient.setQueryData(queryKeys.metadata.maturityScale(), data);
-      queryClient.invalidateQueries({ queryKey: queryKeys.metadata.maturityLevels() });
+    onSuccess: () => {
+      invalidateFor(queryClient, mutationEffects.maturityScale.update());
       toast.success('Maturity scale updated successfully');
     },
     onError: (error: Error) => {
@@ -34,9 +35,8 @@ export function useResetMaturityScale() {
 
   return useMutation({
     mutationFn: () => maturityScaleApi.resetToDefaults(),
-    onSuccess: (data) => {
-      queryClient.setQueryData(queryKeys.metadata.maturityScale(), data);
-      queryClient.invalidateQueries({ queryKey: queryKeys.metadata.maturityLevels() });
+    onSuccess: () => {
+      invalidateFor(queryClient, mutationEffects.maturityScale.reset());
       toast.success('Maturity scale reset to defaults');
     },
     onError: (error: Error) => {

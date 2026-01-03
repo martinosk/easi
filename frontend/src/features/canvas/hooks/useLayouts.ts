@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { layoutsApi } from '../api';
 import { queryKeys } from '../../../lib/queryClient';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { mutationEffects } from '../../../lib/mutationEffects';
 import type {
   LayoutContextType,
-  LayoutContainer,
   UpsertLayoutRequest,
   ElementPositionInput,
   BatchUpdateItem,
@@ -21,9 +22,7 @@ function useLayoutMutationWithInvalidation<TVariables extends LayoutContext>(
   return useMutation({
     mutationFn,
     onSuccess: (_, { contextType, contextRef }) => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.layouts.detail(contextType, contextRef),
-      });
+      invalidateFor(queryClient, mutationEffects.layouts.updateElement(contextType, contextRef));
     },
   });
 }
@@ -49,11 +48,8 @@ export function useUpsertLayout() {
       request,
     }: LayoutContext & { request?: UpsertLayoutRequest }) =>
       layoutsApi.upsert(contextType, contextRef, request),
-    onSuccess: (data, { contextType, contextRef }) => {
-      queryClient.setQueryData(
-        queryKeys.layouts.detail(contextType, contextRef),
-        data
-      );
+    onSuccess: (_, { contextType, contextRef }) => {
+      invalidateFor(queryClient, mutationEffects.layouts.upsert(contextType, contextRef));
     },
   });
 }
@@ -65,9 +61,7 @@ export function useDeleteLayout() {
     mutationFn: ({ contextType, contextRef }: LayoutContext) =>
       layoutsApi.delete(contextType, contextRef),
     onSuccess: (_, { contextType, contextRef }) => {
-      queryClient.removeQueries({
-        queryKey: queryKeys.layouts.detail(contextType, contextRef),
-      });
+      invalidateFor(queryClient, mutationEffects.layouts.delete(contextType, contextRef));
     },
   });
 }
@@ -83,14 +77,8 @@ export function useUpdateLayoutPreferences() {
       version,
     }: LayoutContext & { preferences: Record<string, unknown>; version: number }) =>
       layoutsApi.updatePreferences(contextType, contextRef, preferences, version),
-    onSuccess: (data, { contextType, contextRef }) => {
-      queryClient.setQueryData<LayoutContainer | null>(
-        queryKeys.layouts.detail(contextType, contextRef),
-        (old) =>
-          old
-            ? { ...old, preferences: data.preferences, version: data.version }
-            : null
-      );
+    onSuccess: (_, { contextType, contextRef }) => {
+      invalidateFor(queryClient, mutationEffects.layouts.updatePreferences(contextType, contextRef));
     },
   });
 }
