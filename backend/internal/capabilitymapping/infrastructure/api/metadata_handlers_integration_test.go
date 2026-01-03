@@ -50,8 +50,6 @@ func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	metadataReqBody := UpdateCapabilityMetadataRequest{
-		StrategyPillar: "Transform",
-		PillarWeight:   75,
 		MaturityLevel:  "Custom Build",
 		OwnershipModel: "TribeOwned",
 		PrimaryOwner:   "Platform Tribe - John Doe",
@@ -82,27 +80,24 @@ func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
 		capabilityID,
 	).Scan(&metadataEventData)
 	require.NoError(t, err)
-	assert.Contains(t, metadataEventData, "Transform")
 	assert.Contains(t, metadataEventData, `"maturityValue": 37`)
 	assert.Contains(t, metadataEventData, "TribeOwned")
 
 	time.Sleep(100 * time.Millisecond)
 
-	var strategyPillar, ownershipModel, status string
-	var pillarWeight, maturityValue int
+	var ownershipModel, status string
+	var maturityValue int
 	err = testCtx.db.QueryRow(
-		"SELECT strategy_pillar, pillar_weight, maturity_value, ownership_model, status FROM capabilities WHERE id = $1",
+		"SELECT maturity_value, ownership_model, status FROM capabilities WHERE id = $1",
 		capabilityID,
-	).Scan(&strategyPillar, &pillarWeight, &maturityValue, &ownershipModel, &status)
+	).Scan(&maturityValue, &ownershipModel, &status)
 	require.NoError(t, err)
-	assert.Equal(t, "Transform", strategyPillar)
-	assert.Equal(t, 75, pillarWeight)
 	assert.Equal(t, 37, maturityValue)
 	assert.Equal(t, "TribeOwned", ownershipModel)
 	assert.Equal(t, "Active", status)
 }
 
-func TestUpdateCapabilityMetadata_InvalidPillarWeight_Integration(t *testing.T) {
+func TestUpdateCapabilityMetadata_InvalidMaturityValue_Integration(t *testing.T) {
 	testCtx, cleanup := setupTestDB(t)
 	defer cleanup()
 
@@ -132,9 +127,9 @@ func TestUpdateCapabilityMetadata_InvalidPillarWeight_Integration(t *testing.T) 
 
 	time.Sleep(100 * time.Millisecond)
 
+	invalidValue := 150
 	metadataReqBody := UpdateCapabilityMetadataRequest{
-		PillarWeight:  150,
-		MaturityLevel: "Genesis",
+		MaturityValue: &invalidValue,
 		Status:        "Active",
 	}
 	metadataBody, _ := json.Marshal(metadataReqBody)

@@ -14,7 +14,7 @@ import {
 } from './useViews';
 import { queryKeys } from '../../../lib/queryClient';
 import { buildView } from '../../../test/helpers/entityBuilders';
-import type { View, ViewId, ComponentId } from '../../../api/types';
+import type { ViewId, ComponentId } from '../../../api/types';
 
 vi.mock('../api', () => ({
   viewsApi: {

@@ -17,6 +17,8 @@ import (
 	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/application/projectors"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
+	"easi/backend/internal/capabilitymapping/domain/services"
+	"easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -25,6 +27,7 @@ import (
 	"easi/backend/internal/shared/events"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -112,12 +115,15 @@ func setupHandlers(db *sql.DB) *CapabilityHandlers {
 	eventBus.Subscribe("CapabilityDeleted", projector)
 
 	capabilityRepo := repositories.NewCapabilityRepository(eventStore)
+	childrenChecker := adapters.NewCapabilityChildrenCheckerAdapter(readModel)
+	deletionService := services.NewCapabilityDeletionService(childrenChecker)
+
 	createHandler := handlers.NewCreateCapabilityHandler(capabilityRepo)
 	updateHandler := handlers.NewUpdateCapabilityHandler(capabilityRepo)
 	updateMetadataHandler := handlers.NewUpdateCapabilityMetadataHandler(capabilityRepo)
 	addExpertHandler := handlers.NewAddCapabilityExpertHandler(capabilityRepo)
 	addTagHandler := handlers.NewAddCapabilityTagHandler(capabilityRepo)
-	deleteHandler := handlers.NewDeleteCapabilityHandler(capabilityRepo, readModel)
+	deleteHandler := handlers.NewDeleteCapabilityHandler(capabilityRepo, deletionService)
 
 	commandBus.Register("CreateCapability", createHandler)
 	commandBus.Register("UpdateCapability", updateHandler)
@@ -506,8 +512,8 @@ func TestDeleteCapability_HasChildren_Integration(t *testing.T) {
 
 	handlers := setupHandlers(testCtx.db)
 
-	parentID := fmt.Sprintf("test-parent-%d", time.Now().UnixNano())
-	childID := fmt.Sprintf("test-child-%d", time.Now().UnixNano())
+	parentID := uuid.New().String()
+	childID := uuid.New().String()
 
 	testCtx.createTestCapability(t, parentID, "Parent Capability", "L1")
 

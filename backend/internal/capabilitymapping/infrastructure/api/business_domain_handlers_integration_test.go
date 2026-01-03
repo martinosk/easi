@@ -14,6 +14,8 @@ import (
 	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/application/projectors"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
+	"easi/backend/internal/capabilitymapping/domain/services"
+	"easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -257,11 +259,15 @@ func setupBusinessDomainHandlers(db *sql.DB) *BusinessDomainHandlers {
 
 	domainRepo := repositories.NewBusinessDomainRepository(eventStore)
 	assignmentRepo := repositories.NewBusinessDomainAssignmentRepository(eventStore)
+	capabilityRepo := repositories.NewCapabilityRepository(eventStore)
+
+	assignmentChecker := adapters.NewBusinessDomainAssignmentCheckerAdapter(assignmentRM)
+	deletionService := services.NewBusinessDomainDeletionService(assignmentChecker)
 
 	commandBus.Register("CreateBusinessDomain", handlers.NewCreateBusinessDomainHandler(domainRepo, domainRM))
 	commandBus.Register("UpdateBusinessDomain", handlers.NewUpdateBusinessDomainHandler(domainRepo, domainRM))
-	commandBus.Register("DeleteBusinessDomain", handlers.NewDeleteBusinessDomainHandler(domainRepo, assignmentRM))
-	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(assignmentRepo, domainRM, capabilityRM, assignmentRM))
+	commandBus.Register("DeleteBusinessDomain", handlers.NewDeleteBusinessDomainHandler(domainRepo, deletionService))
+	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(assignmentRepo, capabilityRepo, domainRM, assignmentRM))
 	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(assignmentRepo))
 
 	realizationRM := readmodels.NewRealizationReadModel(tenantDB)

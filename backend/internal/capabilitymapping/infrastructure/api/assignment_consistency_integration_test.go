@@ -86,7 +86,7 @@ func setupAssignmentConsistencyTestDB(t *testing.T) (*assignmentConsistencyTestC
 	commandBus.Register("CreateCapability", handlers.NewCreateCapabilityHandler(capabilityRepo))
 	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(capabilityRepo, capabilityRM))
 	commandBus.Register("CreateBusinessDomain", handlers.NewCreateBusinessDomainHandler(domainRepo, domainRM))
-	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(assignmentRepo, domainRM, capabilityRM, assignmentRM))
+	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(assignmentRepo, capabilityRepo, domainRM, assignmentRM))
 	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(assignmentRepo))
 
 	onCapabilityParentChangedHandler := handlers.NewOnCapabilityParentChangedHandler(commandBus, assignmentRM, capabilityRM)
@@ -153,7 +153,8 @@ func (ctx *assignmentConsistencyTestContext) setupParentChangeHandlers() cqrs.Co
 
 	commandBus := cqrs.NewInMemoryCommandBus()
 	assignmentRepo := repositories.NewBusinessDomainAssignmentRepository(eventStore)
-	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(assignmentRepo, ctx.domainRM, ctx.capabilityRM, ctx.assignmentRM))
+	capabilityRepoNew := repositories.NewCapabilityRepository(eventStore)
+	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(assignmentRepo, capabilityRepoNew, ctx.domainRM, ctx.assignmentRM))
 	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(assignmentRepo))
 
 	onParentChangedHandler := handlers.NewOnCapabilityParentChangedHandler(commandBus, ctx.assignmentRM, ctx.capabilityRM)
