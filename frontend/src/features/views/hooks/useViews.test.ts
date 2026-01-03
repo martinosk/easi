@@ -140,12 +140,11 @@ describe('useViews hooks', () => {
   });
 
   describe('useCreateView', () => {
-    it('should create a view and update cache', async () => {
-      const existingViews = [buildView({ id: 'view-1' as ViewId, name: 'Existing' })];
+    it('should create a view and invalidate cache', async () => {
       const newView = buildView({ id: 'view-2' as ViewId, name: 'New View' });
 
-      queryClient.setQueryData(queryKeys.views.lists(), existingViews);
       vi.mocked(viewsApi.create).mockResolvedValue(newView);
+      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const { result } = renderHook(() => useCreateView(), {
         wrapper: createWrapper(queryClient),
@@ -163,9 +162,9 @@ describe('useViews hooks', () => {
         description: 'Test description',
       });
 
-      const cachedViews = queryClient.getQueryData<View[]>(queryKeys.views.lists());
-      expect(cachedViews).toHaveLength(2);
-      expect(cachedViews?.[1]).toEqual(newView);
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.views.lists(),
+      });
       expect(toast.success).toHaveBeenCalledWith('View "New View" created');
     });
 
@@ -190,14 +189,9 @@ describe('useViews hooks', () => {
   });
 
   describe('useDeleteView', () => {
-    it('should delete view and remove from cache', async () => {
-      const view = buildView({ id: 'view-1' as ViewId, name: 'To Delete' });
-
-      queryClient.setQueryData(queryKeys.views.lists(), [view]);
-      queryClient.setQueryData(queryKeys.views.detail('view-1'), view);
+    it('should delete view and invalidate cache', async () => {
       vi.mocked(viewsApi.delete).mockResolvedValue(undefined);
-
-      const removeQueriesSpy = vi.spyOn(queryClient, 'removeQueries');
+      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const { result } = renderHook(() => useDeleteView(), {
         wrapper: createWrapper(queryClient),
@@ -207,10 +201,10 @@ describe('useViews hooks', () => {
         await result.current.mutateAsync('view-1' as ViewId);
       });
 
-      const cachedViews = queryClient.getQueryData<View[]>(queryKeys.views.lists());
-      expect(cachedViews).toHaveLength(0);
-
-      expect(removeQueriesSpy).toHaveBeenCalledWith({
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.views.lists(),
+      });
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
         queryKey: queryKeys.views.detail('view-1'),
       });
 
@@ -219,12 +213,8 @@ describe('useViews hooks', () => {
   });
 
   describe('useRenameView', () => {
-    it('should rename view and update cache', async () => {
-      const view = buildView({ id: 'view-1' as ViewId, name: 'Original Name' });
-
-      queryClient.setQueryData(queryKeys.views.lists(), [view]);
+    it('should rename view and invalidate cache', async () => {
       vi.mocked(viewsApi.rename).mockResolvedValue(undefined);
-
       const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const { result } = renderHook(() => useRenameView(), {
@@ -238,9 +228,9 @@ describe('useViews hooks', () => {
         });
       });
 
-      const cachedViews = queryClient.getQueryData<View[]>(queryKeys.views.lists());
-      expect(cachedViews?.[0].name).toBe('New Name');
-
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.views.lists(),
+      });
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
         queryKey: queryKeys.views.detail('view-1'),
       });
@@ -250,14 +240,9 @@ describe('useViews hooks', () => {
   });
 
   describe('useSetDefaultView', () => {
-    it('should set default view and update all views in cache', async () => {
-      const views = [
-        buildView({ id: 'view-1' as ViewId, name: 'View 1', isDefault: true }),
-        buildView({ id: 'view-2' as ViewId, name: 'View 2', isDefault: false }),
-      ];
-
-      queryClient.setQueryData(queryKeys.views.lists(), views);
+    it('should set default view and invalidate cache', async () => {
       vi.mocked(viewsApi.setDefault).mockResolvedValue(undefined);
+      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const { result } = renderHook(() => useSetDefaultView(), {
         wrapper: createWrapper(queryClient),
@@ -267,9 +252,9 @@ describe('useViews hooks', () => {
         await result.current.mutateAsync('view-2' as ViewId);
       });
 
-      const cachedViews = queryClient.getQueryData<View[]>(queryKeys.views.lists());
-      expect(cachedViews?.[0].isDefault).toBe(false);
-      expect(cachedViews?.[1].isDefault).toBe(true);
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.views.lists(),
+      });
 
       expect(toast.success).toHaveBeenCalledWith('Default view updated');
     });
