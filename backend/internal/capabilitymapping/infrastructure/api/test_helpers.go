@@ -27,6 +27,7 @@ func getEnv(key, defaultValue string) string {
 
 func withTestTenant(req *http.Request) *http.Request {
 	ctx := sharedcontext.WithTenant(req.Context(), sharedvo.DefaultTenantID())
+	ctx = sharedcontext.WithActor(ctx, sharedcontext.Actor{ID: "test-user-id", Email: "test@example.com"})
 	return req.WithContext(ctx)
 }
 
@@ -35,7 +36,9 @@ func testTenantID() string {
 }
 
 func tenantContext() context.Context {
-	return sharedcontext.WithTenant(context.Background(), sharedvo.DefaultTenantID())
+	ctx := sharedcontext.WithTenant(context.Background(), sharedvo.DefaultTenantID())
+	ctx = sharedcontext.WithActor(ctx, sharedcontext.Actor{ID: "test-user-id", Email: "test@example.com"})
+	return ctx
 }
 
 func makeRequest(t *testing.T, method, url string, body []byte, urlParams map[string]string) (*httptest.ResponseRecorder, *http.Request) {

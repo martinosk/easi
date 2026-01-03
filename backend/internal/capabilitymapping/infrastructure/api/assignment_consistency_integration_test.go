@@ -232,8 +232,8 @@ func (ctx *assignmentConsistencyTestContext) createCapabilityWithEvents(t *testi
 	eventData := fmt.Sprintf(`{"id":"%s","name":"%s","description":"","level":"%s"%s,"createdAt":"%s"}`,
 		id, name, level, parentIDJSON, time.Now().Format(time.RFC3339Nano))
 	_, err = ctx.db.Exec(
-		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5, NOW())",
-		testTenantID(), id, "CapabilityCreated", eventData, 1,
+		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7)",
+		testTenantID(), id, "CapabilityCreated", eventData, 1, "test-user-id", "test@example.com",
 	)
 	require.NoError(t, err)
 
@@ -311,8 +311,8 @@ func (ctx *assignmentConsistencyTestContext) assignCapabilityToDomainWithEvents(
 	eventData := fmt.Sprintf(`{"id":"%s","businessDomainId":"%s","capabilityId":"%s","assignedAt":"%s"}`,
 		assignmentID, domainID, capabilityID, time.Now().Format(time.RFC3339Nano))
 	_, err = ctx.db.Exec(
-		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5, NOW())",
-		testTenantID(), assignmentID, "CapabilityAssignedToDomain", eventData, 1,
+		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7)",
+		testTenantID(), assignmentID, "CapabilityAssignedToDomain", eventData, 1, "test-user-id", "test@example.com",
 	)
 	require.NoError(t, err)
 
