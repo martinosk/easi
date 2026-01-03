@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { DomainForm } from '../components/DomainForm';
 import { CapabilityAssociationManager } from '../components/CapabilityAssociationManager';
+import { AuditHistorySection } from '../../audit';
 import { apiClient } from '../../../api/client';
 import { ROUTES } from '../../../routes/routes';
 import type { BusinessDomain, BusinessDomainId } from '../../../api/types';
@@ -134,6 +135,8 @@ export function DomainDetailPage({ domainId }: DomainDetailPageProps) {
       <div className="domain-capabilities-section">
         <CapabilityAssociationManager domainId={domain.id} />
       </div>
+
+      <AuditHistorySection aggregateId={domain.id} />
     </div>
   );
 }

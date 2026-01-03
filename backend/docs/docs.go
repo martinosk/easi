@@ -24,6 +24,77 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/audit/{aggregateId}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Retrieves paginated audit history entries for a specific aggregate by ID. Returns all events that have occurred on the aggregate, including event type, data, timestamp, version, and actor information. Requires audit:read permission (Admin, Architect, or Stakeholder role).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "summary": "Get audit history for an aggregate",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Aggregate ID (UUID)",
+                        "name": "aggregateId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Number of items per page (default: 50, max: 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Opaque cursor token for pagination",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_shared_audit.AuditHistoryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing or invalid aggregateId",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient permissions - requires audit:read",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/callback": {
             "get": {
                 "description": "Handles the OIDC callback after user authentication, exchanges the authorization code for tokens, and creates an authenticated session",
@@ -1150,41 +1221,6 @@ const docTemplate = `{
                                             "type": "array",
                                             "items": {
                                                 "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.StatusDTO"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/capabilities/metadata/strategy-pillars": {
-            "get": {
-                "description": "Returns strategic alignment categories (AlwaysOn, Grow, Transform)",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "capabilities"
-                ],
-                "summary": "Get valid strategy pillars",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.StrategyPillarDTO"
                                             }
                                         }
                                     }
@@ -6906,16 +6942,10 @@ const docTemplate = `{
                 "parentId": {
                     "type": "string"
                 },
-                "pillarWeight": {
-                    "type": "integer"
-                },
                 "primaryOwner": {
                     "type": "string"
                 },
                 "status": {
-                    "type": "string"
-                },
-                "strategyPillar": {
                     "type": "string"
                 },
                 "tags": {
@@ -8498,19 +8528,6 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_capabilitymapping_infrastructure_api.StrategyPillarDTO": {
-            "type": "object",
-            "properties": {
-                "displayName": {
-                    "type": "string",
-                    "example": "Always On"
-                },
-                "value": {
-                    "type": "string",
-                    "example": "AlwaysOn"
-                }
-            }
-        },
         "internal_capabilitymapping_infrastructure_api.UpdateBusinessDomainRequest": {
             "type": "object",
             "properties": {
@@ -8537,16 +8554,10 @@ const docTemplate = `{
                 "ownershipModel": {
                     "type": "string"
                 },
-                "pillarWeight": {
-                    "type": "integer"
-                },
                 "primaryOwner": {
                     "type": "string"
                 },
                 "status": {
-                    "type": "string"
-                },
-                "strategyPillar": {
                     "type": "string"
                 }
             }
@@ -8972,6 +8983,70 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_shared_audit.AuditEntry": {
+            "type": "object",
+            "properties": {
+                "actorEmail": {
+                    "type": "string"
+                },
+                "actorId": {
+                    "type": "string"
+                },
+                "actorName": {
+                    "type": "string"
+                },
+                "aggregateId": {
+                    "type": "string"
+                },
+                "eventData": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "eventId": {
+                    "type": "integer"
+                },
+                "eventType": {
+                    "type": "string"
+                },
+                "occurredAt": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_shared_audit.AuditHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_shared_audit.AuditEntry"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/internal_shared_audit.PaginationInfo"
+                }
+            }
+        },
+        "internal_shared_audit.PaginationInfo": {
+            "type": "object",
+            "properties": {
+                "hasMore": {
+                    "type": "boolean"
+                },
+                "nextCursor": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_viewlayouts_infrastructure_api.BatchUpdateItem": {
             "type": "object",
             "properties": {
@@ -9178,6 +9253,14 @@ const docTemplate = `{
                     "additionalProperties": true
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "description": "Session-based authentication using httpOnly cookies. Obtain session via /auth/sessions endpoint.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`

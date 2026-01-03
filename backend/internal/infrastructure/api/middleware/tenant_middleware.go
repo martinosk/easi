@@ -21,17 +21,34 @@ func TenantMiddleware() func(http.Handler) http.Handler {
 }
 
 // TenantMiddlewareWithSession creates tenant middleware with session support for production mode
+// Also injects actor context for audit trail when authenticated
 func TenantMiddlewareWithSession(sessionManager *session.SessionManager) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			tenantID, err := extractTenantFromRequest(r, sessionManager)
-			if err != nil {
-				handleTenantError(w, err)
-				return
+			ctx := r.Context()
+
+			if config.IsAuthBypassed() {
+				tenantID, err := extractTenantFromHeader(r)
+				if err != nil {
+					handleTenantError(w, err)
+					return
+				}
+				ctx = sharedctx.WithTenant(ctx, tenantID)
+				logTenantContext(r, tenantID)
+			} else {
+				info, err := extractSessionInfo(r, sessionManager)
+				if err != nil {
+					handleTenantError(w, err)
+					return
+				}
+				ctx = sharedctx.WithTenant(ctx, info.tenantID)
+				ctx = sharedctx.WithActor(ctx, sharedctx.Actor{
+					ID:    info.userID,
+					Email: info.userEmail,
+				})
+				logTenantContext(r, info.tenantID)
 			}
 
-			ctx := sharedctx.WithTenant(r.Context(), tenantID)
-			logTenantContext(r, tenantID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -43,13 +60,6 @@ type tenantError struct {
 }
 
 func (e tenantError) Error() string { return e.message }
-
-func extractTenantFromRequest(r *http.Request, sessionManager *session.SessionManager) (sharedvo.TenantID, error) {
-	if config.IsAuthBypassed() {
-		return extractTenantFromHeader(r)
-	}
-	return extractTenantFromSession(r, sessionManager)
-}
 
 func extractTenantFromHeader(r *http.Request) (sharedvo.TenantID, error) {
 	tenantIDStr := r.Header.Get("X-Tenant-ID")
@@ -68,24 +78,34 @@ func extractTenantFromHeader(r *http.Request) (sharedvo.TenantID, error) {
 	return tenantID, nil
 }
 
-func extractTenantFromSession(r *http.Request, sessionManager *session.SessionManager) (sharedvo.TenantID, error) {
+type sessionInfo struct {
+	tenantID  sharedvo.TenantID
+	userID    string
+	userEmail string
+}
+
+func extractSessionInfo(r *http.Request, sessionManager *session.SessionManager) (sessionInfo, error) {
 	if sessionManager == nil {
-		return sharedvo.TenantID{}, tenantError{"Authentication required", http.StatusUnauthorized}
+		return sessionInfo{}, tenantError{"Authentication required", http.StatusUnauthorized}
 	}
 
 	authSession, err := sessionManager.LoadAuthenticatedSession(r.Context())
 	if err != nil {
-		return sharedvo.TenantID{}, tenantError{"Authentication required", http.StatusUnauthorized}
+		return sessionInfo{}, tenantError{"Authentication required", http.StatusUnauthorized}
 	}
 
 	tenantID, err := sharedvo.NewTenantID(authSession.TenantID())
 	if err != nil {
 		log.Printf("Invalid tenant ID in session: %v", err)
-		return sharedvo.TenantID{}, tenantError{"Invalid session", http.StatusUnauthorized}
+		return sessionInfo{}, tenantError{"Invalid session", http.StatusUnauthorized}
 	}
 
 	log.Printf("AUTH_MODE=%s: Using tenant '%s' from session", config.GetAuthMode(), tenantID.Value())
-	return tenantID, nil
+	return sessionInfo{
+		tenantID:  tenantID,
+		userID:    authSession.UserID().String(),
+		userEmail: authSession.UserEmail(),
+	}, nil
 }
 
 func handleTenantError(w http.ResponseWriter, err error) {

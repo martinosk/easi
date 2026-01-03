@@ -12,6 +12,63 @@ import { queryKeys } from './queryClient';
  * ```
  */
 export const mutationEffects = {
+  components: {
+    /**
+     * Invalidates queries after creating a component.
+     */
+    create: () => [
+      queryKeys.components.lists(),
+    ],
+
+    /**
+     * Invalidates queries after updating a component.
+     * @param componentId - The updated component's ID
+     */
+    update: (componentId: string) => [
+      queryKeys.components.lists(),
+      queryKeys.components.detail(componentId),
+      queryKeys.businessDomains.all,
+      queryKeys.audit.history(componentId),
+    ],
+
+    /**
+     * Invalidates queries after deleting a component.
+     * @param componentId - The deleted component's ID
+     */
+    delete: (componentId: string) => [
+      queryKeys.components.lists(),
+      queryKeys.components.detail(componentId),
+    ],
+  },
+
+  relations: {
+    /**
+     * Invalidates queries after creating a relation.
+     */
+    create: () => [
+      queryKeys.relations.lists(),
+    ],
+
+    /**
+     * Invalidates queries after updating a relation.
+     * @param relationId - The updated relation's ID
+     */
+    update: (relationId: string) => [
+      queryKeys.relations.lists(),
+      queryKeys.relations.detail(relationId),
+      queryKeys.audit.history(relationId),
+    ],
+
+    /**
+     * Invalidates queries after deleting a relation.
+     * @param relationId - The deleted relation's ID
+     */
+    delete: (relationId: string) => [
+      queryKeys.relations.lists(),
+      queryKeys.relations.detail(relationId),
+    ],
+  },
+
   capabilities: {
     /**
      * Invalidates queries after creating a capability.
@@ -34,6 +91,7 @@ export const mutationEffects = {
     update: (capabilityId: string) => [
       queryKeys.capabilities.lists(),
       queryKeys.capabilities.detail(capabilityId),
+      queryKeys.audit.history(capabilityId),
     ],
 
     /**
@@ -86,6 +144,7 @@ export const mutationEffects = {
       ...(context.oldParentId ? [queryKeys.capabilities.children(context.oldParentId)] : []),
       ...(context.newParentId ? [queryKeys.capabilities.children(context.newParentId)] : []),
       queryKeys.capabilities.lists(),
+      queryKeys.audit.history(context.id),
     ],
 
     /**
@@ -150,6 +209,7 @@ export const mutationEffects = {
     addExpert: (capabilityId: string) => [
       queryKeys.capabilities.detail(capabilityId),
       queryKeys.capabilities.lists(),
+      queryKeys.audit.history(capabilityId),
     ],
 
     /**
@@ -159,6 +219,7 @@ export const mutationEffects = {
     addTag: (capabilityId: string) => [
       queryKeys.capabilities.detail(capabilityId),
       queryKeys.capabilities.lists(),
+      queryKeys.audit.history(capabilityId),
     ],
   },
 
@@ -187,6 +248,7 @@ export const mutationEffects = {
     update: (domainId: string) => [
       queryKeys.businessDomains.lists(),
       queryKeys.businessDomains.detail(domainId),
+      queryKeys.audit.history(domainId),
     ],
 
     /**

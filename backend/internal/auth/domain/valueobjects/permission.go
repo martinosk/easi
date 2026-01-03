@@ -33,7 +33,10 @@ var (
 
 	PermInvitationsManage = Permission{value: "invitations:manage"}
 
+	PermMetaModelRead  = Permission{value: "metamodel:read"}
 	PermMetaModelWrite = Permission{value: "metamodel:write"}
+
+	PermAuditRead = Permission{value: "audit:read"}
 
 	PermEnterpriseArchRead   = Permission{value: "enterprise-arch:read"}
 	PermEnterpriseArchWrite  = Permission{value: "enterprise-arch:write"}
@@ -56,7 +59,9 @@ var validPermissions = map[string]Permission{
 	"users:read":             PermUsersRead,
 	"users:manage":           PermUsersManage,
 	"invitations:manage":     PermInvitationsManage,
+	"metamodel:read":         PermMetaModelRead,
 	"metamodel:write":        PermMetaModelWrite,
+	"audit:read":             PermAuditRead,
 	"enterprise-arch:read":   PermEnterpriseArchRead,
 	"enterprise-arch:write":  PermEnterpriseArchWrite,
 	"enterprise-arch:delete": PermEnterpriseArchDelete,

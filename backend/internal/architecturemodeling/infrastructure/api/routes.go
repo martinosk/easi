@@ -1,10 +1,13 @@
 package api
 
 import (
+	"net/http"
+
 	"easi/backend/internal/architecturemodeling/application/handlers"
 	"easi/backend/internal/architecturemodeling/application/projectors"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
+	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -14,6 +17,10 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+type AuthMiddleware interface {
+	RequirePermission(permission authValueObjects.Permission) func(http.Handler) http.Handler
+}
+
 // SetupArchitectureModelingRoutes initializes and registers architecture modeling routes
 func SetupArchitectureModelingRoutes(
 	r chi.Router,
@@ -22,6 +29,7 @@ func SetupArchitectureModelingRoutes(
 	eventBus events.EventBus,
 	db *database.TenantAwareDB,
 	hateoas *sharedAPI.HATEOASLinks,
+	authMiddleware AuthMiddleware,
 ) error {
 	// Initialize repositories
 	componentRepo := repositories.NewApplicationComponentRepository(eventStore)
@@ -65,22 +73,40 @@ func SetupArchitectureModelingRoutes(
 
 	// Register component routes
 	r.Route("/components", func(r chi.Router) {
-		r.Post("/", componentHandlers.CreateApplicationComponent)
-		r.Get("/", componentHandlers.GetAllComponents)
-		r.Get("/{id}", componentHandlers.GetComponentByID)
-		r.Put("/{id}", componentHandlers.UpdateApplicationComponent)
-		r.Delete("/{id}", componentHandlers.DeleteApplicationComponent)
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsRead))
+			r.Get("/", componentHandlers.GetAllComponents)
+			r.Get("/{id}", componentHandlers.GetComponentByID)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsWrite))
+			r.Post("/", componentHandlers.CreateApplicationComponent)
+			r.Put("/{id}", componentHandlers.UpdateApplicationComponent)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsDelete))
+			r.Delete("/{id}", componentHandlers.DeleteApplicationComponent)
+		})
 	})
 
 	// Register relation routes
 	r.Route("/relations", func(r chi.Router) {
-		r.Post("/", relationHandlers.CreateComponentRelation)
-		r.Get("/", relationHandlers.GetAllRelations)
-		r.Get("/{id}", relationHandlers.GetRelationByID)
-		r.Put("/{id}", relationHandlers.UpdateComponentRelation)
-		r.Delete("/{id}", relationHandlers.DeleteComponentRelation)
-		r.Get("/from/{componentId}", relationHandlers.GetRelationsFromComponent)
-		r.Get("/to/{componentId}", relationHandlers.GetRelationsToComponent)
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsRead))
+			r.Get("/", relationHandlers.GetAllRelations)
+			r.Get("/{id}", relationHandlers.GetRelationByID)
+			r.Get("/from/{componentId}", relationHandlers.GetRelationsFromComponent)
+			r.Get("/to/{componentId}", relationHandlers.GetRelationsToComponent)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsWrite))
+			r.Post("/", relationHandlers.CreateComponentRelation)
+			r.Put("/{id}", relationHandlers.UpdateComponentRelation)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsDelete))
+			r.Delete("/{id}", relationHandlers.DeleteComponentRelation)
+		})
 	})
 
 	return nil

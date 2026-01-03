@@ -11,7 +11,7 @@ import {
 } from './useComponents';
 import { queryKeys } from '../../../lib/queryClient';
 import { buildComponent } from '../../../test/helpers/entityBuilders';
-import type { Component, ComponentId } from '../../../api/types';
+import type { ComponentId } from '../../../api/types';
 
 vi.mock('../api', () => ({
   componentsApi: {
@@ -125,17 +125,14 @@ describe('useComponents hooks', () => {
   });
 
   describe('useCreateComponent', () => {
-    it('should create a component and update cache', async () => {
-      const existingComponents = [
-        buildComponent({ id: 'comp-1' as ComponentId, name: 'Existing' }),
-      ];
+    it('should create a component and invalidate cache', async () => {
       const newComponent = buildComponent({
         id: 'comp-2' as ComponentId,
         name: 'New Component',
       });
 
-      queryClient.setQueryData(queryKeys.components.lists(), existingComponents);
       vi.mocked(componentsApi.create).mockResolvedValue(newComponent);
+      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const { result } = renderHook(() => useCreateComponent(), {
         wrapper: createWrapper(queryClient),
@@ -153,11 +150,9 @@ describe('useComponents hooks', () => {
         description: 'Test description',
       });
 
-      const cachedComponents = queryClient.getQueryData<Component[]>(
-        queryKeys.components.lists()
-      );
-      expect(cachedComponents).toHaveLength(2);
-      expect(cachedComponents?.[1]).toEqual(newComponent);
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.components.lists(),
+      });
       expect(toast.success).toHaveBeenCalledWith('Component "New Component" created');
     });
 
@@ -178,29 +173,6 @@ describe('useComponents hooks', () => {
       });
 
       expect(toast.error).toHaveBeenCalledWith('Component name already exists');
-    });
-
-    it('should handle cache when no existing data', async () => {
-      const newComponent = buildComponent({
-        id: 'comp-1' as ComponentId,
-        name: 'First Component',
-      });
-
-      vi.mocked(componentsApi.create).mockResolvedValue(newComponent);
-
-      const { result } = renderHook(() => useCreateComponent(), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      await act(async () => {
-        await result.current.mutateAsync({ name: 'First Component' });
-      });
-
-      const cachedComponents = queryClient.getQueryData<Component[]>(
-        queryKeys.components.lists()
-      );
-      expect(cachedComponents).toHaveLength(1);
-      expect(cachedComponents?.[0]).toEqual(newComponent);
     });
   });
 
@@ -266,7 +238,7 @@ describe('useComponents hooks', () => {
   });
 
   describe('useDeleteComponent', () => {
-    it('should delete component and remove from cache', async () => {
+    it('should delete component and invalidate cache', async () => {
       const component = buildComponent({
         id: 'comp-1' as ComponentId,
         name: 'To Delete',
@@ -276,7 +248,7 @@ describe('useComponents hooks', () => {
       queryClient.setQueryData(queryKeys.components.detail('comp-1'), component);
       vi.mocked(componentsApi.delete).mockResolvedValue(undefined);
 
-      const removeQueriesSpy = vi.spyOn(queryClient, 'removeQueries');
+      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const { result } = renderHook(() => useDeleteComponent(), {
         wrapper: createWrapper(queryClient),
@@ -286,12 +258,10 @@ describe('useComponents hooks', () => {
         await result.current.mutateAsync('comp-1' as ComponentId);
       });
 
-      const cachedComponents = queryClient.getQueryData<Component[]>(
-        queryKeys.components.lists()
-      );
-      expect(cachedComponents).toHaveLength(0);
-
-      expect(removeQueriesSpy).toHaveBeenCalledWith({
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.components.lists(),
+      });
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
         queryKey: queryKeys.components.detail('comp-1'),
       });
 

@@ -75,17 +75,18 @@ func SetupMetaModelRoutes(deps MetaModelRoutesDeps) error {
 	strategyPillarsHandlers := NewStrategyPillarsHandlers(deps.CommandBus, configReadModel, deps.Hateoas, deps.SessionManager)
 
 	deps.Router.Route("/meta-model", func(r chi.Router) {
-		r.Get("/maturity-scale", metaModelHandlers.GetMaturityScale)
-		r.Get("/configurations/{id}", metaModelHandlers.GetMaturityScaleByID)
-
-		r.Get("/strategy-pillars", strategyPillarsHandlers.GetStrategyPillars)
-		r.Get("/strategy-pillars/{id}", strategyPillarsHandlers.GetStrategyPillarByID)
+		r.Group(func(r chi.Router) {
+			r.Use(deps.AuthMiddleware.RequirePermission(authValueObjects.PermMetaModelRead))
+			r.Get("/maturity-scale", metaModelHandlers.GetMaturityScale)
+			r.Get("/configurations/{id}", metaModelHandlers.GetMaturityScaleByID)
+			r.Get("/strategy-pillars", strategyPillarsHandlers.GetStrategyPillars)
+			r.Get("/strategy-pillars/{id}", strategyPillarsHandlers.GetStrategyPillarByID)
+		})
 
 		r.Group(func(r chi.Router) {
 			r.Use(deps.AuthMiddleware.RequirePermission(authValueObjects.PermMetaModelWrite))
 			r.Put("/maturity-scale", metaModelHandlers.UpdateMaturityScale)
 			r.Post("/maturity-scale/reset", metaModelHandlers.ResetMaturityScale)
-
 			r.Patch("/strategy-pillars", strategyPillarsHandlers.BatchUpdateStrategyPillars)
 			r.Post("/strategy-pillars", strategyPillarsHandlers.CreateStrategyPillar)
 			r.Put("/strategy-pillars/{id}", strategyPillarsHandlers.UpdateStrategyPillar)

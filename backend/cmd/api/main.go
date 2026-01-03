@@ -30,6 +30,10 @@ import (
 
 // @schemes http https
 // @BasePath /api/v1
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
+// @description Session-based authentication using httpOnly cookies. Obtain session via /auth/sessions endpoint.
 func main() {
 	if err := run(); err != nil {
 		log.Fatalf("Application error: %v", err)

@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { componentsApi } from '../api';
 import { queryKeys } from '../../../lib/queryClient';
-import type { Component, ComponentId, CreateComponentRequest } from '../../../api/types';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { mutationEffects } from '../../../lib/mutationEffects';
+import type { ComponentId, CreateComponentRequest } from '../../../api/types';
 import toast from 'react-hot-toast';
 
 export function useComponents() {
@@ -25,10 +27,7 @@ export function useCreateComponent() {
   return useMutation({
     mutationFn: (request: CreateComponentRequest) => componentsApi.create(request),
     onSuccess: (newComponent) => {
-      queryClient.setQueryData<Component[]>(queryKeys.components.lists(), (old) => {
-        const updated = old ? [...old, newComponent] : [newComponent];
-        return updated.sort((a, b) => a.name.localeCompare(b.name));
-      });
+      invalidateFor(queryClient, mutationEffects.components.create());
       toast.success(`Component "${newComponent.name}" created`);
     },
     onError: (error: Error) => {
@@ -44,9 +43,7 @@ export function useUpdateComponent() {
     mutationFn: ({ id, request }: { id: ComponentId; request: CreateComponentRequest }) =>
       componentsApi.update(id, request),
     onSuccess: (updatedComponent) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.components.lists() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.components.detail(updatedComponent.id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.businessDomains.all });
+      invalidateFor(queryClient, mutationEffects.components.update(updatedComponent.id));
       toast.success(`Component "${updatedComponent.name}" updated`);
     },
     onError: (error: Error) => {
@@ -61,13 +58,7 @@ export function useDeleteComponent() {
   return useMutation({
     mutationFn: (id: ComponentId) => componentsApi.delete(id),
     onSuccess: (_, deletedId) => {
-      queryClient.setQueryData<Component[]>(
-        queryKeys.components.lists(),
-        (old) => old?.filter((c) => c.id !== deletedId) ?? []
-      );
-      queryClient.removeQueries({
-        queryKey: queryKeys.components.detail(deletedId),
-      });
+      invalidateFor(queryClient, mutationEffects.components.delete(deletedId));
       toast.success('Component deleted');
     },
     onError: (error: Error) => {

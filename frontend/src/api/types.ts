@@ -604,3 +604,26 @@ export interface StrategicFitAnalysis {
   aligned: RealizationFit[];
   _links: HATEOASLinks;
 }
+
+export interface AuditEntry {
+  eventId: number;
+  aggregateId: string;
+  eventType: string;
+  displayName: string;
+  eventData: Record<string, unknown>;
+  occurredAt: string;
+  version: number;
+  actorId: string;
+  actorEmail: string;
+}
+
+export interface AuditPaginationInfo {
+  hasMore: boolean;
+  nextCursor?: string;
+}
+
+export interface AuditHistoryResponse {
+  entries: AuditEntry[];
+  pagination?: AuditPaginationInfo;
+  _links: HATEOASLinks;
+}

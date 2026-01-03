@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAppStore } from '../../../store/appStore';
+import { AuditHistorySection } from '../../audit';
 import { useRelations } from '../hooks/useRelations';
 import { useComponents } from '../../components/hooks/useComponents';
 import type { Relation, Component } from '../../../api/types';
@@ -122,6 +123,8 @@ export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
             </a>
           </div>
         )}
+
+        <AuditHistorySection aggregateId={relation.id} />
       </div>
     </div>
   );

@@ -11,7 +11,7 @@ import {
 } from './useRelations';
 import { queryKeys } from '../../../lib/queryClient';
 import { buildRelation } from '../../../test/helpers/entityBuilders';
-import type { Relation, RelationId, ComponentId } from '../../../api/types';
+import type { RelationId, ComponentId } from '../../../api/types';
 
 vi.mock('../api', () => ({
   relationsApi: {
@@ -133,10 +133,7 @@ describe('useRelations hooks', () => {
   });
 
   describe('useCreateRelation', () => {
-    it('should create a relation and update cache', async () => {
-      const existingRelations = [
-        buildRelation({ id: 'rel-1' as RelationId }),
-      ];
+    it('should create a relation and invalidate cache', async () => {
       const newRelation = buildRelation({
         id: 'rel-2' as RelationId,
         sourceComponentId: 'comp-a' as ComponentId,
@@ -145,8 +142,8 @@ describe('useRelations hooks', () => {
         name: 'New Relation',
       });
 
-      queryClient.setQueryData(queryKeys.relations.lists(), existingRelations);
       vi.mocked(relationsApi.create).mockResolvedValue(newRelation);
+      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const { result } = renderHook(() => useCreateRelation(), {
         wrapper: createWrapper(queryClient),
@@ -168,11 +165,9 @@ describe('useRelations hooks', () => {
         name: 'New Relation',
       });
 
-      const cachedRelations = queryClient.getQueryData<Relation[]>(
-        queryKeys.relations.lists()
-      );
-      expect(cachedRelations).toHaveLength(2);
-      expect(cachedRelations?.[1]).toEqual(newRelation);
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.relations.lists(),
+      });
       expect(toast.success).toHaveBeenCalledWith('Relation created');
     });
 
@@ -198,51 +193,18 @@ describe('useRelations hooks', () => {
 
       expect(toast.error).toHaveBeenCalledWith('Source and target must be different');
     });
-
-    it('should handle cache when no existing data', async () => {
-      const newRelation = buildRelation({
-        id: 'rel-1' as RelationId,
-        name: 'First Relation',
-      });
-
-      vi.mocked(relationsApi.create).mockResolvedValue(newRelation);
-
-      const { result } = renderHook(() => useCreateRelation(), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      await act(async () => {
-        await result.current.mutateAsync({
-          sourceComponentId: 'comp-1' as ComponentId,
-          targetComponentId: 'comp-2' as ComponentId,
-          relationType: 'Serves',
-        });
-      });
-
-      const cachedRelations = queryClient.getQueryData<Relation[]>(
-        queryKeys.relations.lists()
-      );
-      expect(cachedRelations).toHaveLength(1);
-      expect(cachedRelations?.[0]).toEqual(newRelation);
-    });
   });
 
   describe('useUpdateRelation', () => {
-    it('should update relation and update both list and detail cache', async () => {
-      const existingRelation = buildRelation({
-        id: 'rel-1' as RelationId,
-        name: 'Original Name',
-        description: 'Original description',
-      });
+    it('should update relation and invalidate both list and detail cache', async () => {
       const updatedRelation = buildRelation({
         id: 'rel-1' as RelationId,
         name: 'Updated Name',
         description: 'Updated description',
       });
 
-      queryClient.setQueryData(queryKeys.relations.lists(), [existingRelation]);
-      queryClient.setQueryData(queryKeys.relations.detail('rel-1'), existingRelation);
       vi.mocked(relationsApi.update).mockResolvedValue(updatedRelation);
+      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const { result } = renderHook(() => useUpdateRelation(), {
         wrapper: createWrapper(queryClient),
@@ -255,15 +217,12 @@ describe('useRelations hooks', () => {
         });
       });
 
-      const cachedRelations = queryClient.getQueryData<Relation[]>(
-        queryKeys.relations.lists()
-      );
-      expect(cachedRelations?.[0].name).toBe('Updated Name');
-
-      const cachedDetail = queryClient.getQueryData<Relation>(
-        queryKeys.relations.detail('rel-1')
-      );
-      expect(cachedDetail?.name).toBe('Updated Name');
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.relations.lists(),
+      });
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.relations.detail('rel-1'),
+      });
 
       expect(toast.success).toHaveBeenCalledWith('Relation updated');
     });
@@ -292,17 +251,9 @@ describe('useRelations hooks', () => {
   });
 
   describe('useDeleteRelation', () => {
-    it('should delete relation and remove from cache', async () => {
-      const relation = buildRelation({
-        id: 'rel-1' as RelationId,
-        name: 'To Delete',
-      });
-
-      queryClient.setQueryData(queryKeys.relations.lists(), [relation]);
-      queryClient.setQueryData(queryKeys.relations.detail('rel-1'), relation);
+    it('should delete relation and invalidate cache', async () => {
       vi.mocked(relationsApi.delete).mockResolvedValue(undefined);
-
-      const removeQueriesSpy = vi.spyOn(queryClient, 'removeQueries');
+      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const { result } = renderHook(() => useDeleteRelation(), {
         wrapper: createWrapper(queryClient),
@@ -312,12 +263,10 @@ describe('useRelations hooks', () => {
         await result.current.mutateAsync('rel-1' as RelationId);
       });
 
-      const cachedRelations = queryClient.getQueryData<Relation[]>(
-        queryKeys.relations.lists()
-      );
-      expect(cachedRelations).toHaveLength(0);
-
-      expect(removeQueriesSpy).toHaveBeenCalledWith({
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: queryKeys.relations.lists(),
+      });
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
         queryKey: queryKeys.relations.detail('rel-1'),
       });
 

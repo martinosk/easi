@@ -1,10 +1,13 @@
 package api
 
 import (
+	"net/http"
+
 	"easi/backend/internal/architectureviews/application/handlers"
 	"easi/backend/internal/architectureviews/application/projectors"
 	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
+	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -14,6 +17,10 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+type AuthMiddleware interface {
+	RequirePermission(permission authValueObjects.Permission) func(http.Handler) http.Handler
+}
+
 // SetupArchitectureViewsRoutes initializes and registers architecture views routes
 func SetupArchitectureViewsRoutes(
 	r chi.Router,
@@ -22,6 +29,7 @@ func SetupArchitectureViewsRoutes(
 	eventBus events.EventBus,
 	db *database.TenantAwareDB,
 	hateoas *sharedAPI.HATEOASLinks,
+	authMiddleware AuthMiddleware,
 ) error {
 	// Initialize repositories
 	viewRepo := repositories.NewArchitectureViewRepository(eventStore)
@@ -87,26 +95,35 @@ func SetupArchitectureViewsRoutes(
 
 	// Register routes
 	r.Route("/views", func(r chi.Router) {
-		r.Post("/", viewHandlers.CreateView)
-		r.Get("/", viewHandlers.GetAllViews)
-		r.Get("/{id}", viewHandlers.GetViewByID)
-		r.Delete("/{id}", viewHandlers.DeleteView)
-		r.Patch("/{id}/name", viewHandlers.RenameView)
-		r.Put("/{id}/default", viewHandlers.SetDefaultView)
-		r.Patch("/{id}/edge-type", viewHandlers.UpdateEdgeType)
-		r.Patch("/{id}/layout-direction", viewHandlers.UpdateLayoutDirection)
-		r.Patch("/{id}/color-scheme", viewHandlers.UpdateColorScheme)
-		r.Post("/{id}/components", viewHandlers.AddComponentToView)
-		r.Delete("/{id}/components/{componentId}", viewHandlers.RemoveComponentFromView)
-		r.Patch("/{id}/components/{componentId}/position", viewHandlers.UpdateComponentPosition)
-		r.Patch("/{id}/components/{componentId}/color", viewHandlers.UpdateComponentColor)
-		r.Delete("/{id}/components/{componentId}/color", viewHandlers.ClearComponentColor)
-		r.Patch("/{id}/layout", viewHandlers.UpdateMultiplePositions)
-		r.Post("/{id}/capabilities", viewHandlers.AddCapabilityToView)
-		r.Delete("/{id}/capabilities/{capabilityId}", viewHandlers.RemoveCapabilityFromView)
-		r.Patch("/{id}/capabilities/{capabilityId}/position", viewHandlers.UpdateCapabilityPosition)
-		r.Patch("/{id}/capabilities/{capabilityId}/color", viewHandlers.UpdateCapabilityColor)
-		r.Delete("/{id}/capabilities/{capabilityId}/color", viewHandlers.ClearCapabilityColor)
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermViewsRead))
+			r.Get("/", viewHandlers.GetAllViews)
+			r.Get("/{id}", viewHandlers.GetViewByID)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermViewsWrite))
+			r.Post("/", viewHandlers.CreateView)
+			r.Patch("/{id}/name", viewHandlers.RenameView)
+			r.Put("/{id}/default", viewHandlers.SetDefaultView)
+			r.Patch("/{id}/edge-type", viewHandlers.UpdateEdgeType)
+			r.Patch("/{id}/layout-direction", viewHandlers.UpdateLayoutDirection)
+			r.Patch("/{id}/color-scheme", viewHandlers.UpdateColorScheme)
+			r.Post("/{id}/components", viewHandlers.AddComponentToView)
+			r.Patch("/{id}/components/{componentId}/position", viewHandlers.UpdateComponentPosition)
+			r.Patch("/{id}/components/{componentId}/color", viewHandlers.UpdateComponentColor)
+			r.Patch("/{id}/layout", viewHandlers.UpdateMultiplePositions)
+			r.Post("/{id}/capabilities", viewHandlers.AddCapabilityToView)
+			r.Patch("/{id}/capabilities/{capabilityId}/position", viewHandlers.UpdateCapabilityPosition)
+			r.Patch("/{id}/capabilities/{capabilityId}/color", viewHandlers.UpdateCapabilityColor)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermViewsDelete))
+			r.Delete("/{id}", viewHandlers.DeleteView)
+			r.Delete("/{id}/components/{componentId}", viewHandlers.RemoveComponentFromView)
+			r.Delete("/{id}/components/{componentId}/color", viewHandlers.ClearComponentColor)
+			r.Delete("/{id}/capabilities/{capabilityId}", viewHandlers.RemoveCapabilityFromView)
+			r.Delete("/{id}/capabilities/{capabilityId}/color", viewHandlers.ClearCapabilityColor)
+		})
 	})
 
 	return nil

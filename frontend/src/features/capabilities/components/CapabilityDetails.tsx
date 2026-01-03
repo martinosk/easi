@@ -4,6 +4,7 @@ import { EditCapabilityDialog } from './EditCapabilityDialog';
 import { DetailField } from '../../../components/shared/DetailField';
 import { ColorPicker } from '../../../components/shared/ColorPicker';
 import { RealizationFitContext } from './RealizationFitContext';
+import { AuditHistorySection } from '../../audit';
 import { useCapabilities, useCapabilityRealizations } from '../hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useUpdateCapabilityColor } from '../../views/hooks/useViews';
@@ -287,6 +288,8 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
         capabilityId={capability.id as CapabilityId}
         importanceRatings={importanceRatings}
       />
+
+      <AuditHistorySection aggregateId={capability.id} />
     </div>
   );
 };

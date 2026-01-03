@@ -19,6 +19,7 @@ import (
 	platformAPI "easi/backend/internal/platform/infrastructure/api"
 	releasesAPI "easi/backend/internal/releases/infrastructure/api"
 	sharedAPI "easi/backend/internal/shared/api"
+	"easi/backend/internal/shared/audit"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
 	viewlayoutsAPI "easi/backend/internal/viewlayouts/infrastructure/api"
@@ -133,8 +134,8 @@ func registerAPIRoutes(r chi.Router, deps routerDependencies) {
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.TenantMiddlewareWithSession(deps.authDeps.SessionManager))
 
-			mustSetup(architectureAPI.SetupArchitectureModelingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas), "architecture modeling routes")
-			mustSetup(viewsAPI.SetupArchitectureViewsRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas), "architecture views routes")
+			mustSetup(architectureAPI.SetupArchitectureModelingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas, deps.authDeps.AuthMiddleware), "architecture modeling routes")
+			mustSetup(viewsAPI.SetupArchitectureViewsRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas, deps.authDeps.AuthMiddleware), "architecture views routes")
 			mustSetup(capabilityAPI.SetupCapabilityMappingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas, deps.authDeps.SessionManager, deps.authDeps.AuthMiddleware), "capability mapping routes")
 			mustSetup(enterpriseArchAPI.SetupEnterpriseArchitectureRoutes(enterpriseArchAPI.EnterpriseArchRoutesDeps{
 				Router:         r,
@@ -146,7 +147,7 @@ func registerAPIRoutes(r chi.Router, deps routerDependencies) {
 				SessionManager: deps.authDeps.SessionManager,
 			}), "enterprise architecture routes")
 			mustSetup(releasesAPI.SetupReleasesRoutes(r, deps.db.DB()), "releases routes")
-			mustSetup(viewlayoutsAPI.SetupViewLayoutsRoutes(r, deps.eventBus, deps.db, deps.hateoas), "view layouts routes")
+			mustSetup(viewlayoutsAPI.SetupViewLayoutsRoutes(r, deps.eventBus, deps.db, deps.hateoas, deps.authDeps.AuthMiddleware), "view layouts routes")
 			mustSetup(importingAPI.SetupImportingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db), "importing routes")
 			mustSetup(metamodelAPI.SetupMetaModelRoutes(metamodelAPI.MetaModelRoutesDeps{
 				Router:         r,
@@ -182,6 +183,13 @@ func registerAPIRoutes(r chi.Router, deps routerDependencies) {
 			}), "user routes")
 
 			sharedAPI.SetupReferenceRoutes(r)
+
+			mustSetup(audit.SetupAuditRoutes(audit.AuditRoutesDeps{
+				Router:         r,
+				DB:             deps.db,
+				Hateoas:        deps.hateoas,
+				AuthMiddleware: deps.authDeps.AuthMiddleware,
+			}), "audit routes")
 		})
 	})
 }

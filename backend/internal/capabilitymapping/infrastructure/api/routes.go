@@ -341,73 +341,118 @@ func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadMo
 }
 
 func registerRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
-	registerCapabilityRoutes(r, h)
-	registerDependencyRoutes(r, h)
-	registerRealizationRoutes(r, h)
-	registerBusinessDomainRoutes(r, h)
+	registerCapabilityRoutes(r, h, authMiddleware)
+	registerDependencyRoutes(r, h, authMiddleware)
+	registerRealizationRoutes(r, h, authMiddleware)
+	registerBusinessDomainRoutes(r, h, authMiddleware)
 	registerStrategyImportanceRoutes(r, h)
 	registerApplicationFitScoreRoutes(r, h, authMiddleware, rateLimiter)
 	registerStrategicFitAnalysisRoutes(r, h, authMiddleware)
 }
 
-func registerCapabilityRoutes(r chi.Router, h *routeHTTPHandlers) {
+func registerCapabilityRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware) {
 	r.Route("/capabilities", func(r chi.Router) {
-		r.Get("/metadata", h.maturityLevel.GetMetadataIndex)
-		r.Get("/metadata/maturity-levels", h.maturityLevel.GetMaturityLevels)
-		r.Get("/metadata/statuses", h.maturityLevel.GetStatuses)
-		r.Get("/metadata/ownership-models", h.maturityLevel.GetOwnershipModels)
-		r.Post("/", h.capability.CreateCapability)
-		r.Get("/", h.capability.GetAllCapabilities)
-		r.Get("/{id}", h.capability.GetCapabilityByID)
-		r.Get("/{id}/children", h.capability.GetCapabilityChildren)
-		r.Get("/{id}/systems", h.realization.GetSystemsByCapability)
-		r.Post("/{id}/systems", h.realization.LinkSystemToCapability)
-		r.Get("/{id}/dependencies/outgoing", h.dependency.GetOutgoingDependencies)
-		r.Get("/{id}/dependencies/incoming", h.dependency.GetIncomingDependencies)
-		r.Get("/{id}/business-domains", h.businessDomain.GetDomainsForCapability)
-		r.Get("/{id}/importance", h.strategyImportance.GetImportanceByCapability)
-		r.Put("/{id}", h.capability.UpdateCapability)
-		r.Put("/{id}/metadata", h.capability.UpdateCapabilityMetadata)
-		r.Patch("/{id}/parent", h.capability.ChangeCapabilityParent)
-		r.Post("/{id}/experts", h.capability.AddCapabilityExpert)
-		r.Post("/{id}/tags", h.capability.AddCapabilityTag)
-		r.Delete("/{id}", h.capability.DeleteCapability)
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesRead))
+			r.Get("/metadata", h.maturityLevel.GetMetadataIndex)
+			r.Get("/metadata/maturity-levels", h.maturityLevel.GetMaturityLevels)
+			r.Get("/metadata/statuses", h.maturityLevel.GetStatuses)
+			r.Get("/metadata/ownership-models", h.maturityLevel.GetOwnershipModels)
+			r.Get("/", h.capability.GetAllCapabilities)
+			r.Get("/{id}", h.capability.GetCapabilityByID)
+			r.Get("/{id}/children", h.capability.GetCapabilityChildren)
+			r.Get("/{id}/systems", h.realization.GetSystemsByCapability)
+			r.Get("/{id}/dependencies/outgoing", h.dependency.GetOutgoingDependencies)
+			r.Get("/{id}/dependencies/incoming", h.dependency.GetIncomingDependencies)
+			r.Get("/{id}/business-domains", h.businessDomain.GetDomainsForCapability)
+			r.Get("/{id}/importance", h.strategyImportance.GetImportanceByCapability)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesWrite))
+			r.Post("/", h.capability.CreateCapability)
+			r.Post("/{id}/systems", h.realization.LinkSystemToCapability)
+			r.Put("/{id}", h.capability.UpdateCapability)
+			r.Put("/{id}/metadata", h.capability.UpdateCapabilityMetadata)
+			r.Patch("/{id}/parent", h.capability.ChangeCapabilityParent)
+			r.Post("/{id}/experts", h.capability.AddCapabilityExpert)
+			r.Post("/{id}/tags", h.capability.AddCapabilityTag)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesDelete))
+			r.Delete("/{id}", h.capability.DeleteCapability)
+		})
 	})
 }
 
-func registerDependencyRoutes(r chi.Router, h *routeHTTPHandlers) {
+func registerDependencyRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware) {
 	r.Route("/capability-dependencies", func(r chi.Router) {
-		r.Post("/", h.dependency.CreateDependency)
-		r.Get("/", h.dependency.GetAllDependencies)
-		r.Delete("/{id}", h.dependency.DeleteDependency)
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesRead))
+			r.Get("/", h.dependency.GetAllDependencies)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesWrite))
+			r.Post("/", h.dependency.CreateDependency)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesDelete))
+			r.Delete("/{id}", h.dependency.DeleteDependency)
+		})
 	})
 }
 
-func registerRealizationRoutes(r chi.Router, h *routeHTTPHandlers) {
+func registerRealizationRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware) {
 	r.Route("/capability-realizations", func(r chi.Router) {
-		r.Put("/{id}", h.realization.UpdateRealization)
-		r.Delete("/{id}", h.realization.DeleteRealization)
-		r.Get("/by-component/{componentId}", h.realization.GetCapabilitiesByComponent)
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesRead))
+			r.Get("/by-component/{componentId}", h.realization.GetCapabilitiesByComponent)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesWrite))
+			r.Put("/{id}", h.realization.UpdateRealization)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesDelete))
+			r.Delete("/{id}", h.realization.DeleteRealization)
+		})
 	})
 }
 
-func registerBusinessDomainRoutes(r chi.Router, h *routeHTTPHandlers) {
+func registerBusinessDomainRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware) {
 	r.Route("/business-domains", func(r chi.Router) {
-		r.Post("/", h.businessDomain.CreateBusinessDomain)
-		r.Get("/", h.businessDomain.GetAllBusinessDomains)
-		r.Get("/{id}", h.businessDomain.GetBusinessDomainByID)
-		r.Put("/{id}", h.businessDomain.UpdateBusinessDomain)
-		r.Delete("/{id}", h.businessDomain.DeleteBusinessDomain)
-		r.Get("/{id}/capabilities", h.businessDomain.GetCapabilitiesInDomain)
-		r.Post("/{id}/capabilities", h.businessDomain.AssignCapabilityToDomain)
-		r.Get("/{id}/capability-realizations", h.businessDomain.GetCapabilityRealizationsByDomain)
-		r.Delete("/{id}/capabilities/{capabilityId}", h.businessDomain.RemoveCapabilityFromDomain)
-		r.Get("/{id}/importance", h.strategyImportance.GetImportanceByDomain)
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermDomainsRead))
+			r.Get("/", h.businessDomain.GetAllBusinessDomains)
+			r.Get("/{id}", h.businessDomain.GetBusinessDomainByID)
+			r.Get("/{id}/capabilities", h.businessDomain.GetCapabilitiesInDomain)
+			r.Get("/{id}/capability-realizations", h.businessDomain.GetCapabilityRealizationsByDomain)
+			r.Get("/{id}/importance", h.strategyImportance.GetImportanceByDomain)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermDomainsWrite))
+			r.Post("/", h.businessDomain.CreateBusinessDomain)
+			r.Put("/{id}", h.businessDomain.UpdateBusinessDomain)
+			r.Post("/{id}/capabilities", h.businessDomain.AssignCapabilityToDomain)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermDomainsDelete))
+			r.Delete("/{id}", h.businessDomain.DeleteBusinessDomain)
+			r.Delete("/{id}/capabilities/{capabilityId}", h.businessDomain.RemoveCapabilityFromDomain)
+		})
 		r.Route("/{id}/capabilities/{capabilityId}/importance", func(r chi.Router) {
-			r.Get("/", h.strategyImportance.GetImportanceByDomainAndCapability)
-			r.Post("/", h.strategyImportance.SetImportance)
-			r.Put("/{importanceId}", h.strategyImportance.UpdateImportance)
-			r.Delete("/{importanceId}", h.strategyImportance.RemoveImportance)
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authValueObjects.PermDomainsRead))
+				r.Get("/", h.strategyImportance.GetImportanceByDomainAndCapability)
+			})
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authValueObjects.PermDomainsWrite))
+				r.Post("/", h.strategyImportance.SetImportance)
+				r.Put("/{importanceId}", h.strategyImportance.UpdateImportance)
+			})
+			r.Group(func(r chi.Router) {
+				r.Use(authMiddleware.RequirePermission(authValueObjects.PermDomainsDelete))
+				r.Delete("/{importanceId}", h.strategyImportance.RemoveImportance)
+			})
 		})
 	})
 }
@@ -417,17 +462,26 @@ func registerStrategyImportanceRoutes(r chi.Router, h *routeHTTPHandlers) {
 
 func registerApplicationFitScoreRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
 	r.Route("/components/{id}/fit-scores", func(r chi.Router) {
-		r.Get("/", h.applicationFitScore.GetFitScoresByComponent)
-
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsRead))
+			r.Get("/", h.applicationFitScore.GetFitScoresByComponent)
+		})
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsWrite))
 			r.Use(platformAPI.RateLimitMiddleware(rateLimiter))
 			r.Put("/{pillarId}", h.applicationFitScore.SetFitScore)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsDelete))
+			r.Use(platformAPI.RateLimitMiddleware(rateLimiter))
 			r.Delete("/{pillarId}", h.applicationFitScore.RemoveFitScore)
 		})
 	})
-	r.Get("/components/{id}/fit-comparisons", h.applicationFitScore.GetFitComparisons)
-	r.Get("/strategy-pillars/{pillarId}/fit-scores", h.applicationFitScore.GetFitScoresByPillar)
+	r.Group(func(r chi.Router) {
+		r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsRead))
+		r.Get("/components/{id}/fit-comparisons", h.applicationFitScore.GetFitComparisons)
+		r.Get("/strategy-pillars/{pillarId}/fit-scores", h.applicationFitScore.GetFitScoresByPillar)
+	})
 }
 
 func registerStrategicFitAnalysisRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware) {

@@ -106,8 +106,10 @@ func (s *PostgresEventStore) checkVersionConflict(ctx context.Context, tx *sql.T
 }
 
 func (s *PostgresEventStore) insertEvents(ctx context.Context, tx *sql.Tx, tenantID sharedvo.TenantID, events []domain.DomainEvent, expectedVersion int) error {
+	actor, hasActor := sharedctx.GetActor(ctx)
+
 	stmt, err := tx.PrepareContext(ctx,
-		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5, $6)",
+		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 	)
 	if err != nil {
 		return fmt.Errorf("failed to prepare statement: %w", err)
@@ -121,6 +123,14 @@ func (s *PostgresEventStore) insertEvents(ctx context.Context, tx *sql.Tx, tenan
 		}
 
 		version := expectedVersion + i + 1
+
+		actorID := actor.ID
+		actorEmail := actor.Email
+		if !hasActor {
+			actorID = "system"
+			actorEmail = "system@easi.app"
+		}
+
 		_, err = stmt.ExecContext(ctx,
 			tenantID.Value(),
 			event.AggregateID(),
@@ -128,6 +138,8 @@ func (s *PostgresEventStore) insertEvents(ctx context.Context, tx *sql.Tx, tenan
 			eventData,
 			version,
 			event.OccurredAt(),
+			actorID,
+			actorEmail,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to insert event: %w", err)

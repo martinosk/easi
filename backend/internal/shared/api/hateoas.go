@@ -239,6 +239,10 @@ func (h *HATEOASLinks) DomainCapabilityEnterpriseLinkedLinks(domainCapabilityID,
 	}
 }
 
+func (h *HATEOASLinks) AuditHistory(aggregateID string) string {
+	return fmt.Sprintf("%s/audit/%s", h.baseURL, aggregateID)
+}
+
 func (h *HATEOASLinks) CapabilityLinkStatusLinks(capabilityID string, status string, linkedToID *string, blockingCapabilityID *string, blockingEnterpriseCapID *string) map[string]string {
 	links := map[string]string{
 		"self": fmt.Sprintf("%s/domain-capabilities/%s/enterprise-link-status", h.baseURL, capabilityID),

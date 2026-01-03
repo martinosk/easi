@@ -37,14 +37,19 @@ func TestRole_Permissions(t *testing.T) {
 
 	architectPerms := RoleArchitect.Permissions()
 	assert.Contains(t, architectPerms, PermComponentsWrite)
+	assert.Contains(t, architectPerms, PermComponentsDelete)
 	assert.Contains(t, architectPerms, PermViewsWrite)
+	assert.Contains(t, architectPerms, PermViewsDelete)
+	assert.Contains(t, architectPerms, PermMetaModelRead)
+	assert.Contains(t, architectPerms, PermAuditRead)
 	assert.NotContains(t, architectPerms, PermUsersManage)
-	assert.NotContains(t, architectPerms, PermComponentsDelete)
 	assert.NotContains(t, architectPerms, PermMetaModelWrite)
 
 	stakeholderPerms := RoleStakeholder.Permissions()
 	assert.Contains(t, stakeholderPerms, PermComponentsRead)
 	assert.Contains(t, stakeholderPerms, PermViewsRead)
+	assert.Contains(t, stakeholderPerms, PermMetaModelRead)
+	assert.Contains(t, stakeholderPerms, PermAuditRead)
 	assert.NotContains(t, stakeholderPerms, PermComponentsWrite)
 	assert.NotContains(t, stakeholderPerms, PermMetaModelWrite)
 }
