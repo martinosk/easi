@@ -175,8 +175,8 @@ func TestTenantIsolation_EventStoreData(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = tx.ExecContext(ctxA,
-		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		tenantA.Value(), aggregateID, "ComponentCreated", eventJSON, 1, time.Now(),
+		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		tenantA.Value(), aggregateID, "ComponentCreated", eventJSON, 1, time.Now(), "test-user-id", "test@example.com",
 	)
 	require.NoError(t, err)
 
@@ -492,8 +492,8 @@ func TestTenantContext_EventVersioning(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = txA.ExecContext(ctxA,
-		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		tenantA.Value(), aggregateID, "Event1", eventJSON, 1, time.Now(),
+		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		tenantA.Value(), aggregateID, "Event1", eventJSON, 1, time.Now(), "test-user-id", "test@example.com",
 	)
 	require.NoError(t, err)
 
@@ -504,8 +504,8 @@ func TestTenantContext_EventVersioning(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = txB.ExecContext(ctxB,
-		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		tenantB.Value(), aggregateID, "Event1", eventJSON, 1, time.Now(),
+		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		tenantB.Value(), aggregateID, "Event1", eventJSON, 1, time.Now(), "test-user-id", "test@example.com",
 	)
 	require.NoError(t, err)
 

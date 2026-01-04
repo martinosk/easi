@@ -429,7 +429,7 @@ func TestAcceptInvitation_WhenExpired_Integration(t *testing.T) {
 	acceptCmd := &commands.AcceptInvitation{
 		Email: email,
 	}
-	err = commandBus.Dispatch(ctx, acceptCmd)
+	_, err = commandBus.Dispatch(ctx, acceptCmd)
 	assert.Error(t, err)
 
 	invitation, err := readModel.GetByID(ctx, created.ID)
@@ -516,7 +516,7 @@ func TestLoginService_ValidInvitationCreatesUser_Integration(t *testing.T) {
 		Email: email,
 		Role:  "stakeholder",
 	}
-	err := commandBus.Dispatch(ctx, createCmd)
+	_, err := commandBus.Dispatch(ctx, createCmd)
 	require.NoError(t, err)
 
 	time.Sleep(100 * time.Millisecond)
@@ -588,7 +588,7 @@ func TestLoginService_ExpiredInvitationMarkedAsExpired_Integration(t *testing.T)
 		Email: email,
 		Role:  "architect",
 	}
-	err := commandBus.Dispatch(ctx, createCmd)
+	_, err := commandBus.Dispatch(ctx, createCmd)
 	require.NoError(t, err)
 
 	time.Sleep(100 * time.Millisecond)

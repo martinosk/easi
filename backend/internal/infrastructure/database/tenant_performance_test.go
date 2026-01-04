@@ -118,8 +118,8 @@ func TestRLSPerformance_BulkInsert(t *testing.T) {
 
 	for i := 0; i < numEvents; i++ {
 		_, err = tx.ExecContext(tenantCtx,
-			"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5, $6)",
-			tenant.Value(), fmt.Sprintf("%s-%d", aggregateID, i), "TestEvent", eventJSON, 1, time.Now(),
+			"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+			tenant.Value(), fmt.Sprintf("%s-%d", aggregateID, i), "TestEvent", eventJSON, 1, time.Now(), "test-user-id", "test@example.com",
 		)
 		require.NoError(t, err)
 	}

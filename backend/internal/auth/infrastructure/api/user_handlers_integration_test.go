@@ -418,7 +418,7 @@ func TestEnableUser_Integration(t *testing.T) {
 		UserID:       userID,
 		DisabledByID: adminID,
 	}
-	err := fixture.commandBus.Dispatch(ctx, disableCmd)
+	_, err := fixture.commandBus.Dispatch(ctx, disableCmd)
 	require.NoError(t, err)
 
 	time.Sleep(50 * time.Millisecond)
@@ -621,7 +621,7 @@ func TestFilterUsersByStatus_Integration(t *testing.T) {
 		UserID:       disabledUserID,
 		DisabledByID: adminID,
 	}
-	err := fixture.commandBus.Dispatch(ctx, disableCmd)
+	_, err := fixture.commandBus.Dispatch(ctx, disableCmd)
 	require.NoError(t, err)
 
 	time.Sleep(50 * time.Millisecond)
