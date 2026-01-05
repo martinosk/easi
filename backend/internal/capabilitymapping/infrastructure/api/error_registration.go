@@ -43,4 +43,24 @@ func init() {
 	registry.RegisterConflict(aggregates.ErrWouldCreateCircularReference, "Operation would create circular reference")
 	registry.RegisterConflict(aggregates.ErrWouldExceedMaximumDepth, "Operation would create L5+ hierarchy")
 	registry.RegisterConflict(aggregates.ErrCannotCreateSelfDependency, "Cannot create self-dependency")
+
+	registry.RegisterNotFound(repositories.ErrApplicationFitScoreNotFound, "Application fit score not found")
+	registry.RegisterNotFound(handlers.ErrFitScoreNotFound, "Application fit score not found")
+	registry.RegisterNotFound(handlers.ErrPillarNotFound, "Strategy pillar not found or inactive")
+
+	registry.RegisterValidation(handlers.ErrInvalidFitScoreValue, "Fit score must be between 1 and 5")
+	registry.RegisterValidation(handlers.ErrPillarFitScoringDisabled, "Fit scoring is not enabled for this pillar")
+	registry.RegisterValidation(valueobjects.ErrFitScoreOutOfRange, "Fit score must be between 1 and 5")
+	registry.RegisterValidation(valueobjects.ErrFitRationaleTooLong, "Fit rationale cannot exceed 500 characters")
+
+	registry.RegisterConflict(handlers.ErrFitScoreAlreadyExists, "Fit score already exists for this component and pillar")
+
+	registry.RegisterNotFound(repositories.ErrStrategyImportanceNotFound, "Strategy importance not found")
+	registry.RegisterNotFound(handlers.ErrImportanceNotFound, "Strategy importance not found")
+
+	registry.RegisterValidation(handlers.ErrInvalidImportanceValue, "Importance must be between 1 and 5")
+	registry.RegisterValidation(valueobjects.ErrImportanceOutOfRange, "Importance must be between 1 and 5")
+	registry.RegisterValidation(valueobjects.ErrRationaleTooLong, "Rationale cannot exceed 500 characters")
+
+	registry.RegisterConflict(handlers.ErrImportanceAlreadyExists, "Importance rating already exists for this combination")
 }
