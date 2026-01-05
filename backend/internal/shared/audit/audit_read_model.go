@@ -40,9 +40,9 @@ func (rm *AuditHistoryReadModel) GetHistoryByAggregateID(ctx context.Context, ag
 		query := `
 			SELECT id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email
 			FROM events
-			WHERE tenant_id = $1 AND aggregate_id = $2
+			WHERE tenant_id = $1 AND (aggregate_id = $2 OR event_data->>'componentId' = $2)
 		`
-		args := []interface{}{tenantID.Value(), aggregateID}
+		args := []any{tenantID.Value(), aggregateID}
 
 		if cursor != "" {
 			cursorID, err := strconv.ParseInt(cursor, 10, 64)
@@ -79,7 +79,7 @@ func (rm *AuditHistoryReadModel) GetHistoryByAggregateID(ctx context.Context, ag
 			}
 
 			if err := json.Unmarshal([]byte(eventDataJSON), &entry.EventData); err != nil {
-				entry.EventData = map[string]interface{}{"raw": eventDataJSON}
+				entry.EventData = map[string]any{"raw": eventDataJSON}
 			}
 
 			entry.DisplayName = FormatEventTypeDisplayName(entry.EventType)
