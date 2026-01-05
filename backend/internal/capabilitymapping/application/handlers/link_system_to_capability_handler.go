@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 
-	archReadModels "easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
+	"easi/backend/internal/capabilitymapping/infrastructure/architecturemodeling"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
@@ -26,7 +26,7 @@ type LinkSystemCapabilityRepository interface {
 }
 
 type LinkSystemComponentReadModel interface {
-	GetByID(ctx context.Context, id string) (*archReadModels.ApplicationComponentDTO, error)
+	GetByID(ctx context.Context, id string) (*architecturemodeling.ComponentDTO, error)
 }
 
 type LinkSystemToCapabilityHandler struct {

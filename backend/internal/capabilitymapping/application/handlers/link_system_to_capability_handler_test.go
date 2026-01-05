@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	archReadModels "easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
+	"easi/backend/internal/capabilitymapping/infrastructure/architecturemodeling"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 
@@ -41,11 +41,11 @@ func (m *mockLinkSystemCapabilityRepository) GetByID(ctx context.Context, id str
 }
 
 type mockLinkSystemComponentReadModel struct {
-	component *archReadModels.ApplicationComponentDTO
+	component *architecturemodeling.ComponentDTO
 	getErr    error
 }
 
-func (m *mockLinkSystemComponentReadModel) GetByID(ctx context.Context, id string) (*archReadModels.ApplicationComponentDTO, error) {
+func (m *mockLinkSystemComponentReadModel) GetByID(ctx context.Context, id string) (*architecturemodeling.ComponentDTO, error) {
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
@@ -87,7 +87,7 @@ func TestLinkSystemToCapabilityHandler_CreatesRealization(t *testing.T) {
 	}
 	mockRealRepo := &mockLinkSystemRealizationRepository{}
 	mockCompReadModel := &mockLinkSystemComponentReadModel{
-		component: &archReadModels.ApplicationComponentDTO{
+		component: &architecturemodeling.ComponentDTO{
 			ID:   componentID,
 			Name: "Test Component",
 		},
@@ -124,7 +124,7 @@ func TestLinkSystemToCapabilityHandler_ReturnsCreatedID(t *testing.T) {
 	}
 	mockRealRepo := &mockLinkSystemRealizationRepository{}
 	mockCompReadModel := &mockLinkSystemComponentReadModel{
-		component: &archReadModels.ApplicationComponentDTO{
+		component: &architecturemodeling.ComponentDTO{
 			ID:   componentID,
 			Name: "Test Component",
 		},
@@ -182,7 +182,7 @@ func TestLinkSystemToCapabilityHandler_CapabilityNotFound_ReturnsError(t *testin
 	}
 	mockRealRepo := &mockLinkSystemRealizationRepository{}
 	mockCompReadModel := &mockLinkSystemComponentReadModel{
-		component: &archReadModels.ApplicationComponentDTO{
+		component: &architecturemodeling.ComponentDTO{
 			ID:   componentID,
 			Name: "Test Component",
 		},

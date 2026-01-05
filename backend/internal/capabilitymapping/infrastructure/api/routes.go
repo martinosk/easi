@@ -3,7 +3,6 @@ package api
 import (
 	"net/http"
 
-	archReadModels "easi/backend/internal/architecturemodeling/application/readmodels"
 	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/auth/infrastructure/session"
 	"easi/backend/internal/capabilitymapping/application/handlers"
@@ -120,13 +119,13 @@ type routeReadModels struct {
 	capability             *readmodels.CapabilityReadModel
 	dependency             *readmodels.DependencyReadModel
 	realization            *readmodels.RealizationReadModel
-	component              *archReadModels.ApplicationComponentReadModel
 	businessDomain         *readmodels.BusinessDomainReadModel
 	domainAssignment       *readmodels.DomainCapabilityAssignmentReadModel
 	strategyImportance     *readmodels.StrategyImportanceReadModel
 	applicationFitScore    *readmodels.ApplicationFitScoreReadModel
 	strategicFitAnalysis   *readmodels.StrategicFitAnalysisReadModel
 	componentFitComparison *readmodels.ComponentFitComparisonReadModel
+	componentCache         *readmodels.ComponentCacheReadModel
 }
 
 type routeHTTPHandlers struct {
@@ -157,24 +156,25 @@ func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 		capability:             readmodels.NewCapabilityReadModel(db),
 		dependency:             readmodels.NewDependencyReadModel(db),
 		realization:            readmodels.NewRealizationReadModel(db),
-		component:              archReadModels.NewApplicationComponentReadModel(db),
 		businessDomain:         readmodels.NewBusinessDomainReadModel(db),
 		domainAssignment:       readmodels.NewDomainCapabilityAssignmentReadModel(db),
 		strategyImportance:     readmodels.NewStrategyImportanceReadModel(db),
 		applicationFitScore:    readmodels.NewApplicationFitScoreReadModel(db),
 		strategicFitAnalysis:   readmodels.NewStrategicFitAnalysisReadModel(db),
 		componentFitComparison: readmodels.NewComponentFitComparisonReadModel(db),
+		componentCache:         readmodels.NewComponentCacheReadModel(db),
 	}
 }
 
 func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pillarsGateway metamodel.StrategyPillarsGateway) {
 	capabilityProjector := projectors.NewCapabilityProjector(rm.capability, rm.domainAssignment)
 	dependencyProjector := projectors.NewDependencyProjector(rm.dependency)
-	realizationProjector := projectors.NewRealizationProjector(rm.realization, rm.capability, rm.component)
+	realizationProjector := projectors.NewRealizationProjector(rm.realization, rm.capability, rm.componentCache)
 	businessDomainProjector := projectors.NewBusinessDomainProjector(rm.businessDomain)
 	domainAssignmentProjector := projectors.NewBusinessDomainAssignmentProjector(rm.domainAssignment, rm.businessDomain, rm.capability)
 	strategyImportanceProjector := projectors.NewStrategyImportanceProjector(rm.strategyImportance, rm.businessDomain, rm.capability, pillarsGateway)
-	applicationFitScoreProjector := projectors.NewApplicationFitScoreProjector(rm.applicationFitScore, rm.component, pillarsGateway)
+	applicationFitScoreProjector := projectors.NewApplicationFitScoreProjector(rm.applicationFitScore, rm.componentCache, pillarsGateway)
+	componentCacheProjector := projectors.NewComponentCacheProjector(rm.componentCache)
 
 	subscribeCapabilityEvents(eventBus, capabilityProjector)
 	subscribeDependencyEvents(eventBus, dependencyProjector)
@@ -183,6 +183,7 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pill
 	subscribeDomainAssignmentEvents(eventBus, domainAssignmentProjector)
 	subscribeStrategyImportanceEvents(eventBus, strategyImportanceProjector)
 	subscribeApplicationFitScoreEvents(eventBus, applicationFitScoreProjector)
+	subscribeComponentCacheEvents(eventBus, componentCacheProjector)
 }
 
 func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.CapabilityProjector) {
@@ -236,6 +237,13 @@ func subscribeApplicationFitScoreEvents(eventBus events.EventBus, projector *pro
 	}
 }
 
+func subscribeComponentCacheEvents(eventBus events.EventBus, projector *projectors.ComponentCacheProjector) {
+	events := []string{"ApplicationComponentCreated", "ApplicationComponentUpdated", "ApplicationComponentDeleted"}
+	for _, event := range events {
+		eventBus.Subscribe(event, projector)
+	}
+}
+
 func setupCascadingDeleteHandlers(eventBus events.EventBus, commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels) {
 	onCapabilityDeletedHandler := handlers.NewOnCapabilityDeletedHandler(commandBus, rm.domainAssignment)
 	onBusinessDomainDeletedHandler := handlers.NewOnBusinessDomainDeletedHandler(commandBus, rm.domainAssignment)
@@ -253,7 +261,7 @@ func setupCascadingDeleteHandlers(eventBus events.EventBus, commandBus *cqrs.InM
 func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepositories, rm *routeReadModels, pillarsGateway metamodel.StrategyPillarsGateway) {
 	registerCapabilityCommands(commandBus, repos.capability, rm.capability)
 	registerDependencyCommands(commandBus, repos.dependency, repos.capability)
-	registerRealizationCommands(commandBus, repos.realization, repos.capability, rm.component)
+	registerRealizationCommands(commandBus, repos.realization, repos.capability, rm.componentCache)
 	registerBusinessDomainCommands(commandBus, repos.businessDomain, rm.businessDomain, rm.domainAssignment)
 	registerDomainAssignmentCommands(commandBus, repos.domainAssignment, repos.capability, rm.businessDomain, rm.domainAssignment)
 	registerStrategyImportanceCommands(commandBus, handlers.StrategyImportanceDeps{
@@ -288,8 +296,8 @@ func registerDependencyCommands(commandBus *cqrs.InMemoryCommandBus, depRepo *re
 	commandBus.Register("DeleteCapabilityDependency", handlers.NewDeleteCapabilityDependencyHandler(depRepo))
 }
 
-func registerRealizationCommands(commandBus *cqrs.InMemoryCommandBus, realRepo *repositories.RealizationRepository, capRepo *repositories.CapabilityRepository, compRM *archReadModels.ApplicationComponentReadModel) {
-	commandBus.Register("LinkSystemToCapability", handlers.NewLinkSystemToCapabilityHandler(realRepo, capRepo, compRM))
+func registerRealizationCommands(commandBus *cqrs.InMemoryCommandBus, realRepo *repositories.RealizationRepository, capRepo *repositories.CapabilityRepository, componentCache *readmodels.ComponentCacheReadModel) {
+	commandBus.Register("LinkSystemToCapability", handlers.NewLinkSystemToCapabilityHandler(realRepo, capRepo, componentCache))
 	commandBus.Register("UpdateSystemRealization", handlers.NewUpdateSystemRealizationHandler(realRepo))
 	commandBus.Register("DeleteSystemRealization", handlers.NewDeleteSystemRealizationHandler(realRepo))
 }

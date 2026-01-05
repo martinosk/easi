@@ -5,29 +5,29 @@ import (
 	"encoding/json"
 	"log"
 
-	archReadmodels "easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/events"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
+	"easi/backend/internal/capabilitymapping/infrastructure/architecturemodeling"
 	"easi/backend/internal/capabilitymapping/infrastructure/metamodel"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 type ApplicationFitScoreProjector struct {
-	fitScoreReadModel  *readmodels.ApplicationFitScoreReadModel
-	componentReadModel *archReadmodels.ApplicationComponentReadModel
-	pillarsGateway     metamodel.StrategyPillarsGateway
+	fitScoreReadModel *readmodels.ApplicationFitScoreReadModel
+	componentGateway  architecturemodeling.ComponentGateway
+	pillarsGateway    metamodel.StrategyPillarsGateway
 }
 
 func NewApplicationFitScoreProjector(
 	fitScoreReadModel *readmodels.ApplicationFitScoreReadModel,
-	componentReadModel *archReadmodels.ApplicationComponentReadModel,
+	componentGateway architecturemodeling.ComponentGateway,
 	pillarsGateway metamodel.StrategyPillarsGateway,
 ) *ApplicationFitScoreProjector {
 	return &ApplicationFitScoreProjector{
-		fitScoreReadModel:  fitScoreReadModel,
-		componentReadModel: componentReadModel,
-		pillarsGateway:     pillarsGateway,
+		fitScoreReadModel: fitScoreReadModel,
+		componentGateway:  componentGateway,
+		pillarsGateway:    pillarsGateway,
 	}
 }
 
@@ -85,7 +85,7 @@ func (p *ApplicationFitScoreProjector) handleApplicationFitScoreSet(ctx context.
 }
 
 func (p *ApplicationFitScoreProjector) fetchComponentName(ctx context.Context, componentID string) (string, error) {
-	dto, err := p.componentReadModel.GetByID(ctx, componentID)
+	dto, err := p.componentGateway.GetByID(ctx, componentID)
 	if err != nil {
 		log.Printf("Failed to get component %s: %v", componentID, err)
 		return "", err

@@ -5,28 +5,28 @@ import (
 	"encoding/json"
 	"log"
 
-	archReadmodels "easi/backend/internal/architecturemodeling/application/readmodels"
 	archEvents "easi/backend/internal/architecturemodeling/domain/events"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/events"
+	"easi/backend/internal/capabilitymapping/infrastructure/architecturemodeling"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 type RealizationProjector struct {
 	readModel           *readmodels.RealizationReadModel
 	capabilityReadModel *readmodels.CapabilityReadModel
-	componentReadModel  *archReadmodels.ApplicationComponentReadModel
+	componentGateway    architecturemodeling.ComponentGateway
 }
 
 func NewRealizationProjector(
 	readModel *readmodels.RealizationReadModel,
 	capabilityReadModel *readmodels.CapabilityReadModel,
-	componentReadModel *archReadmodels.ApplicationComponentReadModel,
+	componentGateway architecturemodeling.ComponentGateway,
 ) *RealizationProjector {
 	return &RealizationProjector{
 		readModel:           readModel,
 		capabilityReadModel: capabilityReadModel,
-		componentReadModel:  componentReadModel,
+		componentGateway:    componentGateway,
 	}
 }
 
@@ -87,10 +87,7 @@ func (p *RealizationProjector) handleSystemLinked(ctx context.Context, eventData
 }
 
 func (p *RealizationProjector) lookupComponentName(ctx context.Context, componentID string) string {
-	if p.componentReadModel == nil {
-		return ""
-	}
-	component, err := p.componentReadModel.GetByID(ctx, componentID)
+	component, err := p.componentGateway.GetByID(ctx, componentID)
 	if err != nil || component == nil {
 		return ""
 	}
