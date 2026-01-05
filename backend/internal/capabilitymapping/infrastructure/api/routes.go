@@ -49,7 +49,7 @@ func SetupCapabilityMappingRoutes(
 	sessionManager *session.SessionManager,
 	authMiddleware AuthMiddleware,
 ) error {
-	pillarsGateway := metamodel.NewDirectStrategyPillarsGateway(db.DB())
+	pillarsGateway := metamodel.NewDirectStrategyPillarsGateway(db)
 	return SetupCapabilityMappingRoutesWithGateways(r, commandBus, eventStore, eventBus, db, hateoas, nil, pillarsGateway, sessionManager, authMiddleware)
 }
 

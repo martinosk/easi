@@ -34,12 +34,13 @@ var realizationEventDeserializers = repository.NewEventDeserializers(
 			id, _ := data["id"].(string)
 			capabilityID, _ := data["capabilityId"].(string)
 			componentID, _ := data["componentId"].(string)
+			componentName, _ := data["componentName"].(string)
 			realizationLevel, _ := data["realizationLevel"].(string)
 			notes, _ := data["notes"].(string)
 			linkedAtStr, _ := data["linkedAt"].(string)
 			linkedAt, _ := time.Parse(time.RFC3339Nano, linkedAtStr)
 
-			evt := events.NewSystemLinkedToCapability(id, capabilityID, componentID, realizationLevel, notes)
+			evt := events.NewSystemLinkedToCapability(id, capabilityID, componentID, componentName, realizationLevel, notes)
 			evt.LinkedAt = linkedAt
 			return evt
 		},

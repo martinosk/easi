@@ -5,14 +5,15 @@ import (
 	"database/sql"
 	"encoding/json"
 
+	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 )
 
 type directStrategyPillarsGateway struct {
-	db *sql.DB
+	db *database.TenantAwareDB
 }
 
-func NewDirectStrategyPillarsGateway(db *sql.DB) StrategyPillarsGateway {
+func NewDirectStrategyPillarsGateway(db *database.TenantAwareDB) StrategyPillarsGateway {
 	return &directStrategyPillarsGateway{db: db}
 }
 
@@ -60,15 +61,25 @@ func (g *directStrategyPillarsGateway) queryPillars(ctx context.Context, tenantI
 	`
 
 	var pillarsJSON []byte
-	err := g.db.QueryRowContext(ctx, query, tenantID).Scan(&pillarsJSON)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
+	var notFound bool
+
+	err := g.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		err := tx.QueryRowContext(ctx, query, tenantID).Scan(&pillarsJSON)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				notFound = true
+				return nil
+			}
+			return err
 		}
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
-	if pillarsJSON == nil {
+	if notFound || pillarsJSON == nil {
 		return nil, nil
 	}
 

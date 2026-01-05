@@ -92,6 +92,7 @@ func (h *LinkSystemToCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Com
 	realization, err := aggregates.NewCapabilityRealization(
 		capabilityID,
 		componentID,
+		component.Name,
 		realizationLevel,
 		notes,
 	)

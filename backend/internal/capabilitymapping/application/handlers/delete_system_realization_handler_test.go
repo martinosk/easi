@@ -96,7 +96,7 @@ func createRealization(t *testing.T) *aggregates.CapabilityRealization {
 	level, _ := valueobjects.NewRealizationLevel("Full")
 	notes := valueobjects.MustNewDescription("Test notes")
 
-	realization, err := aggregates.NewCapabilityRealization(capabilityID, componentID, level, notes)
+	realization, err := aggregates.NewCapabilityRealization(capabilityID, componentID, "Test Component", level, notes)
 	require.NoError(t, err)
 	realization.MarkChangesAsCommitted()
 

@@ -20,6 +20,7 @@ type CapabilityRealization struct {
 func NewCapabilityRealization(
 	capabilityID valueobjects.CapabilityID,
 	componentID valueobjects.ComponentID,
+	componentName string,
 	realizationLevel valueobjects.RealizationLevel,
 	notes valueobjects.Description,
 ) (*CapabilityRealization, error) {
@@ -31,6 +32,7 @@ func NewCapabilityRealization(
 		aggregate.ID(),
 		capabilityID.Value(),
 		componentID.Value(),
+		componentName,
 		realizationLevel.Value(),
 		notes.Value(),
 	)

@@ -19,7 +19,7 @@ func TestNewCapabilityRealization(t *testing.T) {
 
 	notes := valueobjects.MustNewDescription("CRM system fully implements customer management capability")
 
-	realization, err := NewCapabilityRealization(capabilityID, componentID, realizationLevel, notes)
+	realization, err := NewCapabilityRealization(capabilityID, componentID, "Test Component", realizationLevel, notes)
 	require.NoError(t, err)
 	assert.NotNil(t, realization)
 	assert.NotEmpty(t, realization.ID())
@@ -41,7 +41,7 @@ func TestCapabilityRealization_RaisesLinkedEvent(t *testing.T) {
 
 	notes := valueobjects.MustNewDescription("Partially implements the capability")
 
-	realization, err := NewCapabilityRealization(capabilityID, componentID, realizationLevel, notes)
+	realization, err := NewCapabilityRealization(capabilityID, componentID, "Test Component", realizationLevel, notes)
 	require.NoError(t, err)
 
 	uncommittedEvents := realization.GetUncommittedChanges()
@@ -59,7 +59,7 @@ func TestCapabilityRealization_Update(t *testing.T) {
 
 	notes := valueobjects.MustNewDescription("Planned for Q3")
 
-	realization, err := NewCapabilityRealization(capabilityID, componentID, realizationLevel, notes)
+	realization, err := NewCapabilityRealization(capabilityID, componentID, "Test Component", realizationLevel, notes)
 	require.NoError(t, err)
 
 	realization.MarkChangesAsCommitted()
@@ -90,7 +90,7 @@ func TestCapabilityRealization_Delete(t *testing.T) {
 
 	notes := valueobjects.MustNewDescription("Fully implemented")
 
-	realization, err := NewCapabilityRealization(capabilityID, componentID, realizationLevel, notes)
+	realization, err := NewCapabilityRealization(capabilityID, componentID, "Test Component", realizationLevel, notes)
 	require.NoError(t, err)
 
 	realization.MarkChangesAsCommitted()
@@ -113,7 +113,7 @@ func TestCapabilityRealization_LoadFromHistory(t *testing.T) {
 
 	notes := valueobjects.MustNewDescription("Test realization")
 
-	realization, err := NewCapabilityRealization(capabilityID, componentID, realizationLevel, notes)
+	realization, err := NewCapabilityRealization(capabilityID, componentID, "Test Component", realizationLevel, notes)
 	require.NoError(t, err)
 
 	events := realization.GetUncommittedChanges()
@@ -149,7 +149,7 @@ func TestCapabilityRealization_AllRealizationLevels(t *testing.T) {
 
 			notes := valueobjects.MustNewDescription("Test realization")
 
-			realization, err := NewCapabilityRealization(capabilityID, componentID, realizationLevel, notes)
+			realization, err := NewCapabilityRealization(capabilityID, componentID, "Test Component", realizationLevel, notes)
 			require.NoError(t, err)
 			assert.NotNil(t, realization)
 			assert.Equal(t, tt.realizationLevel, realization.RealizationLevel().Value())

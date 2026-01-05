@@ -63,7 +63,10 @@ func (p *RealizationProjector) handleSystemLinked(ctx context.Context, eventData
 		return err
 	}
 
-	componentName := p.lookupComponentName(ctx, event.ComponentID)
+	componentName := event.ComponentName
+	if componentName == "" {
+		componentName = p.lookupComponentName(ctx, event.ComponentID)
+	}
 
 	dto := readmodels.RealizationDTO{
 		ID:               event.ID,

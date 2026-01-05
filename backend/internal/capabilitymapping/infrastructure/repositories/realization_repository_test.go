@@ -19,7 +19,7 @@ func TestRealizationDeserializers_RoundTrip(t *testing.T) {
 	realizationLevel, _ := valueobjects.NewRealizationLevel("primary")
 	notes := valueobjects.MustNewDescription("Main implementation")
 
-	original, err := aggregates.NewCapabilityRealization(capabilityID, componentID, realizationLevel, notes)
+	original, err := aggregates.NewCapabilityRealization(capabilityID, componentID, "Test Component", realizationLevel, notes)
 	require.NoError(t, err)
 
 	events := original.GetUncommittedChanges()
@@ -46,7 +46,7 @@ func TestRealizationDeserializers_RoundTripWithUpdate(t *testing.T) {
 	realizationLevel, _ := valueobjects.NewRealizationLevel("supporting")
 	notes := valueobjects.MustNewDescription("Initial notes")
 
-	original, err := aggregates.NewCapabilityRealization(capabilityID, componentID, realizationLevel, notes)
+	original, err := aggregates.NewCapabilityRealization(capabilityID, componentID, "Test Component", realizationLevel, notes)
 	require.NoError(t, err)
 
 	newLevel, _ := valueobjects.NewRealizationLevel("primary")
@@ -74,7 +74,7 @@ func TestRealizationDeserializers_AllEventsCanBeDeserialized(t *testing.T) {
 	realizationLevel, _ := valueobjects.NewRealizationLevel("primary")
 	notes := valueobjects.MustNewDescription("Test notes")
 
-	realization, err := aggregates.NewCapabilityRealization(capabilityID, componentID, realizationLevel, notes)
+	realization, err := aggregates.NewCapabilityRealization(capabilityID, componentID, "Test Component", realizationLevel, notes)
 	require.NoError(t, err)
 
 	newLevel, _ := valueobjects.NewRealizationLevel("supporting")
