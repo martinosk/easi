@@ -13,10 +13,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func testOwner() valueobjects.ViewOwner {
+	owner, _ := valueobjects.NewViewOwner("test-user-id", "test@example.com")
+	return owner
+}
+
 func TestArchitectureViewDeserializers_RoundTrip(t *testing.T) {
 	name, _ := valueobjects.NewViewName("Main View")
 
-	original, err := aggregates.NewArchitectureView(name, "Main architecture view", false)
+	original, err := aggregates.NewArchitectureView(name, "Main architecture view", false, testOwner())
 	require.NoError(t, err)
 
 	events := original.GetUncommittedChanges()
@@ -38,7 +43,7 @@ func TestArchitectureViewDeserializers_RoundTrip(t *testing.T) {
 func TestArchitectureViewDeserializers_RoundTripWithDefault(t *testing.T) {
 	name, _ := valueobjects.NewViewName("Default View")
 
-	original, err := aggregates.NewArchitectureView(name, "Default architecture view", true)
+	original, err := aggregates.NewArchitectureView(name, "Default architecture view", true, testOwner())
 	require.NoError(t, err)
 
 	events := original.GetUncommittedChanges()
@@ -58,7 +63,7 @@ func TestArchitectureViewDeserializers_RoundTripWithDefault(t *testing.T) {
 func TestArchitectureViewDeserializers_RoundTripWithComponentAndRename(t *testing.T) {
 	name, _ := valueobjects.NewViewName("Component View")
 
-	original, err := aggregates.NewArchitectureView(name, "View with components", false)
+	original, err := aggregates.NewArchitectureView(name, "View with components", false, testOwner())
 	require.NoError(t, err)
 
 	_ = original.AddComponent("component-1")
@@ -86,7 +91,7 @@ func TestArchitectureViewDeserializers_RoundTripWithComponentAndRename(t *testin
 func TestArchitectureViewDeserializers_AllEventsCanBeDeserialized(t *testing.T) {
 	name, _ := valueobjects.NewViewName("Test View")
 
-	view, err := aggregates.NewArchitectureView(name, "Test description", false)
+	view, err := aggregates.NewArchitectureView(name, "Test description", false, testOwner())
 	require.NoError(t, err)
 
 	_ = view.AddComponent("component-1")

@@ -86,6 +86,9 @@ type ArchitectureViewDTO struct {
 	Name            string                  `json:"name"`
 	Description     string                  `json:"description,omitempty"`
 	IsDefault       bool                    `json:"isDefault"`
+	IsPrivate       bool                    `json:"isPrivate"`
+	OwnerUserID     *string                 `json:"ownerUserId,omitempty"`
+	OwnerEmail      *string                 `json:"ownerEmail,omitempty"`
 	Components      []ComponentPositionDTO  `json:"components"`
 	Capabilities    []CapabilityPositionDTO `json:"capabilities"`
 	CreatedAt       time.Time               `json:"createdAt"`
@@ -121,8 +124,8 @@ func (rm *ArchitectureViewReadModel) InsertView(ctx context.Context, dto Archite
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO architecture_views (id, tenant_id, name, description, is_default, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		dto.ID, tenantID, dto.Name, dto.Description, dto.IsDefault, dto.CreatedAt,
+		"INSERT INTO architecture_views (id, tenant_id, name, description, is_default, is_private, owner_user_id, owner_email, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+		dto.ID, tenantID, dto.Name, dto.Description, dto.IsDefault, dto.IsPrivate, dto.OwnerUserID, dto.OwnerEmail, dto.CreatedAt,
 	)
 	return err
 }
@@ -222,6 +225,19 @@ func (rm *ArchitectureViewReadModel) UpdateLayoutDirection(ctx context.Context, 
 	return rm.updateViewField(ctx, update)
 }
 
+func (rm *ArchitectureViewReadModel) UpdateVisibility(ctx context.Context, viewID string, isPrivate bool, ownerUserID, ownerEmail string) error {
+	tenantID, err := rm.getTenantID(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"UPDATE architecture_views SET is_private = $1, owner_user_id = $2, owner_email = $3, updated_at = $4 WHERE tenant_id = $5 AND id = $6",
+		isPrivate, ownerUserID, ownerEmail, time.Now().UTC(), tenantID, viewID,
+	)
+	return err
+}
+
 func (rm *ArchitectureViewReadModel) updateViewField(ctx context.Context, update ViewFieldUpdate) error {
 	tenantID, err := rm.getTenantID(ctx)
 	if err != nil {
@@ -236,7 +252,7 @@ func (rm *ArchitectureViewReadModel) updateViewField(ctx context.Context, update
 // GetDefaultView retrieves the default view for the current tenant
 func (rm *ArchitectureViewReadModel) GetDefaultView(ctx context.Context) (*ArchitectureViewDTO, error) {
 	return rm.getViewByQuery(ctx,
-		`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction, vp.color_scheme
+		`SELECT av.id, av.name, av.description, av.is_default, av.is_private, av.owner_user_id, av.owner_email, av.created_at, vp.edge_type, vp.layout_direction, vp.color_scheme
 		FROM architecture_views av
 		LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
 		WHERE av.tenant_id = $1 AND av.is_default = true AND av.is_deleted = false LIMIT 1`,
@@ -247,7 +263,7 @@ func (rm *ArchitectureViewReadModel) GetDefaultView(ctx context.Context) (*Archi
 // GetByID retrieves a view by ID with all component positions for the current tenant
 func (rm *ArchitectureViewReadModel) GetByID(ctx context.Context, id string) (*ArchitectureViewDTO, error) {
 	return rm.getViewByQuery(ctx,
-		`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction, vp.color_scheme
+		`SELECT av.id, av.name, av.description, av.is_default, av.is_private, av.owner_user_id, av.owner_email, av.created_at, vp.edge_type, vp.layout_direction, vp.color_scheme
 		FROM architecture_views av
 		LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
 		WHERE av.tenant_id = $1 AND av.id = $2 AND av.is_deleted = false`,
@@ -294,9 +310,9 @@ func (rm *ArchitectureViewReadModel) getViewByQuery(ctx context.Context, query s
 }
 
 func (rm *ArchitectureViewReadModel) scanSingleView(ctx context.Context, tx *sql.Tx, query string, args []interface{}, dto *ArchitectureViewDTO) (bool, error) {
-	var edgeType, layoutDirection, colorScheme sql.NullString
+	var edgeType, layoutDirection, colorScheme, ownerUserID, ownerEmail sql.NullString
 	err := tx.QueryRowContext(ctx, query, args...).Scan(
-		&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt, &edgeType, &layoutDirection, &colorScheme,
+		&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.IsPrivate, &ownerUserID, &ownerEmail, &dto.CreatedAt, &edgeType, &layoutDirection, &colorScheme,
 	)
 
 	if err == sql.ErrNoRows {
@@ -306,6 +322,12 @@ func (rm *ArchitectureViewReadModel) scanSingleView(ctx context.Context, tx *sql
 		return false, err
 	}
 
+	if ownerUserID.Valid {
+		dto.OwnerUserID = &ownerUserID.String
+	}
+	if ownerEmail.Valid {
+		dto.OwnerEmail = &ownerEmail.String
+	}
 	if edgeType.Valid {
 		dto.EdgeType = edgeType.String
 	}
@@ -340,7 +362,7 @@ func (rm *ArchitectureViewReadModel) GetAll(ctx context.Context) ([]Architecture
 
 func (rm *ArchitectureViewReadModel) queryViews(ctx context.Context, tx *sql.Tx, tenantID string) ([]ArchitectureViewDTO, error) {
 	rows, err := tx.QueryContext(ctx,
-		`SELECT av.id, av.name, av.description, av.is_default, av.created_at, vp.edge_type, vp.layout_direction, vp.color_scheme
+		`SELECT av.id, av.name, av.description, av.is_default, av.is_private, av.owner_user_id, av.owner_email, av.created_at, vp.edge_type, vp.layout_direction, vp.color_scheme
 		FROM architecture_views av
 		LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
 		WHERE av.tenant_id = $1 AND av.is_deleted = false ORDER BY av.is_default DESC, av.created_at DESC`,
@@ -365,13 +387,19 @@ func (rm *ArchitectureViewReadModel) queryViews(ctx context.Context, tx *sql.Tx,
 
 func (rm *ArchitectureViewReadModel) scanViewRow(rows *sql.Rows) (ArchitectureViewDTO, error) {
 	var dto ArchitectureViewDTO
-	var edgeType, layoutDirection, colorScheme sql.NullString
+	var edgeType, layoutDirection, colorScheme, ownerUserID, ownerEmail sql.NullString
 
-	err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.CreatedAt, &edgeType, &layoutDirection, &colorScheme)
+	err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.IsPrivate, &ownerUserID, &ownerEmail, &dto.CreatedAt, &edgeType, &layoutDirection, &colorScheme)
 	if err != nil {
 		return dto, err
 	}
 
+	if ownerUserID.Valid {
+		dto.OwnerUserID = &ownerUserID.String
+	}
+	if ownerEmail.Valid {
+		dto.OwnerEmail = &ownerEmail.String
+	}
 	if edgeType.Valid {
 		dto.EdgeType = edgeType.String
 	}

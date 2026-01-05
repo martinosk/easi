@@ -233,3 +233,19 @@ export function useClearCapabilityColor() {
     errorMessage: 'Failed to clear capability color',
   });
 }
+
+export function useChangeViewVisibility() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ viewId, isPrivate }: { viewId: ViewId; isPrivate: boolean }) =>
+      viewsApi.changeVisibility(viewId, isPrivate),
+    onSuccess: (_, { viewId, isPrivate }) => {
+      invalidateFor(queryClient, mutationEffects.views.changeVisibility(viewId));
+      toast.success(isPrivate ? 'View made private' : 'View made public');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to change view visibility');
+    },
+  });
+}

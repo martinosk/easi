@@ -10,7 +10,8 @@ import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialo
 import { DeleteCapabilityDialog } from '../../capabilities/components/DeleteCapabilityDialog';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { useComponents, useUpdateComponent, useDeleteComponent } from '../../components/hooks/useComponents';
-import { useViews, useCreateView, useDeleteView, useRenameView, useSetDefaultView } from '../../views/hooks/useViews';
+import { useViews, useCreateView, useDeleteView, useRenameView, useSetDefaultView, useChangeViewVisibility } from '../../views/hooks/useViews';
+import type { HATEOASLinks } from '../../../api/types';
 
 interface CapabilityTreeNode {
   capability: Capability;
@@ -124,6 +125,8 @@ interface ViewContextMenuState {
   viewId: ViewId;
   viewName: string;
   isDefault: boolean;
+  isPrivate: boolean;
+  _links: HATEOASLinks;
 }
 
 interface ComponentContextMenuState {
@@ -175,6 +178,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   const deleteViewMutation = useDeleteView();
   const renameViewMutation = useRenameView();
   const setDefaultViewMutation = useSetDefaultView();
+  const changeVisibilityMutation = useChangeViewVisibility();
 
   const [viewContextMenu, setViewContextMenu] = useState<ViewContextMenuState | null>(null);
   const [componentContextMenu, setComponentContextMenu] = useState<ComponentContextMenuState | null>(null);
@@ -366,7 +370,14 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
   const handleViewContextMenu = (e: React.MouseEvent, view: View) => {
     const pos = getContextMenuPosition(e);
-    setViewContextMenu({ ...pos, viewId: view.id, viewName: view.name, isDefault: view.isDefault });
+    setViewContextMenu({
+      ...pos,
+      viewId: view.id,
+      viewName: view.name,
+      isDefault: view.isDefault,
+      isPrivate: view.isPrivate,
+      _links: view._links,
+    });
   };
 
   const handleComponentContextMenu = (e: React.MouseEvent, component: Component) => {
@@ -436,8 +447,13 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   };
 
   const getViewContextMenuItems = (menu: ViewContextMenuState): ContextMenuItem[] => {
-    const items: ContextMenuItem[] = [
-      {
+    const items: ContextMenuItem[] = [];
+    const canEdit = menu._links?.update !== undefined;
+    const canDelete = menu._links?.delete !== undefined;
+    const canChangeVisibility = menu._links?.changeVisibility !== undefined;
+
+    if (canEdit) {
+      items.push({
         label: 'Rename View',
         onClick: () => {
           setEditingState({
@@ -445,8 +461,24 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
             name: menu.viewName,
           });
         },
-      },
-    ];
+      });
+    }
+
+    if (canChangeVisibility) {
+      items.push({
+        label: menu.isPrivate ? 'Make Public' : 'Make Private',
+        onClick: async () => {
+          try {
+            await changeVisibilityMutation.mutateAsync({
+              viewId: menu.viewId,
+              isPrivate: !menu.isPrivate,
+            });
+          } catch (error) {
+            console.error('Failed to change visibility:', error);
+          }
+        },
+      });
+    }
 
     if (!menu.isDefault) {
       items.push({
@@ -460,17 +492,19 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
         },
       });
 
-      items.push({
-        label: 'Delete View',
-        onClick: () => {
-          setDeleteTarget({
-            type: 'view',
-            id: menu.viewId,
-            name: menu.viewName,
-          });
-        },
-        isDanger: true,
-      });
+      if (canDelete) {
+        items.push({
+          label: 'Delete View',
+          onClick: () => {
+            setDeleteTarget({
+              type: 'view',
+              id: menu.viewId,
+              name: menu.viewName,
+            });
+          },
+          isDanger: true,
+        });
+      }
     }
 
     return items;
@@ -684,11 +718,15 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                             <button
                               className={`tree-item ${isActive ? 'selected' : ''}`}
                               onClick={() => handleViewClick(view.id)}
-                              onDoubleClick={() => setEditingState({ viewId: view.id, name: view.name })}
+                              onDoubleClick={() => {
+                                if (view._links?.update) {
+                                  setEditingState({ viewId: view.id, name: view.name });
+                                }
+                              }}
                               onContextMenu={(e) => handleViewContextMenu(e, view)}
-                              title={view.name}
+                              title={view.isPrivate ? `Private view by ${view.ownerEmail || 'unknown'}` : view.name}
                             >
-                              <span className="tree-item-icon">👁️</span>
+                              <span className="tree-item-icon">{view.isPrivate ? '🔒' : '👁️'}</span>
                               <span className="tree-item-label">
                                 {view.name}
                                 {view.isDefault && <span className="default-badge"> ⭐</span>}

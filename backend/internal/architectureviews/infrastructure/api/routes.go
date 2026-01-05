@@ -7,6 +7,7 @@ import (
 	"easi/backend/internal/architectureviews/application/projectors"
 	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
+	authReadModels "easi/backend/internal/auth/application/readmodels"
 	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -31,6 +32,7 @@ func SetupArchitectureViewsRoutes(
 	hateoas *sharedAPI.HATEOASLinks,
 	authMiddleware AuthMiddleware,
 ) error {
+	userReadModel := authReadModels.NewUserReadModel(db)
 	// Initialize repositories
 	viewRepo := repositories.NewArchitectureViewRepository(eventStore)
 	layoutRepo := repositories.NewViewLayoutRepository(db)
@@ -44,13 +46,11 @@ func SetupArchitectureViewsRoutes(
 	// Wire up projector to event bus
 	eventBus.Subscribe("ViewCreated", viewProjector)
 	eventBus.Subscribe("ComponentAddedToView", viewProjector)
-	eventBus.Subscribe("ComponentPositionUpdated", viewProjector)
 	eventBus.Subscribe("ComponentRemovedFromView", viewProjector)
 	eventBus.Subscribe("ViewRenamed", viewProjector)
 	eventBus.Subscribe("ViewDeleted", viewProjector)
 	eventBus.Subscribe("DefaultViewChanged", viewProjector)
-	eventBus.Subscribe("ViewEdgeTypeUpdated", viewProjector)
-	eventBus.Subscribe("ViewLayoutDirectionUpdated", viewProjector)
+	eventBus.Subscribe("ViewVisibilityChanged", viewProjector)
 
 	// Initialize cross-context event handlers
 	componentDeletedHandler := handlers.NewApplicationComponentDeletedHandler(commandBus, viewReadModel)
@@ -74,6 +74,7 @@ func SetupArchitectureViewsRoutes(
 	updateColorSchemeHandler := handlers.NewUpdateViewColorSchemeHandler(layoutRepo)
 	updateElementColorHandler := handlers.NewUpdateElementColorHandler(layoutRepo)
 	clearElementColorHandler := handlers.NewClearElementColorHandler(layoutRepo)
+	changeVisibilityHandler := handlers.NewChangeViewVisibilityHandler(viewRepo, userReadModel)
 
 	// Register command handlers
 	commandBus.Register("CreateView", createViewHandler)
@@ -89,6 +90,7 @@ func SetupArchitectureViewsRoutes(
 	commandBus.Register("UpdateViewColorScheme", updateColorSchemeHandler)
 	commandBus.Register("UpdateElementColor", updateElementColorHandler)
 	commandBus.Register("ClearElementColor", clearElementColorHandler)
+	commandBus.Register("ChangeViewVisibility", changeVisibilityHandler)
 
 	// Initialize HTTP handlers
 	viewHandlers := NewViewHandlers(commandBus, viewReadModel, layoutRepo, hateoas)
@@ -115,6 +117,7 @@ func SetupArchitectureViewsRoutes(
 			r.Post("/{id}/capabilities", viewHandlers.AddCapabilityToView)
 			r.Patch("/{id}/capabilities/{capabilityId}/position", viewHandlers.UpdateCapabilityPosition)
 			r.Patch("/{id}/capabilities/{capabilityId}/color", viewHandlers.UpdateCapabilityColor)
+			r.Patch("/{id}/visibility", viewHandlers.ChangeVisibility)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authValueObjects.PermViewsDelete))

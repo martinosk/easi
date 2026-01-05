@@ -148,6 +148,10 @@ type UpdateColorSchemeRequest struct {
 	ColorScheme string `json:"colorScheme"`
 }
 
+type ChangeVisibilityRequest struct {
+	IsPrivate bool `json:"isPrivate"`
+}
+
 // CreateView godoc
 // @Summary Create a new architecture view
 // @Description Creates a new architecture view for organizing components
@@ -399,6 +403,32 @@ func (h *ViewHandlers) DeleteView(w http.ResponseWriter, r *http.Request) {
 
 	h.dispatchCommand(w, r, &commands.DeleteView{
 		ViewID: viewID,
+	})
+}
+
+// ChangeVisibility godoc
+// @Summary Change view visibility
+// @Description Toggle view between private and public
+// @Tags views
+// @Accept json
+// @Param id path string true "View ID"
+// @Param request body ChangeVisibilityRequest true "Visibility request"
+// @Success 204
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/visibility [patch]
+func (h *ViewHandlers) ChangeVisibility(w http.ResponseWriter, r *http.Request) {
+	viewID := sharedAPI.GetPathParam(r, "id")
+
+	req, ok := sharedAPI.DecodeRequestOrFail[ChangeVisibilityRequest](w, r)
+	if !ok {
+		return
+	}
+
+	h.dispatchCommand(w, r, &commands.ChangeViewVisibility{
+		ViewID:    viewID,
+		IsPrivate: req.IsPrivate,
 	})
 }
 

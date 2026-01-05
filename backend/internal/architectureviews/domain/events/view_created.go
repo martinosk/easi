@@ -11,16 +11,22 @@ type ViewCreated struct {
 	ID          string
 	Name        string
 	Description string
+	IsPrivate   bool
+	OwnerUserID string
+	OwnerEmail  string
 	CreatedAt   time.Time
 }
 
 // NewViewCreated creates a new ViewCreated event
-func NewViewCreated(id, name, description string) ViewCreated {
+func NewViewCreated(id, name, description string, isPrivate bool, ownerUserID, ownerEmail string) ViewCreated {
 	return ViewCreated{
 		BaseEvent:   domain.NewBaseEvent(id),
 		ID:          id,
 		Name:        name,
 		Description: description,
+		IsPrivate:   isPrivate,
+		OwnerUserID: ownerUserID,
+		OwnerEmail:  ownerEmail,
 		CreatedAt:   time.Now().UTC(),
 	}
 }
@@ -36,6 +42,9 @@ func (e ViewCreated) EventData() map[string]interface{} {
 		"id":          e.ID,
 		"name":        e.Name,
 		"description": e.Description,
+		"isPrivate":   e.IsPrivate,
+		"ownerUserId": e.OwnerUserID,
+		"ownerEmail":  e.OwnerEmail,
 		"createdAt":   e.CreatedAt,
 	}
 }

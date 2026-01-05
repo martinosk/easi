@@ -41,20 +41,11 @@ var eventDeserializers = repository.NewEventDeserializers(
 				Y:           y,
 			}
 		},
-		"ComponentPositionUpdated": func(data map[string]interface{}) domain.DomainEvent {
-			viewID, componentID, x, y := extractComponentPosition(data)
-			return events.ComponentPositionUpdated{
-				BaseEvent:   domain.NewBaseEvent(viewID),
-				ViewID:      viewID,
-				ComponentID: componentID,
-				X:           x,
-				Y:           y,
-			}
-		},
-		"ComponentRemovedFromView": deserializeComponentRemoved,
-		"ViewRenamed":              deserializeViewRenamed,
-		"ViewDeleted":              deserializeViewDeleted,
-		"DefaultViewChanged":       deserializeDefaultViewChanged,
+		"ComponentRemovedFromView":  deserializeComponentRemoved,
+		"ViewRenamed":               deserializeViewRenamed,
+		"ViewDeleted":               deserializeViewDeleted,
+		"DefaultViewChanged":        deserializeDefaultViewChanged,
+		"ViewVisibilityChanged":     deserializeViewVisibilityChanged,
 	},
 )
 
@@ -62,12 +53,18 @@ func deserializeViewCreated(data map[string]interface{}) domain.DomainEvent {
 	id, _ := data["id"].(string)
 	name, _ := data["name"].(string)
 	description, _ := data["description"].(string)
+	isPrivate, _ := data["isPrivate"].(bool)
+	ownerUserID, _ := data["ownerUserId"].(string)
+	ownerEmail, _ := data["ownerEmail"].(string)
 
 	evt := events.ViewCreated{
 		BaseEvent:   domain.NewBaseEvent(id),
 		ID:          id,
 		Name:        name,
 		Description: description,
+		IsPrivate:   isPrivate,
+		OwnerUserID: ownerUserID,
+		OwnerEmail:  ownerEmail,
 	}
 
 	if createdAtStr, ok := data["createdAt"].(string); ok {
@@ -128,5 +125,20 @@ func deserializeDefaultViewChanged(data map[string]interface{}) domain.DomainEve
 		BaseEvent: domain.NewBaseEvent(viewID),
 		ViewID:    viewID,
 		IsDefault: isDefault,
+	}
+}
+
+func deserializeViewVisibilityChanged(data map[string]interface{}) domain.DomainEvent {
+	viewID, _ := data["viewId"].(string)
+	isPrivate, _ := data["isPrivate"].(bool)
+	ownerUserID, _ := data["ownerUserId"].(string)
+	ownerEmail, _ := data["ownerEmail"].(string)
+
+	return events.ViewVisibilityChanged{
+		BaseEvent:   domain.NewBaseEvent(viewID),
+		ViewID:      viewID,
+		IsPrivate:   isPrivate,
+		OwnerUserID: ownerUserID,
+		OwnerEmail:  ownerEmail,
 	}
 }

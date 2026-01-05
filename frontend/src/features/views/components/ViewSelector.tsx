@@ -27,8 +27,13 @@ export const ViewSelector: React.FC = () => {
             key={view.id}
             className={`view-tab ${currentView?.id === view.id ? 'active' : ''}`}
             onClick={() => handleViewClick(view.id)}
-            title={view.description || view.name}
+            title={
+              view.isPrivate
+                ? `Private view by ${view.ownerEmail || 'unknown'}`
+                : view.description || view.name
+            }
           >
+            {view.isPrivate && <span className="private-indicator">🔒</span>}
             <span className="view-tab-name">{view.name}</span>
             {view.isDefault && <span className="default-indicator">⭐</span>}
           </button>

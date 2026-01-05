@@ -39,8 +39,6 @@ func (p *ArchitectureViewProjector) ProjectEvent(ctx context.Context, eventType 
 		return p.projectViewCreated(ctx, eventData)
 	case "ComponentAddedToView":
 		return p.projectComponentAdded(ctx, eventData)
-	case "ComponentPositionUpdated":
-		return p.projectComponentPositionUpdated(ctx, eventData)
 	case "ComponentRemovedFromView":
 		return p.projectComponentRemoved(ctx, eventData)
 	case "ViewRenamed":
@@ -49,10 +47,8 @@ func (p *ArchitectureViewProjector) ProjectEvent(ctx context.Context, eventType 
 		return p.projectViewDeleted(ctx, eventData)
 	case "DefaultViewChanged":
 		return p.projectDefaultViewChanged(ctx, eventData)
-	case "ViewEdgeTypeUpdated":
-		return p.projectViewEdgeTypeUpdated(ctx, eventData)
-	case "ViewLayoutDirectionUpdated":
-		return p.projectViewLayoutDirectionUpdated(ctx, eventData)
+	case "ViewVisibilityChanged":
+		return p.projectViewVisibilityChanged(ctx, eventData)
 	}
 
 	return nil
@@ -69,11 +65,21 @@ func (p *ArchitectureViewProjector) projectViewCreated(ctx context.Context, even
 		ID:          event.ID,
 		Name:        event.Name,
 		Description: event.Description,
+		IsPrivate:   event.IsPrivate,
+		OwnerUserID: stringPtrIfNotEmpty(event.OwnerUserID),
+		OwnerEmail:  stringPtrIfNotEmpty(event.OwnerEmail),
 		CreatedAt:   event.CreatedAt,
 		Components:  make([]readmodels.ComponentPositionDTO, 0),
 	}
 
 	return p.readModel.InsertView(ctx, dto)
+}
+
+func stringPtrIfNotEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 func (p *ArchitectureViewProjector) projectComponentAdded(ctx context.Context, eventData []byte) error {
@@ -85,17 +91,6 @@ func (p *ArchitectureViewProjector) projectComponentAdded(ctx context.Context, e
 
 	pos := readmodels.Position{X: event.X, Y: event.Y}
 	return p.readModel.AddComponent(ctx, readmodels.ViewID(event.ViewID), readmodels.ComponentID(event.ComponentID), pos)
-}
-
-func (p *ArchitectureViewProjector) projectComponentPositionUpdated(ctx context.Context, eventData []byte) error {
-	var event events.ComponentPositionUpdated
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal ComponentPositionUpdated event: %v", err)
-		return err
-	}
-
-	pos := readmodels.Position{X: event.X, Y: event.Y}
-	return p.readModel.UpdateComponentPosition(ctx, readmodels.ViewID(event.ViewID), readmodels.ComponentID(event.ComponentID), pos)
 }
 
 func (p *ArchitectureViewProjector) projectComponentRemoved(ctx context.Context, eventData []byte) error {
@@ -138,22 +133,12 @@ func (p *ArchitectureViewProjector) projectDefaultViewChanged(ctx context.Contex
 	return p.readModel.SetViewAsDefault(ctx, event.ViewID, event.IsDefault)
 }
 
-func (p *ArchitectureViewProjector) projectViewEdgeTypeUpdated(ctx context.Context, eventData []byte) error {
-	var event events.ViewEdgeTypeUpdated
+func (p *ArchitectureViewProjector) projectViewVisibilityChanged(ctx context.Context, eventData []byte) error {
+	var event events.ViewVisibilityChanged
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal ViewEdgeTypeUpdated event: %v", err)
+		log.Printf("Failed to unmarshal ViewVisibilityChanged event: %v", err)
 		return err
 	}
 
-	return p.readModel.UpdateEdgeType(ctx, event.ViewID, event.EdgeType)
-}
-
-func (p *ArchitectureViewProjector) projectViewLayoutDirectionUpdated(ctx context.Context, eventData []byte) error {
-	var event events.ViewLayoutDirectionUpdated
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal ViewLayoutDirectionUpdated event: %v", err)
-		return err
-	}
-
-	return p.readModel.UpdateLayoutDirection(ctx, event.ViewID, event.LayoutDirection)
+	return p.readModel.UpdateVisibility(ctx, event.ViewID, event.IsPrivate, event.OwnerUserID, event.OwnerEmail)
 }

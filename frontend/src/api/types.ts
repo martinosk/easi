@@ -78,6 +78,9 @@ export interface View {
   name: string;
   description?: string;
   isDefault: boolean;
+  isPrivate: boolean;
+  ownerUserId?: string;
+  ownerEmail?: string;
   components: ViewComponent[];
   capabilities: ViewCapability[];
   edgeType?: string;

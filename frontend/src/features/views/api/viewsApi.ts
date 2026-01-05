@@ -111,6 +111,10 @@ export const viewsApi = {
   async clearCapabilityColor(viewId: ViewId, capabilityId: CapabilityId): Promise<void> {
     await httpClient.delete(`/api/v1/views/${viewId}/capabilities/${capabilityId}/color`);
   },
+
+  async changeVisibility(viewId: ViewId, isPrivate: boolean): Promise<void> {
+    await httpClient.patch(`/api/v1/views/${viewId}/visibility`, { isPrivate });
+  },
 };
 
 export default viewsApi;

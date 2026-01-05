@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 
 	"easi/backend/internal/architectureviews/application/commands"
 	"easi/backend/internal/architectureviews/application/readmodels"
@@ -9,7 +10,10 @@ import (
 	"easi/backend/internal/architectureviews/domain/valueobjects"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
+	sharedctx "easi/backend/internal/shared/context"
 )
+
+var ErrActorNotFound = errors.New("actor not found in context")
 
 type CreateViewHandler struct {
 	repository *repositories.ArchitectureViewRepository
@@ -29,6 +33,16 @@ func (h *CreateViewHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
+	actor, ok := sharedctx.GetActor(ctx)
+	if !ok {
+		return cqrs.EmptyResult(), ErrActorNotFound
+	}
+
+	owner, err := valueobjects.NewViewOwner(actor.ID, actor.Email)
+	if err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
 	name, err := valueobjects.NewViewName(command.Name)
 	if err != nil {
 		return cqrs.EmptyResult(), err
@@ -40,7 +54,7 @@ func (h *CreateViewHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.
 	}
 	isDefault := len(existingViews) == 0
 
-	view, err := aggregates.NewArchitectureView(name, command.Description, isDefault)
+	view, err := aggregates.NewArchitectureView(name, command.Description, isDefault, owner)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}

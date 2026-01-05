@@ -352,6 +352,11 @@ export const mutationEffects = {
       queryKeys.views.lists(),
     ],
 
+    changeVisibility: (viewId: string) => [
+      queryKeys.views.lists(),
+      queryKeys.views.detail(viewId),
+    ],
+
     updateDetail: (viewId: string) => [
       queryKeys.views.detail(viewId),
     ],

@@ -21,6 +21,18 @@ var (
 
 	// ErrViewAlreadyDeleted is returned when trying to perform operations on a deleted view
 	ErrViewAlreadyDeleted = errors.New("view has been deleted")
+
+	// ErrNotAuthorizedToEditView is returned when a user tries to edit a view they don't have permission for
+	ErrNotAuthorizedToEditView = errors.New("not authorized to edit this view")
+
+	// ErrOnlyOwnerCanMakePrivate is returned when a non-owner tries to make a view private
+	ErrOnlyOwnerCanMakePrivate = errors.New("only the owner can make a view private")
+
+	// ErrViewAlreadyPrivate is returned when trying to make an already private view private
+	ErrViewAlreadyPrivate = errors.New("view is already private")
+
+	// ErrViewAlreadyPublic is returned when trying to make an already public view public
+	ErrViewAlreadyPublic = errors.New("view is already public")
 )
 
 type ArchitectureView struct {
@@ -28,12 +40,14 @@ type ArchitectureView struct {
 	name        valueobjects.ViewName
 	description valueobjects.ViewDescription
 	components  valueobjects.ComponentMembership
+	owner       valueobjects.ViewOwner
+	visibility  valueobjects.ViewVisibility
 	isDefault   bool
 	isDeleted   bool
 	createdAt   time.Time
 }
 
-func NewArchitectureView(name valueobjects.ViewName, description string, isDefault bool) (*ArchitectureView, error) {
+func NewArchitectureView(name valueobjects.ViewName, description string, isDefault bool, owner valueobjects.ViewOwner) (*ArchitectureView, error) {
 	aggregate := &ArchitectureView{
 		AggregateRoot: domain.NewAggregateRoot(),
 		components:    valueobjects.NewComponentMembership(),
@@ -43,6 +57,9 @@ func NewArchitectureView(name valueobjects.ViewName, description string, isDefau
 		aggregate.ID(),
 		name.Value(),
 		description,
+		true,
+		owner.UserID(),
+		owner.Email(),
 	)
 
 	aggregate.apply(viewCreatedEvent)
@@ -169,7 +186,8 @@ func (v *ArchitectureView) apply(event domain.DomainEvent) {
 		v.applyViewDeleted()
 	case events.DefaultViewChanged:
 		v.applyDefaultViewChanged(e)
-	case events.ComponentPositionUpdated, events.ViewEdgeTypeUpdated, events.ViewLayoutDirectionUpdated:
+	case events.ViewVisibilityChanged:
+		v.applyViewVisibilityChanged(e)
 	}
 }
 
@@ -177,6 +195,8 @@ func (v *ArchitectureView) applyViewCreated(e events.ViewCreated) {
 	v.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
 	v.name, _ = valueobjects.NewViewName(e.Name)
 	v.description = valueobjects.NewViewDescription(e.Description)
+	v.visibility = valueobjects.NewViewVisibility(e.IsPrivate)
+	v.owner, _ = valueobjects.NewViewOwner(e.OwnerUserID, e.OwnerEmail)
 	v.createdAt = e.CreatedAt
 }
 
@@ -226,4 +246,50 @@ func (v *ArchitectureView) IsDefault() bool {
 
 func (v *ArchitectureView) IsDeleted() bool {
 	return v.isDeleted
+}
+
+func (v *ArchitectureView) Owner() valueobjects.ViewOwner {
+	return v.owner
+}
+
+func (v *ArchitectureView) IsPrivate() bool {
+	return v.visibility.IsPrivate()
+}
+
+func (v *ArchitectureView) CanBeEditedBy(actorID string, hasViewsWritePermission bool) bool {
+	if v.visibility.IsPrivate() {
+		return v.owner.UserID() == actorID
+	}
+	return hasViewsWritePermission
+}
+
+func (v *ArchitectureView) MakePublic(newOwner valueobjects.ViewOwner) error {
+	if err := v.checkNotDeleted(); err != nil {
+		return err
+	}
+
+	if v.visibility.IsPublic() {
+		return ErrViewAlreadyPublic
+	}
+
+	v.applyAndRaise(events.NewViewVisibilityChanged(v.ID(), false, newOwner.UserID(), newOwner.Email()))
+	return nil
+}
+
+func (v *ArchitectureView) MakePrivate() error {
+	if err := v.checkNotDeleted(); err != nil {
+		return err
+	}
+
+	if v.visibility.IsPrivate() {
+		return ErrViewAlreadyPrivate
+	}
+
+	v.applyAndRaise(events.NewViewVisibilityChanged(v.ID(), true, v.owner.UserID(), v.owner.Email()))
+	return nil
+}
+
+func (v *ArchitectureView) applyViewVisibilityChanged(e events.ViewVisibilityChanged) {
+	v.visibility = valueobjects.NewViewVisibility(e.IsPrivate)
+	v.owner, _ = valueobjects.NewViewOwner(e.OwnerUserID, e.OwnerEmail)
 }
