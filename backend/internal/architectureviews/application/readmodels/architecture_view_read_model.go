@@ -309,10 +309,36 @@ func (rm *ArchitectureViewReadModel) getViewByQuery(ctx context.Context, query s
 	return &dto, nil
 }
 
+type viewScanFields struct {
+	ownerUserID     sql.NullString
+	ownerEmail      sql.NullString
+	edgeType        sql.NullString
+	layoutDirection sql.NullString
+	colorScheme     sql.NullString
+}
+
+func (f *viewScanFields) applyTo(dto *ArchitectureViewDTO) {
+	if f.ownerUserID.Valid {
+		dto.OwnerUserID = &f.ownerUserID.String
+	}
+	if f.ownerEmail.Valid {
+		dto.OwnerEmail = &f.ownerEmail.String
+	}
+	if f.edgeType.Valid {
+		dto.EdgeType = f.edgeType.String
+	}
+	if f.layoutDirection.Valid {
+		dto.LayoutDirection = f.layoutDirection.String
+	}
+	if f.colorScheme.Valid {
+		dto.ColorScheme = f.colorScheme.String
+	}
+}
+
 func (rm *ArchitectureViewReadModel) scanSingleView(ctx context.Context, tx *sql.Tx, query string, args []interface{}, dto *ArchitectureViewDTO) (bool, error) {
-	var edgeType, layoutDirection, colorScheme, ownerUserID, ownerEmail sql.NullString
+	var fields viewScanFields
 	err := tx.QueryRowContext(ctx, query, args...).Scan(
-		&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.IsPrivate, &ownerUserID, &ownerEmail, &dto.CreatedAt, &edgeType, &layoutDirection, &colorScheme,
+		&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.IsPrivate, &fields.ownerUserID, &fields.ownerEmail, &dto.CreatedAt, &fields.edgeType, &fields.layoutDirection, &fields.colorScheme,
 	)
 
 	if err == sql.ErrNoRows {
@@ -322,22 +348,7 @@ func (rm *ArchitectureViewReadModel) scanSingleView(ctx context.Context, tx *sql
 		return false, err
 	}
 
-	if ownerUserID.Valid {
-		dto.OwnerUserID = &ownerUserID.String
-	}
-	if ownerEmail.Valid {
-		dto.OwnerEmail = &ownerEmail.String
-	}
-	if edgeType.Valid {
-		dto.EdgeType = edgeType.String
-	}
-	if layoutDirection.Valid {
-		dto.LayoutDirection = layoutDirection.String
-	}
-	if colorScheme.Valid {
-		dto.ColorScheme = colorScheme.String
-	}
-
+	fields.applyTo(dto)
 	return true, nil
 }
 
@@ -387,29 +398,14 @@ func (rm *ArchitectureViewReadModel) queryViews(ctx context.Context, tx *sql.Tx,
 
 func (rm *ArchitectureViewReadModel) scanViewRow(rows *sql.Rows) (ArchitectureViewDTO, error) {
 	var dto ArchitectureViewDTO
-	var edgeType, layoutDirection, colorScheme, ownerUserID, ownerEmail sql.NullString
+	var fields viewScanFields
 
-	err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.IsPrivate, &ownerUserID, &ownerEmail, &dto.CreatedAt, &edgeType, &layoutDirection, &colorScheme)
+	err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.IsDefault, &dto.IsPrivate, &fields.ownerUserID, &fields.ownerEmail, &dto.CreatedAt, &fields.edgeType, &fields.layoutDirection, &fields.colorScheme)
 	if err != nil {
 		return dto, err
 	}
 
-	if ownerUserID.Valid {
-		dto.OwnerUserID = &ownerUserID.String
-	}
-	if ownerEmail.Valid {
-		dto.OwnerEmail = &ownerEmail.String
-	}
-	if edgeType.Valid {
-		dto.EdgeType = edgeType.String
-	}
-	if layoutDirection.Valid {
-		dto.LayoutDirection = layoutDirection.String
-	}
-	if colorScheme.Valid {
-		dto.ColorScheme = colorScheme.String
-	}
-
+	fields.applyTo(&dto)
 	return dto, nil
 }
 
@@ -474,6 +470,45 @@ func getElementsForViewTx[T any](ctx context.Context, tx *sql.Tx, tenantID, view
 	}
 
 	return elements, rows.Err()
+}
+
+type ViewAuthInfo struct {
+	IsPrivate   bool
+	OwnerUserID *string
+}
+
+func (rm *ArchitectureViewReadModel) GetAuthInfo(ctx context.Context, viewID string) (*ViewAuthInfo, error) {
+	tenantID, err := rm.getTenantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var info *ViewAuthInfo
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		var ownerUserID sql.NullString
+		var isPrivate bool
+
+		err := tx.QueryRowContext(ctx,
+			"SELECT is_private, owner_user_id FROM architecture_views WHERE tenant_id = $1 AND id = $2 AND is_deleted = false",
+			tenantID, viewID,
+		).Scan(&isPrivate, &ownerUserID)
+
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		info = &ViewAuthInfo{IsPrivate: isPrivate}
+		if ownerUserID.Valid {
+			info.OwnerUserID = &ownerUserID.String
+		}
+
+		return nil
+	})
+
+	return info, err
 }
 
 func (rm *ArchitectureViewReadModel) GetViewsContainingComponent(ctx context.Context, componentID string) ([]string, error) {

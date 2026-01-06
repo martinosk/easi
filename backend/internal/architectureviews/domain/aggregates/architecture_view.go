@@ -10,29 +10,13 @@ import (
 )
 
 var (
-	// ErrComponentNotFound is returned when trying to update position of non-existent component
-	ErrComponentNotFound = errors.New("component not found in view")
-
-	// ErrComponentAlreadyInView is returned when trying to add a component that's already in the view
-	ErrComponentAlreadyInView = errors.New("component already exists in view")
-
-	// ErrCannotDeleteDefaultView is returned when trying to delete the default view
+	ErrComponentNotFound       = errors.New("component not found in view")
+	ErrComponentAlreadyInView  = errors.New("component already exists in view")
 	ErrCannotDeleteDefaultView = errors.New("cannot delete the default view")
-
-	// ErrViewAlreadyDeleted is returned when trying to perform operations on a deleted view
-	ErrViewAlreadyDeleted = errors.New("view has been deleted")
-
-	// ErrNotAuthorizedToEditView is returned when a user tries to edit a view they don't have permission for
-	ErrNotAuthorizedToEditView = errors.New("not authorized to edit this view")
-
-	// ErrOnlyOwnerCanMakePrivate is returned when a non-owner tries to make a view private
+	ErrViewAlreadyDeleted      = errors.New("view has been deleted")
 	ErrOnlyOwnerCanMakePrivate = errors.New("only the owner can make a view private")
-
-	// ErrViewAlreadyPrivate is returned when trying to make an already private view private
-	ErrViewAlreadyPrivate = errors.New("view is already private")
-
-	// ErrViewAlreadyPublic is returned when trying to make an already public view public
-	ErrViewAlreadyPublic = errors.New("view is already public")
+	ErrViewAlreadyPrivate      = errors.New("view is already private")
+	ErrViewAlreadyPublic       = errors.New("view is already public")
 )
 
 type ArchitectureView struct {
@@ -47,6 +31,8 @@ type ArchitectureView struct {
 	createdAt   time.Time
 }
 
+const defaultViewVisibilityIsPrivate = true
+
 func NewArchitectureView(name valueobjects.ViewName, description string, isDefault bool, owner valueobjects.ViewOwner) (*ArchitectureView, error) {
 	aggregate := &ArchitectureView{
 		AggregateRoot: domain.NewAggregateRoot(),
@@ -57,7 +43,7 @@ func NewArchitectureView(name valueobjects.ViewName, description string, isDefau
 		aggregate.ID(),
 		name.Value(),
 		description,
-		true,
+		defaultViewVisibilityIsPrivate,
 		owner.UserID(),
 		owner.Email(),
 	)

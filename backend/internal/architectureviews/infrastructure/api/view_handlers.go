@@ -229,6 +229,7 @@ func (h *ViewHandlers) GetAllViews(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for i := range views {
+		h.redactPrivateViewInfo(r, &views[i])
 		views[i].Links = h.buildViewLinks(r, &views[i])
 		h.addElementLinks(&views[i])
 	}
@@ -264,6 +265,7 @@ func (h *ViewHandlers) GetViewByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.redactPrivateViewInfo(r, view)
 	view.Links = h.buildViewLinks(r, view)
 	h.addElementLinks(view)
 
@@ -778,29 +780,44 @@ func (h *ViewHandlers) buildViewLinks(r *http.Request, view *readmodels.Architec
 	return h.hateoas.ViewLinksWithPermissions(view.ID, perms)
 }
 
-func (h *ViewHandlers) checkViewEditPermission(w http.ResponseWriter, r *http.Request, viewID string) bool {
-	view, err := h.readModel.GetByID(r.Context(), viewID)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to check view permissions")
-		return false
-	}
-	if view == nil {
-		sharedAPI.RespondError(w, http.StatusNotFound, nil, "View not found")
-		return false
-	}
+func isOwnerOfView(ownerUserID *string, actorID string) bool {
+	return ownerUserID != nil && *ownerUserID == actorID
+}
 
+func (h *ViewHandlers) redactPrivateViewInfo(r *http.Request, view *readmodels.ArchitectureViewDTO) {
 	if !view.IsPrivate {
-		return true
+		return
 	}
 
+	actor, ok := sharedctx.GetActor(r.Context())
+	if !ok || !isOwnerOfView(view.OwnerUserID, actor.ID) {
+		view.OwnerEmail = nil
+	}
+}
+
+func (h *ViewHandlers) checkViewEditPermission(w http.ResponseWriter, r *http.Request, viewID string) bool {
 	actor, ok := sharedctx.GetActor(r.Context())
 	if !ok {
 		sharedAPI.RespondError(w, http.StatusUnauthorized, nil, "Authentication required")
 		return false
 	}
 
-	if view.OwnerUserID == nil || *view.OwnerUserID != actor.ID {
-		sharedAPI.RespondError(w, http.StatusForbidden, nil, "Only the owner can edit this private view")
+	authInfo, err := h.readModel.GetAuthInfo(r.Context(), viewID)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to check permissions")
+		return false
+	}
+	if authInfo == nil {
+		sharedAPI.RespondError(w, http.StatusNotFound, nil, "View not found")
+		return false
+	}
+
+	if !authInfo.IsPrivate {
+		return true
+	}
+
+	if !isOwnerOfView(authInfo.OwnerUserID, actor.ID) {
+		sharedAPI.RespondError(w, http.StatusForbidden, nil, "Access denied")
 		return false
 	}
 
