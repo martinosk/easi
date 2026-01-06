@@ -9,6 +9,7 @@ import (
 	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/architectureviews/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 )
 
@@ -55,6 +56,10 @@ type elementParams struct {
 }
 
 func (h *ViewHandlers) updateElementColor(w http.ResponseWriter, r *http.Request, params elementParams) {
+	if !h.checkViewEditPermission(w, r, params.viewID) {
+		return
+	}
+
 	req, ok := sharedAPI.DecodeRequestOrFail[UpdateElementColorRequest](w, r)
 	if !ok {
 		return
@@ -76,6 +81,10 @@ func (h *ViewHandlers) updateElementColor(w http.ResponseWriter, r *http.Request
 }
 
 func (h *ViewHandlers) clearElementColor(w http.ResponseWriter, r *http.Request, params elementParams) {
+	if !h.checkViewEditPermission(w, r, params.viewID) {
+		return
+	}
+
 	cmd := &commands.ClearElementColor{
 		ViewID:      params.viewID,
 		ElementID:   params.elementID,
@@ -200,7 +209,7 @@ func (h *ViewHandlers) CreateView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	view.Links = h.hateoas.ViewLinks(view.ID)
+	view.Links = h.buildViewLinks(r, view)
 	sharedAPI.RespondCreated(w, location, view)
 }
 
@@ -220,7 +229,7 @@ func (h *ViewHandlers) GetAllViews(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for i := range views {
-		views[i].Links = h.hateoas.ViewLinks(views[i].ID)
+		views[i].Links = h.buildViewLinks(r, &views[i])
 		h.addElementLinks(&views[i])
 	}
 
@@ -255,7 +264,7 @@ func (h *ViewHandlers) GetViewByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	view.Links = h.hateoas.ViewLinks(view.ID)
+	view.Links = h.buildViewLinks(r, view)
 	h.addElementLinks(view)
 
 	sharedAPI.RespondJSON(w, http.StatusOK, view)
@@ -277,6 +286,10 @@ func (h *ViewHandlers) GetViewByID(w http.ResponseWriter, r *http.Request) {
 // @Router /views/{id}/components [post]
 func (h *ViewHandlers) AddComponentToView(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
+
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
 
 	req, ok := sharedAPI.DecodeRequestOrFail[AddComponentRequest](w, r)
 	if !ok {
@@ -316,6 +329,11 @@ func (h *ViewHandlers) AddComponentToView(w http.ResponseWriter, r *http.Request
 func (h *ViewHandlers) UpdateComponentPosition(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
 	componentID := sharedAPI.GetPathParam(r, "componentId")
+
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
+
 	var req UpdatePositionRequest
 
 	h.decodeValidateAndDispatch(w, r, &req, nil, func() cqrs.Command {
@@ -330,6 +348,10 @@ func (h *ViewHandlers) UpdateComponentPosition(w http.ResponseWriter, r *http.Re
 
 func (h *ViewHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
+
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
 
 	req, ok := sharedAPI.DecodeRequestOrFail[UpdateMultiplePositionsRequest](w, r)
 	if !ok {
@@ -374,6 +396,10 @@ func (h *ViewHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Re
 func (h *ViewHandlers) RenameView(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
 
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
+
 	req, ok := sharedAPI.DecodeRequestOrFail[RenameViewRequest](w, r)
 	if !ok {
 		return
@@ -400,6 +426,10 @@ func (h *ViewHandlers) RenameView(w http.ResponseWriter, r *http.Request) {
 // @Router /views/{id} [delete]
 func (h *ViewHandlers) DeleteView(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
+
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
 
 	h.dispatchCommand(w, r, &commands.DeleteView{
 		ViewID: viewID,
@@ -447,6 +477,10 @@ func (h *ViewHandlers) RemoveComponentFromView(w http.ResponseWriter, r *http.Re
 	viewID := sharedAPI.GetPathParam(r, "id")
 	componentID := sharedAPI.GetPathParam(r, "componentId")
 
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
+
 	h.dispatchCommand(w, r, &commands.RemoveComponentFromView{
 		ViewID:      viewID,
 		ComponentID: componentID,
@@ -466,12 +500,22 @@ func (h *ViewHandlers) RemoveComponentFromView(w http.ResponseWriter, r *http.Re
 func (h *ViewHandlers) SetDefaultView(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
 
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
+
 	h.dispatchCommand(w, r, &commands.SetDefaultView{
 		ViewID: viewID,
 	})
 }
 
 func (h *ViewHandlers) UpdateEdgeType(w http.ResponseWriter, r *http.Request) {
+	viewID := sharedAPI.GetPathParam(r, "id")
+
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
+
 	req, ok := sharedAPI.DecodeRequestOrFail[UpdateEdgeTypeRequest](w, r)
 	if !ok {
 		return
@@ -484,12 +528,18 @@ func (h *ViewHandlers) UpdateEdgeType(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.dispatchCommand(w, r, &commands.UpdateViewEdgeType{
-		ViewID:   sharedAPI.GetPathParam(r, "id"),
+		ViewID:   viewID,
 		EdgeType: edgeType.String(),
 	})
 }
 
 func (h *ViewHandlers) UpdateLayoutDirection(w http.ResponseWriter, r *http.Request) {
+	viewID := sharedAPI.GetPathParam(r, "id")
+
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
+
 	req, ok := sharedAPI.DecodeRequestOrFail[UpdateLayoutDirectionRequest](w, r)
 	if !ok {
 		return
@@ -502,7 +552,7 @@ func (h *ViewHandlers) UpdateLayoutDirection(w http.ResponseWriter, r *http.Requ
 	}
 
 	h.dispatchCommand(w, r, &commands.UpdateViewLayoutDirection{
-		ViewID:          sharedAPI.GetPathParam(r, "id"),
+		ViewID:          viewID,
 		LayoutDirection: layoutDir.String(),
 	})
 }
@@ -520,6 +570,10 @@ type UpdateCapabilityPositionRequest struct {
 
 func (h *ViewHandlers) AddCapabilityToView(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
+
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
 
 	req, ok := sharedAPI.DecodeRequestOrFail[AddCapabilityRequest](w, r)
 	if !ok {
@@ -544,6 +598,10 @@ func (h *ViewHandlers) UpdateCapabilityPosition(w http.ResponseWriter, r *http.R
 	viewID := sharedAPI.GetPathParam(r, "id")
 	capabilityID := sharedAPI.GetPathParam(r, "capabilityId")
 
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
+
 	req, ok := sharedAPI.DecodeRequestOrFail[UpdateCapabilityPositionRequest](w, r)
 	if !ok {
 		return
@@ -560,6 +618,10 @@ func (h *ViewHandlers) UpdateCapabilityPosition(w http.ResponseWriter, r *http.R
 func (h *ViewHandlers) RemoveCapabilityFromView(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
 	capabilityID := sharedAPI.GetPathParam(r, "capabilityId")
+
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
 
 	if err := h.layoutRepo.RemoveCapabilityFromView(r.Context(), viewID, capabilityID); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to remove capability from view")
@@ -583,6 +645,10 @@ func (h *ViewHandlers) RemoveCapabilityFromView(w http.ResponseWriter, r *http.R
 // @Router /views/{id}/color-scheme [patch]
 func (h *ViewHandlers) UpdateColorScheme(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
+
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
 
 	req, ok := sharedAPI.DecodeRequestOrFail[UpdateColorSchemeRequest](w, r)
 	if !ok {
@@ -694,6 +760,51 @@ func (h *ViewHandlers) ClearCapabilityColor(w http.ResponseWriter, r *http.Reque
 		elementID:   sharedAPI.GetPathParam(r, "capabilityId"),
 		elementType: "capability",
 	})
+}
+
+func (h *ViewHandlers) buildViewLinks(r *http.Request, view *readmodels.ArchitectureViewDTO) map[string]string {
+	currentUserID := ""
+	if actor, ok := sharedctx.GetActor(r.Context()); ok {
+		currentUserID = actor.ID
+	}
+
+	perms := sharedAPI.ViewPermissions{
+		IsPrivate:   view.IsPrivate,
+		IsDefault:   view.IsDefault,
+		OwnerUserID: view.OwnerUserID,
+		CurrentUser: currentUserID,
+	}
+
+	return h.hateoas.ViewLinksWithPermissions(view.ID, perms)
+}
+
+func (h *ViewHandlers) checkViewEditPermission(w http.ResponseWriter, r *http.Request, viewID string) bool {
+	view, err := h.readModel.GetByID(r.Context(), viewID)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to check view permissions")
+		return false
+	}
+	if view == nil {
+		sharedAPI.RespondError(w, http.StatusNotFound, nil, "View not found")
+		return false
+	}
+
+	if !view.IsPrivate {
+		return true
+	}
+
+	actor, ok := sharedctx.GetActor(r.Context())
+	if !ok {
+		sharedAPI.RespondError(w, http.StatusUnauthorized, nil, "Authentication required")
+		return false
+	}
+
+	if view.OwnerUserID == nil || *view.OwnerUserID != actor.ID {
+		sharedAPI.RespondError(w, http.StatusForbidden, nil, "Only the owner can edit this private view")
+		return false
+	}
+
+	return true
 }
 
 func (h *ViewHandlers) addElementLinks(view *readmodels.ArchitectureViewDTO) {

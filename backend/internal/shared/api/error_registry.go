@@ -71,6 +71,10 @@ func (r *ErrorRegistry) RegisterConflict(err error, msg string) {
 	r.Register(ErrorRegistration{Error: err, Category: CategoryConflict, Message: msg})
 }
 
+func (r *ErrorRegistry) RegisterForbidden(err error, msg string) {
+	r.Register(ErrorRegistration{Error: err, Category: CategoryForbidden, Message: msg})
+}
+
 func (r *ErrorRegistry) Lookup(err error) (int, string, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

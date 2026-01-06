@@ -53,22 +53,30 @@ func (h *ChangeViewVisibilityHandler) Handle(ctx context.Context, cmd cqrs.Comma
 		return cqrs.EmptyResult(), err
 	}
 
-	isOwner := view.Owner().UserID() == actor.ID
+	hasNoOwner := view.Owner().IsEmpty()
+	isOwner := !hasNoOwner && view.Owner().UserID() == actor.ID
+	canEdit := hasNoOwner || isOwner || isAdmin
 
 	if command.IsPrivate {
-		if !isOwner {
+		if !canEdit {
 			return cqrs.EmptyResult(), aggregates.ErrOnlyOwnerCanMakePrivate
+		}
+		if hasNoOwner || !isOwner {
+			actorOwner, _ := valueobjects.NewViewOwner(actor.ID, actor.Email)
+			if err := view.SetOwner(actorOwner); err != nil {
+				return cqrs.EmptyResult(), err
+			}
 		}
 		if err := view.MakePrivate(); err != nil {
 			return cqrs.EmptyResult(), err
 		}
 	} else {
-		if !isOwner && !isAdmin {
+		if !canEdit {
 			return cqrs.EmptyResult(), ErrNotAuthorizedToChangeVisibility
 		}
 
 		newOwner := view.Owner()
-		if isAdmin && !isOwner {
+		if hasNoOwner || (isAdmin && !isOwner) {
 			newOwner, _ = valueobjects.NewViewOwner(actor.ID, actor.Email)
 		}
 

@@ -263,6 +263,14 @@ func (v *ArchitectureView) CanBeEditedBy(actorID string, hasViewsWritePermission
 	return hasViewsWritePermission
 }
 
+func (v *ArchitectureView) SetOwner(owner valueobjects.ViewOwner) error {
+	if err := v.checkNotDeleted(); err != nil {
+		return err
+	}
+	v.owner = owner
+	return nil
+}
+
 func (v *ArchitectureView) MakePublic(newOwner valueobjects.ViewOwner) error {
 	if err := v.checkNotDeleted(); err != nil {
 		return err

@@ -51,13 +51,47 @@ func (h *HATEOASLinks) RelationTypeLinks(relationType string) map[string]string 
 	return links
 }
 
-// ViewLinks generates links for a view resource
+// ViewLinks generates links for a view resource (deprecated: use ViewLinksWithPermissions)
 func (h *HATEOASLinks) ViewLinks(viewID string) map[string]string {
 	return map[string]string{
 		"self":       fmt.Sprintf("%s/views/%s", h.baseURL, viewID),
 		"components": fmt.Sprintf("%s/views/%s/components", h.baseURL, viewID),
 		"collection": fmt.Sprintf("%s/views", h.baseURL),
 	}
+}
+
+// ViewPermissions contains the permission context for generating view links
+type ViewPermissions struct {
+	IsPrivate   bool
+	IsDefault   bool
+	OwnerUserID *string
+	CurrentUser string
+}
+
+// ViewLinksWithPermissions generates links for a view resource with permission-based actions
+func (h *HATEOASLinks) ViewLinksWithPermissions(viewID string, perms ViewPermissions) map[string]string {
+	links := map[string]string{
+		"self":       fmt.Sprintf("%s/views/%s", h.baseURL, viewID),
+		"components": fmt.Sprintf("%s/views/%s/components", h.baseURL, viewID),
+		"collection": fmt.Sprintf("%s/views", h.baseURL),
+	}
+
+	isOwner := perms.OwnerUserID != nil && *perms.OwnerUserID == perms.CurrentUser
+	canEdit := !perms.IsPrivate || isOwner
+
+	if canEdit {
+		links["update"] = fmt.Sprintf("%s/views/%s/name", h.baseURL, viewID)
+	}
+
+	if canEdit && !perms.IsDefault {
+		links["delete"] = fmt.Sprintf("%s/views/%s", h.baseURL, viewID)
+	}
+
+	if canEdit {
+		links["changeVisibility"] = fmt.Sprintf("%s/views/%s/visibility", h.baseURL, viewID)
+	}
+
+	return links
 }
 
 func (h *HATEOASLinks) CapabilityLinks(capabilityID, parentID string) map[string]string {
