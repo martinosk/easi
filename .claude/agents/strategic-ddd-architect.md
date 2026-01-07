@@ -1,7 +1,7 @@
 ---
 name: strategic-ddd-architect
 description: Use this agent when planning large-scale architecture, defining bounded contexts, designing cross-context interactions, making strategic domain modeling decisions, or evaluating alignment between business capabilities and technical boundaries. Examples:\n\n<example>User: "I need to design the architecture for a new e-commerce platform with product catalog, ordering, and shipping capabilities."\nAssistant: "I'm going to use the Task tool to launch the strategic-ddd-architect agent to help design the bounded context structure and strategic architecture for this system."\n<commentary>The user is asking for high-level architecture design involving multiple business capabilities - this is exactly when the strategic-ddd-architect should be used.</commentary>\n</example>\n\n<example>User: "Should customer data live in the ordering context or should we have a separate customer management context?"\nAssistant: "Let me engage the strategic-ddd-architect agent to analyze this bounded context boundary decision."\n<commentary>This is a strategic DDD question about context boundaries - the strategic-ddd-architect should provide guidance.</commentary>\n</example>\n\n<example>User: "We're seeing coupling between our inventory and fulfillment modules. How should we handle this?"\nAssistant: "I'll use the strategic-ddd-architect agent to evaluate this cross-context relationship and recommend the appropriate integration pattern."\n<commentary>Cross-context coupling issues require strategic DDD expertise to resolve properly.</commentary>\n</example>
-model: sonnet
+model: inherit
 color: orange
 ---
 
