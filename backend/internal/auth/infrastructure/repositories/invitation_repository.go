@@ -31,39 +31,85 @@ func NewInvitationRepository(eventStore eventstore.EventStore) *InvitationReposi
 
 var invitationEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"InvitationCreated": func(data map[string]interface{}) domain.DomainEvent {
-			evt := events.NewInvitationCreated(
-				repository.GetString(data, "id"),
-				repository.GetString(data, "email"),
-				repository.GetString(data, "role"),
-				repository.GetString(data, "inviterID"),
-				repository.GetString(data, "inviterEmail"),
-				repository.GetTime(data, "expiresAt"),
-			)
-			evt.CreatedAt = repository.GetTime(data, "createdAt")
-			return evt
+		"InvitationCreated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			email, err := repository.GetRequiredString(data, "email")
+			if err != nil {
+				return nil, err
+			}
+			role, err := repository.GetRequiredString(data, "role")
+			if err != nil {
+				return nil, err
+			}
+			inviterID, err := repository.GetRequiredString(data, "inviterID")
+			if err != nil {
+				return nil, err
+			}
+			inviterEmail, err := repository.GetRequiredString(data, "inviterEmail")
+			if err != nil {
+				return nil, err
+			}
+			expiresAt, err := repository.GetRequiredTime(data, "expiresAt")
+			if err != nil {
+				return nil, err
+			}
+			createdAt, err := repository.GetRequiredTime(data, "createdAt")
+			if err != nil {
+				return nil, err
+			}
+
+			evt := events.NewInvitationCreated(id, email, role, inviterID, inviterEmail, expiresAt)
+			evt.CreatedAt = createdAt
+			return evt, nil
 		},
-		"InvitationAccepted": func(data map[string]interface{}) domain.DomainEvent {
-			evt := events.NewInvitationAccepted(
-				repository.GetString(data, "id"),
-				repository.GetString(data, "email"),
-			)
-			evt.AcceptedAt = repository.GetTime(data, "acceptedAt")
-			return evt
+		"InvitationAccepted": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			email, err := repository.GetRequiredString(data, "email")
+			if err != nil {
+				return nil, err
+			}
+			acceptedAt, err := repository.GetRequiredTime(data, "acceptedAt")
+			if err != nil {
+				return nil, err
+			}
+
+			evt := events.NewInvitationAccepted(id, email)
+			evt.AcceptedAt = acceptedAt
+			return evt, nil
 		},
-		"InvitationRevoked": func(data map[string]interface{}) domain.DomainEvent {
-			evt := events.NewInvitationRevoked(
-				repository.GetString(data, "id"),
-			)
-			evt.RevokedAt = repository.GetTime(data, "revokedAt")
-			return evt
+		"InvitationRevoked": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			revokedAt, err := repository.GetRequiredTime(data, "revokedAt")
+			if err != nil {
+				return nil, err
+			}
+
+			evt := events.NewInvitationRevoked(id)
+			evt.RevokedAt = revokedAt
+			return evt, nil
 		},
-		"InvitationExpired": func(data map[string]interface{}) domain.DomainEvent {
-			evt := events.NewInvitationExpired(
-				repository.GetString(data, "id"),
-			)
-			evt.ExpiredAt = repository.GetTime(data, "expiredAt")
-			return evt
+		"InvitationExpired": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			expiredAt, err := repository.GetRequiredTime(data, "expiredAt")
+			if err != nil {
+				return nil, err
+			}
+
+			evt := events.NewInvitationExpired(id)
+			evt.ExpiredAt = expiredAt
+			return evt, nil
 		},
 	},
 )

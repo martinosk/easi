@@ -248,13 +248,13 @@ If issues are discovered:
 - [x] Specification ready
 - [x] Phase 1: Infrastructure implementation
 - [x] Phase 1: Unit tests for field extractors
-- [ ] Phase 2: Repository migration (architecturemodeling)
-- [ ] Phase 2: Repository migration (architectureviews)
-- [ ] Phase 2: Repository migration (auth)
-- [ ] Phase 2: Repository migration (capabilitymapping)
-- [ ] Phase 2: Repository migration (enterprisearchitecture)
-- [ ] Phase 2: Repository migration (importing)
-- [ ] Phase 2: Repository migration (metamodel)
-- [ ] Phase 3: Remove deprecated functions
-- [ ] Documentation updated
-- [ ] User sign-off
+- [x] Phase 2: Repository migration (architecturemodeling)
+- [x] Phase 2: Repository migration (architectureviews)
+- [x] Phase 2: Repository migration (auth)
+- [x] Phase 2: Repository migration (capabilitymapping)
+- [x] Phase 2: Repository migration (enterprisearchitecture)
+- [x] Phase 2: Repository migration (importing)
+- [x] Phase 2: Repository migration (metamodel)
+- [x] Phase 3: Remove deprecated functions
+- [x] Documentation updated
+- [x] User sign-off

@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"errors"
-	"time"
 
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/events"
@@ -30,16 +29,39 @@ func NewStrategyImportanceRepository(eventStore eventstore.EventStore) *Strategy
 
 var strategyImportanceEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"StrategyImportanceSet": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			businessDomainID, _ := data["businessDomainId"].(string)
-			capabilityID, _ := data["capabilityId"].(string)
-			pillarID, _ := data["pillarId"].(string)
-			pillarName, _ := data["pillarName"].(string)
-			importance, _ := data["importance"].(float64)
-			rationale, _ := data["rationale"].(string)
-			setAtStr, _ := data["setAt"].(string)
-			setAt, _ := time.Parse(time.RFC3339Nano, setAtStr)
+		"StrategyImportanceSet": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			businessDomainID, err := repository.GetRequiredString(data, "businessDomainId")
+			if err != nil {
+				return nil, err
+			}
+			capabilityID, err := repository.GetRequiredString(data, "capabilityId")
+			if err != nil {
+				return nil, err
+			}
+			pillarID, err := repository.GetRequiredString(data, "pillarId")
+			if err != nil {
+				return nil, err
+			}
+			pillarName, err := repository.GetRequiredString(data, "pillarName")
+			if err != nil {
+				return nil, err
+			}
+			importance, err := repository.GetRequiredInt(data, "importance")
+			if err != nil {
+				return nil, err
+			}
+			rationale, err := repository.GetOptionalString(data, "rationale", "")
+			if err != nil {
+				return nil, err
+			}
+			setAt, err := repository.GetRequiredTime(data, "setAt")
+			if err != nil {
+				return nil, err
+			}
 
 			evt := events.NewStrategyImportanceSet(events.StrategyImportanceSetParams{
 				ID:               id,
@@ -47,38 +69,67 @@ var strategyImportanceEventDeserializers = repository.NewEventDeserializers(
 				CapabilityID:     capabilityID,
 				PillarID:         pillarID,
 				PillarName:       pillarName,
-				Importance:       int(importance),
+				Importance:       importance,
 				Rationale:        rationale,
 			})
 			evt.SetAt = setAt
-			return evt
+			return evt, nil
 		},
-		"StrategyImportanceUpdated": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			importance, _ := data["importance"].(float64)
-			rationale, _ := data["rationale"].(string)
-			oldImportance, _ := data["oldImportance"].(float64)
-			oldRationale, _ := data["oldRationale"].(string)
-			updatedAtStr, _ := data["updatedAt"].(string)
-			updatedAt, _ := time.Parse(time.RFC3339Nano, updatedAtStr)
+		"StrategyImportanceUpdated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			importance, err := repository.GetRequiredInt(data, "importance")
+			if err != nil {
+				return nil, err
+			}
+			rationale, err := repository.GetOptionalString(data, "rationale", "")
+			if err != nil {
+				return nil, err
+			}
+			oldImportance, err := repository.GetRequiredInt(data, "oldImportance")
+			if err != nil {
+				return nil, err
+			}
+			oldRationale, err := repository.GetOptionalString(data, "oldRationale", "")
+			if err != nil {
+				return nil, err
+			}
+			updatedAt, err := repository.GetRequiredTime(data, "updatedAt")
+			if err != nil {
+				return nil, err
+			}
 
 			evt := events.NewStrategyImportanceUpdated(events.StrategyImportanceUpdatedParams{
 				ID:            id,
-				Importance:    int(importance),
+				Importance:    importance,
 				Rationale:     rationale,
-				OldImportance: int(oldImportance),
+				OldImportance: oldImportance,
 				OldRationale:  oldRationale,
 			})
 			evt.UpdatedAt = updatedAt
-			return evt
+			return evt, nil
 		},
-		"StrategyImportanceRemoved": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			businessDomainID, _ := data["businessDomainId"].(string)
-			capabilityID, _ := data["capabilityId"].(string)
-			pillarID, _ := data["pillarId"].(string)
+		"StrategyImportanceRemoved": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			businessDomainID, err := repository.GetRequiredString(data, "businessDomainId")
+			if err != nil {
+				return nil, err
+			}
+			capabilityID, err := repository.GetRequiredString(data, "capabilityId")
+			if err != nil {
+				return nil, err
+			}
+			pillarID, err := repository.GetRequiredString(data, "pillarId")
+			if err != nil {
+				return nil, err
+			}
 
-			return events.NewStrategyImportanceRemoved(id, businessDomainID, capabilityID, pillarID)
+			return events.NewStrategyImportanceRemoved(id, businessDomainID, capabilityID, pillarID), nil
 		},
 	},
 )

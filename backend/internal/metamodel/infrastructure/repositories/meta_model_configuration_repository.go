@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"errors"
-	"time"
 
 	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/metamodel/domain/aggregates"
@@ -30,12 +29,23 @@ func NewMetaModelConfigurationRepository(eventStore eventstore.EventStore) *Meta
 
 var metaModelEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"MetaModelConfigurationCreated": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			tenantID, _ := data["tenantId"].(string)
-			createdBy, _ := data["createdBy"].(string)
-			createdAtStr, _ := data["createdAt"].(string)
-			createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
+		"MetaModelConfigurationCreated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			tenantID, err := repository.GetRequiredString(data, "tenantId")
+			if err != nil {
+				return nil, err
+			}
+			createdBy, err := repository.GetRequiredString(data, "createdBy")
+			if err != nil {
+				return nil, err
+			}
+			createdAt, err := repository.GetRequiredTime(data, "createdAt")
+			if err != nil {
+				return nil, err
+			}
 
 			sectionsRaw, _ := data["sections"].([]interface{})
 			sections := deserializeSections(sectionsRaw)
@@ -51,54 +61,105 @@ var metaModelEventDeserializers = repository.NewEventDeserializers(
 				CreatedBy: createdBy,
 			})
 			evt.CreatedAt = createdAt
-			return evt
+			return evt, nil
 		},
-		"MaturityScaleConfigUpdated": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			tenantID, _ := data["tenantId"].(string)
-			version, _ := data["version"].(float64)
-			modifiedBy, _ := data["modifiedBy"].(string)
-			modifiedAtStr, _ := data["modifiedAt"].(string)
-			modifiedAt, _ := time.Parse(time.RFC3339Nano, modifiedAtStr)
+		"MaturityScaleConfigUpdated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			tenantID, err := repository.GetRequiredString(data, "tenantId")
+			if err != nil {
+				return nil, err
+			}
+			version, err := repository.GetRequiredInt(data, "version")
+			if err != nil {
+				return nil, err
+			}
+			modifiedBy, err := repository.GetRequiredString(data, "modifiedBy")
+			if err != nil {
+				return nil, err
+			}
+			modifiedAt, err := repository.GetRequiredTime(data, "modifiedAt")
+			if err != nil {
+				return nil, err
+			}
 
 			sectionsRaw, _ := data["newSections"].([]interface{})
 			sections := deserializeSections(sectionsRaw)
 
-			evt := events.NewMaturityScaleConfigUpdated(id, tenantID, int(version), sections, modifiedBy)
+			evt := events.NewMaturityScaleConfigUpdated(id, tenantID, version, sections, modifiedBy)
 			evt.ModifiedAt = modifiedAt
-			return evt
+			return evt, nil
 		},
-		"MaturityScaleConfigReset": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			tenantID, _ := data["tenantId"].(string)
-			version, _ := data["version"].(float64)
-			modifiedBy, _ := data["modifiedBy"].(string)
-			modifiedAtStr, _ := data["modifiedAt"].(string)
-			modifiedAt, _ := time.Parse(time.RFC3339Nano, modifiedAtStr)
+		"MaturityScaleConfigReset": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			tenantID, err := repository.GetRequiredString(data, "tenantId")
+			if err != nil {
+				return nil, err
+			}
+			version, err := repository.GetRequiredInt(data, "version")
+			if err != nil {
+				return nil, err
+			}
+			modifiedBy, err := repository.GetRequiredString(data, "modifiedBy")
+			if err != nil {
+				return nil, err
+			}
+			modifiedAt, err := repository.GetRequiredTime(data, "modifiedAt")
+			if err != nil {
+				return nil, err
+			}
 
 			sectionsRaw, _ := data["sections"].([]interface{})
 			sections := deserializeSections(sectionsRaw)
 
-			evt := events.NewMaturityScaleConfigReset(id, tenantID, int(version), sections, modifiedBy)
+			evt := events.NewMaturityScaleConfigReset(id, tenantID, version, sections, modifiedBy)
 			evt.ModifiedAt = modifiedAt
-			return evt
+			return evt, nil
 		},
-		"StrategyPillarAdded": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			tenantID, _ := data["tenantId"].(string)
-			version, _ := data["version"].(float64)
-			pillarID, _ := data["pillarId"].(string)
-			name, _ := data["name"].(string)
-			description, _ := data["description"].(string)
-			modifiedBy, _ := data["modifiedBy"].(string)
-			modifiedAtStr, _ := data["modifiedAt"].(string)
-			modifiedAt, _ := time.Parse(time.RFC3339Nano, modifiedAtStr)
+		"StrategyPillarAdded": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			tenantID, err := repository.GetRequiredString(data, "tenantId")
+			if err != nil {
+				return nil, err
+			}
+			version, err := repository.GetRequiredInt(data, "version")
+			if err != nil {
+				return nil, err
+			}
+			pillarID, err := repository.GetRequiredString(data, "pillarId")
+			if err != nil {
+				return nil, err
+			}
+			name, err := repository.GetRequiredString(data, "name")
+			if err != nil {
+				return nil, err
+			}
+			description, err := repository.GetOptionalString(data, "description", "")
+			if err != nil {
+				return nil, err
+			}
+			modifiedBy, err := repository.GetRequiredString(data, "modifiedBy")
+			if err != nil {
+				return nil, err
+			}
+			modifiedAt, err := repository.GetRequiredTime(data, "modifiedAt")
+			if err != nil {
+				return nil, err
+			}
 
 			evt := events.NewStrategyPillarAdded(events.AddPillarParams{
 				PillarEventParams: events.PillarEventParams{
 					ConfigID:   id,
 					TenantID:   tenantID,
-					Version:    int(version),
+					Version:    version,
 					PillarID:   pillarID,
 					ModifiedBy: modifiedBy,
 				},
@@ -106,24 +167,47 @@ var metaModelEventDeserializers = repository.NewEventDeserializers(
 				Description: description,
 			})
 			evt.ModifiedAt = modifiedAt
-			return evt
+			return evt, nil
 		},
-		"StrategyPillarUpdated": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			tenantID, _ := data["tenantId"].(string)
-			version, _ := data["version"].(float64)
-			pillarID, _ := data["pillarId"].(string)
-			newName, _ := data["newName"].(string)
-			newDescription, _ := data["newDescription"].(string)
-			modifiedBy, _ := data["modifiedBy"].(string)
-			modifiedAtStr, _ := data["modifiedAt"].(string)
-			modifiedAt, _ := time.Parse(time.RFC3339Nano, modifiedAtStr)
+		"StrategyPillarUpdated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			tenantID, err := repository.GetRequiredString(data, "tenantId")
+			if err != nil {
+				return nil, err
+			}
+			version, err := repository.GetRequiredInt(data, "version")
+			if err != nil {
+				return nil, err
+			}
+			pillarID, err := repository.GetRequiredString(data, "pillarId")
+			if err != nil {
+				return nil, err
+			}
+			newName, err := repository.GetRequiredString(data, "newName")
+			if err != nil {
+				return nil, err
+			}
+			newDescription, err := repository.GetOptionalString(data, "newDescription", "")
+			if err != nil {
+				return nil, err
+			}
+			modifiedBy, err := repository.GetRequiredString(data, "modifiedBy")
+			if err != nil {
+				return nil, err
+			}
+			modifiedAt, err := repository.GetRequiredTime(data, "modifiedAt")
+			if err != nil {
+				return nil, err
+			}
 
 			evt := events.NewStrategyPillarUpdated(events.UpdatePillarParams{
 				PillarEventParams: events.PillarEventParams{
 					ConfigID:   id,
 					TenantID:   tenantID,
-					Version:    int(version),
+					Version:    version,
 					PillarID:   pillarID,
 					ModifiedBy: modifiedBy,
 				},
@@ -131,43 +215,83 @@ var metaModelEventDeserializers = repository.NewEventDeserializers(
 				NewDescription: newDescription,
 			})
 			evt.ModifiedAt = modifiedAt
-			return evt
+			return evt, nil
 		},
-		"StrategyPillarRemoved": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			tenantID, _ := data["tenantId"].(string)
-			version, _ := data["version"].(float64)
-			pillarID, _ := data["pillarId"].(string)
-			modifiedBy, _ := data["modifiedBy"].(string)
-			modifiedAtStr, _ := data["modifiedAt"].(string)
-			modifiedAt, _ := time.Parse(time.RFC3339Nano, modifiedAtStr)
+		"StrategyPillarRemoved": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			tenantID, err := repository.GetRequiredString(data, "tenantId")
+			if err != nil {
+				return nil, err
+			}
+			version, err := repository.GetRequiredInt(data, "version")
+			if err != nil {
+				return nil, err
+			}
+			pillarID, err := repository.GetRequiredString(data, "pillarId")
+			if err != nil {
+				return nil, err
+			}
+			modifiedBy, err := repository.GetRequiredString(data, "modifiedBy")
+			if err != nil {
+				return nil, err
+			}
+			modifiedAt, err := repository.GetRequiredTime(data, "modifiedAt")
+			if err != nil {
+				return nil, err
+			}
 
 			evt := events.NewStrategyPillarRemoved(events.PillarEventParams{
 				ConfigID:   id,
 				TenantID:   tenantID,
-				Version:    int(version),
+				Version:    version,
 				PillarID:   pillarID,
 				ModifiedBy: modifiedBy,
 			})
 			evt.ModifiedAt = modifiedAt
-			return evt
+			return evt, nil
 		},
-		"PillarFitConfigurationUpdated": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			tenantID, _ := data["tenantId"].(string)
-			version, _ := data["version"].(float64)
-			pillarID, _ := data["pillarId"].(string)
-			fitScoringEnabled, _ := data["fitScoringEnabled"].(bool)
-			fitCriteria, _ := data["fitCriteria"].(string)
-			modifiedBy, _ := data["modifiedBy"].(string)
-			modifiedAtStr, _ := data["modifiedAt"].(string)
-			modifiedAt, _ := time.Parse(time.RFC3339Nano, modifiedAtStr)
+		"PillarFitConfigurationUpdated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			tenantID, err := repository.GetRequiredString(data, "tenantId")
+			if err != nil {
+				return nil, err
+			}
+			version, err := repository.GetRequiredInt(data, "version")
+			if err != nil {
+				return nil, err
+			}
+			pillarID, err := repository.GetRequiredString(data, "pillarId")
+			if err != nil {
+				return nil, err
+			}
+			fitScoringEnabled, err := repository.GetRequiredBool(data, "fitScoringEnabled")
+			if err != nil {
+				return nil, err
+			}
+			fitCriteria, err := repository.GetOptionalString(data, "fitCriteria", "")
+			if err != nil {
+				return nil, err
+			}
+			modifiedBy, err := repository.GetRequiredString(data, "modifiedBy")
+			if err != nil {
+				return nil, err
+			}
+			modifiedAt, err := repository.GetRequiredTime(data, "modifiedAt")
+			if err != nil {
+				return nil, err
+			}
 
 			evt := events.NewPillarFitConfigurationUpdated(events.UpdatePillarFitConfigParams{
 				PillarEventParams: events.PillarEventParams{
 					ConfigID:   id,
 					TenantID:   tenantID,
-					Version:    int(version),
+					Version:    version,
 					PillarID:   pillarID,
 					ModifiedBy: modifiedBy,
 				},
@@ -175,7 +299,7 @@ var metaModelEventDeserializers = repository.NewEventDeserializers(
 				FitCriteria:       fitCriteria,
 			})
 			evt.ModifiedAt = modifiedAt
-			return evt
+			return evt, nil
 		},
 	},
 )

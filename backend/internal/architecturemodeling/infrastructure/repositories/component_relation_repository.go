@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"errors"
-	"time"
 
 	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/events"
@@ -30,15 +29,35 @@ func NewComponentRelationRepository(eventStore eventstore.EventStore) *Component
 
 var relationEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"ComponentRelationCreated": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			sourceComponentID, _ := data["sourceComponentId"].(string)
-			targetComponentID, _ := data["targetComponentId"].(string)
-			relationType, _ := data["relationType"].(string)
-			name, _ := data["name"].(string)
-			description, _ := data["description"].(string)
-			createdAtStr, _ := data["createdAt"].(string)
-			createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
+		"ComponentRelationCreated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			sourceComponentID, err := repository.GetRequiredString(data, "sourceComponentId")
+			if err != nil {
+				return nil, err
+			}
+			targetComponentID, err := repository.GetRequiredString(data, "targetComponentId")
+			if err != nil {
+				return nil, err
+			}
+			relationType, err := repository.GetRequiredString(data, "relationType")
+			if err != nil {
+				return nil, err
+			}
+			name, err := repository.GetRequiredString(data, "name")
+			if err != nil {
+				return nil, err
+			}
+			description, err := repository.GetRequiredString(data, "description")
+			if err != nil {
+				return nil, err
+			}
+			createdAt, err := repository.GetRequiredTime(data, "createdAt")
+			if err != nil {
+				return nil, err
+			}
 
 			evt := events.NewComponentRelationCreated(events.ComponentRelationParams{
 				ID:          id,
@@ -49,14 +68,23 @@ var relationEventDeserializers = repository.NewEventDeserializers(
 				Description: description,
 			})
 			evt.CreatedAt = createdAt
-			return evt
+			return evt, nil
 		},
-		"ComponentRelationUpdated": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			name, _ := data["name"].(string)
-			description, _ := data["description"].(string)
+		"ComponentRelationUpdated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			name, err := repository.GetRequiredString(data, "name")
+			if err != nil {
+				return nil, err
+			}
+			description, err := repository.GetRequiredString(data, "description")
+			if err != nil {
+				return nil, err
+			}
 
-			return events.NewComponentRelationUpdated(id, name, description)
+			return events.NewComponentRelationUpdated(id, name, description), nil
 		},
 	},
 )

@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"errors"
-	"time"
 
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/events"
@@ -30,62 +29,143 @@ func NewCapabilityRepository(eventStore eventstore.EventStore) *CapabilityReposi
 
 var capabilityEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"CapabilityCreated": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			name, _ := data["name"].(string)
-			description, _ := data["description"].(string)
-			parentID, _ := data["parentId"].(string)
-			level, _ := data["level"].(string)
-			createdAtStr, _ := data["createdAt"].(string)
-			createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
+		"CapabilityCreated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			name, err := repository.GetRequiredString(data, "name")
+			if err != nil {
+				return nil, err
+			}
+			description, err := repository.GetRequiredString(data, "description")
+			if err != nil {
+				return nil, err
+			}
+			parentID, err := repository.GetOptionalString(data, "parentId", "")
+			if err != nil {
+				return nil, err
+			}
+			level, err := repository.GetRequiredString(data, "level")
+			if err != nil {
+				return nil, err
+			}
+			createdAt, err := repository.GetRequiredTime(data, "createdAt")
+			if err != nil {
+				return nil, err
+			}
 
 			evt := events.NewCapabilityCreated(id, name, description, parentID, level)
 			evt.CreatedAt = createdAt
-			return evt
+			return evt, nil
 		},
-		"CapabilityUpdated": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			name, _ := data["name"].(string)
-			description, _ := data["description"].(string)
+		"CapabilityUpdated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			name, err := repository.GetRequiredString(data, "name")
+			if err != nil {
+				return nil, err
+			}
+			description, err := repository.GetRequiredString(data, "description")
+			if err != nil {
+				return nil, err
+			}
 
-			return events.NewCapabilityUpdated(id, name, description)
+			return events.NewCapabilityUpdated(id, name, description), nil
 		},
-		"CapabilityMetadataUpdated": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			strategyPillar, _ := data["strategyPillar"].(string)
-			pillarWeightFloat, _ := data["pillarWeight"].(float64)
-			pillarWeight := int(pillarWeightFloat)
-			maturityValueFloat, _ := data["maturityValue"].(float64)
-			maturityValue := int(maturityValueFloat)
-			ownershipModel, _ := data["ownershipModel"].(string)
-			primaryOwner, _ := data["primaryOwner"].(string)
-			eaOwner, _ := data["eaOwner"].(string)
-			status, _ := data["status"].(string)
+		"CapabilityMetadataUpdated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			strategyPillar, err := repository.GetOptionalString(data, "strategyPillar", "")
+			if err != nil {
+				return nil, err
+			}
+			pillarWeight, err := repository.GetOptionalInt(data, "pillarWeight", 0)
+			if err != nil {
+				return nil, err
+			}
+			maturityValue, err := repository.GetOptionalInt(data, "maturityValue", 0)
+			if err != nil {
+				return nil, err
+			}
+			ownershipModel, err := repository.GetOptionalString(data, "ownershipModel", "")
+			if err != nil {
+				return nil, err
+			}
+			primaryOwner, err := repository.GetOptionalString(data, "primaryOwner", "")
+			if err != nil {
+				return nil, err
+			}
+			eaOwner, err := repository.GetOptionalString(data, "eaOwner", "")
+			if err != nil {
+				return nil, err
+			}
+			status, err := repository.GetOptionalString(data, "status", "")
+			if err != nil {
+				return nil, err
+			}
 
-			return events.NewCapabilityMetadataUpdated(id, strategyPillar, pillarWeight, maturityValue, ownershipModel, primaryOwner, eaOwner, status)
+			return events.NewCapabilityMetadataUpdated(id, strategyPillar, pillarWeight, maturityValue, ownershipModel, primaryOwner, eaOwner, status), nil
 		},
-		"CapabilityExpertAdded": func(data map[string]interface{}) domain.DomainEvent {
-			capabilityID, _ := data["capabilityId"].(string)
-			expertName, _ := data["expertName"].(string)
-			expertRole, _ := data["expertRole"].(string)
-			contactInfo, _ := data["contactInfo"].(string)
+		"CapabilityExpertAdded": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			capabilityID, err := repository.GetRequiredString(data, "capabilityId")
+			if err != nil {
+				return nil, err
+			}
+			expertName, err := repository.GetRequiredString(data, "expertName")
+			if err != nil {
+				return nil, err
+			}
+			expertRole, err := repository.GetRequiredString(data, "expertRole")
+			if err != nil {
+				return nil, err
+			}
+			contactInfo, err := repository.GetOptionalString(data, "contactInfo", "")
+			if err != nil {
+				return nil, err
+			}
 
-			return events.NewCapabilityExpertAdded(capabilityID, expertName, expertRole, contactInfo)
+			return events.NewCapabilityExpertAdded(capabilityID, expertName, expertRole, contactInfo), nil
 		},
-		"CapabilityTagAdded": func(data map[string]interface{}) domain.DomainEvent {
-			capabilityID, _ := data["capabilityId"].(string)
-			tag, _ := data["tag"].(string)
+		"CapabilityTagAdded": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			capabilityID, err := repository.GetRequiredString(data, "capabilityId")
+			if err != nil {
+				return nil, err
+			}
+			tag, err := repository.GetRequiredString(data, "tag")
+			if err != nil {
+				return nil, err
+			}
 
-			return events.NewCapabilityTagAdded(capabilityID, tag)
+			return events.NewCapabilityTagAdded(capabilityID, tag), nil
 		},
-		"CapabilityParentChanged": func(data map[string]interface{}) domain.DomainEvent {
-			capabilityID, _ := data["capabilityId"].(string)
-			oldParentID, _ := data["oldParentId"].(string)
-			newParentID, _ := data["newParentId"].(string)
-			oldLevel, _ := data["oldLevel"].(string)
-			newLevel, _ := data["newLevel"].(string)
+		"CapabilityParentChanged": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			capabilityID, err := repository.GetRequiredString(data, "capabilityId")
+			if err != nil {
+				return nil, err
+			}
+			oldParentID, err := repository.GetOptionalString(data, "oldParentId", "")
+			if err != nil {
+				return nil, err
+			}
+			newParentID, err := repository.GetOptionalString(data, "newParentId", "")
+			if err != nil {
+				return nil, err
+			}
+			oldLevel, err := repository.GetRequiredString(data, "oldLevel")
+			if err != nil {
+				return nil, err
+			}
+			newLevel, err := repository.GetRequiredString(data, "newLevel")
+			if err != nil {
+				return nil, err
+			}
 
-			return events.NewCapabilityParentChanged(capabilityID, oldParentID, newParentID, oldLevel, newLevel)
+			return events.NewCapabilityParentChanged(capabilityID, oldParentID, newParentID, oldLevel, newLevel), nil
 		},
 	},
 	CapabilityMetadataUpdatedV1ToV2Upcaster{},

@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"errors"
-	"time"
 
 	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/events"
@@ -30,29 +29,55 @@ func NewApplicationComponentRepository(eventStore eventstore.EventStore) *Applic
 
 var componentEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"ApplicationComponentCreated": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			name, _ := data["name"].(string)
-			description, _ := data["description"].(string)
-			createdAtStr, _ := data["createdAt"].(string)
-			createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
+		"ApplicationComponentCreated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			name, err := repository.GetRequiredString(data, "name")
+			if err != nil {
+				return nil, err
+			}
+			description, err := repository.GetRequiredString(data, "description")
+			if err != nil {
+				return nil, err
+			}
+			createdAt, err := repository.GetRequiredTime(data, "createdAt")
+			if err != nil {
+				return nil, err
+			}
 
 			evt := events.NewApplicationComponentCreated(id, name, description)
 			evt.CreatedAt = createdAt
-			return evt
+			return evt, nil
 		},
-		"ApplicationComponentUpdated": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			name, _ := data["name"].(string)
-			description, _ := data["description"].(string)
+		"ApplicationComponentUpdated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			name, err := repository.GetRequiredString(data, "name")
+			if err != nil {
+				return nil, err
+			}
+			description, err := repository.GetRequiredString(data, "description")
+			if err != nil {
+				return nil, err
+			}
 
-			return events.NewApplicationComponentUpdated(id, name, description)
+			return events.NewApplicationComponentUpdated(id, name, description), nil
 		},
-		"ApplicationComponentDeleted": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			name, _ := data["name"].(string)
+		"ApplicationComponentDeleted": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			name, err := repository.GetRequiredString(data, "name")
+			if err != nil {
+				return nil, err
+			}
 
-			return events.NewApplicationComponentDeleted(id, name)
+			return events.NewApplicationComponentDeleted(id, name), nil
 		},
 	},
 )

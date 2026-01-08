@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"errors"
-	"time"
 
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/events"
@@ -30,57 +29,112 @@ func NewApplicationFitScoreRepository(eventStore eventstore.EventStore) *Applica
 
 var applicationFitScoreEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"ApplicationFitScoreSet": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			componentID, _ := data["componentId"].(string)
-			pillarID, _ := data["pillarId"].(string)
-			pillarName, _ := data["pillarName"].(string)
-			score, _ := data["score"].(float64)
-			rationale, _ := data["rationale"].(string)
-			scoredAtStr, _ := data["scoredAt"].(string)
-			scoredAt, _ := time.Parse(time.RFC3339Nano, scoredAtStr)
-			scoredBy, _ := data["scoredBy"].(string)
+		"ApplicationFitScoreSet": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			componentID, err := repository.GetRequiredString(data, "componentId")
+			if err != nil {
+				return nil, err
+			}
+			pillarID, err := repository.GetRequiredString(data, "pillarId")
+			if err != nil {
+				return nil, err
+			}
+			pillarName, err := repository.GetRequiredString(data, "pillarName")
+			if err != nil {
+				return nil, err
+			}
+			score, err := repository.GetRequiredInt(data, "score")
+			if err != nil {
+				return nil, err
+			}
+			rationale, err := repository.GetOptionalString(data, "rationale", "")
+			if err != nil {
+				return nil, err
+			}
+			scoredAt, err := repository.GetRequiredTime(data, "scoredAt")
+			if err != nil {
+				return nil, err
+			}
+			scoredBy, err := repository.GetRequiredString(data, "scoredBy")
+			if err != nil {
+				return nil, err
+			}
 
 			evt := events.NewApplicationFitScoreSet(events.ApplicationFitScoreSetParams{
 				ID:          id,
 				ComponentID: componentID,
 				PillarID:    pillarID,
 				PillarName:  pillarName,
-				Score:       int(score),
+				Score:       score,
 				Rationale:   rationale,
 				ScoredBy:    scoredBy,
 			})
 			evt.ScoredAt = scoredAt
-			return evt
+			return evt, nil
 		},
-		"ApplicationFitScoreUpdated": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			score, _ := data["score"].(float64)
-			rationale, _ := data["rationale"].(string)
-			oldScore, _ := data["oldScore"].(float64)
-			oldRationale, _ := data["oldRationale"].(string)
-			updatedAtStr, _ := data["updatedAt"].(string)
-			updatedAt, _ := time.Parse(time.RFC3339Nano, updatedAtStr)
-			updatedBy, _ := data["updatedBy"].(string)
+		"ApplicationFitScoreUpdated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			score, err := repository.GetRequiredInt(data, "score")
+			if err != nil {
+				return nil, err
+			}
+			rationale, err := repository.GetOptionalString(data, "rationale", "")
+			if err != nil {
+				return nil, err
+			}
+			oldScore, err := repository.GetRequiredInt(data, "oldScore")
+			if err != nil {
+				return nil, err
+			}
+			oldRationale, err := repository.GetOptionalString(data, "oldRationale", "")
+			if err != nil {
+				return nil, err
+			}
+			updatedAt, err := repository.GetRequiredTime(data, "updatedAt")
+			if err != nil {
+				return nil, err
+			}
+			updatedBy, err := repository.GetRequiredString(data, "updatedBy")
+			if err != nil {
+				return nil, err
+			}
 
 			evt := events.NewApplicationFitScoreUpdated(events.ApplicationFitScoreUpdatedParams{
 				ID:           id,
-				Score:        int(score),
+				Score:        score,
 				Rationale:    rationale,
-				OldScore:     int(oldScore),
+				OldScore:     oldScore,
 				OldRationale: oldRationale,
 				UpdatedBy:    updatedBy,
 			})
 			evt.UpdatedAt = updatedAt
-			return evt
+			return evt, nil
 		},
-		"ApplicationFitScoreRemoved": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			componentID, _ := data["componentId"].(string)
-			pillarID, _ := data["pillarId"].(string)
-			removedBy, _ := data["removedBy"].(string)
+		"ApplicationFitScoreRemoved": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			componentID, err := repository.GetRequiredString(data, "componentId")
+			if err != nil {
+				return nil, err
+			}
+			pillarID, err := repository.GetRequiredString(data, "pillarId")
+			if err != nil {
+				return nil, err
+			}
+			removedBy, err := repository.GetRequiredString(data, "removedBy")
+			if err != nil {
+				return nil, err
+			}
 
-			return events.NewApplicationFitScoreRemoved(id, componentID, pillarID, removedBy)
+			return events.NewApplicationFitScoreRemoved(id, componentID, pillarID, removedBy), nil
 		},
 	},
 )

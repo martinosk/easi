@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"errors"
-	"time"
 
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/events"
@@ -30,28 +29,51 @@ func NewBusinessDomainRepository(eventStore eventstore.EventStore) *BusinessDoma
 
 var businessDomainEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"BusinessDomainCreated": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			name, _ := data["name"].(string)
-			description, _ := data["description"].(string)
-			createdAtStr, _ := data["createdAt"].(string)
-			createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
+		"BusinessDomainCreated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			name, err := repository.GetRequiredString(data, "name")
+			if err != nil {
+				return nil, err
+			}
+			description, err := repository.GetRequiredString(data, "description")
+			if err != nil {
+				return nil, err
+			}
+			createdAt, err := repository.GetRequiredTime(data, "createdAt")
+			if err != nil {
+				return nil, err
+			}
 
 			evt := events.NewBusinessDomainCreated(id, name, description)
 			evt.CreatedAt = createdAt
-			return evt
+			return evt, nil
 		},
-		"BusinessDomainUpdated": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			name, _ := data["name"].(string)
-			description, _ := data["description"].(string)
+		"BusinessDomainUpdated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			name, err := repository.GetRequiredString(data, "name")
+			if err != nil {
+				return nil, err
+			}
+			description, err := repository.GetRequiredString(data, "description")
+			if err != nil {
+				return nil, err
+			}
 
-			return events.NewBusinessDomainUpdated(id, name, description)
+			return events.NewBusinessDomainUpdated(id, name, description), nil
 		},
-		"BusinessDomainDeleted": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
+		"BusinessDomainDeleted": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
 
-			return events.NewBusinessDomainDeleted(id)
+			return events.NewBusinessDomainDeleted(id), nil
 		},
 	},
 )

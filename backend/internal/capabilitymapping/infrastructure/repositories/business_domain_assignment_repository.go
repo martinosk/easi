@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"errors"
-	"time"
 
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/events"
@@ -30,23 +29,43 @@ func NewBusinessDomainAssignmentRepository(eventStore eventstore.EventStore) *Bu
 
 var assignmentEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"CapabilityAssignedToDomain": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			businessDomainID, _ := data["businessDomainId"].(string)
-			capabilityID, _ := data["capabilityId"].(string)
-			assignedAtStr, _ := data["assignedAt"].(string)
-			assignedAt, _ := time.Parse(time.RFC3339Nano, assignedAtStr)
+		"CapabilityAssignedToDomain": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			businessDomainID, err := repository.GetRequiredString(data, "businessDomainId")
+			if err != nil {
+				return nil, err
+			}
+			capabilityID, err := repository.GetRequiredString(data, "capabilityId")
+			if err != nil {
+				return nil, err
+			}
+			assignedAt, err := repository.GetRequiredTime(data, "assignedAt")
+			if err != nil {
+				return nil, err
+			}
 
 			evt := events.NewCapabilityAssignedToDomain(id, businessDomainID, capabilityID)
 			evt.AssignedAt = assignedAt
-			return evt
+			return evt, nil
 		},
-		"CapabilityUnassignedFromDomain": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			businessDomainID, _ := data["businessDomainId"].(string)
-			capabilityID, _ := data["capabilityId"].(string)
+		"CapabilityUnassignedFromDomain": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			businessDomainID, err := repository.GetRequiredString(data, "businessDomainId")
+			if err != nil {
+				return nil, err
+			}
+			capabilityID, err := repository.GetRequiredString(data, "capabilityId")
+			if err != nil {
+				return nil, err
+			}
 
-			return events.NewCapabilityUnassignedFromDomain(id, businessDomainID, capabilityID)
+			return events.NewCapabilityUnassignedFromDomain(id, businessDomainID, capabilityID), nil
 		},
 	},
 )

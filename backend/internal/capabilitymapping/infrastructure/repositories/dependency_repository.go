@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"errors"
-	"time"
 
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/events"
@@ -30,27 +29,49 @@ func NewDependencyRepository(eventStore eventstore.EventStore) *DependencyReposi
 
 var dependencyEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"CapabilityDependencyCreated": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			sourceCapabilityID, _ := data["sourceCapabilityId"].(string)
-			targetCapabilityID, _ := data["targetCapabilityId"].(string)
-			dependencyType, _ := data["dependencyType"].(string)
-			description, _ := data["description"].(string)
-			createdAtStr, _ := data["createdAt"].(string)
-			createdAt, _ := time.Parse(time.RFC3339Nano, createdAtStr)
+		"CapabilityDependencyCreated": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			sourceCapabilityID, err := repository.GetRequiredString(data, "sourceCapabilityId")
+			if err != nil {
+				return nil, err
+			}
+			targetCapabilityID, err := repository.GetRequiredString(data, "targetCapabilityId")
+			if err != nil {
+				return nil, err
+			}
+			dependencyType, err := repository.GetRequiredString(data, "dependencyType")
+			if err != nil {
+				return nil, err
+			}
+			description, err := repository.GetRequiredString(data, "description")
+			if err != nil {
+				return nil, err
+			}
+			createdAt, err := repository.GetRequiredTime(data, "createdAt")
+			if err != nil {
+				return nil, err
+			}
 
 			evt := events.NewCapabilityDependencyCreated(id, sourceCapabilityID, targetCapabilityID, dependencyType, description)
 			evt.CreatedAt = createdAt
-			return evt
+			return evt, nil
 		},
-		"CapabilityDependencyDeleted": func(data map[string]interface{}) domain.DomainEvent {
-			id, _ := data["id"].(string)
-			deletedAtStr, _ := data["deletedAt"].(string)
-			deletedAt, _ := time.Parse(time.RFC3339Nano, deletedAtStr)
+		"CapabilityDependencyDeleted": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			id, err := repository.GetRequiredString(data, "id")
+			if err != nil {
+				return nil, err
+			}
+			deletedAt, err := repository.GetRequiredTime(data, "deletedAt")
+			if err != nil {
+				return nil, err
+			}
 
 			evt := events.NewCapabilityDependencyDeleted(id)
 			evt.DeletedAt = deletedAt
-			return evt
+			return evt, nil
 		},
 	},
 )
