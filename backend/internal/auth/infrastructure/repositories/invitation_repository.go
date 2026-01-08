@@ -38,9 +38,9 @@ var invitationEventDeserializers = repository.NewEventDeserializers(
 				repository.GetString(data, "role"),
 				repository.GetString(data, "inviterID"),
 				repository.GetString(data, "inviterEmail"),
-				repository.GetTimeRFC3339(data, "expiresAt"),
+				repository.GetTime(data, "expiresAt"),
 			)
-			evt.CreatedAt = repository.GetTimeRFC3339(data, "createdAt")
+			evt.CreatedAt = repository.GetTime(data, "createdAt")
 			return evt
 		},
 		"InvitationAccepted": func(data map[string]interface{}) domain.DomainEvent {
@@ -48,21 +48,21 @@ var invitationEventDeserializers = repository.NewEventDeserializers(
 				repository.GetString(data, "id"),
 				repository.GetString(data, "email"),
 			)
-			evt.AcceptedAt = repository.GetTimeRFC3339(data, "acceptedAt")
+			evt.AcceptedAt = repository.GetTime(data, "acceptedAt")
 			return evt
 		},
 		"InvitationRevoked": func(data map[string]interface{}) domain.DomainEvent {
 			evt := events.NewInvitationRevoked(
 				repository.GetString(data, "id"),
 			)
-			evt.RevokedAt = repository.GetTimeRFC3339(data, "revokedAt")
+			evt.RevokedAt = repository.GetTime(data, "revokedAt")
 			return evt
 		},
 		"InvitationExpired": func(data map[string]interface{}) domain.DomainEvent {
 			evt := events.NewInvitationExpired(
 				repository.GetString(data, "id"),
 			)
-			evt.ExpiredAt = repository.GetTimeRFC3339(data, "expiredAt")
+			evt.ExpiredAt = repository.GetTime(data, "expiredAt")
 			return evt
 		},
 	},

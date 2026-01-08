@@ -40,7 +40,7 @@ var userAggregateEventDeserializers = repository.NewEventDeserializers(
 				repository.GetString(data, "externalId"),
 				repository.GetString(data, "invitationId"),
 			)
-			evt.CreatedAt = repository.GetTimeRFC3339(data, "createdAt")
+			evt.CreatedAt = repository.GetTime(data, "createdAt")
 			return evt
 		},
 		"UserRoleChanged": func(data map[string]interface{}) domain.DomainEvent {
@@ -50,7 +50,7 @@ var userAggregateEventDeserializers = repository.NewEventDeserializers(
 				repository.GetString(data, "newRole"),
 				repository.GetString(data, "changedById"),
 			)
-			evt.ChangedAt = repository.GetTimeRFC3339(data, "changedAt")
+			evt.ChangedAt = repository.GetTime(data, "changedAt")
 			return evt
 		},
 		"UserDisabled": func(data map[string]interface{}) domain.DomainEvent {
@@ -58,7 +58,7 @@ var userAggregateEventDeserializers = repository.NewEventDeserializers(
 				repository.GetString(data, "id"),
 				repository.GetString(data, "disabledBy"),
 			)
-			evt.DisabledAt = repository.GetTimeRFC3339(data, "disabledAt")
+			evt.DisabledAt = repository.GetTime(data, "disabledAt")
 			return evt
 		},
 		"UserEnabled": func(data map[string]interface{}) domain.DomainEvent {
@@ -66,7 +66,7 @@ var userAggregateEventDeserializers = repository.NewEventDeserializers(
 				repository.GetString(data, "id"),
 				repository.GetString(data, "enabledBy"),
 			)
-			evt.EnabledAt = repository.GetTimeRFC3339(data, "enabledAt")
+			evt.EnabledAt = repository.GetTime(data, "enabledAt")
 			return evt
 		},
 	},

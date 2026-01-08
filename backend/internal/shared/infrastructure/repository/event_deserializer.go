@@ -65,14 +65,6 @@ func GetTime(data map[string]interface{}, key string) time.Time {
 	return time.Time{}
 }
 
-func GetTimeRFC3339(data map[string]interface{}, key string) time.Time {
-	if str, ok := data[key].(string); ok {
-		t, _ := time.Parse(time.RFC3339, str)
-		return t
-	}
-	return time.Time{}
-}
-
 func GetMapSlice(data map[string]interface{}, key string) []map[string]interface{} {
 	raw, ok := data[key].([]interface{})
 	if !ok {
