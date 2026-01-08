@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useUpdateComponent } from '../hooks/useComponents';
+import { editComponentSchema, type EditComponentFormData } from '../../../lib/schemas';
 import type { Component, ComponentId } from '../../../api/types';
 
 interface EditComponentDialogProps {
@@ -9,57 +12,58 @@ interface EditComponentDialogProps {
   component: Component | null;
 }
 
+const DEFAULT_VALUES: EditComponentFormData = { name: '', description: '' };
+
 export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
   isOpen,
   onClose,
   component,
 }) => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
+  const [backendError, setBackendError] = useState<string | null>(null);
   const updateComponentMutation = useUpdateComponent();
-  const isUpdating = updateComponentMutation.isPending;
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isValid },
+  } = useForm<EditComponentFormData>({
+    resolver: zodResolver(editComponentSchema),
+    defaultValues: DEFAULT_VALUES,
+    mode: 'onChange',
+  });
 
   useEffect(() => {
-    if (component) {
-      setName(component.name);
-      setDescription(component.description || '');
+    if (isOpen && component) {
+      reset({
+        name: component.name,
+        description: component.description || '',
+      });
+      setBackendError(null);
     }
-  }, [component]);
+  }, [isOpen, component, reset]);
 
   const handleClose = () => {
-    setName('');
-    setDescription('');
-    setError(null);
     onClose();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!name.trim()) {
-      setError('Application name is required');
-      return;
-    }
-
+  const onSubmit = async (data: EditComponentFormData) => {
     if (!component) {
-      setError('No application selected');
+      setBackendError('No application selected');
       return;
     }
-
+    setBackendError(null);
     try {
       await updateComponentMutation.mutateAsync({
         id: component.id as ComponentId,
         request: {
-          name: name.trim(),
-          description: description.trim() || undefined,
+          name: data.name,
+          description: data.description || undefined,
         },
       });
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update application');
+      setBackendError(err instanceof Error ? err.message : 'Failed to update application');
     }
   };
 
@@ -70,31 +74,31 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
       title="Edit Application"
       centered
     >
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit(onSubmit)}>
         <Stack gap="md">
           <TextInput
             label="Name"
             placeholder="Enter application name"
-            value={name}
-            onChange={(e) => setName(e.currentTarget.value)}
+            {...register('name')}
             required
             withAsterisk
             autoFocus
-            disabled={isUpdating}
+            disabled={updateComponentMutation.isPending}
+            error={errors.name?.message}
           />
 
           <Textarea
             label="Description"
             placeholder="Enter application description (optional)"
-            value={description}
-            onChange={(e) => setDescription(e.currentTarget.value)}
+            {...register('description')}
             rows={3}
-            disabled={isUpdating}
+            disabled={updateComponentMutation.isPending}
+            error={errors.description?.message}
           />
 
-          {error && (
+          {backendError && (
             <Alert color="red">
-              {error}
+              {backendError}
             </Alert>
           )}
 
@@ -102,14 +106,14 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
             <Button
               variant="default"
               onClick={handleClose}
-              disabled={isUpdating}
+              disabled={updateComponentMutation.isPending}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              loading={isUpdating}
-              disabled={!name.trim()}
+              loading={updateComponentMutation.isPending}
+              disabled={!isValid}
             >
               Save Changes
             </Button>

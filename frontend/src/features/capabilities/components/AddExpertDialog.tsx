@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, TextInput, Button, Group, Stack, Alert } from '@mantine/core';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useAddCapabilityExpert } from '../hooks/useCapabilities';
+import { addExpertSchema, type AddExpertFormData } from '../../../lib/schemas';
 import type { CapabilityId } from '../../../api/types';
 
 interface AddExpertDialogProps {
@@ -9,96 +12,49 @@ interface AddExpertDialogProps {
   capabilityId: string;
 }
 
-interface FormState {
-  name: string;
-  role: string;
-  contact: string;
-}
-
-interface FormErrors {
-  name?: string;
-  role?: string;
-  contact?: string;
-}
-
-const validateForm = (form: FormState): FormErrors => {
-  const errors: FormErrors = {};
-
-  if (!form.name.trim()) {
-    errors.name = 'Name is required';
-  }
-
-  if (!form.role.trim()) {
-    errors.role = 'Role is required';
-  }
-
-  if (!form.contact.trim()) {
-    errors.contact = 'Contact is required';
-  }
-
-  return errors;
-};
+const DEFAULT_VALUES: AddExpertFormData = { name: '', role: '', contact: '' };
 
 export const AddExpertDialog: React.FC<AddExpertDialogProps> = ({
   isOpen,
   onClose,
   capabilityId,
 }) => {
-  const [form, setForm] = useState<FormState>({
-    name: '',
-    role: '',
-    contact: '',
-  });
-  const [errors, setErrors] = useState<FormErrors>({});
   const [backendError, setBackendError] = useState<string | null>(null);
-
   const addExpertMutation = useAddCapabilityExpert();
 
-  const resetForm = () => {
-    setForm({
-      name: '',
-      role: '',
-      contact: '',
-    });
-    setErrors({});
-    setBackendError(null);
-  };
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isValid },
+  } = useForm<AddExpertFormData>({
+    resolver: zodResolver(addExpertSchema),
+    defaultValues: DEFAULT_VALUES,
+    mode: 'onChange',
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      reset(DEFAULT_VALUES);
+      setBackendError(null);
+    }
+  }, [isOpen, reset]);
 
   const handleClose = () => {
-    resetForm();
     onClose();
   };
 
-  const handleFieldChange = (field: keyof FormState, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
-    if (backendError) {
-      setBackendError(null);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: AddExpertFormData) => {
     setBackendError(null);
-
-    const validationErrors = validateForm(form);
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
-    }
-
     try {
       await addExpertMutation.mutateAsync({
         id: capabilityId as CapabilityId,
         request: {
-          expertName: form.name.trim(),
-          expertRole: form.role.trim(),
-          contactInfo: form.contact.trim(),
+          expertName: data.name,
+          expertRole: data.role,
+          contactInfo: data.contact,
         },
       });
-
       handleClose();
     } catch (err) {
       setBackendError(err instanceof Error ? err.message : 'Failed to add expert');
@@ -113,42 +69,39 @@ export const AddExpertDialog: React.FC<AddExpertDialogProps> = ({
       centered
       data-testid="add-expert-dialog"
     >
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit(onSubmit)}>
         <Stack gap="md">
           <TextInput
             label="Name"
             placeholder="Enter expert name"
-            value={form.name}
-            onChange={(e) => handleFieldChange('name', e.currentTarget.value)}
+            {...register('name')}
             required
             withAsterisk
             autoFocus
             disabled={addExpertMutation.isPending}
-            error={errors.name}
+            error={errors.name?.message}
             data-testid="expert-name-input"
           />
 
           <TextInput
             label="Role"
             placeholder="Enter expert role"
-            value={form.role}
-            onChange={(e) => handleFieldChange('role', e.currentTarget.value)}
+            {...register('role')}
             required
             withAsterisk
             disabled={addExpertMutation.isPending}
-            error={errors.role}
+            error={errors.role?.message}
             data-testid="expert-role-input"
           />
 
           <TextInput
             label="Contact"
             placeholder="Enter contact information"
-            value={form.contact}
-            onChange={(e) => handleFieldChange('contact', e.currentTarget.value)}
+            {...register('contact')}
             required
             withAsterisk
             disabled={addExpertMutation.isPending}
-            error={errors.contact}
+            error={errors.contact?.message}
             data-testid="expert-contact-input"
           />
 
@@ -170,7 +123,7 @@ export const AddExpertDialog: React.FC<AddExpertDialogProps> = ({
             <Button
               type="submit"
               loading={addExpertMutation.isPending}
-              disabled={!form.name.trim() || !form.role.trim() || !form.contact.trim()}
+              disabled={!isValid}
               data-testid="add-expert-submit"
             >
               Add

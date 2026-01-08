@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, Select, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useCreateRelation } from '../hooks/useRelations';
+import { createRelationSchema, type CreateRelationFormData } from '../../../lib/schemas';
+import type { ComponentId } from '../../../api/types';
 
 interface CreateRelationDialogProps {
   isOpen: boolean;
@@ -10,74 +14,80 @@ interface CreateRelationDialogProps {
   targetComponentId?: string;
 }
 
+const RELATION_TYPE_OPTIONS = [
+  { value: 'Triggers', label: 'Triggers' },
+  { value: 'Serves', label: 'Serves' },
+];
+
 export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
   isOpen,
   onClose,
   sourceComponentId: initialSource,
   targetComponentId: initialTarget,
 }) => {
-  const [sourceComponentId, setSourceComponentId] = useState(initialSource || '');
-  const [targetComponentId, setTargetComponentId] = useState(initialTarget || '');
-  const [relationType, setRelationType] = useState<'Triggers' | 'Serves'>('Triggers');
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [backendError, setBackendError] = useState<string | null>(null);
 
   const { data: components = [] } = useComponents();
   const createRelationMutation = useCreateRelation();
 
+  const createDefaultValues = (): CreateRelationFormData => ({
+    sourceComponentId: initialSource || '',
+    targetComponentId: initialTarget || '',
+    relationType: 'Triggers',
+    name: '',
+    description: '',
+  });
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    watch,
+    formState: { errors, isValid },
+  } = useForm<CreateRelationFormData>({
+    resolver: zodResolver(createRelationSchema),
+    defaultValues: createDefaultValues(),
+    mode: 'onChange',
+  });
+
   useEffect(() => {
-    if (initialSource) setSourceComponentId(initialSource);
-    if (initialTarget) setTargetComponentId(initialTarget);
-  }, [initialSource, initialTarget]);
+    if (isOpen) {
+      reset(createDefaultValues());
+      setBackendError(null);
+    }
+  }, [isOpen, initialSource, initialTarget, reset]);
 
   const handleClose = () => {
-    setSourceComponentId('');
-    setTargetComponentId('');
-    setRelationType('Triggers');
-    setName('');
-    setDescription('');
-    setError(null);
     onClose();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!sourceComponentId || !targetComponentId) {
-      setError('Both source and target components are required');
-      return;
-    }
-
-    if (sourceComponentId === targetComponentId) {
-      setError('Source and target components must be different');
-      return;
-    }
-
-    setIsCreating(true);
-
+  const onSubmit = async (data: CreateRelationFormData) => {
+    setBackendError(null);
     try {
       await createRelationMutation.mutateAsync({
-        sourceComponentId: sourceComponentId as import('../../../api/types').ComponentId,
-        targetComponentId: targetComponentId as import('../../../api/types').ComponentId,
-        relationType,
-        name: name.trim() || undefined,
-        description: description.trim() || undefined,
+        sourceComponentId: data.sourceComponentId as ComponentId,
+        targetComponentId: data.targetComponentId as ComponentId,
+        relationType: data.relationType,
+        name: data.name || undefined,
+        description: data.description || undefined,
       });
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create relation');
-    } finally {
-      setIsCreating(false);
+      setBackendError(err instanceof Error ? err.message : 'Failed to create relation');
     }
   };
 
-  const componentOptions = components.map((component) => ({
-    value: component.id,
-    label: component.name,
+  const componentOptions = components.map((c) => ({
+    value: c.id,
+    label: c.name,
   }));
+
+  const sourceComponentId = watch('sourceComponentId');
+  const targetComponentId = watch('targetComponentId');
+  const hasSameSourceAndTarget = Boolean(
+    sourceComponentId && targetComponentId && sourceComponentId === targetComponentId
+  );
 
   return (
     <Modal
@@ -87,70 +97,87 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
       centered
       data-testid="create-relation-dialog"
     >
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit(onSubmit)}>
         <Stack gap="md">
-          <Select
-            label="Source Component"
-            placeholder="Select source component"
-            value={sourceComponentId}
-            onChange={(value) => setSourceComponentId(value || '')}
-            data={componentOptions}
-            required
-            withAsterisk
-            disabled={isCreating || !!initialSource}
-            data-testid="relation-source-select"
-            searchable
+          <Controller
+            name="sourceComponentId"
+            control={control}
+            render={({ field }) => (
+              <Select
+                label="Source Component"
+                placeholder="Select source component"
+                data={componentOptions}
+                required
+                withAsterisk
+                disabled={createRelationMutation.isPending || !!initialSource}
+                error={errors.sourceComponentId?.message}
+                data-testid="relation-source-select"
+                searchable
+                {...field}
+              />
+            )}
           />
 
-          <Select
-            label="Target Component"
-            placeholder="Select target component"
-            value={targetComponentId}
-            onChange={(value) => setTargetComponentId(value || '')}
-            data={componentOptions}
-            required
-            withAsterisk
-            disabled={isCreating || !!initialTarget}
-            data-testid="relation-target-select"
-            searchable
+          <Controller
+            name="targetComponentId"
+            control={control}
+            render={({ field }) => (
+              <Select
+                label="Target Component"
+                placeholder="Select target component"
+                data={componentOptions}
+                required
+                withAsterisk
+                disabled={createRelationMutation.isPending || !!initialTarget}
+                error={
+                  errors.targetComponentId?.message ||
+                  (hasSameSourceAndTarget ? 'Source and target components must be different' : undefined)
+                }
+                data-testid="relation-target-select"
+                searchable
+                {...field}
+              />
+            )}
           />
 
-          <Select
-            label="Relation Type"
-            value={relationType}
-            onChange={(value) => setRelationType(value as 'Triggers' | 'Serves')}
-            data={[
-              { value: 'Triggers', label: 'Triggers' },
-              { value: 'Serves', label: 'Serves' },
-            ]}
-            required
-            withAsterisk
-            disabled={isCreating}
-            data-testid="relation-type-select"
+          <Controller
+            name="relationType"
+            control={control}
+            render={({ field }) => (
+              <Select
+                label="Relation Type"
+                data={RELATION_TYPE_OPTIONS}
+                required
+                withAsterisk
+                disabled={createRelationMutation.isPending}
+                data-testid="relation-type-select"
+                {...field}
+              />
+            )}
           />
 
           <TextInput
             label="Name"
             placeholder="Enter relation name (optional)"
-            value={name}
-            onChange={(e) => setName(e.currentTarget.value)}
-            disabled={isCreating}
+            {...register('name')}
+            disabled={createRelationMutation.isPending}
+            error={errors.name?.message}
             data-testid="relation-name-input"
           />
 
           <Textarea
             label="Description"
             placeholder="Enter relation description (optional)"
-            value={description}
-            onChange={(e) => setDescription(e.currentTarget.value)}
+            {...register('description')}
             rows={3}
-            disabled={isCreating}
+            disabled={createRelationMutation.isPending}
+            error={errors.description?.message}
             data-testid="relation-description-input"
           />
 
-          {error && (
+          {backendError && (
             <Alert color="red" data-testid="create-relation-error">
-              {error}
+              {backendError}
             </Alert>
           )}
 
@@ -158,15 +185,15 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
             <Button
               variant="default"
               onClick={handleClose}
-              disabled={isCreating}
+              disabled={createRelationMutation.isPending}
               data-testid="create-relation-cancel"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              loading={isCreating}
-              disabled={!sourceComponentId || !targetComponentId}
+              loading={createRelationMutation.isPending}
+              disabled={!isValid || hasSameSourceAndTarget}
               data-testid="create-relation-submit"
             >
               Create Relation

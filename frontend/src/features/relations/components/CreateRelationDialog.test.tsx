@@ -151,13 +151,9 @@ describe('CreateRelationDialog', () => {
     });
 
     const submitButton = screen.getByTestId('create-relation-submit');
-    fireEvent.click(submitButton);
+    expect(submitButton).toBeDisabled();
 
-    await waitFor(() => {
-      expect(screen.getByTestId('create-relation-error')).toHaveTextContent(
-        'Source and target components must be different'
-      );
-    });
+    expect(screen.getByText('Source and target components must be different')).toBeInTheDocument();
   });
 
   it('should call API with valid data and close dialog', async () => {

@@ -97,6 +97,11 @@ describe('CreateComponentDialog', () => {
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
     fireEvent.change(descriptionInput, { target: { value: 'Test Description' } });
+
+    await waitFor(() => {
+      expect(submitButton).not.toBeDisabled();
+    });
+
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
@@ -106,7 +111,9 @@ describe('CreateComponentDialog', () => {
       });
     });
 
-    expect(mockOnClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockOnClose).toHaveBeenCalled();
+    });
   });
 
   it('should trim whitespace from inputs', async () => {
@@ -119,6 +126,11 @@ describe('CreateComponentDialog', () => {
     const submitButton = buttons.find(btn => btn.textContent === 'Create Application');
 
     fireEvent.change(nameInput, { target: { value: '  Test Component  ' } });
+
+    await waitFor(() => {
+      expect(submitButton).not.toBeDisabled();
+    });
+
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
@@ -139,6 +151,11 @@ describe('CreateComponentDialog', () => {
     const submitButton = buttons.find(btn => btn.textContent === 'Create Application');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
+
+    await waitFor(() => {
+      expect(submitButton).not.toBeDisabled();
+    });
+
     fireEvent.click(submitButton!);
 
     await waitFor(() => {
@@ -155,8 +172,15 @@ describe('CreateComponentDialog', () => {
     const cancelButton = screen.getByText('Cancel');
 
     fireEvent.change(nameInput, { target: { value: 'Test Component' } });
+
+    await waitFor(() => {
+      expect(nameInput.value).toBe('Test Component');
+    });
+
     fireEvent.click(cancelButton);
 
-    expect(mockOnClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockOnClose).toHaveBeenCalled();
+    });
   });
 });

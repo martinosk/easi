@@ -259,8 +259,10 @@ describe('CreateCapabilityDialog', () => {
       const nameInput = screen.getByTestId('capability-name-input');
       fireEvent.change(nameInput, { target: { value: '   ' } });
 
-      const submitButton = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
-      expect(submitButton.disabled).toBe(true);
+      await waitFor(() => {
+        const submitButton = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
+        expect(submitButton.disabled).toBe(true);
+      });
     });
   });
 
@@ -331,6 +333,11 @@ describe('CreateCapabilityDialog', () => {
       const nameInput = screen.getByTestId('capability-name-input');
       fireEvent.change(nameInput, { target: { value: 'Test Capability' } });
 
+      await waitFor(() => {
+        const submitButton = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
+        expect(submitButton.disabled).toBe(false);
+      });
+
       const submitButton = screen.getByTestId('create-capability-submit');
       fireEvent.click(submitButton);
 
@@ -371,6 +378,11 @@ describe('CreateCapabilityDialog', () => {
 
       fireEvent.change(nameInput, { target: { value: '  Trimmed Name  ' } });
       fireEvent.change(descriptionInput, { target: { value: '  Trimmed Description  ' } });
+
+      await waitFor(() => {
+        const submitButton = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
+        expect(submitButton.disabled).toBe(false);
+      });
 
       const submitButton = screen.getByTestId('create-capability-submit');
       fireEvent.click(submitButton);
@@ -438,6 +450,11 @@ describe('CreateCapabilityDialog', () => {
       const nameInput = screen.getByTestId('capability-name-input');
       fireEvent.change(nameInput, { target: { value: 'Test Capability' } });
 
+      await waitFor(() => {
+        const submitButton = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
+        expect(submitButton.disabled).toBe(false);
+      });
+
       const submitButton = screen.getByTestId('create-capability-submit');
       fireEvent.click(submitButton);
 
@@ -462,6 +479,11 @@ describe('CreateCapabilityDialog', () => {
       const nameInput = screen.getByTestId('capability-name-input');
       fireEvent.change(nameInput, { target: { value: 'Test Capability' } });
 
+      await waitFor(() => {
+        const submitButton = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
+        expect(submitButton.disabled).toBe(false);
+      });
+
       const submitButton = screen.getByTestId('create-capability-submit');
       fireEvent.click(submitButton);
 
@@ -472,7 +494,7 @@ describe('CreateCapabilityDialog', () => {
       });
     });
 
-    it('should clear error when field changes', async () => {
+    it('should clear error when form is resubmitted', async () => {
       mockCreateMutateAsync.mockRejectedValueOnce(new Error('Backend error'));
 
       renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
@@ -484,6 +506,11 @@ describe('CreateCapabilityDialog', () => {
       const nameInput = screen.getByTestId('capability-name-input');
       fireEvent.change(nameInput, { target: { value: 'Test' } });
 
+      await waitFor(() => {
+        const submitButton = screen.getByTestId('create-capability-submit') as HTMLButtonElement;
+        expect(submitButton.disabled).toBe(false);
+      });
+
       const submitButton = screen.getByTestId('create-capability-submit');
       fireEvent.click(submitButton);
 
@@ -491,9 +518,15 @@ describe('CreateCapabilityDialog', () => {
         expect(screen.getByTestId('create-capability-error')).toBeInTheDocument();
       });
 
-      fireEvent.change(nameInput, { target: { value: 'Changed' } });
+      mockCreateMutateAsync.mockResolvedValueOnce({ id: 'cap-1', name: 'Changed', level: 'L1' });
+      mockUpdateMetadataMutateAsync.mockResolvedValueOnce({});
 
-      expect(screen.queryByTestId('create-capability-error')).not.toBeInTheDocument();
+      fireEvent.change(nameInput, { target: { value: 'Changed' } });
+      fireEvent.click(submitButton);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('create-capability-error')).not.toBeInTheDocument();
+      });
     });
   });
 
@@ -508,12 +541,16 @@ describe('CreateCapabilityDialog', () => {
       const nameInput = screen.getByTestId('capability-name-input') as HTMLInputElement;
       fireEvent.change(nameInput, { target: { value: 'Test Capability' } });
 
-      expect(nameInput.value).toBe('Test Capability');
+      await waitFor(() => {
+        expect(nameInput.value).toBe('Test Capability');
+      });
 
       const cancelButton = screen.getByTestId('create-capability-cancel');
       fireEvent.click(cancelButton);
 
-      expect(mockOnClose).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(mockOnClose).toHaveBeenCalled();
+      });
     });
   });
 });

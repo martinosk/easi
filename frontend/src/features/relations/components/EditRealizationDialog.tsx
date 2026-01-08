@@ -1,6 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Modal, Select, Textarea, Button, Group, Stack, Alert, Text, Box } from '@mantine/core';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useCapabilities, useUpdateRealization } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
+import { editRealizationSchema, type EditRealizationFormData } from '../../../lib/schemas';
 import type { CapabilityRealization, RealizationLevel } from '../../../api/types';
 
 interface EditRealizationDialogProps {
@@ -9,17 +13,24 @@ interface EditRealizationDialogProps {
   realization: CapabilityRealization | null;
 }
 
+const REALIZATION_LEVEL_OPTIONS = [
+  { value: 'Full', label: 'Full (100%)' },
+  { value: 'Partial', label: 'Partial' },
+  { value: 'Planned', label: 'Planned' },
+];
+
+const DEFAULT_VALUES: EditRealizationFormData = {
+  realizationLevel: 'Full',
+  notes: '',
+};
+
 export const EditRealizationDialog: React.FC<EditRealizationDialogProps> = ({
   isOpen,
   onClose,
   realization,
 }) => {
-  const [realizationLevel, setRealizationLevel] = useState<RealizationLevel>('Full');
-  const [notes, setNotes] = useState('');
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [backendError, setBackendError] = useState<string | null>(null);
 
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const updateRealizationMutation = useUpdateRealization();
   const { data: capabilities = [] } = useCapabilities();
   const { data: components = [] } = useComponents();
@@ -31,129 +42,124 @@ export const EditRealizationDialog: React.FC<EditRealizationDialogProps> = ({
     ? components.find((c) => c.id === realization.componentId)
     : null;
 
-  useEffect(() => {
-    if (realization) {
-      setRealizationLevel(realization.realizationLevel);
-      setNotes(realization.notes || '');
-    }
-  }, [realization]);
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors },
+  } = useForm<EditRealizationFormData>({
+    resolver: zodResolver(editRealizationSchema),
+    defaultValues: DEFAULT_VALUES,
+    mode: 'onChange',
+  });
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (isOpen) {
-      dialog.showModal();
-    } else {
-      dialog.close();
+    if (isOpen && realization) {
+      reset({
+        realizationLevel: realization.realizationLevel,
+        notes: realization.notes || '',
+      });
+      setBackendError(null);
     }
-  }, [isOpen]);
+  }, [isOpen, realization, reset]);
 
   const handleClose = () => {
-    setRealizationLevel('Full');
-    setNotes('');
-    setError(null);
     onClose();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!realization) {
-      setError('No realization selected');
-      return;
-    }
-
-    setIsUpdating(true);
-
+  const onSubmit = async (data: EditRealizationFormData) => {
+    if (!realization) return;
+    setBackendError(null);
     try {
       await updateRealizationMutation.mutateAsync({
         id: realization.id,
         capabilityId: realization.capabilityId,
         componentId: realization.componentId,
         request: {
-          realizationLevel,
-          notes: notes.trim() || undefined,
+          realizationLevel: data.realizationLevel as RealizationLevel,
+          notes: data.notes || undefined,
         },
       });
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update realization');
-    } finally {
-      setIsUpdating(false);
+      setBackendError(err instanceof Error ? err.message : 'Failed to update realization');
     }
   };
 
   return (
-    <dialog ref={dialogRef} className="dialog" onClose={handleClose}>
-      <div className="dialog-content">
-        <h2 className="dialog-title">Edit Realization</h2>
+    <Modal
+      opened={isOpen}
+      onClose={handleClose}
+      title="Edit Realization"
+      centered
+    >
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <Stack gap="md">
+          <Box>
+            <Text size="sm" fw={500} mb={4}>
+              Capability
+            </Text>
+            <Text size="sm" c="dimmed">
+              {capability?.name || 'Unknown'}
+            </Text>
+          </Box>
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">Capability</label>
-            <div className="form-static">{capability?.name || 'Unknown'}</div>
-          </div>
+          <Box>
+            <Text size="sm" fw={500} mb={4}>
+              Application
+            </Text>
+            <Text size="sm" c="dimmed">
+              {component?.name || 'Unknown'}
+            </Text>
+          </Box>
 
-          <div className="form-group">
-            <label className="form-label">Application</label>
-            <div className="form-static">{component?.name || 'Unknown'}</div>
-          </div>
+          <Controller
+            name="realizationLevel"
+            control={control}
+            render={({ field }) => (
+              <Select
+                label="Realization Level"
+                data={REALIZATION_LEVEL_OPTIONS}
+                disabled={updateRealizationMutation.isPending}
+                error={errors.realizationLevel?.message}
+                {...field}
+              />
+            )}
+          />
 
-          <div className="form-group">
-            <label htmlFor="realization-level" className="form-label">
-              Realization Level
-            </label>
-            <select
-              id="realization-level"
-              className="form-select"
-              value={realizationLevel}
-              onChange={(e) => setRealizationLevel(e.target.value as RealizationLevel)}
-              disabled={isUpdating}
-            >
-              <option value="Full">Full (100%)</option>
-              <option value="Partial">Partial</option>
-              <option value="Planned">Planned</option>
-            </select>
-          </div>
+          <Textarea
+            label="Notes"
+            placeholder="Enter notes (optional)"
+            {...register('notes')}
+            rows={4}
+            disabled={updateRealizationMutation.isPending}
+            error={errors.notes?.message}
+          />
 
-          <div className="form-group">
-            <label htmlFor="realization-notes" className="form-label">
-              Notes
-            </label>
-            <textarea
-              id="realization-notes"
-              className="form-textarea"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Enter notes (optional)"
-              rows={4}
-              disabled={isUpdating}
-            />
-          </div>
+          {backendError && (
+            <Alert color="red">
+              {backendError}
+            </Alert>
+          )}
 
-          {error && <div className="error-message">{error}</div>}
-
-          <div className="dialog-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
               onClick={handleClose}
-              disabled={isUpdating}
+              disabled={updateRealizationMutation.isPending}
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="btn btn-primary"
-              disabled={isUpdating}
+              loading={updateRealizationMutation.isPending}
             >
-              {isUpdating ? 'Updating...' : 'Update Realization'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </dialog>
+              Update Realization
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Modal>
   );
 };

@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useUpdateRelation } from '../hooks/useRelations';
+import { editRelationSchema, type EditRelationFormData } from '../../../lib/schemas';
 import type { Relation, RelationId } from '../../../api/types';
 
 interface EditRelationDialogProps {
@@ -9,52 +12,55 @@ interface EditRelationDialogProps {
   relation: Relation | null;
 }
 
+const DEFAULT_VALUES: EditRelationFormData = { name: '', description: '' };
+
 export const EditRelationDialog: React.FC<EditRelationDialogProps> = ({
   isOpen,
   onClose,
   relation,
 }) => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
+  const [backendError, setBackendError] = useState<string | null>(null);
   const updateRelationMutation = useUpdateRelation();
-  const isUpdating = updateRelationMutation.isPending;
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<EditRelationFormData>({
+    resolver: zodResolver(editRelationSchema),
+    defaultValues: DEFAULT_VALUES,
+    mode: 'onChange',
+  });
 
   useEffect(() => {
-    if (relation) {
-      setName(relation.name || '');
-      setDescription(relation.description || '');
+    if (isOpen && relation) {
+      reset({
+        name: relation.name || '',
+        description: relation.description || '',
+      });
+      setBackendError(null);
     }
-  }, [relation]);
+  }, [isOpen, relation, reset]);
 
   const handleClose = () => {
-    setName('');
-    setDescription('');
-    setError(null);
     onClose();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!relation) {
-      setError('No relation selected');
-      return;
-    }
-
+  const onSubmit = async (data: EditRelationFormData) => {
+    if (!relation) return;
+    setBackendError(null);
     try {
       await updateRelationMutation.mutateAsync({
         id: relation.id as RelationId,
         request: {
-          name: name.trim() || undefined,
-          description: description.trim() || undefined,
+          name: data.name || undefined,
+          description: data.description || undefined,
         },
       });
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update relation');
+      setBackendError(err instanceof Error ? err.message : 'Failed to update relation');
     }
   };
 
@@ -65,29 +71,29 @@ export const EditRelationDialog: React.FC<EditRelationDialogProps> = ({
       title="Edit Relation"
       centered
     >
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit(onSubmit)}>
         <Stack gap="md">
           <TextInput
             label="Name"
             placeholder="Enter relation name (optional)"
-            value={name}
-            onChange={(e) => setName(e.currentTarget.value)}
-            disabled={isUpdating}
+            {...register('name')}
+            disabled={updateRelationMutation.isPending}
             autoFocus
+            error={errors.name?.message}
           />
 
           <Textarea
             label="Description"
             placeholder="Enter relation description (optional)"
-            value={description}
-            onChange={(e) => setDescription(e.currentTarget.value)}
+            {...register('description')}
             rows={3}
-            disabled={isUpdating}
+            disabled={updateRelationMutation.isPending}
+            error={errors.description?.message}
           />
 
-          {error && (
+          {backendError && (
             <Alert color="red">
-              {error}
+              {backendError}
             </Alert>
           )}
 
@@ -95,13 +101,13 @@ export const EditRelationDialog: React.FC<EditRelationDialogProps> = ({
             <Button
               variant="default"
               onClick={handleClose}
-              disabled={isUpdating}
+              disabled={updateRelationMutation.isPending}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              loading={isUpdating}
+              loading={updateRelationMutation.isPending}
             >
               Save Changes
             </Button>

@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useCreateComponent } from '../hooks/useComponents';
 import { useAddComponentToView } from '../../views/hooks/useViews';
 import { useCurrentView } from '../../../hooks/useCurrentView';
+import { createComponentSchema, type CreateComponentFormData } from '../../../lib/schemas';
 import type { ComponentId, ViewId } from '../../../api/types';
 
 interface CreateComponentDialogProps {
@@ -10,13 +13,13 @@ interface CreateComponentDialogProps {
   onClose: () => void;
 }
 
+const DEFAULT_VALUES: CreateComponentFormData = { name: '', description: '' };
+
 export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
   isOpen,
   onClose,
 }) => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [backendError, setBackendError] = useState<string | null>(null);
 
   const { currentView } = useCurrentView();
   const createComponentMutation = useCreateComponent();
@@ -24,26 +27,34 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
 
   const isCreating = createComponentMutation.isPending || addComponentToViewMutation.isPending;
 
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isValid },
+  } = useForm<CreateComponentFormData>({
+    resolver: zodResolver(createComponentSchema),
+    defaultValues: DEFAULT_VALUES,
+    mode: 'onChange',
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      reset(DEFAULT_VALUES);
+      setBackendError(null);
+    }
+  }, [isOpen, reset]);
+
   const handleClose = () => {
-    setName('');
-    setDescription('');
-    setError(null);
     onClose();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!name.trim()) {
-      setError('Application name is required');
-      return;
-    }
-
+  const onSubmit = async (data: CreateComponentFormData) => {
+    setBackendError(null);
     try {
       const newComponent = await createComponentMutation.mutateAsync({
-        name: name.trim(),
-        description: description.trim() || undefined,
+        name: data.name,
+        description: data.description || undefined,
       });
 
       if (currentView) {
@@ -59,7 +70,7 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
 
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create application');
+      setBackendError(err instanceof Error ? err.message : 'Failed to create application');
     }
   };
 
@@ -71,33 +82,33 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
       centered
       data-testid="create-component-dialog"
     >
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit(onSubmit)}>
         <Stack gap="md">
           <TextInput
             label="Name"
             placeholder="Enter application name"
-            value={name}
-            onChange={(e) => setName(e.currentTarget.value)}
+            {...register('name')}
             required
             withAsterisk
             autoFocus
             disabled={isCreating}
+            error={errors.name?.message}
             data-testid="component-name-input"
           />
 
           <Textarea
             label="Description"
             placeholder="Enter application description (optional)"
-            value={description}
-            onChange={(e) => setDescription(e.currentTarget.value)}
+            {...register('description')}
             rows={3}
             disabled={isCreating}
+            error={errors.description?.message}
             data-testid="component-description-input"
           />
 
-          {error && (
+          {backendError && (
             <Alert color="red" data-testid="create-component-error">
-              {error}
+              {backendError}
             </Alert>
           )}
 
@@ -113,7 +124,7 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
             <Button
               type="submit"
               loading={isCreating}
-              disabled={!name.trim()}
+              disabled={!isValid}
               data-testid="create-component-submit"
             >
               Create Application

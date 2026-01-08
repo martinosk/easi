@@ -106,6 +106,10 @@ describe('EditComponentDialog', () => {
         </QueryClientProvider>
       );
 
+      await waitFor(() => {
+        expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
+      });
+
       const form = document.querySelector('form');
       fireEvent.submit(form!);
 
@@ -182,10 +186,16 @@ describe('EditComponentDialog', () => {
       const mockOnClose = vi.fn();
       renderDialog(mockComponent, true, mockOnClose);
 
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Test Component')).toBeInTheDocument();
+      });
+
       const cancelButton = screen.getByText('Cancel');
       fireEvent.click(cancelButton);
 
-      expect(mockOnClose).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(mockOnClose).toHaveBeenCalled();
+      });
     });
 
     it('should reset form state when cancelled', async () => {
@@ -273,8 +283,10 @@ describe('EditComponentDialog', () => {
       const nameInput = screen.getByLabelText(/name/i);
       fireEvent.change(nameInput, { target: { value: '   ' } });
 
-      const submitButton = screen.getByRole('button', { name: /Save Changes/i });
-      expect(submitButton).toBeDisabled();
+      await waitFor(() => {
+        const submitButton = screen.getByRole('button', { name: /Save Changes/i });
+        expect(submitButton).toBeDisabled();
+      });
     });
 
     it('should call mutation when form is submitted', async () => {
