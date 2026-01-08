@@ -1,6 +1,10 @@
 package repository
 
-import domain "easi/backend/internal/shared/eventsourcing"
+import (
+	"time"
+
+	domain "easi/backend/internal/shared/eventsourcing"
+)
 
 type EventDeserializerFunc func(data map[string]interface{}) domain.DomainEvent
 
@@ -34,4 +38,58 @@ func (d EventDeserializers) Deserialize(storedEvents []domain.DomainEvent) []dom
 	}
 
 	return domainEvents
+}
+
+func GetInt(data map[string]interface{}, key string) int {
+	if v, ok := data[key].(int); ok {
+		return v
+	}
+	if v, ok := data[key].(float64); ok {
+		return int(v)
+	}
+	return 0
+}
+
+func GetString(data map[string]interface{}, key string) string {
+	if v, ok := data[key].(string); ok {
+		return v
+	}
+	return ""
+}
+
+func GetTime(data map[string]interface{}, key string) time.Time {
+	if str, ok := data[key].(string); ok {
+		t, _ := time.Parse(time.RFC3339Nano, str)
+		return t
+	}
+	return time.Time{}
+}
+
+func GetTimeRFC3339(data map[string]interface{}, key string) time.Time {
+	if str, ok := data[key].(string); ok {
+		t, _ := time.Parse(time.RFC3339, str)
+		return t
+	}
+	return time.Time{}
+}
+
+func GetMapSlice(data map[string]interface{}, key string) []map[string]interface{} {
+	raw, ok := data[key].([]interface{})
+	if !ok {
+		return nil
+	}
+	result := make([]map[string]interface{}, 0, len(raw))
+	for _, item := range raw {
+		if m, ok := item.(map[string]interface{}); ok {
+			result = append(result, m)
+		}
+	}
+	return result
+}
+
+func GetMap(data map[string]interface{}, key string) map[string]interface{} {
+	if m, ok := data[key].(map[string]interface{}); ok {
+		return m
+	}
+	return nil
 }
