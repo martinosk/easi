@@ -28,7 +28,8 @@ func TestArchitectureViewDeserializers_RoundTrip(t *testing.T) {
 	require.Len(t, events, 1, "Expected 1 event: ViewCreated")
 
 	storedEvents := simulateViewEventStoreRoundTrip(t, events)
-	deserializedEvents := eventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := eventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 1, "All events should be deserialized")
 
@@ -50,7 +51,8 @@ func TestArchitectureViewDeserializers_RoundTripWithDefault(t *testing.T) {
 	require.Len(t, events, 2, "Expected 2 events: ViewCreated, DefaultViewChanged")
 
 	storedEvents := simulateViewEventStoreRoundTrip(t, events)
-	deserializedEvents := eventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := eventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 2, "All events should be deserialized")
 
@@ -76,7 +78,8 @@ func TestArchitectureViewDeserializers_RoundTripWithComponentAndRename(t *testin
 	require.Len(t, events, 4, "Expected 4 events: ViewCreated, 2x ComponentAdded, ViewRenamed")
 
 	storedEvents := simulateViewEventStoreRoundTrip(t, events)
-	deserializedEvents := eventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := eventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 4, "All events should be deserialized")
 
@@ -109,7 +112,8 @@ func TestArchitectureViewDeserializers_AllEventsCanBeDeserialized(t *testing.T) 
 	require.GreaterOrEqual(t, len(events), 6, "Expected at least 6 events")
 
 	storedEvents := simulateViewEventStoreRoundTrip(t, events)
-	deserializedEvents := eventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := eventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, len(events),
 		"All events should be deserialized - missing deserializer for one or more event types")

@@ -63,7 +63,10 @@ func (r *EventSourcedRepository[T]) GetByID(ctx context.Context, id string) (T, 
 		return zero, r.notFoundErr
 	}
 
-	domainEvents := r.deserializers.Deserialize(storedEvents)
+	domainEvents, err := r.deserializers.Deserialize(storedEvents)
+	if err != nil {
+		return zero, err
+	}
 
 	return r.loadFromHistory(domainEvents)
 }

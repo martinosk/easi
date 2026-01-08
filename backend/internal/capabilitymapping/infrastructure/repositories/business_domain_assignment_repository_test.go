@@ -24,7 +24,8 @@ func TestBusinessDomainAssignmentDeserializers_RoundTrip(t *testing.T) {
 	require.Len(t, events, 1, "Expected 1 event: Assigned")
 
 	storedEvents := simulateAssignmentEventStoreRoundTrip(t, events)
-	deserializedEvents := assignmentEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := assignmentEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 1, "All events should be deserialized")
 
@@ -49,7 +50,8 @@ func TestBusinessDomainAssignmentDeserializers_AllEventsCanBeDeserialized(t *tes
 	require.Len(t, events, 2, "Expected 2 events: Assigned, Unassigned")
 
 	storedEvents := simulateAssignmentEventStoreRoundTrip(t, events)
-	deserializedEvents := assignmentEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := assignmentEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, len(events),
 		"All events should be deserialized - missing deserializer for one or more event types")

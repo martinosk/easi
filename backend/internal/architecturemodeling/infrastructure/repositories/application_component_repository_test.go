@@ -24,7 +24,8 @@ func TestApplicationComponentDeserializers_RoundTrip(t *testing.T) {
 	require.Len(t, events, 1, "Expected 1 event: Created")
 
 	storedEvents := simulateComponentEventStoreRoundTrip(t, events)
-	deserializedEvents := componentEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := componentEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 1, "All events should be deserialized")
 
@@ -51,7 +52,8 @@ func TestApplicationComponentDeserializers_RoundTripWithUpdate(t *testing.T) {
 	require.Len(t, events, 2, "Expected 2 events: Created, Updated")
 
 	storedEvents := simulateComponentEventStoreRoundTrip(t, events)
-	deserializedEvents := componentEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := componentEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 2, "All events should be deserialized")
 
@@ -79,7 +81,8 @@ func TestApplicationComponentDeserializers_AllEventsCanBeDeserialized(t *testing
 	require.Len(t, events, 3, "Expected 3 events: Created, Updated, Deleted")
 
 	storedEvents := simulateComponentEventStoreRoundTrip(t, events)
-	deserializedEvents := componentEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := componentEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, len(events),
 		"All events should be deserialized - missing deserializer for one or more event types")

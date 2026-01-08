@@ -25,7 +25,8 @@ func TestMetaModelConfigurationDeserializers_RoundTrip(t *testing.T) {
 	require.Len(t, events, 1, "Expected 1 event: Created")
 
 	storedEvents := simulateMetaModelEventStoreRoundTrip(t, events)
-	deserializedEvents := metaModelEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := metaModelEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 1, "All events should be deserialized")
 
@@ -51,7 +52,8 @@ func TestMetaModelConfigurationDeserializers_RoundTripWithMaturityUpdate(t *test
 	require.Len(t, events, 2, "Expected 2 events: Created, Updated")
 
 	storedEvents := simulateMetaModelEventStoreRoundTrip(t, events)
-	deserializedEvents := metaModelEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := metaModelEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 2, "All events should be deserialized")
 
@@ -81,7 +83,8 @@ func TestMetaModelConfigurationDeserializers_RoundTripWithPillarChanges(t *testi
 	require.GreaterOrEqual(t, len(events), 2, "Expected at least 2 events")
 
 	storedEvents := simulateMetaModelEventStoreRoundTrip(t, events)
-	deserializedEvents := metaModelEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := metaModelEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, len(events), "All events should be deserialized")
 
@@ -147,7 +150,8 @@ func TestMetaModelConfigurationDeserializers_AllEventsCanBeDeserialized(t *testi
 	}
 
 	storedEvents := simulateMetaModelEventStoreRoundTrip(t, events)
-	deserializedEvents := metaModelEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := metaModelEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, len(events),
 		"All events should be deserialized - missing deserializer for one or more event types")
@@ -202,7 +206,8 @@ func TestMetaModelConfigurationDeserializers_PillarFitConfigurationUpdated(t *te
 	require.True(t, hasFitConfigEvent, "Should have PillarFitConfigurationUpdated event")
 
 	storedEvents := simulateMetaModelEventStoreRoundTrip(t, events)
-	deserializedEvents := metaModelEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := metaModelEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, len(events),
 		"All events including PillarFitConfigurationUpdated must be deserialized - "+

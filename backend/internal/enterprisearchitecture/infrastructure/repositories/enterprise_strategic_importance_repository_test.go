@@ -32,7 +32,8 @@ func TestEnterpriseStrategicImportanceDeserializers_RoundTrip(t *testing.T) {
 	require.Len(t, events, 1, "Expected 1 event: Set")
 
 	storedEvents := simulateImportanceEventStoreRoundTrip(t, events)
-	deserializedEvents := enterpriseStrategicImportanceEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := enterpriseStrategicImportanceEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 1, "All events should be deserialized")
 
@@ -69,7 +70,8 @@ func TestEnterpriseStrategicImportanceDeserializers_RoundTripWithUpdate(t *testi
 	require.Len(t, events, 2, "Expected 2 events: Set, Updated")
 
 	storedEvents := simulateImportanceEventStoreRoundTrip(t, events)
-	deserializedEvents := enterpriseStrategicImportanceEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := enterpriseStrategicImportanceEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 2, "All events should be deserialized")
 
@@ -104,7 +106,8 @@ func TestEnterpriseStrategicImportanceDeserializers_AllEventsCanBeDeserialized(t
 	require.Len(t, events, 3, "Expected 3 events: Set, Updated, Removed")
 
 	storedEvents := simulateImportanceEventStoreRoundTrip(t, events)
-	deserializedEvents := enterpriseStrategicImportanceEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := enterpriseStrategicImportanceEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, len(events),
 		"All events should be deserialized - missing deserializer for one or more event types")

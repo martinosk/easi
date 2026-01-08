@@ -28,7 +28,8 @@ func TestEnterpriseCapabilityDeserializers_RoundTrip(t *testing.T) {
 	require.Len(t, events, 3, "Expected 3 events: Created, Updated, TargetMaturitySet")
 
 	storedEvents := simulateEventStoreRoundTrip(t, events)
-	deserializedEvents := enterpriseCapabilityEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := enterpriseCapabilityEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, len(events), "All events should be deserialized")
 
@@ -50,7 +51,8 @@ func TestEnterpriseCapabilityDeserializers_RoundTripWithDelete(t *testing.T) {
 
 	events := original.GetUncommittedChanges()
 	storedEvents := simulateEventStoreRoundTrip(t, events)
-	deserializedEvents := enterpriseCapabilityEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := enterpriseCapabilityEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	loaded, err := aggregates.LoadEnterpriseCapabilityFromHistory(deserializedEvents)
 	require.NoError(t, err)
@@ -75,7 +77,8 @@ func TestEnterpriseCapabilityDeserializers_AllEventsCanBeDeserialized(t *testing
 	require.Len(t, events, 4, "Expected 4 events: Created, Updated, TargetMaturitySet, Deleted")
 
 	storedEvents := simulateEventStoreRoundTrip(t, events)
-	deserializedEvents := enterpriseCapabilityEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := enterpriseCapabilityEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 4,
 		"All 4 events should be deserialized - missing deserializer for one or more event types")

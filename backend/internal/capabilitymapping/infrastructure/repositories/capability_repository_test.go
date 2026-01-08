@@ -25,7 +25,8 @@ func TestCapabilityDeserializers_RoundTrip(t *testing.T) {
 	require.Len(t, events, 1, "Expected 1 event: Created")
 
 	storedEvents := simulateCapabilityEventStoreRoundTrip(t, events)
-	deserializedEvents := capabilityEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := capabilityEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 1, "All events should be deserialized")
 
@@ -53,7 +54,8 @@ func TestCapabilityDeserializers_RoundTripWithUpdate(t *testing.T) {
 	require.Len(t, events, 2, "Expected 2 events: Created, Updated")
 
 	storedEvents := simulateCapabilityEventStoreRoundTrip(t, events)
-	deserializedEvents := capabilityEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := capabilityEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 2, "All events should be deserialized")
 
@@ -84,7 +86,8 @@ func TestCapabilityDeserializers_RoundTripWithMetadata(t *testing.T) {
 	require.Len(t, events, 2, "Expected 2 events: Created, MetadataUpdated")
 
 	storedEvents := simulateCapabilityEventStoreRoundTrip(t, events)
-	deserializedEvents := capabilityEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := capabilityEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 2, "All events should be deserialized")
 
@@ -112,7 +115,8 @@ func TestCapabilityDeserializers_RoundTripWithExpertAndTag(t *testing.T) {
 	require.Len(t, events, 3, "Expected 3 events: Created, ExpertAdded, TagAdded")
 
 	storedEvents := simulateCapabilityEventStoreRoundTrip(t, events)
-	deserializedEvents := capabilityEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := capabilityEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 3, "All events should be deserialized")
 
@@ -138,7 +142,8 @@ func TestCapabilityDeserializers_RoundTripWithParentChange(t *testing.T) {
 	require.Len(t, events, 2, "Expected 2 events: Created, ParentChanged")
 
 	storedEvents := simulateCapabilityEventStoreRoundTrip(t, events)
-	deserializedEvents := capabilityEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := capabilityEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 2, "All events should be deserialized")
 
@@ -181,7 +186,8 @@ func TestCapabilityDeserializers_AllEventsCanBeDeserialized(t *testing.T) {
 	require.Len(t, events, 6, "Expected 6 events")
 
 	storedEvents := simulateCapabilityEventStoreRoundTrip(t, events)
-	deserializedEvents := capabilityEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := capabilityEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, len(events),
 		"All events should be deserialized - missing deserializer for one or more event types")

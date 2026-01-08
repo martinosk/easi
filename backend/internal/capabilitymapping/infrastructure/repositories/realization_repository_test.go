@@ -26,7 +26,8 @@ func TestRealizationDeserializers_RoundTrip(t *testing.T) {
 	require.Len(t, events, 1, "Expected 1 event: SystemLinkedToCapability")
 
 	storedEvents := simulateRealizationEventStoreRoundTrip(t, events)
-	deserializedEvents := realizationEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := realizationEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 1, "All events should be deserialized")
 
@@ -57,7 +58,8 @@ func TestRealizationDeserializers_RoundTripWithUpdate(t *testing.T) {
 	require.Len(t, events, 2, "Expected 2 events: Linked, Updated")
 
 	storedEvents := simulateRealizationEventStoreRoundTrip(t, events)
-	deserializedEvents := realizationEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := realizationEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, 2, "All events should be deserialized")
 
@@ -87,7 +89,8 @@ func TestRealizationDeserializers_AllEventsCanBeDeserialized(t *testing.T) {
 	require.Len(t, events, 3, "Expected 3 events: Linked, Updated, Deleted")
 
 	storedEvents := simulateRealizationEventStoreRoundTrip(t, events)
-	deserializedEvents := realizationEventDeserializers.Deserialize(storedEvents)
+	deserializedEvents, err := realizationEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
 
 	require.Len(t, deserializedEvents, len(events),
 		"All events should be deserialized - missing deserializer for one or more event types")
