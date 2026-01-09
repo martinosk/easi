@@ -109,6 +109,6 @@ export const interpolateHsl = (color1: string, color2: string, ratio: number): s
   return hslToHex(interpolatedHsl);
 };
 
-export const clampMaturityValue = (value: number): number => {
-  return Math.max(0, Math.min(99, value));
+export const clampMaturityValue = (value: number, min = 0, max = 99): number => {
+  return Math.max(min, Math.min(max, value));
 };

@@ -2,25 +2,20 @@ import { useMemo } from 'react';
 import { DEFAULT_MATURITY_COLOR, SECTION_COLORS } from '../constants/maturityColors';
 import { interpolateHsl, clampMaturityValue } from '../utils/colorInterpolation';
 import { useMaturityScale } from './useMaturityScale';
+import { getMaturityBounds, getDefaultSections } from '../utils/maturity';
 import type { MaturityScaleSection } from '../api/types';
 
 interface MaturityColorScale {
   getColorForValue: (maturityValue: number) => string;
   getSectionNameForValue: (maturityValue: number) => string;
   getBaseSectionColor: (order: number) => string;
+  bounds: { min: number; max: number };
 }
 
 interface ColoredSection extends MaturityScaleSection {
   lightColor: string;
   saturatedColor: string;
 }
-
-const DEFAULT_SECTIONS: MaturityScaleSection[] = [
-  { name: 'Genesis', order: 1, minValue: 0, maxValue: 24 },
-  { name: 'Custom Built', order: 2, minValue: 25, maxValue: 49 },
-  { name: 'Product', order: 3, minValue: 50, maxValue: 74 },
-  { name: 'Commodity', order: 4, minValue: 75, maxValue: 99 },
-];
 
 const addColorsToSections = (sections: MaturityScaleSection[]): ColoredSection[] => {
   return sections.map(section => {
@@ -39,10 +34,10 @@ const calculatePositionInSection = (value: number, section: ColoredSection): num
   return (value - section.minValue) / range;
 };
 
-const buildColorLookupTable = (sections: ColoredSection[]): Map<number, string> => {
+const buildColorLookupTable = (sections: ColoredSection[], bounds: { min: number; max: number }): Map<number, string> => {
   const lookupTable = new Map<number, string>();
 
-  for (let value = 0; value <= 99; value++) {
+  for (let value = bounds.min; value <= bounds.max; value++) {
     const section = findSectionForValue(value, sections);
     if (!section) {
       lookupTable.set(value, DEFAULT_MATURITY_COLOR);
@@ -60,10 +55,11 @@ const buildColorLookupTable = (sections: ColoredSection[]): Map<number, string> 
 export const useMaturityColorScale = (): MaturityColorScale => {
   const { data: maturityScale } = useMaturityScale();
 
-  const apiSections = maturityScale?.sections ?? DEFAULT_SECTIONS;
+  const apiSections = maturityScale?.sections ?? getDefaultSections();
   const sections = useMemo(() => addColorsToSections(apiSections), [apiSections]);
+  const bounds = useMemo(() => getMaturityBounds(apiSections), [apiSections]);
 
-  const colorLookupTable = useMemo(() => buildColorLookupTable(sections), [sections]);
+  const colorLookupTable = useMemo(() => buildColorLookupTable(sections, bounds), [sections, bounds]);
 
   const sectionByOrder = useMemo(() => {
     const map = new Map<number, ColoredSection>();
@@ -72,12 +68,12 @@ export const useMaturityColorScale = (): MaturityColorScale => {
   }, [sections]);
 
   const getColorForValue = (maturityValue: number): string => {
-    const clampedValue = clampMaturityValue(maturityValue);
+    const clampedValue = clampMaturityValue(maturityValue, bounds.min, bounds.max);
     return colorLookupTable.get(clampedValue) || DEFAULT_MATURITY_COLOR;
   };
 
   const getSectionNameForValue = (maturityValue: number): string => {
-    const clampedValue = clampMaturityValue(maturityValue);
+    const clampedValue = clampMaturityValue(maturityValue, bounds.min, bounds.max);
     const section = findSectionForValue(clampedValue, sections);
     return section?.name || 'Unknown';
   };
@@ -91,5 +87,6 @@ export const useMaturityColorScale = (): MaturityColorScale => {
     getColorForValue,
     getSectionNameForValue,
     getBaseSectionColor,
+    bounds,
   };
 };

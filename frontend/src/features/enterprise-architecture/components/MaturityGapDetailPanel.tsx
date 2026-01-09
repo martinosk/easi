@@ -108,10 +108,11 @@ interface SetTargetMaturityModalProps {
   isSaving: boolean;
   getColorForValue: (value: number) => string;
   getSectionNameForValue: (value: number) => string;
+  bounds: { min: number; max: number };
 }
 
-function SetTargetMaturityModal({ isOpen, currentValue, onClose, onSave, isSaving, getColorForValue, getSectionNameForValue }: SetTargetMaturityModalProps) {
-  const [value, setValue] = useState<number>(currentValue ?? 50);
+function SetTargetMaturityModal({ isOpen, currentValue, onClose, onSave, isSaving, getColorForValue, getSectionNameForValue, bounds }: SetTargetMaturityModalProps) {
+  const [value, setValue] = useState<number>(currentValue ?? Math.floor((bounds.min + bounds.max) / 2));
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -135,8 +136,8 @@ function SetTargetMaturityModal({ isOpen, currentValue, onClose, onSave, isSavin
               <input
                 type="range"
                 id="target-maturity-slider"
-                min="0"
-                max="99"
+                min={bounds.min}
+                max={bounds.max}
                 value={value}
                 onChange={(e) => setValue(Number(e.target.value))}
                 className="slider"
@@ -154,10 +155,10 @@ function SetTargetMaturityModal({ isOpen, currentValue, onClose, onSave, isSavin
             <input
               type="number"
               id="target-maturity-input"
-              min="0"
-              max="99"
+              min={bounds.min}
+              max={bounds.max}
               value={value}
-              onChange={(e) => setValue(Math.min(99, Math.max(0, Number(e.target.value))))}
+              onChange={(e) => setValue(Math.min(bounds.max, Math.max(bounds.min, Number(e.target.value))))}
               className="form-input"
             />
           </div>
@@ -184,7 +185,7 @@ export function MaturityGapDetailPanel({ enterpriseCapabilityId, onBack }: Matur
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { detail, isLoading, error } = useMaturityGapDetailHook(enterpriseCapabilityId);
   const setTargetMaturityMutation = useSetTargetMaturity();
-  const { getColorForValue, getSectionNameForValue } = useMaturityColorScale();
+  const { getColorForValue, getSectionNameForValue, bounds } = useMaturityColorScale();
 
   const handleOpenModal = useCallback(() => {
     setIsModalOpen(true);
@@ -324,6 +325,7 @@ export function MaturityGapDetailPanel({ enterpriseCapabilityId, onBack }: Matur
         isSaving={setTargetMaturityMutation.isPending}
         getColorForValue={getColorForValue}
         getSectionNameForValue={getSectionNameForValue}
+        bounds={bounds}
       />
     </div>
   );

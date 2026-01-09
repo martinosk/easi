@@ -87,6 +87,7 @@ describe('capabilityDescriptionSchema', () => {
 });
 
 describe('createCapabilitySchema', () => {
+  const schema = createCapabilitySchema({ min: 0, max: 24 });
   const validData = {
     name: 'Test Capability',
     description: 'Test description',
@@ -95,18 +96,18 @@ describe('createCapabilitySchema', () => {
   };
 
   it('should accept valid data', () => {
-    const result = createCapabilitySchema.safeParse(validData);
+    const result = schema.safeParse(validData);
     expect(result.success).toBe(true);
   });
 
   it('should reject missing name', () => {
     const { name, ...withoutName } = validData;
-    const result = createCapabilitySchema.safeParse(withoutName);
+    const result = schema.safeParse(withoutName);
     expect(result.success).toBe(false);
   });
 
   it('should reject invalid maturity values', () => {
-    const result = createCapabilitySchema.safeParse({
+    const result = schema.safeParse({
       ...validData,
       maturityValue: 25,
     });
@@ -114,7 +115,7 @@ describe('createCapabilitySchema', () => {
   });
 
   it('should reject negative maturity values', () => {
-    const result = createCapabilitySchema.safeParse({
+    const result = schema.safeParse({
       ...validData,
       maturityValue: -1,
     });
@@ -122,13 +123,13 @@ describe('createCapabilitySchema', () => {
   });
 
   it('should accept maturity value at boundaries', () => {
-    const resultMin = createCapabilitySchema.safeParse({
+    const resultMin = schema.safeParse({
       ...validData,
       maturityValue: 0,
     });
     expect(resultMin.success).toBe(true);
 
-    const resultMax = createCapabilitySchema.safeParse({
+    const resultMax = schema.safeParse({
       ...validData,
       maturityValue: 24,
     });
@@ -137,6 +138,7 @@ describe('createCapabilitySchema', () => {
 });
 
 describe('editCapabilitySchema', () => {
+  const schema = editCapabilitySchema();
   const validData = {
     name: 'Test Capability',
     description: 'Test description',
@@ -148,12 +150,12 @@ describe('editCapabilitySchema', () => {
   };
 
   it('should accept valid data', () => {
-    const result = editCapabilitySchema.safeParse(validData);
+    const result = schema.safeParse(validData);
     expect(result.success).toBe(true);
   });
 
   it('should accept empty ownership fields', () => {
-    const result = editCapabilitySchema.safeParse({
+    const result = schema.safeParse({
       ...validData,
       ownershipModel: '',
       primaryOwner: '',
@@ -163,7 +165,7 @@ describe('editCapabilitySchema', () => {
   });
 
   it('should trim primaryOwner', () => {
-    const result = editCapabilitySchema.safeParse({
+    const result = schema.safeParse({
       ...validData,
       primaryOwner: '  John Doe  ',
     });

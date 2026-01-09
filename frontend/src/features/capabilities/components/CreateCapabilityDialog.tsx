@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Modal, TextInput, Textarea, Select, Button, Group, Stack, Alert } from '@mantine/core';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCreateCapability, useUpdateCapabilityMetadata } from '../hooks/useCapabilities';
 import { useStatuses } from '../../../hooks/useMetadata';
+import { useMaturityScale } from '../../../hooks/useMaturityScale';
 import { MaturitySlider } from '../../../components/shared/MaturitySlider';
 import { createCapabilitySchema, type CreateCapabilityFormData } from '../../../lib/schemas';
+import { getMaturityBounds, getDefaultSections } from '../../../utils/maturity';
 
 interface CreateCapabilityDialogProps {
   isOpen: boolean;
@@ -32,11 +34,16 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
   const [backendError, setBackendError] = useState<string | null>(null);
 
   const { data: statusesData, isLoading: isLoadingStatuses } = useStatuses();
+  const { data: maturityScale } = useMaturityScale();
   const createCapabilityMutation = useCreateCapability();
   const updateMetadataMutation = useUpdateCapabilityMetadata();
 
+  const sections = maturityScale?.sections ?? getDefaultSections();
   const statuses = statusesData ?? DEFAULT_STATUSES;
   const isCreating = createCapabilityMutation.isPending || updateMetadataMutation.isPending;
+
+  const maturityBounds = useMemo(() => getMaturityBounds(sections), [sections]);
+  const schema = useMemo(() => createCapabilitySchema(maturityBounds), [maturityBounds]);
 
   const {
     register,
@@ -45,7 +52,7 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
     reset,
     formState: { errors, isValid },
   } = useForm<CreateCapabilityFormData>({
-    resolver: zodResolver(createCapabilitySchema),
+    resolver: zodResolver(schema),
     defaultValues: DEFAULT_VALUES,
     mode: 'onChange',
   });

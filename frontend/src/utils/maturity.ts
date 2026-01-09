@@ -32,3 +32,18 @@ export function getSectionForValue(
 ): MaturityScaleSection | undefined {
   return sections.find((s) => value >= s.minValue && value <= s.maxValue);
 }
+
+export function getMaturityBounds(sections: MaturityScaleSection[]): { min: number; max: number } {
+  if (sections.length === 0) {
+    const defaults = getDefaultSections();
+    return {
+      min: defaults[0].minValue,
+      max: defaults[defaults.length - 1].maxValue,
+    };
+  }
+  const sorted = [...sections].sort((a, b) => a.order - b.order);
+  return {
+    min: sorted[0].minValue,
+    max: sorted[sorted.length - 1].maxValue,
+  };
+}

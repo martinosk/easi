@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   TextInput,
@@ -28,7 +28,7 @@ import type { Capability, Expert } from '../../../api/types';
 import { AddExpertDialog } from './AddExpertDialog';
 import { AddTagDialog } from './AddTagDialog';
 import { MaturitySlider } from '../../../components/shared/MaturitySlider';
-import { deriveLegacyMaturityValue, getDefaultSections } from '../../../utils/maturity';
+import { deriveLegacyMaturityValue, getDefaultSections, getMaturityBounds } from '../../../utils/maturity';
 
 interface EditCapabilityDialogProps {
   isOpen: boolean;
@@ -178,6 +178,9 @@ export const EditCapabilityDialog: React.FC<EditCapabilityDialogProps> = ({
   const statuses = statusesData ?? DEFAULT_STATUSES;
   const ownershipModels = ownershipModelsData ?? DEFAULT_OWNERSHIP_MODELS;
 
+  const maturityBounds = useMemo(() => getMaturityBounds(sections), [sections]);
+  const schema = useMemo(() => editCapabilitySchema(maturityBounds), [maturityBounds]);
+
   const {
     register,
     handleSubmit,
@@ -185,7 +188,7 @@ export const EditCapabilityDialog: React.FC<EditCapabilityDialogProps> = ({
     reset,
     formState: { errors, isValid },
   } = useForm<EditCapabilityFormData>({
-    resolver: zodResolver(editCapabilitySchema),
+    resolver: zodResolver(schema),
     defaultValues: createDefaultValues(),
     mode: 'onChange',
   });

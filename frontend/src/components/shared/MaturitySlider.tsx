@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Slider, Box, Text, Group, Stack } from '@mantine/core';
 import { useMaturityScale } from '../../hooks/useMaturityScale';
-import { getDefaultSections, getSectionForValue } from '../../utils/maturity';
+import { getDefaultSections, getSectionForValue, getMaturityBounds } from '../../utils/maturity';
 import type { MaturityScaleSection } from '../../api/types';
 
 interface MaturitySliderProps {
@@ -46,9 +46,10 @@ const SectionLabelsRow: React.FC<SectionLabelsRowProps> = ({ sectionLabels, curr
 interface SectionTrackProps {
   sectionLabels: SectionLabel[];
   currentSectionName: string | undefined;
+  maxBound: number;
 }
 
-const SectionTrack: React.FC<SectionTrackProps> = ({ sectionLabels, currentSectionName }) => (
+const SectionTrack: React.FC<SectionTrackProps> = ({ sectionLabels, currentSectionName, maxBound }) => (
   <Box
     pos="absolute"
     top={0}
@@ -64,24 +65,29 @@ const SectionTrack: React.FC<SectionTrackProps> = ({ sectionLabels, currentSecti
           backgroundColor: currentSectionName === section.name
             ? 'var(--mantine-color-blue-1)'
             : 'var(--mantine-color-gray-1)',
-          borderRight: section.maxValue !== 99 ? '2px solid var(--mantine-color-gray-3)' : 'none',
+          borderRight: section.maxValue !== maxBound ? '2px solid var(--mantine-color-gray-3)' : 'none',
         }}
       />
     ))}
   </Box>
 );
 
-function useKeyboardNavigation(value: number, disabled: boolean, onChange: (v: number) => void) {
+function useKeyboardNavigation(
+  value: number,
+  disabled: boolean,
+  onChange: (v: number) => void,
+  bounds: { min: number; max: number }
+) {
   return (event: React.KeyboardEvent) => {
     if (disabled) return;
     const step = event.shiftKey ? 10 : 1;
     let newValue = value;
 
     if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
-      newValue = Math.min(99, value + step);
+      newValue = Math.min(bounds.max, value + step);
       event.preventDefault();
     } else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
-      newValue = Math.max(0, value - step);
+      newValue = Math.max(bounds.min, value - step);
       event.preventDefault();
     }
 
@@ -105,10 +111,11 @@ export const MaturitySlider: React.FC<MaturitySliderProps> = ({ value, onChange,
     return maturityScale.sections;
   }, [maturityScale]);
 
+  const bounds = useMemo(() => getMaturityBounds(sections), [sections]);
   const sectionLabels = useMemo(() => calculateSectionLabels(sections), [sections]);
   const currentSection = useMemo(() => getSectionForValue(value, sections), [value, sections]);
-  const marks = useMemo(() => [...sections.map((s) => ({ value: s.minValue, label: '' })), { value: 99, label: '' }], [sections]);
-  const handleKeyDown = useKeyboardNavigation(value, disabled, onChange);
+  const marks = useMemo(() => [...sections.map((s) => ({ value: s.minValue, label: '' })), { value: bounds.max, label: '' }], [sections, bounds]);
+  const handleKeyDown = useKeyboardNavigation(value, disabled, onChange, bounds);
   const ariaValueText = currentSection ? `${value} - ${currentSection.name}` : `${value}`;
 
   return (
@@ -117,20 +124,20 @@ export const MaturitySlider: React.FC<MaturitySliderProps> = ({ value, onChange,
       <Box pos="relative" mb="md">
         <SectionLabelsRow sectionLabels={sectionLabels} currentSectionName={currentSection?.name} />
         <Box pos="relative">
-          <SectionTrack sectionLabels={sectionLabels} currentSectionName={currentSection?.name} />
+          <SectionTrack sectionLabels={sectionLabels} currentSectionName={currentSection?.name} maxBound={bounds.max} />
           <Slider
             value={value}
             onChange={onChange}
             onKeyDown={handleKeyDown}
-            min={0}
-            max={99}
+            min={bounds.min}
+            max={bounds.max}
             step={1}
             disabled={disabled}
             marks={marks}
             label={(val) => `${val}`}
             styles={sliderStyles}
-            aria-valuemin={0}
-            aria-valuemax={99}
+            aria-valuemin={bounds.min}
+            aria-valuemax={bounds.max}
             aria-valuenow={value}
             aria-valuetext={ariaValueText}
             data-testid="maturity-slider"
