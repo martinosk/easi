@@ -116,16 +116,17 @@ type routeRepositories struct {
 }
 
 type routeReadModels struct {
-	capability             *readmodels.CapabilityReadModel
-	dependency             *readmodels.DependencyReadModel
-	realization            *readmodels.RealizationReadModel
-	businessDomain         *readmodels.BusinessDomainReadModel
-	domainAssignment       *readmodels.DomainCapabilityAssignmentReadModel
-	strategyImportance     *readmodels.StrategyImportanceReadModel
-	applicationFitScore    *readmodels.ApplicationFitScoreReadModel
-	strategicFitAnalysis   *readmodels.StrategicFitAnalysisReadModel
-	componentFitComparison *readmodels.ComponentFitComparisonReadModel
-	componentCache         *readmodels.ComponentCacheReadModel
+	capability                    *readmodels.CapabilityReadModel
+	dependency                    *readmodels.DependencyReadModel
+	realization                   *readmodels.RealizationReadModel
+	businessDomain                *readmodels.BusinessDomainReadModel
+	domainAssignment              *readmodels.DomainCapabilityAssignmentReadModel
+	strategyImportance            *readmodels.StrategyImportanceReadModel
+	applicationFitScore           *readmodels.ApplicationFitScoreReadModel
+	strategicFitAnalysis          *readmodels.StrategicFitAnalysisReadModel
+	componentFitComparison        *readmodels.ComponentFitComparisonReadModel
+	componentCache                *readmodels.ComponentCacheReadModel
+	effectiveCapabilityImportance *readmodels.EffectiveCapabilityImportanceReadModel
 }
 
 type routeHTTPHandlers struct {
@@ -153,16 +154,17 @@ func initializeRepositories(eventStore eventstore.EventStore) *routeRepositories
 
 func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 	return &routeReadModels{
-		capability:             readmodels.NewCapabilityReadModel(db),
-		dependency:             readmodels.NewDependencyReadModel(db),
-		realization:            readmodels.NewRealizationReadModel(db),
-		businessDomain:         readmodels.NewBusinessDomainReadModel(db),
-		domainAssignment:       readmodels.NewDomainCapabilityAssignmentReadModel(db),
-		strategyImportance:     readmodels.NewStrategyImportanceReadModel(db),
-		applicationFitScore:    readmodels.NewApplicationFitScoreReadModel(db),
-		strategicFitAnalysis:   readmodels.NewStrategicFitAnalysisReadModel(db),
-		componentFitComparison: readmodels.NewComponentFitComparisonReadModel(db),
-		componentCache:         readmodels.NewComponentCacheReadModel(db),
+		capability:                    readmodels.NewCapabilityReadModel(db),
+		dependency:                    readmodels.NewDependencyReadModel(db),
+		realization:                   readmodels.NewRealizationReadModel(db),
+		businessDomain:                readmodels.NewBusinessDomainReadModel(db),
+		domainAssignment:              readmodels.NewDomainCapabilityAssignmentReadModel(db),
+		strategyImportance:            readmodels.NewStrategyImportanceReadModel(db),
+		applicationFitScore:           readmodels.NewApplicationFitScoreReadModel(db),
+		strategicFitAnalysis:          readmodels.NewStrategicFitAnalysisReadModel(db),
+		componentFitComparison:        readmodels.NewComponentFitComparisonReadModel(db),
+		componentCache:                readmodels.NewComponentCacheReadModel(db),
+		effectiveCapabilityImportance: readmodels.NewEffectiveCapabilityImportanceReadModel(db),
 	}
 }
 
@@ -176,6 +178,20 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pill
 	applicationFitScoreProjector := projectors.NewApplicationFitScoreProjector(rm.applicationFitScore, rm.componentCache, pillarsGateway)
 	componentCacheProjector := projectors.NewComponentCacheProjector(rm.componentCache)
 
+	capabilityLookupAdapter := adapters.NewCapabilityLookupAdapter(rm.capability)
+	ratingLookupAdapter := adapters.NewRatingLookupAdapter(rm.strategyImportance)
+	hierarchyService := services.NewCapabilityHierarchyService(capabilityLookupAdapter)
+	ratingResolver := services.NewHierarchicalRatingResolver(hierarchyService, ratingLookupAdapter, capabilityLookupAdapter)
+	effectiveImportanceProjector := projectors.NewEffectiveImportanceProjector(
+		rm.effectiveCapabilityImportance,
+		rm.strategyImportance,
+		rm.capability,
+		rm.domainAssignment,
+		ratingResolver,
+		hierarchyService,
+		pillarsGateway,
+	)
+
 	subscribeCapabilityEvents(eventBus, capabilityProjector)
 	subscribeDependencyEvents(eventBus, dependencyProjector)
 	subscribeRealizationEvents(eventBus, realizationProjector)
@@ -184,6 +200,7 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pill
 	subscribeStrategyImportanceEvents(eventBus, strategyImportanceProjector)
 	subscribeApplicationFitScoreEvents(eventBus, applicationFitScoreProjector)
 	subscribeComponentCacheEvents(eventBus, componentCacheProjector)
+	subscribeEffectiveImportanceEvents(eventBus, effectiveImportanceProjector)
 }
 
 func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.CapabilityProjector) {
@@ -239,6 +256,21 @@ func subscribeApplicationFitScoreEvents(eventBus events.EventBus, projector *pro
 
 func subscribeComponentCacheEvents(eventBus events.EventBus, projector *projectors.ComponentCacheProjector) {
 	events := []string{"ApplicationComponentCreated", "ApplicationComponentUpdated", "ApplicationComponentDeleted"}
+	for _, event := range events {
+		eventBus.Subscribe(event, projector)
+	}
+}
+
+func subscribeEffectiveImportanceEvents(eventBus events.EventBus, projector *projectors.EffectiveImportanceProjector) {
+	events := []string{
+		"StrategyImportanceSet",
+		"StrategyImportanceUpdated",
+		"StrategyImportanceRemoved",
+		"CapabilityParentChanged",
+		"CapabilityDeleted",
+		"CapabilityAssignedToDomain",
+		"CapabilityUnassignedFromDomain",
+	}
 	for _, event := range events {
 		eventBus.Subscribe(event, projector)
 	}

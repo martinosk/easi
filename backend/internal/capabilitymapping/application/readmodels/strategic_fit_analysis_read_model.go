@@ -10,20 +10,23 @@ import (
 )
 
 type RealizationFitDTO struct {
-	RealizationID      string `json:"realizationId"`
-	ComponentID        string `json:"componentId"`
-	ComponentName      string `json:"componentName"`
-	CapabilityID       string `json:"capabilityId"`
-	CapabilityName     string `json:"capabilityName"`
-	BusinessDomainID   string `json:"businessDomainId"`
-	BusinessDomainName string `json:"businessDomainName"`
-	Importance         int    `json:"importance"`
-	ImportanceLabel    string `json:"importanceLabel"`
-	FitScore           int    `json:"fitScore"`
-	FitScoreLabel      string `json:"fitScoreLabel"`
-	Gap                int    `json:"gap"`
-	FitRationale       string `json:"fitRationale,omitempty"`
-	Category           string `json:"category"`
+	RealizationID                  string `json:"realizationId"`
+	ComponentID                    string `json:"componentId"`
+	ComponentName                  string `json:"componentName"`
+	CapabilityID                   string `json:"capabilityId"`
+	CapabilityName                 string `json:"capabilityName"`
+	BusinessDomainID               string `json:"businessDomainId"`
+	BusinessDomainName             string `json:"businessDomainName"`
+	Importance                     int    `json:"importance"`
+	ImportanceLabel                string `json:"importanceLabel"`
+	ImportanceSourceCapabilityID   string `json:"importanceSourceCapabilityId,omitempty"`
+	ImportanceSourceCapabilityName string `json:"importanceSourceCapabilityName,omitempty"`
+	IsImportanceInherited          bool   `json:"isImportanceInherited"`
+	FitScore                       int    `json:"fitScore"`
+	FitScoreLabel                  string `json:"fitScoreLabel"`
+	Gap                            int    `json:"gap"`
+	FitRationale                   string `json:"fitRationale,omitempty"`
+	Category                       string `json:"category"`
 }
 
 type StrategicFitSummaryDTO struct {
@@ -70,27 +73,30 @@ func (rm *StrategicFitAnalysisReadModel) GetStrategicFitAnalysis(ctx context.Con
 				c.name as capability_name,
 				COALESCE(dcm.business_domain_id, '') as business_domain_id,
 				COALESCE(dcm.business_domain_name, '') as business_domain_name,
-				COALESCE(si.importance, 0) as importance,
-				COALESCE(si.importance_label, '') as importance_label,
+				COALESCE(eci.effective_importance, 0) as importance,
+				COALESCE(eci.importance_label, '') as importance_label,
+				COALESCE(eci.source_capability_id, '') as source_capability_id,
+				COALESCE(eci.source_capability_name, '') as source_capability_name,
+				COALESCE(eci.is_inherited, false) as is_inherited,
 				COALESCE(afs.score, 0) as fit_score,
 				COALESCE(afs.score_label, '') as fit_score_label,
 				COALESCE(afs.rationale, '') as fit_rationale
 			FROM capability_realizations r
 			JOIN capabilities c ON r.tenant_id = c.tenant_id AND r.capability_id = c.id
 			LEFT JOIN domain_capability_metadata dcm ON r.tenant_id = dcm.tenant_id AND r.capability_id = dcm.capability_id
-			LEFT JOIN strategy_importance si ON r.tenant_id = si.tenant_id
-				AND dcm.l1_capability_id = si.capability_id
-				AND dcm.business_domain_id = si.business_domain_id
-				AND si.pillar_id = $2
+			LEFT JOIN effective_capability_importance eci ON r.tenant_id = eci.tenant_id
+				AND r.capability_id = eci.capability_id
+				AND dcm.business_domain_id = eci.business_domain_id
+				AND eci.pillar_id = $2
 			LEFT JOIN application_fit_scores afs ON r.tenant_id = afs.tenant_id
 				AND r.component_id = afs.component_id
 				AND afs.pillar_id = $2
 			WHERE r.tenant_id = $1
 				AND r.origin = 'Direct'
-				AND (si.pillar_id = $2 OR afs.pillar_id = $2)
+				AND (eci.pillar_id = $2 OR afs.pillar_id = $2)
 			ORDER BY
-				CASE WHEN si.importance IS NOT NULL AND afs.score IS NOT NULL
-					THEN si.importance - afs.score
+				CASE WHEN eci.effective_importance IS NOT NULL AND afs.score IS NOT NULL
+					THEN eci.effective_importance - afs.score
 					ELSE 0
 				END DESC,
 				c.name ASC
@@ -114,6 +120,9 @@ func (rm *StrategicFitAnalysisReadModel) GetStrategicFitAnalysis(ctx context.Con
 				&dto.BusinessDomainName,
 				&dto.Importance,
 				&dto.ImportanceLabel,
+				&dto.ImportanceSourceCapabilityID,
+				&dto.ImportanceSourceCapabilityName,
+				&dto.IsImportanceInherited,
 				&dto.FitScore,
 				&dto.FitScoreLabel,
 				&dto.FitRationale,

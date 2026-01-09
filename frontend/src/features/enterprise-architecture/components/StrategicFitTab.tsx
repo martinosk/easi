@@ -90,7 +90,14 @@ function RealizationFitCard({ realization }: RealizationFitCardProps) {
       </div>
       <div className="fit-card-scores">
         <div className="score-item">
-          <span className="score-label">Importance</span>
+          <span className="score-label">
+            Importance
+            {realization.isImportanceInherited && realization.importanceSourceCapabilityName && (
+              <span className="inherited-indicator" title={`Inherited from ${realization.importanceSourceCapabilityName}`}>
+                {' '}(from {realization.importanceSourceCapabilityName})
+              </span>
+            )}
+          </span>
           <span className="score-value importance">
             {SCORE_RANGE.map((i) => (
               <span

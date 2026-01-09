@@ -236,6 +236,13 @@
   text-transform: uppercase;
 }
 
+.inherited-indicator {
+  font-size: 0.625rem;
+  color: var(--color-gray-400);
+  font-style: italic;
+  text-transform: none;
+}
+
 .score-value {
   display: flex;
   align-items: center;

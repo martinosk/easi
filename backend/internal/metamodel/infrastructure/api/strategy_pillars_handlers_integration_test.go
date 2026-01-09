@@ -134,13 +134,13 @@ func (h *strategyPillarsTestHandlers) createTestConfig(t *testing.T, testCtx *te
 		CreatedBy: "test@example.com",
 	}
 
-	err := h.commandBus.Dispatch(h.tenantContext(), cmd)
+	result, err := h.commandBus.Dispatch(h.tenantContext(), cmd)
 	require.NoError(t, err)
 
-	testCtx.trackID(cmd.ID)
+	testCtx.trackID(result.CreatedID)
 	time.Sleep(100 * time.Millisecond)
 
-	return cmd.ID
+	return result.CreatedID
 }
 
 func (h *strategyPillarsTestHandlers) ensureConfigAndGetPillars(t *testing.T, testCtx *testContext) (*readmodels.MetaModelConfigurationDTO, []readmodels.StrategyPillarDTO) {

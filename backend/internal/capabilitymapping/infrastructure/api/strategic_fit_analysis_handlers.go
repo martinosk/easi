@@ -31,20 +31,23 @@ func NewStrategicFitAnalysisHandlers(
 }
 
 type RealizationFitResponse struct {
-	RealizationID      string `json:"realizationId"`
-	ComponentID        string `json:"componentId"`
-	ComponentName      string `json:"componentName"`
-	CapabilityID       string `json:"capabilityId"`
-	CapabilityName     string `json:"capabilityName"`
-	BusinessDomainID   string `json:"businessDomainId,omitempty"`
-	BusinessDomainName string `json:"businessDomainName,omitempty"`
-	Importance         int    `json:"importance"`
-	ImportanceLabel    string `json:"importanceLabel"`
-	FitScore           int    `json:"fitScore"`
-	FitScoreLabel      string `json:"fitScoreLabel"`
-	Gap                int    `json:"gap"`
-	FitRationale       string `json:"fitRationale,omitempty"`
-	Category           string `json:"category"`
+	RealizationID                  string `json:"realizationId"`
+	ComponentID                    string `json:"componentId"`
+	ComponentName                  string `json:"componentName"`
+	CapabilityID                   string `json:"capabilityId"`
+	CapabilityName                 string `json:"capabilityName"`
+	BusinessDomainID               string `json:"businessDomainId,omitempty"`
+	BusinessDomainName             string `json:"businessDomainName,omitempty"`
+	Importance                     int    `json:"importance"`
+	ImportanceLabel                string `json:"importanceLabel"`
+	ImportanceSourceCapabilityID   string `json:"importanceSourceCapabilityId,omitempty"`
+	ImportanceSourceCapabilityName string `json:"importanceSourceCapabilityName,omitempty"`
+	IsImportanceInherited          bool   `json:"isImportanceInherited"`
+	FitScore                       int    `json:"fitScore"`
+	FitScoreLabel                  string `json:"fitScoreLabel"`
+	Gap                            int    `json:"gap"`
+	FitRationale                   string `json:"fitRationale,omitempty"`
+	Category                       string `json:"category"`
 }
 
 type StrategicFitSummaryResponse struct {
@@ -146,20 +149,23 @@ func (h *StrategicFitAnalysisHandlers) buildRealizationFitResponses(dtos []readm
 	responses := make([]RealizationFitResponse, len(dtos))
 	for i, dto := range dtos {
 		responses[i] = RealizationFitResponse{
-			RealizationID:      dto.RealizationID,
-			ComponentID:        dto.ComponentID,
-			ComponentName:      dto.ComponentName,
-			CapabilityID:       dto.CapabilityID,
-			CapabilityName:     dto.CapabilityName,
-			BusinessDomainID:   dto.BusinessDomainID,
-			BusinessDomainName: dto.BusinessDomainName,
-			Importance:         dto.Importance,
-			ImportanceLabel:    dto.ImportanceLabel,
-			FitScore:           dto.FitScore,
-			FitScoreLabel:      dto.FitScoreLabel,
-			Gap:                dto.Gap,
-			FitRationale:       dto.FitRationale,
-			Category:           dto.Category,
+			RealizationID:                  dto.RealizationID,
+			ComponentID:                    dto.ComponentID,
+			ComponentName:                  dto.ComponentName,
+			CapabilityID:                   dto.CapabilityID,
+			CapabilityName:                 dto.CapabilityName,
+			BusinessDomainID:               dto.BusinessDomainID,
+			BusinessDomainName:             dto.BusinessDomainName,
+			Importance:                     dto.Importance,
+			ImportanceLabel:                dto.ImportanceLabel,
+			ImportanceSourceCapabilityID:   dto.ImportanceSourceCapabilityID,
+			ImportanceSourceCapabilityName: dto.ImportanceSourceCapabilityName,
+			IsImportanceInherited:          dto.IsImportanceInherited,
+			FitScore:                       dto.FitScore,
+			FitScoreLabel:                  dto.FitScoreLabel,
+			Gap:                            dto.Gap,
+			FitRationale:                   dto.FitRationale,
+			Category:                       dto.Category,
 		}
 	}
 	return responses

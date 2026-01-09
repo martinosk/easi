@@ -62,10 +62,10 @@ func (f *testFixture) createCapability(id, name string, parentID *string) {
 	var err error
 	if parentID == nil {
 		_, err = f.db.Exec(`INSERT INTO capabilities (id, tenant_id, name, level, parent_id, status, created_at)
-			VALUES ($1, 'default', $2, 'L1', NULL, 'active', NOW())`, id, name)
+			VALUES ($1, 'default', $2, 'L1', NULL, 'Active', NOW())`, id, name)
 	} else {
 		_, err = f.db.Exec(`INSERT INTO capabilities (id, tenant_id, name, level, parent_id, status, created_at)
-			VALUES ($1, 'default', $2, 'L1', $3, 'active', NOW())`, id, name, *parentID)
+			VALUES ($1, 'default', $2, 'L1', $3, 'Active', NOW())`, id, name, *parentID)
 	}
 	require.NoError(f.t, err)
 	f.t.Cleanup(func() { f.db.Exec("DELETE FROM capabilities WHERE id = $1", id) })
@@ -238,14 +238,20 @@ func (f *testFixture) getDomainCount(enterpriseCapID string) int {
 	return count
 }
 
-func (f *testFixture) createBusinessDomainAssignment(capabilityID, domainID, domainName string) {
-	_, err := f.db.Exec(`INSERT INTO domain_capability_assignments (tenant_id, capability_id, business_domain_id, business_domain_name)
-		VALUES ('default', $1, $2, $3) ON CONFLICT DO NOTHING`, capabilityID, domainID, domainName)
+func (f *testFixture) createCapabilityMetadata(capabilityID, capabilityName string, domainID, domainName *string) {
+	var err error
+	if domainID != nil {
+		_, err = f.db.Exec(`INSERT INTO domain_capability_metadata (tenant_id, capability_id, capability_name, capability_level, l1_capability_id, business_domain_id, business_domain_name)
+			VALUES ('default', $1, $2, 'L1', $1, $3, $4) ON CONFLICT DO NOTHING`, capabilityID, capabilityName, *domainID, *domainName)
+	} else {
+		_, err = f.db.Exec(`INSERT INTO domain_capability_metadata (tenant_id, capability_id, capability_name, capability_level, l1_capability_id)
+			VALUES ('default', $1, $2, 'L1', $1) ON CONFLICT DO NOTHING`, capabilityID, capabilityName)
+	}
 	require.NoError(f.t, err)
-	f.t.Cleanup(func() { f.db.Exec("DELETE FROM domain_capability_assignments WHERE capability_id = $1", capabilityID) })
+	f.t.Cleanup(func() { f.db.Exec("DELETE FROM domain_capability_metadata WHERE capability_id = $1", capabilityID) })
 }
 
-func TestIncrementLinkCountAndRecalculateDomainCount_IncrementsLinkCount(t *testing.T) {
+func TestIncrementLinkCount_IncrementsLinkCount(t *testing.T) {
 	f := newTestFixture(t)
 
 	enterpriseCapID := f.uniqueID("ec")
@@ -254,20 +260,20 @@ func TestIncrementLinkCountAndRecalculateDomainCount_IncrementsLinkCount(t *test
 	initialCount := f.getLinkCount(enterpriseCapID)
 	assert.Equal(t, 0, initialCount)
 
-	err := f.enterpriseCapabilityRM.IncrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+	err := f.enterpriseCapabilityRM.IncrementLinkCount(f.ctx, enterpriseCapID)
 	require.NoError(t, err)
 
 	afterIncrement := f.getLinkCount(enterpriseCapID)
 	assert.Equal(t, 1, afterIncrement)
 
-	err = f.enterpriseCapabilityRM.IncrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+	err = f.enterpriseCapabilityRM.IncrementLinkCount(f.ctx, enterpriseCapID)
 	require.NoError(t, err)
 
 	afterSecondIncrement := f.getLinkCount(enterpriseCapID)
 	assert.Equal(t, 2, afterSecondIncrement)
 }
 
-func TestDecrementLinkCountAndRecalculateDomainCount_DecrementsLinkCount(t *testing.T) {
+func TestDecrementLinkCount_DecrementsLinkCount(t *testing.T) {
 	f := newTestFixture(t)
 
 	enterpriseCapID := f.uniqueID("ec")
@@ -279,14 +285,14 @@ func TestDecrementLinkCountAndRecalculateDomainCount_DecrementsLinkCount(t *test
 	initialCount := f.getLinkCount(enterpriseCapID)
 	assert.Equal(t, 3, initialCount)
 
-	err = f.enterpriseCapabilityRM.DecrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+	err = f.enterpriseCapabilityRM.DecrementLinkCount(f.ctx, enterpriseCapID)
 	require.NoError(t, err)
 
 	afterDecrement := f.getLinkCount(enterpriseCapID)
 	assert.Equal(t, 2, afterDecrement)
 }
 
-func TestDecrementLinkCountAndRecalculateDomainCount_DoesNotGoBelowZero(t *testing.T) {
+func TestDecrementLinkCount_DoesNotGoBelowZero(t *testing.T) {
 	f := newTestFixture(t)
 
 	enterpriseCapID := f.uniqueID("ec")
@@ -295,7 +301,7 @@ func TestDecrementLinkCountAndRecalculateDomainCount_DoesNotGoBelowZero(t *testi
 	initialCount := f.getLinkCount(enterpriseCapID)
 	assert.Equal(t, 0, initialCount)
 
-	err := f.enterpriseCapabilityRM.DecrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+	err := f.enterpriseCapabilityRM.DecrementLinkCount(f.ctx, enterpriseCapID)
 	require.NoError(t, err)
 
 	afterDecrement := f.getLinkCount(enterpriseCapID)
@@ -309,25 +315,25 @@ func TestIncrementAndDecrement_CounterConsistency(t *testing.T) {
 	f.createEnterpriseCapability(enterpriseCapID, "EC")
 
 	for i := 0; i < 5; i++ {
-		err := f.enterpriseCapabilityRM.IncrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+		err := f.enterpriseCapabilityRM.IncrementLinkCount(f.ctx, enterpriseCapID)
 		require.NoError(t, err)
 	}
 	assert.Equal(t, 5, f.getLinkCount(enterpriseCapID))
 
 	for i := 0; i < 3; i++ {
-		err := f.enterpriseCapabilityRM.DecrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+		err := f.enterpriseCapabilityRM.DecrementLinkCount(f.ctx, enterpriseCapID)
 		require.NoError(t, err)
 	}
 	assert.Equal(t, 2, f.getLinkCount(enterpriseCapID))
 
 	for i := 0; i < 5; i++ {
-		err := f.enterpriseCapabilityRM.DecrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+		err := f.enterpriseCapabilityRM.DecrementLinkCount(f.ctx, enterpriseCapID)
 		require.NoError(t, err)
 	}
 	assert.Equal(t, 0, f.getLinkCount(enterpriseCapID))
 }
 
-func TestIncrementLinkCountAndRecalculateDomainCount_RecalculatesDomainCount(t *testing.T) {
+func TestRecalculateDomainCount_AfterIncrementLinkCount(t *testing.T) {
 	f := newTestFixture(t)
 
 	enterpriseCapID := f.uniqueID("ec")
@@ -335,17 +341,21 @@ func TestIncrementLinkCountAndRecalculateDomainCount_RecalculatesDomainCount(t *
 	capID2 := f.uniqueID("cap-2")
 	domainID1 := f.uniqueID("domain-1")
 	domainID2 := f.uniqueID("domain-2")
+	domainName1 := "Domain 1"
+	domainName2 := "Domain 2"
 
 	f.createEnterpriseCapability(enterpriseCapID, "EC")
 	f.createCapability(capID1, "Cap1", nil)
 	f.createCapability(capID2, "Cap2", nil)
 
-	f.createBusinessDomainAssignment(capID1, domainID1, "Domain 1")
-	f.createBusinessDomainAssignment(capID2, domainID2, "Domain 2")
+	f.createCapabilityMetadata(capID1, "Cap1", &domainID1, &domainName1)
+	f.createCapabilityMetadata(capID2, "Cap2", &domainID2, &domainName2)
 
 	f.createLink(f.uniqueID("link1"), enterpriseCapID, capID1)
 
-	err := f.enterpriseCapabilityRM.IncrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+	err := f.enterpriseCapabilityRM.IncrementLinkCount(f.ctx, enterpriseCapID)
+	require.NoError(t, err)
+	err = f.enterpriseCapabilityRM.RecalculateDomainCount(f.ctx, enterpriseCapID)
 	require.NoError(t, err)
 
 	domainCount := f.getDomainCount(enterpriseCapID)
@@ -353,23 +363,26 @@ func TestIncrementLinkCountAndRecalculateDomainCount_RecalculatesDomainCount(t *
 
 	f.createLink(f.uniqueID("link2"), enterpriseCapID, capID2)
 
-	err = f.enterpriseCapabilityRM.IncrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+	err = f.enterpriseCapabilityRM.IncrementLinkCount(f.ctx, enterpriseCapID)
+	require.NoError(t, err)
+	err = f.enterpriseCapabilityRM.RecalculateDomainCount(f.ctx, enterpriseCapID)
 	require.NoError(t, err)
 
 	domainCount = f.getDomainCount(enterpriseCapID)
 	assert.Equal(t, 2, domainCount)
 }
 
-func TestDecrementLinkCountAndRecalculateDomainCount_RecalculatesDomainCount(t *testing.T) {
+func TestRecalculateDomainCount_AfterDecrementLinkCount(t *testing.T) {
 	f := newTestFixture(t)
 
 	enterpriseCapID := f.uniqueID("ec")
 	capID1 := f.uniqueID("cap-1")
 	domainID1 := f.uniqueID("domain-1")
+	domainName1 := "Domain 1"
 
 	f.createEnterpriseCapability(enterpriseCapID, "EC")
 	f.createCapability(capID1, "Cap1", nil)
-	f.createBusinessDomainAssignment(capID1, domainID1, "Domain 1")
+	f.createCapabilityMetadata(capID1, "Cap1", &domainID1, &domainName1)
 	f.createLink(f.uniqueID("link1"), enterpriseCapID, capID1)
 
 	_, err := f.db.Exec("UPDATE enterprise_capabilities SET link_count = 1, domain_count = 1 WHERE id = $1", enterpriseCapID)
@@ -378,7 +391,9 @@ func TestDecrementLinkCountAndRecalculateDomainCount_RecalculatesDomainCount(t *
 	_, err = f.db.Exec("DELETE FROM enterprise_capability_links WHERE enterprise_capability_id = $1", enterpriseCapID)
 	require.NoError(t, err)
 
-	err = f.enterpriseCapabilityRM.DecrementLinkCountAndRecalculateDomainCount(f.ctx, enterpriseCapID)
+	err = f.enterpriseCapabilityRM.DecrementLinkCount(f.ctx, enterpriseCapID)
+	require.NoError(t, err)
+	err = f.enterpriseCapabilityRM.RecalculateDomainCount(f.ctx, enterpriseCapID)
 	require.NoError(t, err)
 
 	domainCount := f.getDomainCount(enterpriseCapID)

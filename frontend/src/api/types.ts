@@ -320,6 +320,11 @@ export interface MaturityScaleSection {
   maxValue: number;
 }
 
+export interface MaturityBounds {
+  min: number;
+  max: number;
+}
+
 export interface MaturityScale {
   sections: MaturityScaleSection[];
   version: number;
@@ -582,6 +587,9 @@ export interface RealizationFit {
   businessDomainName?: string;
   importance: number;
   importanceLabel: string;
+  importanceSourceCapabilityId?: CapabilityId;
+  importanceSourceCapabilityName?: string;
+  isImportanceInherited: boolean;
   fitScore: number;
   fitScoreLabel: string;
   gap: number;

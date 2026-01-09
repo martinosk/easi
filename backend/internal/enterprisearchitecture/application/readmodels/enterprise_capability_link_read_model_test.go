@@ -61,14 +61,16 @@ func TestGetLinkStatus_DirectlyLinked(t *testing.T) {
 	tenantDB := database.NewTenantAwareDB(db)
 	readModel := NewEnterpriseCapabilityLinkReadModel(tenantDB)
 
-	enterpriseCapID := fmt.Sprintf("ec-test-%d", time.Now().UnixNano())
-	domainCapID := fmt.Sprintf("dc-test-%d", time.Now().UnixNano())
-	linkID := fmt.Sprintf("link-test-%d", time.Now().UnixNano())
+	uniqueSuffix := time.Now().UnixNano()
+	enterpriseCapID := fmt.Sprintf("ec-test-%d", uniqueSuffix)
+	enterpriseCapName := fmt.Sprintf("Customer Management %d", uniqueSuffix)
+	domainCapID := fmt.Sprintf("dc-test-%d", uniqueSuffix)
+	linkID := fmt.Sprintf("link-test-%d", uniqueSuffix)
 
 	setLinkTenantContext(t, db)
 	_, err := db.Exec(
 		"INSERT INTO enterprise_capabilities (id, tenant_id, name, created_at) VALUES ($1, $2, $3, $4)",
-		enterpriseCapID, "default", "Customer Management", time.Now().UTC(),
+		enterpriseCapID, "default", enterpriseCapName, time.Now().UTC(),
 	)
 	require.NoError(t, err)
 
@@ -93,7 +95,7 @@ func TestGetLinkStatus_DirectlyLinked(t *testing.T) {
 	assert.Equal(t, LinkStatusLinked, status.Status)
 	require.NotNil(t, status.LinkedTo)
 	assert.Equal(t, enterpriseCapID, status.LinkedTo.ID)
-	assert.Equal(t, "Customer Management", status.LinkedTo.Name)
+	assert.Equal(t, enterpriseCapName, status.LinkedTo.Name)
 	assert.Nil(t, status.BlockingCapability)
 	assert.Nil(t, status.BlockingEnterpriseCapID)
 
@@ -143,21 +145,24 @@ func TestGetLinkStatus_BlockedByParent(t *testing.T) {
 	tenantDB := database.NewTenantAwareDB(db)
 	readModel := NewEnterpriseCapabilityLinkReadModel(tenantDB)
 
-	enterpriseCapID := fmt.Sprintf("ec-test-%d", time.Now().UnixNano())
-	parentCapID := fmt.Sprintf("parent-%d", time.Now().UnixNano())
-	childCapID := fmt.Sprintf("child-%d", time.Now().UnixNano())
-	linkID := fmt.Sprintf("link-test-%d", time.Now().UnixNano())
+	uniqueSuffix := time.Now().UnixNano()
+	enterpriseCapID := fmt.Sprintf("ec-test-%d", uniqueSuffix)
+	enterpriseCapName := fmt.Sprintf("Sales Operations %d", uniqueSuffix)
+	parentCapID := fmt.Sprintf("parent-%d", uniqueSuffix)
+	parentCapName := fmt.Sprintf("Parent Capability %d", uniqueSuffix)
+	childCapID := fmt.Sprintf("child-%d", uniqueSuffix)
+	linkID := fmt.Sprintf("link-test-%d", uniqueSuffix)
 
 	setLinkTenantContext(t, db)
 	_, err := db.Exec(
 		"INSERT INTO enterprise_capabilities (id, tenant_id, name, created_at) VALUES ($1, $2, $3, $4)",
-		enterpriseCapID, "default", "Sales Operations", time.Now().UTC(),
+		enterpriseCapID, "default", enterpriseCapName, time.Now().UTC(),
 	)
 	require.NoError(t, err)
 
 	_, err = db.Exec(
 		"INSERT INTO capabilities (id, tenant_id, name, parent_id, level, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		parentCapID, "default", "Parent Capability", nil, "L1", time.Now().UTC(),
+		parentCapID, "default", parentCapName, nil, "L1", time.Now().UTC(),
 	)
 	require.NoError(t, err)
 
@@ -173,6 +178,12 @@ func TestGetLinkStatus_BlockedByParent(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	_, err = db.Exec(
+		"INSERT INTO capability_link_blocking (tenant_id, domain_capability_id, blocked_by_capability_id, blocked_by_enterprise_id, blocked_by_capability_name, blocked_by_enterprise_name, is_ancestor) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		"default", childCapID, parentCapID, enterpriseCapID, parentCapName, enterpriseCapName, true,
+	)
+	require.NoError(t, err)
+
 	ctx := linkTenantContext()
 	status, err := readModel.GetLinkStatus(ctx, childCapID)
 	require.NoError(t, err)
@@ -183,10 +194,12 @@ func TestGetLinkStatus_BlockedByParent(t *testing.T) {
 	assert.Nil(t, status.LinkedTo)
 	require.NotNil(t, status.BlockingCapability)
 	assert.Equal(t, parentCapID, status.BlockingCapability.ID)
-	assert.Equal(t, "Parent Capability", status.BlockingCapability.Name)
+	assert.Equal(t, parentCapName, status.BlockingCapability.Name)
 	require.NotNil(t, status.BlockingEnterpriseCapID)
 	assert.Equal(t, enterpriseCapID, *status.BlockingEnterpriseCapID)
 
+	_, err = db.Exec("DELETE FROM capability_link_blocking WHERE tenant_id = 'default' AND domain_capability_id = $1", childCapID)
+	require.NoError(t, err)
 	_, err = db.Exec("DELETE FROM enterprise_capability_links WHERE id = $1", linkID)
 	require.NoError(t, err)
 	_, err = db.Exec("DELETE FROM capabilities WHERE id IN ($1, $2)", childCapID, parentCapID)
@@ -202,15 +215,18 @@ func TestGetLinkStatus_BlockedByChild(t *testing.T) {
 	tenantDB := database.NewTenantAwareDB(db)
 	readModel := NewEnterpriseCapabilityLinkReadModel(tenantDB)
 
-	enterpriseCapID := fmt.Sprintf("ec-test-%d", time.Now().UnixNano())
-	parentCapID := fmt.Sprintf("parent-%d", time.Now().UnixNano())
-	childCapID := fmt.Sprintf("child-%d", time.Now().UnixNano())
-	linkID := fmt.Sprintf("link-test-%d", time.Now().UnixNano())
+	uniqueSuffix := time.Now().UnixNano()
+	enterpriseCapID := fmt.Sprintf("ec-test-%d", uniqueSuffix)
+	enterpriseCapName := fmt.Sprintf("Marketing Automation %d", uniqueSuffix)
+	parentCapID := fmt.Sprintf("parent-%d", uniqueSuffix)
+	childCapID := fmt.Sprintf("child-%d", uniqueSuffix)
+	childCapName := fmt.Sprintf("Child Capability %d", uniqueSuffix)
+	linkID := fmt.Sprintf("link-test-%d", uniqueSuffix)
 
 	setLinkTenantContext(t, db)
 	_, err := db.Exec(
 		"INSERT INTO enterprise_capabilities (id, tenant_id, name, created_at) VALUES ($1, $2, $3, $4)",
-		enterpriseCapID, "default", "Marketing Automation", time.Now().UTC(),
+		enterpriseCapID, "default", enterpriseCapName, time.Now().UTC(),
 	)
 	require.NoError(t, err)
 
@@ -222,13 +238,19 @@ func TestGetLinkStatus_BlockedByChild(t *testing.T) {
 
 	_, err = db.Exec(
 		"INSERT INTO capabilities (id, tenant_id, name, parent_id, level, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		childCapID, "default", "Child Capability", parentCapID, "L2", time.Now().UTC(),
+		childCapID, "default", childCapName, parentCapID, "L2", time.Now().UTC(),
 	)
 	require.NoError(t, err)
 
 	_, err = db.Exec(
 		"INSERT INTO enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at) VALUES ($1, $2, $3, $4, $5, $6)",
 		linkID, "default", enterpriseCapID, childCapID, "user-123", time.Now().UTC(),
+	)
+	require.NoError(t, err)
+
+	_, err = db.Exec(
+		"INSERT INTO capability_link_blocking (tenant_id, domain_capability_id, blocked_by_capability_id, blocked_by_enterprise_id, blocked_by_capability_name, blocked_by_enterprise_name, is_ancestor) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		"default", parentCapID, childCapID, enterpriseCapID, childCapName, enterpriseCapName, false,
 	)
 	require.NoError(t, err)
 
@@ -242,10 +264,12 @@ func TestGetLinkStatus_BlockedByChild(t *testing.T) {
 	assert.Nil(t, status.LinkedTo)
 	require.NotNil(t, status.BlockingCapability)
 	assert.Equal(t, childCapID, status.BlockingCapability.ID)
-	assert.Equal(t, "Child Capability", status.BlockingCapability.Name)
+	assert.Equal(t, childCapName, status.BlockingCapability.Name)
 	require.NotNil(t, status.BlockingEnterpriseCapID)
 	assert.Equal(t, enterpriseCapID, *status.BlockingEnterpriseCapID)
 
+	_, err = db.Exec("DELETE FROM capability_link_blocking WHERE tenant_id = 'default' AND domain_capability_id = $1", parentCapID)
+	require.NoError(t, err)
 	_, err = db.Exec("DELETE FROM enterprise_capability_links WHERE id = $1", linkID)
 	require.NoError(t, err)
 	_, err = db.Exec("DELETE FROM capabilities WHERE id IN ($1, $2)", childCapID, parentCapID)
@@ -261,22 +285,25 @@ func TestGetLinkStatus_MultiLevelHierarchy_BlockedByGrandparent(t *testing.T) {
 	tenantDB := database.NewTenantAwareDB(db)
 	readModel := NewEnterpriseCapabilityLinkReadModel(tenantDB)
 
-	enterpriseCapID := fmt.Sprintf("ec-test-%d", time.Now().UnixNano())
-	grandparentCapID := fmt.Sprintf("gp-%d", time.Now().UnixNano())
-	parentCapID := fmt.Sprintf("parent-%d", time.Now().UnixNano())
-	childCapID := fmt.Sprintf("child-%d", time.Now().UnixNano())
-	linkID := fmt.Sprintf("link-test-%d", time.Now().UnixNano())
+	uniqueSuffix := time.Now().UnixNano()
+	enterpriseCapID := fmt.Sprintf("ec-test-%d", uniqueSuffix)
+	enterpriseCapName := fmt.Sprintf("Product Innovation %d", uniqueSuffix)
+	grandparentCapID := fmt.Sprintf("gp-%d", uniqueSuffix)
+	grandparentCapName := fmt.Sprintf("Grandparent Capability %d", uniqueSuffix)
+	parentCapID := fmt.Sprintf("parent-%d", uniqueSuffix)
+	childCapID := fmt.Sprintf("child-%d", uniqueSuffix)
+	linkID := fmt.Sprintf("link-test-%d", uniqueSuffix)
 
 	setLinkTenantContext(t, db)
 	_, err := db.Exec(
 		"INSERT INTO enterprise_capabilities (id, tenant_id, name, created_at) VALUES ($1, $2, $3, $4)",
-		enterpriseCapID, "default", "Product Innovation", time.Now().UTC(),
+		enterpriseCapID, "default", enterpriseCapName, time.Now().UTC(),
 	)
 	require.NoError(t, err)
 
 	_, err = db.Exec(
 		"INSERT INTO capabilities (id, tenant_id, name, parent_id, level, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		grandparentCapID, "default", "Grandparent Capability", nil, "L1", time.Now().UTC(),
+		grandparentCapID, "default", grandparentCapName, nil, "L1", time.Now().UTC(),
 	)
 	require.NoError(t, err)
 
@@ -298,6 +325,12 @@ func TestGetLinkStatus_MultiLevelHierarchy_BlockedByGrandparent(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	_, err = db.Exec(
+		"INSERT INTO capability_link_blocking (tenant_id, domain_capability_id, blocked_by_capability_id, blocked_by_enterprise_id, blocked_by_capability_name, blocked_by_enterprise_name, is_ancestor) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		"default", childCapID, grandparentCapID, enterpriseCapID, grandparentCapName, enterpriseCapName, true,
+	)
+	require.NoError(t, err)
+
 	ctx := linkTenantContext()
 	status, err := readModel.GetLinkStatus(ctx, childCapID)
 	require.NoError(t, err)
@@ -308,10 +341,12 @@ func TestGetLinkStatus_MultiLevelHierarchy_BlockedByGrandparent(t *testing.T) {
 	assert.Nil(t, status.LinkedTo)
 	require.NotNil(t, status.BlockingCapability)
 	assert.Equal(t, grandparentCapID, status.BlockingCapability.ID)
-	assert.Equal(t, "Grandparent Capability", status.BlockingCapability.Name)
+	assert.Equal(t, grandparentCapName, status.BlockingCapability.Name)
 	require.NotNil(t, status.BlockingEnterpriseCapID)
 	assert.Equal(t, enterpriseCapID, *status.BlockingEnterpriseCapID)
 
+	_, err = db.Exec("DELETE FROM capability_link_blocking WHERE tenant_id = 'default' AND domain_capability_id = $1", childCapID)
+	require.NoError(t, err)
 	_, err = db.Exec("DELETE FROM enterprise_capability_links WHERE id = $1", linkID)
 	require.NoError(t, err)
 	_, err = db.Exec("DELETE FROM capabilities WHERE id IN ($1, $2, $3)", childCapID, parentCapID, grandparentCapID)
@@ -327,16 +362,19 @@ func TestGetLinkStatus_MultiLevelHierarchy_BlockedByGrandchild(t *testing.T) {
 	tenantDB := database.NewTenantAwareDB(db)
 	readModel := NewEnterpriseCapabilityLinkReadModel(tenantDB)
 
-	enterpriseCapID := fmt.Sprintf("ec-test-%d", time.Now().UnixNano())
-	grandparentCapID := fmt.Sprintf("gp-%d", time.Now().UnixNano())
-	parentCapID := fmt.Sprintf("parent-%d", time.Now().UnixNano())
-	childCapID := fmt.Sprintf("child-%d", time.Now().UnixNano())
-	linkID := fmt.Sprintf("link-test-%d", time.Now().UnixNano())
+	uniqueSuffix := time.Now().UnixNano()
+	enterpriseCapID := fmt.Sprintf("ec-test-%d", uniqueSuffix)
+	enterpriseCapName := fmt.Sprintf("Data Analytics %d", uniqueSuffix)
+	grandparentCapID := fmt.Sprintf("gp-%d", uniqueSuffix)
+	parentCapID := fmt.Sprintf("parent-%d", uniqueSuffix)
+	childCapID := fmt.Sprintf("child-%d", uniqueSuffix)
+	childCapName := fmt.Sprintf("Child Capability %d", uniqueSuffix)
+	linkID := fmt.Sprintf("link-test-%d", uniqueSuffix)
 
 	setLinkTenantContext(t, db)
 	_, err := db.Exec(
 		"INSERT INTO enterprise_capabilities (id, tenant_id, name, created_at) VALUES ($1, $2, $3, $4)",
-		enterpriseCapID, "default", "Data Analytics", time.Now().UTC(),
+		enterpriseCapID, "default", enterpriseCapName, time.Now().UTC(),
 	)
 	require.NoError(t, err)
 
@@ -354,13 +392,19 @@ func TestGetLinkStatus_MultiLevelHierarchy_BlockedByGrandchild(t *testing.T) {
 
 	_, err = db.Exec(
 		"INSERT INTO capabilities (id, tenant_id, name, parent_id, level, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		childCapID, "default", "Child Capability", parentCapID, "L3", time.Now().UTC(),
+		childCapID, "default", childCapName, parentCapID, "L3", time.Now().UTC(),
 	)
 	require.NoError(t, err)
 
 	_, err = db.Exec(
 		"INSERT INTO enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at) VALUES ($1, $2, $3, $4, $5, $6)",
 		linkID, "default", enterpriseCapID, childCapID, "user-123", time.Now().UTC(),
+	)
+	require.NoError(t, err)
+
+	_, err = db.Exec(
+		"INSERT INTO capability_link_blocking (tenant_id, domain_capability_id, blocked_by_capability_id, blocked_by_enterprise_id, blocked_by_capability_name, blocked_by_enterprise_name, is_ancestor) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		"default", grandparentCapID, childCapID, enterpriseCapID, childCapName, enterpriseCapName, false,
 	)
 	require.NoError(t, err)
 
@@ -374,10 +418,12 @@ func TestGetLinkStatus_MultiLevelHierarchy_BlockedByGrandchild(t *testing.T) {
 	assert.Nil(t, status.LinkedTo)
 	require.NotNil(t, status.BlockingCapability)
 	assert.Equal(t, childCapID, status.BlockingCapability.ID)
-	assert.Equal(t, "Child Capability", status.BlockingCapability.Name)
+	assert.Equal(t, childCapName, status.BlockingCapability.Name)
 	require.NotNil(t, status.BlockingEnterpriseCapID)
 	assert.Equal(t, enterpriseCapID, *status.BlockingEnterpriseCapID)
 
+	_, err = db.Exec("DELETE FROM capability_link_blocking WHERE tenant_id = 'default' AND domain_capability_id = $1", grandparentCapID)
+	require.NoError(t, err)
 	_, err = db.Exec("DELETE FROM enterprise_capability_links WHERE id = $1", linkID)
 	require.NoError(t, err)
 	_, err = db.Exec("DELETE FROM capabilities WHERE id IN ($1, $2, $3)", childCapID, parentCapID, grandparentCapID)
