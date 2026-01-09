@@ -1,4 +1,4 @@
-import type { MaturityScaleSection } from '../api/types';
+import type { MaturityScaleSection, MaturityBounds } from '../api/types';
 
 const DEFAULT_SECTIONS: MaturityScaleSection[] = [
   { name: 'Genesis', order: 1, minValue: 0, maxValue: 24 },
@@ -33,7 +33,7 @@ export function getSectionForValue(
   return sections.find((s) => value >= s.minValue && value <= s.maxValue);
 }
 
-export function getMaturityBounds(sections: MaturityScaleSection[]): { min: number; max: number } {
+export function getMaturityBounds(sections: MaturityScaleSection[]): MaturityBounds {
   if (sections.length === 0) {
     const defaults = getDefaultSections();
     return {

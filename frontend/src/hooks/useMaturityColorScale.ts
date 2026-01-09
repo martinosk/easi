@@ -3,13 +3,13 @@ import { DEFAULT_MATURITY_COLOR, SECTION_COLORS } from '../constants/maturityCol
 import { interpolateHsl, clampMaturityValue } from '../utils/colorInterpolation';
 import { useMaturityScale } from './useMaturityScale';
 import { getMaturityBounds, getDefaultSections } from '../utils/maturity';
-import type { MaturityScaleSection } from '../api/types';
+import type { MaturityScaleSection, MaturityBounds } from '../api/types';
 
 interface MaturityColorScale {
   getColorForValue: (maturityValue: number) => string;
   getSectionNameForValue: (maturityValue: number) => string;
   getBaseSectionColor: (order: number) => string;
-  bounds: { min: number; max: number };
+  bounds: MaturityBounds;
 }
 
 interface ColoredSection extends MaturityScaleSection {
@@ -34,7 +34,7 @@ const calculatePositionInSection = (value: number, section: ColoredSection): num
   return (value - section.minValue) / range;
 };
 
-const buildColorLookupTable = (sections: ColoredSection[], bounds: { min: number; max: number }): Map<number, string> => {
+const buildColorLookupTable = (sections: ColoredSection[], bounds: MaturityBounds): Map<number, string> => {
   const lookupTable = new Map<number, string>();
 
   for (let value = bounds.min; value <= bounds.max; value++) {

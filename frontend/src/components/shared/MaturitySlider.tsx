@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Slider, Box, Text, Group, Stack } from '@mantine/core';
 import { useMaturityScale } from '../../hooks/useMaturityScale';
 import { getDefaultSections, getSectionForValue, getMaturityBounds } from '../../utils/maturity';
-import type { MaturityScaleSection } from '../../api/types';
+import type { MaturityScaleSection, MaturityBounds } from '../../api/types';
 
 interface MaturitySliderProps {
   value: number;
@@ -15,10 +15,11 @@ interface SectionLabel {
   width: number;
 }
 
-function calculateSectionLabels(sections: MaturityScaleSection[]): SectionLabel[] {
+function calculateSectionLabels(sections: MaturityScaleSection[], bounds: MaturityBounds): SectionLabel[] {
+  const totalRange = bounds.max - bounds.min + 1;
   return sections.map((section) => ({
     section,
-    width: section.maxValue - section.minValue + 1,
+    width: ((section.maxValue - section.minValue + 1) / totalRange) * 100,
   }));
 }
 
@@ -112,7 +113,7 @@ export const MaturitySlider: React.FC<MaturitySliderProps> = ({ value, onChange,
   }, [maturityScale]);
 
   const bounds = useMemo(() => getMaturityBounds(sections), [sections]);
-  const sectionLabels = useMemo(() => calculateSectionLabels(sections), [sections]);
+  const sectionLabels = useMemo(() => calculateSectionLabels(sections, bounds), [sections, bounds]);
   const currentSection = useMemo(() => getSectionForValue(value, sections), [value, sections]);
   const marks = useMemo(() => [...sections.map((s) => ({ value: s.minValue, label: '' })), { value: bounds.max, label: '' }], [sections, bounds]);
   const handleKeyDown = useKeyboardNavigation(value, disabled, onChange, bounds);

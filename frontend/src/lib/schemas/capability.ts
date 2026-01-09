@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { MaturityBounds } from '../../api/types';
 
 export const capabilityNameSchema = z
   .string()
@@ -11,11 +12,6 @@ export const capabilityDescriptionSchema = z
   .string()
   .max(1000, 'Description must be 1000 characters or less')
   .transform((val) => val.trim());
-
-export interface MaturityBounds {
-  min: number;
-  max: number;
-}
 
 const DEFAULT_MATURITY_BOUNDS: MaturityBounds = { min: 0, max: 99 };
 
