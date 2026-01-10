@@ -20,14 +20,14 @@ const mockComponents = [
     name: 'Payment Service',
     description: 'Handles payments',
     createdAt: '2024-01-01',
-    _links: { self: '/api/v1/components/comp-1' },
+    _links: { self: { href: '/api/v1/components/comp-1', method: 'GET' as const } },
   },
   {
     id: 'comp-2' as ComponentId,
     name: 'Order Service',
     description: 'Handles orders',
     createdAt: '2024-01-01',
-    _links: { self: '/api/v1/components/comp-2' },
+    _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
   },
 ];
 
@@ -39,7 +39,7 @@ const mockCapabilities = [
     level: 'L1' as const,
     maturityLevel: 'Product' as const,
     createdAt: '2024-01-01',
-    _links: { self: '/api/v1/capabilities/cap-1' },
+    _links: { self: { href: '/api/v1/capabilities/cap-1', method: 'GET' as const } },
   },
   {
     id: 'cap-2' as CapabilityId,
@@ -49,7 +49,7 @@ const mockCapabilities = [
     parentId: 'cap-1' as CapabilityId,
     maturityLevel: 'Custom Build' as const,
     createdAt: '2024-01-01',
-    _links: { self: '/api/v1/capabilities/cap-2' },
+    _links: { self: { href: '/api/v1/capabilities/cap-2', method: 'GET' as const } },
   },
   {
     id: 'cap-3' as CapabilityId,
@@ -58,7 +58,7 @@ const mockCapabilities = [
     level: 'L1' as const,
     maturityLevel: 'Genesis' as const,
     createdAt: '2024-01-01',
-    _links: { self: '/api/v1/capabilities/cap-3' },
+    _links: { self: { href: '/api/v1/capabilities/cap-3', method: 'GET' as const } },
   },
 ];
 
@@ -85,7 +85,7 @@ const createViewWithColorScheme = (
     customColor: c.customColor,
   })),
   createdAt: '2024-01-01',
-  _links: { self: '/api/v1/views/view-1' },
+  _links: { self: { href: '/api/v1/views/view-1', method: 'GET' as const } },
 });
 
 const createMockStore = () => ({

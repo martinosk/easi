@@ -2,7 +2,8 @@ import type {
   EnterpriseCapabilityId,
   EnterpriseCapabilityLinkId,
   EnterpriseStrategicImportanceId,
-  CapabilityId
+  CapabilityId,
+  HATEOASLink
 } from '../../api/types';
 
 export type { EnterpriseCapabilityId, EnterpriseCapabilityLinkId, EnterpriseStrategicImportanceId };
@@ -19,9 +20,12 @@ export interface EnterpriseCapability {
   createdAt: string;
   updatedAt?: string;
   _links: {
-    self: string;
-    links: string;
-    strategicImportance: string;
+    self: HATEOASLink;
+    edit?: HATEOASLink;
+    delete?: HATEOASLink;
+    'x-links': HATEOASLink;
+    'x-create-link'?: HATEOASLink;
+    'x-strategic-importance': HATEOASLink;
   };
 }
 
@@ -35,8 +39,9 @@ export interface EnterpriseCapabilityLink {
   linkedBy: string;
   linkedAt: string;
   _links: {
-    self: string;
-    enterpriseCapability: string;
+    self: HATEOASLink;
+    up: HATEOASLink;
+    delete?: HATEOASLink;
   };
 }
 
@@ -50,8 +55,8 @@ export interface StrategicImportance {
   setAt: string;
   updatedAt?: string;
   _links: {
-    self: string;
-    enterpriseCapability: string;
+    self: HATEOASLink;
+    up: HATEOASLink;
   };
 }
 
@@ -86,7 +91,7 @@ export interface UpdateStrategicImportanceRequest {
 export interface EnterpriseCapabilitiesListResponse {
   data: EnterpriseCapability[];
   _links: {
-    self: string;
+    self: HATEOASLink;
   };
 }
 
@@ -96,9 +101,9 @@ export interface DomainCapabilityLinkStatus {
   enterpriseCapabilityName?: string;
   linkId?: EnterpriseCapabilityLinkId;
   _links: {
-    self: string;
-    enterpriseCapability?: string;
-    unlink?: string;
+    self: HATEOASLink;
+    up?: HATEOASLink;
+    'x-unlink'?: HATEOASLink;
   };
 }
 
@@ -133,8 +138,8 @@ export interface MaturityAnalysisCandidate {
   maxGap: number;
   maturityDistribution: MaturityDistribution;
   _links: {
-    self: string;
-    maturityGap: string;
+    self: HATEOASLink;
+    'x-maturity-gap': HATEOASLink;
   };
 }
 
@@ -148,7 +153,7 @@ export interface MaturityAnalysisResponse {
   summary: MaturityAnalysisSummary;
   data: MaturityAnalysisCandidate[];
   _links: {
-    self: string;
+    self: HATEOASLink;
   };
 }
 
@@ -179,8 +184,9 @@ export interface MaturityGapDetail {
   implementations: ImplementationDetail[];
   investmentPriorities: InvestmentPriorities;
   _links: {
-    self: string;
-    enterpriseCapability: string;
+    self: HATEOASLink;
+    up: HATEOASLink;
+    'x-set-target-maturity'?: HATEOASLink;
   };
 }
 
@@ -197,6 +203,6 @@ export interface UnlinkedCapabilitiesResponse {
   data: UnlinkedCapability[];
   total: number;
   _links: {
-    self: string;
+    self: HATEOASLink;
   };
 }

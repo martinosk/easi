@@ -8,6 +8,7 @@ import (
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/types"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -43,17 +44,17 @@ type SetApplicationFitScoreRequest struct {
 }
 
 type ApplicationFitScoreResponse struct {
-	ID            string            `json:"id"`
-	ComponentID   string            `json:"componentId"`
-	ComponentName string            `json:"componentName"`
-	PillarID      string            `json:"pillarId"`
-	PillarName    string            `json:"pillarName"`
-	Score         int               `json:"score"`
-	ScoreLabel    string            `json:"scoreLabel"`
-	Rationale     string            `json:"rationale,omitempty"`
-	ScoredAt      string            `json:"scoredAt"`
-	ScoredBy      string            `json:"scoredBy"`
-	Links         map[string]string `json:"_links,omitempty"`
+	ID            string      `json:"id"`
+	ComponentID   string      `json:"componentId"`
+	ComponentName string      `json:"componentName"`
+	PillarID      string      `json:"pillarId"`
+	PillarName    string      `json:"pillarName"`
+	Score         int         `json:"score"`
+	ScoreLabel    string      `json:"scoreLabel"`
+	Rationale     string      `json:"rationale,omitempty"`
+	ScoredAt      string      `json:"scoredAt"`
+	ScoredBy      string      `json:"scoredBy"`
+	Links         types.Links `json:"_links,omitempty"`
 }
 
 // GetFitScoresByComponent godoc
@@ -76,9 +77,9 @@ func (h *ApplicationFitScoreHandlers) GetFitScoresByComponent(w http.ResponseWri
 	}
 
 	data := h.buildFitScoreResponses(scores)
-	links := map[string]string{
-		"self":      "/api/v1/components/" + componentID + "/fit-scores",
-		"component": "/api/v1/components/" + componentID,
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink("/api/v1/components/"+componentID+"/fit-scores", "GET"),
+		"up":   sharedAPI.NewLink("/api/v1/components/"+componentID, "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, data, links)
@@ -265,8 +266,8 @@ func (h *ApplicationFitScoreHandlers) GetFitScoresByPillar(w http.ResponseWriter
 	}
 
 	data := h.buildFitScoreResponses(scores)
-	links := map[string]string{
-		"self": "/api/v1/strategy-pillars/" + pillarID + "/fit-scores",
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink("/api/v1/strategy-pillars/"+pillarID+"/fit-scores", "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, data, links)
@@ -284,9 +285,9 @@ func (h *ApplicationFitScoreHandlers) buildFitScoreResponse(dto readmodels.Appli
 		Rationale:     dto.Rationale,
 		ScoredAt:      dto.ScoredAt.Format("2006-01-02T15:04:05Z"),
 		ScoredBy:      dto.ScoredBy,
-		Links: map[string]string{
-			"self":      "/api/v1/components/" + dto.ComponentID + "/fit-scores/" + dto.PillarID,
-			"component": "/api/v1/components/" + dto.ComponentID,
+		Links: types.Links{
+			"self": sharedAPI.NewLink("/api/v1/components/"+dto.ComponentID+"/fit-scores/"+dto.PillarID, "GET"),
+			"up":   sharedAPI.NewLink("/api/v1/components/"+dto.ComponentID, "GET"),
 		},
 	}
 }
@@ -365,9 +366,9 @@ func (h *ApplicationFitScoreHandlers) GetFitComparisons(w http.ResponseWriter, r
 		}
 	}
 
-	links := map[string]string{
-		"self":      "/api/v1/components/" + componentID + "/fit-comparisons?capabilityId=" + capabilityID + "&businessDomainId=" + businessDomainID,
-		"component": "/api/v1/components/" + componentID,
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink("/api/v1/components/"+componentID+"/fit-comparisons?capabilityId="+capabilityID+"&businessDomainId="+businessDomainID, "GET"),
+		"up":   sharedAPI.NewLink("/api/v1/components/"+componentID, "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, data, links)

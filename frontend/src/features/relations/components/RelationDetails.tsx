@@ -33,7 +33,7 @@ const useRelationData = (selectedEdgeId: string | null): RelationData | null => 
 
   const sourceComponent = components.find((c) => c.id === relation.sourceComponentId);
   const targetComponent = components.find((c) => c.id === relation.targetComponentId);
-  const referenceLink = relation._links.reference;
+  const referenceLink = relation._links.describedby?.href;
   const formattedDate = new Date(relation.createdAt).toLocaleString();
 
   return { relation, sourceComponent, targetComponent, referenceLink, formattedDate };
@@ -49,6 +49,7 @@ export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
   }
 
   const { relation, sourceComponent, targetComponent, referenceLink, formattedDate } = data;
+  const canEdit = relation._links?.edit !== undefined;
 
   return (
     <div className="detail-panel">
@@ -57,11 +58,13 @@ export const RelationDetails: React.FC<RelationDetailsProps> = ({ onEdit }) => {
       </div>
 
       <div className="detail-content">
-        <div className="detail-actions">
-          <button className="btn btn-secondary btn-small" onClick={onEdit}>
-            Edit
-          </button>
-        </div>
+        {canEdit && (
+          <div className="detail-actions">
+            <button className="btn btn-secondary btn-small" onClick={onEdit}>
+              Edit
+            </button>
+          </div>
+        )}
 
         {relation.name && (
           <div className="detail-field">

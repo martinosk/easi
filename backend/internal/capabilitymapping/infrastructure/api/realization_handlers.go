@@ -136,9 +136,9 @@ func (h *RealizationHandlers) GetSystemsByCapability(w http.ResponseWriter, r *h
 		realizations[i].Links = h.hateoas.RealizationLinks(realizations[i].ID, realizations[i].CapabilityID, realizations[i].ComponentID)
 	}
 
-	links := map[string]string{
-		"self":       "/api/v1/capabilities/" + capabilityID + "/systems",
-		"capability": "/api/v1/capabilities/" + capabilityID,
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink("/api/v1/capabilities/"+capabilityID+"/systems", "GET"),
+		"up":   sharedAPI.NewLink("/api/v1/capabilities/"+capabilityID, "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, realizations, links)
@@ -166,9 +166,9 @@ func (h *RealizationHandlers) GetCapabilitiesByComponent(w http.ResponseWriter, 
 		realizations[i].Links = h.hateoas.RealizationLinks(realizations[i].ID, realizations[i].CapabilityID, realizations[i].ComponentID)
 	}
 
-	links := map[string]string{
-		"self":      "/api/v1/capability-realizations/by-component/" + componentID,
-		"component": "/api/v1/components/" + componentID,
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink("/api/v1/capability-realizations/by-component/"+componentID, "GET"),
+		"up":   sharedAPI.NewLink("/api/v1/components/"+componentID, "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, realizations, links)

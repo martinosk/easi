@@ -133,21 +133,25 @@ const ImportanceRow: React.FC<ImportanceRowProps> = ({
                 <span className="fit-score-rationale">"{importance.rationale}"</span>
               )}
               <div className="fit-score-actions">
-                <button
-                  type="button"
-                  className="btn btn-link btn-small"
-                  onClick={onEdit}
-                  data-testid={`edit-importance-${pillar.id}`}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-link btn-small btn-danger"
-                  onClick={onDelete}
-                >
-                  Remove
-                </button>
+                {importance._links?.edit && (
+                  <button
+                    type="button"
+                    className="btn btn-link btn-small"
+                    onClick={onEdit}
+                    data-testid={`edit-importance-${pillar.id}`}
+                  >
+                    Edit
+                  </button>
+                )}
+                {importance._links?.delete && (
+                  <button
+                    type="button"
+                    className="btn btn-link btn-small btn-danger"
+                    onClick={onDelete}
+                  >
+                    Remove
+                  </button>
+                )}
               </div>
             </>
           ) : (

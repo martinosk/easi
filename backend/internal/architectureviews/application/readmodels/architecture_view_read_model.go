@@ -7,6 +7,7 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/types"
 )
 
 type ViewID string
@@ -57,19 +58,19 @@ type ViewFieldUpdate struct {
 }
 
 type ComponentPositionDTO struct {
-	ComponentID string            `json:"componentId"`
-	X           float64           `json:"x"`
-	Y           float64           `json:"y"`
-	CustomColor *string           `json:"customColor,omitempty"`
-	Links       map[string]string `json:"_links,omitempty"`
+	ComponentID string      `json:"componentId"`
+	X           float64     `json:"x"`
+	Y           float64     `json:"y"`
+	CustomColor *string     `json:"customColor,omitempty"`
+	Links       types.Links `json:"_links,omitempty"`
 }
 
 type CapabilityPositionDTO struct {
-	CapabilityID string            `json:"capabilityId"`
-	X            float64           `json:"x"`
-	Y            float64           `json:"y"`
-	CustomColor  *string           `json:"customColor,omitempty"`
-	Links        map[string]string `json:"_links,omitempty"`
+	CapabilityID string      `json:"capabilityId"`
+	X            float64     `json:"x"`
+	Y            float64     `json:"y"`
+	CustomColor  *string     `json:"customColor,omitempty"`
+	Links        types.Links `json:"_links,omitempty"`
 }
 
 func NewComponentPosition(componentID ComponentID, pos Position) ComponentPositionDTO {
@@ -95,7 +96,7 @@ type ArchitectureViewDTO struct {
 	EdgeType        string                  `json:"edgeType,omitempty"`
 	LayoutDirection string                  `json:"layoutDirection,omitempty"`
 	ColorScheme     string                  `json:"colorScheme,omitempty"`
-	Links           map[string]string       `json:"_links,omitempty"`
+	Links           types.Links             `json:"_links,omitempty"`
 }
 
 // ArchitectureViewReadModel handles queries for architecture views

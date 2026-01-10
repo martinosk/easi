@@ -88,6 +88,10 @@ const ColorPickerField: React.FC<ColorPickerFieldProps> = ({
 }) => {
   const currentColor = componentInView.customColor || null;
   const isColorPickerEnabled = colorScheme === 'custom';
+  const canUpdateColor = componentInView._links?.['x-update-color'] !== undefined;
+  const canClearColor = componentInView._links?.['x-clear-color'] !== undefined;
+
+  if (!canUpdateColor) return null;
 
   return (
     <DetailField label="Custom Color">
@@ -98,7 +102,7 @@ const ColorPickerField: React.FC<ColorPickerFieldProps> = ({
           disabled={!isColorPickerEnabled}
           disabledTooltip="Switch to custom color scheme to assign colors"
         />
-        {currentColor && (
+        {currentColor && canClearColor && (
           <button
             className="btn btn-secondary btn-small"
             onClick={onClearColor}
@@ -155,19 +159,24 @@ const TypeField: React.FC<TypeFieldProps> = ({ referenceUrl }) => {
 
 interface ActionButtonsProps {
   componentId: string;
-  isInCurrentView: boolean;
+  canEdit: boolean;
+  canRemoveFromView: boolean;
   onEdit: (componentId: string) => void;
   onRemoveFromView?: () => void;
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({ componentId, isInCurrentView, onEdit, onRemoveFromView }) => (
-  <div className="detail-actions">
-    <button className="btn btn-secondary btn-small" onClick={() => onEdit(componentId)}>Edit</button>
-    {isInCurrentView && onRemoveFromView && (
-      <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>Remove from View</button>
-    )}
-  </div>
-);
+const ActionButtons: React.FC<ActionButtonsProps> = ({ componentId, canEdit, canRemoveFromView, onEdit, onRemoveFromView }) => {
+  if (!canEdit && !canRemoveFromView) return null;
+
+  return (
+    <div className="detail-actions">
+      {canEdit && <button className="btn btn-secondary btn-small" onClick={() => onEdit(componentId)}>Edit</button>}
+      {canRemoveFromView && onRemoveFromView && (
+        <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>Remove from View</button>
+      )}
+    </div>
+  );
+};
 
 interface ComponentContentProps {
   component: Component;
@@ -195,12 +204,15 @@ const ComponentContentInternal: React.FC<ComponentContentProps> = ({
   onRemoveFromView,
 }) => {
   const formattedDate = new Date(component.createdAt).toLocaleString();
+  const canEdit = component._links?.edit !== undefined;
+  const canRemoveFromView = isInCurrentView && componentInView?._links?.['x-remove'] !== undefined;
 
   return (
     <div className="detail-content">
       <ActionButtons
         componentId={component.id}
-        isInCurrentView={isInCurrentView}
+        canEdit={canEdit}
+        canRemoveFromView={canRemoveFromView}
         onEdit={onEdit}
         onRemoveFromView={onRemoveFromView}
       />
@@ -210,7 +222,7 @@ const ComponentContentInternal: React.FC<ComponentContentProps> = ({
       <OptionalField value={component.description} label="Description" render={(desc) => desc} />
 
       <DetailField label="Created"><span className="detail-date">{formattedDate}</span></DetailField>
-      <TypeField referenceUrl={component._links.reference} />
+      <TypeField referenceUrl={component._links.describedby?.href} />
 
       {componentInView && currentView && onColorChange && onClearColor && (
         <ColorPickerField

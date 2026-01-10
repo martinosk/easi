@@ -7,21 +7,22 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/types"
 )
 
 type ApplicationFitScoreDTO struct {
-	ID            string            `json:"id"`
-	ComponentID   string            `json:"componentId"`
-	ComponentName string            `json:"componentName"`
-	PillarID      string            `json:"pillarId"`
-	PillarName    string            `json:"pillarName"`
-	Score         int               `json:"score"`
-	ScoreLabel    string            `json:"scoreLabel"`
-	Rationale     string            `json:"rationale,omitempty"`
-	ScoredAt      time.Time         `json:"scoredAt"`
-	ScoredBy      string            `json:"scoredBy"`
-	UpdatedAt     *time.Time        `json:"updatedAt,omitempty"`
-	Links         map[string]string `json:"_links,omitempty"`
+	ID            string      `json:"id"`
+	ComponentID   string      `json:"componentId"`
+	ComponentName string      `json:"componentName"`
+	PillarID      string      `json:"pillarId"`
+	PillarName    string      `json:"pillarName"`
+	Score         int         `json:"score"`
+	ScoreLabel    string      `json:"scoreLabel"`
+	Rationale     string      `json:"rationale,omitempty"`
+	ScoredAt      time.Time   `json:"scoredAt"`
+	ScoredBy      string      `json:"scoredBy"`
+	UpdatedAt     *time.Time  `json:"updatedAt,omitempty"`
+	Links         types.Links `json:"_links,omitempty"`
 }
 
 type ApplicationFitScoreReadModel struct {

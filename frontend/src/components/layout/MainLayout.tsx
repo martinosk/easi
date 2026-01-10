@@ -15,8 +15,9 @@ interface MainLayoutProps {
   canvasRef: React.RefObject<ComponentCanvasRef | null>;
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
-  onAddComponent: () => void;
-  onAddCapability: () => void;
+  onAddComponent?: () => void;
+  onAddCapability?: () => void;
+  canCreateView?: boolean;
   onConnect: (source: string, target: string) => void;
   onComponentDrop: (componentId: string, x: number, y: number) => Promise<void>;
   onComponentSelect: (componentId: string) => void;
@@ -77,6 +78,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   selectedEdgeId,
   onAddComponent,
   onAddCapability,
+  canCreateView = true,
   onConnect,
   onComponentDrop,
   onComponentSelect,
@@ -113,6 +115,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           onAddCapability={onAddCapability}
           onEditCapability={onEditCapability}
           onEditComponent={onEditComponent}
+          canCreateView={canCreateView}
         />
 
         <div className="canvas-section">

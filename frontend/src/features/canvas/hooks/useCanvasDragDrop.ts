@@ -4,12 +4,13 @@ import { useCurrentView } from '../../../hooks/useCurrentView';
 import { useAddCapabilityToView } from '../../views/hooks/useViews';
 import type { CapabilityId, ComponentId } from '../../../api/types';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
+import { canEdit } from '../../../utils/hateoas';
 
 export const useCanvasDragDrop = (
   reactFlowInstance: ReactFlowInstance | null,
   onComponentDrop?: (componentId: string, x: number, y: number) => void
 ) => {
-  const { currentViewId } = useCurrentView();
+  const { currentViewId, currentView } = useCurrentView();
   const addCapabilityToViewMutation = useAddCapabilityToView();
   const { updateComponentPosition, updateCapabilityPosition } = useCanvasLayoutContext();
 
@@ -25,7 +26,7 @@ export const useCanvasDragDrop = (
       const componentId = event.dataTransfer.getData('componentId');
       const capabilityId = event.dataTransfer.getData('capabilityId');
 
-      if (!reactFlowInstance || !currentViewId) return;
+      if (!reactFlowInstance || !currentViewId || !canEdit(currentView)) return;
 
       const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX,
@@ -47,7 +48,7 @@ export const useCanvasDragDrop = (
         await updateCapabilityPosition(capabilityId as CapabilityId, position.x, position.y);
       }
     },
-    [onComponentDrop, reactFlowInstance, currentViewId, addCapabilityToViewMutation, updateComponentPosition, updateCapabilityPosition]
+    [onComponentDrop, reactFlowInstance, currentViewId, currentView, addCapabilityToViewMutation, updateComponentPosition, updateCapabilityPosition]
   );
 
   return { onDragOver, onDrop };

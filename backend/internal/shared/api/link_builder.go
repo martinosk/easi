@@ -1,6 +1,10 @@
 package api
 
-import "fmt"
+import (
+	"fmt"
+
+	"easi/backend/internal/shared/types"
+)
 
 const APIVersionPrefix = "/api/v1"
 
@@ -25,7 +29,7 @@ func (r LinkRelation) String() string {
 const (
 	RelSelf       LinkRelation = "self"
 	RelCollection LinkRelation = "collection"
-	RelUpdate     LinkRelation = "update"
+	RelEdit       LinkRelation = "edit"
 	RelDelete     LinkRelation = "delete"
 )
 
@@ -74,50 +78,50 @@ func BuildSubResourceLink(resourcePath ResourcePath, id ResourceID, subPath Reso
 }
 
 type ResourceLinks struct {
-	links map[string]string
+	links types.Links
 }
 
 func NewResourceLinks() *ResourceLinks {
-	return &ResourceLinks{links: make(map[string]string)}
+	return &ResourceLinks{links: make(types.Links)}
 }
 
-func (r *ResourceLinks) Add(rel LinkRelation, href string) *ResourceLinks {
-	r.links[rel.String()] = href
+func (r *ResourceLinks) Add(rel LinkRelation, href string, method string) *ResourceLinks {
+	r.links[rel.String()] = types.Link{Href: href, Method: method}
 	return r
 }
 
 func (r *ResourceLinks) Self(path ResourcePath) *ResourceLinks {
-	return r.Add(RelSelf, BuildLink(path))
+	return r.Add(RelSelf, BuildLink(path), "GET")
 }
 
 func (r *ResourceLinks) SelfWithID(resourcePath ResourcePath, id ResourceID) *ResourceLinks {
-	return r.Add(RelSelf, BuildResourceLink(resourcePath, id))
+	return r.Add(RelSelf, BuildResourceLink(resourcePath, id), "GET")
 }
 
 func (r *ResourceLinks) Collection(resourcePath ResourcePath) *ResourceLinks {
-	return r.Add(RelCollection, BuildLink(resourcePath))
+	return r.Add(RelCollection, BuildLink(resourcePath), "GET")
 }
 
-func (r *ResourceLinks) Update(resourcePath ResourcePath, id ResourceID) *ResourceLinks {
-	return r.Add(RelUpdate, BuildResourceLink(resourcePath, id))
+func (r *ResourceLinks) Edit(resourcePath ResourcePath, id ResourceID) *ResourceLinks {
+	return r.Add(RelEdit, BuildResourceLink(resourcePath, id), "PUT")
 }
 
 func (r *ResourceLinks) Delete(resourcePath ResourcePath, id ResourceID) *ResourceLinks {
-	return r.Add(RelDelete, BuildResourceLink(resourcePath, id))
+	return r.Add(RelDelete, BuildResourceLink(resourcePath, id), "DELETE")
 }
 
 func (r *ResourceLinks) Related(rel LinkRelation, resourcePath ResourcePath, id ResourceID) *ResourceLinks {
-	return r.Add(rel, BuildResourceLink(resourcePath, id))
+	return r.Add(rel, BuildResourceLink(resourcePath, id), "GET")
 }
 
 func (r *ResourceLinks) SubResource(rel LinkRelation, resourcePath ResourcePath, id ResourceID, subPath ResourcePath) *ResourceLinks {
-	return r.Add(rel, BuildSubResourceLink(resourcePath, id, subPath))
+	return r.Add(rel, BuildSubResourceLink(resourcePath, id, subPath), "GET")
 }
 
 func (r *ResourceLinks) SelfSubResource(resourcePath ResourcePath, id ResourceID, subPath ResourcePath) *ResourceLinks {
-	return r.Add(RelSelf, BuildSubResourceLink(resourcePath, id, subPath))
+	return r.Add(RelSelf, BuildSubResourceLink(resourcePath, id, subPath), "GET")
 }
 
-func (r *ResourceLinks) Build() map[string]string {
+func (r *ResourceLinks) Build() types.Links {
 	return r.links
 }

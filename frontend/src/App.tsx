@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { useAppStore } from './store/appStore';
 import { useUserStore } from './store/userStore';
@@ -67,6 +67,15 @@ function useAuthErrorHandler() {
   return { authError, clearAuthError: () => setAuthError(null) };
 }
 
+function useCanvasPermissions() {
+  const hasPermission = useUserStore((state) => state.hasPermission);
+  return useMemo(() => ({
+    canCreateComponent: hasPermission('components:write'),
+    canCreateCapability: hasPermission('capabilities:write'),
+    canCreateView: hasPermission('views:write'),
+  }), [hasPermission]);
+}
+
 interface CanvasViewProps {
   canvasRef: React.RefObject<ComponentCanvasRef | null>;
   selectedNodeId: string | null;
@@ -78,6 +87,7 @@ interface CanvasViewProps {
   navigateToComponent: ReturnType<typeof useCanvasNavigation>['navigateToComponent'];
   navigateToCapability: ReturnType<typeof useCanvasNavigation>['navigateToCapability'];
   onRemoveFromView: () => void;
+  permissions: ReturnType<typeof useCanvasPermissions>;
 }
 
 function CanvasView({
@@ -91,6 +101,7 @@ function CanvasView({
   navigateToComponent,
   navigateToCapability,
   onRemoveFromView,
+  permissions,
 }: CanvasViewProps) {
   return (
     <>
@@ -98,8 +109,9 @@ function CanvasView({
         canvasRef={canvasRef}
         selectedNodeId={selectedNodeId}
         selectedEdgeId={selectedEdgeId}
-        onAddComponent={dialogActions.openComponentDialog}
-        onAddCapability={dialogActions.openCapabilityDialog}
+        onAddComponent={permissions.canCreateComponent ? dialogActions.openComponentDialog : undefined}
+        onAddCapability={permissions.canCreateCapability ? dialogActions.openCapabilityDialog : undefined}
+        canCreateView={permissions.canCreateView}
         onConnect={dialogActions.openRelationDialog}
         onComponentDrop={(id, x, y) => addComponentToView(id as import('./api/types').ComponentId, x, y)}
         onComponentSelect={navigateToComponent}
@@ -193,6 +205,7 @@ function App({ view }: AppProps) {
 
   const { authError } = useAuthErrorHandler();
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+  const permissions = useCanvasPermissions();
 
   const { isLoading, error } = useAppInitialization();
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
@@ -247,6 +260,7 @@ function App({ view }: AppProps) {
     navigateToComponent,
     navigateToCapability,
     onRemoveFromView: handleRemoveFromView,
+    permissions,
   };
 
   return (

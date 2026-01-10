@@ -7,21 +7,22 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/types"
 )
 
 type RealizationDTO struct {
-	ID                   string            `json:"id"`
-	CapabilityID         string            `json:"capabilityId"`
-	ComponentID          string            `json:"componentId"`
-	ComponentName        string            `json:"componentName,omitempty"`
-	RealizationLevel     string            `json:"realizationLevel"`
-	Notes                string            `json:"notes,omitempty"`
-	Origin               string            `json:"origin"`
-	SourceRealizationID  string            `json:"sourceRealizationId,omitempty"`
-	SourceCapabilityID   string            `json:"sourceCapabilityId,omitempty"`
-	SourceCapabilityName string            `json:"sourceCapabilityName,omitempty"`
-	LinkedAt             time.Time         `json:"linkedAt"`
-	Links                map[string]string `json:"_links,omitempty"`
+	ID                   string      `json:"id"`
+	CapabilityID         string      `json:"capabilityId"`
+	ComponentID          string      `json:"componentId"`
+	ComponentName        string      `json:"componentName,omitempty"`
+	RealizationLevel     string      `json:"realizationLevel"`
+	Notes                string      `json:"notes,omitempty"`
+	Origin               string      `json:"origin"`
+	SourceRealizationID  string      `json:"sourceRealizationId,omitempty"`
+	SourceCapabilityID   string      `json:"sourceCapabilityId,omitempty"`
+	SourceCapabilityName string      `json:"sourceCapabilityName,omitempty"`
+	LinkedAt             time.Time   `json:"linkedAt"`
+	Links                types.Links `json:"_links,omitempty"`
 }
 
 type RealizationReadModel struct {

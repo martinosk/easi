@@ -117,6 +117,7 @@ interface NavigationTreeProps {
   onAddCapability?: () => void;
   onEditCapability?: (capability: Capability) => void;
   onEditComponent?: (componentId: string) => void;
+  canCreateView?: boolean;
 }
 
 interface ViewContextMenuState {
@@ -134,6 +135,7 @@ interface ComponentContextMenuState {
   y: number;
   componentId: ComponentId;
   componentName: string;
+  _links?: HATEOASLinks;
 }
 
 interface CapabilityContextMenuState {
@@ -156,6 +158,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   onAddCapability,
   onEditCapability,
   onEditComponent,
+  canCreateView = true,
 }) => {
   const { data: components = [] } = useComponents();
   const { currentView } = useCurrentView();
@@ -257,22 +260,27 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   };
 
   const getCapabilityContextMenuItems = (menu: CapabilityContextMenuState): ContextMenuItem[] => {
-    return [
-      {
+    const items: ContextMenuItem[] = [];
+    const canEdit = menu.capability._links?.edit !== undefined;
+    const canDelete = menu.capability._links?.delete !== undefined;
+
+    if (canEdit && onEditCapability) {
+      items.push({
         label: 'Edit',
-        onClick: () => {
-          if (onEditCapability) {
-            onEditCapability(menu.capability);
-          }
-        },
-      },
-      {
+        onClick: () => onEditCapability(menu.capability),
+      });
+    }
+
+    if (canDelete) {
+      items.push({
         label: 'Delete from Model',
         onClick: () => setDeleteCapability(menu.capability),
         isDanger: true,
         ariaLabel: 'Delete capability from model',
-      },
-    ];
+      });
+    }
+
+    return items;
   };
 
   const getCapabilityNodeData = (node: CapabilityTreeNode) => {
@@ -382,7 +390,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
   const handleComponentContextMenu = (e: React.MouseEvent, component: Component) => {
     const pos = getContextMenuPosition(e);
-    setComponentContextMenu({ ...pos, componentId: component.id, componentName: component.name });
+    setComponentContextMenu({ ...pos, componentId: component.id, componentName: component.name, _links: component._links });
   };
 
   const handleRenameSubmit = async () => {
@@ -448,9 +456,9 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
 
   const getViewContextMenuItems = (menu: ViewContextMenuState): ContextMenuItem[] => {
     const items: ContextMenuItem[] = [];
-    const canEdit = menu._links?.update !== undefined;
+    const canEdit = menu._links?.edit !== undefined;
     const canDelete = menu._links?.delete !== undefined;
-    const canChangeVisibility = menu._links?.changeVisibility !== undefined;
+    const canChangeVisibility = menu._links?.['x-change-visibility'] !== undefined;
 
     if (canEdit) {
       items.push({
@@ -511,16 +519,19 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   };
 
   const getComponentContextMenuItems = (menu: ComponentContextMenuState): ContextMenuItem[] => {
-    return [
-      {
+    const items: ContextMenuItem[] = [];
+    const canEdit = menu._links?.edit !== undefined;
+    const canDelete = menu._links?.delete !== undefined;
+
+    if (canEdit && onEditComponent) {
+      items.push({
         label: 'Edit',
-        onClick: () => {
-          if (onEditComponent) {
-            onEditComponent(menu.componentId);
-          }
-        },
-      },
-      {
+        onClick: () => onEditComponent(menu.componentId),
+      });
+    }
+
+    if (canDelete) {
+      items.push({
         label: 'Delete from Model',
         onClick: () => {
           setDeleteTarget({
@@ -531,8 +542,10 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
         },
         isDanger: true,
         ariaLabel: 'Delete application from model',
-      },
-    ];
+      });
+    }
+
+    return items;
   };
 
   return (
@@ -562,14 +575,16 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                   <span className="category-label">Applications</span>
                   <span className="category-count">{components.length}</span>
                 </button>
-                <button
-                  className="add-view-btn"
-                  onClick={onAddComponent}
-                  title="Create new application"
-                  data-testid="create-component-button"
-                >
-                  +
-                </button>
+                {onAddComponent && (
+                  <button
+                    className="add-view-btn"
+                    onClick={onAddComponent}
+                    title="Create new application"
+                    data-testid="create-component-button"
+                  >
+                    +
+                  </button>
+                )}
               </div>
 
               {isModelsExpanded && (
@@ -671,13 +686,15 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                   <span className="category-label">Views</span>
                   <span className="category-count">{views.length}</span>
                 </button>
-                <button
-                  className="add-view-btn"
-                  onClick={() => setShowCreateDialog(true)}
-                  title="Create new view"
-                >
-                  +
-                </button>
+                {canCreateView && (
+                  <button
+                    className="add-view-btn"
+                    onClick={() => setShowCreateDialog(true)}
+                    title="Create new view"
+                  >
+                    +
+                  </button>
+                )}
               </div>
 
               {isViewsExpanded && (
@@ -719,7 +736,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                               className={`tree-item ${isActive ? 'selected' : ''}`}
                               onClick={() => handleViewClick(view.id)}
                               onDoubleClick={() => {
-                                if (view._links?.update) {
+                                if (view._links?.edit) {
                                   setEditingState({ viewId: view.id, name: view.name });
                                 }
                               }}
@@ -752,14 +769,16 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                   <span className="category-label">Capabilities</span>
                   <span className="category-count">{capabilities.length}</span>
                 </button>
-                <button
-                  className="add-view-btn"
-                  onClick={onAddCapability}
-                  title="Create new capability"
-                  data-testid="create-capability-button"
-                >
-                  +
-                </button>
+                {onAddCapability && (
+                  <button
+                    className="add-view-btn"
+                    onClick={onAddCapability}
+                    title="Create new capability"
+                    data-testid="create-capability-button"
+                  >
+                    +
+                  </button>
+                )}
               </div>
 
               {isCapabilitiesExpanded && (

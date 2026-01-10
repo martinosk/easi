@@ -22,8 +22,9 @@ interface DockviewLayoutProps {
   canvasRef: React.RefObject<ComponentCanvasRef | null>;
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
-  onAddComponent: () => void;
-  onAddCapability: () => void;
+  onAddComponent?: () => void;
+  onAddCapability?: () => void;
+  canCreateView?: boolean;
   onConnect: (source: string, target: string) => void;
   onComponentDrop: (componentId: string, x: number, y: number) => Promise<void>;
   onComponentSelect: (componentId: string) => void;
@@ -126,7 +127,8 @@ function usePanelParams(props: DockviewLayoutProps) {
     onAddCapability: props.onAddCapability,
     onEditCapability: props.onEditCapability,
     onEditComponent: props.onEditComponent,
-  }), [props.onComponentSelect, props.onCapabilitySelect, props.onViewSelect, props.onAddComponent, props.onAddCapability, props.onEditCapability, props.onEditComponent]);
+    canCreateView: props.canCreateView,
+  }), [props.onComponentSelect, props.onCapabilitySelect, props.onViewSelect, props.onAddComponent, props.onAddCapability, props.onEditCapability, props.onEditComponent, props.canCreateView]);
 
   const details = useCallback(() => ({
     selectedNodeId: props.selectedNodeId,
@@ -242,10 +244,11 @@ const NavigationTreePanel = (props: IDockviewPanelProps<{
   onComponentSelect: (id: string) => void;
   onCapabilitySelect: (id: string) => void;
   onViewSelect: (id: string) => Promise<void>;
-  onAddComponent: () => void;
-  onAddCapability: () => void;
+  onAddComponent?: () => void;
+  onAddCapability?: () => void;
   onEditCapability: (capability: Capability) => void;
   onEditComponent: (componentId?: string) => void;
+  canCreateView?: boolean;
 }>) => {
   return (
     <div style={{ height: '100%', width: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -262,6 +265,7 @@ const NavigationTreePanel = (props: IDockviewPanelProps<{
           onAddCapability={props.params.onAddCapability}
           onEditCapability={props.params.onEditCapability}
           onEditComponent={props.params.onEditComponent}
+          canCreateView={props.params.canCreateView}
         />
       </ErrorBoundary>
     </div>

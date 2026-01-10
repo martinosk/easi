@@ -11,6 +11,7 @@ import (
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/types"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -67,7 +68,7 @@ func (req UpdateMaturityScaleRequest) toCommandInput() [4]commands.MaturitySecti
 }
 
 type configLoader func() (*readmodels.MetaModelConfigurationDTO, error)
-type linkGenerator func(config *readmodels.MetaModelConfigurationDTO) map[string]string
+type linkGenerator func(config *readmodels.MetaModelConfigurationDTO) types.Links
 
 func defaultMaturityScaleConfig() *readmodels.MetaModelConfigurationDTO {
 	now := time.Now()
@@ -228,7 +229,7 @@ func (h *MetaModelHandlers) UpdateMaturityScale(w http.ResponseWriter, r *http.R
 		func() (*readmodels.MetaModelConfigurationDTO, error) {
 			return h.readModel.GetByID(r.Context(), config.ID)
 		},
-		func(c *readmodels.MetaModelConfigurationDTO) map[string]string {
+		func(c *readmodels.MetaModelConfigurationDTO) types.Links {
 			return h.hateoas.MaturityScaleLinks(c.IsDefault)
 		},
 	)
@@ -270,7 +271,7 @@ func (h *MetaModelHandlers) ResetMaturityScale(w http.ResponseWriter, r *http.Re
 		func() (*readmodels.MetaModelConfigurationDTO, error) {
 			return h.readModel.GetByID(r.Context(), config.ID)
 		},
-		func(c *readmodels.MetaModelConfigurationDTO) map[string]string {
+		func(c *readmodels.MetaModelConfigurationDTO) types.Links {
 			return h.hateoas.MaturityScaleLinks(c.IsDefault)
 		},
 	)
@@ -290,7 +291,7 @@ func (h *MetaModelHandlers) GetMaturityScaleByID(w http.ResponseWriter, r *http.
 	id := chi.URLParam(r, "id")
 	h.getAndRespondWithConfig(w,
 		func() (*readmodels.MetaModelConfigurationDTO, error) { return h.readModel.GetByID(r.Context(), id) },
-		func(c *readmodels.MetaModelConfigurationDTO) map[string]string {
+		func(c *readmodels.MetaModelConfigurationDTO) types.Links {
 			return h.hateoas.MetaModelConfigLinks(id, c.IsDefault)
 		},
 	)

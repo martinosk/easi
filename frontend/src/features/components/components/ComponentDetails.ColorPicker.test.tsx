@@ -22,7 +22,7 @@ const mockComponent = {
   name: 'Test Component',
   description: 'Test description',
   createdAt: '2024-01-01T00:00:00Z',
-  _links: { self: '/api/v1/components/comp-1' },
+  _links: { self: { href: '/api/v1/components/comp-1', method: 'GET' as const } },
 };
 
 const createMockView = (colorScheme: string, customColor?: string): View => ({
@@ -30,12 +30,23 @@ const createMockView = (colorScheme: string, customColor?: string): View => ({
   name: 'Test View',
   isDefault: true,
   components: [
-    { componentId: 'comp-1' as ComponentId, x: 100, y: 200, customColor },
+    {
+      componentId: 'comp-1' as ComponentId,
+      x: 100,
+      y: 200,
+      customColor,
+      _links: {
+        'x-update-color': { href: '/api/v1/views/view-1/components/comp-1/color', method: 'PATCH' as const },
+        'x-clear-color': { href: '/api/v1/views/view-1/components/comp-1/color', method: 'DELETE' as const },
+        'x-update-position': { href: '/api/v1/views/view-1/components/comp-1/position', method: 'PATCH' as const },
+        'x-remove': { href: '/api/v1/views/view-1/components/comp-1', method: 'DELETE' as const },
+      },
+    },
   ],
   capabilities: [],
   colorScheme,
   createdAt: '2024-01-01T00:00:00Z',
-  _links: { self: '/api/v1/views/view-1' },
+  _links: { self: { href: '/api/v1/views/view-1', method: 'GET' as const } },
 });
 
 const createMockStore = () => ({
@@ -264,7 +275,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
         capabilities: [],
         colorScheme: 'custom',
         createdAt: '2024-01-01T00:00:00Z',
-        _links: { self: '/api/v1/views/view-1' },
+        _links: { self: { href: '/api/v1/views/view-1', method: 'GET' as const } },
       };
       renderComponentDetails(mockView);
 

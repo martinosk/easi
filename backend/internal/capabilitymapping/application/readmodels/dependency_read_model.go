@@ -7,16 +7,17 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/types"
 )
 
 type DependencyDTO struct {
-	ID                 string            `json:"id"`
-	SourceCapabilityID string            `json:"sourceCapabilityId"`
-	TargetCapabilityID string            `json:"targetCapabilityId"`
-	DependencyType     string            `json:"dependencyType"`
-	Description        string            `json:"description,omitempty"`
-	CreatedAt          time.Time         `json:"createdAt"`
-	Links              map[string]string `json:"_links,omitempty"`
+	ID                 string      `json:"id"`
+	SourceCapabilityID string      `json:"sourceCapabilityId"`
+	TargetCapabilityID string      `json:"targetCapabilityId"`
+	DependencyType     string      `json:"dependencyType"`
+	Description        string      `json:"description,omitempty"`
+	CreatedAt          time.Time   `json:"createdAt"`
+	Links              types.Links `json:"_links,omitempty"`
 }
 
 type DependencyReadModel struct {

@@ -6,13 +6,10 @@ import (
 	"net/http"
 
 	domain "easi/backend/internal/shared/eventsourcing"
+	"easi/backend/internal/shared/types"
 )
 
-// Link represents a HATEOAS link with optional HTTP method hint
-type Link struct {
-	Href   string `json:"href"`
-	Method string `json:"method,omitempty"`
-}
+type Link = types.Link
 
 // ErrorResponse represents an API error response
 type ErrorResponse struct {
@@ -24,9 +21,9 @@ type ErrorResponse struct {
 
 // CollectionResponse represents a collection of resources
 type CollectionResponse struct {
-	Data  interface{}       `json:"data"`
-	Links map[string]string `json:"_links,omitempty"`
-	Meta  *CollectionMeta   `json:"meta,omitempty"`
+	Data  interface{}     `json:"data"`
+	Links Links           `json:"_links,omitempty"`
+	Meta  *CollectionMeta `json:"meta,omitempty"`
 }
 
 // CollectionMeta contains metadata about a collection
@@ -141,7 +138,7 @@ func RespondDeleted(w http.ResponseWriter) {
 }
 
 // RespondCollection sends a collection response with consistent wrapping
-func RespondCollection(w http.ResponseWriter, statusCode int, data interface{}, links map[string]string) {
+func RespondCollection(w http.ResponseWriter, statusCode int, data interface{}, links Links) {
 	response := CollectionResponse{
 		Data:  data,
 		Links: links,
@@ -152,7 +149,7 @@ func RespondCollection(w http.ResponseWriter, statusCode int, data interface{}, 
 type CollectionWithTotalParams struct {
 	Data       interface{}
 	Total      int
-	Links      map[string]string
+	Links      Links
 	StatusCode int
 }
 

@@ -17,9 +17,15 @@ describe('EnterpriseCapabilityCard', () => {
     category: 'Business',
     linkCount: 5,
     domainCount: 3,
+    active: true,
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
-    _links: { self: { href: '/api/v1/enterprise-capabilities/ec-1' } },
+    _links: {
+      self: { href: '/api/v1/enterprise-capabilities/ec-1', method: 'GET' },
+      'x-links': { href: '/api/v1/enterprise-capabilities/ec-1/links', method: 'GET' },
+      'x-create-link': { href: '/api/v1/enterprise-capabilities/ec-1/links', method: 'POST' },
+      'x-strategic-importance': { href: '/api/v1/enterprise-capabilities/ec-1/strategic-importance', method: 'GET' },
+    },
   };
 
   const mockDomainCapability: Capability = {
@@ -60,7 +66,7 @@ describe('EnterpriseCapabilityCard', () => {
     it('does not render description when not provided', () => {
       const capabilityWithoutDescription: EnterpriseCapability = {
         ...mockCapability,
-        description: undefined,
+        description: '',
       };
       const onDrop = vi.fn();
 

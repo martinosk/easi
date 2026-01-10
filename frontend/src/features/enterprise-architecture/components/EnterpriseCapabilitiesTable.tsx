@@ -8,7 +8,6 @@ interface EnterpriseCapabilitiesTableProps {
   onSelect: (capability: EnterpriseCapability) => void;
   onDelete: (capability: EnterpriseCapability) => void;
   selectedId?: string;
-  canDelete?: boolean;
   isDockPanelOpen?: boolean;
   onLinkCapability?: (enterpriseCapabilityId: EnterpriseCapabilityId, domainCapability: Capability) => void;
 }
@@ -18,10 +17,10 @@ export const EnterpriseCapabilitiesTable = React.memo<EnterpriseCapabilitiesTabl
   onSelect,
   onDelete,
   selectedId,
-  canDelete = false,
   isDockPanelOpen = false,
   onLinkCapability,
 }) => {
+  const hasAnyDeletable = capabilities.some(cap => cap._links?.delete);
   const [dragOverRowId, setDragOverRowId] = useState<string | null>(null);
 
   const handleKeyDown = (e: React.KeyboardEvent, capability: EnterpriseCapability) => {
@@ -31,12 +30,16 @@ export const EnterpriseCapabilitiesTable = React.memo<EnterpriseCapabilitiesTabl
     }
   };
 
-  const handleDragOver = useCallback((e: React.DragEvent, capabilityId: string) => {
-    if (!isDockPanelOpen) return;
+  const canAcceptLink = useCallback((capability: EnterpriseCapability) => {
+    return isDockPanelOpen && capability._links?.['x-create-link'] !== undefined;
+  }, [isDockPanelOpen]);
+
+  const handleDragOver = useCallback((e: React.DragEvent, capability: EnterpriseCapability) => {
+    if (!canAcceptLink(capability)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    setDragOverRowId(capabilityId);
-  }, [isDockPanelOpen]);
+    setDragOverRowId(capability.id);
+  }, [canAcceptLink]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     if (!isDockPanelOpen) return;
@@ -47,7 +50,7 @@ export const EnterpriseCapabilitiesTable = React.memo<EnterpriseCapabilitiesTabl
   }, [isDockPanelOpen]);
 
   const handleDrop = useCallback((e: React.DragEvent, enterpriseCapability: EnterpriseCapability) => {
-    if (!isDockPanelOpen || !onLinkCapability) return;
+    if (!canAcceptLink(enterpriseCapability) || !onLinkCapability) return;
     e.preventDefault();
     setDragOverRowId(null);
 
@@ -59,7 +62,7 @@ export const EnterpriseCapabilitiesTable = React.memo<EnterpriseCapabilitiesTabl
     } catch {
       toast.error('Invalid drag data');
     }
-  }, [isDockPanelOpen, onLinkCapability]);
+  }, [canAcceptLink, onLinkCapability]);
 
   const getRowClassName = (capability: EnterpriseCapability) => {
     const classes: string[] = [];
@@ -77,7 +80,7 @@ export const EnterpriseCapabilitiesTable = React.memo<EnterpriseCapabilitiesTabl
             <th>Category</th>
             <th>Linked Capabilities</th>
             <th>Domains</th>
-            {canDelete && <th>Actions</th>}
+            {hasAnyDeletable && <th>Actions</th>}
           </tr>
         </thead>
         <tbody>
@@ -87,7 +90,7 @@ export const EnterpriseCapabilitiesTable = React.memo<EnterpriseCapabilitiesTabl
               className={getRowClassName(capability)}
               onClick={() => onSelect(capability)}
               onKeyDown={(e) => handleKeyDown(e, capability)}
-              onDragOver={(e) => handleDragOver(e, capability.id)}
+              onDragOver={(e) => handleDragOver(e, capability)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, capability)}
               tabIndex={0}
@@ -99,22 +102,24 @@ export const EnterpriseCapabilitiesTable = React.memo<EnterpriseCapabilitiesTabl
               <td className="capability-category">{capability.category || '-'}</td>
               <td className="capability-links">{capability.linkCount}</td>
               <td className="capability-domains">{capability.domainCount}</td>
-              {canDelete && (
+              {hasAnyDeletable && (
                 <td className="capability-actions">
-                  <button
-                    type="button"
-                    className="btn btn-icon btn-danger"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(capability);
-                    }}
-                    title="Delete capability"
-                    data-testid={`delete-capability-${capability.id}`}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="16" height="16">
-                      <path d="M19 7L18.1327 19.1425C18.0579 20.1891 17.187 21 16.1378 21H7.86224C6.81296 21 5.94208 20.1891 5.86732 19.1425L5 7M10 11V17M14 11V17M15 7V4C15 3.44772 14.5523 3 14 3H10C9.44772 3 9 3.44772 9 4V7M4 7H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </button>
+                  {capability._links?.delete && (
+                    <button
+                      type="button"
+                      className="btn btn-icon btn-danger"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(capability);
+                      }}
+                      title="Delete capability"
+                      data-testid={`delete-capability-${capability.id}`}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="16" height="16">
+                        <path d="M19 7L18.1327 19.1425C18.0579 20.1891 17.187 21 16.1378 21H7.86224C6.81296 21 5.94208 20.1891 5.86732 19.1425L5 7M10 11V17M14 11V17M15 7V4C15 3.44772 14.5523 3 14 3H10C9.44772 3 9 3.44772 9 4V7M4 7H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  )}
                 </td>
               )}
             </tr>

@@ -8,6 +8,7 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/types"
 )
 
 type MaturitySectionDTO struct {
@@ -36,7 +37,7 @@ type MetaModelConfigurationDTO struct {
 	CreatedAt       time.Time            `json:"createdAt"`
 	ModifiedAt      time.Time            `json:"modifiedAt"`
 	ModifiedBy      string               `json:"modifiedBy"`
-	Links           map[string]string    `json:"_links,omitempty"`
+	Links           types.Links          `json:"_links,omitempty"`
 }
 
 type MetaModelConfigurationReadModel struct {

@@ -13,6 +13,7 @@ import (
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/types"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -49,13 +50,13 @@ type UpdateStrategyPillarRequest struct {
 }
 
 type StrategyPillarResponse struct {
-	ID                string            `json:"id"`
-	Name              string            `json:"name"`
-	Description       string            `json:"description"`
-	Active            bool              `json:"active"`
-	FitScoringEnabled bool              `json:"fitScoringEnabled"`
-	FitCriteria       string            `json:"fitCriteria"`
-	Links             map[string]string `json:"_links"`
+	ID                string      `json:"id"`
+	Name              string      `json:"name"`
+	Description       string      `json:"description"`
+	Active            bool        `json:"active"`
+	FitScoringEnabled bool        `json:"fitScoringEnabled"`
+	FitCriteria       string      `json:"fitCriteria"`
+	Links             types.Links `json:"_links"`
 }
 
 type UpdatePillarFitConfigurationRequest struct {
@@ -340,7 +341,7 @@ type BatchUpdateStrategyPillarsRequest struct {
 
 type BatchUpdateStrategyPillarsResponse struct {
 	Data  []StrategyPillarResponse `json:"data"`
-	Links map[string]string        `json:"_links"`
+	Links types.Links              `json:"_links"`
 }
 
 // BatchUpdateStrategyPillars godoc

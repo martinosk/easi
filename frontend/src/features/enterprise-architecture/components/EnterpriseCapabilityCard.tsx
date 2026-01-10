@@ -11,8 +11,10 @@ export interface EnterpriseCapabilityCardProps {
 
 export function EnterpriseCapabilityCard({ capability, onDrop }: EnterpriseCapabilityCardProps) {
   const [isDragOver, setIsDragOver] = useState(false);
+  const canAcceptLink = capability._links?.['x-create-link'] !== undefined;
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!canAcceptLink) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setIsDragOver(true);
@@ -23,6 +25,7 @@ export function EnterpriseCapabilityCard({ capability, onDrop }: EnterpriseCapab
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!canAcceptLink) return;
     e.preventDefault();
     setIsDragOver(false);
 

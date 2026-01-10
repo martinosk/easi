@@ -11,6 +11,7 @@ import (
 
 	"easi/backend/internal/releases/domain/aggregates"
 	"easi/backend/internal/releases/domain/valueobjects"
+	"easi/backend/internal/shared/types"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -216,7 +217,7 @@ func TestGetAll_ReturnsAllReleasesAsCollection(t *testing.T) {
 
 	var response struct {
 		Data  []ReleaseResponse `json:"data"`
-		Links map[string]string `json:"_links"`
+		Links types.Links       `json:"_links"`
 	}
 	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
@@ -226,8 +227,8 @@ func TestGetAll_ReturnsAllReleasesAsCollection(t *testing.T) {
 		t.Errorf("GetAll() returned %d releases, want 3", len(response.Data))
 	}
 
-	if response.Links["self"] != "/api/v1/releases" {
-		t.Errorf("Response._links.self = %q, want %q", response.Links["self"], "/api/v1/releases")
+	if response.Links["self"].Href != "/api/v1/releases" {
+		t.Errorf("Response._links.self.href = %q, want %q", response.Links["self"].Href, "/api/v1/releases")
 	}
 }
 

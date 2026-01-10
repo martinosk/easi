@@ -8,6 +8,7 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/types"
 )
 
 type MaturityDistributionDTO struct {
@@ -30,7 +31,7 @@ type MaturityAnalysisCandidateDTO struct {
 	AverageMaturity          int                     `json:"averageMaturity"`
 	MaxGap                   int                     `json:"maxGap"`
 	MaturityDistribution     MaturityDistributionDTO `json:"maturityDistribution"`
-	Links                    map[string]string       `json:"_links,omitempty"`
+	Links                    types.Links             `json:"_links,omitempty"`
 }
 
 type MaturityAnalysisSummaryDTO struct {
@@ -65,17 +66,17 @@ type MaturityGapDetailDTO struct {
 	TargetMaturitySection    string                  `json:"targetMaturitySection,omitempty"`
 	Implementations          []ImplementationDetailDTO `json:"implementations"`
 	InvestmentPriorities     InvestmentPrioritiesDTO `json:"investmentPriorities"`
-	Links                    map[string]string       `json:"_links,omitempty"`
+	Links                    types.Links             `json:"_links,omitempty"`
 }
 
 type UnlinkedCapabilityDTO struct {
-	CapabilityID       string            `json:"capabilityId"`
-	CapabilityName     string            `json:"capabilityName"`
-	BusinessDomainID   string            `json:"businessDomainId,omitempty"`
-	BusinessDomainName string            `json:"businessDomainName,omitempty"`
-	MaturityValue      int               `json:"maturityValue"`
-	MaturitySection    string            `json:"maturitySection"`
-	Links              map[string]string `json:"_links,omitempty"`
+	CapabilityID       string      `json:"capabilityId"`
+	CapabilityName     string      `json:"capabilityName"`
+	BusinessDomainID   string      `json:"businessDomainId,omitempty"`
+	BusinessDomainName string      `json:"businessDomainName,omitempty"`
+	MaturityValue      int         `json:"maturityValue"`
+	MaturitySection    string      `json:"maturitySection"`
+	Links              types.Links `json:"_links,omitempty"`
 }
 
 type MaturityAnalysisReadModel struct {

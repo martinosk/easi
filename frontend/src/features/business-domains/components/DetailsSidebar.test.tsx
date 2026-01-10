@@ -27,7 +27,7 @@ const mockCapability: Capability = {
   level: 'L1',
   description: 'Manage financial operations',
   createdAt: '2024-01-01',
-  _links: { self: '/api/v1/capabilities/cap-1' },
+  _links: { self: { href: '/api/v1/capabilities/cap-1', method: 'GET' as const } },
 };
 
 const mockComponent = {
@@ -35,7 +35,7 @@ const mockComponent = {
   name: 'SAP Finance',
   description: 'Financial system',
   createdAt: '2024-01-01T00:00:00Z',
-  _links: { self: '/api/v1/components/comp-1' },
+  _links: { self: { href: '/api/v1/components/comp-1', method: 'GET' as const }, edit: { href: '/api/v1/components/comp-1', method: 'PUT' as const } },
 };
 
 const createMockStore = (overrides: Record<string, unknown> = {}) => ({

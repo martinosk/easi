@@ -227,8 +227,8 @@ func (h *TenantHandlers) ListTenants(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	sharedAPI.RespondCollection(w, http.StatusOK, items, map[string]string{
-		"self": "/api/v1/platform/tenants",
+	sharedAPI.RespondCollection(w, http.StatusOK, items, sharedAPI.Links{
+		"self": sharedAPI.NewLink("/api/v1/platform/tenants", "GET"),
 	})
 }
 

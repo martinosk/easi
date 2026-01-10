@@ -137,8 +137,8 @@ func (h *DependencyHandlers) GetAllDependencies(w http.ResponseWriter, r *http.R
 		dependencies[i].Links = h.hateoas.DependencyLinks(dependencies[i].ID, dependencies[i].SourceCapabilityID, dependencies[i].TargetCapabilityID)
 	}
 
-	links := map[string]string{
-		"self": "/api/v1/capability-dependencies",
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink("/api/v1/capability-dependencies", "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, dependencies, links)
@@ -166,9 +166,9 @@ func (h *DependencyHandlers) GetOutgoingDependencies(w http.ResponseWriter, r *h
 		dependencies[i].Links = h.hateoas.DependencyLinks(dependencies[i].ID, dependencies[i].SourceCapabilityID, dependencies[i].TargetCapabilityID)
 	}
 
-	links := map[string]string{
-		"self":       "/api/v1/capabilities/" + capabilityID + "/dependencies/outgoing",
-		"capability": "/api/v1/capabilities/" + capabilityID,
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink("/api/v1/capabilities/"+capabilityID+"/dependencies/outgoing", "GET"),
+		"up":   sharedAPI.NewLink("/api/v1/capabilities/"+capabilityID, "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, dependencies, links)
@@ -196,9 +196,9 @@ func (h *DependencyHandlers) GetIncomingDependencies(w http.ResponseWriter, r *h
 		dependencies[i].Links = h.hateoas.DependencyLinks(dependencies[i].ID, dependencies[i].SourceCapabilityID, dependencies[i].TargetCapabilityID)
 	}
 
-	links := map[string]string{
-		"self":       "/api/v1/capabilities/" + capabilityID + "/dependencies/incoming",
-		"capability": "/api/v1/capabilities/" + capabilityID,
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink("/api/v1/capabilities/"+capabilityID+"/dependencies/incoming", "GET"),
+		"up":   sharedAPI.NewLink("/api/v1/capabilities/"+capabilityID, "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, dependencies, links)

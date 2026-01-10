@@ -12,7 +12,6 @@ interface EnterpriseArchContentProps {
   capabilities: EnterpriseCapability[];
   selectedCapability: EnterpriseCapability | null;
   canWrite: boolean;
-  canDelete: boolean;
   onSelect: (capability: EnterpriseCapability) => void;
   onDelete: (capability: EnterpriseCapability) => void;
   onCreateNew: () => void;
@@ -30,7 +29,6 @@ export const EnterpriseArchContent = React.memo<EnterpriseArchContentProps>(({
   capabilities,
   selectedCapability,
   canWrite,
-  canDelete,
   onSelect,
   onDelete,
   onCreateNew,
@@ -75,7 +73,6 @@ export const EnterpriseArchContent = React.memo<EnterpriseArchContentProps>(({
           selectedId={selectedCapability?.id}
           onSelect={onSelect}
           onDelete={onDelete}
-          canDelete={canDelete}
           isDockPanelOpen={isDockPanelOpen}
           onLinkCapability={onLinkCapability}
         />
@@ -83,7 +80,6 @@ export const EnterpriseArchContent = React.memo<EnterpriseArchContentProps>(({
       {selectedCapability && (
         <EnterpriseCapabilityDetailPanel
           capability={selectedCapability}
-          canWrite={canWrite}
           onClose={() => onSelect(selectedCapability)}
         />
       )}

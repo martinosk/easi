@@ -7,18 +7,19 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/types"
 )
 
 type AssignmentDTO struct {
-	AssignmentID          string            `json:"assignmentId"`
-	BusinessDomainID      string            `json:"businessDomainId"`
-	BusinessDomainName    string            `json:"businessDomainName"`
-	CapabilityID          string            `json:"capabilityId"`
-	CapabilityName        string            `json:"capabilityName"`
-	CapabilityDescription string            `json:"capabilityDescription"`
-	CapabilityLevel       string            `json:"capabilityLevel"`
-	AssignedAt            time.Time         `json:"assignedAt"`
-	Links                 map[string]string `json:"_links,omitempty"`
+	AssignmentID          string      `json:"assignmentId"`
+	BusinessDomainID      string      `json:"businessDomainId"`
+	BusinessDomainName    string      `json:"businessDomainName"`
+	CapabilityID          string      `json:"capabilityId"`
+	CapabilityName        string      `json:"capabilityName"`
+	CapabilityDescription string      `json:"capabilityDescription"`
+	CapabilityLevel       string      `json:"capabilityLevel"`
+	AssignedAt            time.Time   `json:"assignedAt"`
+	Links                 types.Links `json:"_links,omitempty"`
 }
 
 type DomainCapabilityAssignmentReadModel struct {

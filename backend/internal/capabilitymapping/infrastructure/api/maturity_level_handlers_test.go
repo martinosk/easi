@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"easi/backend/internal/capabilitymapping/infrastructure/metamodel"
+	"easi/backend/internal/shared/types"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,7 +37,7 @@ func TestGetMaturityLevels_ReturnsAllLevels(t *testing.T) {
 
 	var response struct {
 		Data  []MaturityLevelDTO `json:"data"`
-		Links map[string]string  `json:"_links"`
+		Links types.Links  `json:"_links"`
 	}
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
@@ -54,7 +55,7 @@ func TestGetMaturityLevels_HasCorrectValues(t *testing.T) {
 
 	var response struct {
 		Data  []MaturityLevelDTO `json:"data"`
-		Links map[string]string  `json:"_links"`
+		Links types.Links  `json:"_links"`
 	}
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
@@ -89,14 +90,14 @@ func TestGetMaturityLevels_IncludesLinks(t *testing.T) {
 
 	var response struct {
 		Data  []MaturityLevelDTO `json:"data"`
-		Links map[string]string  `json:"_links"`
+		Links types.Links  `json:"_links"`
 	}
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
 
 	assert.NotNil(t, response.Links)
-	assert.Equal(t, "/api/v1/capabilities/metadata/maturity-levels", response.Links["self"])
-	assert.Equal(t, "/api/v1/meta-model/maturity-scale", response.Links["configureAt"])
+	assert.Equal(t, "/api/v1/capabilities/metadata/maturity-levels", response.Links["self"].Href)
+	assert.Equal(t, "/api/v1/meta-model/maturity-scale", response.Links["x-configure-at"].Href)
 }
 
 func TestGetMaturityLevels_ReturnsCorrectContentType(t *testing.T) {
@@ -215,7 +216,7 @@ func TestGetStatuses_ReturnsAllStatuses(t *testing.T) {
 
 	var response struct {
 		Data  []StatusDTO       `json:"data"`
-		Links map[string]string `json:"_links"`
+		Links types.Links `json:"_links"`
 	}
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
@@ -238,7 +239,7 @@ func TestGetStatuses_ReturnsAllStatuses(t *testing.T) {
 		assert.Equal(t, expected.sortOrder, response.Data[i].SortOrder)
 	}
 
-	assert.Equal(t, "/api/v1/capabilities/metadata/statuses", response.Links["self"])
+	assert.Equal(t, "/api/v1/capabilities/metadata/statuses", response.Links["self"].Href)
 }
 
 func TestGetStatuses_IncludesCacheHeaders(t *testing.T) {
@@ -265,7 +266,7 @@ func TestGetOwnershipModels_ReturnsAllModels(t *testing.T) {
 
 	var response struct {
 		Data  []OwnershipModelDTO `json:"data"`
-		Links map[string]string   `json:"_links"`
+		Links types.Links   `json:"_links"`
 	}
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
@@ -287,7 +288,7 @@ func TestGetOwnershipModels_ReturnsAllModels(t *testing.T) {
 		assert.Equal(t, expected.displayName, response.Data[i].DisplayName)
 	}
 
-	assert.Equal(t, "/api/v1/capabilities/metadata/ownership-models", response.Links["self"])
+	assert.Equal(t, "/api/v1/capabilities/metadata/ownership-models", response.Links["self"].Href)
 }
 
 func TestGetMetadataIndex_ReturnsAllLinks(t *testing.T) {
@@ -304,8 +305,8 @@ func TestGetMetadataIndex_ReturnsAllLinks(t *testing.T) {
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
 
-	assert.Equal(t, "/api/v1/capabilities/metadata", response.Links["self"])
-	assert.Equal(t, "/api/v1/capabilities/metadata/maturity-levels", response.Links["maturityLevels"])
-	assert.Equal(t, "/api/v1/capabilities/metadata/statuses", response.Links["statuses"])
-	assert.Equal(t, "/api/v1/capabilities/metadata/ownership-models", response.Links["ownershipModels"])
+	assert.Equal(t, "/api/v1/capabilities/metadata", response.Links["self"].Href)
+	assert.Equal(t, "/api/v1/capabilities/metadata/maturity-levels", response.Links["x-maturity-levels"].Href)
+	assert.Equal(t, "/api/v1/capabilities/metadata/statuses", response.Links["x-statuses"].Href)
+	assert.Equal(t, "/api/v1/capabilities/metadata/ownership-models", response.Links["x-ownership-models"].Href)
 }

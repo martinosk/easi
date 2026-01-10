@@ -9,6 +9,7 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/types"
 )
 
 type MaturitySectionDTO struct {
@@ -37,7 +38,7 @@ type CapabilityDTO struct {
 	Experts         []ExpertDTO         `json:"experts,omitempty"`
 	Tags            []string            `json:"tags,omitempty"`
 	CreatedAt       time.Time           `json:"createdAt"`
-	Links           map[string]string   `json:"_links,omitempty"`
+	Links           types.Links         `json:"_links,omitempty"`
 }
 
 type ExpertDTO struct {

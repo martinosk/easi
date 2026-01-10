@@ -256,12 +256,18 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
     'Unknown';
   const maturityDisplay = `${sectionName} (${effectiveMaturityValue})`;
 
+  const canEdit = capability._links?.edit !== undefined;
+  const canRemoveFromView = capabilityInView?._links?.['x-remove'] !== undefined;
+  const showActionButtons = canEdit || canRemoveFromView;
+
   return (
     <div className="detail-content">
-      <div className="detail-actions">
-        <button className="btn btn-secondary btn-small" onClick={onEdit}>Edit</button>
-        <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>Remove from View</button>
-      </div>
+      {showActionButtons && (
+        <div className="detail-actions">
+          {canEdit && <button className="btn btn-secondary btn-small" onClick={onEdit}>Edit</button>}
+          {canRemoveFromView && <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>Remove from View</button>}
+        </div>
+      )}
 
       <DetailField label="Name">{capability.name}</DetailField>
       <DetailField label="Level"><span className="level-badge">{capability.level}</span></DetailField>

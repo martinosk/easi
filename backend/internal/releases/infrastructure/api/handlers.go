@@ -75,7 +75,7 @@ func (h *ReleaseHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		responses = append(responses, toReleaseResponse(release))
 	}
 
-	sharedAPI.RespondCollection(w, http.StatusOK, responses, map[string]string{
-		"self": "/api/v1/releases",
+	sharedAPI.RespondCollection(w, http.StatusOK, responses, sharedAPI.Links{
+		"self": sharedAPI.NewLink("/api/v1/releases", "GET"),
 	})
 }

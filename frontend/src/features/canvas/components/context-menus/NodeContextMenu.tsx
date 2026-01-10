@@ -3,6 +3,7 @@ import { useCurrentView } from '../../../../hooks/useCurrentView';
 import { useRemoveComponentFromView, useRemoveCapabilityFromView } from '../../../views/hooks/useViews';
 import type { NodeContextMenu as NodeContextMenuType } from '../../hooks/useContextMenu';
 import type { CapabilityId, ComponentId } from '../../../../api/types';
+import { hasLink } from '../../../../utils/hateoas';
 
 interface NodeContextMenuProps {
   menu: NodeContextMenuType | null;
@@ -21,10 +22,15 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete }: NodeContextM
 
   if (!menu) return null;
 
+  const canRemoveFromView = hasLink({ _links: menu.viewElementLinks }, 'x-remove');
+  const canDeleteFromModel = hasLink({ _links: menu.modelLinks }, 'delete');
+
   const getContextMenuItems = (): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = [];
+
     if (menu.nodeType === 'capability') {
-      return [
-        {
+      if (canRemoveFromView) {
+        items.push({
           label: 'Remove from View',
           onClick: () => {
             if (currentViewId) {
@@ -35,8 +41,11 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete }: NodeContextM
             }
             onClose();
           },
-        },
-        {
+        });
+      }
+
+      if (canDeleteFromModel) {
+        items.push({
           label: 'Delete from Model',
           onClick: () => {
             onRequestDelete({
@@ -48,12 +57,14 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete }: NodeContextM
           },
           isDanger: true,
           ariaLabel: 'Delete capability from entire model',
-        },
-      ];
+        });
+      }
+
+      return items;
     }
 
-    return [
-      {
+    if (canRemoveFromView) {
+      items.push({
         label: 'Remove from View',
         onClick: () => {
           if (currentViewId) {
@@ -64,8 +75,11 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete }: NodeContextM
           }
           onClose();
         },
-      },
-      {
+      });
+    }
+
+    if (canDeleteFromModel) {
+      items.push({
         label: 'Delete from Model',
         onClick: () => {
           onRequestDelete({
@@ -77,15 +91,20 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete }: NodeContextM
         },
         isDanger: true,
         ariaLabel: 'Delete component from entire model',
-      },
-    ];
+      });
+    }
+
+    return items;
   };
+
+  const items = getContextMenuItems();
+  if (items.length === 0) return null;
 
   return (
     <ContextMenu
       x={menu.x}
       y={menu.y}
-      items={getContextMenuItems()}
+      items={items}
       onClose={onClose}
     />
   );

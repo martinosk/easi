@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"easi/backend/internal/shared/types"
 )
 
 const DefaultPageSize = 50
@@ -39,9 +41,9 @@ type PaginationInfo struct {
 
 // PaginatedResponse wraps data with pagination info and HATEOAS links
 type PaginatedResponse struct {
-	Data       interface{}       `json:"data"`
-	Pagination PaginationInfo    `json:"pagination"`
-	Links      map[string]string `json:"_links"`
+	Data       interface{}      `json:"data"`
+	Pagination PaginationInfo   `json:"pagination"`
+	Links      types.Links      `json:"_links"`
 }
 
 // ParsePaginationParams extracts pagination parameters from the request
@@ -132,12 +134,15 @@ type PaginatedResponseParams struct {
 }
 
 func RespondPaginated(w http.ResponseWriter, params PaginatedResponseParams) {
-	links := map[string]string{
-		"self": params.SelfLink,
+	links := types.Links{
+		"self": types.Link{Href: params.SelfLink, Method: "GET"},
 	}
 
 	if params.NextCursor != "" && params.HasMore {
-		links["next"] = params.BaseLink + "?after=" + params.NextCursor + "&limit=" + strconv.Itoa(params.Limit)
+		links["next"] = types.Link{
+			Href:   params.BaseLink + "?after=" + params.NextCursor + "&limit=" + strconv.Itoa(params.Limit),
+			Method: "GET",
+		}
 	}
 
 	response := PaginatedResponse{

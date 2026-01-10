@@ -24,7 +24,7 @@ const mockCapability: Capability = {
   level: 'L2',
   maturityLevel: 'Product',
   createdAt: '2024-01-01T00:00:00Z',
-  _links: { self: '/api/v1/capabilities/cap-1' },
+  _links: { self: { href: '/api/v1/capabilities/cap-1', method: 'GET' as const } },
 };
 
 const createMockView = (colorScheme: string, customColor?: string): View => ({
@@ -37,7 +37,7 @@ const createMockView = (colorScheme: string, customColor?: string): View => ({
   ],
   colorScheme,
   createdAt: '2024-01-01T00:00:00Z',
-  _links: { self: '/api/v1/views/view-1' },
+  _links: { self: { href: '/api/v1/views/view-1', method: 'GET' as const } },
 });
 
 const createMockStore = () => ({
@@ -266,7 +266,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
         capabilities: [],
         colorScheme: 'custom',
         createdAt: '2024-01-01T00:00:00Z',
-        _links: { self: '/api/v1/views/view-1' },
+        _links: { self: { href: '/api/v1/views/view-1', method: 'GET' as const } },
       };
       renderCapabilityDetails(mockView);
 

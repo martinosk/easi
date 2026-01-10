@@ -7,22 +7,23 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/types"
 )
 
 type StrategyImportanceDTO struct {
-	ID                 string            `json:"id"`
-	BusinessDomainID   string            `json:"businessDomainId"`
-	BusinessDomainName string            `json:"businessDomainName"`
-	CapabilityID       string            `json:"capabilityId"`
-	CapabilityName     string            `json:"capabilityName"`
-	PillarID           string            `json:"pillarId"`
-	PillarName         string            `json:"pillarName"`
-	Importance         int               `json:"importance"`
-	ImportanceLabel    string            `json:"importanceLabel"`
-	Rationale          string            `json:"rationale,omitempty"`
-	SetAt              time.Time         `json:"setAt"`
-	UpdatedAt          *time.Time        `json:"updatedAt,omitempty"`
-	Links              map[string]string `json:"_links,omitempty"`
+	ID                 string      `json:"id"`
+	BusinessDomainID   string      `json:"businessDomainId"`
+	BusinessDomainName string      `json:"businessDomainName"`
+	CapabilityID       string      `json:"capabilityId"`
+	CapabilityName     string      `json:"capabilityName"`
+	PillarID           string      `json:"pillarId"`
+	PillarName         string      `json:"pillarName"`
+	Importance         int         `json:"importance"`
+	ImportanceLabel    string      `json:"importanceLabel"`
+	Rationale          string      `json:"rationale,omitempty"`
+	SetAt              time.Time   `json:"setAt"`
+	UpdatedAt          *time.Time  `json:"updatedAt,omitempty"`
+	Links              types.Links `json:"_links,omitempty"`
 }
 
 type StrategyImportanceReadModel struct {

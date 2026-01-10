@@ -3,6 +3,8 @@ import type { Node, Edge } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
 import type { ComponentId, CapabilityId, RelationId } from '../../../api/types';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
+import { useCurrentView } from '../../../hooks/useCurrentView';
+import { canEdit } from '../../../utils/hateoas';
 
 export const useCanvasSelection = () => {
   const selectNode = useAppStore((state) => state.selectNode);
@@ -10,6 +12,7 @@ export const useCanvasSelection = () => {
   const clearSelection = useAppStore((state) => state.clearSelection);
   const selectCapability = useAppStore((state) => state.selectCapability);
   const { updateComponentPosition, updateCapabilityPosition } = useCanvasLayoutContext();
+  const { currentView } = useCurrentView();
 
   const onNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
@@ -39,6 +42,9 @@ export const useCanvasSelection = () => {
 
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
+      if (!canEdit(currentView)) {
+        return;
+      }
       if (node.type === 'capability') {
         const capId = node.id.replace('cap-', '') as CapabilityId;
         updateCapabilityPosition(capId, node.position.x, node.position.y);
@@ -46,7 +52,7 @@ export const useCanvasSelection = () => {
         updateComponentPosition(node.id as ComponentId, node.position.x, node.position.y);
       }
     },
-    [updateComponentPosition, updateCapabilityPosition]
+    [updateComponentPosition, updateCapabilityPosition, currentView]
   );
 
   return {

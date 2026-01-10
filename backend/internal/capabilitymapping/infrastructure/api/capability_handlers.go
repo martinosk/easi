@@ -139,8 +139,8 @@ func (h *CapabilityHandlers) GetAllCapabilities(w http.ResponseWriter, r *http.R
 		capabilities[i].Links = h.hateoas.CapabilityLinks(capabilities[i].ID, capabilities[i].ParentID)
 	}
 
-	links := map[string]string{
-		"self": "/api/v1/capabilities",
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink(sharedAPI.BuildLink("/capabilities"), "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, capabilities, links)

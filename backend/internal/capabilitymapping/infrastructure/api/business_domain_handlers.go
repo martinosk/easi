@@ -9,6 +9,7 @@ import (
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/types"
 )
 
 type BusinessDomainReadModels struct {
@@ -51,27 +52,27 @@ type AssignCapabilityRequest struct {
 }
 
 type AssignmentResponse struct {
-	BusinessDomainID string            `json:"businessDomainId"`
-	CapabilityID     string            `json:"capabilityId"`
-	AssignedAt       string            `json:"assignedAt"`
-	Links            map[string]string `json:"_links"`
+	BusinessDomainID string      `json:"businessDomainId"`
+	CapabilityID     string      `json:"capabilityId"`
+	AssignedAt       string      `json:"assignedAt"`
+	Links            types.Links `json:"_links"`
 }
 
 type CapabilityInDomainDTO struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description,omitempty"`
-	Level       string            `json:"level"`
-	AssignedAt  string            `json:"assignedAt"`
-	Links       map[string]string `json:"_links"`
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Description string      `json:"description,omitempty"`
+	Level       string      `json:"level"`
+	AssignedAt  string      `json:"assignedAt"`
+	Links       types.Links `json:"_links"`
 }
 
 type DomainForCapabilityDTO struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description,omitempty"`
-	AssignedAt  string            `json:"assignedAt"`
-	Links       map[string]string `json:"_links"`
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Description string      `json:"description,omitempty"`
+	AssignedAt  string      `json:"assignedAt"`
+	Links       types.Links `json:"_links"`
 }
 
 // CreateBusinessDomain godoc
@@ -124,8 +125,8 @@ func (h *BusinessDomainHandlers) GetAllBusinessDomains(w http.ResponseWriter, r 
 		domains[i].Links = h.hateoas.BusinessDomainLinks(domains[i].ID, domains[i].CapabilityCount > 0)
 	}
 
-	links := map[string]string{
-		"self": "/api/v1/business-domains",
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink("/api/v1/business-domains", "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, domains, links)
@@ -290,9 +291,9 @@ func (h *BusinessDomainHandlers) GetCapabilitiesInDomain(w http.ResponseWriter, 
 		}
 	}
 
-	links := map[string]string{
-		"self":   fmt.Sprintf("/api/v1/business-domains/%s/capabilities", domainID),
-		"domain": fmt.Sprintf("/api/v1/business-domains/%s", domainID),
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink(fmt.Sprintf("/api/v1/business-domains/%s/capabilities", domainID), "GET"),
+		"up":   sharedAPI.NewLink(fmt.Sprintf("/api/v1/business-domains/%s", domainID), "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, capabilities, links)
@@ -435,9 +436,9 @@ func (h *BusinessDomainHandlers) GetDomainsForCapability(w http.ResponseWriter, 
 		}
 	}
 
-	links := map[string]string{
-		"self":       fmt.Sprintf("/api/v1/capabilities/%s/business-domains", capabilityID),
-		"capability": fmt.Sprintf("/api/v1/capabilities/%s", capabilityID),
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink(fmt.Sprintf("/api/v1/capabilities/%s/business-domains", capabilityID), "GET"),
+		"up":   sharedAPI.NewLink(fmt.Sprintf("/api/v1/capabilities/%s", capabilityID), "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, domains, links)
@@ -524,9 +525,9 @@ func (h *BusinessDomainHandlers) GetCapabilityRealizationsByDomain(w http.Respon
 		return
 	}
 
-	links := map[string]string{
-		"self":   fmt.Sprintf("/api/v1/business-domains/%s/capability-realizations?depth=%d", domainID, depth),
-		"domain": fmt.Sprintf("/api/v1/business-domains/%s", domainID),
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink(fmt.Sprintf("/api/v1/business-domains/%s/capability-realizations?depth=%d", domainID, depth), "GET"),
+		"up":   sharedAPI.NewLink(fmt.Sprintf("/api/v1/business-domains/%s", domainID), "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, h.toRealizationGroupDTOs(groups), links)

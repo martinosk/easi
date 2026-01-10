@@ -4,14 +4,12 @@ import { useEnterpriseCapabilityLinks, useUnlinkDomainCapability } from '../hook
 
 interface EnterpriseCapabilityDetailPanelProps {
   capability: EnterpriseCapability;
-  canWrite: boolean;
   onClose: () => void;
 }
 
 
 export function EnterpriseCapabilityDetailPanel({
   capability,
-  canWrite,
   onClose,
 }: EnterpriseCapabilityDetailPanelProps) {
   const { data: links, isLoading } = useEnterpriseCapabilityLinks(capability.id);
@@ -100,7 +98,7 @@ export function EnterpriseCapabilityDetailPanel({
                       <span className="link-name">
                         {link.domainCapabilityName || link.domainCapabilityId}
                       </span>
-                      {canWrite && (
+                      {link._links?.delete && (
                         <button
                           type="button"
                           className="btn btn-sm btn-ghost btn-danger"

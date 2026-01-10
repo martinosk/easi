@@ -8,6 +8,7 @@ import (
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/capabilitymapping/infrastructure/metamodel"
 	sharedAPI "easi/backend/internal/shared/api"
+	"easi/backend/internal/shared/types"
 )
 
 type MaturityLevelDTO struct {
@@ -29,7 +30,7 @@ type OwnershipModelDTO struct {
 }
 
 type MetadataIndexDTO struct {
-	Links map[string]string `json:"_links"`
+	Links types.Links `json:"_links"`
 }
 
 type MaturityScaleConfigProvider interface {
@@ -62,11 +63,11 @@ func (h *MaturityLevelHandlers) GetMetadataIndex(w http.ResponseWriter, r *http.
 	setCacheHeaders(w)
 
 	response := MetadataIndexDTO{
-		Links: map[string]string{
-			"self":            "/api/v1/capabilities/metadata",
-			"maturityLevels":  "/api/v1/capabilities/metadata/maturity-levels",
-			"statuses":        "/api/v1/capabilities/metadata/statuses",
-			"ownershipModels": "/api/v1/capabilities/metadata/ownership-models",
+		Links: types.Links{
+			"self":               types.Link{Href: "/api/v1/capabilities/metadata", Method: "GET"},
+			"x-maturity-levels":  types.Link{Href: "/api/v1/capabilities/metadata/maturity-levels", Method: "GET"},
+			"x-statuses":         types.Link{Href: "/api/v1/capabilities/metadata/statuses", Method: "GET"},
+			"x-ownership-models": types.Link{Href: "/api/v1/capabilities/metadata/ownership-models", Method: "GET"},
 		},
 	}
 
@@ -95,9 +96,9 @@ func (h *MaturityLevelHandlers) GetMaturityLevels(w http.ResponseWriter, r *http
 		})
 	}
 
-	links := map[string]string{
-		"self":        "/api/v1/capabilities/metadata/maturity-levels",
-		"configureAt": "/api/v1/meta-model/maturity-scale",
+	links := sharedAPI.Links{
+		"self":           sharedAPI.NewLink("/api/v1/capabilities/metadata/maturity-levels", "GET"),
+		"x-configure-at": sharedAPI.NewLink("/api/v1/meta-model/maturity-scale", "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, levels, links)
@@ -137,8 +138,8 @@ func (h *MaturityLevelHandlers) GetStatuses(w http.ResponseWriter, r *http.Reque
 		{Value: string(valueobjects.StatusDeprecated), DisplayName: "Deprecated", SortOrder: 3},
 	}
 
-	links := map[string]string{
-		"self": "/api/v1/capabilities/metadata/statuses",
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink("/api/v1/capabilities/metadata/statuses", "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, statuses, links)
@@ -161,8 +162,8 @@ func (h *MaturityLevelHandlers) GetOwnershipModels(w http.ResponseWriter, r *htt
 		{Value: string(valueobjects.OwnershipEnterpriseService), DisplayName: "Enterprise Service"},
 	}
 
-	links := map[string]string{
-		"self": "/api/v1/capabilities/metadata/ownership-models",
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink("/api/v1/capabilities/metadata/ownership-models", "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, models, links)

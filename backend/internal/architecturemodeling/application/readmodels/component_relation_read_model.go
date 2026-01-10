@@ -7,18 +7,19 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/types"
 )
 
 // ComponentRelationDTO represents the read model for component relations
 type ComponentRelationDTO struct {
-	ID                string            `json:"id"`
-	SourceComponentID string            `json:"sourceComponentId"`
-	TargetComponentID string            `json:"targetComponentId"`
-	RelationType      string            `json:"relationType"`
-	Name              string            `json:"name,omitempty"`
-	Description       string            `json:"description,omitempty"`
-	CreatedAt         time.Time         `json:"createdAt"`
-	Links             map[string]string `json:"_links,omitempty"`
+	ID                string      `json:"id"`
+	SourceComponentID string      `json:"sourceComponentId"`
+	TargetComponentID string      `json:"targetComponentId"`
+	RelationType      string      `json:"relationType"`
+	Name              string      `json:"name,omitempty"`
+	Description       string      `json:"description,omitempty"`
+	CreatedAt         time.Time   `json:"createdAt"`
+	Links             types.Links `json:"_links,omitempty"`
 }
 
 // ComponentRelationReadModel handles queries for component relations

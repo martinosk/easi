@@ -76,6 +76,7 @@ export const RealizationDetails: React.FC = () => {
   }
 
   const { realization, capability, component, formattedDate, isInherited } = data;
+  const canEdit = !isInherited && realization._links?.edit !== undefined;
 
   return (
     <div className="detail-panel">
@@ -84,7 +85,7 @@ export const RealizationDetails: React.FC = () => {
       </div>
 
       <div className="detail-content">
-        {!isInherited && (
+        {canEdit && (
           <div className="detail-actions">
             <button
               className="btn btn-secondary btn-small"

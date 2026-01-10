@@ -19,25 +19,23 @@ export interface Position {
   y: number;
 }
 
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+export interface HATEOASLink {
+  href: string;
+  method: HttpMethod;
+}
+
 export interface HATEOASLinks {
-  self?: string;
-  next?: string;
-  reference?: string;
-  update?: string;
-  delete?: string;
-  components?: string;
-  relations?: string;
-  views?: string;
-  addComponent?: string;
-  updatePosition?: string;
-  capabilities?: string;
-  collection?: string;
-  associate?: string;
-  dissociate?: string;
-  removeFromDomain?: string;
-  children?: string;
-  businessDomains?: string;
-  [key: string]: string | undefined;
+  self?: HATEOASLink;
+  edit?: HATEOASLink;
+  delete?: HATEOASLink;
+  create?: HATEOASLink;
+  collection?: HATEOASLink;
+  up?: HATEOASLink;
+  describedby?: HATEOASLink;
+  next?: HATEOASLink;
+  [key: string]: HATEOASLink | undefined;
 }
 
 export interface Component {
@@ -64,6 +62,7 @@ export interface ViewComponent {
   x: number;
   y: number;
   customColor?: string;
+  _links?: HATEOASLinks;
 }
 
 export interface ViewCapability {
@@ -71,6 +70,7 @@ export interface ViewCapability {
   x: number;
   y: number;
   customColor?: string;
+  _links?: HATEOASLinks;
 }
 
 export interface View {

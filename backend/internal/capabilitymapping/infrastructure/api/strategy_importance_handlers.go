@@ -7,6 +7,7 @@ import (
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/types"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -41,17 +42,17 @@ type UpdateStrategyImportanceRequest struct {
 }
 
 type StrategyImportanceResponse struct {
-	ID                 string            `json:"id"`
-	BusinessDomainID   string            `json:"businessDomainId"`
-	BusinessDomainName string            `json:"businessDomainName"`
-	CapabilityID       string            `json:"capabilityId"`
-	CapabilityName     string            `json:"capabilityName"`
-	PillarID           string            `json:"pillarId"`
-	PillarName         string            `json:"pillarName"`
-	Importance         int               `json:"importance"`
-	ImportanceLabel    string            `json:"importanceLabel"`
-	Rationale          string            `json:"rationale,omitempty"`
-	Links              map[string]string `json:"_links,omitempty"`
+	ID                 string      `json:"id"`
+	BusinessDomainID   string      `json:"businessDomainId"`
+	BusinessDomainName string      `json:"businessDomainName"`
+	CapabilityID       string      `json:"capabilityId"`
+	CapabilityName     string      `json:"capabilityName"`
+	PillarID           string      `json:"pillarId"`
+	PillarName         string      `json:"pillarName"`
+	Importance         int         `json:"importance"`
+	ImportanceLabel    string      `json:"importanceLabel"`
+	Rationale          string      `json:"rationale,omitempty"`
+	Links              types.Links `json:"_links,omitempty"`
 }
 
 // GetImportanceByDomainAndCapability godoc
@@ -245,7 +246,7 @@ func (h *StrategyImportanceHandlers) respondWithImportanceCollection(w http.Resp
 	}
 
 	data := h.buildImportanceResponses(ratings, domainID)
-	links := map[string]string{"self": selfLink}
+	links := sharedAPI.Links{"self": sharedAPI.NewLink(selfLink, "GET")}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, data, links)
 }
@@ -267,11 +268,7 @@ func (h *StrategyImportanceHandlers) buildImportanceResponse(dto readmodels.Stra
 		Importance:         dto.Importance,
 		ImportanceLabel:    dto.ImportanceLabel,
 		Rationale:          dto.Rationale,
-		Links: map[string]string{
-			"self":       "/api/v1/business-domains/" + effectiveDomainID + "/capabilities/" + dto.CapabilityID + "/importance/" + dto.ID,
-			"capability": "/api/v1/capabilities/" + dto.CapabilityID,
-			"domain":     "/api/v1/business-domains/" + effectiveDomainID,
-		},
+		Links:              h.hateoas.StrategyImportanceLinks(effectiveDomainID, dto.CapabilityID, dto.ID),
 	}
 }
 

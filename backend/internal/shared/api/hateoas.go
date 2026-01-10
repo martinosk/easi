@@ -1,66 +1,66 @@
 package api
 
-import "fmt"
+import "easi/backend/internal/shared/types"
 
-// HATEOASLinks generates common HATEOAS links
+type Links = types.Links
+
 type HATEOASLinks struct {
-	baseURL string
+	base string
 }
 
-// NewHATEOASLinks creates a new HATEOAS link generator
 func NewHATEOASLinks(baseURL string) *HATEOASLinks {
 	if baseURL == "" {
-		baseURL = "/api/v1"
+		baseURL = APIVersionPrefix
 	}
-	return &HATEOASLinks{baseURL: baseURL}
+	return &HATEOASLinks{base: baseURL}
 }
 
-// ComponentLinks generates links for a component resource
-func (h *HATEOASLinks) ComponentLinks(componentID string) map[string]string {
-	return map[string]string{
-		"self":       fmt.Sprintf("%s/components/%s", h.baseURL, componentID),
-		"delete":     fmt.Sprintf("%s/components/%s", h.baseURL, componentID),
-		"reference":  h.ReferenceDocLink("components"),
-		"collection": fmt.Sprintf("%s/components", h.baseURL),
-	}
+func (h *HATEOASLinks) l(href, method string) types.Link {
+	return types.Link{Href: href, Method: method}
 }
 
-// RelationLinks generates links for a relation resource
-func (h *HATEOASLinks) RelationLinks(relationID string) map[string]string {
-	return map[string]string{
-		"self":       fmt.Sprintf("%s/relations/%s", h.baseURL, relationID),
-		"delete":     fmt.Sprintf("%s/relations/%s", h.baseURL, relationID),
-		"reference":  h.ReferenceDocLink("relations/generic"),
-		"collection": fmt.Sprintf("%s/relations", h.baseURL),
-	}
+func (h *HATEOASLinks) get(path string) types.Link  { return h.l(h.base+path, "GET") }
+func (h *HATEOASLinks) put(path string) types.Link  { return h.l(h.base+path, "PUT") }
+func (h *HATEOASLinks) post(path string) types.Link { return h.l(h.base+path, "POST") }
+func (h *HATEOASLinks) del(path string) types.Link  { return h.l(h.base+path, "DELETE") }
+func (h *HATEOASLinks) patch(path string) types.Link { return h.l(h.base+path, "PATCH") }
+
+func (h *HATEOASLinks) crud(path string) Links {
+	return Links{"self": h.get(path), "edit": h.put(path), "delete": h.del(path)}
 }
 
-// RelationTypeLinks generates reference documentation links for relation types
-func (h *HATEOASLinks) RelationTypeLinks(relationType string) map[string]string {
-	links := make(map[string]string)
-
-	switch relationType {
-	case "Triggers":
-		links["reference"] = h.ReferenceDocLink("relations/triggering")
-	case "Serves":
-		links["reference"] = h.ReferenceDocLink("relations/serving")
-	default:
-		links["reference"] = h.ReferenceDocLink("relations/generic")
-	}
-
+func (h *HATEOASLinks) ComponentLinks(id string) Links {
+	links := h.crud("/components/" + id)
+	links["describedby"] = h.get("/reference/components")
+	links["collection"] = h.get("/components")
 	return links
 }
 
-// ViewLinks generates links for a view resource (deprecated: use ViewLinksWithPermissions)
-func (h *HATEOASLinks) ViewLinks(viewID string) map[string]string {
-	return map[string]string{
-		"self":       fmt.Sprintf("%s/views/%s", h.baseURL, viewID),
-		"components": fmt.Sprintf("%s/views/%s/components", h.baseURL, viewID),
-		"collection": fmt.Sprintf("%s/views", h.baseURL),
+func (h *HATEOASLinks) RelationLinks(id string) Links {
+	links := h.crud("/relations/" + id)
+	links["describedby"] = h.get("/reference/relations/generic")
+	links["collection"] = h.get("/relations")
+	return links
+}
+
+func (h *HATEOASLinks) RelationTypeLinks(relationType string) Links {
+	doc := "relations/generic"
+	if relationType == "Triggers" {
+		doc = "relations/triggering"
+	} else if relationType == "Serves" {
+		doc = "relations/serving"
+	}
+	return Links{"describedby": h.get("/reference/" + doc)}
+}
+
+func (h *HATEOASLinks) ViewLinks(id string) Links {
+	return Links{
+		"self":         h.get("/views/" + id),
+		"x-components": h.get("/views/" + id + "/components"),
+		"collection":   h.get("/views"),
 	}
 }
 
-// ViewPermissions contains the permission context for generating view links
 type ViewPermissions struct {
 	IsPrivate   bool
 	IsDefault   bool
@@ -68,236 +68,250 @@ type ViewPermissions struct {
 	CurrentUser string
 }
 
-// ViewLinksWithPermissions generates links for a view resource with permission-based actions
-func (h *HATEOASLinks) ViewLinksWithPermissions(viewID string, perms ViewPermissions) map[string]string {
-	links := map[string]string{
-		"self":       fmt.Sprintf("%s/views/%s", h.baseURL, viewID),
-		"components": fmt.Sprintf("%s/views/%s/components", h.baseURL, viewID),
-		"collection": fmt.Sprintf("%s/views", h.baseURL),
+func (h *HATEOASLinks) ViewLinksWithPermissions(id string, p ViewPermissions) Links {
+	links := Links{
+		"self":         h.get("/views/" + id),
+		"x-components": h.get("/views/" + id + "/components"),
+		"collection":   h.get("/views"),
 	}
-
-	isOwner := perms.OwnerUserID != nil && *perms.OwnerUserID == perms.CurrentUser
-	canEdit := !perms.IsPrivate || isOwner
-
-	if canEdit {
-		links["update"] = fmt.Sprintf("%s/views/%s/name", h.baseURL, viewID)
+	isOwner := p.OwnerUserID != nil && *p.OwnerUserID == p.CurrentUser
+	if canEdit := !p.IsPrivate || isOwner; canEdit {
+		links["edit"] = h.patch("/views/" + id + "/name")
+		links["x-change-visibility"] = h.patch("/views/" + id + "/visibility")
+		if !p.IsDefault {
+			links["delete"] = h.del("/views/" + id)
+		}
 	}
-
-	if canEdit && !perms.IsDefault {
-		links["delete"] = fmt.Sprintf("%s/views/%s", h.baseURL, viewID)
-	}
-
-	if canEdit {
-		links["changeVisibility"] = fmt.Sprintf("%s/views/%s/visibility", h.baseURL, viewID)
-	}
-
 	return links
 }
 
-func (h *HATEOASLinks) CapabilityLinks(capabilityID, parentID string) map[string]string {
-	links := h.buildCapabilityBaseLinks(capabilityID)
+func (h *HATEOASLinks) CapabilityLinks(id, parentID string) Links {
+	links := h.capabilityBase(id)
 	if parentID != "" {
-		links["parent"] = fmt.Sprintf("%s/capabilities/%s", h.baseURL, parentID)
+		links["up"] = h.get("/capabilities/" + parentID)
 	}
 	return links
 }
 
-func (h *HATEOASLinks) buildCapabilityBaseLinks(capabilityID string) map[string]string {
-	return map[string]string{
-		"self":                 fmt.Sprintf("%s/capabilities/%s", h.baseURL, capabilityID),
-		"children":             fmt.Sprintf("%s/capabilities/%s/children", h.baseURL, capabilityID),
-		"systems":              fmt.Sprintf("%s/capabilities/%s/systems", h.baseURL, capabilityID),
-		"outgoingDependencies": fmt.Sprintf("%s/capabilities/%s/dependencies/outgoing", h.baseURL, capabilityID),
-		"incomingDependencies": fmt.Sprintf("%s/capabilities/%s/dependencies/incoming", h.baseURL, capabilityID),
-		"collection":           fmt.Sprintf("%s/capabilities", h.baseURL),
+func (h *HATEOASLinks) capabilityBase(id string) Links {
+	p := "/capabilities/" + id
+	return Links{
+		"self": h.get(p), "edit": h.put(p), "delete": h.del(p),
+		"x-children":              h.get(p + "/children"),
+		"x-systems":               h.get(p + "/systems"),
+		"x-outgoing-dependencies": h.get(p + "/dependencies/outgoing"),
+		"x-incoming-dependencies": h.get(p + "/dependencies/incoming"),
+		"collection":              h.get("/capabilities"),
 	}
 }
 
-// DependencyLinks generates links for a capability dependency resource
-func (h *HATEOASLinks) DependencyLinks(dependencyID, sourceCapabilityID, targetCapabilityID string) map[string]string {
-	return map[string]string{
-		"self":             fmt.Sprintf("%s/capability-dependencies/%s", h.baseURL, dependencyID),
-		"sourceCapability": fmt.Sprintf("%s/capabilities/%s", h.baseURL, sourceCapabilityID),
-		"targetCapability": fmt.Sprintf("%s/capabilities/%s", h.baseURL, targetCapabilityID),
-		"delete":           fmt.Sprintf("%s/capability-dependencies/%s", h.baseURL, dependencyID),
-		"collection":       fmt.Sprintf("%s/capability-dependencies", h.baseURL),
+func (h *HATEOASLinks) DependencyLinks(id, srcCapID, tgtCapID string) Links {
+	p := "/capability-dependencies/" + id
+	return Links{
+		"self": h.get(p), "delete": h.del(p),
+		"x-source-capability": h.get("/capabilities/" + srcCapID),
+		"x-target-capability": h.get("/capabilities/" + tgtCapID),
+		"collection":          h.get("/capability-dependencies"),
 	}
 }
 
-// RealizationLinks generates links for a capability realization resource
-func (h *HATEOASLinks) RealizationLinks(realizationID, capabilityID, componentID string) map[string]string {
-	return map[string]string{
-		"self":       fmt.Sprintf("%s/capability-realizations/%s", h.baseURL, realizationID),
-		"capability": fmt.Sprintf("%s/capabilities/%s", h.baseURL, capabilityID),
-		"component":  fmt.Sprintf("%s/components/%s", h.baseURL, componentID),
-		"update":     fmt.Sprintf("%s/capability-realizations/%s", h.baseURL, realizationID),
-		"delete":     fmt.Sprintf("%s/capability-realizations/%s", h.baseURL, realizationID),
+func (h *HATEOASLinks) RealizationLinks(id, capID, compID string) Links {
+	p := "/capability-realizations/" + id
+	return Links{
+		"self": h.get(p), "edit": h.put(p), "delete": h.del(p),
+		"x-capability": h.get("/capabilities/" + capID),
+		"x-component":  h.get("/components/" + compID),
 	}
 }
 
-func (h *HATEOASLinks) BusinessDomainLinks(domainID string, hasCapabilities bool) map[string]string {
-	links := map[string]string{
-		"self":         fmt.Sprintf("%s/business-domains/%s", h.baseURL, domainID),
-		"capabilities": fmt.Sprintf("%s/business-domains/%s/capabilities", h.baseURL, domainID),
-		"update":       fmt.Sprintf("%s/business-domains/%s", h.baseURL, domainID),
-		"collection":   fmt.Sprintf("%s/business-domains", h.baseURL),
+func (h *HATEOASLinks) BusinessDomainLinks(id string, hasCaps bool) Links {
+	p := "/business-domains/" + id
+	links := Links{
+		"self": h.get(p), "edit": h.put(p),
+		"x-capabilities": h.get(p + "/capabilities"),
+		"collection":     h.get("/business-domains"),
 	}
-	if !hasCapabilities {
-		links["delete"] = fmt.Sprintf("%s/business-domains/%s", h.baseURL, domainID)
+	if !hasCaps {
+		links["delete"] = h.del(p)
 	}
 	return links
 }
 
-func (h *HATEOASLinks) CapabilityInDomainLinks(capabilityID, domainID string) map[string]string {
-	return map[string]string{
-		"self":             fmt.Sprintf("%s/capabilities/%s", h.baseURL, capabilityID),
-		"children":         fmt.Sprintf("%s/capabilities/%s/children", h.baseURL, capabilityID),
-		"businessDomains":  fmt.Sprintf("%s/capabilities/%s/business-domains", h.baseURL, capabilityID),
-		"removeFromDomain": fmt.Sprintf("%s/business-domains/%s/capabilities/%s", h.baseURL, domainID, capabilityID),
+func (h *HATEOASLinks) CapabilityInDomainLinks(capID, domID string) Links {
+	return Links{
+		"self":                 h.get("/capabilities/" + capID),
+		"x-children":           h.get("/capabilities/" + capID + "/children"),
+		"x-business-domains":   h.get("/capabilities/" + capID + "/business-domains"),
+		"x-remove-from-domain": h.del("/business-domains/" + domID + "/capabilities/" + capID),
 	}
 }
 
-func (h *HATEOASLinks) DomainForCapabilityLinks(domainID, capabilityID string) map[string]string {
-	return map[string]string{
-		"self":             fmt.Sprintf("%s/business-domains/%s", h.baseURL, domainID),
-		"capabilities":     fmt.Sprintf("%s/business-domains/%s/capabilities", h.baseURL, domainID),
-		"removeCapability": fmt.Sprintf("%s/business-domains/%s/capabilities/%s", h.baseURL, domainID, capabilityID),
+func (h *HATEOASLinks) DomainForCapabilityLinks(domID, capID string) Links {
+	p := "/business-domains/" + domID
+	return Links{
+		"self":                h.get(p),
+		"x-capabilities":      h.get(p + "/capabilities"),
+		"x-remove-capability": h.del(p + "/capabilities/" + capID),
 	}
 }
 
-func (h *HATEOASLinks) AssignmentLinks(domainID, capabilityID string) map[string]string {
-	return map[string]string{
-		"capability":     fmt.Sprintf("%s/capabilities/%s", h.baseURL, capabilityID),
-		"businessDomain": fmt.Sprintf("%s/business-domains/%s", h.baseURL, domainID),
-		"remove":         fmt.Sprintf("%s/business-domains/%s/capabilities/%s", h.baseURL, domainID, capabilityID),
+func (h *HATEOASLinks) AssignmentLinks(domID, capID string) Links {
+	return Links{
+		"x-capability":      h.get("/capabilities/" + capID),
+		"x-business-domain": h.get("/business-domains/" + domID),
+		"x-remove":          h.del("/business-domains/" + domID + "/capabilities/" + capID),
 	}
 }
 
-// ReferenceDocLink generates a link to reference documentation
 func (h *HATEOASLinks) ReferenceDocLink(resourceType string) string {
-	return fmt.Sprintf("%s/reference/%s", h.baseURL, resourceType)
+	return h.base + "/reference/" + resourceType
 }
 
-func (h *HATEOASLinks) buildMaturityLinks(selfURL string, isDefault bool) map[string]string {
-	links := map[string]string{
-		"self":           selfURL,
-		"update":         fmt.Sprintf("%s/meta-model/maturity-scale", h.baseURL),
-		"maturityLevels": fmt.Sprintf("%s/capabilities/metadata/maturity-levels", h.baseURL),
+func (h *HATEOASLinks) MaturityScaleLinks(isDefault bool) Links {
+	return h.maturityLinks("/meta-model/maturity-scale", isDefault)
+}
+
+func (h *HATEOASLinks) MetaModelConfigLinks(id string, isDefault bool) Links {
+	return h.maturityLinks("/meta-model/configurations/"+id, isDefault)
+}
+
+func (h *HATEOASLinks) maturityLinks(selfPath string, isDefault bool) Links {
+	links := Links{
+		"self":              h.get(selfPath),
+		"edit":              h.put("/meta-model/maturity-scale"),
+		"x-maturity-levels": h.get("/capabilities/metadata/maturity-levels"),
 	}
 	if !isDefault {
-		links["reset"] = fmt.Sprintf("%s/meta-model/maturity-scale/reset", h.baseURL)
+		links["x-reset"] = h.post("/meta-model/maturity-scale/reset")
 	}
 	return links
 }
 
-func (h *HATEOASLinks) MaturityScaleLinks(isDefault bool) map[string]string {
-	return h.buildMaturityLinks(fmt.Sprintf("%s/meta-model/maturity-scale", h.baseURL), isDefault)
-}
-
-func (h *HATEOASLinks) MetaModelConfigLinks(configID string, isDefault bool) map[string]string {
-	return h.buildMaturityLinks(fmt.Sprintf("%s/meta-model/configurations/%s", h.baseURL, configID), isDefault)
-}
-
-func (h *HATEOASLinks) StrategyPillarLinks(pillarID string, isActive bool) map[string]string {
-	links := map[string]string{
-		"self":       fmt.Sprintf("%s/meta-model/strategy-pillars/%s", h.baseURL, pillarID),
-		"collection": fmt.Sprintf("%s/meta-model/strategy-pillars", h.baseURL),
-	}
+func (h *HATEOASLinks) StrategyPillarLinks(id string, isActive bool) Links {
+	p := "/meta-model/strategy-pillars/" + id
+	links := Links{"self": h.get(p), "collection": h.get("/meta-model/strategy-pillars")}
 	if isActive {
-		links["update"] = fmt.Sprintf("%s/meta-model/strategy-pillars/%s", h.baseURL, pillarID)
-		links["delete"] = fmt.Sprintf("%s/meta-model/strategy-pillars/%s", h.baseURL, pillarID)
+		links["edit"] = h.put(p)
+		links["delete"] = h.del(p)
 	}
 	return links
 }
 
-func (h *HATEOASLinks) StrategyPillarsCollectionLinks() map[string]string {
-	return map[string]string{
-		"self":   fmt.Sprintf("%s/meta-model/strategy-pillars", h.baseURL),
-		"create": fmt.Sprintf("%s/meta-model/strategy-pillars", h.baseURL),
+func (h *HATEOASLinks) StrategyPillarsCollectionLinks() Links {
+	return Links{"self": h.get("/meta-model/strategy-pillars"), "create": h.post("/meta-model/strategy-pillars")}
+}
+
+func (h *HATEOASLinks) EnterpriseCapabilityLinks(id string) Links {
+	p := "/enterprise-capabilities/" + id
+	return Links{
+		"self": h.get(p), "edit": h.put(p), "delete": h.del(p),
+		"x-links":                h.get(p + "/links"),
+		"x-create-link":          h.post(p + "/links"),
+		"x-strategic-importance": h.get(p + "/strategic-importance"),
 	}
 }
 
-func (h *HATEOASLinks) EnterpriseCapabilityLinks(id string) map[string]string {
-	return map[string]string{
-		"self":                fmt.Sprintf("%s/enterprise-capabilities/%s", h.baseURL, id),
-		"links":               fmt.Sprintf("%s/enterprise-capabilities/%s/links", h.baseURL, id),
-		"strategicImportance": fmt.Sprintf("%s/enterprise-capabilities/%s/strategic-importance", h.baseURL, id),
+func (h *HATEOASLinks) EnterpriseCapabilityCollectionLinks() Links {
+	return Links{"self": h.get("/enterprise-capabilities")}
+}
+
+func (h *HATEOASLinks) EnterpriseCapabilityLinkLinks(ecID, linkID string) Links {
+	p := "/enterprise-capabilities/" + ecID + "/links/" + linkID
+	return Links{
+		"self": h.get(p), "delete": h.del(p),
+		"x-enterprise-capability": h.get("/enterprise-capabilities/" + ecID),
 	}
 }
 
-func (h *HATEOASLinks) EnterpriseCapabilityCollectionLinks() map[string]string {
-	return map[string]string{
-		"self": fmt.Sprintf("%s/enterprise-capabilities", h.baseURL),
+func (h *HATEOASLinks) EnterpriseCapabilityLinksCollectionLinks(ecID string) Links {
+	return Links{
+		"self":                    h.get("/enterprise-capabilities/" + ecID + "/links"),
+		"x-enterprise-capability": h.get("/enterprise-capabilities/" + ecID),
 	}
 }
 
-func (h *HATEOASLinks) EnterpriseCapabilityLinkLinks(enterpriseCapabilityID, linkID string) map[string]string {
-	return map[string]string{
-		"self":                 fmt.Sprintf("%s/enterprise-capabilities/%s/links/%s", h.baseURL, enterpriseCapabilityID, linkID),
-		"enterpriseCapability": fmt.Sprintf("%s/enterprise-capabilities/%s", h.baseURL, enterpriseCapabilityID),
+func (h *HATEOASLinks) EnterpriseStrategicImportanceLinks(ecID, impID string) Links {
+	p := "/enterprise-capabilities/" + ecID + "/strategic-importance/" + impID
+	return Links{
+		"self": h.get(p), "edit": h.put(p), "delete": h.del(p),
+		"x-enterprise-capability": h.get("/enterprise-capabilities/" + ecID),
 	}
 }
 
-func (h *HATEOASLinks) EnterpriseCapabilityLinksCollectionLinks(enterpriseCapabilityID string) map[string]string {
-	return map[string]string{
-		"self":                 fmt.Sprintf("%s/enterprise-capabilities/%s/links", h.baseURL, enterpriseCapabilityID),
-		"enterpriseCapability": fmt.Sprintf("%s/enterprise-capabilities/%s", h.baseURL, enterpriseCapabilityID),
+func (h *HATEOASLinks) EnterpriseStrategicImportanceCollectionLinks(ecID string) Links {
+	return Links{
+		"self":                    h.get("/enterprise-capabilities/" + ecID + "/strategic-importance"),
+		"x-enterprise-capability": h.get("/enterprise-capabilities/" + ecID),
 	}
 }
 
-func (h *HATEOASLinks) EnterpriseStrategicImportanceLinks(enterpriseCapabilityID, importanceID string) map[string]string {
-	return map[string]string{
-		"self":                 fmt.Sprintf("%s/enterprise-capabilities/%s/strategic-importance/%s", h.baseURL, enterpriseCapabilityID, importanceID),
-		"enterpriseCapability": fmt.Sprintf("%s/enterprise-capabilities/%s", h.baseURL, enterpriseCapabilityID),
+func (h *HATEOASLinks) DomainCapabilityEnterpriseLinks(dcID string) Links {
+	return Links{"self": h.get("/domain-capabilities/" + dcID + "/enterprise-capability")}
+}
+
+func (h *HATEOASLinks) DomainCapabilityEnterpriseLinkedLinks(dcID, ecID, linkID string) Links {
+	return Links{
+		"self":                    h.get("/domain-capabilities/" + dcID + "/enterprise-capability"),
+		"x-enterprise-capability": h.get("/enterprise-capabilities/" + ecID),
+		"x-unlink":                h.del("/enterprise-capabilities/" + ecID + "/links/" + linkID),
 	}
 }
 
-func (h *HATEOASLinks) EnterpriseStrategicImportanceCollectionLinks(enterpriseCapabilityID string) map[string]string {
-	return map[string]string{
-		"self":                 fmt.Sprintf("%s/enterprise-capabilities/%s/strategic-importance", h.baseURL, enterpriseCapabilityID),
-		"enterpriseCapability": fmt.Sprintf("%s/enterprise-capabilities/%s", h.baseURL, enterpriseCapabilityID),
+func (h *HATEOASLinks) AuditHistory(id string) string {
+	return h.base + "/audit/" + id
+}
+
+func (h *HATEOASLinks) StrategyImportanceLinks(domID, capID, impID string) Links {
+	p := "/business-domains/" + domID + "/capabilities/" + capID + "/importance/" + impID
+	return Links{
+		"self": h.get(p), "edit": h.put(p), "delete": h.del(p),
+		"x-capability": h.get("/capabilities/" + capID),
+		"x-domain":     h.get("/business-domains/" + domID),
 	}
 }
 
-func (h *HATEOASLinks) DomainCapabilityEnterpriseLinks(domainCapabilityID string) map[string]string {
-	return map[string]string{
-		"self": fmt.Sprintf("%s/domain-capabilities/%s/enterprise-capability", h.baseURL, domainCapabilityID),
-	}
-}
-
-func (h *HATEOASLinks) DomainCapabilityEnterpriseLinkedLinks(domainCapabilityID, enterpriseCapabilityID, linkID string) map[string]string {
-	return map[string]string{
-		"self":                 fmt.Sprintf("%s/domain-capabilities/%s/enterprise-capability", h.baseURL, domainCapabilityID),
-		"enterpriseCapability": fmt.Sprintf("%s/enterprise-capabilities/%s", h.baseURL, enterpriseCapabilityID),
-		"unlink":               fmt.Sprintf("%s/enterprise-capabilities/%s/links/%s", h.baseURL, enterpriseCapabilityID, linkID),
-	}
-}
-
-func (h *HATEOASLinks) AuditHistory(aggregateID string) string {
-	return fmt.Sprintf("%s/audit/%s", h.baseURL, aggregateID)
-}
-
-func (h *HATEOASLinks) CapabilityLinkStatusLinks(capabilityID string, status string, linkedToID *string, blockingCapabilityID *string, blockingEnterpriseCapID *string) map[string]string {
-	links := map[string]string{
-		"self": fmt.Sprintf("%s/domain-capabilities/%s/enterprise-link-status", h.baseURL, capabilityID),
-	}
-
+func (h *HATEOASLinks) CapabilityLinkStatusLinks(capID, status string, linkedToID, blockingCapID, blockingEcID *string) Links {
+	links := Links{"self": h.get("/domain-capabilities/" + capID + "/enterprise-link-status")}
 	if status == "available" {
-		links["availableEnterpriseCapabilities"] = fmt.Sprintf("%s/enterprise-capabilities", h.baseURL)
+		links["x-available-enterprise-capabilities"] = h.get("/enterprise-capabilities")
 	}
-
 	if linkedToID != nil {
-		links["linkedTo"] = fmt.Sprintf("%s/enterprise-capabilities/%s", h.baseURL, *linkedToID)
-		links["enterpriseCapability"] = fmt.Sprintf("%s/domain-capabilities/%s/enterprise-capability", h.baseURL, capabilityID)
+		links["x-linked-to"] = h.get("/enterprise-capabilities/" + *linkedToID)
+		links["x-enterprise-capability"] = h.get("/domain-capabilities/" + capID + "/enterprise-capability")
 	}
-
-	if blockingCapabilityID != nil {
-		links["blockingCapability"] = fmt.Sprintf("%s/capabilities/%s", h.baseURL, *blockingCapabilityID)
+	if blockingCapID != nil {
+		links["x-blocking-capability"] = h.get("/capabilities/" + *blockingCapID)
 	}
-
-	if blockingEnterpriseCapID != nil {
-		links["blockingEnterpriseCapability"] = fmt.Sprintf("%s/enterprise-capabilities/%s", h.baseURL, *blockingEnterpriseCapID)
+	if blockingEcID != nil {
+		links["x-blocking-enterprise-capability"] = h.get("/enterprise-capabilities/" + *blockingEcID)
 	}
-
 	return links
+}
+
+func (h *HATEOASLinks) MaturityAnalysisCandidateLinks(ecID string) Links {
+	return Links{
+		"self":           h.get("/enterprise-capabilities/" + ecID),
+		"x-maturity-gap": h.get("/enterprise-capabilities/" + ecID + "/maturity-gap"),
+	}
+}
+
+func (h *HATEOASLinks) MaturityAnalysisCollectionLinks() Links {
+	return Links{"self": h.get("/enterprise-capabilities/maturity-analysis")}
+}
+
+func (h *HATEOASLinks) MaturityGapDetailLinks(ecID string) Links {
+	p := "/enterprise-capabilities/" + ecID
+	return Links{
+		"self":                  h.get(p + "/maturity-gap"),
+		"up":                    h.get(p),
+		"x-set-target-maturity": h.put(p + "/target-maturity"),
+	}
+}
+
+func (h *HATEOASLinks) UnlinkedCapabilitiesLinks() Links {
+	return Links{"self": h.get("/domain-capabilities/unlinked")}
+}
+
+func NewLink(href, method string) types.Link {
+	return types.Link{Href: href, Method: method}
 }

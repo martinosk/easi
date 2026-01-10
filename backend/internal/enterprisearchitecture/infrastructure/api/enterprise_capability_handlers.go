@@ -9,6 +9,7 @@ import (
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/types"
 )
 
 type EnterpriseCapabilityReadModels struct {
@@ -70,12 +71,18 @@ type SetTargetMaturityRequest struct {
 	TargetMaturity int `json:"targetMaturity"`
 }
 
+type MaturityAnalysisResponse struct {
+	Summary readmodels.MaturityAnalysisSummaryDTO   `json:"summary"`
+	Data    []readmodels.MaturityAnalysisCandidateDTO `json:"data"`
+	Links   types.Links                             `json:"_links,omitempty"`
+}
+
 type DomainCapabilityEnterpriseResponse struct {
-	Linked                   bool              `json:"linked"`
-	EnterpriseCapabilityID   *string           `json:"enterpriseCapabilityId"`
-	EnterpriseCapabilityName *string           `json:"enterpriseCapabilityName,omitempty"`
-	LinkID                   *string           `json:"linkId,omitempty"`
-	Links                    map[string]string `json:"_links,omitempty"`
+	Linked                   bool        `json:"linked"`
+	EnterpriseCapabilityID   *string     `json:"enterpriseCapabilityId"`
+	EnterpriseCapabilityName *string     `json:"enterpriseCapabilityName,omitempty"`
+	LinkID                   *string     `json:"linkId,omitempty"`
+	Links                    types.Links `json:"_links,omitempty"`
 }
 
 // CreateEnterpriseCapability godoc
@@ -722,18 +729,13 @@ func (h *EnterpriseCapabilityHandlers) GetMaturityAnalysisCandidates(w http.Resp
 	}
 
 	for i := range candidates {
-		candidates[i].Links = map[string]string{
-			"self":        "/api/v1/enterprise-capabilities/" + candidates[i].EnterpriseCapabilityID,
-			"maturityGap": "/api/v1/enterprise-capabilities/" + candidates[i].EnterpriseCapabilityID + "/maturity-gap",
-		}
+		candidates[i].Links = h.hateoas.MaturityAnalysisCandidateLinks(candidates[i].EnterpriseCapabilityID)
 	}
 
-	response := map[string]interface{}{
-		"summary": summary,
-		"data":    candidates,
-		"_links": map[string]string{
-			"self": "/api/v1/enterprise-capabilities/maturity-analysis",
-		},
+	response := MaturityAnalysisResponse{
+		Summary: summary,
+		Data:    candidates,
+		Links:   h.hateoas.MaturityAnalysisCollectionLinks(),
 	}
 	sharedAPI.RespondJSON(w, http.StatusOK, response)
 }
@@ -762,10 +764,7 @@ func (h *EnterpriseCapabilityHandlers) GetMaturityGapDetail(w http.ResponseWrite
 		return
 	}
 
-	detail.Links = map[string]string{
-		"self":                 "/api/v1/enterprise-capabilities/" + enterpriseCapabilityID + "/maturity-gap",
-		"enterpriseCapability": "/api/v1/enterprise-capabilities/" + enterpriseCapabilityID,
-	}
+	detail.Links = h.hateoas.MaturityGapDetailLinks(enterpriseCapabilityID)
 
 	sharedAPI.RespondJSON(w, http.StatusOK, detail)
 }
@@ -790,12 +789,10 @@ func (h *EnterpriseCapabilityHandlers) GetUnlinkedCapabilities(w http.ResponseWr
 		return
 	}
 
-	response := map[string]interface{}{
-		"data":  capabilities,
-		"total": total,
-		"_links": map[string]string{
-			"self": "/api/v1/domain-capabilities/unlinked",
-		},
-	}
-	sharedAPI.RespondJSON(w, http.StatusOK, response)
+	sharedAPI.RespondCollectionWithTotal(w, sharedAPI.CollectionWithTotalParams{
+		Data:       capabilities,
+		Total:      total,
+		Links:      h.hateoas.UnlinkedCapabilitiesLinks(),
+		StatusCode: http.StatusOK,
+	})
 }

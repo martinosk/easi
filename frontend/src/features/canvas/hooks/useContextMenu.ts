@@ -4,7 +4,7 @@ import { useCurrentView } from '../../../hooks/useCurrentView';
 import { useCapabilities, useRealizationsForComponents } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useRelations } from '../../relations/hooks/useRelations';
-import type { Component, Capability, Relation, CapabilityRealization, ComponentId, CapabilityId } from '../../../api/types';
+import type { Component, Capability, Relation, CapabilityRealization, ComponentId, CapabilityId, HATEOASLinks } from '../../../api/types';
 
 export interface NodeContextMenu {
   x: number;
@@ -12,6 +12,8 @@ export interface NodeContextMenu {
   nodeId: string;
   nodeName: string;
   nodeType: 'component' | 'capability';
+  modelLinks?: HATEOASLinks;
+  viewElementLinks?: HATEOASLinks;
 }
 
 export interface EdgeContextMenu {
@@ -24,6 +26,7 @@ export interface EdgeContextMenu {
   capabilityId?: CapabilityId;
   componentId?: ComponentId;
   isInherited?: boolean;
+  _links?: HATEOASLinks;
 }
 
 interface MenuPosition {
@@ -41,7 +44,8 @@ interface EdgeLookupDependencies {
 function resolveCapabilityNode(
   node: Node,
   capabilities: Capability[],
-  position: MenuPosition
+  position: MenuPosition,
+  viewElementLinks?: HATEOASLinks
 ): NodeContextMenu | null {
   const capId = node.id.replace('cap-', '');
   const capability = capabilities.find((c) => c.id === capId);
@@ -52,13 +56,16 @@ function resolveCapabilityNode(
     nodeId: capId,
     nodeName: capability.name,
     nodeType: 'capability',
+    modelLinks: capability._links,
+    viewElementLinks,
   };
 }
 
 function resolveComponentNode(
   node: Node,
   components: Component[],
-  position: MenuPosition
+  position: MenuPosition,
+  viewElementLinks?: HATEOASLinks
 ): NodeContextMenu | null {
   const component = components.find((c) => c.id === node.id);
   if (!component) return null;
@@ -68,6 +75,8 @@ function resolveComponentNode(
     nodeId: node.id,
     nodeName: component.name,
     nodeType: 'component',
+    modelLinks: component._links,
+    viewElementLinks,
   };
 }
 
@@ -102,6 +111,7 @@ function resolveRealizationEdge(
     capabilityId: realization.capabilityId,
     componentId: realization.componentId,
     isInherited: realization.origin === 'Inherited',
+    _links: realization._links,
   };
 }
 
@@ -118,6 +128,7 @@ function resolveRelationEdge(
     edgeId: edge.id,
     edgeName: relation.name || relation.relationType,
     edgeType: 'relation',
+    _links: relation._links,
   };
 }
 
@@ -160,16 +171,21 @@ export const useContextMenu = () => {
       event.preventDefault();
       const position: MenuPosition = { x: event.clientX, y: event.clientY };
 
-      const menu =
-        node.type === 'capability'
-          ? resolveCapabilityNode(node, capabilities, position)
-          : resolveComponentNode(node, components, position);
+      let menu: NodeContextMenu | null = null;
+      if (node.type === 'capability') {
+        const capId = node.id.replace('cap-', '');
+        const viewElement = currentView?.capabilities.find((vc) => vc.capabilityId === capId);
+        menu = resolveCapabilityNode(node, capabilities, position, viewElement?._links);
+      } else {
+        const viewElement = currentView?.components.find((vc) => vc.componentId === node.id);
+        menu = resolveComponentNode(node, components, position, viewElement?._links);
+      }
 
       if (menu) {
         setNodeContextMenu(menu);
       }
     },
-    [components, capabilities]
+    [components, capabilities, currentView?.components, currentView?.capabilities]
   );
 
   const onEdgeContextMenu = useCallback(

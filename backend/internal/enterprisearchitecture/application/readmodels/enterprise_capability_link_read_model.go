@@ -9,19 +9,20 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/types"
 )
 
 type EnterpriseCapabilityLinkDTO struct {
-	ID                     string            `json:"id"`
-	EnterpriseCapabilityID string            `json:"enterpriseCapabilityId"`
-	DomainCapabilityID     string            `json:"domainCapabilityId"`
-	DomainCapabilityName   string            `json:"domainCapabilityName,omitempty"`
-	BusinessDomainID       string            `json:"businessDomainId,omitempty"`
-	BusinessDomainName     string            `json:"businessDomainName,omitempty"`
-	MaturityLevel          *int              `json:"maturityLevel,omitempty"`
-	LinkedBy               string            `json:"linkedBy"`
-	LinkedAt               time.Time         `json:"linkedAt"`
-	Links                  map[string]string `json:"_links,omitempty"`
+	ID                     string      `json:"id"`
+	EnterpriseCapabilityID string      `json:"enterpriseCapabilityId"`
+	DomainCapabilityID     string      `json:"domainCapabilityId"`
+	DomainCapabilityName   string      `json:"domainCapabilityName,omitempty"`
+	BusinessDomainID       string      `json:"businessDomainId,omitempty"`
+	BusinessDomainName     string      `json:"businessDomainName,omitempty"`
+	MaturityLevel          *int        `json:"maturityLevel,omitempty"`
+	LinkedBy               string      `json:"linkedBy"`
+	LinkedAt               time.Time   `json:"linkedAt"`
+	Links                  types.Links `json:"_links,omitempty"`
 }
 
 type EnterpriseCapabilityLinkReadModel struct {
@@ -214,7 +215,7 @@ type CapabilityLinkStatusDTO struct {
 	LinkedTo                *LinkedCapability `json:"linkedTo,omitempty"`
 	BlockingCapability      *LinkedCapability `json:"blockingCapability,omitempty"`
 	BlockingEnterpriseCapID *string           `json:"blockingEnterpriseCapabilityId,omitempty"`
-	Links                   map[string]string `json:"_links,omitempty"`
+	Links                   types.Links       `json:"_links,omitempty"`
 }
 
 type LinkedCapability struct {

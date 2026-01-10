@@ -14,6 +14,7 @@ import (
 	"easi/backend/internal/enterprisearchitecture/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/types"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -398,11 +399,11 @@ func (h *testableEnterpriseCapabilityHandlers) handleGetByID(w http.ResponseWrit
 		return
 	}
 
-	cap.Links = map[string]string{
-		"self":   "/enterprise-capabilities/" + id,
-		"links":  "/enterprise-capabilities/" + id + "/links",
-		"update": "/enterprise-capabilities/" + id,
-		"delete": "/enterprise-capabilities/" + id,
+	cap.Links = types.Links{
+		"self":     types.Link{Href: "/enterprise-capabilities/" + id, Method: "GET"},
+		"x-links":  types.Link{Href: "/enterprise-capabilities/" + id + "/links", Method: "GET"},
+		"edit":     types.Link{Href: "/enterprise-capabilities/" + id, Method: "PUT"},
+		"delete":   types.Link{Href: "/enterprise-capabilities/" + id, Method: "DELETE"},
 	}
 
 	w.Header().Set("Content-Type", "application/json")

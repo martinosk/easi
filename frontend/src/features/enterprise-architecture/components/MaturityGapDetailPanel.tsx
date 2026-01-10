@@ -262,13 +262,15 @@ export function MaturityGapDetailPanel({ enterpriseCapabilityId, onBack }: Matur
             <span className="target-not-set">Not set (using max: {targetMaturity})</span>
           )}
         </div>
-        <button
-          type="button"
-          className="btn btn-sm btn-secondary"
-          onClick={handleOpenModal}
-        >
-          {detail.targetMaturity !== null ? 'Edit Target' : 'Set Target'}
-        </button>
+        {detail._links?.['x-set-target-maturity'] && (
+          <button
+            type="button"
+            className="btn btn-sm btn-secondary"
+            onClick={handleOpenModal}
+          >
+            {detail.targetMaturity !== null ? 'Edit Target' : 'Set Target'}
+          </button>
+        )}
       </div>
 
       <div className="implementations-section">

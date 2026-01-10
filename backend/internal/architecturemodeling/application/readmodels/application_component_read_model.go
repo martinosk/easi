@@ -7,15 +7,16 @@ import (
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/types"
 )
 
 // ApplicationComponentDTO represents the read model for application components
 type ApplicationComponentDTO struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description,omitempty"`
-	CreatedAt   time.Time         `json:"createdAt"`
-	Links       map[string]string `json:"_links,omitempty"`
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Description string      `json:"description,omitempty"`
+	CreatedAt   time.Time   `json:"createdAt"`
+	Links       types.Links `json:"_links,omitempty"`
 }
 
 // ApplicationComponentReadModel handles queries for application components

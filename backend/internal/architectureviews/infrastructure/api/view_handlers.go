@@ -11,6 +11,7 @@ import (
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/types"
 )
 
 type ViewHandlers struct {
@@ -231,11 +232,11 @@ func (h *ViewHandlers) GetAllViews(w http.ResponseWriter, r *http.Request) {
 	for i := range views {
 		h.redactPrivateViewInfo(r, &views[i])
 		views[i].Links = h.buildViewLinks(r, &views[i])
-		h.addElementLinks(&views[i])
+		h.addElementLinks(&views[i], h.canEditView(r, &views[i]))
 	}
 
-	links := map[string]string{
-		"self": "/api/v1/views",
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink("/api/v1/views", "GET"),
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, views, links)
@@ -267,7 +268,7 @@ func (h *ViewHandlers) GetViewByID(w http.ResponseWriter, r *http.Request) {
 
 	h.redactPrivateViewInfo(r, view)
 	view.Links = h.buildViewLinks(r, view)
-	h.addElementLinks(view)
+	h.addElementLinks(view, h.canEditView(r, view))
 
 	sharedAPI.RespondJSON(w, http.StatusOK, view)
 }
@@ -676,8 +677,8 @@ func (h *ViewHandlers) UpdateColorScheme(w http.ResponseWriter, r *http.Request)
 		Build()
 
 	response := struct {
-		ColorScheme string            `json:"colorScheme"`
-		Links       map[string]string `json:"_links"`
+		ColorScheme string      `json:"colorScheme"`
+		Links       types.Links `json:"_links"`
 	}{
 		ColorScheme: req.ColorScheme,
 		Links:       links,
@@ -764,7 +765,7 @@ func (h *ViewHandlers) ClearCapabilityColor(w http.ResponseWriter, r *http.Reque
 	})
 }
 
-func (h *ViewHandlers) buildViewLinks(r *http.Request, view *readmodels.ArchitectureViewDTO) map[string]string {
+func (h *ViewHandlers) buildViewLinks(r *http.Request, view *readmodels.ArchitectureViewDTO) sharedAPI.Links {
 	currentUserID := ""
 	if actor, ok := sharedctx.GetActor(r.Context()); ok {
 		currentUserID = actor.ID
@@ -782,6 +783,15 @@ func (h *ViewHandlers) buildViewLinks(r *http.Request, view *readmodels.Architec
 
 func isOwnerOfView(ownerUserID *string, actorID string) bool {
 	return ownerUserID != nil && *ownerUserID == actorID
+}
+
+func (h *ViewHandlers) canEditView(r *http.Request, view *readmodels.ArchitectureViewDTO) bool {
+	currentUserID := ""
+	if actor, ok := sharedctx.GetActor(r.Context()); ok {
+		currentUserID = actor.ID
+	}
+	isOwner := view.OwnerUserID != nil && *view.OwnerUserID == currentUserID
+	return !view.IsPrivate || isOwner
 }
 
 func (h *ViewHandlers) redactPrivateViewInfo(r *http.Request, view *readmodels.ArchitectureViewDTO) {
@@ -824,20 +834,28 @@ func (h *ViewHandlers) checkViewEditPermission(w http.ResponseWriter, r *http.Re
 	return true
 }
 
-func (h *ViewHandlers) addElementLinks(view *readmodels.ArchitectureViewDTO) {
+func (h *ViewHandlers) addElementLinks(view *readmodels.ArchitectureViewDTO, canEdit bool) {
 	for i := range view.Components {
 		componentID := view.Components[i].ComponentID
-		view.Components[i].Links = map[string]string{
-			"updateColor": fmt.Sprintf("/api/v1/views/%s/components/%s/color", view.ID, componentID),
-			"clearColor":  fmt.Sprintf("/api/v1/views/%s/components/%s/color", view.ID, componentID),
+		links := sharedAPI.Links{}
+		if canEdit {
+			links["x-update-color"] = sharedAPI.NewLink(fmt.Sprintf("/api/v1/views/%s/components/%s/color", view.ID, componentID), "PATCH")
+			links["x-clear-color"] = sharedAPI.NewLink(fmt.Sprintf("/api/v1/views/%s/components/%s/color", view.ID, componentID), "DELETE")
+			links["x-update-position"] = sharedAPI.NewLink(fmt.Sprintf("/api/v1/views/%s/components/%s/position", view.ID, componentID), "PATCH")
+			links["x-remove"] = sharedAPI.NewLink(fmt.Sprintf("/api/v1/views/%s/components/%s", view.ID, componentID), "DELETE")
 		}
+		view.Components[i].Links = links
 	}
 
 	for i := range view.Capabilities {
 		capabilityID := view.Capabilities[i].CapabilityID
-		view.Capabilities[i].Links = map[string]string{
-			"updateColor": fmt.Sprintf("/api/v1/views/%s/capabilities/%s/color", view.ID, capabilityID),
-			"clearColor":  fmt.Sprintf("/api/v1/views/%s/capabilities/%s/color", view.ID, capabilityID),
+		links := sharedAPI.Links{}
+		if canEdit {
+			links["x-update-color"] = sharedAPI.NewLink(fmt.Sprintf("/api/v1/views/%s/capabilities/%s/color", view.ID, capabilityID), "PATCH")
+			links["x-clear-color"] = sharedAPI.NewLink(fmt.Sprintf("/api/v1/views/%s/capabilities/%s/color", view.ID, capabilityID), "DELETE")
+			links["x-update-position"] = sharedAPI.NewLink(fmt.Sprintf("/api/v1/views/%s/capabilities/%s/position", view.ID, capabilityID), "PATCH")
+			links["x-remove"] = sharedAPI.NewLink(fmt.Sprintf("/api/v1/views/%s/capabilities/%s", view.ID, capabilityID), "DELETE")
 		}
+		view.Capabilities[i].Links = links
 	}
 }

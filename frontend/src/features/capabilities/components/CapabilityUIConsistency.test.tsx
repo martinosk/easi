@@ -31,7 +31,7 @@ const mockCapabilities: Capability[] = [
     description: 'Manages customer data',
     maturityLevel: 'Product',
     createdAt: '2024-01-01T00:00:00Z',
-    _links: { self: '/api/v1/capabilities/cap-1' },
+    _links: { self: { href: '/api/v1/capabilities/cap-1', method: 'GET' }, edit: { href: '/api/v1/capabilities/cap-1', method: 'PUT' }, delete: { href: '/api/v1/capabilities/cap-1', method: 'DELETE' } },
   },
   {
     id: 'cap-2' as CapabilityId,
@@ -41,7 +41,7 @@ const mockCapabilities: Capability[] = [
     description: 'Processes orders',
     maturityLevel: 'Genesis',
     createdAt: '2024-01-01T00:00:00Z',
-    _links: { self: '/api/v1/capabilities/cap-2' },
+    _links: { self: { href: '/api/v1/capabilities/cap-2', method: 'GET' }, edit: { href: '/api/v1/capabilities/cap-2', method: 'PUT' }, delete: { href: '/api/v1/capabilities/cap-2', method: 'DELETE' } },
   },
   {
     id: 'cap-3' as CapabilityId,
@@ -50,7 +50,7 @@ const mockCapabilities: Capability[] = [
     description: 'Controls inventory',
     maturityLevel: 'Commodity',
     createdAt: '2024-01-01T00:00:00Z',
-    _links: { self: '/api/v1/capabilities/cap-3' },
+    _links: { self: { href: '/api/v1/capabilities/cap-3', method: 'GET' }, edit: { href: '/api/v1/capabilities/cap-3', method: 'PUT' }, delete: { href: '/api/v1/capabilities/cap-3', method: 'DELETE' } },
   },
 ];
 
@@ -60,7 +60,7 @@ const mockComponents: Component[] = [
     name: 'Component A',
     description: 'Test component',
     createdAt: '2024-01-01T00:00:00Z',
-    _links: { self: '/api/v1/components/comp-1' },
+    _links: { self: { href: '/api/v1/components/comp-1', method: 'GET' }, edit: { href: '/api/v1/components/comp-1', method: 'PUT' }, delete: { href: '/api/v1/components/comp-1', method: 'DELETE' } },
   },
 ];
 
@@ -72,7 +72,7 @@ const mockCurrentView: View = {
   components: [{ componentId: 'comp-1' as ComponentId, x: 100, y: 100 }],
   capabilities: [{ capabilityId: 'cap-1' as CapabilityId, x: 200, y: 200 }],
   createdAt: '2024-01-01T00:00:00Z',
-  _links: { self: '/api/v1/views/view-1' },
+  _links: { self: { href: '/api/v1/views/view-1', method: 'GET' } },
 };
 
 const createMockStore = (overrides: Record<string, unknown> = {}) => ({
@@ -299,7 +299,7 @@ describe('Capability UI Consistency', () => {
             id: 'comp-2' as ComponentId,
             name: 'Component B',
             createdAt: '2024-01-01T00:00:00Z',
-            _links: { self: '/api/v1/components/comp-2' },
+            _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
           },
         ];
         const mockStoreWithComponentOutOfView = createMockStore({
@@ -331,7 +331,7 @@ describe('Capability UI Consistency', () => {
             id: 'comp-2' as ComponentId,
             name: 'Component B',
             createdAt: '2024-01-01T00:00:00Z',
-            _links: { self: '/api/v1/components/comp-2' },
+            _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
           },
         ];
         const mockStoreWithComponentOutOfView = createMockStore({
@@ -412,7 +412,7 @@ describe('Capability UI Consistency', () => {
         const { Wrapper } = createMantineTestWrapper();
 
         const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-        render(<NavigationTree />, { wrapper: Wrapper });
+        render(<NavigationTree onEditCapability={vi.fn()} />, { wrapper: Wrapper });
 
         await waitFor(() => {
           expect(screen.getByText('Customer Management')).toBeInTheDocument();
@@ -458,7 +458,7 @@ describe('Capability UI Consistency', () => {
         const { Wrapper } = createMantineTestWrapper();
 
         const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-        render(<NavigationTree />, { wrapper: Wrapper });
+        render(<NavigationTree onEditComponent={vi.fn()} />, { wrapper: Wrapper });
 
         await waitFor(() => {
           expect(screen.getByText('Component A')).toBeInTheDocument();
@@ -504,7 +504,7 @@ describe('Capability UI Consistency', () => {
         const { Wrapper } = createMantineTestWrapper();
 
         const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-        const { rerender } = render(<NavigationTree />, { wrapper: Wrapper });
+        const { rerender } = render(<NavigationTree onEditCapability={vi.fn()} onEditComponent={vi.fn()} />, { wrapper: Wrapper });
 
         await waitFor(() => {
           expect(screen.getByText('Customer Management')).toBeInTheDocument();
@@ -522,7 +522,7 @@ describe('Capability UI Consistency', () => {
 
         fireEvent.keyDown(document, { key: 'Escape' });
 
-        rerender(<NavigationTree />);
+        rerender(<NavigationTree onEditCapability={vi.fn()} onEditComponent={vi.fn()} />);
 
         await waitFor(() => {
           expect(screen.queryByRole('menu')).not.toBeInTheDocument();

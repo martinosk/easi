@@ -35,7 +35,7 @@ export function EnterpriseArchPage() {
   const [isDockPanelOpen, setIsDockPanelOpen] = useState(false);
   const [maturityGapDetailId, setMaturityGapDetailId] = useState<EnterpriseCapabilityId | null>(null);
 
-  const { canRead, canWrite, canDelete } = useEnterpriseArchPermissions();
+  const { canRead, canWrite } = useEnterpriseArchPermissions();
 
   const { capabilities, isLoading, error, createCapability, deleteCapability } = useEnterpriseCapabilities();
 
@@ -159,7 +159,6 @@ export function EnterpriseArchPage() {
         capabilities={capabilities}
         selectedCapability={selectedCapability}
         canWrite={canWrite}
-        canDelete={canDelete}
         onSelect={handleSelectCapability}
         onDelete={handleDeleteClick}
         onCreateNew={handleOpenModal}

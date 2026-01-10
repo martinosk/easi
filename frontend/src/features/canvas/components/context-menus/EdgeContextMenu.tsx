@@ -1,6 +1,7 @@
 import { ContextMenu, type ContextMenuItem } from '../../../../components/shared/ContextMenu';
 import type { EdgeContextMenu as EdgeContextMenuType } from '../../hooks/useContextMenu';
 import type { CapabilityId, ComponentId } from '../../../../api/types';
+import { hasLink } from '../../../../utils/hateoas';
 
 interface EdgeContextMenuProps {
   menu: EdgeContextMenuType | null;
@@ -17,6 +18,8 @@ interface EdgeContextMenuProps {
 
 export const EdgeContextMenu = ({ menu, onClose, onRequestDelete }: EdgeContextMenuProps) => {
   if (!menu) return null;
+
+  const canDelete = hasLink({ _links: menu._links }, 'delete');
 
   const getContextMenuItems = (): ContextMenuItem[] => {
     if (menu.edgeType === 'parent') {
@@ -43,7 +46,7 @@ export const EdgeContextMenu = ({ menu, onClose, onRequestDelete }: EdgeContextM
     }
 
     if (menu.edgeType === 'realization' && menu.realizationId) {
-      if (menu.isInherited) {
+      if (menu.isInherited || !canDelete) {
         return [];
       }
 
@@ -66,6 +69,10 @@ export const EdgeContextMenu = ({ menu, onClose, onRequestDelete }: EdgeContextM
       ];
     }
 
+    if (!canDelete) {
+      return [];
+    }
+
     return [
       {
         label: 'Delete from Model',
@@ -83,11 +90,14 @@ export const EdgeContextMenu = ({ menu, onClose, onRequestDelete }: EdgeContextM
     ];
   };
 
+  const items = getContextMenuItems();
+  if (items.length === 0) return null;
+
   return (
     <ContextMenu
       x={menu.x}
       y={menu.y}
-      items={getContextMenuItems()}
+      items={items}
       onClose={onClose}
     />
   );
