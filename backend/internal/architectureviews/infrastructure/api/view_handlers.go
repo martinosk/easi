@@ -230,7 +230,6 @@ func (h *ViewHandlers) GetAllViews(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for i := range views {
-		h.redactPrivateViewInfo(r, &views[i])
 		views[i].Links = h.buildViewLinks(r, &views[i])
 		h.addElementLinks(&views[i], h.canEditView(r, &views[i]))
 	}
@@ -266,7 +265,6 @@ func (h *ViewHandlers) GetViewByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.redactPrivateViewInfo(r, view)
 	view.Links = h.buildViewLinks(r, view)
 	h.addElementLinks(view, h.canEditView(r, view))
 
@@ -785,17 +783,6 @@ func (h *ViewHandlers) canEditView(r *http.Request, view *readmodels.Architectur
 	isOwner := view.OwnerUserID != nil && *view.OwnerUserID == actor.ID
 	canEditThisView := !view.IsPrivate || isOwner
 	return canEditThisView && actor.CanWrite("views")
-}
-
-func (h *ViewHandlers) redactPrivateViewInfo(r *http.Request, view *readmodels.ArchitectureViewDTO) {
-	if !view.IsPrivate {
-		return
-	}
-
-	actor, ok := sharedctx.GetActor(r.Context())
-	if !ok || !isOwnerOfView(view.OwnerUserID, actor.ID) {
-		view.OwnerEmail = nil
-	}
 }
 
 func (h *ViewHandlers) checkViewEditPermission(w http.ResponseWriter, r *http.Request, viewID string) bool {

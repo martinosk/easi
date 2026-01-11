@@ -11,6 +11,7 @@ import { DeleteCapabilityDialog } from '../../capabilities/components/DeleteCapa
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { useComponents, useUpdateComponent, useDeleteComponent } from '../../components/hooks/useComponents';
 import { useViews, useCreateView, useDeleteView, useRenameView, useSetDefaultView, useChangeViewVisibility } from '../../views/hooks/useViews';
+import { useActiveUsers } from '../../users/hooks/useUsers';
 import type { HATEOASLinks } from '../../../api/types';
 
 interface CapabilityTreeNode {
@@ -165,7 +166,27 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const { data: capabilities = [] } = useCapabilities();
   const { data: views = [] } = useViews();
+  const { data: users = [] } = useActiveUsers();
   const { getColorForValue, getSectionNameForValue } = useMaturityColorScale();
+
+  const userNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    users.forEach((user) => {
+      if (user.name) {
+        map.set(user.id, user.name);
+      }
+    });
+    return map;
+  }, [users]);
+
+  const getOwnerDisplayName = useCallback((view: View): string => {
+    if (!view.isPrivate) return '';
+    if (view.ownerUserId) {
+      const name = userNameMap.get(view.ownerUserId);
+      if (name) return name;
+    }
+    return view.ownerEmail?.split('@')[0] || 'unknown';
+  }, [userNameMap]);
 
   const [isOpen, setIsOpen] = useState(() => getPersistedBoolean('navigationTreeOpen', true));
   const [isModelsExpanded, setIsModelsExpanded] = useState(() => getPersistedBoolean('navigationTreeModelsExpanded', true));
@@ -741,11 +762,12 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
                                 }
                               }}
                               onContextMenu={(e) => handleViewContextMenu(e, view)}
-                              title={view.isPrivate ? `Private view by ${view.ownerEmail || 'unknown'}` : view.name}
+                              title={view.isPrivate ? `Private view by ${getOwnerDisplayName(view)}` : view.name}
                             >
                               <span className="tree-item-icon">{view.isPrivate ? '🔒' : '👁️'}</span>
                               <span className="tree-item-label">
                                 {view.name}
+                                {view.isPrivate && <span className="owner-badge"> ({getOwnerDisplayName(view)})</span>}
                                 {view.isDefault && <span className="default-badge"> ⭐</span>}
                               </span>
                             </button>
