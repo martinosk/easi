@@ -323,4 +323,4 @@ This enables scenarios 6, 8, and 9 which show the source of inherited ratings.
 - [x] Specification approved
 - [x] Unit tests for all scenarios
 - [x] Integration tests
-- [ ] User sign-off
+- [x] User sign-off
