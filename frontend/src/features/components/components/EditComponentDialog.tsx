@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useUpdateComponent } from '../hooks/useComponents';
 import { editComponentSchema, type EditComponentFormData } from '../../../lib/schemas';
-import type { Component, ComponentId } from '../../../api/types';
+import type { Component } from '../../../api/types';
 
 interface EditComponentDialogProps {
   isOpen: boolean;
@@ -55,7 +55,7 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
     setBackendError(null);
     try {
       await updateComponentMutation.mutateAsync({
-        id: component.id as ComponentId,
+        component,
         request: {
           name: data.name,
           description: data.description || undefined,

@@ -3,7 +3,7 @@ import { componentsApi } from '../api';
 import { queryKeys } from '../../../lib/queryClient';
 import { invalidateFor } from '../../../lib/invalidateFor';
 import { mutationEffects } from '../../../lib/mutationEffects';
-import type { ComponentId, CreateComponentRequest } from '../../../api/types';
+import type { Component, ComponentId, CreateComponentRequest } from '../../../api/types';
 import toast from 'react-hot-toast';
 
 export function useComponents() {
@@ -40,8 +40,8 @@ export function useUpdateComponent() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, request }: { id: ComponentId; request: CreateComponentRequest }) =>
-      componentsApi.update(id, request),
+    mutationFn: ({ component, request }: { component: Component; request: CreateComponentRequest }) =>
+      componentsApi.update(component, request),
     onSuccess: (updatedComponent) => {
       invalidateFor(queryClient, mutationEffects.components.update(updatedComponent.id));
       toast.success(`Component "${updatedComponent.name}" updated`);
@@ -56,9 +56,9 @@ export function useDeleteComponent() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: ComponentId) => componentsApi.delete(id),
-    onSuccess: (_, deletedId) => {
-      invalidateFor(queryClient, mutationEffects.components.delete(deletedId));
+    mutationFn: (component: Component) => componentsApi.delete(component),
+    onSuccess: (_, deletedComponent) => {
+      invalidateFor(queryClient, mutationEffects.components.delete(deletedComponent.id));
       toast.success('Component deleted');
     },
     onError: (error: Error) => {

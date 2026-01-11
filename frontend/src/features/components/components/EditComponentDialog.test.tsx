@@ -136,7 +136,7 @@ describe('EditComponentDialog', () => {
 
       await waitFor(() => {
         expect(mockMutateAsync).toHaveBeenCalledWith({
-          id: 'comp-1',
+          component: mockComponent,
           request: {
             name: 'Updated Component',
             description: 'Test description',
@@ -247,7 +247,7 @@ describe('EditComponentDialog', () => {
 
       await waitFor(() => {
         expect(mockMutateAsync).toHaveBeenCalledWith({
-          id: 'comp-1',
+          component: mockComponent,
           request: expect.objectContaining({ name: 'Test Component' }),
         });
       });

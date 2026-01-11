@@ -40,7 +40,7 @@ export function DomainDetailPage({ domainId }: DomainDetailPageProps) {
     if (!domain) return;
 
     try {
-      const updated = await apiClient.updateBusinessDomain(domain.id, { name, description });
+      const updated = await apiClient.updateBusinessDomain(domain, { name, description });
       setDomain(updated);
       setIsEditing(false);
       toast.success('Domain updated successfully');

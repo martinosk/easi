@@ -4,10 +4,11 @@ import { queryKeys } from '../../../lib/queryClient';
 import { invalidateFor } from '../../../lib/invalidateFor';
 import { mutationEffects } from '../../../lib/mutationEffects';
 import type {
+  Capability,
   CapabilityId,
+  CapabilityDependency,
+  CapabilityRealization,
   ComponentId,
-  RealizationId,
-  CapabilityDependencyId,
   CreateCapabilityRequest,
   UpdateCapabilityRequest,
   UpdateCapabilityMetadataRequest,
@@ -107,12 +108,12 @@ export function useUpdateCapability() {
 
   return useMutation({
     mutationFn: ({
-      id,
+      capability,
       request,
     }: {
-      id: CapabilityId;
+      capability: Capability;
       request: UpdateCapabilityRequest;
-    }) => capabilitiesApi.update(id, request),
+    }) => capabilitiesApi.update(capability, request),
     onSuccess: (updatedCapability) => {
       invalidateFor(queryClient, mutationEffects.capabilities.update(updatedCapability.id));
       toast.success(`Capability "${updatedCapability.name}" updated`);
@@ -180,13 +181,13 @@ export function useDeleteCapability() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (context: { id: CapabilityId; parentId?: string; domainId?: string }) =>
-      capabilitiesApi.delete(context.id),
+    mutationFn: (context: { capability: Capability; parentId?: string; domainId?: string }) =>
+      capabilitiesApi.delete(context.capability),
     onSuccess: (_, context) => {
       invalidateFor(
         queryClient,
         mutationEffects.capabilities.delete({
-          id: context.id,
+          id: context.capability.id,
           parentId: context.parentId,
           domainId: context.domainId,
         })
@@ -248,17 +249,13 @@ export function useDeleteCapabilityDependency() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (context: {
-      id: CapabilityDependencyId;
-      sourceCapabilityId: CapabilityId;
-      targetCapabilityId: CapabilityId;
-    }) => capabilitiesApi.deleteDependency(context.id),
-    onSuccess: (_, context) => {
+    mutationFn: (dependency: CapabilityDependency) => capabilitiesApi.deleteDependency(dependency),
+    onSuccess: (_, dependency) => {
       invalidateFor(
         queryClient,
         mutationEffects.capabilities.removeDependency(
-          context.sourceCapabilityId,
-          context.targetCapabilityId
+          dependency.sourceCapabilityId,
+          dependency.targetCapabilityId
         )
       );
       toast.success('Dependency deleted');
@@ -298,15 +295,13 @@ export function useUpdateRealization() {
 
   return useMutation({
     mutationFn: (context: {
-      id: RealizationId;
-      capabilityId: CapabilityId;
-      componentId: ComponentId;
+      realization: CapabilityRealization;
       request: UpdateRealizationRequest;
-    }) => capabilitiesApi.updateRealization(context.id, context.request),
+    }) => capabilitiesApi.updateRealization(context.realization, context.request),
     onSuccess: (_, context) => {
       invalidateFor(
         queryClient,
-        mutationEffects.capabilities.updateRealization(context.capabilityId, context.componentId)
+        mutationEffects.capabilities.updateRealization(context.realization.capabilityId, context.realization.componentId)
       );
       toast.success('Realization updated');
     },
@@ -320,15 +315,11 @@ export function useDeleteRealization() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (context: {
-      id: RealizationId;
-      capabilityId: CapabilityId;
-      componentId: ComponentId;
-    }) => capabilitiesApi.deleteRealization(context.id),
-    onSuccess: (_, context) => {
+    mutationFn: (realization: CapabilityRealization) => capabilitiesApi.deleteRealization(realization),
+    onSuccess: (_, realization) => {
       invalidateFor(
         queryClient,
-        mutationEffects.capabilities.deleteRealization(context.capabilityId, context.componentId)
+        mutationEffects.capabilities.deleteRealization(realization.capabilityId, realization.componentId)
       );
       toast.success('Realization deleted');
     },

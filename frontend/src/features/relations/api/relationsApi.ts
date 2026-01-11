@@ -1,4 +1,5 @@
 import { httpClient, fetchAllPaginated } from '../../../api/core';
+import { followLink } from '../../../utils/hateoas';
 import type {
   Relation,
   RelationId,
@@ -20,13 +21,13 @@ export const relationsApi = {
     return response.data;
   },
 
-  async update(id: RelationId, request: Partial<CreateRelationRequest>): Promise<Relation> {
-    const response = await httpClient.put<Relation>(`/api/v1/relations/${id}`, request);
+  async update(relation: Relation, request: Partial<CreateRelationRequest>): Promise<Relation> {
+    const response = await httpClient.put<Relation>(followLink(relation, 'edit'), request);
     return response.data;
   },
 
-  async delete(id: RelationId): Promise<void> {
-    await httpClient.delete(`/api/v1/relations/${id}`);
+  async delete(relation: Relation): Promise<void> {
+    await httpClient.delete(followLink(relation, 'delete'));
   },
 };
 

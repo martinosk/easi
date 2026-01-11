@@ -26,10 +26,8 @@ import type {
   Capability,
   CapabilityId,
   CapabilityDependency,
-  CapabilityDependencyId,
   CapabilityRealization,
   CapabilityRealizationsGroup,
-  RealizationId,
   CreateCapabilityRequest,
   UpdateCapabilityRequest,
   UpdateCapabilityMetadataRequest,
@@ -71,12 +69,12 @@ class ApiClient {
     return componentsApi.create(request);
   }
 
-  async updateComponent(id: ComponentId, request: CreateComponentRequest): Promise<Component> {
-    return componentsApi.update(id, request);
+  async updateComponent(component: Component, request: CreateComponentRequest): Promise<Component> {
+    return componentsApi.update(component, request);
   }
 
-  async deleteComponent(id: ComponentId): Promise<void> {
-    return componentsApi.delete(id);
+  async deleteComponent(component: Component): Promise<void> {
+    return componentsApi.delete(component);
   }
 
   async getRelations(): Promise<Relation[]> {
@@ -91,12 +89,12 @@ class ApiClient {
     return relationsApi.create(request);
   }
 
-  async updateRelation(id: RelationId, request: Partial<CreateRelationRequest>): Promise<Relation> {
-    return relationsApi.update(id, request);
+  async updateRelation(relation: Relation, request: Partial<CreateRelationRequest>): Promise<Relation> {
+    return relationsApi.update(relation, request);
   }
 
-  async deleteRelation(id: RelationId): Promise<void> {
-    return relationsApi.delete(id);
+  async deleteRelation(relation: Relation): Promise<void> {
+    return relationsApi.delete(relation);
   }
 
   async getViews(): Promise<View[]> {
@@ -135,8 +133,8 @@ class ApiClient {
     return viewsApi.rename(viewId, request);
   }
 
-  async deleteView(viewId: ViewId): Promise<void> {
-    return viewsApi.delete(viewId);
+  async deleteView(view: View): Promise<void> {
+    return viewsApi.delete(view);
   }
 
   async removeComponentFromView(viewId: ViewId, componentId: ComponentId): Promise<void> {
@@ -202,8 +200,8 @@ class ApiClient {
     return capabilitiesApi.create(request);
   }
 
-  async updateCapability(id: CapabilityId, request: UpdateCapabilityRequest): Promise<Capability> {
-    return capabilitiesApi.update(id, request);
+  async updateCapability(capability: Capability, request: UpdateCapabilityRequest): Promise<Capability> {
+    return capabilitiesApi.update(capability, request);
   }
 
   async updateCapabilityMetadata(id: CapabilityId, request: UpdateCapabilityMetadataRequest): Promise<Capability> {
@@ -218,8 +216,8 @@ class ApiClient {
     return capabilitiesApi.addTag(id, request);
   }
 
-  async deleteCapability(id: CapabilityId): Promise<void> {
-    return capabilitiesApi.delete(id);
+  async deleteCapability(capability: Capability): Promise<void> {
+    return capabilitiesApi.delete(capability);
   }
 
   async changeCapabilityParent(id: CapabilityId, parentId: CapabilityId | null): Promise<void> {
@@ -242,8 +240,8 @@ class ApiClient {
     return capabilitiesApi.createDependency(request);
   }
 
-  async deleteCapabilityDependency(id: CapabilityDependencyId): Promise<void> {
-    return capabilitiesApi.deleteDependency(id);
+  async deleteCapabilityDependency(dependency: CapabilityDependency): Promise<void> {
+    return capabilitiesApi.deleteDependency(dependency);
   }
 
   async getSystemsByCapability(capabilityId: CapabilityId): Promise<CapabilityRealization[]> {
@@ -258,12 +256,12 @@ class ApiClient {
     return capabilitiesApi.linkSystem(capabilityId, request);
   }
 
-  async updateRealization(id: RealizationId, request: UpdateRealizationRequest): Promise<CapabilityRealization> {
-    return capabilitiesApi.updateRealization(id, request);
+  async updateRealization(realization: CapabilityRealization, request: UpdateRealizationRequest): Promise<CapabilityRealization> {
+    return capabilitiesApi.updateRealization(realization, request);
   }
 
-  async deleteRealization(id: RealizationId): Promise<void> {
-    return capabilitiesApi.deleteRealization(id);
+  async deleteRealization(realization: CapabilityRealization): Promise<void> {
+    return capabilitiesApi.deleteRealization(realization);
   }
 
   async getMaturityLevels(): Promise<string[]> {
@@ -306,12 +304,12 @@ class ApiClient {
     return businessDomainsApi.create(request);
   }
 
-  async updateBusinessDomain(id: BusinessDomainId, request: UpdateBusinessDomainRequest): Promise<BusinessDomain> {
-    return businessDomainsApi.update(id, request);
+  async updateBusinessDomain(domain: BusinessDomain, request: UpdateBusinessDomainRequest): Promise<BusinessDomain> {
+    return businessDomainsApi.update(domain, request);
   }
 
-  async deleteBusinessDomain(id: BusinessDomainId): Promise<void> {
-    return businessDomainsApi.delete(id);
+  async deleteBusinessDomain(domain: BusinessDomain): Promise<void> {
+    return businessDomainsApi.delete(domain);
   }
 
   async getDomainCapabilities(capabilitiesLink: string): Promise<Capability[]> {

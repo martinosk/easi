@@ -197,6 +197,10 @@ describe('useRelations hooks', () => {
 
   describe('useUpdateRelation', () => {
     it('should update relation and invalidate both list and detail cache', async () => {
+      const existingRelation = buildRelation({
+        id: 'rel-1' as RelationId,
+        name: 'Original Name',
+      });
       const updatedRelation = buildRelation({
         id: 'rel-1' as RelationId,
         name: 'Updated Name',
@@ -212,7 +216,7 @@ describe('useRelations hooks', () => {
 
       await act(async () => {
         await result.current.mutateAsync({
-          id: 'rel-1' as RelationId,
+          relation: existingRelation,
           request: { name: 'Updated Name', description: 'Updated description' },
         });
       });
@@ -228,6 +232,10 @@ describe('useRelations hooks', () => {
     });
 
     it('should show error toast on failure', async () => {
+      const existingRelation = buildRelation({
+        id: 'rel-1' as RelationId,
+        name: 'Original Name',
+      });
       const error = new Error('Update failed');
       vi.mocked(relationsApi.update).mockRejectedValue(error);
 
@@ -238,7 +246,7 @@ describe('useRelations hooks', () => {
       await act(async () => {
         try {
           await result.current.mutateAsync({
-            id: 'rel-1' as RelationId,
+            relation: existingRelation,
             request: { name: 'New Name' },
           });
         } catch {
@@ -252,6 +260,10 @@ describe('useRelations hooks', () => {
 
   describe('useDeleteRelation', () => {
     it('should delete relation and invalidate cache', async () => {
+      const relation = buildRelation({
+        id: 'rel-1' as RelationId,
+        name: 'To Delete',
+      });
       vi.mocked(relationsApi.delete).mockResolvedValue(undefined);
       const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -260,7 +272,7 @@ describe('useRelations hooks', () => {
       });
 
       await act(async () => {
-        await result.current.mutateAsync('rel-1' as RelationId);
+        await result.current.mutateAsync(relation);
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
@@ -274,6 +286,10 @@ describe('useRelations hooks', () => {
     });
 
     it('should show error toast on failure', async () => {
+      const relation = buildRelation({
+        id: 'rel-1' as RelationId,
+        name: 'To Delete',
+      });
       const error = new Error('Cannot delete relation');
       vi.mocked(relationsApi.delete).mockRejectedValue(error);
 
@@ -283,7 +299,7 @@ describe('useRelations hooks', () => {
 
       await act(async () => {
         try {
-          await result.current.mutateAsync('rel-1' as RelationId);
+          await result.current.mutateAsync(relation);
         } catch {
           // Expected to throw
         }

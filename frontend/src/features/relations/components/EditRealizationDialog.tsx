@@ -73,9 +73,7 @@ export const EditRealizationDialog: React.FC<EditRealizationDialogProps> = ({
     setBackendError(null);
     try {
       await updateRealizationMutation.mutateAsync({
-        id: realization.id,
-        capabilityId: realization.capabilityId,
-        componentId: realization.componentId,
+        realization,
         request: {
           realizationLevel: data.realizationLevel as RealizationLevel,
           notes: data.notes || undefined,

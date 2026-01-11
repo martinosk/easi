@@ -38,7 +38,7 @@ export const DeleteCapabilityDialog: React.FC<DeleteCapabilityDialogProps> = ({
       const capsToDelete = capabilitiesToDelete.length > 0 ? capabilitiesToDelete : [capability];
       for (const cap of capsToDelete) {
         await deleteCapabilityMutation.mutateAsync({
-          id: cap.id,
+          capability: cap,
           parentId: cap.parentId ?? undefined,
         });
       }

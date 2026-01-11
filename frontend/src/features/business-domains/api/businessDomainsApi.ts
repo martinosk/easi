@@ -1,4 +1,5 @@
 import { httpClient } from '../../../api/core';
+import { followLink } from '../../../utils/hateoas';
 import type {
   BusinessDomain,
   BusinessDomainId,
@@ -27,13 +28,13 @@ export const businessDomainsApi = {
     return response.data;
   },
 
-  async update(id: BusinessDomainId, request: UpdateBusinessDomainRequest): Promise<BusinessDomain> {
-    const response = await httpClient.put<BusinessDomain>(`/api/v1/business-domains/${id}`, request);
+  async update(domain: BusinessDomain, request: UpdateBusinessDomainRequest): Promise<BusinessDomain> {
+    const response = await httpClient.put<BusinessDomain>(followLink(domain, 'edit'), request);
     return response.data;
   },
 
-  async delete(id: BusinessDomainId): Promise<void> {
-    await httpClient.delete(`/api/v1/business-domains/${id}`);
+  async delete(domain: BusinessDomain): Promise<void> {
+    await httpClient.delete(followLink(domain, 'delete'));
   },
 
   async getCapabilities(capabilitiesLink: string): Promise<Capability[]> {

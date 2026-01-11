@@ -1,4 +1,5 @@
 import { httpClient, fetchAllPaginated } from '../../../api/core';
+import { followLink } from '../../../utils/hateoas';
 import type {
   Component,
   ComponentId,
@@ -15,18 +16,23 @@ export const componentsApi = {
     return response.data;
   },
 
+  async getBySelfLink(component: Component): Promise<Component> {
+    const response = await httpClient.get<Component>(followLink(component, 'self'));
+    return response.data;
+  },
+
   async create(request: CreateComponentRequest): Promise<Component> {
     const response = await httpClient.post<Component>('/api/v1/components', request);
     return response.data;
   },
 
-  async update(id: ComponentId, request: CreateComponentRequest): Promise<Component> {
-    const response = await httpClient.put<Component>(`/api/v1/components/${id}`, request);
+  async update(component: Component, request: CreateComponentRequest): Promise<Component> {
+    const response = await httpClient.put<Component>(followLink(component, 'edit'), request);
     return response.data;
   },
 
-  async delete(id: ComponentId): Promise<void> {
-    await httpClient.delete(`/api/v1/components/${id}`);
+  async delete(component: Component): Promise<void> {
+    await httpClient.delete(followLink(component, 'delete'));
   },
 };
 

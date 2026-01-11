@@ -241,7 +241,7 @@ describe('useCapabilities hooks', () => {
 
       await act(async () => {
         await result.current.mutateAsync({
-          id: 'cap-1' as CapabilityId,
+          capability: existingCapability,
           request: { name: 'Updated Name' },
         });
       });
@@ -272,7 +272,7 @@ describe('useCapabilities hooks', () => {
       });
 
       await act(async () => {
-        await result.current.mutateAsync({ id: 'cap-1' as CapabilityId });
+        await result.current.mutateAsync({ capability });
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
@@ -287,6 +287,7 @@ describe('useCapabilities hooks', () => {
     });
 
     it('should invalidate parent children query when parentId provided', async () => {
+      const capability = buildCapability({ id: 'cap-1' as CapabilityId, name: 'To Delete' });
       vi.mocked(capabilitiesApi.delete).mockResolvedValue(undefined);
       const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -296,7 +297,7 @@ describe('useCapabilities hooks', () => {
 
       await act(async () => {
         await result.current.mutateAsync({
-          id: 'cap-1' as CapabilityId,
+          capability,
           parentId: 'parent-1',
         });
       });
@@ -307,6 +308,7 @@ describe('useCapabilities hooks', () => {
     });
 
     it('should invalidate domain capabilities query when domainId provided', async () => {
+      const capability = buildCapability({ id: 'cap-1' as CapabilityId, name: 'To Delete' });
       vi.mocked(capabilitiesApi.delete).mockResolvedValue(undefined);
       const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -316,7 +318,7 @@ describe('useCapabilities hooks', () => {
 
       await act(async () => {
         await result.current.mutateAsync({
-          id: 'cap-1' as CapabilityId,
+          capability,
           domainId: 'domain-1',
         });
       });
@@ -388,6 +390,11 @@ describe('useCapabilities hooks', () => {
 
   describe('useDeleteCapabilityDependency', () => {
     it('should delete dependency and invalidate queries', async () => {
+      const dependency = buildCapabilityDependency({
+        id: 'dep-1' as CapabilityDependencyId,
+        sourceCapabilityId: 'cap-1' as CapabilityId,
+        targetCapabilityId: 'cap-2' as CapabilityId,
+      });
       vi.mocked(capabilitiesApi.deleteDependency).mockResolvedValue(undefined);
       const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -396,11 +403,7 @@ describe('useCapabilities hooks', () => {
       });
 
       await act(async () => {
-        await result.current.mutateAsync({
-          id: 'dep-1' as CapabilityDependencyId,
-          sourceCapabilityId: 'cap-1' as CapabilityId,
-          targetCapabilityId: 'cap-2' as CapabilityId,
-        });
+        await result.current.mutateAsync(dependency);
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({

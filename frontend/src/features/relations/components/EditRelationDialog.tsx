@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useUpdateRelation } from '../hooks/useRelations';
 import { editRelationSchema, type EditRelationFormData } from '../../../lib/schemas';
-import type { Relation, RelationId } from '../../../api/types';
+import type { Relation } from '../../../api/types';
 
 interface EditRelationDialogProps {
   isOpen: boolean;
@@ -52,7 +52,7 @@ export const EditRelationDialog: React.FC<EditRelationDialogProps> = ({
     setBackendError(null);
     try {
       await updateRelationMutation.mutateAsync({
-        id: relation.id as RelationId,
+        relation,
         request: {
           name: data.name || undefined,
           description: data.description || undefined,

@@ -190,6 +190,7 @@ describe('useViews hooks', () => {
 
   describe('useDeleteView', () => {
     it('should delete view and invalidate cache', async () => {
+      const view = buildView({ id: 'view-1' as ViewId, name: 'To Delete' });
       vi.mocked(viewsApi.delete).mockResolvedValue(undefined);
       const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -198,7 +199,7 @@ describe('useViews hooks', () => {
       });
 
       await act(async () => {
-        await result.current.mutateAsync('view-1' as ViewId);
+        await result.current.mutateAsync(view);
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({

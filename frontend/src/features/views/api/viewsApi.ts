@@ -1,4 +1,5 @@
 import { httpClient } from '../../../api/core';
+import { followLink } from '../../../utils/hateoas';
 import type {
   View,
   ViewId,
@@ -34,8 +35,8 @@ export const viewsApi = {
     return response.data;
   },
 
-  async delete(id: ViewId): Promise<void> {
-    await httpClient.delete(`/api/v1/views/${id}`);
+  async delete(view: View): Promise<void> {
+    await httpClient.delete(followLink(view, 'delete'));
   },
 
   async rename(viewId: ViewId, request: RenameViewRequest): Promise<void> {

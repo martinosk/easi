@@ -37,14 +37,14 @@ export function useBusinessDomains(): UseBusinessDomainsResult {
 
   const updateDomain = useCallback(
     async (domain: BusinessDomain, name: string, description?: string): Promise<BusinessDomain> => {
-      return updateMutation.mutateAsync({ id: domain.id, request: { name, description } });
+      return updateMutation.mutateAsync({ domain, request: { name, description } });
     },
     [updateMutation]
   );
 
   const deleteDomain = useCallback(
     async (domain: BusinessDomain): Promise<void> => {
-      await deleteMutation.mutateAsync(domain.id);
+      await deleteMutation.mutateAsync(domain);
     },
     [deleteMutation]
   );
@@ -119,12 +119,12 @@ export function useUpdateBusinessDomain() {
 
   return useMutation({
     mutationFn: ({
-      id,
+      domain,
       request,
     }: {
-      id: BusinessDomainId;
+      domain: BusinessDomain;
       request: UpdateBusinessDomainRequest;
-    }) => businessDomainsApi.update(id, request),
+    }) => businessDomainsApi.update(domain, request),
     onSuccess: (updatedDomain) => {
       invalidateFor(queryClient, mutationEffects.businessDomains.update(updatedDomain.id));
       toast.success(`Business domain "${updatedDomain.name}" updated`);
@@ -139,9 +139,9 @@ export function useDeleteBusinessDomain() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: BusinessDomainId) => businessDomainsApi.delete(id),
-    onSuccess: (_, deletedId) => {
-      invalidateFor(queryClient, mutationEffects.businessDomains.delete(deletedId));
+    mutationFn: (domain: BusinessDomain) => businessDomainsApi.delete(domain),
+    onSuccess: (_, deletedDomain) => {
+      invalidateFor(queryClient, mutationEffects.businessDomains.delete(deletedDomain.id));
       toast.success('Business domain deleted');
     },
     onError: (error: Error) => {

@@ -2,83 +2,64 @@ import React from 'react';
 import { CreateComponentDialog, EditComponentDialog } from '../../features/components';
 import { CreateRelationDialog, EditRelationDialog } from '../../features/relations';
 import { CreateCapabilityDialog, EditCapabilityDialog } from '../../features/capabilities';
-import type { Component, Relation, Capability } from '../../api/types';
+import { ReleaseNotesBrowser } from '../../contexts/releases/components/ReleaseNotesBrowser';
+import { useDialog } from '../../contexts/dialogs';
 
-interface DialogManagerProps {
-  componentDialog: {
-    isOpen: boolean;
-    onClose: () => void;
-  };
-  relationDialog: {
-    isOpen: boolean;
-    onClose: () => void;
-    sourceComponentId?: string;
-    targetComponentId?: string;
-  };
-  editComponentDialog: {
-    isOpen: boolean;
-    onClose: () => void;
-    component: Component | null;
-  };
-  editRelationDialog: {
-    isOpen: boolean;
-    onClose: () => void;
-    relation: Relation | null;
-  };
-  capabilityDialog: {
-    isOpen: boolean;
-    onClose: () => void;
-  };
-  editCapabilityDialog: {
-    isOpen: boolean;
-    onClose: () => void;
-    capability: Capability | null;
-  };
-}
+export const DialogManager: React.FC = () => {
+  const createComponent = useDialog('create-component');
+  const editComponent = useDialog('edit-component');
+  const createRelation = useDialog('create-relation');
+  const editRelation = useDialog('edit-relation');
+  const createCapability = useDialog('create-capability');
+  const editCapability = useDialog('edit-capability');
+  const releaseNotesBrowser = useDialog('release-notes-browser');
 
-export const DialogManager: React.FC<DialogManagerProps> = ({
-  componentDialog,
-  relationDialog,
-  editComponentDialog,
-  editRelationDialog,
-  capabilityDialog,
-  editCapabilityDialog,
-}) => {
   return (
     <>
       <CreateComponentDialog
-        isOpen={componentDialog.isOpen}
-        onClose={componentDialog.onClose}
+        isOpen={createComponent.isOpen}
+        onClose={createComponent.close}
       />
 
       <CreateRelationDialog
-        isOpen={relationDialog.isOpen}
-        onClose={relationDialog.onClose}
-        sourceComponentId={relationDialog.sourceComponentId}
-        targetComponentId={relationDialog.targetComponentId}
+        isOpen={createRelation.isOpen}
+        onClose={createRelation.close}
+        sourceComponentId={createRelation.data?.sourceComponentId}
+        targetComponentId={createRelation.data?.targetComponentId}
       />
 
-      <EditComponentDialog
-        isOpen={editComponentDialog.isOpen}
-        onClose={editComponentDialog.onClose}
-        component={editComponentDialog.component}
-      />
+      {editComponent.data && (
+        <EditComponentDialog
+          isOpen={editComponent.isOpen}
+          onClose={editComponent.close}
+          component={editComponent.data.component}
+        />
+      )}
 
-      <EditRelationDialog
-        isOpen={editRelationDialog.isOpen}
-        onClose={editRelationDialog.onClose}
-        relation={editRelationDialog.relation}
-      />
+      {editRelation.data && (
+        <EditRelationDialog
+          isOpen={editRelation.isOpen}
+          onClose={editRelation.close}
+          relation={editRelation.data.relation}
+        />
+      )}
 
       <CreateCapabilityDialog
-        isOpen={capabilityDialog.isOpen}
-        onClose={capabilityDialog.onClose}
+        isOpen={createCapability.isOpen}
+        onClose={createCapability.close}
       />
 
-      <EditCapabilityDialog
-        isOpen={editCapabilityDialog.isOpen}
-        onClose={editCapabilityDialog.onClose}
-        capability={editCapabilityDialog.capability}
+      {editCapability.data && (
+        <EditCapabilityDialog
+          isOpen={editCapability.isOpen}
+          onClose={editCapability.close}
+          capability={editCapability.data.capability}
+        />
+      )}
+
+      <ReleaseNotesBrowser
+        isOpen={releaseNotesBrowser.isOpen}
+        onClose={releaseNotesBrowser.close}
       />
     </>
   );

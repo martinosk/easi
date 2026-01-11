@@ -11,6 +11,7 @@ import './index.css'
 import App from './App.tsx'
 import { LoginPage } from './features/auth/pages/LoginPage.tsx'
 import { ErrorBoundary } from './components/shared/ErrorBoundary.tsx'
+import { DialogProvider } from './contexts/dialogs'
 import { ProtectedRoute, ROUTES } from './routes/routes.tsx'
 import { useUserStore } from './store/userStore.ts'
 import { theme } from './theme/mantine'
@@ -78,6 +79,7 @@ createRoot(document.getElementById('root')!).render(
         <MantineProvider theme={theme} defaultColorScheme="light">
           <BrowserRouter basename={basename}>
             <SessionInitializer>
+              <DialogProvider>
               <Routes>
                 <Route path={ROUTES.LOGIN} element={<LoginPage />} />
                 <Route element={<ProtectedRoute />}>
@@ -92,6 +94,7 @@ createRoot(document.getElementById('root')!).render(
                 </Route>
                 <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
               </Routes>
+              </DialogProvider>
             </SessionInitializer>
           </BrowserRouter>
         </MantineProvider>

@@ -219,7 +219,7 @@ export const EditCapabilityDialog: React.FC<EditCapabilityDialogProps> = ({
     setBackendError(null);
     try {
       await updateCapabilityMutation.mutateAsync({
-        id: capability.id,
+        capability,
         request: {
           name: data.name,
           description: data.description || undefined,

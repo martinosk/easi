@@ -3,7 +3,7 @@ import { relationsApi } from '../api';
 import { queryKeys } from '../../../lib/queryClient';
 import { invalidateFor } from '../../../lib/invalidateFor';
 import { mutationEffects } from '../../../lib/mutationEffects';
-import type { RelationId, CreateRelationRequest } from '../../../api/types';
+import type { Relation, RelationId, CreateRelationRequest } from '../../../api/types';
 import toast from 'react-hot-toast';
 
 export function useRelations() {
@@ -41,12 +41,12 @@ export function useUpdateRelation() {
 
   return useMutation({
     mutationFn: ({
-      id,
+      relation,
       request,
     }: {
-      id: RelationId;
+      relation: Relation;
       request: Partial<CreateRelationRequest>;
-    }) => relationsApi.update(id, request),
+    }) => relationsApi.update(relation, request),
     onSuccess: (updatedRelation) => {
       invalidateFor(queryClient, mutationEffects.relations.update(updatedRelation.id));
       toast.success('Relation updated');
@@ -61,9 +61,9 @@ export function useDeleteRelation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: RelationId) => relationsApi.delete(id),
-    onSuccess: (_, deletedId) => {
-      invalidateFor(queryClient, mutationEffects.relations.delete(deletedId));
+    mutationFn: (relation: Relation) => relationsApi.delete(relation),
+    onSuccess: (_, deletedRelation) => {
+      invalidateFor(queryClient, mutationEffects.relations.delete(deletedRelation.id));
       toast.success('Relation deleted');
     },
     onError: (error: Error) => {

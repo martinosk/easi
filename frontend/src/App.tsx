@@ -11,9 +11,8 @@ import { LoadingFallback } from './components/shared/LoadingFallback';
 import { DockviewLayout } from './components/layout/DockviewLayout';
 import { DialogManager } from './components/shared/DialogManager';
 import { ReleaseNotesOverlay } from './contexts/releases/components/ReleaseNotesOverlay';
-import { ReleaseNotesBrowser } from './contexts/releases/components/ReleaseNotesBrowser';
 import type { ComponentCanvasRef } from './features/canvas/components/ComponentCanvas';
-import { useDialogManagement } from './hooks/useDialogManagement';
+import { useCanvasDialogs } from './hooks/useCanvasDialogs';
 import { useViewOperations } from './hooks/useViewOperations';
 import { useCanvasNavigation } from './hooks/useCanvasNavigation';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -80,8 +79,7 @@ interface CanvasViewProps {
   canvasRef: React.RefObject<ComponentCanvasRef | null>;
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
-  dialogActions: ReturnType<typeof useDialogManagement>['actions'];
-  dialogState: ReturnType<typeof useDialogManagement>['state'];
+  dialogActions: ReturnType<typeof useCanvasDialogs>;
   addComponentToView: ReturnType<typeof useViewOperations>['addComponentToView'];
   switchView: ReturnType<typeof useViewOperations>['switchView'];
   navigateToComponent: ReturnType<typeof useCanvasNavigation>['navigateToComponent'];
@@ -95,7 +93,6 @@ function CanvasView({
   selectedNodeId,
   selectedEdgeId,
   dialogActions,
-  dialogState,
   addComponentToView,
   switchView,
   navigateToComponent,
@@ -122,14 +119,7 @@ function CanvasView({
         onEditCapability={dialogActions.openEditCapabilityDialog}
         onRemoveFromView={onRemoveFromView}
       />
-      <DialogManager
-        componentDialog={dialogState.componentDialog}
-        relationDialog={dialogState.relationDialog}
-        editComponentDialog={dialogState.editComponentDialog}
-        editRelationDialog={dialogState.editRelationDialog}
-        capabilityDialog={dialogState.capabilityDialog}
-        editCapabilityDialog={dialogState.editCapabilityDialog}
-      />
+      <DialogManager />
     </>
   );
 }
@@ -138,23 +128,17 @@ interface ReleaseNotesDisplayProps {
   showOverlay: boolean;
   release: Release | null;
   onDismiss: (mode: 'forever' | 'untilNext') => void;
-  browserIsOpen: boolean;
-  onBrowserClose: () => void;
 }
 
-function ReleaseNotesDisplay({ showOverlay, release, onDismiss, browserIsOpen, onBrowserClose }: ReleaseNotesDisplayProps) {
+function ReleaseNotesDisplay({ showOverlay, release, onDismiss }: ReleaseNotesDisplayProps) {
   const showReleaseOverlay = showOverlay && release !== null;
+  if (!showReleaseOverlay) return null;
   return (
-    <>
-      {showReleaseOverlay && (
-        <ReleaseNotesOverlay
-          isOpen={showOverlay}
-          release={release}
-          onDismiss={onDismiss}
-        />
-      )}
-      <ReleaseNotesBrowser isOpen={browserIsOpen} onClose={onBrowserClose} />
-    </>
+    <ReleaseNotesOverlay
+      isOpen={showOverlay}
+      release={release}
+      onDismiss={onDismiss}
+    />
   );
 }
 
@@ -214,7 +198,7 @@ function App({ view }: AppProps) {
   const { data: components = [] } = useComponents();
 
   const { showOverlay: showReleaseNotes, release, dismiss: dismissReleaseNotes } = useReleaseNotes();
-  const { state: dialogState, actions: dialogActions } = useDialogManagement(selectedEdgeId, relations, components);
+  const dialogActions = useCanvasDialogs(selectedEdgeId, relations, components);
   const { removeComponentFromView, addComponentToView, switchView } = useViewOperations();
   const { navigateToComponent, navigateToCapability } = useCanvasNavigation(canvasRef);
 
@@ -254,7 +238,6 @@ function App({ view }: AppProps) {
     selectedNodeId,
     selectedEdgeId,
     dialogActions,
-    dialogState,
     addComponentToView,
     switchView,
     navigateToComponent,
@@ -265,14 +248,12 @@ function App({ view }: AppProps) {
 
   return (
     <AppLayout>
-      <AppNavigation currentView={view} onOpenReleaseNotes={dialogState.releaseNotesBrowserDialog.onOpen} />
+      <AppNavigation currentView={view} onOpenReleaseNotes={dialogActions.openReleaseNotesBrowser} />
       <MainContent view={view} canvasViewProps={canvasViewProps} />
       <ReleaseNotesDisplay
         showOverlay={showReleaseNotes}
         release={release}
         onDismiss={dismissReleaseNotes}
-        browserIsOpen={dialogState.releaseNotesBrowserDialog.isOpen}
-        onBrowserClose={dialogState.releaseNotesBrowserDialog.onClose}
       />
     </AppLayout>
   );

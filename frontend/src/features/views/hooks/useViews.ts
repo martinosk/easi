@@ -4,6 +4,7 @@ import { queryKeys } from '../../../lib/queryClient';
 import { invalidateFor } from '../../../lib/invalidateFor';
 import { mutationEffects } from '../../../lib/mutationEffects';
 import type {
+  View,
   ViewId,
   CreateViewRequest,
   AddComponentToViewRequest,
@@ -85,9 +86,9 @@ export function useDeleteView() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: ViewId) => viewsApi.delete(id),
-    onSuccess: (_, deletedId) => {
-      invalidateFor(queryClient, mutationEffects.views.delete(deletedId));
+    mutationFn: (view: View) => viewsApi.delete(view),
+    onSuccess: (_, deletedView) => {
+      invalidateFor(queryClient, mutationEffects.views.delete(deletedView.id));
       toast.success('View deleted');
     },
     onError: (error: Error) => {

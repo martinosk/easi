@@ -199,7 +199,7 @@ describe('useComponents hooks', () => {
 
       await act(async () => {
         await result.current.mutateAsync({
-          id: 'comp-1' as ComponentId,
+          component: existingComponent,
           request: { name: 'Updated Name' },
         });
       });
@@ -215,6 +215,10 @@ describe('useComponents hooks', () => {
     });
 
     it('should show error toast on failure', async () => {
+      const existingComponent = buildComponent({
+        id: 'comp-1' as ComponentId,
+        name: 'Original Name',
+      });
       const error = new Error('Update failed');
       vi.mocked(componentsApi.update).mockRejectedValue(error);
 
@@ -225,7 +229,7 @@ describe('useComponents hooks', () => {
       await act(async () => {
         try {
           await result.current.mutateAsync({
-            id: 'comp-1' as ComponentId,
+            component: existingComponent,
             request: { name: 'New Name' },
           });
         } catch {
@@ -255,7 +259,7 @@ describe('useComponents hooks', () => {
       });
 
       await act(async () => {
-        await result.current.mutateAsync('comp-1' as ComponentId);
+        await result.current.mutateAsync(component);
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
@@ -269,6 +273,10 @@ describe('useComponents hooks', () => {
     });
 
     it('should show error toast on failure', async () => {
+      const component = buildComponent({
+        id: 'comp-1' as ComponentId,
+        name: 'To Delete',
+      });
       const error = new Error('Cannot delete component in use');
       vi.mocked(componentsApi.delete).mockRejectedValue(error);
 
@@ -278,7 +286,7 @@ describe('useComponents hooks', () => {
 
       await act(async () => {
         try {
-          await result.current.mutateAsync('comp-1' as ComponentId);
+          await result.current.mutateAsync(component);
         } catch {
           // Expected to throw
         }

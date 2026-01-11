@@ -1,6 +1,6 @@
 import { ContextMenu, type ContextMenuItem } from '../../../../components/shared/ContextMenu';
 import type { EdgeContextMenu as EdgeContextMenuType } from '../../hooks/useContextMenu';
-import type { CapabilityId, ComponentId } from '../../../../api/types';
+import type { CapabilityId, ComponentId, HATEOASLinks } from '../../../../api/types';
 import { hasLink } from '../../../../utils/hateoas';
 
 interface EdgeContextMenuProps {
@@ -13,6 +13,7 @@ interface EdgeContextMenuProps {
     childId?: string;
     capabilityId?: CapabilityId;
     componentId?: ComponentId;
+    _links?: HATEOASLinks;
   }) => void;
 }
 
@@ -60,6 +61,7 @@ export const EdgeContextMenu = ({ menu, onClose, onRequestDelete }: EdgeContextM
               name: menu.edgeName,
               capabilityId: menu.capabilityId,
               componentId: menu.componentId,
+              _links: menu._links,
             });
             onClose();
           },

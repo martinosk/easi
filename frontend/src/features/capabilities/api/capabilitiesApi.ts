@@ -1,11 +1,10 @@
 import { httpClient } from '../../../api/core';
+import { followLink } from '../../../utils/hateoas';
 import type {
   Capability,
   CapabilityId,
   CapabilityDependency,
-  CapabilityDependencyId,
   CapabilityRealization,
-  RealizationId,
   ComponentId,
   CreateCapabilityRequest,
   UpdateCapabilityRequest,
@@ -39,8 +38,8 @@ export const capabilitiesApi = {
     return response.data;
   },
 
-  async update(id: CapabilityId, request: UpdateCapabilityRequest): Promise<Capability> {
-    const response = await httpClient.put<Capability>(`/api/v1/capabilities/${id}`, request);
+  async update(capability: Capability, request: UpdateCapabilityRequest): Promise<Capability> {
+    const response = await httpClient.put<Capability>(followLink(capability, 'edit'), request);
     return response.data;
   },
 
@@ -57,8 +56,8 @@ export const capabilitiesApi = {
     await httpClient.post(`/api/v1/capabilities/${id}/tags`, request);
   },
 
-  async delete(id: CapabilityId): Promise<void> {
-    await httpClient.delete(`/api/v1/capabilities/${id}`);
+  async delete(capability: Capability): Promise<void> {
+    await httpClient.delete(followLink(capability, 'delete'));
   },
 
   async changeParent(id: CapabilityId, parentId: CapabilityId | null): Promise<void> {
@@ -91,8 +90,8 @@ export const capabilitiesApi = {
     return response.data;
   },
 
-  async deleteDependency(id: CapabilityDependencyId): Promise<void> {
-    await httpClient.delete(`/api/v1/capability-dependencies/${id}`);
+  async deleteDependency(dependency: CapabilityDependency): Promise<void> {
+    await httpClient.delete(followLink(dependency, 'delete'));
   },
 
   async getSystemsByCapability(capabilityId: CapabilityId): Promise<CapabilityRealization[]> {
@@ -117,16 +116,16 @@ export const capabilitiesApi = {
     return response.data;
   },
 
-  async updateRealization(id: RealizationId, request: UpdateRealizationRequest): Promise<CapabilityRealization> {
+  async updateRealization(realization: CapabilityRealization, request: UpdateRealizationRequest): Promise<CapabilityRealization> {
     const response = await httpClient.put<CapabilityRealization>(
-      `/api/v1/capability-realizations/${id}`,
+      followLink(realization, 'edit'),
       request
     );
     return response.data;
   },
 
-  async deleteRealization(id: RealizationId): Promise<void> {
-    await httpClient.delete(`/api/v1/capability-realizations/${id}`);
+  async deleteRealization(realization: CapabilityRealization): Promise<void> {
+    await httpClient.delete(followLink(realization, 'delete'));
   },
 };
 
