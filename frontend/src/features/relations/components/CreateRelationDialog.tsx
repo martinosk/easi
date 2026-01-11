@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useCreateRelation } from '../hooks/useRelations';
 import { createRelationSchema, type CreateRelationFormData } from '../../../lib/schemas';
-import type { ComponentId } from '../../../api/types';
+import { toComponentId } from '../../../api/types';
 
 interface CreateRelationDialogProps {
   isOpen: boolean;
@@ -66,8 +66,8 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
     setBackendError(null);
     try {
       await createRelationMutation.mutateAsync({
-        sourceComponentId: data.sourceComponentId as ComponentId,
-        targetComponentId: data.targetComponentId as ComponentId,
+        sourceComponentId: toComponentId(data.sourceComponentId),
+        targetComponentId: toComponentId(data.targetComponentId),
         relationType: data.relationType,
         name: data.name || undefined,
         description: data.description || undefined,

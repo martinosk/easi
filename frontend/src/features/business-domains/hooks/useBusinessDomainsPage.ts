@@ -14,7 +14,7 @@ import { useCapabilityRealizations } from './useCapabilityRealizations';
 import { useCapabilitySelection } from './useCapabilitySelection';
 import { useCapabilityContextMenu } from './useCapabilityContextMenu';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
-import type { BusinessDomain, BusinessDomainId, Capability, ComponentId } from '../../../api/types';
+import type { BusinessDomain, Capability, ComponentId } from '../../../api/types';
 
 export function useBusinessDomainsPage() {
   const [visualizedDomain, setVisualizedDomain] = useState<BusinessDomain | null>(null);
@@ -56,7 +56,7 @@ export function useBusinessDomainsPage() {
 
   const { getRealizationsForCapability, refetch: refetchRealizations } = useCapabilityRealizations(
     showApplications,
-    visualizedDomain?.id as BusinessDomainId | null,
+    visualizedDomain?.id ?? null,
     depth
   );
 

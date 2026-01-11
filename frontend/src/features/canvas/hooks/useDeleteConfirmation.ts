@@ -7,7 +7,8 @@ import { useRemoveComponentFromView, useRemoveCapabilityFromView } from '../../v
 import { useComponents } from '../../components/hooks/useComponents';
 import { useRelations } from '../../relations/hooks/useRelations';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
-import type { ComponentId, CapabilityId, ViewId, Component, Relation, Capability, HATEOASLinks, RealizationId } from '../../../api/types';
+import { toComponentId, toCapabilityId, toRealizationId } from '../../../api/types';
+import type { CapabilityId, ComponentId, ViewId, Component, Relation, Capability, HATEOASLinks } from '../../../api/types';
 
 export type DeleteTargetType =
   | 'component-from-view'
@@ -52,7 +53,7 @@ function useDeleteHandlers() {
       if (!viewId) return;
       await removeComponentFromViewMutation.mutateAsync({
         viewId,
-        componentId: target.id as ComponentId,
+        componentId: toComponentId(target.id),
       });
     },
     'component-from-model': async (target, _viewId, lookups) => {
@@ -69,7 +70,7 @@ function useDeleteHandlers() {
       if (!viewId) return;
       await removeCapabilityFromViewMutation.mutateAsync({
         viewId,
-        capabilityId: target.id as CapabilityId,
+        capabilityId: toCapabilityId(target.id),
       });
     },
     'capability-from-model': async (target, _viewId, lookups) => {
@@ -80,7 +81,7 @@ function useDeleteHandlers() {
     'parent-relation': async (target) => {
       if (!target.childId) return;
       await changeCapabilityParentMutation.mutateAsync({
-        id: target.childId as CapabilityId,
+        id: toCapabilityId(target.childId),
         oldParentId: target.id,
         newParentId: null,
       });
@@ -88,7 +89,7 @@ function useDeleteHandlers() {
     'realization': async (target) => {
       if (!target.capabilityId || !target.componentId || !target._links) return;
       await deleteRealizationMutation.mutateAsync({
-        id: target.id as RealizationId,
+        id: toRealizationId(target.id),
         capabilityId: target.capabilityId,
         componentId: target.componentId,
         realizationLevel: 'Full',

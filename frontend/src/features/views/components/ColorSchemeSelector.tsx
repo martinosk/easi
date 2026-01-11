@@ -1,8 +1,6 @@
 import React from 'react';
 import { useCurrentView } from '../hooks/useCurrentView';
 import { useUpdateViewColorScheme } from '../hooks/useViews';
-import type { ViewId } from '../../../api/types';
-
 export const ColorSchemeSelector: React.FC = () => {
   const { currentView, currentViewId } = useCurrentView();
   const updateColorSchemeMutation = useUpdateViewColorScheme();
@@ -12,7 +10,7 @@ export const ColorSchemeSelector: React.FC = () => {
   const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     if (currentViewId) {
       updateColorSchemeMutation.mutate({
-        viewId: currentViewId as ViewId,
+        viewId: currentViewId,
         request: { colorScheme: event.target.value },
       });
     }

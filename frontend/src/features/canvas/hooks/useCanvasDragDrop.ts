@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import type { ReactFlowInstance } from '@xyflow/react';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useAddCapabilityToView } from '../../views/hooks/useViews';
-import type { CapabilityId, ComponentId } from '../../../api/types';
+import { toCapabilityId, toComponentId } from '../../../api/types';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 import { canEdit } from '../../../utils/hateoas';
 
@@ -35,17 +35,18 @@ export const useCanvasDragDrop = (
 
       if (componentId && onComponentDrop) {
         await onComponentDrop(componentId, position.x, position.y);
-        await updateComponentPosition(componentId as ComponentId, position.x, position.y);
+        await updateComponentPosition(toComponentId(componentId), position.x, position.y);
       } else if (capabilityId) {
+        const capId = toCapabilityId(capabilityId);
         await addCapabilityToViewMutation.mutateAsync({
           viewId: currentViewId,
           request: {
-            capabilityId: capabilityId as CapabilityId,
+            capabilityId: capId,
             x: position.x,
             y: position.y
           }
         });
-        await updateCapabilityPosition(capabilityId as CapabilityId, position.x, position.y);
+        await updateCapabilityPosition(capId, position.x, position.y);
       }
     },
     [onComponentDrop, reactFlowInstance, currentViewId, currentView, addCapabilityToViewMutation, updateComponentPosition, updateCapabilityPosition]

@@ -86,7 +86,7 @@ export function useCapabilityRealizations(
       const realizations: CapabilityRealization[] = [];
 
       for (const group of groups) {
-        levelMap.set(group.capabilityId as CapabilityId, getLevelNumber(group.level));
+        levelMap.set(group.capabilityId, getLevelNumber(group.level));
         realizations.push(...group.realizations);
       }
 

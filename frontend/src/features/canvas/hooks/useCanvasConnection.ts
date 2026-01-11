@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { Connection } from '@xyflow/react';
 import { useChangeCapabilityParent, useLinkSystemToCapability } from '../../capabilities/hooks/useCapabilities';
-import type { ComponentId, CapabilityId } from '../../../api/types';
+import { toComponentId, toCapabilityId } from '../../../api/types';
 import toast from 'react-hot-toast';
 
 const CAPABILITY_PREFIX = 'cap-';
@@ -32,8 +32,8 @@ export const useCanvasConnection = (
 
   const handleCapabilityParentConnection = useCallback(
     async (source: string, target: string) => {
-      const parentId = extractCapabilityId(target) as CapabilityId;
-      const childId = extractCapabilityId(source) as CapabilityId;
+      const parentId = toCapabilityId(extractCapabilityId(target));
+      const childId = toCapabilityId(extractCapabilityId(source));
 
       try {
         await changeCapabilityParentMutation.mutateAsync({
@@ -52,10 +52,10 @@ export const useCanvasConnection = (
 
   const handleMixedConnection = useCallback(
     async (source: string, target: string, sourceIsCapability: boolean) => {
-      const capabilityId = (sourceIsCapability
-        ? extractCapabilityId(source)
-        : extractCapabilityId(target)) as CapabilityId;
-      const componentId = (sourceIsCapability ? target : source) as ComponentId;
+      const capabilityId = toCapabilityId(
+        sourceIsCapability ? extractCapabilityId(source) : extractCapabilityId(target)
+      );
+      const componentId = toComponentId(sourceIsCapability ? target : source);
 
       try {
         await linkSystemToCapabilityMutation.mutateAsync({

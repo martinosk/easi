@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAddCapabilityExpert } from '../hooks/useCapabilities';
 import { addExpertSchema, type AddExpertFormData } from '../../../lib/schemas';
-import type { CapabilityId } from '../../../api/types';
+import { toCapabilityId } from '../../../api/types';
 
 interface AddExpertDialogProps {
   isOpen: boolean;
@@ -48,7 +48,7 @@ export const AddExpertDialog: React.FC<AddExpertDialogProps> = ({
     setBackendError(null);
     try {
       await addExpertMutation.mutateAsync({
-        id: capabilityId as CapabilityId,
+        id: toCapabilityId(capabilityId),
         request: {
           expertName: data.name,
           expertRole: data.role,

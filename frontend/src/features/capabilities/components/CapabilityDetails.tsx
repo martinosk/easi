@@ -12,7 +12,7 @@ import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useMaturityScale } from '../../../hooks/useMaturityScale';
 import { useStrategyImportanceByCapability } from '../../business-domains/hooks/useStrategyImportance';
 import { deriveLegacyMaturityValue, getDefaultSections } from '../../../utils/maturity';
-import type { Capability, Component, CapabilityRealization, Expert, View, ViewCapability, ViewId, CapabilityId, StrategyImportance, ComponentId } from '../../../api/types';
+import type { Capability, Component, CapabilityRealization, Expert, View, ViewCapability, CapabilityId, StrategyImportance } from '../../../api/types';
 import toast from 'react-hot-toast';
 
 interface CapabilityDetailsProps {
@@ -106,7 +106,7 @@ const RealizingComponentsList: React.FC<RealizingComponentsProps> = ({
           {uniqueDomainIds.map((domainId) => (
             <RealizationFitContext
               key={`${r.componentId}-${domainId}`}
-              componentId={r.componentId as ComponentId}
+              componentId={r.componentId}
               capabilityId={capabilityId}
               businessDomainId={domainId}
             />
@@ -291,7 +291,7 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
       <RealizationsField
         realizations={realizations}
         components={components}
-        capabilityId={capability.id as CapabilityId}
+        capabilityId={capability.id}
         importanceRatings={importanceRatings}
       />
 
@@ -306,7 +306,7 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
   const { data: components = [] } = useComponents();
   const { currentView } = useCurrentView();
   const { data: capabilityRealizationsForThis = [] } = useCapabilityRealizations(selectedCapabilityId ?? undefined);
-  const { data: importanceRatings = [] } = useStrategyImportanceByCapability(selectedCapabilityId as CapabilityId | undefined);
+  const { data: importanceRatings = [] } = useStrategyImportanceByCapability(selectedCapabilityId ?? undefined);
   const updateCapabilityColorMutation = useUpdateCapabilityColor();
   const [showEditDialog, setShowEditDialog] = useState(false);
 
@@ -318,12 +318,12 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
   );
 
   const handleColorChange = async (color: string) => {
-    if (!currentView) return;
+    if (!currentView || !selectedCapabilityId) return;
 
     try {
       await updateCapabilityColorMutation.mutateAsync({
-        viewId: currentView.id as ViewId,
-        capabilityId: selectedCapabilityId as CapabilityId,
+        viewId: currentView.id,
+        capabilityId: selectedCapabilityId,
         color
       });
     } catch {

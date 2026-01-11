@@ -30,9 +30,9 @@ export const ViewSelector: React.FC = () => {
     return view.ownerEmail?.split('@')[0] || 'unknown';
   }, [userNameMap]);
 
-  const handleViewClick = (viewId: string) => {
+  const handleViewClick = (viewId: ViewId) => {
     if (currentView?.id !== viewId) {
-      setCurrentViewId(viewId as ViewId);
+      setCurrentViewId(viewId);
     }
   };
 

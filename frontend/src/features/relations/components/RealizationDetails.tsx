@@ -5,7 +5,7 @@ import { DetailField } from '../../../components/shared/DetailField';
 import { useCapabilities, useRealizationsForComponents } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
-import type { CapabilityRealization, Capability, Component, ComponentId } from '../../../api/types';
+import type { CapabilityRealization, Capability, Component } from '../../../api/types';
 
 const REALIZATION_PREFIX = 'realization-';
 
@@ -64,7 +64,7 @@ export const RealizationDetails: React.FC = () => {
   const [showEditDialog, setShowEditDialog] = useState(false);
 
   const componentIdsInView = useMemo(() =>
-    currentView?.components.map((vc) => vc.componentId as ComponentId) || [],
+    currentView?.components.map((vc) => vc.componentId) || [],
     [currentView?.components]
   );
   const { data: capabilityRealizations = [] } = useRealizationsForComponents(componentIdsInView);

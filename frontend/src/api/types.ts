@@ -13,6 +13,53 @@ export type BusinessDomainId = Branded<string, 'BusinessDomainId'>;
 export type EnterpriseCapabilityId = Branded<string, 'EnterpriseCapabilityId'>;
 export type EnterpriseCapabilityLinkId = Branded<string, 'EnterpriseCapabilityLinkId'>;
 export type EnterpriseStrategicImportanceId = Branded<string, 'EnterpriseStrategicImportanceId'>;
+export type LayoutContainerId = Branded<string, 'LayoutContainerId'>;
+export type StrategyImportanceId = Branded<string, 'StrategyImportanceId'>;
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+function createBrandedFactory<T extends string>(typeName: string) {
+  return (value: unknown): T => {
+    if (!isNonEmptyString(value)) {
+      throw new Error(`Invalid ${typeName}: expected non-empty string, got ${typeof value}`);
+    }
+    return value as T;
+  };
+}
+
+function createBrandedTypeGuard<T extends string>() {
+  return (value: unknown): value is T => isNonEmptyString(value);
+}
+
+export const toComponentId = createBrandedFactory<ComponentId>('ComponentId');
+export const toRelationId = createBrandedFactory<RelationId>('RelationId');
+export const toViewId = createBrandedFactory<ViewId>('ViewId');
+export const toCapabilityId = createBrandedFactory<CapabilityId>('CapabilityId');
+export const toCapabilityDependencyId = createBrandedFactory<CapabilityDependencyId>('CapabilityDependencyId');
+export const toRealizationId = createBrandedFactory<RealizationId>('RealizationId');
+export const toReleaseVersion = createBrandedFactory<ReleaseVersion>('ReleaseVersion');
+export const toBusinessDomainId = createBrandedFactory<BusinessDomainId>('BusinessDomainId');
+export const toEnterpriseCapabilityId = createBrandedFactory<EnterpriseCapabilityId>('EnterpriseCapabilityId');
+export const toEnterpriseCapabilityLinkId = createBrandedFactory<EnterpriseCapabilityLinkId>('EnterpriseCapabilityLinkId');
+export const toEnterpriseStrategicImportanceId = createBrandedFactory<EnterpriseStrategicImportanceId>('EnterpriseStrategicImportanceId');
+export const toLayoutContainerId = createBrandedFactory<LayoutContainerId>('LayoutContainerId');
+export const toStrategyImportanceId = createBrandedFactory<StrategyImportanceId>('StrategyImportanceId');
+
+export const isComponentId = createBrandedTypeGuard<ComponentId>();
+export const isRelationId = createBrandedTypeGuard<RelationId>();
+export const isViewId = createBrandedTypeGuard<ViewId>();
+export const isCapabilityId = createBrandedTypeGuard<CapabilityId>();
+export const isCapabilityDependencyId = createBrandedTypeGuard<CapabilityDependencyId>();
+export const isRealizationId = createBrandedTypeGuard<RealizationId>();
+export const isReleaseVersion = createBrandedTypeGuard<ReleaseVersion>();
+export const isBusinessDomainId = createBrandedTypeGuard<BusinessDomainId>();
+export const isEnterpriseCapabilityId = createBrandedTypeGuard<EnterpriseCapabilityId>();
+export const isEnterpriseCapabilityLinkId = createBrandedTypeGuard<EnterpriseCapabilityLinkId>();
+export const isEnterpriseStrategicImportanceId = createBrandedTypeGuard<EnterpriseStrategicImportanceId>();
+export const isLayoutContainerId = createBrandedTypeGuard<LayoutContainerId>();
+export const isStrategyImportanceId = createBrandedTypeGuard<StrategyImportanceId>();
 
 export interface Position {
   x: number;
@@ -382,7 +429,6 @@ export interface AssociateCapabilityRequest {
 
 export type BusinessDomainsResponse = CollectionResponse<BusinessDomain>;
 
-export type LayoutContainerId = Branded<string, 'LayoutContainerId'>;
 export type LayoutContextType = 'architecture-canvas' | 'business-domain-grid';
 
 export interface LayoutLink {
@@ -506,8 +552,6 @@ export interface UpdateStrategyPillarRequest {
   name: string;
   description: string;
 }
-
-export type StrategyImportanceId = Branded<string, 'StrategyImportanceId'>;
 
 export interface StrategyImportance {
   id: StrategyImportanceId;

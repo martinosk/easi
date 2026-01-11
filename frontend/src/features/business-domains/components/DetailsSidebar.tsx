@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { BusinessDomain, Capability, CapabilityId, ComponentId } from '../../../api/types';
+import type { BusinessDomain, Capability, ComponentId } from '../../../api/types';
 import { useComponentDetails } from '../hooks/useComponentDetails';
 import { ComponentDetailsContent } from '../../components/components/ComponentDetails';
 import { EditComponentDialog } from '../../components/components/EditComponentDialog';
@@ -58,7 +58,7 @@ function CapabilityContent({ capability, domain }: CapabilityContentProps) {
         {domain && (
           <StrategicImportanceSection
             domain={domain}
-            capabilityId={capability.id as CapabilityId}
+            capabilityId={capability.id}
           />
         )}
       </div>

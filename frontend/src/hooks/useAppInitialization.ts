@@ -2,7 +2,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useViews, useCreateView } from '../features/views/hooks/useViews';
 import { useAppStore } from '../store/appStore';
-import type { View, ViewId } from '../api/types';
+import type { View } from '../api/types';
 import toast from 'react-hot-toast';
 import { queryKeys } from '../lib/queryClient';
 import { metadataApi } from '../api/metadata';
@@ -43,13 +43,13 @@ export function useAppInitialization() {
       name: 'Default View',
       description: 'Main application view',
     });
-    setCurrentViewId(newView.id as ViewId);
+    setCurrentViewId(newView.id);
     toast.success('Created default view');
   }, [createViewMutation, setCurrentViewId]);
 
   const selectExistingView = useCallback((availableViews: View[]) => {
     const viewToSelect = findDefaultView(availableViews);
-    setCurrentViewId(viewToSelect.id as ViewId);
+    setCurrentViewId(viewToSelect.id);
   }, [setCurrentViewId]);
 
   useEffect(() => {

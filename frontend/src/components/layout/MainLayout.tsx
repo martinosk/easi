@@ -9,7 +9,7 @@ import { CapabilityDetails } from '../../features/capabilities';
 import { useAppStore } from '../../store/appStore';
 import { useRemoveCapabilityFromView } from '../../features/views/hooks/useViews';
 import { useCurrentView } from '../../features/views/hooks/useCurrentView';
-import type { Capability, CapabilityId } from '../../api/types';
+import type { Capability } from '../../api/types';
 
 interface MainLayoutProps {
   canvasRef: React.RefObject<ComponentCanvasRef | null>;
@@ -97,7 +97,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     if (selectedCapabilityId && currentViewId) {
       removeCapabilityFromViewMutation.mutate({
         viewId: currentViewId,
-        capabilityId: selectedCapabilityId as CapabilityId,
+        capabilityId: selectedCapabilityId,
       });
     }
   };

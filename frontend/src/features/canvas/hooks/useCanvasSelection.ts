@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { Node, Edge } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
-import type { ComponentId, CapabilityId, RelationId } from '../../../api/types';
+import { toComponentId, toCapabilityId, toRelationId } from '../../../api/types';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { canEdit } from '../../../utils/hateoas';
@@ -17,11 +17,11 @@ export const useCanvasSelection = () => {
   const onNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       if (node.type === 'capability') {
-        const capId = node.id.replace('cap-', '') as CapabilityId;
+        const capId = toCapabilityId(node.id.replace('cap-', ''));
         selectCapability(capId);
         selectNode(null);
       } else {
-        selectNode(node.id as ComponentId);
+        selectNode(toComponentId(node.id));
         selectCapability(null);
       }
     },
@@ -30,7 +30,7 @@ export const useCanvasSelection = () => {
 
   const onEdgeClick = useCallback(
     (_event: React.MouseEvent, edge: Edge) => {
-      selectEdge(edge.id as RelationId);
+      selectEdge(toRelationId(edge.id));
     },
     [selectEdge]
   );
@@ -46,10 +46,10 @@ export const useCanvasSelection = () => {
         return;
       }
       if (node.type === 'capability') {
-        const capId = node.id.replace('cap-', '') as CapabilityId;
+        const capId = toCapabilityId(node.id.replace('cap-', ''));
         updateCapabilityPosition(capId, node.position.x, node.position.y);
       } else {
-        updateComponentPosition(node.id as ComponentId, node.position.x, node.position.y);
+        updateComponentPosition(toComponentId(node.id), node.position.x, node.position.y);
       }
     },
     [updateComponentPosition, updateCapabilityPosition, currentView]

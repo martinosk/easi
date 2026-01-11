@@ -2,7 +2,8 @@ import { useCallback } from 'react';
 import { useAppStore } from '../../../store/appStore';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import type { ComponentCanvasRef } from '../components/ComponentCanvas';
-import type { ComponentId, CapabilityId, ViewComponent, ViewCapability } from '../../../api/types';
+import { toComponentId, toCapabilityId } from '../../../api/types';
+import type { ViewComponent, ViewCapability } from '../../../api/types';
 
 export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRef | null>) {
   const { currentView } = useCurrentView();
@@ -11,7 +12,7 @@ export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRe
 
   const navigateToComponent = useCallback(
     (componentId: string) => {
-      selectNode(componentId as ComponentId);
+      selectNode(toComponentId(componentId));
       selectCapability(null);
 
       const isInCurrentView = currentView?.components.some(
@@ -27,7 +28,7 @@ export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRe
 
   const navigateToCapability = useCallback(
     (capabilityId: string) => {
-      selectCapability(capabilityId as CapabilityId);
+      selectCapability(toCapabilityId(capabilityId));
       selectNode(null);
 
       const isOnCanvas = (currentView?.capabilities || []).some(

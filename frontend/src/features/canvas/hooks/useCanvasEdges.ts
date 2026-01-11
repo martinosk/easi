@@ -5,7 +5,7 @@ import { useCapabilities, useRealizationsForComponents } from '../../capabilitie
 import { useRelations } from '../../relations/hooks/useRelations';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { createRelationEdges, createParentEdges, createRealizationEdges } from '../utils/edgeCreators';
-import type { ComponentId, ViewComponent } from '../../../api/types';
+import type { ViewComponent } from '../../../api/types';
 
 export const useCanvasEdges = (nodes: Node[]): Edge[] => {
   const { data: relations = [] } = useRelations();
@@ -14,7 +14,7 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
   const { data: capabilities = [] } = useCapabilities();
 
   const componentIdsInView = useMemo(
-    () => (currentView?.components ?? []).map((vc: ViewComponent) => vc.componentId as ComponentId),
+    () => (currentView?.components ?? []).map((vc: ViewComponent) => vc.componentId),
     [currentView?.components]
   );
   const { data: capabilityRealizations = [] } = useRealizationsForComponents(componentIdsInView);

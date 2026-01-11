@@ -1,8 +1,6 @@
 import React from 'react';
 import { useCurrentView } from '../hooks/useCurrentView';
 import { useUpdateViewEdgeType } from '../hooks/useViews';
-import type { ViewId } from '../../../api/types';
-
 export const EdgeTypeSelector: React.FC = () => {
   const { currentView, currentViewId } = useCurrentView();
   const updateEdgeTypeMutation = useUpdateViewEdgeType();
@@ -12,7 +10,7 @@ export const EdgeTypeSelector: React.FC = () => {
   const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     if (currentViewId) {
       updateEdgeTypeMutation.mutate({
-        viewId: currentViewId as ViewId,
+        viewId: currentViewId,
         request: { edgeType: event.target.value },
       });
     }

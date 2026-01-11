@@ -15,7 +15,7 @@ import {
   getRelations,
   addRelation,
 } from './db';
-import type { ComponentId, CapabilityId, ViewId } from '../../api/types';
+import { toComponentId, toCapabilityId, toViewId } from '../../api/types';
 
 const BASE_URL = 'http://localhost:8080';
 
@@ -28,7 +28,7 @@ export const handlers = [
   }),
 
   http.get(`${BASE_URL}/api/v1/components/:id`, ({ params }) => {
-    const component = getComponent(params.id as ComponentId);
+    const component = getComponent(toComponentId(params.id as string));
     if (!component) {
       return new HttpResponse(null, { status: 404 });
     }
@@ -49,7 +49,7 @@ export const handlers = [
   }),
 
   http.get(`${BASE_URL}/api/v1/capabilities/:id`, ({ params }) => {
-    const capability = getCapability(params.id as CapabilityId);
+    const capability = getCapability(toCapabilityId(params.id as string));
     if (!capability) {
       return new HttpResponse(null, { status: 404 });
     }
@@ -63,7 +63,7 @@ export const handlers = [
   }),
 
   http.put(`${BASE_URL}/api/v1/capabilities/:id`, async ({ params, request }) => {
-    const capability = getCapability(params.id as CapabilityId);
+    const capability = getCapability(toCapabilityId(params.id as string));
     if (!capability) {
       return new HttpResponse(null, { status: 404 });
     }
@@ -73,7 +73,7 @@ export const handlers = [
   }),
 
   http.put(`${BASE_URL}/api/v1/capabilities/:id/metadata`, async ({ params, request }) => {
-    const capability = getCapability(params.id as CapabilityId);
+    const capability = getCapability(toCapabilityId(params.id as string));
     if (!capability) {
       return new HttpResponse(null, { status: 404 });
     }
@@ -83,7 +83,7 @@ export const handlers = [
   }),
 
   http.delete(`${BASE_URL}/api/v1/capabilities/:id`, ({ params }) => {
-    const capability = getCapability(params.id as CapabilityId);
+    const capability = getCapability(toCapabilityId(params.id as string));
     if (!capability) {
       return new HttpResponse(null, { status: 404 });
     }
@@ -91,7 +91,7 @@ export const handlers = [
   }),
 
   http.get(`${BASE_URL}/api/v1/capabilities/:id/systems`, ({ params }) => {
-    const realizations = getRealizationsByCapability(params.id as CapabilityId);
+    const realizations = getRealizationsByCapability(toCapabilityId(params.id as string));
     return HttpResponse.json({
       data: realizations,
       _links: { self: `/api/v1/capabilities/${params.id}/systems` },
@@ -99,7 +99,7 @@ export const handlers = [
   }),
 
   http.get(`${BASE_URL}/api/v1/capability-realizations/by-component/:componentId`, ({ params }) => {
-    const realizations = getRealizationsByComponent(params.componentId as ComponentId);
+    const realizations = getRealizationsByComponent(toComponentId(params.componentId as string));
     return HttpResponse.json({
       data: realizations,
       _links: { self: `/api/v1/capability-realizations/by-component/${params.componentId}` },
@@ -129,7 +129,7 @@ export const handlers = [
   }),
 
   http.patch(`${BASE_URL}/api/v1/views/:viewId/capabilities/:capabilityId/color`, async ({ params, request }) => {
-    const view = getView(params.viewId as ViewId);
+    const view = getView(toViewId(params.viewId as string));
     if (!view) {
       return new HttpResponse(null, { status: 404 });
     }
@@ -142,13 +142,13 @@ export const handlers = [
         ...view.capabilities[capIndex],
         color: body.color,
       };
-      updateView(params.viewId as ViewId, { capabilities: view.capabilities });
+      updateView(toViewId(params.viewId as string), { capabilities: view.capabilities });
     }
     return new HttpResponse(null, { status: 204 });
   }),
 
   http.delete(`${BASE_URL}/api/v1/views/:viewId/capabilities/:capabilityId/color`, ({ params }) => {
-    const view = getView(params.viewId as ViewId);
+    const view = getView(toViewId(params.viewId as string));
     if (!view) {
       return new HttpResponse(null, { status: 404 });
     }
@@ -158,13 +158,13 @@ export const handlers = [
     if (capIndex >= 0 && view.capabilities) {
       const rest = Object.fromEntries(Object.entries(view.capabilities[capIndex]).filter(([key]) => key !== 'color')) as typeof view.capabilities[number];
       view.capabilities[capIndex] = rest as typeof view.capabilities[number];
-      updateView(params.viewId as ViewId, { capabilities: view.capabilities });
+      updateView(toViewId(params.viewId as string), { capabilities: view.capabilities });
     }
     return new HttpResponse(null, { status: 204 });
   }),
 
   http.patch(`${BASE_URL}/api/v1/views/:viewId/components/:componentId/color`, async ({ params, request }) => {
-    const view = getView(params.viewId as ViewId);
+    const view = getView(toViewId(params.viewId as string));
     if (!view) {
       return new HttpResponse(null, { status: 404 });
     }
@@ -177,13 +177,13 @@ export const handlers = [
         ...view.components[compIndex],
         color: body.color,
       };
-      updateView(params.viewId as ViewId, { components: view.components });
+      updateView(toViewId(params.viewId as string), { components: view.components });
     }
     return new HttpResponse(null, { status: 204 });
   }),
 
   http.delete(`${BASE_URL}/api/v1/views/:viewId/components/:componentId/color`, ({ params }) => {
-    const view = getView(params.viewId as ViewId);
+    const view = getView(toViewId(params.viewId as string));
     if (!view) {
       return new HttpResponse(null, { status: 404 });
     }
@@ -193,7 +193,7 @@ export const handlers = [
     if (compIndex >= 0 && view.components) {
       const rest = Object.fromEntries(Object.entries(view.components[compIndex]).filter(([key]) => key !== 'color')) as typeof view.components[number];
       view.components[compIndex] = rest as typeof view.components[number];
-      updateView(params.viewId as ViewId, { components: view.components });
+      updateView(toViewId(params.viewId as string), { components: view.components });
     }
     return new HttpResponse(null, { status: 204 });
   }),

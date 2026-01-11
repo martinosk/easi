@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { BusinessDomain, CapabilityId, StrategyImportance, BusinessDomainId, StrategyImportanceId } from '../../../api/types';
+import type { BusinessDomain, CapabilityId, StrategyImportance } from '../../../api/types';
 import {
   useStrategyImportanceByDomainAndCapability,
   useSetStrategyImportance,
@@ -173,7 +173,7 @@ const ImportanceRow: React.FC<ImportanceRowProps> = ({
 
 export function StrategicImportanceSection({ domain, capabilityId }: StrategicImportanceSectionProps) {
   const { data: importanceRatings = [], isLoading } = useStrategyImportanceByDomainAndCapability(
-    domain.id as BusinessDomainId,
+    domain.id,
     capabilityId
   );
   const { data: pillarsConfig } = useStrategyPillarsConfig();
@@ -218,7 +218,7 @@ export function StrategicImportanceSection({ domain, capabilityId }: StrategicIm
 
     if (existing) {
       await updateImportanceMutation.mutateAsync({
-        domainId: domain.id as BusinessDomainId,
+        domainId: domain.id,
         capabilityId,
         importanceId: existing.id,
         request: {
@@ -228,7 +228,7 @@ export function StrategicImportanceSection({ domain, capabilityId }: StrategicIm
       });
     } else {
       await setImportanceMutation.mutateAsync({
-        domainId: domain.id as BusinessDomainId,
+        domainId: domain.id,
         capabilityId,
         request: {
           pillarId,
@@ -251,9 +251,9 @@ export function StrategicImportanceSection({ domain, capabilityId }: StrategicIm
     if (!confirmed) return;
 
     await removeImportanceMutation.mutateAsync({
-      domainId: domain.id as BusinessDomainId,
+      domainId: domain.id,
       capabilityId,
-      importanceId: existing.id as StrategyImportanceId,
+      importanceId: existing.id,
     });
   };
 

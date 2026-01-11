@@ -153,7 +153,7 @@ export const useContextMenu = () => {
   const { currentView } = useCurrentView();
 
   const componentIdsInView = useMemo(() =>
-    currentView?.components.map((vc) => vc.componentId as ComponentId) || [],
+    currentView?.components.map((vc) => vc.componentId) || [],
     [currentView?.components]
   );
   const { data: capabilityRealizations = [] } = useRealizationsForComponents(componentIdsInView);

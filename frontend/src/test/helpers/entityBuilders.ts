@@ -1,20 +1,22 @@
+import {
+  toComponentId,
+  toRelationId,
+  toViewId,
+  toCapabilityId,
+  toCapabilityDependencyId,
+  toRealizationId,
+  toBusinessDomainId,
+} from '../../api/types';
 import type {
   Component,
-  ComponentId,
   Relation,
-  RelationId,
   View,
-  ViewId,
   ViewComponent,
   ViewCapability,
   Capability,
-  CapabilityId,
   CapabilityDependency,
-  CapabilityDependencyId,
   CapabilityRealization,
-  RealizationId,
   BusinessDomain,
-  BusinessDomainId,
   HATEOASLinks,
   CapabilityLevel,
   DependencyType,
@@ -40,7 +42,7 @@ function buildLinks(self: string): HATEOASLinks {
 }
 
 export function buildComponent(overrides: Partial<Component> = {}): Component {
-  const id = (overrides.id ?? nextId('comp')) as ComponentId;
+  const id = overrides.id ?? toComponentId(nextId('comp'));
   return {
     id,
     name: `Component ${id}`,
@@ -52,11 +54,11 @@ export function buildComponent(overrides: Partial<Component> = {}): Component {
 }
 
 export function buildRelation(overrides: Partial<Relation> = {}): Relation {
-  const id = (overrides.id ?? nextId('rel')) as RelationId;
+  const id = overrides.id ?? toRelationId(nextId('rel'));
   return {
     id,
-    sourceComponentId: 'comp-1' as ComponentId,
-    targetComponentId: 'comp-2' as ComponentId,
+    sourceComponentId: toComponentId('comp-1'),
+    targetComponentId: toComponentId('comp-2'),
     relationType: 'Triggers',
     name: 'Test Relation',
     description: 'Test relation description',
@@ -68,7 +70,7 @@ export function buildRelation(overrides: Partial<Relation> = {}): Relation {
 
 export function buildViewComponent(overrides: Partial<ViewComponent> = {}): ViewComponent {
   return {
-    componentId: 'comp-1' as ComponentId,
+    componentId: toComponentId('comp-1'),
     x: 100,
     y: 100,
     ...overrides,
@@ -77,7 +79,7 @@ export function buildViewComponent(overrides: Partial<ViewComponent> = {}): View
 
 export function buildViewCapability(overrides: Partial<ViewCapability> = {}): ViewCapability {
   return {
-    capabilityId: 'cap-1' as CapabilityId,
+    capabilityId: toCapabilityId('cap-1'),
     x: 200,
     y: 200,
     ...overrides,
@@ -85,7 +87,7 @@ export function buildViewCapability(overrides: Partial<ViewCapability> = {}): Vi
 }
 
 export function buildView(overrides: Partial<View> = {}): View {
-  const id = (overrides.id ?? nextId('view')) as ViewId;
+  const id = overrides.id ?? toViewId(nextId('view'));
   return {
     id,
     name: `View ${id}`,
@@ -112,7 +114,7 @@ export function buildExpert(overrides: Partial<Expert> = {}): Expert {
 }
 
 export function buildCapability(overrides: Partial<Capability> = {}): Capability {
-  const id = (overrides.id ?? nextId('cap')) as CapabilityId;
+  const id = overrides.id ?? toCapabilityId(nextId('cap'));
   return {
     id,
     name: `Capability ${id}`,
@@ -127,11 +129,11 @@ export function buildCapability(overrides: Partial<Capability> = {}): Capability
 export function buildCapabilityDependency(
   overrides: Partial<CapabilityDependency> = {}
 ): CapabilityDependency {
-  const id = (overrides.id ?? nextId('dep')) as CapabilityDependencyId;
+  const id = overrides.id ?? toCapabilityDependencyId(nextId('dep'));
   return {
     id,
-    sourceCapabilityId: 'cap-1' as CapabilityId,
-    targetCapabilityId: 'cap-2' as CapabilityId,
+    sourceCapabilityId: toCapabilityId('cap-1'),
+    targetCapabilityId: toCapabilityId('cap-2'),
     dependencyType: 'Requires' as DependencyType,
     description: 'Test dependency',
     createdAt: '2024-01-01T00:00:00Z',
@@ -143,11 +145,11 @@ export function buildCapabilityDependency(
 export function buildCapabilityRealization(
   overrides: Partial<CapabilityRealization> = {}
 ): CapabilityRealization {
-  const id = (overrides.id ?? nextId('real')) as RealizationId;
+  const id = overrides.id ?? toRealizationId(nextId('real'));
   return {
     id,
-    capabilityId: 'cap-1' as CapabilityId,
-    componentId: 'comp-1' as ComponentId,
+    capabilityId: toCapabilityId('cap-1'),
+    componentId: toComponentId('comp-1'),
     componentName: 'Component 1',
     realizationLevel: 'Full' as RealizationLevel,
     origin: 'Direct',
@@ -158,7 +160,7 @@ export function buildCapabilityRealization(
 }
 
 export function buildBusinessDomain(overrides: Partial<BusinessDomain> = {}): BusinessDomain {
-  const id = (overrides.id ?? nextId('domain')) as BusinessDomainId;
+  const id = overrides.id ?? toBusinessDomainId(nextId('domain'));
   return {
     id,
     name: `Business Domain ${id}`,

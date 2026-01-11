@@ -8,7 +8,7 @@ import { useCapabilities, useCapabilitiesByComponent } from '../../capabilities/
 import { useComponents } from '../hooks/useComponents';
 import { useUpdateComponentColor, useClearComponentColor } from '../../views/hooks/useViews';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
-import type { CapabilityRealization, Capability, ViewComponent, Component, View, ViewId, ComponentId } from '../../../api/types';
+import type { CapabilityRealization, Capability, ViewComponent, Component, View } from '../../../api/types';
 import toast from 'react-hot-toast';
 
 interface ComponentDetailsProps {
@@ -298,8 +298,8 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
     if (!currentView) return;
     try {
       await updateComponentColorMutation.mutateAsync({
-        viewId: currentView.id as ViewId,
-        componentId: selectedNodeId as ComponentId,
+        viewId: currentView.id,
+        componentId: selectedNodeId,
         color
       });
     } catch {
@@ -311,8 +311,8 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
     if (!currentView) return;
     try {
       await clearComponentColorMutation.mutateAsync({
-        viewId: currentView.id as ViewId,
-        componentId: selectedNodeId as ComponentId
+        viewId: currentView.id,
+        componentId: selectedNodeId
       });
     } catch {
       toast.error('Failed to clear color');

@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAddCapabilityTag } from '../hooks/useCapabilities';
 import { addTagSchema, type AddTagFormData } from '../../../lib/schemas';
-import type { CapabilityId } from '../../../api/types';
+import { toCapabilityId } from '../../../api/types';
 
 interface AddTagDialogProps {
   isOpen: boolean;
@@ -48,7 +48,7 @@ export const AddTagDialog: React.FC<AddTagDialogProps> = ({
     setBackendError(null);
     try {
       await addTagMutation.mutateAsync({
-        id: capabilityId as CapabilityId,
+        id: toCapabilityId(capabilityId),
         request: { tag: data.tag },
       });
       handleClose();

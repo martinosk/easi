@@ -2,7 +2,7 @@ import { ContextMenu, type ContextMenuItem } from '../../../../components/shared
 import { useCurrentView } from '../../../views/hooks/useCurrentView';
 import { useRemoveComponentFromView, useRemoveCapabilityFromView } from '../../../views/hooks/useViews';
 import type { NodeContextMenu as NodeContextMenuType } from '../../hooks/useContextMenu';
-import type { CapabilityId, ComponentId } from '../../../../api/types';
+import { toCapabilityId, toComponentId } from '../../../../api/types';
 import { hasLink } from '../../../../utils/hateoas';
 
 interface NodeContextMenuProps {
@@ -36,7 +36,7 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete }: NodeContextM
             if (currentViewId) {
               removeCapabilityFromViewMutation.mutate({
                 viewId: currentViewId,
-                capabilityId: menu.nodeId as CapabilityId
+                capabilityId: toCapabilityId(menu.nodeId)
               });
             }
             onClose();
@@ -70,7 +70,7 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete }: NodeContextM
           if (currentViewId) {
             removeComponentFromViewMutation.mutate({
               viewId: currentViewId,
-              componentId: menu.nodeId as ComponentId
+              componentId: toComponentId(menu.nodeId)
             });
           }
           onClose();

@@ -1,7 +1,8 @@
 import { useCallback, useRef } from 'react';
 import { useDialogContext } from '../../../contexts/dialogs';
 import { useAppStore } from '../../../store/appStore';
-import type { Capability, Component, Relation, ComponentId } from '../../../api/types';
+import { toComponentId } from '../../../api/types';
+import type { Capability, Component, Relation } from '../../../api/types';
 
 export interface CanvasDialogActions {
   openComponentDialog: () => void;
@@ -49,7 +50,7 @@ export function useCanvasDialogs(
   const openEditComponentDialog = useCallback(
     (componentId?: string) => {
       if (componentId) {
-        selectNode(componentId as ComponentId);
+        selectNode(toComponentId(componentId));
         const component = componentsRef.current.find((c: Component) => c.id === componentId);
         if (component) {
           openDialog('edit-component', { component });

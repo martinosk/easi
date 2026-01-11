@@ -6,7 +6,6 @@ import { useCreateComponent } from '../hooks/useComponents';
 import { useAddComponentToView } from '../../views/hooks/useViews';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { createComponentSchema, type CreateComponentFormData } from '../../../lib/schemas';
-import type { ComponentId, ViewId } from '../../../api/types';
 import { canEdit } from '../../../utils/hateoas';
 
 interface CreateComponentDialogProps {
@@ -61,9 +60,9 @@ export const CreateComponentDialog: React.FC<CreateComponentDialogProps> = ({
       if (currentView && canEdit(currentView)) {
         const defaultPosition = { x: 400, y: 300 };
         await addComponentToViewMutation.mutateAsync({
-          viewId: currentView.id as ViewId,
+          viewId: currentView.id,
           request: {
-            componentId: newComponent.id as ComponentId,
+            componentId: newComponent.id,
             ...defaultPosition,
           },
         });
