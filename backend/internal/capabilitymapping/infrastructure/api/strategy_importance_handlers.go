@@ -6,6 +6,7 @@ import (
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/types"
 
@@ -70,7 +71,7 @@ func (h *StrategyImportanceHandlers) GetImportanceByDomainAndCapability(w http.R
 	domainID := chi.URLParam(r, "id")
 	capabilityID := chi.URLParam(r, "capabilityId")
 
-	h.respondWithImportanceCollection(w, func() ([]readmodels.StrategyImportanceDTO, error) {
+	h.respondWithImportanceCollection(w, r, func() ([]readmodels.StrategyImportanceDTO, error) {
 		return h.importanceRM.GetByDomainAndCapability(r.Context(), domainID, capabilityID)
 	}, domainID, "/api/v1/business-domains/"+domainID+"/capabilities/"+capabilityID+"/importance")
 }
@@ -119,7 +120,8 @@ func (h *StrategyImportanceHandlers) SetImportance(w http.ResponseWriter, r *htt
 		return
 	}
 
-	response := h.buildImportanceResponse(*created, domainID)
+	actor, _ := sharedctx.GetActor(r.Context())
+	response := h.buildImportanceResponse(*created, domainID, actor)
 	location := "/api/v1/business-domains/" + domainID + "/capabilities/" + capabilityID + "/importance/" + result.CreatedID
 	w.Header().Set("Location", location)
 	sharedAPI.RespondJSON(w, http.StatusCreated, response)
@@ -167,7 +169,8 @@ func (h *StrategyImportanceHandlers) UpdateImportance(w http.ResponseWriter, r *
 		return
 	}
 
-	response := h.buildImportanceResponse(*updated, domainID)
+	actor, _ := sharedctx.GetActor(r.Context())
+	response := h.buildImportanceResponse(*updated, domainID, actor)
 	sharedAPI.RespondJSON(w, http.StatusOK, response)
 }
 
@@ -213,7 +216,7 @@ func (h *StrategyImportanceHandlers) RemoveImportance(w http.ResponseWriter, r *
 func (h *StrategyImportanceHandlers) GetImportanceByDomain(w http.ResponseWriter, r *http.Request) {
 	domainID := chi.URLParam(r, "id")
 
-	h.respondWithImportanceCollection(w, func() ([]readmodels.StrategyImportanceDTO, error) {
+	h.respondWithImportanceCollection(w, r, func() ([]readmodels.StrategyImportanceDTO, error) {
 		return h.importanceRM.GetByDomain(r.Context(), domainID)
 	}, domainID, "/api/v1/business-domains/"+domainID+"/importance")
 }
@@ -231,27 +234,28 @@ func (h *StrategyImportanceHandlers) GetImportanceByDomain(w http.ResponseWriter
 func (h *StrategyImportanceHandlers) GetImportanceByCapability(w http.ResponseWriter, r *http.Request) {
 	capabilityID := chi.URLParam(r, "id")
 
-	h.respondWithImportanceCollection(w, func() ([]readmodels.StrategyImportanceDTO, error) {
+	h.respondWithImportanceCollection(w, r, func() ([]readmodels.StrategyImportanceDTO, error) {
 		return h.importanceRM.GetByCapability(r.Context(), capabilityID)
 	}, "", "/api/v1/capabilities/"+capabilityID+"/importance")
 }
 
 type importanceFetcher func() ([]readmodels.StrategyImportanceDTO, error)
 
-func (h *StrategyImportanceHandlers) respondWithImportanceCollection(w http.ResponseWriter, fetcher importanceFetcher, domainID, selfLink string) {
+func (h *StrategyImportanceHandlers) respondWithImportanceCollection(w http.ResponseWriter, r *http.Request, fetcher importanceFetcher, domainID, selfLink string) {
 	ratings, err := fetcher()
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve importance ratings")
 		return
 	}
 
-	data := h.buildImportanceResponses(ratings, domainID)
+	actor, _ := sharedctx.GetActor(r.Context())
+	data := h.buildImportanceResponses(ratings, domainID, actor)
 	links := sharedAPI.Links{"self": sharedAPI.NewLink(selfLink, "GET")}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, data, links)
 }
 
-func (h *StrategyImportanceHandlers) buildImportanceResponse(dto readmodels.StrategyImportanceDTO, domainID string) StrategyImportanceResponse {
+func (h *StrategyImportanceHandlers) buildImportanceResponse(dto readmodels.StrategyImportanceDTO, domainID string, actor sharedctx.Actor) StrategyImportanceResponse {
 	effectiveDomainID := domainID
 	if effectiveDomainID == "" {
 		effectiveDomainID = dto.BusinessDomainID
@@ -268,14 +272,14 @@ func (h *StrategyImportanceHandlers) buildImportanceResponse(dto readmodels.Stra
 		Importance:         dto.Importance,
 		ImportanceLabel:    dto.ImportanceLabel,
 		Rationale:          dto.Rationale,
-		Links:              h.hateoas.StrategyImportanceLinks(effectiveDomainID, dto.CapabilityID, dto.ID),
+		Links:              h.hateoas.StrategyImportanceLinksForActor(effectiveDomainID, dto.CapabilityID, dto.ID, actor),
 	}
 }
 
-func (h *StrategyImportanceHandlers) buildImportanceResponses(dtos []readmodels.StrategyImportanceDTO, domainID string) []StrategyImportanceResponse {
+func (h *StrategyImportanceHandlers) buildImportanceResponses(dtos []readmodels.StrategyImportanceDTO, domainID string, actor sharedctx.Actor) []StrategyImportanceResponse {
 	responses := make([]StrategyImportanceResponse, len(dtos))
 	for i, dto := range dtos {
-		responses[i] = h.buildImportanceResponse(dto, domainID)
+		responses[i] = h.buildImportanceResponse(dto, domainID, actor)
 	}
 	return responses
 }

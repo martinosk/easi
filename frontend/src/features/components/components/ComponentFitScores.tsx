@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useComponentFitScores, useSetFitScore, useDeleteFitScore } from '../hooks/useFitScores';
 import { useStrategyPillarsConfig } from '../../../hooks/useStrategyPillarsSettings';
+import { canEdit, canDelete, canCreate } from '../../../utils/hateoas';
 import type { ComponentId, StrategyPillar, ApplicationFitScore } from '../../../api/types';
 import './ComponentFitScores.css';
 
@@ -33,6 +34,9 @@ interface FitScoreRowProps {
   onSave: () => void;
   onDelete: () => void;
   isSaving: boolean;
+  canEditScore: boolean;
+  canDeleteScore: boolean;
+  canAddScore: boolean;
 }
 
 const FitScoreRow: React.FC<FitScoreRowProps> = ({
@@ -48,6 +52,9 @@ const FitScoreRow: React.FC<FitScoreRowProps> = ({
   onSave,
   onDelete,
   isSaving,
+  canEditScore,
+  canDeleteScore,
+  canAddScore,
 }) => {
   return (
     <div className="fit-score-row" data-testid={`fit-score-row-${pillar.id}`}>
@@ -121,24 +128,30 @@ const FitScoreRow: React.FC<FitScoreRowProps> = ({
               {score.rationale && (
                 <span className="fit-score-rationale">"{score.rationale}"</span>
               )}
-              <div className="fit-score-actions">
-                <button
-                  type="button"
-                  className="btn btn-link btn-small"
-                  onClick={onEdit}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-link btn-small btn-danger"
-                  onClick={onDelete}
-                >
-                  Remove
-                </button>
-              </div>
+              {(canEditScore || canDeleteScore) && (
+                <div className="fit-score-actions">
+                  {canEditScore && (
+                    <button
+                      type="button"
+                      className="btn btn-link btn-small"
+                      onClick={onEdit}
+                    >
+                      Edit
+                    </button>
+                  )}
+                  {canDeleteScore && (
+                    <button
+                      type="button"
+                      className="btn btn-link btn-small btn-danger"
+                      onClick={onDelete}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              )}
             </>
-          ) : (
+          ) : canAddScore ? (
             <button
               type="button"
               className="btn btn-link btn-small"
@@ -147,7 +160,7 @@ const FitScoreRow: React.FC<FitScoreRowProps> = ({
             >
               + Add Score
             </button>
-          )}
+          ) : null}
         </div>
       )}
     </div>
@@ -156,13 +169,16 @@ const FitScoreRow: React.FC<FitScoreRowProps> = ({
 
 export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({ componentId }) => {
   const { data: pillarsConfig } = useStrategyPillarsConfig();
-  const { data: fitScores = [] } = useComponentFitScores(componentId);
+  const { data: fitScoresResponse } = useComponentFitScores(componentId);
   const setFitScoreMutation = useSetFitScore();
   const deleteFitScoreMutation = useDeleteFitScore();
 
   const [editingPillarId, setEditingPillarId] = useState<string | null>(null);
   const [editScore, setEditScore] = useState<number | null>(null);
   const [editRationale, setEditRationale] = useState('');
+
+  const fitScores = fitScoresResponse?.data ?? [];
+  const collectionLinks = fitScoresResponse?._links;
 
   const enabledPillars = useMemo(() => {
     if (!pillarsConfig?.data) return [];
@@ -228,23 +244,29 @@ export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({ componen
         Rate how well this application supports each strategic pillar
       </p>
       <div className="fit-scores-list">
-        {enabledPillars.map((pillar) => (
-          <FitScoreRow
-            key={pillar.id}
-            pillar={pillar}
-            score={getScoreForPillar(pillar.id)}
-            isEditing={editingPillarId === pillar.id}
-            editScore={editScore}
-            editRationale={editRationale}
-            onEdit={() => handleEdit(pillar)}
-            onCancel={handleCancel}
-            onScoreChange={setEditScore}
-            onRationaleChange={setEditRationale}
-            onSave={() => handleSave(pillar.id)}
-            onDelete={() => handleDelete(pillar.id)}
-            isSaving={setFitScoreMutation.isPending}
-          />
-        ))}
+        {enabledPillars.map((pillar) => {
+          const score = getScoreForPillar(pillar.id);
+          return (
+            <FitScoreRow
+              key={pillar.id}
+              pillar={pillar}
+              score={score}
+              isEditing={editingPillarId === pillar.id}
+              editScore={editScore}
+              editRationale={editRationale}
+              onEdit={() => handleEdit(pillar)}
+              onCancel={handleCancel}
+              onScoreChange={setEditScore}
+              onRationaleChange={setEditRationale}
+              onSave={() => handleSave(pillar.id)}
+              onDelete={() => handleDelete(pillar.id)}
+              isSaving={setFitScoreMutation.isPending}
+              canEditScore={canEdit(score)}
+              canDeleteScore={canDelete(score)}
+              canAddScore={canCreate({ _links: collectionLinks })}
+            />
+          );
+        })}
       </div>
     </div>
   );

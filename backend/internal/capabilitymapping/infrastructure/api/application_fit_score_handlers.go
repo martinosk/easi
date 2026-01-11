@@ -7,6 +7,7 @@ import (
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/types"
 
@@ -69,6 +70,7 @@ type ApplicationFitScoreResponse struct {
 // @Router /components/{id}/fit-scores [get]
 func (h *ApplicationFitScoreHandlers) GetFitScoresByComponent(w http.ResponseWriter, r *http.Request) {
 	componentID := chi.URLParam(r, "id")
+	actor, _ := sharedctx.GetActor(r.Context())
 
 	scores, err := h.fitScoreRM.GetByComponentID(r.Context(), componentID)
 	if err != nil {
@@ -76,11 +78,8 @@ func (h *ApplicationFitScoreHandlers) GetFitScoresByComponent(w http.ResponseWri
 		return
 	}
 
-	data := h.buildFitScoreResponses(scores)
-	links := sharedAPI.Links{
-		"self": sharedAPI.NewLink("/api/v1/components/"+componentID+"/fit-scores", "GET"),
-		"up":   sharedAPI.NewLink("/api/v1/components/"+componentID, "GET"),
-	}
+	data := h.buildFitScoreResponsesForActor(scores, actor)
+	links := h.hateoas.FitScoresCollectionLinksForActor(componentID, actor)
 
 	sharedAPI.RespondCollection(w, http.StatusOK, data, links)
 }
@@ -176,7 +175,8 @@ func (h *ApplicationFitScoreHandlers) SetFitScore(w http.ResponseWriter, r *http
 		return
 	}
 
-	response := h.buildFitScoreResponse(*updated)
+	actor, _ := sharedctx.GetActor(r.Context())
+	response := h.buildFitScoreResponseForActor(*updated, actor)
 
 	if statusCode == http.StatusCreated {
 		location := "/api/v1/components/" + componentID + "/fit-scores/" + pillarID
@@ -258,6 +258,7 @@ func (h *ApplicationFitScoreHandlers) RemoveFitScore(w http.ResponseWriter, r *h
 // @Router /strategy-pillars/{pillarId}/fit-scores [get]
 func (h *ApplicationFitScoreHandlers) GetFitScoresByPillar(w http.ResponseWriter, r *http.Request) {
 	pillarID := chi.URLParam(r, "pillarId")
+	actor, _ := sharedctx.GetActor(r.Context())
 
 	scores, err := h.fitScoreRM.GetByPillarID(r.Context(), pillarID)
 	if err != nil {
@@ -265,7 +266,7 @@ func (h *ApplicationFitScoreHandlers) GetFitScoresByPillar(w http.ResponseWriter
 		return
 	}
 
-	data := h.buildFitScoreResponses(scores)
+	data := h.buildFitScoreResponsesForActor(scores, actor)
 	links := sharedAPI.Links{
 		"self": sharedAPI.NewLink("/api/v1/strategy-pillars/"+pillarID+"/fit-scores", "GET"),
 	}
@@ -273,7 +274,7 @@ func (h *ApplicationFitScoreHandlers) GetFitScoresByPillar(w http.ResponseWriter
 	sharedAPI.RespondCollection(w, http.StatusOK, data, links)
 }
 
-func (h *ApplicationFitScoreHandlers) buildFitScoreResponse(dto readmodels.ApplicationFitScoreDTO) ApplicationFitScoreResponse {
+func (h *ApplicationFitScoreHandlers) buildFitScoreResponseForActor(dto readmodels.ApplicationFitScoreDTO, actor sharedctx.Actor) ApplicationFitScoreResponse {
 	return ApplicationFitScoreResponse{
 		ID:            dto.ID,
 		ComponentID:   dto.ComponentID,
@@ -285,17 +286,14 @@ func (h *ApplicationFitScoreHandlers) buildFitScoreResponse(dto readmodels.Appli
 		Rationale:     dto.Rationale,
 		ScoredAt:      dto.ScoredAt.Format("2006-01-02T15:04:05Z"),
 		ScoredBy:      dto.ScoredBy,
-		Links: types.Links{
-			"self": sharedAPI.NewLink("/api/v1/components/"+dto.ComponentID+"/fit-scores/"+dto.PillarID, "GET"),
-			"up":   sharedAPI.NewLink("/api/v1/components/"+dto.ComponentID, "GET"),
-		},
+		Links:         h.hateoas.FitScoreLinksForActor(dto.ComponentID, dto.PillarID, actor),
 	}
 }
 
-func (h *ApplicationFitScoreHandlers) buildFitScoreResponses(dtos []readmodels.ApplicationFitScoreDTO) []ApplicationFitScoreResponse {
+func (h *ApplicationFitScoreHandlers) buildFitScoreResponsesForActor(dtos []readmodels.ApplicationFitScoreDTO, actor sharedctx.Actor) []ApplicationFitScoreResponse {
 	responses := make([]ApplicationFitScoreResponse, len(dtos))
 	for i, dto := range dtos {
-		responses[i] = h.buildFitScoreResponse(dto)
+		responses[i] = h.buildFitScoreResponseForActor(dto, actor)
 	}
 	return responses
 }

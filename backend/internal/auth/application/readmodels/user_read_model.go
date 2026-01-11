@@ -65,6 +65,17 @@ func (rm *UserReadModel) GetByEmail(ctx context.Context, email string) (*UserDTO
 	return rm.getByField(ctx, "email", email)
 }
 
+func (rm *UserReadModel) GetRoleByEmail(ctx context.Context, email string) (string, error) {
+	user, err := rm.GetByEmail(ctx, email)
+	if err != nil {
+		return "", err
+	}
+	if user == nil {
+		return "", nil
+	}
+	return user.Role, nil
+}
+
 func (rm *UserReadModel) getByField(ctx context.Context, field string, value interface{}) (*UserDTO, error) {
 	if !allowedSelectFields[field] {
 		return nil, fmt.Errorf("invalid field name: %s", field)

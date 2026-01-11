@@ -766,19 +766,14 @@ func (h *ViewHandlers) ClearCapabilityColor(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *ViewHandlers) buildViewLinks(r *http.Request, view *readmodels.ArchitectureViewDTO) sharedAPI.Links {
-	currentUserID := ""
-	if actor, ok := sharedctx.GetActor(r.Context()); ok {
-		currentUserID = actor.ID
-	}
-
-	perms := sharedAPI.ViewPermissions{
+	actor, _ := sharedctx.GetActor(r.Context())
+	viewInfo := sharedAPI.ViewInfo{
+		ID:          view.ID,
 		IsPrivate:   view.IsPrivate,
 		IsDefault:   view.IsDefault,
 		OwnerUserID: view.OwnerUserID,
-		CurrentUser: currentUserID,
 	}
-
-	return h.hateoas.ViewLinksWithPermissions(view.ID, perms)
+	return h.hateoas.ViewLinksForActor(viewInfo, actor)
 }
 
 func isOwnerOfView(ownerUserID *string, actorID string) bool {
@@ -786,12 +781,10 @@ func isOwnerOfView(ownerUserID *string, actorID string) bool {
 }
 
 func (h *ViewHandlers) canEditView(r *http.Request, view *readmodels.ArchitectureViewDTO) bool {
-	currentUserID := ""
-	if actor, ok := sharedctx.GetActor(r.Context()); ok {
-		currentUserID = actor.ID
-	}
-	isOwner := view.OwnerUserID != nil && *view.OwnerUserID == currentUserID
-	return !view.IsPrivate || isOwner
+	actor, _ := sharedctx.GetActor(r.Context())
+	isOwner := view.OwnerUserID != nil && *view.OwnerUserID == actor.ID
+	canEditThisView := !view.IsPrivate || isOwner
+	return canEditThisView && actor.CanWrite("views")
 }
 
 func (h *ViewHandlers) redactPrivateViewInfo(r *http.Request, view *readmodels.ArchitectureViewDTO) {

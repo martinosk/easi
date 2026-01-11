@@ -8,6 +8,7 @@ import type {
   CapabilityId,
   BusinessDomainId,
   SetApplicationFitScoreRequest,
+  ApplicationFitScoresResponse,
   ApiError,
 } from '../../../api/types';
 import toast from 'react-hot-toast';
@@ -34,7 +35,7 @@ function getFitScoreErrorMessage(error: unknown, defaultMessage: string): string
 }
 
 export function useComponentFitScores(componentId: ComponentId | undefined) {
-  return useQuery({
+  return useQuery<ApplicationFitScoresResponse>({
     queryKey: queryKeys.fitScores.byComponent(componentId!),
     queryFn: () => fitScoresApi.getByComponent(componentId!),
     enabled: !!componentId,

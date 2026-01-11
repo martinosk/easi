@@ -12,17 +12,15 @@ import (
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
-// TenantMiddleware extracts tenant context from request and injects it into context
-// Supports two modes based on AUTH_MODE:
-// 1. Bypass Mode (AUTH_MODE=bypass): Uses X-Tenant-ID header
-// 2. Authenticated Mode (AUTH_MODE=production or local_oidc): Extracts from authenticated session
-func TenantMiddleware() func(http.Handler) http.Handler {
-	return TenantMiddlewareWithSession(nil)
+type UserRoleLookup interface {
+	GetRoleByEmail(ctx context.Context, email string) (string, error)
 }
 
-// TenantMiddlewareWithSession creates tenant middleware with session support for production mode
-// Also injects actor context for audit trail when authenticated
-func TenantMiddlewareWithSession(sessionManager *session.SessionManager) func(http.Handler) http.Handler {
+func TenantMiddleware() func(http.Handler) http.Handler {
+	return TenantMiddlewareWithSession(nil, nil)
+}
+
+func TenantMiddlewareWithSession(sessionManager *session.SessionManager, userRoleLookup UserRoleLookup) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
@@ -42,10 +40,14 @@ func TenantMiddlewareWithSession(sessionManager *session.SessionManager) func(ht
 					return
 				}
 				ctx = sharedctx.WithTenant(ctx, info.tenantID)
-				ctx = sharedctx.WithActor(ctx, sharedctx.Actor{
-					ID:    info.userID,
-					Email: info.userEmail,
-				})
+
+				role := ""
+				if userRoleLookup != nil {
+					role, _ = userRoleLookup.GetRoleByEmail(ctx, info.userEmail)
+				}
+
+				actor := sharedctx.NewActor(info.userID, info.userEmail, role)
+				ctx = sharedctx.WithActor(ctx, actor)
 				logTenantContext(r, info.tenantID)
 			}
 
@@ -116,7 +118,6 @@ func handleTenantError(w http.ResponseWriter, err error) {
 	http.Error(w, "Internal server error", http.StatusInternalServerError)
 }
 
-// logTenantContext logs tenant context operations for audit trail
 func logTenantContext(r *http.Request, tenantID sharedvo.TenantID) {
 	log.Printf("[TENANT_CONTEXT] Method=%s Path=%s Tenant=%s IP=%s UserAgent=%s",
 		r.Method,
@@ -127,24 +128,18 @@ func logTenantContext(r *http.Request, tenantID sharedvo.TenantID) {
 	)
 }
 
-// getClientIP extracts the client IP address from the request
 func getClientIP(r *http.Request) string {
-	// Check X-Forwarded-For header (for proxied requests)
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		return xff
 	}
 
-	// Check X-Real-IP header
 	if xri := r.Header.Get("X-Real-IP"); xri != "" {
 		return xri
 	}
 
-	// Fall back to RemoteAddr
 	return r.RemoteAddr
 }
 
-// RequireTenant is a middleware that ensures tenant context exists
-// Use this for routes that absolutely require tenant context
 func RequireTenant() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -160,8 +155,6 @@ func RequireTenant() func(http.Handler) http.Handler {
 	}
 }
 
-// ExtractTenantID is a helper function to extract tenant ID from request context
-// Returns error if tenant context is missing
 func ExtractTenantID(ctx context.Context) (string, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {

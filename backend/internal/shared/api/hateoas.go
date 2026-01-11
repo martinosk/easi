@@ -1,6 +1,9 @@
 package api
 
-import "easi/backend/internal/shared/types"
+import (
+	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/types"
+)
 
 type Links = types.Links
 
@@ -36,6 +39,22 @@ func (h *HATEOASLinks) ComponentLinks(id string) Links {
 	return links
 }
 
+func (h *HATEOASLinks) ComponentLinksForActor(id string, actor sharedctx.Actor) Links {
+	p := "/components/" + id
+	links := Links{
+		"self":        h.get(p),
+		"describedby": h.get("/reference/components"),
+		"collection":  h.get("/components"),
+	}
+	if actor.CanWrite("components") {
+		links["edit"] = h.put(p)
+	}
+	if actor.CanDelete("components") {
+		links["delete"] = h.del(p)
+	}
+	return links
+}
+
 func (h *HATEOASLinks) RelationLinks(id string) Links {
 	links := h.crud("/relations/" + id)
 	links["describedby"] = h.get("/reference/relations/generic")
@@ -68,6 +87,32 @@ type ViewPermissions struct {
 	CurrentUser string
 }
 
+type ViewInfo struct {
+	ID          string
+	IsPrivate   bool
+	IsDefault   bool
+	OwnerUserID *string
+}
+
+func (h *HATEOASLinks) ViewLinksForActor(v ViewInfo, actor sharedctx.Actor) Links {
+	links := Links{
+		"self":         h.get("/views/" + v.ID),
+		"x-components": h.get("/views/" + v.ID + "/components"),
+		"collection":   h.get("/views"),
+	}
+	isOwner := v.OwnerUserID != nil && *v.OwnerUserID == actor.ID
+	canEdit := (!v.IsPrivate || isOwner) && actor.CanWrite("views")
+	if canEdit {
+		links["edit"] = h.patch("/views/" + v.ID + "/name")
+		links["x-change-visibility"] = h.patch("/views/" + v.ID + "/visibility")
+	}
+	canDelete := (!v.IsPrivate || isOwner) && actor.CanDelete("views") && !v.IsDefault
+	if canDelete {
+		links["delete"] = h.del("/views/" + v.ID)
+	}
+	return links
+}
+
 func (h *HATEOASLinks) ViewLinksWithPermissions(id string, p ViewPermissions) Links {
 	links := Links{
 		"self":         h.get("/views/" + id),
@@ -93,6 +138,14 @@ func (h *HATEOASLinks) CapabilityLinks(id, parentID string) Links {
 	return links
 }
 
+func (h *HATEOASLinks) CapabilityLinksForActor(id, parentID string, actor sharedctx.Actor) Links {
+	links := h.capabilityBaseForActor(id, actor)
+	if parentID != "" {
+		links["up"] = h.get("/capabilities/" + parentID)
+	}
+	return links
+}
+
 func (h *HATEOASLinks) capabilityBase(id string) Links {
 	p := "/capabilities/" + id
 	return Links{
@@ -103,6 +156,25 @@ func (h *HATEOASLinks) capabilityBase(id string) Links {
 		"x-incoming-dependencies": h.get(p + "/dependencies/incoming"),
 		"collection":              h.get("/capabilities"),
 	}
+}
+
+func (h *HATEOASLinks) capabilityBaseForActor(id string, actor sharedctx.Actor) Links {
+	p := "/capabilities/" + id
+	links := Links{
+		"self":                    h.get(p),
+		"x-children":              h.get(p + "/children"),
+		"x-systems":               h.get(p + "/systems"),
+		"x-outgoing-dependencies": h.get(p + "/dependencies/outgoing"),
+		"x-incoming-dependencies": h.get(p + "/dependencies/incoming"),
+		"collection":              h.get("/capabilities"),
+	}
+	if actor.CanWrite("capabilities") {
+		links["edit"] = h.put(p)
+	}
+	if actor.CanDelete("capabilities") {
+		links["delete"] = h.del(p)
+	}
+	return links
 }
 
 func (h *HATEOASLinks) DependencyLinks(id, srcCapID, tgtCapID string) Links {
@@ -137,6 +209,30 @@ func (h *HATEOASLinks) BusinessDomainLinks(id string, hasCaps bool) Links {
 	return links
 }
 
+func (h *HATEOASLinks) BusinessDomainLinksForActor(id string, hasCaps bool, actor sharedctx.Actor) Links {
+	p := "/business-domains/" + id
+	links := Links{
+		"self":           h.get(p),
+		"x-capabilities": h.get(p + "/capabilities"),
+		"collection":     h.get("/business-domains"),
+	}
+	if actor.CanWrite("domains") {
+		links["edit"] = h.put(p)
+	}
+	if actor.CanDelete("domains") && !hasCaps {
+		links["delete"] = h.del(p)
+	}
+	return links
+}
+
+func (h *HATEOASLinks) BusinessDomainCollectionLinksForActor(actor sharedctx.Actor) Links {
+	links := Links{"self": h.get("/business-domains")}
+	if actor.CanWrite("domains") {
+		links["create"] = h.post("/business-domains")
+	}
+	return links
+}
+
 func (h *HATEOASLinks) CapabilityInDomainLinks(capID, domID string) Links {
 	return Links{
 		"self":                 h.get("/capabilities/" + capID),
@@ -144,6 +240,18 @@ func (h *HATEOASLinks) CapabilityInDomainLinks(capID, domID string) Links {
 		"x-business-domains":   h.get("/capabilities/" + capID + "/business-domains"),
 		"x-remove-from-domain": h.del("/business-domains/" + domID + "/capabilities/" + capID),
 	}
+}
+
+func (h *HATEOASLinks) CapabilityInDomainLinksForActor(capID, domID string, actor sharedctx.Actor) Links {
+	links := Links{
+		"self":               h.get("/capabilities/" + capID),
+		"x-children":         h.get("/capabilities/" + capID + "/children"),
+		"x-business-domains": h.get("/capabilities/" + capID + "/business-domains"),
+	}
+	if actor.CanDelete("domains") {
+		links["x-remove-from-domain"] = h.del("/business-domains/" + domID + "/capabilities/" + capID)
+	}
+	return links
 }
 
 func (h *HATEOASLinks) DomainForCapabilityLinks(domID, capID string) Links {
@@ -155,12 +263,35 @@ func (h *HATEOASLinks) DomainForCapabilityLinks(domID, capID string) Links {
 	}
 }
 
+func (h *HATEOASLinks) DomainForCapabilityLinksForActor(domID, capID string, actor sharedctx.Actor) Links {
+	p := "/business-domains/" + domID
+	links := Links{
+		"self":           h.get(p),
+		"x-capabilities": h.get(p + "/capabilities"),
+	}
+	if actor.CanDelete("domains") {
+		links["x-remove-capability"] = h.del(p + "/capabilities/" + capID)
+	}
+	return links
+}
+
 func (h *HATEOASLinks) AssignmentLinks(domID, capID string) Links {
 	return Links{
 		"x-capability":      h.get("/capabilities/" + capID),
 		"x-business-domain": h.get("/business-domains/" + domID),
 		"x-remove":          h.del("/business-domains/" + domID + "/capabilities/" + capID),
 	}
+}
+
+func (h *HATEOASLinks) AssignmentLinksForActor(domID, capID string, actor sharedctx.Actor) Links {
+	links := Links{
+		"x-capability":      h.get("/capabilities/" + capID),
+		"x-business-domain": h.get("/business-domains/" + domID),
+	}
+	if actor.CanDelete("domains") {
+		links["x-remove"] = h.del("/business-domains/" + domID + "/capabilities/" + capID)
+	}
+	return links
 }
 
 func (h *HATEOASLinks) ReferenceDocLink(resourceType string) string {
@@ -211,6 +342,23 @@ func (h *HATEOASLinks) EnterpriseCapabilityLinks(id string) Links {
 	}
 }
 
+func (h *HATEOASLinks) EnterpriseCapabilityLinksForActor(id string, actor sharedctx.Actor) Links {
+	p := "/enterprise-capabilities/" + id
+	links := Links{
+		"self":                   h.get(p),
+		"x-links":                h.get(p + "/links"),
+		"x-strategic-importance": h.get(p + "/strategic-importance"),
+	}
+	if actor.CanWrite("enterprise-arch") {
+		links["edit"] = h.put(p)
+		links["x-create-link"] = h.post(p + "/links")
+	}
+	if actor.CanDelete("enterprise-arch") {
+		links["delete"] = h.del(p)
+	}
+	return links
+}
+
 func (h *HATEOASLinks) EnterpriseCapabilityCollectionLinks() Links {
 	return Links{"self": h.get("/enterprise-capabilities")}
 }
@@ -236,6 +384,21 @@ func (h *HATEOASLinks) EnterpriseStrategicImportanceLinks(ecID, impID string) Li
 		"self": h.get(p), "edit": h.put(p), "delete": h.del(p),
 		"x-enterprise-capability": h.get("/enterprise-capabilities/" + ecID),
 	}
+}
+
+func (h *HATEOASLinks) EnterpriseStrategicImportanceLinksForActor(ecID, impID string, actor sharedctx.Actor) Links {
+	p := "/enterprise-capabilities/" + ecID + "/strategic-importance/" + impID
+	links := Links{
+		"self":                    h.get(p),
+		"x-enterprise-capability": h.get("/enterprise-capabilities/" + ecID),
+	}
+	if actor.CanWrite("enterprise-arch") {
+		links["edit"] = h.put(p)
+	}
+	if actor.CanDelete("enterprise-arch") {
+		links["delete"] = h.del(p)
+	}
+	return links
 }
 
 func (h *HATEOASLinks) EnterpriseStrategicImportanceCollectionLinks(ecID string) Links {
@@ -268,6 +431,22 @@ func (h *HATEOASLinks) StrategyImportanceLinks(domID, capID, impID string) Links
 		"x-capability": h.get("/capabilities/" + capID),
 		"x-domain":     h.get("/business-domains/" + domID),
 	}
+}
+
+func (h *HATEOASLinks) StrategyImportanceLinksForActor(domID, capID, impID string, actor sharedctx.Actor) Links {
+	p := "/business-domains/" + domID + "/capabilities/" + capID + "/importance/" + impID
+	links := Links{
+		"self":         h.get(p),
+		"x-capability": h.get("/capabilities/" + capID),
+		"x-domain":     h.get("/business-domains/" + domID),
+	}
+	if actor.CanWrite("domains") {
+		links["edit"] = h.put(p)
+	}
+	if actor.CanDelete("domains") {
+		links["delete"] = h.del(p)
+	}
+	return links
 }
 
 func (h *HATEOASLinks) CapabilityLinkStatusLinks(capID, status string, linkedToID, blockingCapID, blockingEcID *string) Links {
@@ -314,4 +493,31 @@ func (h *HATEOASLinks) UnlinkedCapabilitiesLinks() Links {
 
 func NewLink(href, method string) types.Link {
 	return types.Link{Href: href, Method: method}
+}
+
+func (h *HATEOASLinks) FitScoreLinksForActor(componentID, pillarID string, actor sharedctx.Actor) Links {
+	p := "/components/" + componentID + "/fit-scores/" + pillarID
+	links := Links{
+		"self": h.get(p),
+		"up":   h.get("/components/" + componentID),
+	}
+	if actor.CanWrite("components") {
+		links["edit"] = h.put(p)
+	}
+	if actor.CanDelete("components") {
+		links["delete"] = h.del(p)
+	}
+	return links
+}
+
+func (h *HATEOASLinks) FitScoresCollectionLinksForActor(componentID string, actor sharedctx.Actor) Links {
+	p := "/components/" + componentID + "/fit-scores"
+	links := Links{
+		"self": h.get(p),
+		"up":   h.get("/components/" + componentID),
+	}
+	if actor.CanWrite("components") {
+		links["create"] = h.put(p + "/{pillarId}")
+	}
+	return links
 }

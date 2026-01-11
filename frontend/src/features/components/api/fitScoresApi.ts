@@ -11,11 +11,11 @@ import type {
 } from '../../../api/types';
 
 export const fitScoresApi = {
-  async getByComponent(componentId: ComponentId): Promise<ApplicationFitScore[]> {
+  async getByComponent(componentId: ComponentId): Promise<ApplicationFitScoresResponse> {
     const response = await httpClient.get<ApplicationFitScoresResponse>(
       `/api/v1/components/${componentId}/fit-scores`
     );
-    return response.data.data;
+    return response.data;
   },
 
   async setScore(

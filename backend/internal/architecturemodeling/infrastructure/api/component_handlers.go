@@ -7,6 +7,7 @@ import (
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 )
 
@@ -88,7 +89,8 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 		return
 	}
 
-	component.Links = h.hateoas.ComponentLinks(component.ID)
+	actor, _ := sharedctx.GetActor(r.Context())
+	component.Links = h.hateoas.ComponentLinksForActor(component.ID, actor)
 	sharedAPI.RespondCreated(w, location, component)
 }
 
@@ -117,8 +119,9 @@ func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	actor, _ := sharedctx.GetActor(r.Context())
 	for i := range components {
-		components[i].Links = h.hateoas.ComponentLinks(components[i].ID)
+		components[i].Links = h.hateoas.ComponentLinksForActor(components[i].ID, actor)
 	}
 
 	pageables := ConvertToNamePageable(components)
@@ -160,7 +163,8 @@ func (h *ComponentHandlers) GetComponentByID(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	component.Links = h.hateoas.ComponentLinks(component.ID)
+	actor, _ := sharedctx.GetActor(r.Context())
+	component.Links = h.hateoas.ComponentLinksForActor(component.ID, actor)
 	sharedAPI.RespondJSON(w, http.StatusOK, component)
 }
 
@@ -212,7 +216,8 @@ func (h *ComponentHandlers) UpdateApplicationComponent(w http.ResponseWriter, r 
 		return
 	}
 
-	component.Links = h.hateoas.ComponentLinks(component.ID)
+	actor, _ := sharedctx.GetActor(r.Context())
+	component.Links = h.hateoas.ComponentLinksForActor(component.ID, actor)
 	sharedAPI.RespondJSON(w, http.StatusOK, component)
 }
 

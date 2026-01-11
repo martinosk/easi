@@ -9,6 +9,7 @@ import (
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
 	authAPI "easi/backend/internal/auth/infrastructure/api"
+	authReadModels "easi/backend/internal/auth/application/readmodels"
 	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
 	enterpriseArchAPI "easi/backend/internal/enterprisearchitecture/infrastructure/api"
 	importingAPI "easi/backend/internal/importing/infrastructure/api"
@@ -42,12 +43,13 @@ func getEnv(key, defaultValue string) string {
 }
 
 type routerDependencies struct {
-	eventStore eventstore.EventStore
-	db         *database.TenantAwareDB
-	authDeps   *authAPI.AuthDependencies
-	commandBus *cqrs.InMemoryCommandBus
-	eventBus   *events.InMemoryEventBus
-	hateoas    *sharedAPI.HATEOASLinks
+	eventStore    eventstore.EventStore
+	db            *database.TenantAwareDB
+	authDeps      *authAPI.AuthDependencies
+	commandBus    *cqrs.InMemoryCommandBus
+	eventBus      *events.InMemoryEventBus
+	hateoas       *sharedAPI.HATEOASLinks
+	userReadModel *authReadModels.UserReadModel
 }
 
 // NewRouter creates and configures the HTTP router
@@ -70,18 +72,20 @@ func initializeDependencies(eventStore eventstore.EventStore, db *database.Tenan
 
 	commandBus := cqrs.NewInMemoryCommandBus()
 	eventBus := events.NewInMemoryEventBus()
+	userReadModel := authReadModels.NewUserReadModel(db)
 
 	if pgStore, ok := eventStore.(*eventstore.PostgresEventStore); ok {
 		pgStore.SetEventBus(eventBus)
 	}
 
 	return routerDependencies{
-		eventStore: eventStore,
-		db:         db,
-		authDeps:   authDeps,
-		commandBus: commandBus,
-		eventBus:   eventBus,
-		hateoas:    sharedAPI.NewHATEOASLinks("/api/v1"),
+		eventStore:    eventStore,
+		db:            db,
+		authDeps:      authDeps,
+		commandBus:    commandBus,
+		eventBus:      eventBus,
+		hateoas:       sharedAPI.NewHATEOASLinks("/api/v1"),
+		userReadModel: userReadModel,
 	}
 }
 
@@ -132,7 +136,7 @@ func registerAPIRoutes(r chi.Router, deps routerDependencies) {
 		mustSetup(authAPI.SetupAuthRoutes(r, deps.db.DB(), deps.authDeps), "auth routes")
 
 		r.Group(func(r chi.Router) {
-			r.Use(middleware.TenantMiddlewareWithSession(deps.authDeps.SessionManager))
+			r.Use(middleware.TenantMiddlewareWithSession(deps.authDeps.SessionManager, deps.userReadModel))
 
 			mustSetup(architectureAPI.SetupArchitectureModelingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas, deps.authDeps.AuthMiddleware), "architecture modeling routes")
 			mustSetup(viewsAPI.SetupArchitectureViewsRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas, deps.authDeps.AuthMiddleware), "architecture views routes")

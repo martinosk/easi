@@ -8,6 +8,7 @@ import (
 	"easi/backend/internal/enterprisearchitecture/application/commands"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/types"
 )
@@ -132,8 +133,9 @@ func (h *EnterpriseCapabilityHandlers) GetAllEnterpriseCapabilities(w http.Respo
 		return
 	}
 
+	actor, _ := sharedctx.GetActor(r.Context())
 	for i := range capabilities {
-		capabilities[i].Links = h.hateoas.EnterpriseCapabilityLinks(capabilities[i].ID)
+		capabilities[i].Links = h.hateoas.EnterpriseCapabilityLinksForActor(capabilities[i].ID, actor)
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, capabilities, h.hateoas.EnterpriseCapabilityCollectionLinks())
@@ -154,7 +156,8 @@ func (h *EnterpriseCapabilityHandlers) GetEnterpriseCapabilityByID(w http.Respon
 	if capability == nil {
 		return
 	}
-	capability.Links = h.hateoas.EnterpriseCapabilityLinks(capability.ID)
+	actor, _ := sharedctx.GetActor(r.Context())
+	capability.Links = h.hateoas.EnterpriseCapabilityLinksForActor(capability.ID, actor)
 	sharedAPI.RespondJSON(w, http.StatusOK, capability)
 }
 
@@ -340,8 +343,9 @@ func (h *EnterpriseCapabilityHandlers) GetStrategicImportance(w http.ResponseWri
 		return
 	}
 
+	actor, _ := sharedctx.GetActor(r.Context())
 	for i := range ratings {
-		ratings[i].Links = h.hateoas.EnterpriseStrategicImportanceLinks(enterpriseCapabilityID, ratings[i].ID)
+		ratings[i].Links = h.hateoas.EnterpriseStrategicImportanceLinksForActor(enterpriseCapabilityID, ratings[i].ID, actor)
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, ratings, h.hateoas.EnterpriseStrategicImportanceCollectionLinks(enterpriseCapabilityID))
@@ -387,7 +391,8 @@ func (h *EnterpriseCapabilityHandlers) SetStrategicImportance(w http.ResponseWri
 		}
 
 		location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/strategic-importance/"+createdID))
-		rating.Links = h.hateoas.EnterpriseStrategicImportanceLinks(enterpriseCapabilityID, rating.ID)
+		actor, _ := sharedctx.GetActor(r.Context())
+		rating.Links = h.hateoas.EnterpriseStrategicImportanceLinksForActor(enterpriseCapabilityID, rating.ID, actor)
 		sharedAPI.RespondCreated(w, location, rating)
 	})
 }
@@ -432,7 +437,8 @@ func (h *EnterpriseCapabilityHandlers) UpdateStrategicImportance(w http.Response
 			sharedAPI.RespondError(w, http.StatusInternalServerError, nil, "Update succeeded but resource not found")
 			return
 		}
-		rating.Links = h.hateoas.EnterpriseStrategicImportanceLinks(enterpriseCapabilityID, rating.ID)
+		actor, _ := sharedctx.GetActor(r.Context())
+		rating.Links = h.hateoas.EnterpriseStrategicImportanceLinksForActor(enterpriseCapabilityID, rating.ID, actor)
 		sharedAPI.RespondJSON(w, http.StatusOK, rating)
 	})
 }
@@ -552,7 +558,8 @@ func (h *EnterpriseCapabilityHandlers) respondWithCapability(w http.ResponseWrit
 		return
 	}
 
-	capability.Links = h.hateoas.EnterpriseCapabilityLinks(capability.ID)
+	actor, _ := sharedctx.GetActor(r.Context())
+	capability.Links = h.hateoas.EnterpriseCapabilityLinksForActor(capability.ID, actor)
 	if statusCode == http.StatusCreated {
 		sharedAPI.RespondCreated(w, location, capability)
 	} else {

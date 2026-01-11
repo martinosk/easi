@@ -10,6 +10,7 @@ import (
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -109,7 +110,8 @@ func (h *CapabilityHandlers) UpdateCapabilityMetadata(w http.ResponseWriter, r *
 		return
 	}
 
-	capability.Links = h.hateoas.CapabilityLinks(capability.ID, capability.ParentID)
+	actor, _ := sharedctx.GetActor(r.Context())
+	capability.Links = h.hateoas.CapabilityLinksForActor(capability.ID, capability.ParentID, actor)
 
 	sharedAPI.RespondJSON(w, http.StatusOK, capability)
 }

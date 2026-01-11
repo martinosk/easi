@@ -22,7 +22,6 @@ type AuthMiddleware interface {
 	RequirePermission(permission authValueObjects.Permission) func(http.Handler) http.Handler
 }
 
-// SetupArchitectureViewsRoutes initializes and registers architecture views routes
 func SetupArchitectureViewsRoutes(
 	r chi.Router,
 	commandBus *cqrs.InMemoryCommandBus,
@@ -33,17 +32,11 @@ func SetupArchitectureViewsRoutes(
 	authMiddleware AuthMiddleware,
 ) error {
 	userReadModel := authReadModels.NewUserReadModel(db)
-	// Initialize repositories
 	viewRepo := repositories.NewArchitectureViewRepository(eventStore)
 	layoutRepo := repositories.NewViewLayoutRepository(db)
-
-	// Initialize read model
 	viewReadModel := readmodels.NewArchitectureViewReadModel(db)
-
-	// Initialize projector
 	viewProjector := projectors.NewArchitectureViewProjector(viewReadModel)
 
-	// Wire up projector to event bus
 	eventBus.Subscribe("ViewCreated", viewProjector)
 	eventBus.Subscribe("ComponentAddedToView", viewProjector)
 	eventBus.Subscribe("ComponentRemovedFromView", viewProjector)
@@ -52,15 +45,12 @@ func SetupArchitectureViewsRoutes(
 	eventBus.Subscribe("DefaultViewChanged", viewProjector)
 	eventBus.Subscribe("ViewVisibilityChanged", viewProjector)
 
-	// Initialize cross-context event handlers
 	componentDeletedHandler := handlers.NewApplicationComponentDeletedHandler(commandBus, viewReadModel)
 	relationDeletedHandler := handlers.NewComponentRelationDeletedHandler()
 
-	// Subscribe to events from ArchitectureModeling context
 	eventBus.Subscribe("ApplicationComponentDeleted", componentDeletedHandler)
 	eventBus.Subscribe("ComponentRelationDeleted", relationDeletedHandler)
 
-	// Initialize command handlers
 	createViewHandler := handlers.NewCreateViewHandler(viewRepo, viewReadModel)
 	addComponentHandler := handlers.NewAddComponentToViewHandler(viewRepo, layoutRepo)
 	updatePositionHandler := handlers.NewUpdateComponentPositionHandler(layoutRepo)
@@ -76,7 +66,6 @@ func SetupArchitectureViewsRoutes(
 	clearElementColorHandler := handlers.NewClearElementColorHandler(layoutRepo)
 	changeVisibilityHandler := handlers.NewChangeViewVisibilityHandler(viewRepo, userReadModel)
 
-	// Register command handlers
 	commandBus.Register("CreateView", createViewHandler)
 	commandBus.Register("AddComponentToView", addComponentHandler)
 	commandBus.Register("UpdateComponentPosition", updatePositionHandler)
@@ -92,10 +81,8 @@ func SetupArchitectureViewsRoutes(
 	commandBus.Register("ClearElementColor", clearElementColorHandler)
 	commandBus.Register("ChangeViewVisibility", changeVisibilityHandler)
 
-	// Initialize HTTP handlers
 	viewHandlers := NewViewHandlers(commandBus, viewReadModel, layoutRepo, hateoas)
 
-	// Register routes
 	r.Route("/views", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authValueObjects.PermViewsRead))

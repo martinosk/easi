@@ -8,6 +8,7 @@ import (
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/types"
 )
@@ -121,15 +122,12 @@ func (h *BusinessDomainHandlers) GetAllBusinessDomains(w http.ResponseWriter, r 
 		return
 	}
 
+	actor, _ := sharedctx.GetActor(r.Context())
 	for i := range domains {
-		domains[i].Links = h.hateoas.BusinessDomainLinks(domains[i].ID, domains[i].CapabilityCount > 0)
+		domains[i].Links = h.hateoas.BusinessDomainLinksForActor(domains[i].ID, domains[i].CapabilityCount > 0, actor)
 	}
 
-	links := sharedAPI.Links{
-		"self": sharedAPI.NewLink("/api/v1/business-domains", "GET"),
-	}
-
-	sharedAPI.RespondCollection(w, http.StatusOK, domains, links)
+	sharedAPI.RespondCollection(w, http.StatusOK, domains, h.hateoas.BusinessDomainCollectionLinksForActor(actor))
 }
 
 func (h *BusinessDomainHandlers) getDomainOrNotFound(w http.ResponseWriter, r *http.Request, id string) *readmodels.BusinessDomainDTO {
@@ -160,7 +158,8 @@ func (h *BusinessDomainHandlers) GetBusinessDomainByID(w http.ResponseWriter, r 
 	if domain == nil {
 		return
 	}
-	domain.Links = h.hateoas.BusinessDomainLinks(domain.ID, domain.CapabilityCount > 0)
+	actor, _ := sharedctx.GetActor(r.Context())
+	domain.Links = h.hateoas.BusinessDomainLinksForActor(domain.ID, domain.CapabilityCount > 0, actor)
 	sharedAPI.RespondJSON(w, http.StatusOK, domain)
 }
 
@@ -219,7 +218,8 @@ func (h *BusinessDomainHandlers) respondWithDomain(w http.ResponseWriter, r *htt
 		return
 	}
 
-	domain.Links = h.hateoas.BusinessDomainLinks(domain.ID, domain.CapabilityCount > 0)
+	actor, _ := sharedctx.GetActor(r.Context())
+	domain.Links = h.hateoas.BusinessDomainLinksForActor(domain.ID, domain.CapabilityCount > 0, actor)
 	if statusCode == http.StatusCreated {
 		sharedAPI.RespondCreated(w, location, domain)
 	} else {
@@ -279,6 +279,7 @@ func (h *BusinessDomainHandlers) GetCapabilitiesInDomain(w http.ResponseWriter, 
 		return
 	}
 
+	actor, _ := sharedctx.GetActor(r.Context())
 	capabilities := make([]CapabilityInDomainDTO, len(assignments))
 	for i, a := range assignments {
 		capabilities[i] = CapabilityInDomainDTO{
@@ -287,7 +288,7 @@ func (h *BusinessDomainHandlers) GetCapabilitiesInDomain(w http.ResponseWriter, 
 			Description: a.CapabilityDescription,
 			Level:       a.CapabilityLevel,
 			AssignedAt:  a.AssignedAt.Format("2006-01-02T15:04:05Z07:00"),
-			Links:       h.hateoas.CapabilityInDomainLinks(a.CapabilityID, domainID),
+			Links:       h.hateoas.CapabilityInDomainLinksForActor(a.CapabilityID, domainID, actor),
 		}
 	}
 
@@ -349,11 +350,12 @@ func (h *BusinessDomainHandlers) respondWithAssignment(w http.ResponseWriter, r 
 	location := fmt.Sprintf("/api/v1/business-domains/%s/capabilities/%s", domainID, capabilityID)
 	w.Header().Set("Location", location)
 
+	actor, _ := sharedctx.GetActor(r.Context())
 	response := AssignmentResponse{
 		BusinessDomainID: assignment.BusinessDomainID,
 		CapabilityID:     assignment.CapabilityID,
 		AssignedAt:       assignment.AssignedAt.Format("2006-01-02T15:04:05Z07:00"),
-		Links:            h.hateoas.AssignmentLinks(domainID, capabilityID),
+		Links:            h.hateoas.AssignmentLinksForActor(domainID, capabilityID, actor),
 	}
 
 	sharedAPI.RespondJSON(w, http.StatusCreated, response)
@@ -426,13 +428,14 @@ func (h *BusinessDomainHandlers) GetDomainsForCapability(w http.ResponseWriter, 
 		return
 	}
 
+	actor, _ := sharedctx.GetActor(r.Context())
 	domains := make([]DomainForCapabilityDTO, len(assignments))
 	for i, a := range assignments {
 		domains[i] = DomainForCapabilityDTO{
 			ID:         a.BusinessDomainID,
 			Name:       a.BusinessDomainName,
 			AssignedAt: a.AssignedAt.Format("2006-01-02T15:04:05Z07:00"),
-			Links:      h.hateoas.DomainForCapabilityLinks(a.BusinessDomainID, capabilityID),
+			Links:      h.hateoas.DomainForCapabilityLinksForActor(a.BusinessDomainID, capabilityID, actor),
 		}
 	}
 
