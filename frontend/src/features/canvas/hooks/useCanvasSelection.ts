@@ -3,7 +3,7 @@ import type { Node, Edge } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
 import type { ComponentId, CapabilityId, RelationId } from '../../../api/types';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { canEdit } from '../../../utils/hateoas';
 
 export const useCanvasSelection = () => {

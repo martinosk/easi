@@ -3,11 +3,11 @@ import { render } from '@testing-library/react';
 import React from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 
-vi.mock('../../hooks/useCurrentView', () => ({
+vi.mock('../../features/views/hooks/useCurrentView', () => ({
   useCurrentView: vi.fn(),
 }));
 
-import { useCurrentView } from '../../hooks/useCurrentView';
+import { useCurrentView } from '../../features/views/hooks/useCurrentView';
 import type { View } from '../../api/types';
 import { ComponentNode, type ComponentNodeData } from './ComponentNode';
 

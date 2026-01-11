@@ -3,7 +3,7 @@ import type { Edge, Node } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
 import { useCapabilities, useRealizationsForComponents } from '../../capabilities/hooks/useCapabilities';
 import { useRelations } from '../../relations/hooks/useRelations';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { createRelationEdges, createParentEdges, createRealizationEdges } from '../utils/edgeCreators';
 import type { ComponentId, ViewComponent } from '../../../api/types';
 

@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
-import { useAppStore } from '../store/appStore';
-import { useCurrentView } from './useCurrentView';
-import type { ComponentCanvasRef } from '../features/canvas/components/ComponentCanvas';
-import type { ComponentId, CapabilityId, ViewComponent, ViewCapability } from '../api/types';
+import { useAppStore } from '../../../store/appStore';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
+import type { ComponentCanvasRef } from '../components/ComponentCanvas';
+import type { ComponentId, CapabilityId, ViewComponent, ViewCapability } from '../../../api/types';
 
 export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRef | null>) {
   const { currentView } = useCurrentView();

@@ -8,7 +8,7 @@ import { AuditHistorySection } from '../../audit';
 import { useCapabilities, useCapabilityRealizations } from '../hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useUpdateCapabilityColor } from '../../views/hooks/useViews';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useMaturityScale } from '../../../hooks/useMaturityScale';
 import { useStrategyImportanceByCapability } from '../../business-domains/hooks/useStrategyImportance';
 import { deriveLegacyMaturityValue, getDefaultSections } from '../../../utils/maturity';

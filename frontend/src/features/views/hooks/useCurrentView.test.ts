@@ -3,14 +3,14 @@ import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useCurrentView } from './useCurrentView';
-import { useAppStore } from '../store/appStore';
-import type { View, ViewId } from '../api/types';
+import { useAppStore } from '../../../store/appStore';
+import type { View, ViewId } from '../../../api/types';
 
-vi.mock('../features/views/hooks/useViews', () => ({
+vi.mock('./useViews', () => ({
   useView: vi.fn(),
 }));
 
-const { useView } = await import('../features/views/hooks/useViews');
+const { useView } = await import('./useViews');
 const mockUseView = vi.mocked(useView);
 
 function createWrapper() {

@@ -3,10 +3,10 @@ import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useViewOperations } from './useViewOperations';
-import { useAppStore } from '../store/appStore';
-import type { ViewId, ComponentId } from '../api/types';
+import { useAppStore } from '../../../store/appStore';
+import type { ViewId, ComponentId } from '../../../api/types';
 
-vi.mock('../api/client');
+vi.mock('../../../api/client');
 vi.mock('react-hot-toast', () => ({
   default: {
     success: vi.fn(),

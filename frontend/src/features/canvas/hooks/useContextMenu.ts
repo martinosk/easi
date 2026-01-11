@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { Node, Edge } from '@xyflow/react';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useCapabilities, useRealizationsForComponents } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useRelations } from '../../relations/hooks/useRelations';

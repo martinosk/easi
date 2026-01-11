@@ -1,5 +1,5 @@
 import { ContextMenu, type ContextMenuItem } from '../../../../components/shared/ContextMenu';
-import { useCurrentView } from '../../../../hooks/useCurrentView';
+import { useCurrentView } from '../../../views/hooks/useCurrentView';
 import { useRemoveComponentFromView, useRemoveCapabilityFromView } from '../../../views/hooks/useViews';
 import type { NodeContextMenu as NodeContextMenuType } from '../../hooks/useContextMenu';
 import type { CapabilityId, ComponentId } from '../../../../api/types';

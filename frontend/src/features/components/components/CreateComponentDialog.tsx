@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCreateComponent } from '../hooks/useComponents';
 import { useAddComponentToView } from '../../views/hooks/useViews';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { createComponentSchema, type CreateComponentFormData } from '../../../lib/schemas';
 import type { ComponentId, ViewId } from '../../../api/types';
 import { canEdit } from '../../../utils/hateoas';

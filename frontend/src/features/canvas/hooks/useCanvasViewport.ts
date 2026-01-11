@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useState } from 'react';
 import type { ReactFlowInstance, Node } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 
 export const useCanvasViewport = (
   reactFlowInstance: ReactFlowInstance | null,

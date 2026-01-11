@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAppStore } from '../../../store/appStore';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useMaturityColorScale } from '../../../hooks/useMaturityColorScale';
 import { deriveMaturityValue } from '../../../constants/maturityColors';
 import type { View, Component, Capability, ViewId, ComponentId, ViewCapability } from '../../../api/types';

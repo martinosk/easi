@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, type ReactNode } from 'react';
 import { useCanvasLayout, type UseCanvasLayoutResult } from '../hooks/useCanvasLayout';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 
 const CanvasLayoutContext = createContext<UseCanvasLayoutResult | null>(null);
 

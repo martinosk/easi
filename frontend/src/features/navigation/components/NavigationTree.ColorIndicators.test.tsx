@@ -3,14 +3,14 @@ import { render, screen, within, fireEvent, waitFor } from '@testing-library/rea
 import { NavigationTree } from './NavigationTree';
 import { createMantineTestWrapper, seedDb } from '../../../test/helpers';
 import { useAppStore } from '../../../store/appStore';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 import type { View, ComponentId, CapabilityId } from '../../../api/types';
 
 vi.mock('../../../store/appStore', () => ({
   useAppStore: vi.fn(),
 }));
 
-vi.mock('../../../hooks/useCurrentView', () => ({
+vi.mock('../../views/hooks/useCurrentView', () => ({
   useCurrentView: vi.fn(),
 }));
 

@@ -11,7 +11,7 @@ import { CapabilityDetails } from '../../features/capabilities';
 import { useAppStore } from '../../store/appStore';
 import { ErrorBoundary, FeatureErrorFallback } from '../shared/ErrorBoundary';
 import { useRemoveCapabilityFromView } from '../../features/views/hooks/useViews';
-import { useCurrentView } from '../../hooks/useCurrentView';
+import { useCurrentView } from '../../features/views/hooks/useCurrentView';
 import type { Capability, CapabilityId } from '../../api/types';
 
 const NonClosableTab = (props: IDockviewPanelHeaderProps) => {

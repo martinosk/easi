@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { useAppStore } from '../store/appStore';
-import { useCurrentView } from './useCurrentView';
+import { useCurrentView } from '../features/views/hooks/useCurrentView';
 import type { ViewComponent } from '../api/types';
 
 export interface KeyboardShortcutHandlers {

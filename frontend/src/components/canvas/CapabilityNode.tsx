@@ -1,6 +1,6 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { useCurrentView } from '../../hooks/useCurrentView';
+import { useCurrentView } from '../../features/views/hooks/useCurrentView';
 import { useMaturityColorScale } from '../../hooks/useMaturityColorScale';
 import { CLASSIC_COLOR, DEFAULT_CUSTOM_COLOR, SELECTED_BORDER_COLOR, deriveMaturityValue } from '../../constants/maturityColors';
 

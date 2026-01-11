@@ -1,7 +1,7 @@
 import React, { useMemo, useCallback } from 'react';
 import { useAppStore } from '../../../store/appStore';
 import { useViews } from '../hooks/useViews';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../hooks/useCurrentView';
 import { useActiveUsers } from '../../users/hooks/useUsers';
 import type { ViewId, View } from '../../../api/types';
 

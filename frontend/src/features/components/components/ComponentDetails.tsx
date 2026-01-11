@@ -7,7 +7,7 @@ import { AuditHistorySection } from '../../audit';
 import { useCapabilities, useCapabilitiesByComponent } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../hooks/useComponents';
 import { useUpdateComponentColor, useClearComponentColor } from '../../views/hooks/useViews';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 import type { CapabilityRealization, Capability, ViewComponent, Component, View, ViewId, ComponentId } from '../../../api/types';
 import toast from 'react-hot-toast';
 

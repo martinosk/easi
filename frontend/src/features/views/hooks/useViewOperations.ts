@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
-import { useAppStore } from '../store/appStore';
-import { useRemoveComponentFromView, useAddComponentToView } from '../features/views/hooks/useViews';
+import { useAppStore } from '../../../store/appStore';
+import { useRemoveComponentFromView, useAddComponentToView } from './useViews';
 import { useCurrentView } from './useCurrentView';
-import type { ComponentId, ViewId } from '../api/types';
+import type { ComponentId, ViewId } from '../../../api/types';
 
 export function useViewOperations() {
   const { currentViewId } = useCurrentView();

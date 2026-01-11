@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../hooks/useCurrentView';
 import { useUpdateViewEdgeType } from '../hooks/useViews';
 import type { ViewId } from '../../../api/types';
 

@@ -21,7 +21,7 @@ vi.mock('../../views/hooks/useViews', () => ({
   }),
 }));
 
-vi.mock('../../../hooks/useCurrentView', () => ({
+vi.mock('../../views/hooks/useCurrentView', () => ({
   useCurrentView: () => ({
     currentView: null,
     currentViewId: null,

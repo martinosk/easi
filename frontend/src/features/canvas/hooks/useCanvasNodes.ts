@@ -5,7 +5,7 @@ import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 import { createComponentNode, createCapabilityNode, isComponentInView } from '../utils/nodeFactory';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 import type { ViewCapability } from '../../../api/types';
 
 export const useCanvasNodes = (): Node[] => {

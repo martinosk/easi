@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import type { ReactFlowInstance } from '@xyflow/react';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useAddCapabilityToView } from '../../views/hooks/useViews';
 import type { CapabilityId, ComponentId } from '../../../api/types';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';

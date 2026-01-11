@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
-import { useDialogContext } from '../contexts/dialogs';
-import { useAppStore } from '../store/appStore';
-import type { Capability, Component, Relation, ComponentId } from '../api/types';
+import { useDialogContext } from '../../../contexts/dialogs';
+import { useAppStore } from '../../../store/appStore';
+import type { Capability, Component, Relation, ComponentId } from '../../../api/types';
 
 export interface CanvasDialogActions {
   openComponentDialog: () => void;

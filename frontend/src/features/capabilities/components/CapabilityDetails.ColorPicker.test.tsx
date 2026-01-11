@@ -5,7 +5,7 @@ import { CapabilityDetails } from './CapabilityDetails';
 import type { Capability, View, CapabilityId, ViewId } from '../../../api/types';
 import { createMantineTestWrapper, seedDb, server } from '../../../test/helpers';
 import { useAppStore } from '../../../store/appStore';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 
 const API_BASE = 'http://localhost:8080';
 
@@ -13,7 +13,7 @@ vi.mock('../../../store/appStore', () => ({
   useAppStore: vi.fn(),
 }));
 
-vi.mock('../../../hooks/useCurrentView', () => ({
+vi.mock('../../views/hooks/useCurrentView', () => ({
   useCurrentView: vi.fn(),
 }));
 

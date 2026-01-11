@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useDeleteCapability, useChangeCapabilityParent, useDeleteRealization } from '../../capabilities/hooks/useCapabilities';
 import { useDeleteComponent } from '../../components/hooks/useComponents';
 import { useDeleteRelation } from '../../relations/hooks/useRelations';

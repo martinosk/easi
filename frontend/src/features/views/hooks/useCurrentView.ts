@@ -1,6 +1,6 @@
-import { useAppStore } from '../store/appStore';
-import { useView } from '../features/views/hooks/useViews';
-import type { View, ViewId } from '../api/types';
+import { useAppStore } from '../../../store/appStore';
+import { useView } from './useViews';
+import type { View, ViewId } from '../../../api/types';
 
 export interface UseCurrentViewResult {
   currentView: View | null;

@@ -4,7 +4,7 @@ import { EditRealizationDialog } from './EditRealizationDialog';
 import { DetailField } from '../../../components/shared/DetailField';
 import { useCapabilities, useRealizationsForComponents } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
-import { useCurrentView } from '../../../hooks/useCurrentView';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 import type { CapabilityRealization, Capability, Component, ComponentId } from '../../../api/types';
 
 const REALIZATION_PREFIX = 'realization-';

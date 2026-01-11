@@ -1,6 +1,6 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { useCurrentView } from '../../hooks/useCurrentView';
+import { useCurrentView } from '../../features/views/hooks/useCurrentView';
 
 type HexColor = string;
 type ColorScheme = 'maturity' | 'classic' | 'custom';
