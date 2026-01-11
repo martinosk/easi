@@ -32,6 +32,17 @@ func withTestTenant(req *http.Request) *http.Request {
 	return req.WithContext(ctx)
 }
 
+// withTestTenantAndWritePermission adds tenant and actor context with write permissions
+func withTestTenantAndWritePermission(req *http.Request, resource string) *http.Request {
+	ctx := sharedcontext.WithTenant(req.Context(), sharedvo.DefaultTenantID())
+	ctx = sharedcontext.WithActor(ctx, sharedcontext.Actor{
+		ID:          testActorID,
+		Email:       testActorEmail,
+		Permissions: map[string]bool{resource + ":write": true},
+	})
+	return req.WithContext(ctx)
+}
+
 // testTenantID returns the default tenant ID value for test data insertion
 func testTenantID() string {
 	return "default"

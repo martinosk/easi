@@ -24,6 +24,7 @@ import (
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
+	"easi/backend/internal/shared/types"
 
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
@@ -679,17 +680,17 @@ func TestUpdateColorScheme_Integration(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	var response struct {
-		ColorScheme string            `json:"colorScheme"`
-		Links       map[string]string `json:"_links"`
+		ColorScheme string      `json:"colorScheme"`
+		Links       types.Links `json:"_links"`
 	}
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
 	assert.Equal(t, "classic", response.ColorScheme)
 	assert.NotNil(t, response.Links)
 	assert.Contains(t, response.Links, "self")
-	assert.Equal(t, "/api/v1/views/"+viewID+"/color-scheme", response.Links["self"])
+	assert.Equal(t, "/api/v1/views/"+viewID+"/color-scheme", response.Links["self"].Href)
 	assert.Contains(t, response.Links, "view")
-	assert.Equal(t, "/api/v1/views/"+viewID, response.Links["view"])
+	assert.Equal(t, "/api/v1/views/"+viewID, response.Links["view"].Href)
 
 	view, err := readModel.GetByID(tenantContext(), viewID)
 	require.NoError(t, err)
@@ -1049,7 +1050,7 @@ func TestGetViewByID_ReturnsHATEOASLinksForColors_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/views/"+viewID, nil)
-	req = withTestTenant(req)
+	req = withTestTenantAndWritePermission(req, "views")
 	w := httptest.NewRecorder()
 
 	rctx := chi.NewRouteContext()
@@ -1067,16 +1068,16 @@ func TestGetViewByID_ReturnsHATEOASLinksForColors_Integration(t *testing.T) {
 	assert.Len(t, response.Components, 1)
 	compLinks := response.Components[0].Links
 	assert.NotNil(t, compLinks)
-	assert.Contains(t, compLinks, "updateColor")
-	assert.Contains(t, compLinks, "clearColor")
-	assert.Equal(t, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", compLinks["updateColor"])
-	assert.Equal(t, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", compLinks["clearColor"])
+	assert.Contains(t, compLinks, "x-update-color")
+	assert.Contains(t, compLinks, "x-clear-color")
+	assert.Equal(t, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", compLinks["x-update-color"].Href)
+	assert.Equal(t, "/api/v1/views/"+viewID+"/components/"+componentID+"/color", compLinks["x-clear-color"].Href)
 
 	assert.Len(t, response.Capabilities, 1)
 	capLinks := response.Capabilities[0].Links
 	assert.NotNil(t, capLinks)
-	assert.Contains(t, capLinks, "updateColor")
-	assert.Contains(t, capLinks, "clearColor")
-	assert.Equal(t, "/api/v1/views/"+viewID+"/capabilities/"+capabilityID+"/color", capLinks["updateColor"])
-	assert.Equal(t, "/api/v1/views/"+viewID+"/capabilities/"+capabilityID+"/color", capLinks["clearColor"])
+	assert.Contains(t, capLinks, "x-update-color")
+	assert.Contains(t, capLinks, "x-clear-color")
+	assert.Equal(t, "/api/v1/views/"+viewID+"/capabilities/"+capabilityID+"/color", capLinks["x-update-color"].Href)
+	assert.Equal(t, "/api/v1/views/"+viewID+"/capabilities/"+capabilityID+"/color", capLinks["x-clear-color"].Href)
 }

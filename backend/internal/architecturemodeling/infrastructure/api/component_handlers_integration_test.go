@@ -246,7 +246,7 @@ func TestGetAllComponents_Integration(t *testing.T) {
 			foundComponents++
 			assert.NotNil(t, comp.Links)
 			assert.Contains(t, comp.Links, "self")
-			assert.Contains(t, comp.Links, "reference")
+			assert.Contains(t, comp.Links, "describedby")
 		}
 	}
 	assert.Equal(t, 2, foundComponents, "Should find both test components")

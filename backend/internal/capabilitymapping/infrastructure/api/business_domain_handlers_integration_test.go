@@ -328,7 +328,7 @@ func TestCreateBusinessDomain_Integration(t *testing.T) {
 	assert.Equal(t, 0, response.CapabilityCount)
 	assert.NotNil(t, response.Links)
 	assert.Contains(t, response.Links, "self")
-	assert.Contains(t, response.Links, "delete")
+	assert.Contains(t, response.Links, "collection")
 
 	testCtx.trackDomainID(response.ID)
 
@@ -607,7 +607,7 @@ func TestGetCapabilitiesInDomain_Integration(t *testing.T) {
 
 	assert.Equal(t, 2, len(capabilities))
 	assert.NotNil(t, response.Links)
-	assert.Contains(t, response.Links, "domain")
+	assert.Contains(t, response.Links, "up")
 }
 
 func TestGetCapabilitiesInDomain_DomainNotFound_Integration(t *testing.T) {
@@ -771,7 +771,7 @@ func TestGetDomainsForCapability_Integration(t *testing.T) {
 
 	assert.Equal(t, 2, len(domains))
 	assert.NotNil(t, response.Links)
-	assert.Contains(t, response.Links, "capability")
+	assert.Contains(t, response.Links, "up")
 }
 
 func TestGetDomainsForCapability_CapabilityNotFound_Integration(t *testing.T) {
