@@ -39,9 +39,3 @@ export interface EditingState {
   componentId?: ComponentId;
   name: string;
 }
-
-export interface DeleteTarget {
-  type: 'view' | 'component';
-  view?: View;
-  component?: Component;
-}

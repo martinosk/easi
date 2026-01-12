@@ -16,7 +16,6 @@ import {
   addRelation,
 } from './db';
 import { toComponentId, toCapabilityId, toViewId } from '../../api/types';
-import type { ViewId } from '../../api/types';
 
 const BASE_URL = 'http://localhost:8080';
 
@@ -122,7 +121,7 @@ export const handlers = [
   }),
 
   http.get(`${BASE_URL}/api/v1/views/:id`, ({ params }) => {
-    const view = getView(params.id as ViewId);
+    const view = getView(toViewId(params.id as string));
     if (!view) {
       return new HttpResponse(null, { status: 404 });
     }
