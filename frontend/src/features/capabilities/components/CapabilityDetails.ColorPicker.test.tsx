@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { CapabilityDetails } from './CapabilityDetails';
 import type { Capability, View, CapabilityId, ViewId } from '../../../api/types';
+import type { AppStore } from '../../../store/appStore';
 import { createMantineTestWrapper, seedDb, server } from '../../../test/helpers';
 import { useAppStore } from '../../../store/appStore';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
@@ -31,6 +32,7 @@ const createMockView = (colorScheme: string, customColor?: string): View => ({
   id: 'view-1' as ViewId,
   name: 'Test View',
   isDefault: true,
+  isPrivate: false,
   components: [],
   capabilities: [
     { capabilityId: 'cap-1' as CapabilityId, x: 100, y: 200, customColor },
@@ -55,7 +57,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
   });
 
   const renderCapabilityDetails = (view: View | null) => {
-    vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) => selector(createMockStore()));
+    vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) => selector(createMockStore() as unknown as AppStore));
     vi.mocked(useCurrentView).mockReturnValue({
       currentView: view,
       currentViewId: view?.id ?? null,
@@ -250,7 +252,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
 
   describe('Color picker in different contexts', () => {
     it('should not render color picker when no view is selected', async () => {
-      renderCapabilityDetails(createMockStore(null));
+      renderCapabilityDetails(null);
 
       await waitFor(() => {
         expect(screen.queryByTestId('color-picker')).not.toBeInTheDocument();
@@ -262,6 +264,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
         id: 'view-1' as ViewId,
         name: 'Test View',
         isDefault: true,
+        isPrivate: false,
         components: [],
         capabilities: [],
         colorScheme: 'custom',

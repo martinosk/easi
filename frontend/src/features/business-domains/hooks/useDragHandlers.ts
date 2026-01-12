@@ -13,7 +13,7 @@ interface UseDragHandlersProps {
   assignedCapabilityIds: Set<CapabilityId>;
   positions: Record<CapabilityId, { x: number; y: number }>;
   updatePosition: (capabilityId: CapabilityId, x: number, y: number) => Promise<void>;
-  associateCapability: (capabilityId: CapabilityId, capability: Capability) => Promise<void>;
+  associateCapability: (capabilityId: CapabilityId) => Promise<void>;
   refetchCapabilities: () => Promise<void>;
   refetchRealizations?: () => Promise<void>;
 }
@@ -65,7 +65,7 @@ export function useDragHandlers(props: UseDragHandlersProps) {
           return;
         }
 
-        await props.associateCapability(capability.id, capability);
+        await props.associateCapability(capability.id);
         await props.refetchCapabilities();
         await props.refetchRealizations?.();
         const currentCount = props.capabilities.filter((c) => c.level === 'L1').length;

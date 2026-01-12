@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useDialogContext } from './DialogContext';
+import { useDialogContext } from './useDialogContext';
 import type { DialogId, DialogDataMap } from './types';
 
 export interface UseDialogReturn<T extends DialogId> {

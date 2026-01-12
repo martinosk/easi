@@ -14,7 +14,7 @@ const createCapability = (
   level,
   parentId: parentId as CapabilityId | undefined,
   createdAt: '2024-01-01',
-  _links: { self: { href: `/api/v1/capabilities/${id}` } },
+  _links: { self: { href: `/api/v1/capabilities/${id}`, method: 'GET' } },
 });
 
 describe('CapabilityExplorer', () => {

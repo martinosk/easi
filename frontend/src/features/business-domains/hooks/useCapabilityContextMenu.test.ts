@@ -10,7 +10,7 @@ describe('useCapabilityContextMenu', () => {
     level,
     parentId: parentId as CapabilityId | undefined,
     createdAt: '2024-01-01',
-    _links: { self: { href: `/api/v1/capabilities/${id}` } },
+    _links: { self: { href: `/api/v1/capabilities/${id}`, method: 'GET' } },
   });
 
   const mockCapabilities: Capability[] = [
@@ -19,7 +19,7 @@ describe('useCapabilityContextMenu', () => {
   ];
 
   const mockDomainCapabilities: Capability[] = [
-    { ...createCapability('l1-1', 'Finance', 'L1'), _links: { self: '/api/v1/capabilities/l1-1', removeFromDomain: '/api/v1/business-domains/domain-1/capabilities/l1-1' } },
+    { ...createCapability('l1-1', 'Finance', 'L1'), _links: { self: { href: '/api/v1/capabilities/l1-1', method: 'GET' }, removeFromDomain: { href: '/api/v1/business-domains/domain-1/capabilities/l1-1', method: 'DELETE' } } },
   ];
 
   const defaultProps = {
@@ -93,7 +93,7 @@ describe('useCapabilityContextMenu', () => {
     });
 
     expect(dissociateCapability).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'l1-1', level: 'L1', _links: expect.objectContaining({ removeFromDomain: '/api/v1/business-domains/domain-1/capabilities/l1-1' }) })
+      expect.objectContaining({ id: 'l1-1', level: 'L1', _links: expect.objectContaining({ removeFromDomain: { href: '/api/v1/business-domains/domain-1/capabilities/l1-1', method: 'DELETE' } }) })
     );
   });
 

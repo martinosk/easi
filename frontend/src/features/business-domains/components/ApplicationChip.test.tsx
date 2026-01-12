@@ -14,7 +14,7 @@ describe('ApplicationChip', () => {
     realizationLevel: 'Full',
     origin: 'Direct',
     linkedAt: '2024-01-01',
-    _links: { self: '/api/v1/realizations/real-1' },
+    _links: { self: { href: '/api/v1/realizations/real-1', method: 'GET' } },
     ...overrides,
   });
 

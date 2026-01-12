@@ -177,7 +177,6 @@ export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({ componen
   const [editScore, setEditScore] = useState<number | null>(null);
   const [editRationale, setEditRationale] = useState('');
 
-  const fitScores = fitScoresResponse?.data ?? [];
   const collectionLinks = fitScoresResponse?._links;
 
   const enabledPillars = useMemo(() => {
@@ -186,8 +185,9 @@ export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({ componen
   }, [pillarsConfig]);
 
   const scoresByPillar = useMemo(() => {
+    const fitScores = fitScoresResponse?.data ?? [];
     return new Map(fitScores.map((s) => [s.pillarId, s]));
-  }, [fitScores]);
+  }, [fitScoresResponse?.data]);
 
   const getScoreForPillar = (pillarId: string): ApplicationFitScore | undefined => {
     return scoresByPillar.get(pillarId);

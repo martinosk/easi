@@ -12,7 +12,7 @@ const mockUser: User = {
   createdAt: '2025-01-01T10:00:00Z',
   _links: {
     self: '/api/v1/users/user-123',
-    changeRole: '/api/v1/users/user-123/change-role',
+    update: '/api/v1/users/user-123',
   },
 };
 

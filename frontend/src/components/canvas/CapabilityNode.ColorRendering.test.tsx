@@ -27,22 +27,24 @@ vi.mock('../../hooks/useMaturityScale', () => ({
 import { CapabilityNode, type CapabilityNodeData } from './CapabilityNode';
 import { useCurrentView } from '../../features/views/hooks/useCurrentView';
 import type { View } from '../../api/types';
+import { toViewId, toCapabilityId } from '../../api/types';
 
 const createMockView = (colorScheme: string, capabilitiesWithColors?: Array<{ capabilityId: string; customColor?: string }>): View => ({
-  id: 'view-1',
+  id: toViewId('view-1'),
   name: 'Test View',
   description: 'Test view description',
   isDefault: true,
+  isPrivate: false,
   components: [],
   capabilities: capabilitiesWithColors?.map(cap => ({
-    capabilityId: cap.capabilityId,
+    capabilityId: toCapabilityId(cap.capabilityId),
     x: 100,
     y: 200,
     customColor: cap.customColor,
   })) || [],
   colorScheme,
   createdAt: '2024-01-01T00:00:00Z',
-  _links: { self: { href: '/api/v1/views/view-1' } },
+  _links: { self: { href: '/api/v1/views/view-1', method: 'GET' } },
 });
 
 const createCapabilityNodeData = (

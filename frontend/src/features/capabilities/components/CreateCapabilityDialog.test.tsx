@@ -82,7 +82,7 @@ describe('CreateCapabilityDialog', () => {
       isPending: false,
       isSuccess: true,
       status: 'success',
-    } as ReturnType<typeof useMaturityScale>);
+    } as unknown as ReturnType<typeof useMaturityScale>);
 
     vi.mocked(useCreateCapability).mockReturnValue({
       mutateAsync: mockCreateMutateAsync,
@@ -293,7 +293,7 @@ describe('CreateCapabilityDialog', () => {
         isPending: false,
         isSuccess: true,
         status: 'success',
-      } as ReturnType<typeof useMaturityScale>);
+      } as unknown as ReturnType<typeof useMaturityScale>);
 
       renderWithProviders(<CreateCapabilityDialog isOpen={true} onClose={mockOnClose} />);
 

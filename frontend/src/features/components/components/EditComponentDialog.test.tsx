@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { EditComponentDialog } from './EditComponentDialog';
 import type { Component } from '../../../api/types';
+import { toComponentId } from '../../../api/types';
 import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -15,11 +16,11 @@ vi.mock('../hooks/useComponents', () => ({
 }));
 
 const mockComponent: Component = {
-  id: 'comp-1',
+  id: toComponentId('comp-1'),
   name: 'Test Component',
   description: 'Test description',
   createdAt: '2024-01-01T00:00:00Z',
-  _links: { self: { href: '/api/v1/components/comp-1' } },
+  _links: { self: { href: '/api/v1/components/comp-1', method: 'GET' as const } },
 };
 
 describe('EditComponentDialog', () => {
@@ -213,11 +214,11 @@ describe('EditComponentDialog', () => {
       fireEvent.click(cancelButton);
 
       const newComponent: Component = {
-        id: 'comp-2',
+        id: toComponentId('comp-2'),
         name: 'Another Component',
         description: 'Another description',
         createdAt: '2024-01-01T00:00:00Z',
-        _links: { self: { href: '/api/v1/components/comp-2' } },
+        _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
       };
 
       rerender(
@@ -255,10 +256,10 @@ describe('EditComponentDialog', () => {
 
     it('should handle component with empty description', async () => {
       const componentWithoutDescription: Component = {
-        id: 'comp-2',
+        id: toComponentId('comp-2'),
         name: 'No Description Component',
         createdAt: '2024-01-01T00:00:00Z',
-        _links: { self: { href: '/api/v1/components/comp-2' } },
+        _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
       };
 
       renderDialog(componentWithoutDescription);

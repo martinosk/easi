@@ -2,9 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { ComponentDetails } from './ComponentDetails';
-import type { View, ComponentId, ViewId } from '../../../api/types';
+import type { View } from '../../../api/types';
+import { toComponentId, toViewId } from '../../../api/types';
 import { createMantineTestWrapper, seedDb, server } from '../../../test/helpers';
-import { useAppStore } from '../../../store/appStore';
+import { useAppStore, type AppStore } from '../../../store/appStore';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 
 const API_BASE = 'http://localhost:8080';
@@ -18,7 +19,7 @@ vi.mock('../../views/hooks/useCurrentView', () => ({
 }));
 
 const mockComponent = {
-  id: 'comp-1' as ComponentId,
+  id: toComponentId('comp-1'),
   name: 'Test Component',
   description: 'Test description',
   createdAt: '2024-01-01T00:00:00Z',
@@ -26,12 +27,13 @@ const mockComponent = {
 };
 
 const createMockView = (colorScheme: string, customColor?: string): View => ({
-  id: 'view-1' as ViewId,
+  id: toViewId('view-1'),
   name: 'Test View',
   isDefault: true,
+  isPrivate: false,
   components: [
     {
-      componentId: 'comp-1' as ComponentId,
+      componentId: toComponentId('comp-1'),
       x: 100,
       y: 200,
       customColor,
@@ -64,7 +66,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
   });
 
   const renderComponentDetails = (view: View | null) => {
-    vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) => selector(createMockStore()));
+    vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) => selector(createMockStore() as unknown as AppStore));
     vi.mocked(useCurrentView).mockReturnValue({
       currentView: view,
       currentViewId: view?.id ?? null,
@@ -259,7 +261,7 @@ describe('ComponentDetails - ColorPicker Integration', () => {
 
   describe('Color picker in different contexts', () => {
     it('should not render color picker when no view is selected', async () => {
-      renderComponentDetails(createMockStore(null));
+      renderComponentDetails(null);
 
       await waitFor(() => {
         expect(screen.queryByTestId('color-picker')).not.toBeInTheDocument();
@@ -268,9 +270,10 @@ describe('ComponentDetails - ColorPicker Integration', () => {
 
     it('should not render color picker when component not in current view', async () => {
       const mockView: View = {
-        id: 'view-1' as ViewId,
+        id: toViewId('view-1'),
         name: 'Test View',
         isDefault: true,
+        isPrivate: false,
         components: [],
         capabilities: [],
         colorScheme: 'custom',

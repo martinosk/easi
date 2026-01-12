@@ -12,7 +12,7 @@ export interface UseDomainCapabilitiesResult {
   isLoading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
-  associateCapability: (capabilityId: CapabilityId, capability: Capability) => Promise<void>;
+  associateCapability: (capabilityId: CapabilityId) => Promise<void>;
   dissociateCapability: (capability: Capability) => Promise<void>;
 }
 
@@ -58,7 +58,7 @@ export function useDomainCapabilities(
   });
 
   const associateCapability = useCallback(
-    async (capabilityId: CapabilityId, _capability: Capability) => {
+    async (capabilityId: CapabilityId) => {
       if (!domainId) {
         throw new Error('Domain ID not available');
       }

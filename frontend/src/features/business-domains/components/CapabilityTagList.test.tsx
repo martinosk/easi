@@ -12,8 +12,8 @@ describe('CapabilityTagList', () => {
       level: 'L1',
       createdAt: '2025-01-15T10:00:00Z',
       _links: {
-        self: { href: '/api/v1/capabilities/cap-1' },
-        dissociate: { href: '/api/v1/business-domains/domain-1/capabilities/cap-1' },
+        self: { href: '/api/v1/capabilities/cap-1', method: 'GET' },
+        dissociate: { href: '/api/v1/business-domains/domain-1/capabilities/cap-1', method: 'DELETE' },
       },
     },
     {
@@ -23,8 +23,8 @@ describe('CapabilityTagList', () => {
       level: 'L1',
       createdAt: '2025-01-15T10:00:00Z',
       _links: {
-        self: { href: '/api/v1/capabilities/cap-2' },
-        dissociate: { href: '/api/v1/business-domains/domain-1/capabilities/cap-2' },
+        self: { href: '/api/v1/capabilities/cap-2', method: 'GET' },
+        dissociate: { href: '/api/v1/business-domains/domain-1/capabilities/cap-2', method: 'DELETE' },
       },
     },
   ];
@@ -44,7 +44,7 @@ describe('CapabilityTagList', () => {
         {
           ...mockCapabilities[0],
           _links: {
-            self: { href: '/api/v1/capabilities/cap-1' },
+            self: { href: '/api/v1/capabilities/cap-1', method: 'GET' },
           },
         },
       ];

@@ -12,7 +12,7 @@ export function ColorPicker({ color, onChange, disabled, disabledTooltip }: Colo
   const [isOpen, setIsOpen] = useState(false);
   const [tempColor, setTempColor] = useState(color || '#E0E0E0');
   const displayColor = tempColor;
-  const commitTimeoutRef = useRef<number | null>(null);
+  const commitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

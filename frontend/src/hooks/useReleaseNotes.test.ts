@@ -3,6 +3,7 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { useReleaseNotes } from './useReleaseNotes';
 import { apiClient } from '../api/client';
 import type { Release } from '../api/types';
+import { toReleaseVersion } from '../api/types';
 
 vi.mock('../api/client', () => ({
   apiClient: {
@@ -14,10 +15,10 @@ vi.mock('../api/client', () => ({
 const STORAGE_KEY = 'releaseNotesPreferences';
 
 const mockRelease: Release = {
-  version: '1.2.0',
+  version: toReleaseVersion('1.2.0'),
   releaseDate: '2024-01-15T00:00:00Z',
   notes: '## Features\n- New feature',
-  _links: { self: { href: '/api/v1/releases/1.2.0' } },
+  _links: { self: { href: '/api/v1/releases/1.2.0', method: 'GET' } },
 };
 
 describe('useReleaseNotes', () => {
@@ -248,7 +249,7 @@ describe('useReleaseNotes', () => {
       vi.mocked(apiClient.getVersion).mockResolvedValue('2.0.0');
       vi.mocked(apiClient.getLatestRelease).mockResolvedValue({
         ...mockRelease,
-        version: '2.0.0',
+        version: toReleaseVersion('2.0.0'),
       });
 
       const { result } = renderHook(() => useReleaseNotes());

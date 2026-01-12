@@ -101,6 +101,7 @@ describe('createCapabilitySchema', () => {
   });
 
   it('should reject missing name', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { name, ...withoutName } = validData;
     const result = schema.safeParse(withoutName);
     expect(result.success).toBe(false);

@@ -2,15 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ReleaseNotesOverlay } from './ReleaseNotesOverlay';
 import type { Release } from '../../../api/types';
+import { toReleaseVersion } from '../../../api/types';
 
 describe('ReleaseNotesOverlay', () => {
   const mockOnDismiss = vi.fn();
 
   const mockRelease: Release = {
-    version: '1.2.0',
+    version: toReleaseVersion('1.2.0'),
     releaseDate: '2024-01-15T00:00:00Z',
     notes: '## Features\n- New dashboard\n- Improved performance\n\n## Bug Fixes\n- Fixed login issue',
-    _links: { self: { href: '/api/v1/releases/1.2.0' } },
+    _links: { self: { href: '/api/v1/releases/1.2.0', method: 'GET' } },
   };
 
   beforeEach(() => {

@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { ReleaseNotesBrowser } from './ReleaseNotesBrowser';
 import { apiClient } from '../../../api/client';
 import type { Release } from '../../../api/types';
+import { toReleaseVersion } from '../../../api/types';
 
 vi.mock('../../../api/client', () => ({
   apiClient: {
@@ -13,22 +14,22 @@ vi.mock('../../../api/client', () => ({
 
 const mockReleases: Release[] = [
   {
-    version: '2.0.0',
+    version: toReleaseVersion('2.0.0'),
     releaseDate: '2024-03-01T00:00:00Z',
     notes: '## Major Features\n- Complete redesign',
-    _links: { self: { href: '/api/v1/releases/2.0.0' } },
+    _links: { self: { href: '/api/v1/releases/2.0.0', method: 'GET' } },
   },
   {
-    version: '1.1.0',
+    version: toReleaseVersion('1.1.0'),
     releaseDate: '2024-02-01T00:00:00Z',
     notes: '## Features\n- New feature\n\n## Bug Fixes\n- Fixed issue',
-    _links: { self: { href: '/api/v1/releases/1.1.0' } },
+    _links: { self: { href: '/api/v1/releases/1.1.0', method: 'GET' } },
   },
   {
-    version: '1.0.0',
+    version: toReleaseVersion('1.0.0'),
     releaseDate: '2024-01-01T00:00:00Z',
     notes: '## Initial Release\n- First version',
-    _links: { self: { href: '/api/v1/releases/1.0.0' } },
+    _links: { self: { href: '/api/v1/releases/1.0.0', method: 'GET' } },
   },
 ];
 

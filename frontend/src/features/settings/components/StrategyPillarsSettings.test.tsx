@@ -4,8 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MantineProvider } from '@mantine/core';
 import React from 'react';
 import { StrategyPillarsSettings } from './StrategyPillarsSettings';
-import { strategyPillarsApi } from '../../../api/metadata';
-import type { StrategyPillarsConfiguration } from '../../../api/types';
+import { strategyPillarsApi, type StrategyPillarsConfigurationWithVersion } from '../../../api/metadata';
 import { ApiError } from '../../../api/types';
 
 vi.mock('../../../api/metadata', () => ({
@@ -42,14 +41,14 @@ function renderWithProviders(ui: React.ReactElement, queryClient?: QueryClient) 
   );
 }
 
-const mockPillarsConfig: StrategyPillarsConfiguration = {
+const mockPillarsConfig: StrategyPillarsConfigurationWithVersion = {
   data: [
-    { id: 'pillar-1', name: 'Always On', description: 'Core capabilities', active: true, _links: {} },
-    { id: 'pillar-2', name: 'Grow', description: 'Growth initiatives', active: true, _links: {} },
-    { id: 'pillar-3', name: 'Transform', description: 'Transformation projects', active: true, _links: {} },
+    { id: 'pillar-1', name: 'Always On', description: 'Core capabilities', active: true, fitScoringEnabled: false, fitCriteria: '', _links: {} },
+    { id: 'pillar-2', name: 'Grow', description: 'Growth initiatives', active: true, fitScoringEnabled: false, fitCriteria: '', _links: {} },
+    { id: 'pillar-3', name: 'Transform', description: 'Transformation projects', active: true, fitScoringEnabled: false, fitCriteria: '', _links: {} },
   ],
-  version: 1,
   _links: {},
+  version: 1,
 };
 
 describe('StrategyPillarsSettings', () => {
@@ -218,16 +217,18 @@ describe('StrategyPillarsSettings', () => {
   });
 
   it('disables add pillar button when max pillars (20) reached', async () => {
-    const maxPillarsConfig: StrategyPillarsConfiguration = {
+    const maxPillarsConfig: StrategyPillarsConfigurationWithVersion = {
       data: Array.from({ length: 20 }, (_, i) => ({
         id: `pillar-${i}`,
         name: `Pillar ${i + 1}`,
         description: '',
         active: true,
+        fitScoringEnabled: false,
+        fitCriteria: '',
         _links: {},
       })),
-      version: 1,
       _links: {},
+      version: 1,
     };
     vi.mocked(strategyPillarsApi.getConfiguration).mockResolvedValue(maxPillarsConfig);
 
@@ -258,12 +259,12 @@ describe('StrategyPillarsSettings', () => {
   });
 
   it('disables delete button when only one active pillar remains', async () => {
-    const singlePillarConfig: StrategyPillarsConfiguration = {
+    const singlePillarConfig: StrategyPillarsConfigurationWithVersion = {
       data: [
-        { id: 'pillar-1', name: 'Always On', description: '', active: true, _links: {} },
+        { id: 'pillar-1', name: 'Always On', description: '', active: true, fitScoringEnabled: false, fitCriteria: '', _links: {} },
       ],
-      version: 1,
       _links: {},
+      version: 1,
     };
     vi.mocked(strategyPillarsApi.getConfiguration).mockResolvedValue(singlePillarConfig);
 
@@ -326,14 +327,14 @@ describe('StrategyPillarsSettings', () => {
   });
 
   it('filters out inactive pillars in view mode by default', async () => {
-    const configWithInactive: StrategyPillarsConfiguration = {
+    const configWithInactive: StrategyPillarsConfigurationWithVersion = {
       data: [
-        { id: 'pillar-1', name: 'Always On', description: '', active: true, _links: {} },
-        { id: 'pillar-2', name: 'Grow', description: '', active: false, _links: {} },
-        { id: 'pillar-3', name: 'Transform', description: '', active: true, _links: {} },
+        { id: 'pillar-1', name: 'Always On', description: '', active: true, fitScoringEnabled: false, fitCriteria: '', _links: {} },
+        { id: 'pillar-2', name: 'Grow', description: '', active: false, fitScoringEnabled: false, fitCriteria: '', _links: {} },
+        { id: 'pillar-3', name: 'Transform', description: '', active: true, fitScoringEnabled: false, fitCriteria: '', _links: {} },
       ],
-      version: 1,
       _links: {},
+      version: 1,
     };
     vi.mocked(strategyPillarsApi.getConfiguration).mockResolvedValue(configWithInactive);
 

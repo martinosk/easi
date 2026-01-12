@@ -44,12 +44,13 @@ const createMockView = (overrides: Partial<View> = {}): View => ({
   name: 'Test View',
   description: 'Test description',
   isDefault: false,
+  isPrivate: false,
   components: [],
   capabilities: [],
   edgeType: 'default',
   colorScheme: 'maturity',
   createdAt: '2024-01-01T00:00:00Z',
-  _links: { self: { href: '/api/v1/views/view-1' } },
+  _links: { self: { href: '/api/v1/views/view-1', method: 'GET' } },
   ...overrides,
 });
 

@@ -30,14 +30,6 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
   const { data: components = [] } = useComponents();
   const createRelationMutation = useCreateRelation();
 
-  const createDefaultValues = (): CreateRelationFormData => ({
-    sourceComponentId: initialSource || '',
-    targetComponentId: initialTarget || '',
-    relationType: 'Triggers',
-    name: '',
-    description: '',
-  });
-
   const {
     register,
     handleSubmit,
@@ -47,13 +39,25 @@ export const CreateRelationDialog: React.FC<CreateRelationDialogProps> = ({
     formState: { errors, isValid },
   } = useForm<CreateRelationFormData>({
     resolver: zodResolver(createRelationSchema),
-    defaultValues: createDefaultValues(),
+    defaultValues: {
+      sourceComponentId: initialSource || '',
+      targetComponentId: initialTarget || '',
+      relationType: 'Triggers',
+      name: '',
+      description: '',
+    },
     mode: 'onChange',
   });
 
   useEffect(() => {
     if (isOpen) {
-      reset(createDefaultValues());
+      reset({
+        sourceComponentId: initialSource || '',
+        targetComponentId: initialTarget || '',
+        relationType: 'Triggers',
+        name: '',
+        description: '',
+      });
       setBackendError(null);
     }
   }, [isOpen, initialSource, initialTarget, reset]);

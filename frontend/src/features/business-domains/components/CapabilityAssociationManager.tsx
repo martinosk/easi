@@ -18,7 +18,7 @@ export function CapabilityAssociationManager({ domainId }: CapabilityAssociation
   const handleAddCapabilities = async (selectedCapabilities: Capability[]) => {
     try {
       for (const capability of selectedCapabilities) {
-        await associateCapability(capability.id, capability);
+        await associateCapability(capability.id);
       }
       toast.success(`Added ${selectedCapabilities.length} ${selectedCapabilities.length === 1 ? 'capability' : 'capabilities'}`);
     } catch (err) {

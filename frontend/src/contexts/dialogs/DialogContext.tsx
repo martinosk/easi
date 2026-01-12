@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { DialogContext } from './context';
 import type { DialogId, DialogDataMap, DialogContextValue } from './types';
-
-const DialogContext = createContext<DialogContextValue | null>(null);
 
 export function DialogProvider({ children }: { children: React.ReactNode }) {
   const [openDialogs, setOpenDialogs] = useState<Map<DialogId, DialogDataMap[DialogId]>>(
@@ -48,12 +47,4 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
   );
 
   return <DialogContext.Provider value={value}>{children}</DialogContext.Provider>;
-}
-
-export function useDialogContext(): DialogContextValue {
-  const context = useContext(DialogContext);
-  if (!context) {
-    throw new Error('useDialogContext must be used within a DialogProvider');
-  }
-  return context;
 }

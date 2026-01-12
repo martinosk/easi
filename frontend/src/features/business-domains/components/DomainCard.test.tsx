@@ -12,9 +12,9 @@ describe('DomainCard', () => {
     createdAt: '2025-01-15T10:00:00Z',
     updatedAt: '2025-01-16T12:00:00Z',
     _links: {
-      self: { href: '/api/v1/business-domains/domain-1' },
-      update: { href: '/api/v1/business-domains/domain-1' },
-      capabilities: { href: '/api/v1/business-domains/domain-1/capabilities' },
+      self: { href: '/api/v1/business-domains/domain-1', method: 'GET' },
+      update: { href: '/api/v1/business-domains/domain-1', method: 'PUT' },
+      capabilities: { href: '/api/v1/business-domains/domain-1/capabilities', method: 'GET' },
     },
   };
 

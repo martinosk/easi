@@ -6,6 +6,7 @@ import {
   toCapabilityDependencyId,
   toRealizationId,
   toBusinessDomainId,
+  toReleaseVersion,
 } from '../../api/types';
 import type {
   Component,
@@ -18,10 +19,12 @@ import type {
   CapabilityRealization,
   BusinessDomain,
   HATEOASLinks,
+  HATEOASLink,
   CapabilityLevel,
   DependencyType,
   RealizationLevel,
   Expert,
+  Release,
 } from '../../api/types';
 
 let idCounter = 0;
@@ -33,11 +36,15 @@ export function resetIdCounter(): void {
   idCounter = 0;
 }
 
+export function buildLink(href: string, method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'GET'): HATEOASLink {
+  return { href, method };
+}
+
 function buildLinks(self: string): HATEOASLinks {
   return {
-    self,
-    update: self,
-    delete: self,
+    self: buildLink(self, 'GET'),
+    edit: buildLink(self, 'PUT'),
+    delete: buildLink(self, 'DELETE'),
   };
 }
 
@@ -93,6 +100,7 @@ export function buildView(overrides: Partial<View> = {}): View {
     name: `View ${id}`,
     description: 'Test view description',
     isDefault: false,
+    isPrivate: false,
     components: [],
     capabilities: [],
     edgeType: 'smoothstep',
@@ -169,8 +177,21 @@ export function buildBusinessDomain(overrides: Partial<BusinessDomain> = {}): Bu
     createdAt: '2024-01-01T00:00:00Z',
     _links: {
       ...buildLinks(`/api/v1/business-domains/${id}`),
-      capabilities: `/api/v1/business-domains/${id}/capabilities`,
-      associate: `/api/v1/business-domains/${id}/capabilities`,
+      capabilities: buildLink(`/api/v1/business-domains/${id}/capabilities`, 'GET'),
+      associate: buildLink(`/api/v1/business-domains/${id}/capabilities`, 'POST'),
+    },
+    ...overrides,
+  };
+}
+
+export function buildRelease(overrides: Partial<Release> = {}): Release {
+  const version = overrides.version ?? toReleaseVersion(nextId('v1.0'));
+  return {
+    version,
+    releaseDate: '2024-01-01',
+    notes: 'Test release notes',
+    _links: {
+      self: buildLink(`/api/v1/releases/${version}`, 'GET'),
     },
     ...overrides,
   };

@@ -30,8 +30,10 @@ const createCapability = (id: string, name: string): Capability => ({
   level: 'L1',
   status: 'Active',
   maturityLevel: 'Genesis',
+  createdAt: '2024-01-01',
   _links: {
-    removeFromDomain: `/api/v1/capabilities/${id}/remove`,
+    self: { href: `/api/v1/capabilities/${id}`, method: 'GET' },
+    removeFromDomain: { href: `/api/v1/capabilities/${id}/remove`, method: 'DELETE' },
   },
 });
 
@@ -104,9 +106,8 @@ describe('useDomainCapabilities - Business Domain Query Invalidation', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      const capability = createCapability('cap-1', 'Test Capability');
       await act(async () => {
-        await result.current.associateCapability('cap-1' as CapabilityId, capability);
+        await result.current.associateCapability('cap-1' as CapabilityId);
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
@@ -125,9 +126,8 @@ describe('useDomainCapabilities - Business Domain Query Invalidation', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      const capability = createCapability('cap-1', 'Test Capability');
       await act(async () => {
-        await result.current.associateCapability('cap-1' as CapabilityId, capability);
+        await result.current.associateCapability('cap-1' as CapabilityId);
       });
 
       expect(businessDomainsApi.associateCapabilityByDomainId).toHaveBeenCalledWith(domainId, {

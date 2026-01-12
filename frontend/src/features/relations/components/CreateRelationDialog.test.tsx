@@ -21,19 +21,19 @@ describe('CreateRelationDialog', () => {
           id: '1' as ComponentId,
           name: 'Component A',
           createdAt: '2024-01-01T00:00:00Z',
-          _links: { self: '/api/v1/components/1' },
+          _links: { self: { href: '/api/v1/components/1', method: 'GET' } },
         },
         {
           id: '2' as ComponentId,
           name: 'Component B',
           createdAt: '2024-01-01T00:00:00Z',
-          _links: { self: '/api/v1/components/2' },
+          _links: { self: { href: '/api/v1/components/2', method: 'GET' } },
         },
         {
           id: '3' as ComponentId,
           name: 'Component C',
           createdAt: '2024-01-01T00:00:00Z',
-          _links: { self: '/api/v1/components/3' },
+          _links: { self: { href: '/api/v1/components/3', method: 'GET' } },
         },
       ],
     });

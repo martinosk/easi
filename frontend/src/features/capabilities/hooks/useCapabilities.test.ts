@@ -14,7 +14,7 @@ import {
 } from './useCapabilities';
 import { queryKeys } from '../../../lib/queryClient';
 import { buildCapability, buildCapabilityDependency } from '../../../test/helpers/entityBuilders';
-import type { Capability, CapabilityId, CapabilityDependencyId } from '../../../api/types';
+import type { CapabilityId, CapabilityDependencyId } from '../../../api/types';
 
 vi.mock('../api', () => ({
   capabilitiesApi: {

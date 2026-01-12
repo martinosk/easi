@@ -4,6 +4,7 @@ import { MantineProvider } from '@mantine/core';
 import { EnterpriseCapabilityCard } from './EnterpriseCapabilityCard';
 import type { EnterpriseCapability } from '../types';
 import type { Capability } from '../../../api/types';
+import { toCapabilityId, toEnterpriseCapabilityId } from '../../../api/types';
 
 function renderWithMantine(ui: React.ReactElement) {
   return render(<MantineProvider>{ui}</MantineProvider>);
@@ -11,7 +12,7 @@ function renderWithMantine(ui: React.ReactElement) {
 
 describe('EnterpriseCapabilityCard', () => {
   const mockCapability: EnterpriseCapability = {
-    id: 'ec-1',
+    id: toEnterpriseCapabilityId('ec-1'),
     name: 'Customer Management',
     description: 'Managing customer relationships',
     category: 'Business',
@@ -29,13 +30,12 @@ describe('EnterpriseCapabilityCard', () => {
   };
 
   const mockDomainCapability: Capability = {
-    id: 'cap-1',
+    id: toCapabilityId('cap-1'),
     name: 'Payment Processing',
     level: 'L1',
     status: 'active',
     createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-01T00:00:00Z',
-    _links: { self: { href: '/api/v1/capabilities/cap-1' } },
+    _links: { self: { href: '/api/v1/capabilities/cap-1', method: 'GET' } },
   };
 
   describe('Visual Rendering', () => {

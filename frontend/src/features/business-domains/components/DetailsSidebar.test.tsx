@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { DetailsSidebar } from './DetailsSidebar';
-import { useAppStore } from '../../../store/appStore';
+import { useAppStore, type AppStore } from '../../../store/appStore';
 import { createMantineTestWrapper, seedDb, server } from '../../../test/helpers';
 import type { Capability, CapabilityId, ComponentId } from '../../../api/types';
 
@@ -47,6 +47,7 @@ describe('DetailsSidebar', () => {
   const defaultProps = {
     selectedCapability: null,
     selectedComponentId: null,
+    visualizedDomain: null,
   };
 
   beforeEach(() => {
@@ -55,12 +56,16 @@ describe('DetailsSidebar', () => {
       components: [mockComponent],
       capabilities: [mockCapability],
     });
-    vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-      selector(createMockStore())
+    vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+      selector(createMockStore() as unknown as AppStore)
     );
   });
 
-  const renderSidebar = (props = defaultProps) => {
+  const renderSidebar = (props: {
+    selectedCapability: Capability | null;
+    selectedComponentId: ComponentId | null;
+    visualizedDomain: null;
+  } = defaultProps) => {
     const { Wrapper } = createMantineTestWrapper();
     return render(<DetailsSidebar {...props} />, { wrapper: Wrapper });
   };

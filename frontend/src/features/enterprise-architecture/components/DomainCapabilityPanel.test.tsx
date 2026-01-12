@@ -2,27 +2,26 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DomainCapabilityPanel } from './DomainCapabilityPanel';
 import type { Capability } from '../../../api/types';
+import { toCapabilityId } from '../../../api/types';
 import type { CapabilityLinkStatusResponse } from '../types';
 
 describe('DomainCapabilityPanel', () => {
   const mockCapabilities: Capability[] = [
     {
-      id: 'cap-1',
+      id: toCapabilityId('cap-1'),
       name: 'Payment Processing',
       level: 'L1',
       status: 'active',
       createdAt: '2025-01-01T00:00:00Z',
-      updatedAt: '2025-01-01T00:00:00Z',
-      _links: { self: { href: '/api/v1/capabilities/cap-1' } },
+      _links: { self: { href: '/api/v1/capabilities/cap-1', method: 'GET' } },
     },
     {
-      id: 'cap-2',
+      id: toCapabilityId('cap-2'),
       name: 'Order Management',
       level: 'L1',
       status: 'active',
       createdAt: '2025-01-01T00:00:00Z',
-      updatedAt: '2025-01-01T00:00:00Z',
-      _links: { self: { href: '/api/v1/capabilities/cap-2' } },
+      _links: { self: { href: '/api/v1/capabilities/cap-2', method: 'GET' } },
     },
   ];
 
@@ -263,23 +262,21 @@ describe('DomainCapabilityPanel', () => {
     it('displays nested capabilities in tree structure', () => {
       const hierarchicalCapabilities: Capability[] = [
         {
-          id: 'parent-1',
+          id: toCapabilityId('parent-1'),
           name: 'Parent Capability',
           level: 'L1',
           status: 'active',
           createdAt: '2025-01-01T00:00:00Z',
-          updatedAt: '2025-01-01T00:00:00Z',
-          _links: { self: { href: '/api/v1/capabilities/parent-1' } },
+          _links: { self: { href: '/api/v1/capabilities/parent-1', method: 'GET' } },
         },
         {
-          id: 'child-1',
+          id: toCapabilityId('child-1'),
           name: 'Child Capability',
           level: 'L2',
-          parentId: 'parent-1',
+          parentId: toCapabilityId('parent-1'),
           status: 'active',
           createdAt: '2025-01-01T00:00:00Z',
-          updatedAt: '2025-01-01T00:00:00Z',
-          _links: { self: { href: '/api/v1/capabilities/child-1' } },
+          _links: { self: { href: '/api/v1/capabilities/child-1', method: 'GET' } },
         },
       ];
 

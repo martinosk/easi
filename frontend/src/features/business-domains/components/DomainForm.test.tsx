@@ -11,7 +11,7 @@ describe('DomainForm', () => {
     capabilityCount: 3,
     createdAt: '2025-01-15T10:00:00Z',
     _links: {
-      self: { href: '/api/v1/business-domains/domain-1' },
+      self: { href: '/api/v1/business-domains/domain-1', method: 'GET' },
     },
   };
 

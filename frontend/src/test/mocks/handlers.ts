@@ -16,6 +16,7 @@ import {
   addRelation,
 } from './db';
 import { toComponentId, toCapabilityId, toViewId } from '../../api/types';
+import type { ViewId } from '../../api/types';
 
 const BASE_URL = 'http://localhost:8080';
 
@@ -140,7 +141,7 @@ export const handlers = [
     if (capIndex >= 0 && view.capabilities) {
       view.capabilities[capIndex] = {
         ...view.capabilities[capIndex],
-        color: body.color,
+        customColor: body.color,
       };
       updateView(toViewId(params.viewId as string), { capabilities: view.capabilities });
     }
@@ -156,7 +157,7 @@ export const handlers = [
       (c) => c.capabilityId === params.capabilityId
     ) ?? -1;
     if (capIndex >= 0 && view.capabilities) {
-      const rest = Object.fromEntries(Object.entries(view.capabilities[capIndex]).filter(([key]) => key !== 'color')) as typeof view.capabilities[number];
+      const rest = Object.fromEntries(Object.entries(view.capabilities[capIndex]).filter(([key]) => key !== 'customColor')) as typeof view.capabilities[number];
       view.capabilities[capIndex] = rest as typeof view.capabilities[number];
       updateView(toViewId(params.viewId as string), { capabilities: view.capabilities });
     }
@@ -175,7 +176,7 @@ export const handlers = [
     if (compIndex >= 0 && view.components) {
       view.components[compIndex] = {
         ...view.components[compIndex],
-        color: body.color,
+        customColor: body.color,
       };
       updateView(toViewId(params.viewId as string), { components: view.components });
     }
@@ -191,7 +192,7 @@ export const handlers = [
       (c) => c.componentId === params.componentId
     ) ?? -1;
     if (compIndex >= 0 && view.components) {
-      const rest = Object.fromEntries(Object.entries(view.components[compIndex]).filter(([key]) => key !== 'color')) as typeof view.components[number];
+      const rest = Object.fromEntries(Object.entries(view.components[compIndex]).filter(([key]) => key !== 'customColor')) as typeof view.components[number];
       view.components[compIndex] = rest as typeof view.components[number];
       updateView(toViewId(params.viewId as string), { components: view.components });
     }

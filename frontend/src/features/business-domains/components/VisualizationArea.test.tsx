@@ -11,10 +11,11 @@ describe('VisualizationArea', () => {
     id: 'domain-1' as BusinessDomainId,
     name: 'Finance',
     description: '',
+    capabilityCount: 2,
     createdAt: '2024-01-01',
     _links: {
-      self: { href: '/api/v1/business-domains/domain-1' },
-      capabilities: '/api/v1/business-domains/domain-1/capabilities',
+      self: { href: '/api/v1/business-domains/domain-1', method: 'GET' },
+      capabilities: { href: '/api/v1/business-domains/domain-1/capabilities', method: 'GET' },
     },
   };
 
@@ -24,7 +25,7 @@ describe('VisualizationArea', () => {
       name: 'Financial Management',
       level: 'L1',
       createdAt: '2024-01-01',
-      _links: { self: { href: '/api/v1/capabilities/cap-1' } },
+      _links: { self: { href: '/api/v1/capabilities/cap-1', method: 'GET' } },
     },
     {
       id: 'cap-2' as CapabilityId,
@@ -32,7 +33,7 @@ describe('VisualizationArea', () => {
       level: 'L2',
       parentId: 'cap-1' as CapabilityId,
       createdAt: '2024-01-01',
-      _links: { self: { href: '/api/v1/capabilities/cap-2' } },
+      _links: { self: { href: '/api/v1/capabilities/cap-2', method: 'GET' } },
     },
   ];
 

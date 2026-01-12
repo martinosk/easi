@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { createMantineTestWrapper, seedDb } from '../../../test/helpers';
 import { useAppStore } from '../../../store/appStore';
 import type { Capability, View, Component, CapabilityId, ComponentId, ViewId } from '../../../api/types';
+import type { AppStore } from '../../../store/appStore';
 
 vi.mock('../../../store/appStore', () => ({
   useAppStore: vi.fn(),
@@ -13,13 +14,11 @@ vi.mock('../../../api/client', () => ({
     getMaturityLevels: vi.fn(),
     getStatuses: vi.fn(),
     getOwnershipModels: vi.fn(),
-    getStrategyPillars: vi.fn(),
   },
   default: {
     getMaturityLevels: vi.fn(),
     getStatuses: vi.fn(),
     getOwnershipModels: vi.fn(),
-    getStrategyPillars: vi.fn(),
   },
 }));
 
@@ -69,6 +68,7 @@ const mockCurrentView: View = {
   name: 'Main View',
   description: 'Default view',
   isDefault: true,
+  isPrivate: false,
   components: [{ componentId: 'comp-1' as ComponentId, x: 100, y: 100 }],
   capabilities: [{ capabilityId: 'cap-1' as CapabilityId, x: 200, y: 200 }],
   createdAt: '2024-01-01T00:00:00Z',
@@ -112,8 +112,8 @@ describe('Capability UI Consistency', () => {
     describe('EditCapabilityDialog should be managed via DialogManager pattern', () => {
       it('should render dialog as a modal overlay when opened', async () => {
         const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-          selector(mockStore)
+        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+          selector(mockStore as unknown as AppStore)
         );
         const { Wrapper } = createMantineTestWrapper();
 
@@ -123,7 +123,6 @@ describe('Capability UI Consistency', () => {
           { value: 'Active', displayName: 'Active', sortOrder: 1 },
         ]);
         vi.mocked(apiClient.getOwnershipModels).mockResolvedValue([]);
-        vi.mocked(apiClient.getStrategyPillars).mockResolvedValue([]);
 
         const { EditCapabilityDialog } = await import('./EditCapabilityDialog');
         const capability = mockCapabilities[0];
@@ -137,8 +136,8 @@ describe('Capability UI Consistency', () => {
 
       it('should not show modal when isOpen is false', async () => {
         const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-          selector(mockStore)
+        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+          selector(mockStore as unknown as AppStore)
         );
         const { Wrapper } = createMantineTestWrapper();
 
@@ -151,8 +150,8 @@ describe('Capability UI Consistency', () => {
 
       it('should call onClose when cancel button is clicked', async () => {
         const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-          selector(mockStore)
+        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+          selector(mockStore as unknown as AppStore)
         );
         const { Wrapper } = createMantineTestWrapper();
 
@@ -162,7 +161,6 @@ describe('Capability UI Consistency', () => {
           { value: 'Active', displayName: 'Active', sortOrder: 1 },
         ]);
         vi.mocked(apiClient.getOwnershipModels).mockResolvedValue([]);
-        vi.mocked(apiClient.getStrategyPillars).mockResolvedValue([]);
 
         const { EditCapabilityDialog } = await import('./EditCapabilityDialog');
         const mockOnClose = vi.fn();
@@ -181,8 +179,8 @@ describe('Capability UI Consistency', () => {
 
       it('should follow same pattern as EditComponentDialog for dialog opening', async () => {
         const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-          selector(mockStore)
+        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+          selector(mockStore as unknown as AppStore)
         );
         const { Wrapper } = createMantineTestWrapper();
 
@@ -192,7 +190,6 @@ describe('Capability UI Consistency', () => {
           { value: 'Active', displayName: 'Active', sortOrder: 1 },
         ]);
         vi.mocked(apiClient.getOwnershipModels).mockResolvedValue([]);
-        vi.mocked(apiClient.getStrategyPillars).mockResolvedValue([]);
 
         const { EditComponentDialog } = await import('../../components/components/EditComponentDialog');
         const { EditCapabilityDialog } = await import('./EditCapabilityDialog');
@@ -226,8 +223,8 @@ describe('Capability UI Consistency', () => {
         const mockStore = createMockStore({
           canvasCapabilities: [{ capabilityId: 'cap-1', x: 200, y: 200 }],
         });
-        vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-          selector(mockStore)
+        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+          selector(mockStore as unknown as AppStore)
         );
         const { Wrapper } = createMantineTestWrapper();
 
@@ -244,8 +241,8 @@ describe('Capability UI Consistency', () => {
         const mockStore = createMockStore({
           canvasCapabilities: [{ capabilityId: 'cap-1', x: 200, y: 200 }],
         });
-        vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-          selector(mockStore)
+        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+          selector(mockStore as unknown as AppStore)
         );
         const { Wrapper } = createMantineTestWrapper();
 
@@ -262,8 +259,8 @@ describe('Capability UI Consistency', () => {
         const mockStore = createMockStore({
           canvasCapabilities: [],
         });
-        vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-          selector(mockStore)
+        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+          selector(mockStore as unknown as AppStore)
         );
         const { Wrapper } = createMantineTestWrapper();
 
@@ -309,8 +306,8 @@ describe('Capability UI Consistency', () => {
             components: [{ componentId: 'comp-1', x: 100, y: 100 }],
           },
         });
-        vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-          selector(mockStoreWithComponentOutOfView)
+        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+          selector(mockStoreWithComponentOutOfView as unknown as AppStore)
         );
         seedDb({ components: componentsWithB, capabilities: mockCapabilities });
         const { Wrapper } = createMantineTestWrapper();
@@ -341,8 +338,8 @@ describe('Capability UI Consistency', () => {
             components: [{ componentId: 'comp-1', x: 100, y: 100 }],
           },
         });
-        vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-          selector(mockStoreWithComponentOutOfView)
+        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+          selector(mockStoreWithComponentOutOfView as unknown as AppStore)
         );
         seedDb({ components: componentsWithB, capabilities: mockCapabilities });
         const { Wrapper } = createMantineTestWrapper();
@@ -362,8 +359,8 @@ describe('Capability UI Consistency', () => {
     it('should call onCapabilitySelect when capability is clicked in tree', async () => {
       const mockOnCapabilitySelect = vi.fn();
       const mockStore = createMockStore();
-      vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-        selector(mockStore)
+      vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+        selector(mockStore as unknown as AppStore)
       );
       const { Wrapper } = createMantineTestWrapper();
 
@@ -383,8 +380,8 @@ describe('Capability UI Consistency', () => {
     it('should call onComponentSelect when component is clicked in tree', async () => {
       const mockOnComponentSelect = vi.fn();
       const mockStore = createMockStore();
-      vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-        selector(mockStore)
+      vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+        selector(mockStore as unknown as AppStore)
       );
       const { Wrapper } = createMantineTestWrapper();
 
@@ -406,8 +403,8 @@ describe('Capability UI Consistency', () => {
     describe('Tree Context Menu for Capabilities', () => {
       it('should show Edit option in capability tree context menu', async () => {
         const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-          selector(mockStore)
+        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+          selector(mockStore as unknown as AppStore)
         );
         const { Wrapper } = createMantineTestWrapper();
 
@@ -428,8 +425,8 @@ describe('Capability UI Consistency', () => {
 
       it('should show Delete from Model option in capability tree context menu', async () => {
         const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-          selector(mockStore)
+        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+          selector(mockStore as unknown as AppStore)
         );
         const { Wrapper } = createMantineTestWrapper();
 
@@ -452,8 +449,8 @@ describe('Capability UI Consistency', () => {
     describe('Tree Context Menu for Components', () => {
       it('should show Edit option in component tree context menu', async () => {
         const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-          selector(mockStore)
+        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+          selector(mockStore as unknown as AppStore)
         );
         const { Wrapper } = createMantineTestWrapper();
 
@@ -474,8 +471,8 @@ describe('Capability UI Consistency', () => {
 
       it('should show Delete from Model option in component tree context menu', async () => {
         const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-          selector(mockStore)
+        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+          selector(mockStore as unknown as AppStore)
         );
         const { Wrapper } = createMantineTestWrapper();
 
@@ -498,8 +495,8 @@ describe('Capability UI Consistency', () => {
     describe('Context Menu item structure comparison', () => {
       it('should have matching menu structure for capability and component tree items', async () => {
         const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-          selector(mockStore)
+        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+          selector(mockStore as unknown as AppStore)
         );
         const { Wrapper } = createMantineTestWrapper();
 
@@ -560,8 +557,8 @@ describe('Capability Tree Item Selection', () => {
     const mockStore = createMockStore({
       selectedCapabilityId: null,
     });
-    vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-      selector(mockStore)
+    vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+      selector(mockStore as unknown as AppStore)
     );
     const { Wrapper } = createMantineTestWrapper();
 
@@ -586,8 +583,8 @@ describe('Capability Expand/Collapse in Tree', () => {
 
   it('should show expand button for capabilities with children', async () => {
     const mockStore = createMockStore();
-    vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-      selector(mockStore)
+    vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+      selector(mockStore as unknown as AppStore)
     );
     const { Wrapper } = createMantineTestWrapper();
 
@@ -602,8 +599,8 @@ describe('Capability Expand/Collapse in Tree', () => {
 
   it('should not show expand button for capabilities without children', async () => {
     const mockStore = createMockStore();
-    vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-      selector(mockStore)
+    vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+      selector(mockStore as unknown as AppStore)
     );
     const { Wrapper } = createMantineTestWrapper();
 
@@ -618,8 +615,8 @@ describe('Capability Expand/Collapse in Tree', () => {
 
   it('should toggle children visibility when expand button is clicked', async () => {
     const mockStore = createMockStore();
-    vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-      selector(mockStore)
+    vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+      selector(mockStore as unknown as AppStore)
     );
     const { Wrapper } = createMantineTestWrapper();
 

@@ -9,7 +9,7 @@ describe('useCapabilitySelection', () => {
     name,
     level,
     createdAt: '2024-01-01',
-    _links: { self: { href: `/api/v1/capabilities/${id}` } },
+    _links: { self: { href: `/api/v1/capabilities/${id}`, method: 'GET' } },
   });
 
   const mockCapabilities: Capability[] = [

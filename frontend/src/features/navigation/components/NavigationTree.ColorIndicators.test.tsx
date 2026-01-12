@@ -5,6 +5,8 @@ import { createMantineTestWrapper, seedDb } from '../../../test/helpers';
 import { useAppStore } from '../../../store/appStore';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import type { View, ComponentId, CapabilityId } from '../../../api/types';
+import { toViewId } from '../../../api/types';
+import type { AppStore } from '../../../store/appStore';
 
 vi.mock('../../../store/appStore', () => ({
   useAppStore: vi.fn(),
@@ -67,10 +69,11 @@ const createViewWithColorScheme = (
   components: Array<{ componentId: string; customColor?: string }>,
   capabilities: Array<{ capabilityId: string; customColor?: string }>
 ): View => ({
-  id: 'view-1',
+  id: toViewId('view-1'),
   name: 'Architecture View',
   description: 'Main view',
   isDefault: true,
+  isPrivate: false,
   colorScheme,
   components: components.map(c => ({
     componentId: c.componentId as ComponentId,
@@ -102,7 +105,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
   });
 
   const renderNavigationTree = (currentView: View | null) => {
-    vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) => selector(createMockStore()));
+    vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) => selector(createMockStore() as unknown as AppStore));
     vi.mocked(useCurrentView).mockReturnValue({
       currentView,
       currentViewId: currentView?.id ?? null,
@@ -130,7 +133,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();
       });
 
-      const paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item');
+      const paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item') as HTMLElement;
       const colorIndicator = within(paymentServiceItem!).getByTestId('custom-color-indicator');
       expect(colorIndicator).toBeInTheDocument();
       expect(colorIndicator).toHaveStyle({ backgroundColor: '#FF5733' });
@@ -149,7 +152,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();
       });
 
-      const paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item');
+      const paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item') as HTMLElement;
       const colorIndicator = within(paymentServiceItem!).queryByTestId('custom-color-indicator');
       expect(colorIndicator).not.toBeInTheDocument();
     });
@@ -167,7 +170,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();
       });
 
-      const paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item');
+      const paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item') as HTMLElement;
       const colorIndicator = within(paymentServiceItem!).queryByTestId('custom-color-indicator');
       expect(colorIndicator).not.toBeInTheDocument();
     });
@@ -185,7 +188,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();
       });
 
-      const paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item');
+      const paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item') as HTMLElement;
       const colorIndicator = within(paymentServiceItem!).queryByTestId('custom-color-indicator');
       expect(colorIndicator).not.toBeInTheDocument();
     });
@@ -206,8 +209,8 @@ describe('NavigationTree - Custom Color Indicators', () => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();
       });
 
-      const paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item');
-      const orderServiceItem = screen.getByText('Order Service').closest('.tree-item');
+      const paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item') as HTMLElement;
+      const orderServiceItem = screen.getByText('Order Service').closest('.tree-item') as HTMLElement;
 
       const paymentColorIndicator = within(paymentServiceItem!).getByTestId('custom-color-indicator');
       const orderColorIndicator = within(orderServiceItem!).getByTestId('custom-color-indicator');
@@ -228,18 +231,13 @@ describe('NavigationTree - Custom Color Indicators', () => {
         ]
       );
 
-      createMockStore(currentView, [
-        { capabilityId: 'cap-1', x: 100, y: 200 },
-        { capabilityId: 'cap-3', x: 100, y: 200 },
-      ]);
-
       renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Customer Management')).toBeInTheDocument();
       });
 
-      const customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item');
+      const customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item') as HTMLElement;
       const colorIndicator = within(customerMgmtItem!).getByTestId('custom-color-indicator');
       expect(colorIndicator).toBeInTheDocument();
       expect(colorIndicator).toHaveStyle({ backgroundColor: '#AA00FF' });
@@ -252,15 +250,13 @@ describe('NavigationTree - Custom Color Indicators', () => {
         [{ capabilityId: 'cap-1', customColor: '#AA00FF' }]
       );
 
-      createMockStore(currentView, [{ capabilityId: 'cap-1', x: 100, y: 200 }]);
-
       renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Customer Management')).toBeInTheDocument();
       });
 
-      const customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item');
+      const customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item') as HTMLElement;
       const colorIndicator = within(customerMgmtItem!).queryByTestId('custom-color-indicator');
       expect(colorIndicator).not.toBeInTheDocument();
     });
@@ -272,15 +268,13 @@ describe('NavigationTree - Custom Color Indicators', () => {
         [{ capabilityId: 'cap-1' }]
       );
 
-      createMockStore(currentView, [{ capabilityId: 'cap-1', x: 100, y: 200 }]);
-
       renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Customer Management')).toBeInTheDocument();
       });
 
-      const customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item');
+      const customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item') as HTMLElement;
       const colorIndicator = within(customerMgmtItem!).queryByTestId('custom-color-indicator');
       expect(colorIndicator).not.toBeInTheDocument();
     });
@@ -295,19 +289,14 @@ describe('NavigationTree - Custom Color Indicators', () => {
         ]
       );
 
-      createMockStore(currentView, [
-        { capabilityId: 'cap-1', x: 100, y: 200 },
-        { capabilityId: 'cap-3', x: 100, y: 200 },
-      ]);
-
       renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Customer Management')).toBeInTheDocument();
       });
 
-      const customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item');
-      const shippingItem = screen.getByText('Shipping').closest('.capability-tree-item');
+      const customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item') as HTMLElement;
+      const shippingItem = screen.getByText('Shipping').closest('.capability-tree-item') as HTMLElement;
 
       const customerColorIndicator = within(customerMgmtItem!).getByTestId('custom-color-indicator');
       const shippingColorIndicator = within(shippingItem!).getByTestId('custom-color-indicator');
@@ -326,22 +315,17 @@ describe('NavigationTree - Custom Color Indicators', () => {
         ]
       );
 
-      createMockStore(currentView, [
-        { capabilityId: 'cap-1', x: 100, y: 200 },
-        { capabilityId: 'cap-2', x: 100, y: 200 },
-      ]);
-
       renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Customer Management')).toBeInTheDocument();
       });
 
-      const customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item');
+      const customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item') as HTMLElement;
       const expandButton = within(customerMgmtItem!).getByRole('button');
       fireEvent.click(expandButton);
 
-      const orderProcessingItem = screen.getByText('Order Processing').closest('.capability-tree-item');
+      const orderProcessingItem = screen.getByText('Order Processing').closest('.capability-tree-item') as HTMLElement;
       expect(orderProcessingItem).toBeInTheDocument();
 
       const colorIndicator = within(orderProcessingItem!).getByTestId('custom-color-indicator');
@@ -359,8 +343,8 @@ describe('NavigationTree - Custom Color Indicators', () => {
       );
 
       const { Wrapper } = createMantineTestWrapper();
-      vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-        selector(createMockStore())
+      vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+        selector(createMockStore() as unknown as AppStore)
       );
       vi.mocked(useCurrentView).mockReturnValue({
         currentView: currentViewMaturity,
@@ -375,7 +359,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();
       });
 
-      let paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item');
+      let paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item') as HTMLElement;
       let colorIndicator = within(paymentServiceItem!).queryByTestId('custom-color-indicator');
       expect(colorIndicator).not.toBeInTheDocument();
 
@@ -394,7 +378,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
 
       rerender(<NavigationTree />);
 
-      paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item');
+      paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item') as HTMLElement;
       colorIndicator = within(paymentServiceItem!).getByTestId('custom-color-indicator');
       expect(colorIndicator).toBeInTheDocument();
       expect(colorIndicator).toHaveStyle({ backgroundColor: '#FF5733' });
@@ -408,8 +392,8 @@ describe('NavigationTree - Custom Color Indicators', () => {
       );
 
       const { Wrapper } = createMantineTestWrapper();
-      vi.mocked(useAppStore).mockImplementation((selector: (state: unknown) => unknown) =>
-        selector(createMockStore())
+      vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+        selector(createMockStore() as unknown as AppStore)
       );
       vi.mocked(useCurrentView).mockReturnValue({
         currentView: currentViewCustom,
@@ -424,8 +408,8 @@ describe('NavigationTree - Custom Color Indicators', () => {
         expect(screen.getByText('Customer Management')).toBeInTheDocument();
       });
 
-      let customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item');
-      let colorIndicator = within(customerMgmtItem!).getByTestId('custom-color-indicator');
+      let customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item') as HTMLElement;
+      let colorIndicator: HTMLElement | null = within(customerMgmtItem).getByTestId('custom-color-indicator');
       expect(colorIndicator).toBeInTheDocument();
 
       const currentViewClassic = createViewWithColorScheme(
@@ -443,8 +427,8 @@ describe('NavigationTree - Custom Color Indicators', () => {
 
       rerender(<NavigationTree />);
 
-      customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item');
-      colorIndicator = within(customerMgmtItem!).queryByTestId('custom-color-indicator');
+      customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item') as HTMLElement;
+      colorIndicator = within(customerMgmtItem).queryByTestId('custom-color-indicator');
       expect(colorIndicator).not.toBeInTheDocument();
     });
   });
@@ -457,7 +441,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();
       });
 
-      const paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item');
+      const paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item') as HTMLElement;
       const colorIndicator = within(paymentServiceItem!).queryByTestId('custom-color-indicator');
       expect(colorIndicator).not.toBeInTheDocument();
     });
@@ -476,7 +460,7 @@ describe('NavigationTree - Custom Color Indicators', () => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();
       });
 
-      const paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item');
+      const paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item') as HTMLElement;
       const colorIndicator = within(paymentServiceItem!).queryByTestId('custom-color-indicator');
       expect(colorIndicator).not.toBeInTheDocument();
     });
@@ -494,21 +478,16 @@ describe('NavigationTree - Custom Color Indicators', () => {
         ]
       );
 
-      createMockStore(currentView, [
-        { capabilityId: 'cap-1', x: 100, y: 200 },
-        { capabilityId: 'cap-3', x: 100, y: 200 },
-      ]);
-
       renderNavigationTree(currentView);
 
       await waitFor(() => {
         expect(screen.getByText('Payment Service')).toBeInTheDocument();
       });
 
-      const paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item');
-      const orderServiceItem = screen.getByText('Order Service').closest('.tree-item');
-      const customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item');
-      const shippingItem = screen.getByText('Shipping').closest('.capability-tree-item');
+      const paymentServiceItem = screen.getByText('Payment Service').closest('.tree-item') as HTMLElement;
+      const orderServiceItem = screen.getByText('Order Service').closest('.tree-item') as HTMLElement;
+      const customerMgmtItem = screen.getByText('Customer Management').closest('.capability-tree-item') as HTMLElement;
+      const shippingItem = screen.getByText('Shipping').closest('.capability-tree-item') as HTMLElement;
 
       expect(within(paymentServiceItem!).getByTestId('custom-color-indicator')).toBeInTheDocument();
       expect(within(orderServiceItem!).queryByTestId('custom-color-indicator')).not.toBeInTheDocument();

@@ -17,7 +17,7 @@ const mockInvitations: Invitation[] = [
   {
     id: 'inv-1',
     email: 'pending1@acme.com',
-    role: 'viewer',
+    role: 'stakeholder',
     status: 'pending',
     invitedBy: 'admin@acme.com',
     createdAt: '2025-01-01T10:00:00Z',
@@ -27,7 +27,7 @@ const mockInvitations: Invitation[] = [
   {
     id: 'inv-2',
     email: 'accepted@acme.com',
-    role: 'editor',
+    role: 'architect',
     status: 'accepted',
     invitedBy: 'admin@acme.com',
     createdAt: '2025-01-02T10:00:00Z',
@@ -38,7 +38,7 @@ const mockInvitations: Invitation[] = [
   {
     id: 'inv-3',
     email: 'pending2@acme.com',
-    role: 'viewer',
+    role: 'stakeholder',
     status: 'pending',
     invitedBy: 'admin@acme.com',
     createdAt: '2025-01-03T10:00:00Z',
@@ -48,7 +48,7 @@ const mockInvitations: Invitation[] = [
   {
     id: 'inv-4',
     email: 'expired@acme.com',
-    role: 'viewer',
+    role: 'stakeholder',
     status: 'expired',
     invitedBy: 'admin@acme.com',
     createdAt: '2024-12-01T10:00:00Z',
@@ -58,7 +58,7 @@ const mockInvitations: Invitation[] = [
   {
     id: 'inv-5',
     email: 'revoked@acme.com',
-    role: 'editor',
+    role: 'architect',
     status: 'revoked',
     invitedBy: 'admin@acme.com',
     createdAt: '2025-01-04T10:00:00Z',

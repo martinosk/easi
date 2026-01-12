@@ -33,7 +33,7 @@ export function EnterpriseCapabilityCard({ capability, onDrop }: EnterpriseCapab
       const data = e.dataTransfer.getData('application/json');
       const domainCapability = JSON.parse(data) as Capability;
       onDrop(domainCapability);
-    } catch (error) {
+    } catch {
       toast.error('Failed to link capability. Invalid data format.');
     }
   };
