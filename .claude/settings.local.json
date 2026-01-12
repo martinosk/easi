@@ -26,12 +26,20 @@
       "Bash(golangci-lint run:*)",
       "Bash(npm run type-check:*)",
       "mcp__plugin_context7_context7__resolve-library-id",
-      "mcp__plugin_context7_context7__get-library-docs"
+      "mcp__plugin_context7_context7__get-library-docs",
+      "Bash(grep:*)",
+      "Bash(podman ps:*)",
+      "Bash(podman exec:*)",
+      "Bash(podman logs:*)",
+      "Bash(psql:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker logs:*)"
     ],
     "deny": [],
     "ask": []
   },
-  "hooks": {    
+  "hooks": {
     "Stop": [
       {
         "matcher": "",
