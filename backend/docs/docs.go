@@ -2419,6 +2419,48 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "description": "Permanently deletes an application component from the model",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "components"
+                ],
+                "summary": "Delete an application component",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
             }
         },
         "/components/{id}/fit-comparisons": {
@@ -5709,6 +5751,113 @@ const docTemplate = `{
                 }
             }
         },
+        "/releases": {
+            "get": {
+                "description": "Returns all release notes ordered by version descending",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "releases"
+                ],
+                "summary": "Get all releases",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "_links": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                },
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/internal_releases_infrastructure_api.ReleaseResponse"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/releases/latest": {
+            "get": {
+                "description": "Returns the most recent release notes",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "releases"
+                ],
+                "summary": "Get latest release",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_releases_infrastructure_api.ReleaseResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/releases/{version}": {
+            "get": {
+                "description": "Returns release notes for a specific version",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "releases"
+                ],
+                "summary": "Get release by version",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Version number (e.g., v1.2.0)",
+                        "name": "version",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_releases_infrastructure_api.ReleaseResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/strategic-fit-analysis/{pillarId}": {
             "get": {
                 "security": [
@@ -6176,6 +6325,107 @@ const docTemplate = `{
                 }
             }
         },
+        "/views/{id}/capabilities": {
+            "post": {
+                "description": "Adds a capability node to an architecture view at the specified position",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Add a capability to a view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Capability to add with position",
+                        "name": "capability",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.AddCapabilityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/views/{id}/capabilities/{capabilityId}": {
+            "delete": {
+                "description": "Removes a capability node from an architecture view",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Remove a capability from a view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "capabilityId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/views/{id}/capabilities/{capabilityId}/color": {
             "delete": {
                 "description": "Removes the custom color from a capability, returning it to the default color scheme",
@@ -6251,6 +6501,69 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid hex color format",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/views/{id}/capabilities/{capabilityId}/position": {
+            "patch": {
+                "description": "Updates the position of a capability node in an architecture view",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Update capability position in a view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "capabilityId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New position",
+                        "name": "position",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.UpdateCapabilityPositionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -6624,6 +6937,118 @@ const docTemplate = `{
                 }
             }
         },
+        "/views/{id}/edge-type": {
+            "patch": {
+                "description": "Updates the edge rendering style for an architecture view",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Update edge type for a view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Edge type update",
+                        "name": "edgeType",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.UpdateEdgeTypeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/views/{id}/layout-direction": {
+            "patch": {
+                "description": "Updates the auto-layout direction for an architecture view",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Update layout direction for a view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Layout direction update",
+                        "name": "layoutDirection",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.UpdateLayoutDirectionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/views/{id}/name": {
             "patch": {
                 "description": "Renames an architecture view",
@@ -6679,6 +7104,115 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/views/{id}/positions": {
+            "patch": {
+                "description": "Updates positions for multiple components in a view in a single operation",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Update multiple component positions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Position updates",
+                        "name": "positions",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.UpdateMultiplePositionsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/views/{id}/visibility": {
+            "patch": {
+                "description": "Toggle view between private and public",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Change view visibility",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Visibility request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.ChangeVisibilityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -6686,10 +7220,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "createdAt": {
                     "type": "string"
@@ -6709,10 +7240,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "createdAt": {
                     "type": "string"
@@ -6741,10 +7269,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "capabilities": {
                     "type": "array",
@@ -6776,10 +7301,19 @@ const docTemplate = `{
                 "isDefault": {
                     "type": "boolean"
                 },
+                "isPrivate": {
+                    "type": "boolean"
+                },
                 "layoutDirection": {
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "ownerEmail": {
+                    "type": "string"
+                },
+                "ownerUserId": {
                     "type": "string"
                 }
             }
@@ -6788,10 +7322,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "capabilityId": {
                     "type": "string"
@@ -6811,10 +7342,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "componentId": {
                     "type": "string"
@@ -6872,10 +7400,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "capabilityCount": {
                     "type": "integer"
@@ -6901,10 +7426,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "createdAt": {
                     "type": "string"
@@ -6960,10 +7482,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "createdAt": {
                     "type": "string"
@@ -7031,10 +7550,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "capabilityId": {
                     "type": "string"
@@ -7075,10 +7591,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "blockingCapability": {
                     "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.LinkedCapability"
@@ -7101,10 +7614,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "active": {
                     "type": "boolean"
@@ -7142,10 +7652,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "businessDomainId": {
                     "type": "string"
@@ -7180,10 +7687,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "enterpriseCapabilityId": {
                     "type": "string"
@@ -7302,10 +7806,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "averageMaturity": {
                     "type": "integer"
@@ -7380,10 +7881,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "category": {
                     "type": "string"
@@ -7415,10 +7913,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "businessDomainId": {
                     "type": "string"
@@ -7604,10 +8099,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "createdAt": {
                     "type": "string"
@@ -7680,10 +8172,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_api.Links"
                 },
                 "data": {},
                 "meta": {
@@ -7725,14 +8214,17 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_shared_api.Links": {
+            "type": "object",
+            "additionalProperties": {
+                "$ref": "#/definitions/easi_backend_internal_shared_types.Link"
+            }
+        },
         "easi_backend_internal_shared_api.PaginatedResponse": {
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "data": {},
                 "pagination": {
@@ -7753,6 +8245,23 @@ const docTemplate = `{
                 "limit": {
                     "type": "integer"
                 }
+            }
+        },
+        "easi_backend_internal_shared_types.Link": {
+            "type": "object",
+            "properties": {
+                "href": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_shared_types.Links": {
+            "type": "object",
+            "additionalProperties": {
+                "$ref": "#/definitions/easi_backend_internal_shared_types.Link"
             }
         },
         "internal_architecturemodeling_infrastructure_api.CreateApplicationComponentRequest": {
@@ -7808,6 +8317,20 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architectureviews_infrastructure_api.AddCapabilityRequest": {
+            "type": "object",
+            "properties": {
+                "capabilityId": {
+                    "type": "string"
+                },
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
         "internal_architectureviews_infrastructure_api.AddComponentRequest": {
             "type": "object",
             "properties": {
@@ -7822,6 +8345,14 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architectureviews_infrastructure_api.ChangeVisibilityRequest": {
+            "type": "object",
+            "properties": {
+                "isPrivate": {
+                    "type": "boolean"
+                }
+            }
+        },
         "internal_architectureviews_infrastructure_api.CreateViewRequest": {
             "type": "object",
             "properties": {
@@ -7833,11 +8364,36 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architectureviews_infrastructure_api.PositionUpdateItem": {
+            "type": "object",
+            "properties": {
+                "componentId": {
+                    "type": "string"
+                },
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
         "internal_architectureviews_infrastructure_api.RenameViewRequest": {
             "type": "object",
             "properties": {
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_architectureviews_infrastructure_api.UpdateCapabilityPositionRequest": {
+            "type": "object",
+            "properties": {
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
                 }
             }
         },
@@ -7849,12 +8405,39 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architectureviews_infrastructure_api.UpdateEdgeTypeRequest": {
+            "type": "object",
+            "properties": {
+                "edgeType": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_architectureviews_infrastructure_api.UpdateElementColorRequest": {
             "type": "object",
             "properties": {
                 "color": {
                     "type": "string",
                     "example": "#FF5733"
+                }
+            }
+        },
+        "internal_architectureviews_infrastructure_api.UpdateLayoutDirectionRequest": {
+            "type": "object",
+            "properties": {
+                "layoutDirection": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_architectureviews_infrastructure_api.UpdateMultiplePositionsRequest": {
+            "type": "object",
+            "properties": {
+                "positions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_architectureviews_infrastructure_api.PositionUpdateItem"
+                    }
                 }
             }
         },
@@ -8059,10 +8642,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "componentId": {
                     "type": "string"
@@ -8108,10 +8688,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "assignedAt": {
                     "type": "string"
@@ -8128,10 +8705,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "assignedAt": {
                     "type": "string"
@@ -8227,10 +8801,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "assignedAt": {
                     "type": "string"
@@ -8317,10 +8888,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 }
             }
         },
@@ -8378,6 +8946,15 @@ const docTemplate = `{
                 },
                 "importanceLabel": {
                     "type": "string"
+                },
+                "importanceSourceCapabilityId": {
+                    "type": "string"
+                },
+                "importanceSourceCapabilityName": {
+                    "type": "string"
+                },
+                "isImportanceInherited": {
+                    "type": "boolean"
                 },
                 "realizationId": {
                     "type": "string"
@@ -8491,10 +9068,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "businessDomainId": {
                     "type": "string"
@@ -8613,10 +9187,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "enterpriseCapabilityId": {
                     "type": "string"
@@ -8705,10 +9276,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "data": {
                     "type": "array",
@@ -8773,10 +9341,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "_links": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
                 },
                 "active": {
                     "type": "boolean"
@@ -8972,6 +9537,26 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_releases_infrastructure_api.ReleaseResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "releaseDate": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_shared_api.ReferenceDoc": {
             "type": "object",
             "properties": {
@@ -8992,10 +9577,10 @@ const docTemplate = `{
                 "actorId": {
                     "type": "string"
                 },
-                "actorName": {
+                "aggregateId": {
                     "type": "string"
                 },
-                "aggregateId": {
+                "displayName": {
                     "type": "string"
                 },
                 "eventData": {

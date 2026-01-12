@@ -221,6 +221,17 @@ func (h *ComponentHandlers) UpdateApplicationComponent(w http.ResponseWriter, r 
 	sharedAPI.RespondJSON(w, http.StatusOK, component)
 }
 
+// DeleteApplicationComponent godoc
+// @Summary Delete an application component
+// @Description Permanently deletes an application component from the model
+// @Tags components
+// @Produce json
+// @Param id path string true "Component ID"
+// @Success 204
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /components/{id} [delete]
 func (h *ComponentHandlers) DeleteApplicationComponent(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")
 

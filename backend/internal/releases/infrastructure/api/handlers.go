@@ -38,6 +38,14 @@ func toReleaseResponse(release *aggregates.Release) ReleaseResponse {
 	}
 }
 
+// GetLatest godoc
+// @Summary Get latest release
+// @Description Returns the most recent release notes
+// @Tags releases
+// @Produce json
+// @Success 200 {object} ReleaseResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Router /releases/latest [get]
 func (h *ReleaseHandler) GetLatest(w http.ResponseWriter, r *http.Request) {
 	release, err := h.repo.FindLatest(r.Context())
 	if err != nil {
@@ -47,6 +55,16 @@ func (h *ReleaseHandler) GetLatest(w http.ResponseWriter, r *http.Request) {
 	sharedAPI.RespondJSON(w, http.StatusOK, toReleaseResponse(release))
 }
 
+// GetByVersion godoc
+// @Summary Get release by version
+// @Description Returns release notes for a specific version
+// @Tags releases
+// @Produce json
+// @Param version path string true "Version number (e.g., v1.2.0)"
+// @Success 200 {object} ReleaseResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Router /releases/{version} [get]
 func (h *ReleaseHandler) GetByVersion(w http.ResponseWriter, r *http.Request) {
 	versionStr := chi.URLParam(r, "version")
 	version, err := valueobjects.NewVersion(versionStr)
@@ -63,6 +81,14 @@ func (h *ReleaseHandler) GetByVersion(w http.ResponseWriter, r *http.Request) {
 	sharedAPI.RespondJSON(w, http.StatusOK, toReleaseResponse(release))
 }
 
+// GetAll godoc
+// @Summary Get all releases
+// @Description Returns all release notes ordered by version descending
+// @Tags releases
+// @Produce json
+// @Success 200 {object} object{data=[]ReleaseResponse,_links=map[string]string}
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /releases [get]
 func (h *ReleaseHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	releases, err := h.repo.FindAll(r.Context())
 	if err != nil {

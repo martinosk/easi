@@ -347,6 +347,19 @@ func (h *ViewHandlers) UpdateComponentPosition(w http.ResponseWriter, r *http.Re
 	})
 }
 
+// UpdateMultiplePositions godoc
+// @Summary Update multiple component positions
+// @Description Updates positions for multiple components in a view in a single operation
+// @Tags views
+// @Accept json
+// @Produce json
+// @Param id path string true "View ID"
+// @Param positions body UpdateMultiplePositionsRequest true "Position updates"
+// @Success 204
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/positions [patch]
 func (h *ViewHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
 
@@ -510,6 +523,19 @@ func (h *ViewHandlers) SetDefaultView(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// UpdateEdgeType godoc
+// @Summary Update edge type for a view
+// @Description Updates the edge rendering style for an architecture view
+// @Tags views
+// @Accept json
+// @Produce json
+// @Param id path string true "View ID"
+// @Param edgeType body UpdateEdgeTypeRequest true "Edge type update"
+// @Success 204
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/edge-type [patch]
 func (h *ViewHandlers) UpdateEdgeType(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
 
@@ -534,6 +560,19 @@ func (h *ViewHandlers) UpdateEdgeType(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// UpdateLayoutDirection godoc
+// @Summary Update layout direction for a view
+// @Description Updates the auto-layout direction for an architecture view
+// @Tags views
+// @Accept json
+// @Produce json
+// @Param id path string true "View ID"
+// @Param layoutDirection body UpdateLayoutDirectionRequest true "Layout direction update"
+// @Success 204
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/layout-direction [patch]
 func (h *ViewHandlers) UpdateLayoutDirection(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
 
@@ -569,6 +608,19 @@ type UpdateCapabilityPositionRequest struct {
 	Y float64 `json:"y"`
 }
 
+// AddCapabilityToView godoc
+// @Summary Add a capability to a view
+// @Description Adds a capability node to an architecture view at the specified position
+// @Tags views
+// @Accept json
+// @Produce json
+// @Param id path string true "View ID"
+// @Param capability body AddCapabilityRequest true "Capability to add with position"
+// @Success 201
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/capabilities [post]
 func (h *ViewHandlers) AddCapabilityToView(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
 
@@ -595,6 +647,20 @@ func (h *ViewHandlers) AddCapabilityToView(w http.ResponseWriter, r *http.Reques
 	sharedAPI.RespondCreatedNoBody(w, location)
 }
 
+// UpdateCapabilityPosition godoc
+// @Summary Update capability position in a view
+// @Description Updates the position of a capability node in an architecture view
+// @Tags views
+// @Accept json
+// @Produce json
+// @Param id path string true "View ID"
+// @Param capabilityId path string true "Capability ID"
+// @Param position body UpdateCapabilityPositionRequest true "New position"
+// @Success 204
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/capabilities/{capabilityId}/position [patch]
 func (h *ViewHandlers) UpdateCapabilityPosition(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
 	capabilityID := sharedAPI.GetPathParam(r, "capabilityId")
@@ -616,6 +682,17 @@ func (h *ViewHandlers) UpdateCapabilityPosition(w http.ResponseWriter, r *http.R
 	sharedAPI.RespondNoContent(w)
 }
 
+// RemoveCapabilityFromView godoc
+// @Summary Remove a capability from a view
+// @Description Removes a capability node from an architecture view
+// @Tags views
+// @Produce json
+// @Param id path string true "View ID"
+// @Param capabilityId path string true "Capability ID"
+// @Success 204
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/capabilities/{capabilityId} [delete]
 func (h *ViewHandlers) RemoveCapabilityFromView(w http.ResponseWriter, r *http.Request) {
 	viewID := sharedAPI.GetPathParam(r, "id")
 	capabilityID := sharedAPI.GetPathParam(r, "capabilityId")
