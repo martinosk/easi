@@ -5,9 +5,16 @@ import (
 	"time"
 )
 
-func GetRequiredString(data map[string]interface{}, key string) (string, error) {
+type fieldData = map[string]interface{}
+
+func getField(data fieldData, key string) (interface{}, bool) {
 	val, exists := data[key]
-	if !exists || val == nil {
+	return val, exists && val != nil
+}
+
+func GetRequiredString(data fieldData, key string) (string, error) {
+	val, exists := getField(data, key)
+	if !exists {
 		return "", NewMissingFieldError(key)
 	}
 	str, ok := val.(string)
@@ -17,9 +24,9 @@ func GetRequiredString(data map[string]interface{}, key string) (string, error) 
 	return str, nil
 }
 
-func GetOptionalString(data map[string]interface{}, key string, defaultVal string) (string, error) {
-	val, exists := data[key]
-	if !exists || val == nil {
+func GetOptionalString(data fieldData, key string, defaultVal string) (string, error) {
+	val, exists := getField(data, key)
+	if !exists {
 		return defaultVal, nil
 	}
 	str, ok := val.(string)
@@ -29,11 +36,7 @@ func GetOptionalString(data map[string]interface{}, key string, defaultVal strin
 	return str, nil
 }
 
-func GetRequiredInt(data map[string]interface{}, key string) (int, error) {
-	val, exists := data[key]
-	if !exists || val == nil {
-		return 0, NewMissingFieldError(key)
-	}
+func convertToInt(key string, val interface{}) (int, error) {
 	switch v := val.(type) {
 	case int:
 		return v, nil
@@ -46,45 +49,23 @@ func GetRequiredInt(data map[string]interface{}, key string) (int, error) {
 	}
 }
 
-func GetOptionalInt(data map[string]interface{}, key string, defaultVal int) (int, error) {
-	val, exists := data[key]
-	if !exists || val == nil {
-		return defaultVal, nil
-	}
-	switch v := val.(type) {
-	case int:
-		return v, nil
-	case int64:
-		return int(v), nil
-	case float64:
-		return int(v), nil
-	default:
-		return 0, NewTypeError(key, "int", fmt.Sprintf("%T", val))
-	}
-}
-
-func GetRequiredFloat64(data map[string]interface{}, key string) (float64, error) {
-	val, exists := data[key]
-	if !exists || val == nil {
+func GetRequiredInt(data fieldData, key string) (int, error) {
+	val, exists := getField(data, key)
+	if !exists {
 		return 0, NewMissingFieldError(key)
 	}
-	switch v := val.(type) {
-	case float64:
-		return v, nil
-	case int:
-		return float64(v), nil
-	case int64:
-		return float64(v), nil
-	default:
-		return 0, NewTypeError(key, "float64", fmt.Sprintf("%T", val))
-	}
+	return convertToInt(key, val)
 }
 
-func GetOptionalFloat64(data map[string]interface{}, key string, defaultVal float64) (float64, error) {
-	val, exists := data[key]
-	if !exists || val == nil {
+func GetOptionalInt(data fieldData, key string, defaultVal int) (int, error) {
+	val, exists := getField(data, key)
+	if !exists {
 		return defaultVal, nil
 	}
+	return convertToInt(key, val)
+}
+
+func convertToFloat64(key string, val interface{}) (float64, error) {
 	switch v := val.(type) {
 	case float64:
 		return v, nil
@@ -97,9 +78,25 @@ func GetOptionalFloat64(data map[string]interface{}, key string, defaultVal floa
 	}
 }
 
-func GetRequiredBool(data map[string]interface{}, key string) (bool, error) {
-	val, exists := data[key]
-	if !exists || val == nil {
+func GetRequiredFloat64(data fieldData, key string) (float64, error) {
+	val, exists := getField(data, key)
+	if !exists {
+		return 0, NewMissingFieldError(key)
+	}
+	return convertToFloat64(key, val)
+}
+
+func GetOptionalFloat64(data fieldData, key string, defaultVal float64) (float64, error) {
+	val, exists := getField(data, key)
+	if !exists {
+		return defaultVal, nil
+	}
+	return convertToFloat64(key, val)
+}
+
+func GetRequiredBool(data fieldData, key string) (bool, error) {
+	val, exists := getField(data, key)
+	if !exists {
 		return false, NewMissingFieldError(key)
 	}
 	b, ok := val.(bool)
@@ -109,9 +106,9 @@ func GetRequiredBool(data map[string]interface{}, key string) (bool, error) {
 	return b, nil
 }
 
-func GetOptionalBool(data map[string]interface{}, key string, defaultVal bool) (bool, error) {
-	val, exists := data[key]
-	if !exists || val == nil {
+func GetOptionalBool(data fieldData, key string, defaultVal bool) (bool, error) {
+	val, exists := getField(data, key)
+	if !exists {
 		return defaultVal, nil
 	}
 	b, ok := val.(bool)
@@ -121,53 +118,43 @@ func GetOptionalBool(data map[string]interface{}, key string, defaultVal bool) (
 	return b, nil
 }
 
-func GetRequiredTime(data map[string]interface{}, key string) (time.Time, error) {
-	val, exists := data[key]
-	if !exists || val == nil {
+func parseTime(key string, val interface{}) (time.Time, error) {
+	str, ok := val.(string)
+	if !ok {
+		return time.Time{}, NewTypeError(key, "string (RFC3339)", fmt.Sprintf("%T", val))
+	}
+	t, err := time.Parse(time.RFC3339Nano, str)
+	if err != nil {
+		t, err = time.Parse(time.RFC3339, str)
+		if err != nil {
+			return time.Time{}, &FieldError{
+				FieldName: key,
+				Message:   fmt.Sprintf("invalid time format: %v", err),
+			}
+		}
+	}
+	return t, nil
+}
+
+func GetRequiredTime(data fieldData, key string) (time.Time, error) {
+	val, exists := getField(data, key)
+	if !exists {
 		return time.Time{}, NewMissingFieldError(key)
 	}
-	str, ok := val.(string)
-	if !ok {
-		return time.Time{}, NewTypeError(key, "string (RFC3339)", fmt.Sprintf("%T", val))
-	}
-	t, err := time.Parse(time.RFC3339Nano, str)
-	if err != nil {
-		t, err = time.Parse(time.RFC3339, str)
-		if err != nil {
-			return time.Time{}, &FieldError{
-				FieldName: key,
-				Message:   fmt.Sprintf("invalid time format: %v", err),
-			}
-		}
-	}
-	return t, nil
+	return parseTime(key, val)
 }
 
-func GetOptionalTime(data map[string]interface{}, key string, defaultVal time.Time) (time.Time, error) {
-	val, exists := data[key]
-	if !exists || val == nil {
+func GetOptionalTime(data fieldData, key string, defaultVal time.Time) (time.Time, error) {
+	val, exists := getField(data, key)
+	if !exists {
 		return defaultVal, nil
 	}
-	str, ok := val.(string)
-	if !ok {
-		return time.Time{}, NewTypeError(key, "string (RFC3339)", fmt.Sprintf("%T", val))
-	}
-	t, err := time.Parse(time.RFC3339Nano, str)
-	if err != nil {
-		t, err = time.Parse(time.RFC3339, str)
-		if err != nil {
-			return time.Time{}, &FieldError{
-				FieldName: key,
-				Message:   fmt.Sprintf("invalid time format: %v", err),
-			}
-		}
-	}
-	return t, nil
+	return parseTime(key, val)
 }
 
-func GetRequiredMap(data map[string]interface{}, key string) (map[string]interface{}, error) {
-	val, exists := data[key]
-	if !exists || val == nil {
+func GetRequiredMap(data fieldData, key string) (map[string]interface{}, error) {
+	val, exists := getField(data, key)
+	if !exists {
 		return nil, NewMissingFieldError(key)
 	}
 	m, ok := val.(map[string]interface{})
@@ -177,9 +164,9 @@ func GetRequiredMap(data map[string]interface{}, key string) (map[string]interfa
 	return m, nil
 }
 
-func GetOptionalMap(data map[string]interface{}, key string) (map[string]interface{}, error) {
-	val, exists := data[key]
-	if !exists || val == nil {
+func GetOptionalMap(data fieldData, key string) (map[string]interface{}, error) {
+	val, exists := getField(data, key)
+	if !exists {
 		return nil, nil
 	}
 	m, ok := val.(map[string]interface{})
@@ -189,11 +176,7 @@ func GetOptionalMap(data map[string]interface{}, key string) (map[string]interfa
 	return m, nil
 }
 
-func GetRequiredMapSlice(data map[string]interface{}, key string) ([]map[string]interface{}, error) {
-	val, exists := data[key]
-	if !exists || val == nil {
-		return nil, NewMissingFieldError(key)
-	}
+func convertToMapSlice(key string, val interface{}) ([]map[string]interface{}, error) {
 	raw, ok := val.([]interface{})
 	if !ok {
 		return nil, NewTypeError(key, "[]interface{}", fmt.Sprintf("%T", val))
@@ -209,31 +192,23 @@ func GetRequiredMapSlice(data map[string]interface{}, key string) ([]map[string]
 	return result, nil
 }
 
-func GetOptionalMapSlice(data map[string]interface{}, key string) ([]map[string]interface{}, error) {
-	val, exists := data[key]
-	if !exists || val == nil {
-		return nil, nil
-	}
-	raw, ok := val.([]interface{})
-	if !ok {
-		return nil, NewTypeError(key, "[]interface{}", fmt.Sprintf("%T", val))
-	}
-	result := make([]map[string]interface{}, 0, len(raw))
-	for _, item := range raw {
-		m, ok := item.(map[string]interface{})
-		if !ok {
-			return nil, NewTypeError(key, "[]map[string]interface{}", fmt.Sprintf("slice containing %T", item))
-		}
-		result = append(result, m)
-	}
-	return result, nil
-}
-
-func GetRequiredStringSlice(data map[string]interface{}, key string) ([]string, error) {
-	val, exists := data[key]
-	if !exists || val == nil {
+func GetRequiredMapSlice(data fieldData, key string) ([]map[string]interface{}, error) {
+	val, exists := getField(data, key)
+	if !exists {
 		return nil, NewMissingFieldError(key)
 	}
+	return convertToMapSlice(key, val)
+}
+
+func GetOptionalMapSlice(data fieldData, key string) ([]map[string]interface{}, error) {
+	val, exists := getField(data, key)
+	if !exists {
+		return nil, nil
+	}
+	return convertToMapSlice(key, val)
+}
+
+func convertToStringSlice(key string, val interface{}) ([]string, error) {
 	raw, ok := val.([]interface{})
 	if !ok {
 		return nil, NewTypeError(key, "[]interface{}", fmt.Sprintf("%T", val))
@@ -249,22 +224,18 @@ func GetRequiredStringSlice(data map[string]interface{}, key string) ([]string, 
 	return result, nil
 }
 
-func GetOptionalStringSlice(data map[string]interface{}, key string) ([]string, error) {
-	val, exists := data[key]
-	if !exists || val == nil {
+func GetRequiredStringSlice(data fieldData, key string) ([]string, error) {
+	val, exists := getField(data, key)
+	if !exists {
+		return nil, NewMissingFieldError(key)
+	}
+	return convertToStringSlice(key, val)
+}
+
+func GetOptionalStringSlice(data fieldData, key string) ([]string, error) {
+	val, exists := getField(data, key)
+	if !exists {
 		return nil, nil
 	}
-	raw, ok := val.([]interface{})
-	if !ok {
-		return nil, NewTypeError(key, "[]interface{}", fmt.Sprintf("%T", val))
-	}
-	result := make([]string, 0, len(raw))
-	for _, item := range raw {
-		s, ok := item.(string)
-		if !ok {
-			return nil, NewTypeError(key, "[]string", fmt.Sprintf("slice containing %T", item))
-		}
-		result = append(result, s)
-	}
-	return result, nil
+	return convertToStringSlice(key, val)
 }

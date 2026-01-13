@@ -122,96 +122,284 @@ func (ctx *strategicFitTestContext) trackID(id string) {
 	ctx.createdIDs = append(ctx.createdIDs, id)
 }
 
-func (ctx *strategicFitTestContext) createTestCapability(t *testing.T, id, name, level string) {
-	ctx.setTenantContext(t)
-	_, err := ctx.db.Exec(
-		"INSERT INTO capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
-		id, name, "", level, testTenantID(), "Genesis", "Active",
-	)
-	require.NoError(t, err)
-	ctx.trackID(id)
+type capabilityData struct {
+	id       string
+	name     string
+	level    string
+	parentID string
 }
 
-func (ctx *strategicFitTestContext) createTestBusinessDomain(t *testing.T, id, name string) {
-	ctx.setTenantContext(t)
-	_, err := ctx.db.Exec(
+type domainData struct {
+	id   string
+	name string
+}
+
+type componentData struct {
+	id   string
+	name string
+}
+
+type realizationData struct {
+	id           string
+	capabilityID string
+	componentID  string
+}
+
+type domainAssignmentData struct {
+	id             string
+	domainID       string
+	domainName     string
+	capabilityID   string
+	capabilityName string
+}
+
+type strategyImportanceData struct {
+	id             string
+	domainID       string
+	domainName     string
+	capabilityID   string
+	capabilityName string
+	pillarID       string
+	pillarName     string
+	importance     int
+}
+
+type applicationFitScoreData struct {
+	id            string
+	componentID   string
+	componentName string
+	pillarID      string
+	pillarName    string
+	score         int
+}
+
+type domainCapabilityMetadataData struct {
+	capabilityID   string
+	capabilityName string
+	level          string
+	l1CapabilityID string
+	domainID       string
+	domainName     string
+}
+
+type effectiveImportanceData struct {
+	capabilityID         string
+	pillarID             string
+	domainID             string
+	importance           int
+	sourceCapabilityID   string
+	sourceCapabilityName string
+	isInherited          bool
+}
+
+type testDataBuilder struct {
+	ctx                       *strategicFitTestContext
+	t                         *testing.T
+	capabilities              []capabilityData
+	domains                   []domainData
+	components                []componentData
+	realizations              []realizationData
+	domainAssignments         []domainAssignmentData
+	strategyImportances       []strategyImportanceData
+	applicationFitScores      []applicationFitScoreData
+	domainCapabilityMetadatas []domainCapabilityMetadataData
+	effectiveImportances      []effectiveImportanceData
+}
+
+func newTestDataBuilder(ctx *strategicFitTestContext, t *testing.T) *testDataBuilder {
+	return &testDataBuilder{ctx: ctx, t: t}
+}
+
+func (b *testDataBuilder) withCapability(id, name, level string) *testDataBuilder {
+	b.capabilities = append(b.capabilities, capabilityData{id: id, name: name, level: level})
+	return b
+}
+
+func (b *testDataBuilder) withCapabilityParent(id, name, level, parentID string) *testDataBuilder {
+	b.capabilities = append(b.capabilities, capabilityData{id: id, name: name, level: level, parentID: parentID})
+	return b
+}
+
+func (b *testDataBuilder) withDomain(id, name string) *testDataBuilder {
+	b.domains = append(b.domains, domainData{id: id, name: name})
+	return b
+}
+
+func (b *testDataBuilder) withComponent(id, name string) *testDataBuilder {
+	b.components = append(b.components, componentData{id: id, name: name})
+	return b
+}
+
+func (b *testDataBuilder) withRealization(id, capabilityID, componentID string) *testDataBuilder {
+	b.realizations = append(b.realizations, realizationData{id: id, capabilityID: capabilityID, componentID: componentID})
+	return b
+}
+
+func (b *testDataBuilder) withDomainAssignment(id, domainID, domainName, capabilityID, capabilityName string) *testDataBuilder {
+	b.domainAssignments = append(b.domainAssignments, domainAssignmentData{
+		id: id, domainID: domainID, domainName: domainName, capabilityID: capabilityID, capabilityName: capabilityName,
+	})
+	return b
+}
+
+func (b *testDataBuilder) withStrategyImportance(id, domainID, domainName, capabilityID, capabilityName, pillarID, pillarName string, importance int) *testDataBuilder {
+	b.strategyImportances = append(b.strategyImportances, strategyImportanceData{
+		id: id, domainID: domainID, domainName: domainName, capabilityID: capabilityID, capabilityName: capabilityName,
+		pillarID: pillarID, pillarName: pillarName, importance: importance,
+	})
+	return b
+}
+
+func (b *testDataBuilder) withApplicationFitScore(id, componentID, componentName, pillarID, pillarName string, score int) *testDataBuilder {
+	b.applicationFitScores = append(b.applicationFitScores, applicationFitScoreData{
+		id: id, componentID: componentID, componentName: componentName, pillarID: pillarID, pillarName: pillarName, score: score,
+	})
+	return b
+}
+
+func (b *testDataBuilder) withDomainCapabilityMetadata(capabilityID, capabilityName, level, l1CapabilityID, domainID, domainName string) *testDataBuilder {
+	b.domainCapabilityMetadatas = append(b.domainCapabilityMetadatas, domainCapabilityMetadataData{
+		capabilityID: capabilityID, capabilityName: capabilityName, level: level, l1CapabilityID: l1CapabilityID, domainID: domainID, domainName: domainName,
+	})
+	return b
+}
+
+func (b *testDataBuilder) withEffectiveImportance(capabilityID, pillarID, domainID string, importance int, sourceCapabilityID, sourceCapabilityName string, isInherited bool) *testDataBuilder {
+	b.effectiveImportances = append(b.effectiveImportances, effectiveImportanceData{
+		capabilityID: capabilityID, pillarID: pillarID, domainID: domainID, importance: importance,
+		sourceCapabilityID: sourceCapabilityID, sourceCapabilityName: sourceCapabilityName, isInherited: isInherited,
+	})
+	return b
+}
+
+func (b *testDataBuilder) build() {
+	for _, c := range b.capabilities {
+		b.createCapability(c)
+	}
+	for _, d := range b.domains {
+		b.createDomain(d)
+	}
+	for _, c := range b.components {
+		b.createComponent(c)
+	}
+	for _, r := range b.realizations {
+		b.createRealization(r)
+	}
+	for _, da := range b.domainAssignments {
+		b.createDomainAssignment(da)
+	}
+	for _, si := range b.strategyImportances {
+		b.createStrategyImportance(si)
+	}
+	for _, afs := range b.applicationFitScores {
+		b.createApplicationFitScore(afs)
+	}
+	for _, dcm := range b.domainCapabilityMetadatas {
+		b.createDomainCapabilityMetadata(dcm)
+	}
+	for _, ei := range b.effectiveImportances {
+		b.createEffectiveImportance(ei)
+	}
+}
+
+func (b *testDataBuilder) createCapability(c capabilityData) {
+	b.ctx.setTenantContext(b.t)
+	var err error
+	if c.parentID == "" {
+		_, err = b.ctx.db.Exec(
+			"INSERT INTO capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+			c.id, c.name, "", c.level, testTenantID(), "Genesis", "Active",
+		)
+	} else {
+		_, err = b.ctx.db.Exec(
+			"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+			c.id, c.name, "", c.level, c.parentID, testTenantID(), "Genesis", "Active",
+		)
+	}
+	require.NoError(b.t, err)
+	b.ctx.trackID(c.id)
+}
+
+func (b *testDataBuilder) createDomain(d domainData) {
+	b.ctx.setTenantContext(b.t)
+	_, err := b.ctx.db.Exec(
 		"INSERT INTO business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, NOW())",
-		id, testTenantID(), name, "", 0,
+		d.id, testTenantID(), d.name, "", 0,
 	)
-	require.NoError(t, err)
-	ctx.trackID(id)
+	require.NoError(b.t, err)
+	b.ctx.trackID(d.id)
 }
 
-func (ctx *strategicFitTestContext) createTestComponent(t *testing.T, id, name string) {
-	ctx.setTenantContext(t)
-	_, err := ctx.db.Exec(
+func (b *testDataBuilder) createComponent(c componentData) {
+	b.ctx.setTenantContext(b.t)
+	_, err := b.ctx.db.Exec(
 		"INSERT INTO application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, NOW())",
-		id, testTenantID(), name, "",
+		c.id, testTenantID(), c.name, "",
 	)
-	require.NoError(t, err)
-	ctx.trackID(id)
+	require.NoError(b.t, err)
+	b.ctx.trackID(c.id)
 }
 
-func (ctx *strategicFitTestContext) createTestRealization(t *testing.T, id, capabilityID, componentID, componentName string) {
-	ctx.setTenantContext(t)
-	_, err := ctx.db.Exec(
+func (b *testDataBuilder) createRealization(r realizationData) {
+	b.ctx.setTenantContext(b.t)
+	_, err := b.ctx.db.Exec(
 		"INSERT INTO capability_realizations (id, tenant_id, capability_id, component_id, component_name, realization_level, origin, linked_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
-		id, testTenantID(), capabilityID, componentID, componentName, "Full", "Direct",
+		r.id, testTenantID(), r.capabilityID, r.componentID, "", "Full", "Direct",
 	)
-	require.NoError(t, err)
-	ctx.trackID(id)
+	require.NoError(b.t, err)
+	b.ctx.trackID(r.id)
 }
 
-func (ctx *strategicFitTestContext) createTestDomainAssignment(t *testing.T, assignmentID, domainID, domainName, capabilityID, capabilityName string) {
-	ctx.setTenantContext(t)
-	_, err := ctx.db.Exec(
+func (b *testDataBuilder) createDomainAssignment(da domainAssignmentData) {
+	b.ctx.setTenantContext(b.t)
+	_, err := b.ctx.db.Exec(
 		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
-		assignmentID, testTenantID(), domainID, domainName, capabilityID, capabilityName, "L1",
+		da.id, testTenantID(), da.domainID, da.domainName, da.capabilityID, da.capabilityName, "L1",
 	)
-	require.NoError(t, err)
-	ctx.trackID(assignmentID)
+	require.NoError(b.t, err)
+	b.ctx.trackID(da.id)
 }
 
-func (ctx *strategicFitTestContext) createTestStrategyImportance(t *testing.T, id, domainID, domainName, capabilityID, capabilityName, pillarID, pillarName string, importance int) {
-	ctx.setTenantContext(t)
+func (b *testDataBuilder) createStrategyImportance(si strategyImportanceData) {
+	b.ctx.setTenantContext(b.t)
 	labels := map[int]string{1: "Very Low", 2: "Low", 3: "Medium", 4: "High", 5: "Very High"}
-	_, err := ctx.db.Exec(
+	_, err := b.ctx.db.Exec(
 		"INSERT INTO strategy_importance (id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, pillar_id, pillar_name, importance, importance_label, set_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())",
-		id, testTenantID(), domainID, domainName, capabilityID, capabilityName, pillarID, pillarName, importance, labels[importance],
+		si.id, testTenantID(), si.domainID, si.domainName, si.capabilityID, si.capabilityName, si.pillarID, si.pillarName, si.importance, labels[si.importance],
 	)
-	require.NoError(t, err)
-	ctx.trackID(id)
+	require.NoError(b.t, err)
+	b.ctx.trackID(si.id)
 }
 
-func (ctx *strategicFitTestContext) createTestApplicationFitScore(t *testing.T, id, componentID, componentName, pillarID, pillarName string, score int) {
-	ctx.setTenantContext(t)
+func (b *testDataBuilder) createApplicationFitScore(afs applicationFitScoreData) {
+	b.ctx.setTenantContext(b.t)
 	labels := map[int]string{1: "Critical", 2: "Poor", 3: "Adequate", 4: "Good", 5: "Excellent"}
-	_, err := ctx.db.Exec(
+	_, err := b.ctx.db.Exec(
 		"INSERT INTO application_fit_scores (id, tenant_id, component_id, component_name, pillar_id, pillar_name, score, score_label, scored_at, scored_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9)",
-		id, testTenantID(), componentID, componentName, pillarID, pillarName, score, labels[score], "test-user",
+		afs.id, testTenantID(), afs.componentID, afs.componentName, afs.pillarID, afs.pillarName, afs.score, labels[afs.score], "test-user",
 	)
-	require.NoError(t, err)
-	ctx.trackID(id)
+	require.NoError(b.t, err)
+	b.ctx.trackID(afs.id)
 }
 
-func (ctx *strategicFitTestContext) createTestDomainCapabilityMetadata(t *testing.T, capabilityID, capabilityName, level, l1CapabilityID, domainID, domainName string) {
-	ctx.setTenantContext(t)
-	_, err := ctx.db.Exec(
+func (b *testDataBuilder) createDomainCapabilityMetadata(dcm domainCapabilityMetadataData) {
+	b.ctx.setTenantContext(b.t)
+	_, err := b.ctx.db.Exec(
 		"INSERT INTO domain_capability_metadata (tenant_id, capability_id, capability_name, capability_level, l1_capability_id, business_domain_id, business_domain_name) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-		testTenantID(), capabilityID, capabilityName, level, l1CapabilityID, domainID, domainName,
+		testTenantID(), dcm.capabilityID, dcm.capabilityName, dcm.level, dcm.l1CapabilityID, dcm.domainID, dcm.domainName,
 	)
-	require.NoError(t, err)
-	ctx.trackID(capabilityID)
+	require.NoError(b.t, err)
+	b.ctx.trackID(dcm.capabilityID)
 }
 
-func (ctx *strategicFitTestContext) createTestEffectiveCapabilityImportance(t *testing.T, capabilityID, pillarID, domainID string, importance int, sourceCapabilityID, sourceCapabilityName string, isInherited bool) {
-	ctx.setTenantContext(t)
+func (b *testDataBuilder) createEffectiveImportance(ei effectiveImportanceData) {
+	b.ctx.setTenantContext(b.t)
 	labels := map[int]string{1: "Very Low", 2: "Low", 3: "Medium", 4: "High", 5: "Very High"}
-	_, err := ctx.db.Exec(
+	_, err := b.ctx.db.Exec(
 		"INSERT INTO effective_capability_importance (tenant_id, capability_id, pillar_id, business_domain_id, effective_importance, importance_label, source_capability_id, source_capability_name, is_inherited, computed_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())",
-		testTenantID(), capabilityID, pillarID, domainID, importance, labels[importance], sourceCapabilityID, sourceCapabilityName, isInherited,
+		testTenantID(), ei.capabilityID, ei.pillarID, ei.domainID, ei.importance, labels[ei.importance], ei.sourceCapabilityID, ei.sourceCapabilityName, ei.isInherited,
 	)
-	require.NoError(t, err)
+	require.NoError(b.t, err)
 }
 
 func setupStrategicFitHandlers(db *sql.DB, pillarsGateway metamodel.StrategyPillarsGateway) (*StrategicFitAnalysisHandlers, *scs.SessionManager) {
@@ -240,39 +428,31 @@ func withAuthenticatedSession(req *http.Request, scsManager *scs.SessionManager)
 	return req.WithContext(ctx)
 }
 
-func TestGetStrategicFitAnalysis_WithData_Integration(t *testing.T) {
+type strategicFitTestHarness struct {
+	testCtx     *strategicFitTestContext
+	mockGateway *mockStrategyPillarsGateway
+	handlers    *StrategicFitAnalysisHandlers
+	scsManager  *scs.SessionManager
+	cleanup     func()
+}
+
+func setupStrategicFitTestHarness(t *testing.T) *strategicFitTestHarness {
 	testCtx, cleanup := setupStrategicFitTestDB(t)
-	defer cleanup()
-
-	pillarID := uuid.New().String()
-	pillarName := "Always On"
-
 	mockGateway := newMockPillarsGateway()
-	mockGateway.addPillar(pillarID, pillarName, true)
-
 	handlers, scsManager := setupStrategicFitHandlers(testCtx.db, mockGateway)
+	return &strategicFitTestHarness{
+		testCtx:     testCtx,
+		mockGateway: mockGateway,
+		handlers:    handlers,
+		scsManager:  scsManager,
+		cleanup:     cleanup,
+	}
+}
 
-	capabilityID := uuid.New().String()
-	componentID := uuid.New().String()
-	domainID := uuid.New().String()
-	realizationID := uuid.New().String()
-	assignmentID := uuid.New().String()
-	importanceID := uuid.New().String()
-	fitScoreID := uuid.New().String()
-
-	testCtx.createTestCapability(t, capabilityID, "Customer Onboarding", "L1")
-	testCtx.createTestBusinessDomain(t, domainID, "Customer Management")
-	testCtx.createTestComponent(t, componentID, "CRM System")
-	testCtx.createTestRealization(t, realizationID, capabilityID, componentID, "CRM System")
-	testCtx.createTestDomainAssignment(t, assignmentID, domainID, "Customer Management", capabilityID, "Customer Onboarding")
-	testCtx.createTestDomainCapabilityMetadata(t, capabilityID, "Customer Onboarding", "L1", capabilityID, domainID, "Customer Management")
-	testCtx.createTestStrategyImportance(t, importanceID, domainID, "Customer Management", capabilityID, "Customer Onboarding", pillarID, pillarName, 5)
-	testCtx.createTestEffectiveCapabilityImportance(t, capabilityID, pillarID, domainID, 5, capabilityID, "Customer Onboarding", false)
-	testCtx.createTestApplicationFitScore(t, fitScoreID, componentID, "CRM System", pillarID, pillarName, 2)
-
+func (h *strategicFitTestHarness) executeRequest(t *testing.T, pillarID string) (*httptest.ResponseRecorder, StrategicFitAnalysisResponse) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/strategic-fit-analysis/"+pillarID, nil)
 	req = withTestTenant(req)
-	req = withAuthenticatedSession(req, scsManager)
+	req = withAuthenticatedSession(req, h.scsManager)
 	w := httptest.NewRecorder()
 
 	rctx := chi.NewRouteContext()
@@ -280,21 +460,96 @@ func TestGetStrategicFitAnalysis_WithData_Integration(t *testing.T) {
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
 	router := chi.NewRouter()
-	router.Use(scsManager.LoadAndSave)
-	router.Get("/api/v1/strategic-fit-analysis/{pillarId}", handlers.GetStrategicFitAnalysis)
+	router.Use(h.scsManager.LoadAndSave)
+	router.Get("/api/v1/strategic-fit-analysis/{pillarId}", h.handlers.GetStrategicFitAnalysis)
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code, "Response body: %s", w.Body.String())
-
 	var response StrategicFitAnalysisResponse
-	err := json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
+	if w.Code == http.StatusOK {
+		err := json.NewDecoder(w.Body).Decode(&response)
+		require.NoError(t, err)
+	}
+	return w, response
+}
 
+func TestGetStrategicFitAnalysis_ErrorCases_Integration(t *testing.T) {
+	tests := []struct {
+		name               string
+		pillarID           string
+		pillarName         string
+		fitScoringEnabled  bool
+		addPillar          bool
+		expectedStatusCode int
+	}{
+		{
+			name:               "fit scoring disabled returns bad request",
+			pillarID:           fmt.Sprintf("test-pillar-%d", time.Now().UnixNano()),
+			pillarName:         "Transform",
+			fitScoringEnabled:  false,
+			addPillar:          true,
+			expectedStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:               "pillar not found returns not found",
+			pillarID:           uuid.New().String(),
+			addPillar:          false,
+			expectedStatusCode: http.StatusNotFound,
+		},
+		{
+			name:               "invalid pillar ID returns bad request",
+			pillarID:           "invalid-uuid",
+			addPillar:          false,
+			expectedStatusCode: http.StatusBadRequest,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := setupStrategicFitTestHarness(t)
+			defer h.cleanup()
+
+			if tc.addPillar {
+				h.mockGateway.addPillar(tc.pillarID, tc.pillarName, tc.fitScoringEnabled)
+			}
+
+			w, _ := h.executeRequest(t, tc.pillarID)
+			assert.Equal(t, tc.expectedStatusCode, w.Code)
+		})
+	}
+}
+
+func TestGetStrategicFitAnalysis_WithDirectRating_Integration(t *testing.T) {
+	h := setupStrategicFitTestHarness(t)
+	defer h.cleanup()
+
+	pillarID := uuid.New().String()
+	pillarName := "Always On"
+	h.mockGateway.addPillar(pillarID, pillarName, true)
+
+	capabilityID := uuid.New().String()
+	componentID := uuid.New().String()
+	domainID := uuid.New().String()
+
+	newTestDataBuilder(h.testCtx, t).
+		withCapability(capabilityID, "Customer Onboarding", "L1").
+		withDomain(domainID, "Customer Management").
+		withComponent(componentID, "CRM System").
+		withRealization(uuid.New().String(), capabilityID, componentID).
+		withDomainAssignment(uuid.New().String(), domainID, "Customer Management", capabilityID, "Customer Onboarding").
+		withDomainCapabilityMetadata(capabilityID, "Customer Onboarding", "L1", capabilityID, domainID, "Customer Management").
+		withStrategyImportance(uuid.New().String(), domainID, "Customer Management", capabilityID, "Customer Onboarding", pillarID, pillarName, 5).
+		withEffectiveImportance(capabilityID, pillarID, domainID, 5, capabilityID, "Customer Onboarding", false).
+		withApplicationFitScore(uuid.New().String(), componentID, "CRM System", pillarID, pillarName, 2).
+		build()
+
+	w, response := h.executeRequest(t, pillarID)
+
+	assert.Equal(t, http.StatusOK, w.Code, "Response body: %s", w.Body.String())
 	assert.Equal(t, pillarID, response.PillarID)
 	assert.Equal(t, pillarName, response.PillarName)
 	assert.Equal(t, 1, response.Summary.ScoredRealizations)
 	assert.Equal(t, 1, response.Summary.LiabilityCount)
-	assert.Len(t, response.Liabilities, 1)
+	require.Len(t, response.Liabilities, 1)
 
 	liability := response.Liabilities[0]
 	assert.Equal(t, componentID, liability.ComponentID)
@@ -308,191 +563,35 @@ func TestGetStrategicFitAnalysis_WithData_Integration(t *testing.T) {
 	assert.False(t, liability.IsImportanceInherited)
 }
 
-func TestGetStrategicFitAnalysis_FitScoringDisabled_Integration(t *testing.T) {
-	testCtx, cleanup := setupStrategicFitTestDB(t)
-	defer cleanup()
-
-	pillarID := fmt.Sprintf("test-pillar-%d", time.Now().UnixNano())
-
-	mockGateway := newMockPillarsGateway()
-	mockGateway.addPillar(pillarID, "Transform", false)
-
-	handlers, scsManager := setupStrategicFitHandlers(testCtx.db, mockGateway)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/strategic-fit-analysis/"+pillarID, nil)
-	req = withTestTenant(req)
-	req = withAuthenticatedSession(req, scsManager)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("pillarId", pillarID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-	router := chi.NewRouter()
-	router.Use(scsManager.LoadAndSave)
-	router.Get("/api/v1/strategic-fit-analysis/{pillarId}", handlers.GetStrategicFitAnalysis)
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestGetStrategicFitAnalysis_PillarNotFound_Integration(t *testing.T) {
-	testCtx, cleanup := setupStrategicFitTestDB(t)
-	defer cleanup()
-
-	mockGateway := newMockPillarsGateway()
-
-	handlers, scsManager := setupStrategicFitHandlers(testCtx.db, mockGateway)
-
-	nonExistentID := uuid.New().String()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/strategic-fit-analysis/"+nonExistentID, nil)
-	req = withTestTenant(req)
-	req = withAuthenticatedSession(req, scsManager)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("pillarId", nonExistentID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-	router := chi.NewRouter()
-	router.Use(scsManager.LoadAndSave)
-	router.Get("/api/v1/strategic-fit-analysis/{pillarId}", handlers.GetStrategicFitAnalysis)
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusNotFound, w.Code)
-}
-
-func TestGetStrategicFitAnalysis_InvalidPillarID_Integration(t *testing.T) {
-	testCtx, cleanup := setupStrategicFitTestDB(t)
-	defer cleanup()
-
-	mockGateway := newMockPillarsGateway()
-
-	handlers, scsManager := setupStrategicFitHandlers(testCtx.db, mockGateway)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/strategic-fit-analysis/invalid-uuid", nil)
-	req = withTestTenant(req)
-	req = withAuthenticatedSession(req, scsManager)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("pillarId", "invalid-uuid")
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-	router := chi.NewRouter()
-	router.Use(scsManager.LoadAndSave)
-	router.Get("/api/v1/strategic-fit-analysis/{pillarId}", handlers.GetStrategicFitAnalysis)
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestGetStrategicFitAnalysis_QueryExecutes_Integration(t *testing.T) {
-	testCtx, cleanup := setupStrategicFitTestDB(t)
-	defer cleanup()
-
-	pillarID := uuid.New().String()
-	pillarName := "Grow"
-
-	mockGateway := newMockPillarsGateway()
-	mockGateway.addPillar(pillarID, pillarName, true)
-
-	handlers, scsManager := setupStrategicFitHandlers(testCtx.db, mockGateway)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/strategic-fit-analysis/"+pillarID, nil)
-	req = withTestTenant(req)
-	req = withAuthenticatedSession(req, scsManager)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("pillarId", pillarID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-	router := chi.NewRouter()
-	router.Use(scsManager.LoadAndSave)
-	router.Get("/api/v1/strategic-fit-analysis/{pillarId}", handlers.GetStrategicFitAnalysis)
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code, "Response body: %s", w.Body.String())
-
-	var response StrategicFitAnalysisResponse
-	err := json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
-
-	assert.Equal(t, pillarID, response.PillarID)
-	assert.Equal(t, pillarName, response.PillarName)
-}
-
-func (ctx *strategicFitTestContext) createTestCapabilityWithParent(t *testing.T, id, name, level, parentID string) {
-	ctx.setTenantContext(t)
-	var err error
-	if parentID == "" {
-		_, err = ctx.db.Exec(
-			"INSERT INTO capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
-			id, name, "", level, testTenantID(), "Genesis", "Active",
-		)
-	} else {
-		_, err = ctx.db.Exec(
-			"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
-			id, name, "", level, parentID, testTenantID(), "Genesis", "Active",
-		)
-	}
-	require.NoError(t, err)
-	ctx.trackID(id)
-}
-
-func TestGetStrategicFitAnalysis_InheritedImportanceFromParent_Integration(t *testing.T) {
-	testCtx, cleanup := setupStrategicFitTestDB(t)
-	defer cleanup()
+func TestGetStrategicFitAnalysis_InheritedFromParent_Integration(t *testing.T) {
+	h := setupStrategicFitTestHarness(t)
+	defer h.cleanup()
 
 	pillarID := uuid.New().String()
 	pillarName := "Always On"
-
-	mockGateway := newMockPillarsGateway()
-	mockGateway.addPillar(pillarID, pillarName, true)
-
-	handlers, scsManager := setupStrategicFitHandlers(testCtx.db, mockGateway)
+	h.mockGateway.addPillar(pillarID, pillarName, true)
 
 	l1CapabilityID := uuid.New().String()
 	l2CapabilityID := uuid.New().String()
 	componentID := uuid.New().String()
 	domainID := uuid.New().String()
-	realizationID := uuid.New().String()
-	assignmentID := uuid.New().String()
-	importanceID := uuid.New().String()
-	fitScoreID := uuid.New().String()
 
-	testCtx.createTestCapabilityWithParent(t, l1CapabilityID, "Payment Processing", "L1", "")
-	testCtx.createTestCapabilityWithParent(t, l2CapabilityID, "Card Payments", "L2", l1CapabilityID)
-	testCtx.createTestBusinessDomain(t, domainID, "Finance")
-	testCtx.createTestComponent(t, componentID, "Payment Gateway")
-	testCtx.createTestRealization(t, realizationID, l2CapabilityID, componentID, "Payment Gateway")
-	testCtx.createTestDomainAssignment(t, assignmentID, domainID, "Finance", l1CapabilityID, "Payment Processing")
-	testCtx.createTestDomainCapabilityMetadata(t, l2CapabilityID, "Card Payments", "L2", l1CapabilityID, domainID, "Finance")
-	testCtx.createTestStrategyImportance(t, importanceID, domainID, "Finance", l1CapabilityID, "Payment Processing", pillarID, pillarName, 4)
-	testCtx.createTestEffectiveCapabilityImportance(t, l2CapabilityID, pillarID, domainID, 4, l1CapabilityID, "Payment Processing", true)
-	testCtx.createTestApplicationFitScore(t, fitScoreID, componentID, "Payment Gateway", pillarID, pillarName, 2)
+	newTestDataBuilder(h.testCtx, t).
+		withCapability(l1CapabilityID, "Payment Processing", "L1").
+		withCapabilityParent(l2CapabilityID, "Card Payments", "L2", l1CapabilityID).
+		withDomain(domainID, "Finance").
+		withComponent(componentID, "Payment Gateway").
+		withRealization(uuid.New().String(), l2CapabilityID, componentID).
+		withDomainAssignment(uuid.New().String(), domainID, "Finance", l1CapabilityID, "Payment Processing").
+		withDomainCapabilityMetadata(l2CapabilityID, "Card Payments", "L2", l1CapabilityID, domainID, "Finance").
+		withStrategyImportance(uuid.New().String(), domainID, "Finance", l1CapabilityID, "Payment Processing", pillarID, pillarName, 4).
+		withEffectiveImportance(l2CapabilityID, pillarID, domainID, 4, l1CapabilityID, "Payment Processing", true).
+		withApplicationFitScore(uuid.New().String(), componentID, "Payment Gateway", pillarID, pillarName, 2).
+		build()
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/strategic-fit-analysis/"+pillarID, nil)
-	req = withTestTenant(req)
-	req = withAuthenticatedSession(req, scsManager)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("pillarId", pillarID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-	router := chi.NewRouter()
-	router.Use(scsManager.LoadAndSave)
-	router.Get("/api/v1/strategic-fit-analysis/{pillarId}", handlers.GetStrategicFitAnalysis)
-	router.ServeHTTP(w, req)
+	w, response := h.executeRequest(t, pillarID)
 
 	assert.Equal(t, http.StatusOK, w.Code, "Response body: %s", w.Body.String())
-
-	var response StrategicFitAnalysisResponse
-	err := json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
-
 	assert.Equal(t, 1, response.Summary.ScoredRealizations)
 	require.Len(t, response.Liabilities, 1)
 
@@ -507,131 +606,39 @@ func TestGetStrategicFitAnalysis_InheritedImportanceFromParent_Integration(t *te
 	assert.True(t, liability.IsImportanceInherited)
 }
 
-func TestGetStrategicFitAnalysis_DirectRatingOverridesParent_Integration(t *testing.T) {
-	testCtx, cleanup := setupStrategicFitTestDB(t)
-	defer cleanup()
-
-	pillarID := uuid.New().String()
-	pillarName := "Always On"
-
-	mockGateway := newMockPillarsGateway()
-	mockGateway.addPillar(pillarID, pillarName, true)
-
-	handlers, scsManager := setupStrategicFitHandlers(testCtx.db, mockGateway)
-
-	l1CapabilityID := uuid.New().String()
-	l2CapabilityID := uuid.New().String()
-	componentID := uuid.New().String()
-	domainID := uuid.New().String()
-	realizationID := uuid.New().String()
-	assignmentID := uuid.New().String()
-	importanceID1 := uuid.New().String()
-	importanceID2 := uuid.New().String()
-	fitScoreID := uuid.New().String()
-
-	testCtx.createTestCapabilityWithParent(t, l1CapabilityID, "Payment Processing", "L1", "")
-	testCtx.createTestCapabilityWithParent(t, l2CapabilityID, "Card Payments", "L2", l1CapabilityID)
-	testCtx.createTestBusinessDomain(t, domainID, "Finance")
-	testCtx.createTestComponent(t, componentID, "Payment Gateway")
-	testCtx.createTestRealization(t, realizationID, l2CapabilityID, componentID, "Payment Gateway")
-	testCtx.createTestDomainAssignment(t, assignmentID, domainID, "Finance", l1CapabilityID, "Payment Processing")
-	testCtx.createTestDomainCapabilityMetadata(t, l2CapabilityID, "Card Payments", "L2", l1CapabilityID, domainID, "Finance")
-	testCtx.createTestStrategyImportance(t, importanceID1, domainID, "Finance", l1CapabilityID, "Payment Processing", pillarID, pillarName, 3)
-	testCtx.createTestStrategyImportance(t, importanceID2, domainID, "Finance", l2CapabilityID, "Card Payments", pillarID, pillarName, 5)
-	testCtx.createTestEffectiveCapabilityImportance(t, l2CapabilityID, pillarID, domainID, 5, l2CapabilityID, "Card Payments", false)
-	testCtx.createTestApplicationFitScore(t, fitScoreID, componentID, "Payment Gateway", pillarID, pillarName, 2)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/strategic-fit-analysis/"+pillarID, nil)
-	req = withTestTenant(req)
-	req = withAuthenticatedSession(req, scsManager)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("pillarId", pillarID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-	router := chi.NewRouter()
-	router.Use(scsManager.LoadAndSave)
-	router.Get("/api/v1/strategic-fit-analysis/{pillarId}", handlers.GetStrategicFitAnalysis)
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code, "Response body: %s", w.Body.String())
-
-	var response StrategicFitAnalysisResponse
-	err := json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
-
-	assert.Equal(t, 1, response.Summary.ScoredRealizations)
-	require.Len(t, response.Liabilities, 1)
-
-	liability := response.Liabilities[0]
-	assert.Equal(t, l2CapabilityID, liability.CapabilityID)
-	assert.Equal(t, 5, liability.Importance)
-	assert.Equal(t, 2, liability.FitScore)
-	assert.Equal(t, 3, liability.Gap)
-	assert.Equal(t, l2CapabilityID, liability.ImportanceSourceCapabilityID)
-	assert.Equal(t, "Card Payments", liability.ImportanceSourceCapabilityName)
-	assert.False(t, liability.IsImportanceInherited)
-}
-
 func TestGetStrategicFitAnalysis_MultipleCapabilitiesInSameChain_Integration(t *testing.T) {
-	testCtx, cleanup := setupStrategicFitTestDB(t)
-	defer cleanup()
+	h := setupStrategicFitTestHarness(t)
+	defer h.cleanup()
 
 	pillarID := uuid.New().String()
 	pillarName := "Always On"
-
-	mockGateway := newMockPillarsGateway()
-	mockGateway.addPillar(pillarID, pillarName, true)
-
-	handlers, scsManager := setupStrategicFitHandlers(testCtx.db, mockGateway)
+	h.mockGateway.addPillar(pillarID, pillarName, true)
 
 	l1CapabilityID := uuid.New().String()
 	l2CapabilityID := uuid.New().String()
 	componentID := uuid.New().String()
 	domainID := uuid.New().String()
-	realizationID1 := uuid.New().String()
-	realizationID2 := uuid.New().String()
-	assignmentID := uuid.New().String()
-	importanceID1 := uuid.New().String()
-	importanceID2 := uuid.New().String()
-	fitScoreID := uuid.New().String()
 
-	testCtx.createTestCapabilityWithParent(t, l1CapabilityID, "Payment Processing", "L1", "")
-	testCtx.createTestCapabilityWithParent(t, l2CapabilityID, "Card Payments", "L2", l1CapabilityID)
-	testCtx.createTestBusinessDomain(t, domainID, "Finance")
-	testCtx.createTestComponent(t, componentID, "Payment Gateway")
-	testCtx.createTestRealization(t, realizationID1, l1CapabilityID, componentID, "Payment Gateway")
-	testCtx.createTestRealization(t, realizationID2, l2CapabilityID, componentID, "Payment Gateway")
-	testCtx.createTestDomainAssignment(t, assignmentID, domainID, "Finance", l1CapabilityID, "Payment Processing")
-	testCtx.createTestDomainCapabilityMetadata(t, l1CapabilityID, "Payment Processing", "L1", l1CapabilityID, domainID, "Finance")
-	testCtx.createTestDomainCapabilityMetadata(t, l2CapabilityID, "Card Payments", "L2", l1CapabilityID, domainID, "Finance")
-	testCtx.createTestStrategyImportance(t, importanceID1, domainID, "Finance", l1CapabilityID, "Payment Processing", pillarID, pillarName, 4)
-	testCtx.createTestStrategyImportance(t, importanceID2, domainID, "Finance", l2CapabilityID, "Card Payments", pillarID, pillarName, 5)
-	testCtx.createTestEffectiveCapabilityImportance(t, l1CapabilityID, pillarID, domainID, 4, l1CapabilityID, "Payment Processing", false)
-	testCtx.createTestEffectiveCapabilityImportance(t, l2CapabilityID, pillarID, domainID, 5, l2CapabilityID, "Card Payments", false)
-	testCtx.createTestApplicationFitScore(t, fitScoreID, componentID, "Payment Gateway", pillarID, pillarName, 2)
+	newTestDataBuilder(h.testCtx, t).
+		withCapability(l1CapabilityID, "Payment Processing", "L1").
+		withCapabilityParent(l2CapabilityID, "Card Payments", "L2", l1CapabilityID).
+		withDomain(domainID, "Finance").
+		withComponent(componentID, "Payment Gateway").
+		withRealization(uuid.New().String(), l1CapabilityID, componentID).
+		withRealization(uuid.New().String(), l2CapabilityID, componentID).
+		withDomainAssignment(uuid.New().String(), domainID, "Finance", l1CapabilityID, "Payment Processing").
+		withDomainCapabilityMetadata(l1CapabilityID, "Payment Processing", "L1", l1CapabilityID, domainID, "Finance").
+		withDomainCapabilityMetadata(l2CapabilityID, "Card Payments", "L2", l1CapabilityID, domainID, "Finance").
+		withStrategyImportance(uuid.New().String(), domainID, "Finance", l1CapabilityID, "Payment Processing", pillarID, pillarName, 4).
+		withStrategyImportance(uuid.New().String(), domainID, "Finance", l2CapabilityID, "Card Payments", pillarID, pillarName, 5).
+		withEffectiveImportance(l1CapabilityID, pillarID, domainID, 4, l1CapabilityID, "Payment Processing", false).
+		withEffectiveImportance(l2CapabilityID, pillarID, domainID, 5, l2CapabilityID, "Card Payments", false).
+		withApplicationFitScore(uuid.New().String(), componentID, "Payment Gateway", pillarID, pillarName, 2).
+		build()
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/strategic-fit-analysis/"+pillarID, nil)
-	req = withTestTenant(req)
-	req = withAuthenticatedSession(req, scsManager)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("pillarId", pillarID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-	router := chi.NewRouter()
-	router.Use(scsManager.LoadAndSave)
-	router.Get("/api/v1/strategic-fit-analysis/{pillarId}", handlers.GetStrategicFitAnalysis)
-	router.ServeHTTP(w, req)
+	w, response := h.executeRequest(t, pillarID)
 
 	assert.Equal(t, http.StatusOK, w.Code, "Response body: %s", w.Body.String())
-
-	var response StrategicFitAnalysisResponse
-	err := json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
-
 	assert.Equal(t, 2, response.Summary.ScoredRealizations)
 	assert.Equal(t, 2, response.Summary.LiabilityCount)
 
@@ -653,123 +660,33 @@ func TestGetStrategicFitAnalysis_MultipleCapabilitiesInSameChain_Integration(t *
 	assert.False(t, l2Entry.IsImportanceInherited)
 }
 
-func TestGetStrategicFitAnalysis_DeepHierarchyInheritance_Integration(t *testing.T) {
-	testCtx, cleanup := setupStrategicFitTestDB(t)
-	defer cleanup()
-
-	pillarID := uuid.New().String()
-	pillarName := "Grow"
-
-	mockGateway := newMockPillarsGateway()
-	mockGateway.addPillar(pillarID, pillarName, true)
-
-	handlers, scsManager := setupStrategicFitHandlers(testCtx.db, mockGateway)
-
-	l1CapabilityID := uuid.New().String()
-	l2CapabilityID := uuid.New().String()
-	l3CapabilityID := uuid.New().String()
-	componentID := uuid.New().String()
-	domainID := uuid.New().String()
-	realizationID := uuid.New().String()
-	assignmentID := uuid.New().String()
-	importanceID := uuid.New().String()
-	fitScoreID := uuid.New().String()
-
-	testCtx.createTestCapabilityWithParent(t, l1CapabilityID, "Customer Management", "L1", "")
-	testCtx.createTestCapabilityWithParent(t, l2CapabilityID, "Customer Onboarding", "L2", l1CapabilityID)
-	testCtx.createTestCapabilityWithParent(t, l3CapabilityID, "Identity Verification", "L3", l2CapabilityID)
-	testCtx.createTestBusinessDomain(t, domainID, "Customer")
-	testCtx.createTestComponent(t, componentID, "KYC System")
-	testCtx.createTestRealization(t, realizationID, l3CapabilityID, componentID, "KYC System")
-	testCtx.createTestDomainAssignment(t, assignmentID, domainID, "Customer", l1CapabilityID, "Customer Management")
-	testCtx.createTestDomainCapabilityMetadata(t, l3CapabilityID, "Identity Verification", "L3", l1CapabilityID, domainID, "Customer")
-	testCtx.createTestStrategyImportance(t, importanceID, domainID, "Customer", l1CapabilityID, "Customer Management", pillarID, pillarName, 5)
-	testCtx.createTestEffectiveCapabilityImportance(t, l3CapabilityID, pillarID, domainID, 5, l1CapabilityID, "Customer Management", true)
-	testCtx.createTestApplicationFitScore(t, fitScoreID, componentID, "KYC System", pillarID, pillarName, 3)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/strategic-fit-analysis/"+pillarID, nil)
-	req = withTestTenant(req)
-	req = withAuthenticatedSession(req, scsManager)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("pillarId", pillarID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-	router := chi.NewRouter()
-	router.Use(scsManager.LoadAndSave)
-	router.Get("/api/v1/strategic-fit-analysis/{pillarId}", handlers.GetStrategicFitAnalysis)
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code, "Response body: %s", w.Body.String())
-
-	var response StrategicFitAnalysisResponse
-	err := json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
-
-	assert.Equal(t, 1, response.Summary.ScoredRealizations)
-	require.Len(t, response.Liabilities, 1)
-
-	liability := response.Liabilities[0]
-	assert.Equal(t, l3CapabilityID, liability.CapabilityID)
-	assert.Equal(t, "Identity Verification", liability.CapabilityName)
-	assert.Equal(t, 5, liability.Importance)
-	assert.Equal(t, 3, liability.FitScore)
-	assert.Equal(t, 2, liability.Gap)
-	assert.Equal(t, l1CapabilityID, liability.ImportanceSourceCapabilityID)
-	assert.Equal(t, "Customer Management", liability.ImportanceSourceCapabilityName)
-	assert.True(t, liability.IsImportanceInherited)
-}
-
 func TestGetStrategicFitAnalysis_NoRatingInHierarchy_NoGapEntry_Integration(t *testing.T) {
-	testCtx, cleanup := setupStrategicFitTestDB(t)
-	defer cleanup()
+	h := setupStrategicFitTestHarness(t)
+	defer h.cleanup()
 
 	pillarID := uuid.New().String()
 	pillarName := "Transform"
-
-	mockGateway := newMockPillarsGateway()
-	mockGateway.addPillar(pillarID, pillarName, true)
-
-	handlers, scsManager := setupStrategicFitHandlers(testCtx.db, mockGateway)
+	h.mockGateway.addPillar(pillarID, pillarName, true)
 
 	l1CapabilityID := uuid.New().String()
 	l2CapabilityID := uuid.New().String()
 	componentID := uuid.New().String()
 	domainID := uuid.New().String()
-	realizationID := uuid.New().String()
-	assignmentID := uuid.New().String()
-	fitScoreID := uuid.New().String()
 
-	testCtx.createTestCapabilityWithParent(t, l1CapabilityID, "Support Operations", "L1", "")
-	testCtx.createTestCapabilityWithParent(t, l2CapabilityID, "Ticket Management", "L2", l1CapabilityID)
-	testCtx.createTestBusinessDomain(t, domainID, "Operations")
-	testCtx.createTestComponent(t, componentID, "Helpdesk System")
-	testCtx.createTestRealization(t, realizationID, l2CapabilityID, componentID, "Helpdesk System")
-	testCtx.createTestDomainAssignment(t, assignmentID, domainID, "Operations", l1CapabilityID, "Support Operations")
-	testCtx.createTestDomainCapabilityMetadata(t, l2CapabilityID, "Ticket Management", "L2", l1CapabilityID, domainID, "Operations")
-	testCtx.createTestApplicationFitScore(t, fitScoreID, componentID, "Helpdesk System", pillarID, pillarName, 4)
+	newTestDataBuilder(h.testCtx, t).
+		withCapability(l1CapabilityID, "Support Operations", "L1").
+		withCapabilityParent(l2CapabilityID, "Ticket Management", "L2", l1CapabilityID).
+		withDomain(domainID, "Operations").
+		withComponent(componentID, "Helpdesk System").
+		withRealization(uuid.New().String(), l2CapabilityID, componentID).
+		withDomainAssignment(uuid.New().String(), domainID, "Operations", l1CapabilityID, "Support Operations").
+		withDomainCapabilityMetadata(l2CapabilityID, "Ticket Management", "L2", l1CapabilityID, domainID, "Operations").
+		withApplicationFitScore(uuid.New().String(), componentID, "Helpdesk System", pillarID, pillarName, 4).
+		build()
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/strategic-fit-analysis/"+pillarID, nil)
-	req = withTestTenant(req)
-	req = withAuthenticatedSession(req, scsManager)
-	w := httptest.NewRecorder()
-
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("pillarId", pillarID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-	router := chi.NewRouter()
-	router.Use(scsManager.LoadAndSave)
-	router.Get("/api/v1/strategic-fit-analysis/{pillarId}", handlers.GetStrategicFitAnalysis)
-	router.ServeHTTP(w, req)
+	w, response := h.executeRequest(t, pillarID)
 
 	assert.Equal(t, http.StatusOK, w.Code, "Response body: %s", w.Body.String())
-
-	var response StrategicFitAnalysisResponse
-	err := json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
-
 	assert.Equal(t, 0, response.Summary.ScoredRealizations)
 	assert.Empty(t, response.Liabilities)
 	assert.Empty(t, response.Concerns)

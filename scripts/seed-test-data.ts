@@ -166,20 +166,22 @@ async function createComponent(name: string, description: string): Promise<Compo
   return apiCall<Component>("POST", "/components", { name, description });
 }
 
-async function createRelation(
-  name: string,
-  description: string,
-  sourceId: string,
-  targetId: string,
-  relationType: string
-): Promise<void> {
-  console.log(`  Creating relation: ${name}`);
+interface RelationParams {
+  name: string;
+  description: string;
+  sourceId: string;
+  targetId: string;
+  relationType: string;
+}
+
+async function createRelation(params: RelationParams): Promise<void> {
+  console.log(`  Creating relation: ${params.name}`);
   await apiCall("POST", "/relations", {
-    name,
-    description,
-    sourceComponentId: sourceId,
-    targetComponentId: targetId,
-    relationType,
+    name: params.name,
+    description: params.description,
+    sourceComponentId: params.sourceId,
+    targetComponentId: params.targetId,
+    relationType: params.relationType,
   });
 }
 
@@ -471,8 +473,112 @@ async function seedRelations(components: Map<string, Component>): Promise<void> 
     const source = components.get(r.source);
     const target = components.get(r.target);
     if (source && target) {
-      await createRelation(r.name, r.description, source.id, target.id, r.type);
+      await createRelation({
+        name: r.name,
+        description: r.description,
+        sourceId: source.id,
+        targetId: target.id,
+        relationType: r.type,
+      });
     }
+  }
+}
+
+interface L1CapabilityDef {
+  name: string;
+  description: string;
+  level: string;
+}
+
+interface L2CapabilityDef {
+  name: string;
+  description: string;
+  parent: string;
+}
+
+interface MetadataUpdateDef {
+  name: string;
+  status: string;
+  maturityValue: number;
+  ownershipModel: string;
+}
+
+const L1_CAPABILITIES: L1CapabilityDef[] = [
+  { name: "Customer Management", description: "Acquire, retain, and manage customer relationships", level: "L1" },
+  { name: "Order Fulfillment", description: "Process and fulfill customer orders end-to-end", level: "L1" },
+  { name: "Product Management", description: "Manage product lifecycle and catalog", level: "L1" },
+  { name: "Financial Operations", description: "Manage payments, invoicing, and financial transactions", level: "L1" },
+  { name: "Supply Chain", description: "Manage inventory, suppliers, and logistics", level: "L1" },
+  { name: "Marketing & Sales", description: "Drive customer acquisition and revenue growth", level: "L1" },
+  { name: "Analytics & Insights", description: "Generate business intelligence and insights", level: "L1" },
+  { name: "Platform Operations", description: "Maintain and operate technology platform", level: "L1" },
+];
+
+const L2_CAPABILITIES: L2CapabilityDef[] = [
+  { name: "Customer Onboarding", description: "Register and onboard new customers", parent: "Customer Management" },
+  { name: "Customer Authentication", description: "Verify customer identity and manage access", parent: "Customer Management" },
+  { name: "Customer Support", description: "Handle customer inquiries and issues", parent: "Customer Management" },
+  { name: "Customer Loyalty", description: "Manage loyalty programs and rewards", parent: "Customer Management" },
+  { name: "Order Creation", description: "Create and validate new orders", parent: "Order Fulfillment" },
+  { name: "Order Processing", description: "Process orders through fulfillment stages", parent: "Order Fulfillment" },
+  { name: "Order Tracking", description: "Track order status and delivery", parent: "Order Fulfillment" },
+  { name: "Returns & Refunds", description: "Handle product returns and refunds", parent: "Order Fulfillment" },
+  { name: "Product Catalog Management", description: "Maintain product information and categories", parent: "Product Management" },
+  { name: "Pricing Management", description: "Set and manage product prices", parent: "Product Management" },
+  { name: "Product Search", description: "Enable product discovery and search", parent: "Product Management" },
+  { name: "Payment Processing", description: "Process customer payments", parent: "Financial Operations" },
+  { name: "Invoice Management", description: "Generate and manage invoices", parent: "Financial Operations" },
+  { name: "Fraud Prevention", description: "Detect and prevent fraudulent transactions", parent: "Financial Operations" },
+  { name: "Inventory Management", description: "Track and manage inventory levels", parent: "Supply Chain" },
+  { name: "Supplier Management", description: "Manage supplier relationships", parent: "Supply Chain" },
+  { name: "Shipping & Logistics", description: "Handle shipping and delivery", parent: "Supply Chain" },
+  { name: "Campaign Management", description: "Create and manage marketing campaigns", parent: "Marketing & Sales" },
+  { name: "Promotions & Discounts", description: "Manage promotional offers", parent: "Marketing & Sales" },
+  { name: "Content Publishing", description: "Publish marketing content", parent: "Marketing & Sales" },
+  { name: "Business Reporting", description: "Generate business reports", parent: "Analytics & Insights" },
+  { name: "Customer Analytics", description: "Analyze customer behavior", parent: "Analytics & Insights" },
+  { name: "Predictive Analytics", description: "ML-based predictions and forecasting", parent: "Analytics & Insights" },
+  { name: "System Monitoring", description: "Monitor system health and performance", parent: "Platform Operations" },
+  { name: "API Management", description: "Manage and secure APIs", parent: "Platform Operations" },
+  { name: "Data Management", description: "Manage data storage and access", parent: "Platform Operations" },
+];
+
+const METADATA_UPDATES: MetadataUpdateDef[] = [
+  { name: "Customer Authentication", status: "Active", maturityValue: 80, ownershipModel: "EnterpriseService" },
+  { name: "Order Creation", status: "Active", maturityValue: 75, ownershipModel: "TribeOwned" },
+  { name: "Payment Processing", status: "Active", maturityValue: 90, ownershipModel: "EnterpriseService" },
+  { name: "Product Search", status: "Active", maturityValue: 60, ownershipModel: "Shared" },
+  { name: "Inventory Management", status: "Active", maturityValue: 70, ownershipModel: "TribeOwned" },
+  { name: "Fraud Prevention", status: "Active", maturityValue: 55, ownershipModel: "EnterpriseService" },
+  { name: "Predictive Analytics", status: "Planned", maturityValue: 30, ownershipModel: "TeamOwned" },
+  { name: "System Monitoring", status: "Active", maturityValue: 85, ownershipModel: "EnterpriseService" },
+];
+
+async function createL1Capabilities(capabilities: Map<string, Capability>): Promise<void> {
+  for (const cap of L1_CAPABILITIES) {
+    const capability = await createCapability(cap.name, cap.description, cap.level);
+    capabilities.set(cap.name, capability);
+  }
+}
+
+async function createL2Capabilities(capabilities: Map<string, Capability>): Promise<void> {
+  for (const cap of L2_CAPABILITIES) {
+    const parent = capabilities.get(cap.parent);
+    if (!parent) continue;
+    const capability = await createCapability(cap.name, cap.description, "L2", parent.id);
+    capabilities.set(cap.name, capability);
+  }
+}
+
+async function applyMetadataUpdates(capabilities: Map<string, Capability>): Promise<void> {
+  for (const update of METADATA_UPDATES) {
+    const capability = capabilities.get(update.name);
+    if (!capability) continue;
+    await updateCapabilityMetadata(capability.id, {
+      status: update.status,
+      maturityValue: update.maturityValue,
+      ownershipModel: update.ownershipModel,
+    });
   }
 }
 
@@ -480,80 +586,9 @@ async function seedCapabilities(): Promise<Map<string, Capability>> {
   console.log("\n🎯 Seeding Business Capabilities...");
   const capabilities = new Map<string, Capability>();
 
-  const l1Capabilities = [
-    { name: "Customer Management", description: "Acquire, retain, and manage customer relationships", level: "L1" },
-    { name: "Order Fulfillment", description: "Process and fulfill customer orders end-to-end", level: "L1" },
-    { name: "Product Management", description: "Manage product lifecycle and catalog", level: "L1" },
-    { name: "Financial Operations", description: "Manage payments, invoicing, and financial transactions", level: "L1" },
-    { name: "Supply Chain", description: "Manage inventory, suppliers, and logistics", level: "L1" },
-    { name: "Marketing & Sales", description: "Drive customer acquisition and revenue growth", level: "L1" },
-    { name: "Analytics & Insights", description: "Generate business intelligence and insights", level: "L1" },
-    { name: "Platform Operations", description: "Maintain and operate technology platform", level: "L1" },
-  ];
-
-  for (const cap of l1Capabilities) {
-    const capability = await createCapability(cap.name, cap.description, cap.level);
-    capabilities.set(cap.name, capability);
-  }
-
-  const l2Capabilities = [
-    { name: "Customer Onboarding", description: "Register and onboard new customers", parent: "Customer Management" },
-    { name: "Customer Authentication", description: "Verify customer identity and manage access", parent: "Customer Management" },
-    { name: "Customer Support", description: "Handle customer inquiries and issues", parent: "Customer Management" },
-    { name: "Customer Loyalty", description: "Manage loyalty programs and rewards", parent: "Customer Management" },
-    { name: "Order Creation", description: "Create and validate new orders", parent: "Order Fulfillment" },
-    { name: "Order Processing", description: "Process orders through fulfillment stages", parent: "Order Fulfillment" },
-    { name: "Order Tracking", description: "Track order status and delivery", parent: "Order Fulfillment" },
-    { name: "Returns & Refunds", description: "Handle product returns and refunds", parent: "Order Fulfillment" },
-    { name: "Product Catalog Management", description: "Maintain product information and categories", parent: "Product Management" },
-    { name: "Pricing Management", description: "Set and manage product prices", parent: "Product Management" },
-    { name: "Product Search", description: "Enable product discovery and search", parent: "Product Management" },
-    { name: "Payment Processing", description: "Process customer payments", parent: "Financial Operations" },
-    { name: "Invoice Management", description: "Generate and manage invoices", parent: "Financial Operations" },
-    { name: "Fraud Prevention", description: "Detect and prevent fraudulent transactions", parent: "Financial Operations" },
-    { name: "Inventory Management", description: "Track and manage inventory levels", parent: "Supply Chain" },
-    { name: "Supplier Management", description: "Manage supplier relationships", parent: "Supply Chain" },
-    { name: "Shipping & Logistics", description: "Handle shipping and delivery", parent: "Supply Chain" },
-    { name: "Campaign Management", description: "Create and manage marketing campaigns", parent: "Marketing & Sales" },
-    { name: "Promotions & Discounts", description: "Manage promotional offers", parent: "Marketing & Sales" },
-    { name: "Content Publishing", description: "Publish marketing content", parent: "Marketing & Sales" },
-    { name: "Business Reporting", description: "Generate business reports", parent: "Analytics & Insights" },
-    { name: "Customer Analytics", description: "Analyze customer behavior", parent: "Analytics & Insights" },
-    { name: "Predictive Analytics", description: "ML-based predictions and forecasting", parent: "Analytics & Insights" },
-    { name: "System Monitoring", description: "Monitor system health and performance", parent: "Platform Operations" },
-    { name: "API Management", description: "Manage and secure APIs", parent: "Platform Operations" },
-    { name: "Data Management", description: "Manage data storage and access", parent: "Platform Operations" },
-  ];
-
-  for (const cap of l2Capabilities) {
-    const parent = capabilities.get(cap.parent);
-    if (parent) {
-      const capability = await createCapability(cap.name, cap.description, "L2", parent.id);
-      capabilities.set(cap.name, capability);
-    }
-  }
-
-  const metadataUpdates = [
-    { name: "Customer Authentication", status: "Active", maturityValue: 80, ownershipModel: "EnterpriseService" },
-    { name: "Order Creation", status: "Active", maturityValue: 75, ownershipModel: "TribeOwned" },
-    { name: "Payment Processing", status: "Active", maturityValue: 90, ownershipModel: "EnterpriseService" },
-    { name: "Product Search", status: "Active", maturityValue: 60, ownershipModel: "Shared" },
-    { name: "Inventory Management", status: "Active", maturityValue: 70, ownershipModel: "TribeOwned" },
-    { name: "Fraud Prevention", status: "Active", maturityValue: 55, ownershipModel: "EnterpriseService" },
-    { name: "Predictive Analytics", status: "Planned", maturityValue: 30, ownershipModel: "TeamOwned" },
-    { name: "System Monitoring", status: "Active", maturityValue: 85, ownershipModel: "EnterpriseService" },
-  ];
-
-  for (const update of metadataUpdates) {
-    const capability = capabilities.get(update.name);
-    if (capability) {
-      await updateCapabilityMetadata(capability.id, {
-        status: update.status,
-        maturityValue: update.maturityValue,
-        ownershipModel: update.ownershipModel,
-      });
-    }
-  }
+  await createL1Capabilities(capabilities);
+  await createL2Capabilities(capabilities);
+  await applyMetadataUpdates(capabilities);
 
   return capabilities;
 }
@@ -805,49 +840,66 @@ async function batchUpdatePillarsWithRetry(
   }
 }
 
-async function ensureStrategyPillarsWithFitScoring(): Promise<Map<string, StrategyPillar>> {
-  console.log("\n🎯 Ensuring Strategy Pillars with Fit Scoring...");
+interface PillarDefinition {
+  name: string;
+  description: string;
+  fitCriteria: string;
+}
 
-  const pillarDefinitions = [
-    { name: "Cloud Native", description: "Embrace cloud-native technologies and patterns", fitCriteria: "Containerization, Kubernetes orchestration, auto-scaling, CI/CD pipelines" },
-    { name: "API First", description: "Design and build APIs as first-class products", fitCriteria: "OpenAPI documentation, versioned APIs, RESTful design, developer portal" },
-    { name: "Security", description: "Security-first approach to all systems", fitCriteria: "Authentication, authorization, encryption, audit logging, vulnerability scanning" },
-  ];
+const PILLAR_DEFINITIONS: PillarDefinition[] = [
+  { name: "Cloud Native", description: "Embrace cloud-native technologies and patterns", fitCriteria: "Containerization, Kubernetes orchestration, auto-scaling, CI/CD pipelines" },
+  { name: "API First", description: "Design and build APIs as first-class products", fitCriteria: "OpenAPI documentation, versioned APIs, RESTful design, developer portal" },
+  { name: "Security", description: "Security-first approach to all systems", fitCriteria: "Authentication, authorization, encryption, audit logging, vulnerability scanning" },
+];
 
-  let { pillars: existingPillars } = await getStrategyPillarsWithETag();
-  const existingNames = new Set(existingPillars.map(p => p.name));
-
-  for (const def of pillarDefinitions) {
-    if (!existingNames.has(def.name)) {
-      try {
-        await createStrategyPillar(def.name, def.description);
-      } catch (e) {
-        console.log(`    (Pillar ${def.name} may already exist)`);
-      }
+async function createMissingPillars(existingNames: Set<string>): Promise<void> {
+  for (const def of PILLAR_DEFINITIONS) {
+    if (existingNames.has(def.name)) continue;
+    try {
+      await createStrategyPillar(def.name, def.description);
+    } catch (e) {
+      console.log(`    (Pillar ${def.name} may already exist)`);
     }
   }
+}
 
-  const { pillars: allPillars } = await getStrategyPillarsWithETag();
-  const pillarMap = new Map<string, StrategyPillar>();
-  for (const p of allPillars) {
-    pillarMap.set(p.name, p);
-  }
-
-  const fitScoringChanges: PillarChange[] = [];
-  for (const def of pillarDefinitions) {
-    const pillar = pillarMap.get(def.name);
-    if (pillar && !pillar.fitScoringEnabled) {
-      fitScoringChanges.push({
+function buildFitScoringChanges(pillarMap: Map<string, StrategyPillar>): PillarChange[] {
+  return PILLAR_DEFINITIONS
+    .filter(def => {
+      const pillar = pillarMap.get(def.name);
+      return pillar && !pillar.fitScoringEnabled;
+    })
+    .map(def => {
+      const pillar = pillarMap.get(def.name)!;
+      return {
         operation: "update",
         id: pillar.id,
         name: pillar.name,
         description: pillar.description,
         fitScoringEnabled: true,
         fitCriteria: def.fitCriteria,
-      });
-    }
-  }
+      };
+    });
+}
 
+function extractEnabledPillars(pillars: StrategyPillar[]): Map<string, StrategyPillar> {
+  return new Map(
+    pillars.filter(p => p.fitScoringEnabled).map(p => [p.name, p])
+  );
+}
+
+async function ensureStrategyPillarsWithFitScoring(): Promise<Map<string, StrategyPillar>> {
+  console.log("\n🎯 Ensuring Strategy Pillars with Fit Scoring...");
+
+  const { pillars: existingPillars } = await getStrategyPillarsWithETag();
+  const existingNames = new Set(existingPillars.map(p => p.name));
+
+  await createMissingPillars(existingNames);
+
+  const { pillars: allPillars } = await getStrategyPillarsWithETag();
+  const pillarMap = new Map(allPillars.map(p => [p.name, p]));
+
+  const fitScoringChanges = buildFitScoringChanges(pillarMap);
   if (fitScoringChanges.length > 0) {
     try {
       await batchUpdatePillarsWithRetry(fitScoringChanges);
@@ -857,24 +909,111 @@ async function ensureStrategyPillarsWithFitScoring(): Promise<Map<string, Strate
   }
 
   const { pillars: finalPillars } = await getStrategyPillarsWithETag();
-  const enabledPillars = new Map<string, StrategyPillar>();
-  for (const p of finalPillars) {
-    if (p.fitScoringEnabled) {
-      enabledPillars.set(p.name, p);
-    }
-  }
+  const enabledPillars = extractEnabledPillars(finalPillars);
 
   console.log(`  ${enabledPillars.size} pillars with fit scoring enabled`);
   return enabledPillars;
 }
 
-async function seedApplicationFitScores(
-  components: Map<string, Component>
+interface FitScoreEntry {
+  pillarName: string;
+  score: number;
+  rationale: string;
+}
+
+interface ComponentFitScoreData {
+  componentName: string;
+  scores: FitScoreEntry[];
+}
+
+const FIT_SCORE_DATA: ComponentFitScoreData[] = [
+  {
+    componentName: "User Service",
+    scores: [
+      { pillarName: "Cloud Native", score: 4, rationale: "Fully containerized with Kubernetes orchestration" },
+      { pillarName: "API First", score: 5, rationale: "Well-documented REST APIs with OpenAPI specs" },
+      { pillarName: "Security", score: 4, rationale: "OAuth2/OIDC implementation, regular security audits" },
+    ],
+  },
+  {
+    componentName: "Order Service",
+    scores: [
+      { pillarName: "Cloud Native", score: 3, rationale: "Containerized but with some legacy dependencies" },
+      { pillarName: "API First", score: 4, rationale: "REST API with documentation, some inconsistencies" },
+      { pillarName: "Security", score: 3, rationale: "Basic authentication, needs improved audit logging" },
+    ],
+  },
+  {
+    componentName: "Payment Gateway",
+    scores: [
+      { pillarName: "Cloud Native", score: 4, rationale: "Cloud-hosted with auto-scaling capabilities" },
+      { pillarName: "API First", score: 5, rationale: "Industry-standard payment APIs" },
+      { pillarName: "Security", score: 5, rationale: "PCI-DSS compliant, encryption at rest and transit" },
+    ],
+  },
+  {
+    componentName: "Inventory Service",
+    scores: [
+      { pillarName: "Cloud Native", score: 2, rationale: "Still running on VMs with manual scaling" },
+      { pillarName: "API First", score: 3, rationale: "API exists but lacks proper versioning" },
+      { pillarName: "Security", score: 3, rationale: "Basic access controls, needs improvement" },
+    ],
+  },
+  {
+    componentName: "Analytics Platform",
+    scores: [
+      { pillarName: "Cloud Native", score: 5, rationale: "Fully serverless architecture" },
+      { pillarName: "API First", score: 4, rationale: "GraphQL and REST APIs available" },
+      { pillarName: "Security", score: 4, rationale: "Role-based access, data encryption" },
+    ],
+  },
+  {
+    componentName: "Search Engine",
+    scores: [
+      { pillarName: "Cloud Native", score: 4, rationale: "Elasticsearch cluster on Kubernetes" },
+      { pillarName: "API First", score: 4, rationale: "Standard search APIs" },
+      { pillarName: "Security", score: 3, rationale: "API keys only, needs better auth" },
+    ],
+  },
+  {
+    componentName: "Notification Service",
+    scores: [
+      { pillarName: "Cloud Native", score: 5, rationale: "Event-driven serverless functions" },
+      { pillarName: "API First", score: 3, rationale: "Internal APIs, limited documentation" },
+      { pillarName: "Security", score: 4, rationale: "Secure message handling, encrypted queues" },
+    ],
+  },
+  {
+    componentName: "Admin Dashboard",
+    scores: [
+      { pillarName: "Cloud Native", score: 2, rationale: "Monolithic deployment, manual updates" },
+      { pillarName: "API First", score: 2, rationale: "Server-rendered pages, limited API usage" },
+      { pillarName: "Security", score: 3, rationale: "Basic RBAC, needs MFA implementation" },
+    ],
+  },
+];
+
+async function applyFitScoresForComponent(
+  component: Component,
+  scores: FitScoreEntry[],
+  enabledPillars: Map<string, StrategyPillar>
 ): Promise<void> {
+  for (const scoreData of scores) {
+    const pillar = enabledPillars.get(scoreData.pillarName);
+    if (!pillar) continue;
+
+    try {
+      await setApplicationFitScore(component.id, pillar.id, scoreData.score, scoreData.rationale);
+    } catch (e) {
+      console.log(`    (Skipping fit score - may already exist or pillar not enabled)`);
+    }
+  }
+}
+
+async function seedApplicationFitScores(components: Map<string, Component>): Promise<void> {
   console.log("\n📊 Seeding Application Fit Scores...");
 
   const enabledPillars = await ensureStrategyPillarsWithFitScoring();
-
   if (enabledPillars.size === 0) {
     console.log("  No pillars with fit scoring enabled, skipping fit scores");
     return;
@@ -882,95 +1021,10 @@ async function seedApplicationFitScores(
 
   console.log(`  Setting fit scores for ${enabledPillars.size} pillars`);
 
-  const fitScoreData: {
-    componentName: string;
-    scores: { pillarName: string; score: number; rationale: string }[];
-  }[] = [
-    {
-      componentName: "User Service",
-      scores: [
-        { pillarName: "Cloud Native", score: 4, rationale: "Fully containerized with Kubernetes orchestration" },
-        { pillarName: "API First", score: 5, rationale: "Well-documented REST APIs with OpenAPI specs" },
-        { pillarName: "Security", score: 4, rationale: "OAuth2/OIDC implementation, regular security audits" },
-      ],
-    },
-    {
-      componentName: "Order Service",
-      scores: [
-        { pillarName: "Cloud Native", score: 3, rationale: "Containerized but with some legacy dependencies" },
-        { pillarName: "API First", score: 4, rationale: "REST API with documentation, some inconsistencies" },
-        { pillarName: "Security", score: 3, rationale: "Basic authentication, needs improved audit logging" },
-      ],
-    },
-    {
-      componentName: "Payment Gateway",
-      scores: [
-        { pillarName: "Cloud Native", score: 4, rationale: "Cloud-hosted with auto-scaling capabilities" },
-        { pillarName: "API First", score: 5, rationale: "Industry-standard payment APIs" },
-        { pillarName: "Security", score: 5, rationale: "PCI-DSS compliant, encryption at rest and transit" },
-      ],
-    },
-    {
-      componentName: "Inventory Service",
-      scores: [
-        { pillarName: "Cloud Native", score: 2, rationale: "Still running on VMs with manual scaling" },
-        { pillarName: "API First", score: 3, rationale: "API exists but lacks proper versioning" },
-        { pillarName: "Security", score: 3, rationale: "Basic access controls, needs improvement" },
-      ],
-    },
-    {
-      componentName: "Analytics Platform",
-      scores: [
-        { pillarName: "Cloud Native", score: 5, rationale: "Fully serverless architecture" },
-        { pillarName: "API First", score: 4, rationale: "GraphQL and REST APIs available" },
-        { pillarName: "Security", score: 4, rationale: "Role-based access, data encryption" },
-      ],
-    },
-    {
-      componentName: "Search Engine",
-      scores: [
-        { pillarName: "Cloud Native", score: 4, rationale: "Elasticsearch cluster on Kubernetes" },
-        { pillarName: "API First", score: 4, rationale: "Standard search APIs" },
-        { pillarName: "Security", score: 3, rationale: "API keys only, needs better auth" },
-      ],
-    },
-    {
-      componentName: "Notification Service",
-      scores: [
-        { pillarName: "Cloud Native", score: 5, rationale: "Event-driven serverless functions" },
-        { pillarName: "API First", score: 3, rationale: "Internal APIs, limited documentation" },
-        { pillarName: "Security", score: 4, rationale: "Secure message handling, encrypted queues" },
-      ],
-    },
-    {
-      componentName: "Admin Dashboard",
-      scores: [
-        { pillarName: "Cloud Native", score: 2, rationale: "Monolithic deployment, manual updates" },
-        { pillarName: "API First", score: 2, rationale: "Server-rendered pages, limited API usage" },
-        { pillarName: "Security", score: 3, rationale: "Basic RBAC, needs MFA implementation" },
-      ],
-    },
-  ];
-
-  for (const data of fitScoreData) {
+  for (const data of FIT_SCORE_DATA) {
     const component = components.get(data.componentName);
     if (!component) continue;
-
-    for (const scoreData of data.scores) {
-      const pillar = enabledPillars.get(scoreData.pillarName);
-      if (!pillar) continue;
-
-      try {
-        await setApplicationFitScore(
-          component.id,
-          pillar.id,
-          scoreData.score,
-          scoreData.rationale
-        );
-      } catch (e) {
-        console.log(`    (Skipping fit score - may already exist or pillar not enabled)`);
-      }
-    }
+    await applyFitScoresForComponent(component, data.scores, enabledPillars);
   }
 }
 
