@@ -20,6 +20,20 @@ type DomainCapabilityMetadataDTO struct {
 	BusinessDomainName string
 }
 
+type ParentL1Update struct {
+	CapabilityID     string
+	NewParentID      string
+	NewLevel         string
+	NewL1CapabilityID string
+}
+
+type L1BusinessDomainUpdate struct {
+	CapabilityID       string
+	L1CapabilityID     string
+	BusinessDomainID   string
+	BusinessDomainName string
+}
+
 type DomainCapabilityMetadataReadModel struct {
 	db *database.TenantAwareDB
 }
@@ -120,27 +134,65 @@ func (rm *DomainCapabilityMetadataReadModel) GetCapabilityName(ctx context.Conte
 	return name, err
 }
 
-func (rm *DomainCapabilityMetadataReadModel) GetAncestorIDs(ctx context.Context, capabilityID string) ([]string, error) {
+type metadataHierarchyType int
+
+const (
+	metadataAncestors metadataHierarchyType = iota
+	metadataDescendants
+	metadataSubtree
+)
+
+func (rm *DomainCapabilityMetadataReadModel) queryHierarchy(ctx context.Context, capabilityID string, hType metadataHierarchyType) ([]string, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var ancestors []string
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := `
-		WITH RECURSIVE ancestors AS (
+	var query string
+	switch hType {
+	case metadataAncestors:
+		query = `
+		WITH RECURSIVE cte AS (
 			SELECT capability_id, parent_id, 1 as depth
 			FROM domain_capability_metadata
 			WHERE tenant_id = $1 AND capability_id = $2
 			UNION ALL
-			SELECT m.capability_id, m.parent_id, a.depth + 1
+			SELECT m.capability_id, m.parent_id, c.depth + 1
 			FROM domain_capability_metadata m
-			INNER JOIN ancestors a ON m.capability_id = a.parent_id AND m.tenant_id = $1
-			WHERE a.depth < 10
+			INNER JOIN cte c ON m.capability_id = c.parent_id AND m.tenant_id = $1
+			WHERE c.depth < 10
 		)
-		SELECT capability_id FROM ancestors WHERE capability_id != $2`
+		SELECT capability_id FROM cte WHERE capability_id != $2`
+	case metadataDescendants:
+		query = `
+		WITH RECURSIVE cte AS (
+			SELECT capability_id, 1 as depth
+			FROM domain_capability_metadata
+			WHERE tenant_id = $1 AND capability_id = $2
+			UNION ALL
+			SELECT m.capability_id, c.depth + 1
+			FROM domain_capability_metadata m
+			INNER JOIN cte c ON m.parent_id = c.capability_id AND m.tenant_id = $1
+			WHERE c.depth < 10
+		)
+		SELECT capability_id FROM cte WHERE capability_id != $2`
+	case metadataSubtree:
+		query = `
+		WITH RECURSIVE cte AS (
+			SELECT capability_id, 1 as depth
+			FROM domain_capability_metadata
+			WHERE tenant_id = $1 AND capability_id = $2
+			UNION ALL
+			SELECT m.capability_id, c.depth + 1
+			FROM domain_capability_metadata m
+			INNER JOIN cte c ON m.parent_id = c.capability_id AND m.tenant_id = $1
+			WHERE c.depth < 10
+		)
+		SELECT capability_id FROM cte`
+	}
 
+	var result []string
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), capabilityID)
 		if err != nil {
 			return err
@@ -152,92 +204,24 @@ func (rm *DomainCapabilityMetadataReadModel) GetAncestorIDs(ctx context.Context,
 			if err := rows.Scan(&id); err != nil {
 				return err
 			}
-			ancestors = append(ancestors, id)
+			result = append(result, id)
 		}
 		return rows.Err()
 	})
 
-	return ancestors, err
+	return result, err
+}
+
+func (rm *DomainCapabilityMetadataReadModel) GetAncestorIDs(ctx context.Context, capabilityID string) ([]string, error) {
+	return rm.queryHierarchy(ctx, capabilityID, metadataAncestors)
 }
 
 func (rm *DomainCapabilityMetadataReadModel) GetDescendantIDs(ctx context.Context, capabilityID string) ([]string, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var descendants []string
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := `
-		WITH RECURSIVE descendants AS (
-			SELECT capability_id, 1 as depth
-			FROM domain_capability_metadata
-			WHERE tenant_id = $1 AND capability_id = $2
-			UNION ALL
-			SELECT m.capability_id, d.depth + 1
-			FROM domain_capability_metadata m
-			INNER JOIN descendants d ON m.parent_id = d.capability_id AND m.tenant_id = $1
-			WHERE d.depth < 10
-		)
-		SELECT capability_id FROM descendants WHERE capability_id != $2`
-
-		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), capabilityID)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				return err
-			}
-			descendants = append(descendants, id)
-		}
-		return rows.Err()
-	})
-
-	return descendants, err
+	return rm.queryHierarchy(ctx, capabilityID, metadataDescendants)
 }
 
 func (rm *DomainCapabilityMetadataReadModel) GetSubtreeCapabilityIDs(ctx context.Context, rootID string) ([]string, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var subtree []string
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := `
-		WITH RECURSIVE subtree AS (
-			SELECT capability_id, 1 as depth
-			FROM domain_capability_metadata
-			WHERE tenant_id = $1 AND capability_id = $2
-			UNION ALL
-			SELECT m.capability_id, s.depth + 1
-			FROM domain_capability_metadata m
-			INNER JOIN subtree s ON m.parent_id = s.capability_id AND m.tenant_id = $1
-			WHERE s.depth < 10
-		)
-		SELECT capability_id FROM subtree`
-
-		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), rootID)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				return err
-			}
-			subtree = append(subtree, id)
-		}
-		return rows.Err()
-	})
-
-	return subtree, err
+	return rm.queryHierarchy(ctx, rootID, metadataSubtree)
 }
 
 func (rm *DomainCapabilityMetadataReadModel) UpdateBusinessDomainForL1Subtree(ctx context.Context, l1CapabilityID, businessDomainID, businessDomainName string) error {
@@ -255,7 +239,7 @@ func (rm *DomainCapabilityMetadataReadModel) UpdateBusinessDomainForL1Subtree(ct
 	return err
 }
 
-func (rm *DomainCapabilityMetadataReadModel) UpdateParentAndL1(ctx context.Context, capabilityID, newParentID, newLevel, newL1CapabilityID string) error {
+func (rm *DomainCapabilityMetadataReadModel) UpdateParentAndL1(ctx context.Context, update ParentL1Update) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -265,7 +249,7 @@ func (rm *DomainCapabilityMetadataReadModel) UpdateParentAndL1(ctx context.Conte
 		`UPDATE domain_capability_metadata
 		 SET parent_id = $1, capability_level = $2, l1_capability_id = $3
 		 WHERE tenant_id = $4 AND capability_id = $5`,
-		nullIfEmpty(newParentID), newLevel, newL1CapabilityID, tenantID.Value(), capabilityID,
+		nullIfEmpty(update.NewParentID), update.NewLevel, update.NewL1CapabilityID, tenantID.Value(), update.CapabilityID,
 	)
 	return err
 }
@@ -307,7 +291,7 @@ func (rm *DomainCapabilityMetadataReadModel) GetEnterpriseCapabilitiesLinkedToCa
 	}
 
 	placeholders := make([]string, len(capabilityIDs))
-	args := make([]interface{}, len(capabilityIDs)+1)
+	args := make([]any, len(capabilityIDs)+1)
 	args[0] = tenantID.Value()
 	for i, id := range capabilityIDs {
 		placeholders[i] = fmt.Sprintf("$%d", i+2)
@@ -359,7 +343,12 @@ func (rm *DomainCapabilityMetadataReadModel) RecalculateL1ForSubtree(ctx context
 	businessDomainID, businessDomainName, _ := rm.GetBusinessDomainForL1(ctx, newL1ID)
 
 	for _, id := range subtreeIDs {
-		if err := rm.updateL1AndBusinessDomain(ctx, id, newL1ID, businessDomainID, businessDomainName); err != nil {
+		if err := rm.updateL1AndBusinessDomain(ctx, L1BusinessDomainUpdate{
+			CapabilityID:       id,
+			L1CapabilityID:     newL1ID,
+			BusinessDomainID:   businessDomainID,
+			BusinessDomainName: businessDomainName,
+		}); err != nil {
 			return err
 		}
 	}
@@ -373,13 +362,21 @@ func (rm *DomainCapabilityMetadataReadModel) findL1Ancestor(ctx context.Context,
 	}
 
 	current, err := rm.GetByID(ctx, capabilityID)
-	if err != nil || current == nil || current.ParentID == "" {
+	if !rm.canTraverseParent(current, err) {
 		return capabilityID
 	}
 
+	return rm.traverseToL1(ctx, current, capabilityID)
+}
+
+func (rm *DomainCapabilityMetadataReadModel) canTraverseParent(dto *DomainCapabilityMetadataDTO, err error) bool {
+	return err == nil && dto != nil && dto.ParentID != ""
+}
+
+func (rm *DomainCapabilityMetadataReadModel) traverseToL1(ctx context.Context, current *DomainCapabilityMetadataDTO, defaultID string) string {
 	for depth := 0; depth < 10 && current.ParentID != ""; depth++ {
 		parent, err := rm.GetByID(ctx, current.ParentID)
-		if err != nil || parent == nil {
+		if !rm.canTraverseParent(parent, err) {
 			break
 		}
 		if parent.CapabilityLevel == "L1" {
@@ -387,11 +384,10 @@ func (rm *DomainCapabilityMetadataReadModel) findL1Ancestor(ctx context.Context,
 		}
 		current = parent
 	}
-
-	return capabilityID
+	return defaultID
 }
 
-func (rm *DomainCapabilityMetadataReadModel) updateL1AndBusinessDomain(ctx context.Context, capabilityID, l1CapabilityID, businessDomainID, businessDomainName string) error {
+func (rm *DomainCapabilityMetadataReadModel) updateL1AndBusinessDomain(ctx context.Context, update L1BusinessDomainUpdate) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -401,7 +397,7 @@ func (rm *DomainCapabilityMetadataReadModel) updateL1AndBusinessDomain(ctx conte
 		`UPDATE domain_capability_metadata
 		 SET l1_capability_id = $1, business_domain_id = $2, business_domain_name = $3
 		 WHERE tenant_id = $4 AND capability_id = $5`,
-		l1CapabilityID, nullIfEmpty(businessDomainID), nullIfEmpty(businessDomainName), tenantID.Value(), capabilityID,
+		update.L1CapabilityID, nullIfEmpty(update.BusinessDomainID), nullIfEmpty(update.BusinessDomainName), tenantID.Value(), update.CapabilityID,
 	)
 	return err
 }
@@ -434,7 +430,7 @@ func (rm *DomainCapabilityMetadataReadModel) LookupBusinessDomainName(ctx contex
 	return name, nil
 }
 
-func nullIfEmpty(s string) interface{} {
+func nullIfEmpty(s string) any {
 	if s == "" {
 		return nil
 	}

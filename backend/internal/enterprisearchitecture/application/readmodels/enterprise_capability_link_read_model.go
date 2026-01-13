@@ -33,9 +33,9 @@ func NewEnterpriseCapabilityLinkReadModel(db *database.TenantAwareDB) *Enterpris
 	return &EnterpriseCapabilityLinkReadModel{db: db}
 }
 
-func buildInClauseArgs(tenantID interface{}, ids []string) (placeholders string, args []interface{}) {
+func buildInClauseArgs(tenantID any, ids []string) (placeholders string, args []any) {
 	placeholderList := make([]string, len(ids))
-	args = make([]interface{}, len(ids)+1)
+	args = make([]any, len(ids)+1)
 	args[0] = tenantID
 	for i, id := range ids {
 		placeholderList[i] = fmt.Sprintf("$%d", i+2)
@@ -144,7 +144,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetByEnterpriseCapabilityID(ctx con
 	return links, err
 }
 
-func (rm *EnterpriseCapabilityLinkReadModel) querySingle(ctx context.Context, query string, args ...interface{}) (*EnterpriseCapabilityLinkDTO, error) {
+func (rm *EnterpriseCapabilityLinkReadModel) querySingle(ctx context.Context, query string, args ...any) (*EnterpriseCapabilityLinkDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, err
@@ -153,7 +153,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) querySingle(ctx context.Context, qu
 	var dto EnterpriseCapabilityLinkDTO
 	var notFound bool
 
-	queryArgs := append([]interface{}{tenantID.Value()}, args...)
+	queryArgs := append([]any{tenantID.Value()}, args...)
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx, query, queryArgs...).Scan(
@@ -367,7 +367,7 @@ func initializeStatusMap(ids []string) map[string]*CapabilityLinkStatusDTO {
 	return statusMap
 }
 
-func (rm *EnterpriseCapabilityLinkReadModel) populateLinkedStatus(ctx context.Context, tx *sql.Tx, inClause string, args []interface{}, statusMap map[string]*CapabilityLinkStatusDTO) error {
+func (rm *EnterpriseCapabilityLinkReadModel) populateLinkedStatus(ctx context.Context, tx *sql.Tx, inClause string, args []any, statusMap map[string]*CapabilityLinkStatusDTO) error {
 	query := fmt.Sprintf(`
 		SELECT ecl.domain_capability_id, ecl.enterprise_capability_id, ec.name
 		FROM enterprise_capability_links ecl
@@ -393,7 +393,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) populateLinkedStatus(ctx context.Co
 	return rows.Err()
 }
 
-func (rm *EnterpriseCapabilityLinkReadModel) populateBlockingStatus(ctx context.Context, tx *sql.Tx, inClause string, args []interface{}, statusMap map[string]*CapabilityLinkStatusDTO) error {
+func (rm *EnterpriseCapabilityLinkReadModel) populateBlockingStatus(ctx context.Context, tx *sql.Tx, inClause string, args []any, statusMap map[string]*CapabilityLinkStatusDTO) error {
 	query := fmt.Sprintf(`
 		SELECT domain_capability_id, blocked_by_capability_id, blocked_by_capability_name,
 		       is_ancestor, blocked_by_enterprise_id, blocked_by_enterprise_name
@@ -492,27 +492,65 @@ func (rm *EnterpriseCapabilityLinkReadModel) DeleteBlockingForCapabilities(ctx c
 	return err
 }
 
-func (rm *EnterpriseCapabilityLinkReadModel) GetAncestorIDs(ctx context.Context, capabilityID string) ([]string, error) {
+type hierarchyDirection int
+
+const (
+	hierarchyAncestors hierarchyDirection = iota
+	hierarchyDescendants
+	hierarchySubtree
+)
+
+func (rm *EnterpriseCapabilityLinkReadModel) queryHierarchy(ctx context.Context, capabilityID string, direction hierarchyDirection) ([]string, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var ancestors []string
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := `
-		WITH RECURSIVE ancestors AS (
+	var query string
+	switch direction {
+	case hierarchyAncestors:
+		query = `
+		WITH RECURSIVE cte AS (
 			SELECT capability_id, parent_id, 1 as depth
 			FROM domain_capability_metadata
 			WHERE tenant_id = $1 AND capability_id = $2
 			UNION ALL
-			SELECT m.capability_id, m.parent_id, a.depth + 1
+			SELECT m.capability_id, m.parent_id, c.depth + 1
 			FROM domain_capability_metadata m
-			INNER JOIN ancestors a ON m.capability_id = a.parent_id AND m.tenant_id = $1
-			WHERE a.depth < 10
+			INNER JOIN cte c ON m.capability_id = c.parent_id AND m.tenant_id = $1
+			WHERE c.depth < 10
 		)
-		SELECT capability_id FROM ancestors WHERE capability_id != $2`
+		SELECT capability_id FROM cte WHERE capability_id != $2`
+	case hierarchyDescendants:
+		query = `
+		WITH RECURSIVE cte AS (
+			SELECT capability_id, 1 as depth
+			FROM domain_capability_metadata
+			WHERE tenant_id = $1 AND capability_id = $2
+			UNION ALL
+			SELECT m.capability_id, c.depth + 1
+			FROM domain_capability_metadata m
+			INNER JOIN cte c ON m.parent_id = c.capability_id AND m.tenant_id = $1
+			WHERE c.depth < 10
+		)
+		SELECT capability_id FROM cte WHERE capability_id != $2`
+	case hierarchySubtree:
+		query = `
+		WITH RECURSIVE cte AS (
+			SELECT capability_id, 1 as depth
+			FROM domain_capability_metadata
+			WHERE tenant_id = $1 AND capability_id = $2
+			UNION ALL
+			SELECT m.capability_id, c.depth + 1
+			FROM domain_capability_metadata m
+			INNER JOIN cte c ON m.parent_id = c.capability_id AND m.tenant_id = $1
+			WHERE c.depth < 10
+		)
+		SELECT capability_id FROM cte`
+	}
 
+	var result []string
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), capabilityID)
 		if err != nil {
 			return err
@@ -524,126 +562,45 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetAncestorIDs(ctx context.Context,
 			if err := rows.Scan(&id); err != nil {
 				return err
 			}
-			ancestors = append(ancestors, id)
+			result = append(result, id)
 		}
 		return rows.Err()
 	})
 
-	return ancestors, err
+	return result, err
+}
+
+func (rm *EnterpriseCapabilityLinkReadModel) GetAncestorIDs(ctx context.Context, capabilityID string) ([]string, error) {
+	return rm.queryHierarchy(ctx, capabilityID, hierarchyAncestors)
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) GetDescendantIDs(ctx context.Context, capabilityID string) ([]string, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var descendants []string
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := `
-		WITH RECURSIVE descendants AS (
-			SELECT capability_id, 1 as depth
-			FROM domain_capability_metadata
-			WHERE tenant_id = $1 AND capability_id = $2
-			UNION ALL
-			SELECT m.capability_id, d.depth + 1
-			FROM domain_capability_metadata m
-			INNER JOIN descendants d ON m.parent_id = d.capability_id AND m.tenant_id = $1
-			WHERE d.depth < 10
-		)
-		SELECT capability_id FROM descendants WHERE capability_id != $2`
-
-		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), capabilityID)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				return err
-			}
-			descendants = append(descendants, id)
-		}
-		return rows.Err()
-	})
-
-	return descendants, err
+	return rm.queryHierarchy(ctx, capabilityID, hierarchyDescendants)
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) GetSubtreeCapabilityIDs(ctx context.Context, rootID string) ([]string, error) {
+	return rm.queryHierarchy(ctx, rootID, hierarchySubtree)
+}
+
+func (rm *EnterpriseCapabilityLinkReadModel) queryName(ctx context.Context, query string, id string) (string, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	var subtree []string
+	var name string
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := `
-		WITH RECURSIVE subtree AS (
-			SELECT capability_id, 1 as depth
-			FROM domain_capability_metadata
-			WHERE tenant_id = $1 AND capability_id = $2
-			UNION ALL
-			SELECT m.capability_id, s.depth + 1
-			FROM domain_capability_metadata m
-			INNER JOIN subtree s ON m.parent_id = s.capability_id AND m.tenant_id = $1
-			WHERE s.depth < 10
-		)
-		SELECT capability_id FROM subtree`
-
-		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), rootID)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				return err
-			}
-			subtree = append(subtree, id)
-		}
-		return rows.Err()
+		return tx.QueryRowContext(ctx, query, tenantID.Value(), id).Scan(&name)
 	})
-
-	return subtree, err
+	return name, err
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) GetCapabilityName(ctx context.Context, capabilityID string) (string, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	var name string
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctx,
-			`SELECT capability_name FROM domain_capability_metadata WHERE tenant_id = $1 AND capability_id = $2`,
-			tenantID.Value(), capabilityID,
-		).Scan(&name)
-	})
-
-	return name, err
+	return rm.queryName(ctx, `SELECT capability_name FROM domain_capability_metadata WHERE tenant_id = $1 AND capability_id = $2`, capabilityID)
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) GetEnterpriseCapabilityName(ctx context.Context, enterpriseCapabilityID string) (string, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	var name string
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctx,
-			`SELECT name FROM enterprise_capabilities WHERE tenant_id = $1 AND id = $2`,
-			tenantID.Value(), enterpriseCapabilityID,
-		).Scan(&name)
-	})
-
-	return name, err
+	return rm.queryName(ctx, `SELECT name FROM enterprise_capabilities WHERE tenant_id = $1 AND id = $2`, enterpriseCapabilityID)
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) GetLinksForCapabilities(ctx context.Context, capabilityIDs []string) ([]EnterpriseCapabilityLinkDTO, error) {

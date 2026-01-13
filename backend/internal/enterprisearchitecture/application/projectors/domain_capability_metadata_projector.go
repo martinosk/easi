@@ -171,7 +171,12 @@ func (p *DomainCapabilityMetadataProjector) handleCapabilityParentChanged(ctx co
 		return err
 	}
 
-	if err := p.metadataReadModel.UpdateParentAndL1(ctx, event.CapabilityID, event.NewParentID, event.NewLevel, event.CapabilityID); err != nil {
+	if err := p.metadataReadModel.UpdateParentAndL1(ctx, readmodels.ParentL1Update{
+		CapabilityID:      event.CapabilityID,
+		NewParentID:       event.NewParentID,
+		NewLevel:          event.NewLevel,
+		NewL1CapabilityID: event.CapabilityID,
+	}); err != nil {
 		log.Printf("Failed to update parent for %s: %v", event.CapabilityID, err)
 		return err
 	}

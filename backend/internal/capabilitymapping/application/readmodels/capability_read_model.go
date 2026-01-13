@@ -79,7 +79,7 @@ func (rm *CapabilityReadModel) Insert(ctx context.Context, dto CapabilityDTO) er
 		return err
 	}
 
-	var parentIDValue interface{} = nil
+	var parentIDValue any = nil
 	if dto.ParentID != "" {
 		parentIDValue = dto.ParentID
 	}
@@ -157,7 +157,7 @@ func (rm *CapabilityReadModel) UpdateParent(ctx context.Context, id, parentID, l
 		return err
 	}
 
-	var parentIDValue interface{} = nil
+	var parentIDValue any = nil
 	if parentID != "" {
 		parentIDValue = parentID
 	}
@@ -358,7 +358,7 @@ func (rm *CapabilityReadModel) GetChildren(ctx context.Context, parentID string)
 	)
 }
 
-func (rm *CapabilityReadModel) queryCapabilityList(ctx context.Context, query string, args ...interface{}) ([]CapabilityDTO, error) {
+func (rm *CapabilityReadModel) queryCapabilityList(ctx context.Context, query string, args ...any) ([]CapabilityDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, err
@@ -385,7 +385,7 @@ func (rm *CapabilityReadModel) queryCapabilityList(ctx context.Context, query st
 	return capabilities, err
 }
 
-func (rm *CapabilityReadModel) scanCapabilityRows(ctx context.Context, tx *sql.Tx, query string, args ...interface{}) ([]CapabilityDTO, error) {
+func (rm *CapabilityReadModel) scanCapabilityRows(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]CapabilityDTO, error) {
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -415,8 +415,8 @@ func buildCapabilityMap(capabilities []CapabilityDTO) map[string]*CapabilityDTO 
 	return capabilityMap
 }
 
-func buildInClause(ids []string) (placeholders string, args []interface{}) {
-	args = make([]interface{}, len(ids))
+func buildInClause(ids []string) (placeholders string, args []any) {
+	args = make([]any, len(ids))
 	ph := make([]string, len(ids))
 	for i, id := range ids {
 		ph[i] = fmt.Sprintf("$%d", i+2)
@@ -440,7 +440,7 @@ func (rm *CapabilityReadModel) fetchRelatedBatch(ctx context.Context, tx *sql.Tx
 	placeholders, idArgs := buildInClause(ids)
 	query := fmt.Sprintf(queryTemplate, placeholders)
 
-	rows, err := tx.QueryContext(ctx, query, append([]interface{}{tenantID}, idArgs...)...)
+	rows, err := tx.QueryContext(ctx, query, append([]any{tenantID}, idArgs...)...)
 	if err != nil {
 		return err
 	}

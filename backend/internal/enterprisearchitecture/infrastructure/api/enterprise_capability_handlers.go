@@ -603,13 +603,13 @@ func (h *EnterpriseCapabilityHandlers) GetCapabilityLinkStatus(w http.ResponseWr
 		blockingCapabilityID = &status.BlockingCapability.ID
 	}
 
-	status.Links = h.hateoas.CapabilityLinkStatusLinks(
-		capabilityID,
-		string(status.Status),
-		linkedToID,
-		blockingCapabilityID,
-		status.BlockingEnterpriseCapID,
-	)
+	status.Links = h.hateoas.CapabilityLinkStatusLinks(sharedAPI.LinkStatusParams{
+		CapabilityID:  capabilityID,
+		Status:        string(status.Status),
+		LinkedToID:    linkedToID,
+		BlockingCapID: blockingCapabilityID,
+		BlockingEcID:  status.BlockingEnterpriseCapID,
+	})
 
 	sharedAPI.RespondJSON(w, http.StatusOK, status)
 }
@@ -659,13 +659,13 @@ func (h *EnterpriseCapabilityHandlers) GetBatchCapabilityLinkStatus(w http.Respo
 			blockingCapabilityID = &statuses[i].BlockingCapability.ID
 		}
 
-		statuses[i].Links = h.hateoas.CapabilityLinkStatusLinks(
-			statuses[i].CapabilityID,
-			string(statuses[i].Status),
-			linkedToID,
-			blockingCapabilityID,
-			statuses[i].BlockingEnterpriseCapID,
-		)
+		statuses[i].Links = h.hateoas.CapabilityLinkStatusLinks(sharedAPI.LinkStatusParams{
+			CapabilityID:  statuses[i].CapabilityID,
+			Status:        string(statuses[i].Status),
+			LinkedToID:    linkedToID,
+			BlockingCapID: blockingCapabilityID,
+			BlockingEcID:  statuses[i].BlockingEnterpriseCapID,
+		})
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, statuses, nil)

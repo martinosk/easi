@@ -449,20 +449,28 @@ func (h *HATEOASLinks) StrategyImportanceLinksForActor(domID, capID, impID strin
 	return links
 }
 
-func (h *HATEOASLinks) CapabilityLinkStatusLinks(capID, status string, linkedToID, blockingCapID, blockingEcID *string) Links {
-	links := Links{"self": h.get("/domain-capabilities/" + capID + "/enterprise-link-status")}
-	if status == "available" {
+type LinkStatusParams struct {
+	CapabilityID   string
+	Status         string
+	LinkedToID     *string
+	BlockingCapID  *string
+	BlockingEcID   *string
+}
+
+func (h *HATEOASLinks) CapabilityLinkStatusLinks(p LinkStatusParams) Links {
+	links := Links{"self": h.get("/domain-capabilities/" + p.CapabilityID + "/enterprise-link-status")}
+	if p.Status == "available" {
 		links["x-available-enterprise-capabilities"] = h.get("/enterprise-capabilities")
 	}
-	if linkedToID != nil {
-		links["x-linked-to"] = h.get("/enterprise-capabilities/" + *linkedToID)
-		links["x-enterprise-capability"] = h.get("/domain-capabilities/" + capID + "/enterprise-capability")
+	if p.LinkedToID != nil {
+		links["x-linked-to"] = h.get("/enterprise-capabilities/" + *p.LinkedToID)
+		links["x-enterprise-capability"] = h.get("/domain-capabilities/" + p.CapabilityID + "/enterprise-capability")
 	}
-	if blockingCapID != nil {
-		links["x-blocking-capability"] = h.get("/capabilities/" + *blockingCapID)
+	if p.BlockingCapID != nil {
+		links["x-blocking-capability"] = h.get("/capabilities/" + *p.BlockingCapID)
 	}
-	if blockingEcID != nil {
-		links["x-blocking-enterprise-capability"] = h.get("/enterprise-capabilities/" + *blockingEcID)
+	if p.BlockingEcID != nil {
+		links["x-blocking-enterprise-capability"] = h.get("/enterprise-capabilities/" + *p.BlockingEcID)
 	}
 	return links
 }

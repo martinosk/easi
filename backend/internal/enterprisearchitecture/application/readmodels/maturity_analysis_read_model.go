@@ -93,15 +93,25 @@ func (rm *MaturityAnalysisReadModel) GetMaturityAnalysisCandidates(ctx context.C
 		return nil, MaturityAnalysisSummaryDTO{}, err
 	}
 
-	orderBy := "max_gap DESC, impl_count DESC"
-	switch sortBy {
-	case "implementations":
-		orderBy = "impl_count DESC, max_gap DESC"
-	case "gap":
-		orderBy = "max_gap DESC, impl_count DESC"
+	query := rm.buildCandidatesQuery(sortBy)
+	candidates, totalGap, err := rm.fetchCandidates(ctx, query, tenantID.Value())
+	if err != nil {
+		return nil, MaturityAnalysisSummaryDTO{}, err
 	}
 
-	query := `
+	rm.enrichCandidatesWithDistribution(ctx, candidates)
+	summary := rm.buildSummary(candidates, totalGap)
+
+	return candidates, summary, nil
+}
+
+func (rm *MaturityAnalysisReadModel) buildCandidatesQuery(sortBy string) string {
+	orderBy := "max_gap DESC, impl_count DESC"
+	if sortBy == "implementations" {
+		orderBy = "impl_count DESC, max_gap DESC"
+	}
+
+	return `
 		SELECT
 			ec.id, ec.name, ec.category, ec.target_maturity,
 			COUNT(DISTINCT ecl.domain_capability_id) as impl_count,
@@ -117,55 +127,65 @@ func (rm *MaturityAnalysisReadModel) GetMaturityAnalysisCandidates(ctx context.C
 		WHERE ec.tenant_id = $1 AND ec.active = true
 		GROUP BY ec.id, ec.name, ec.category, ec.target_maturity
 		ORDER BY ` + orderBy
+}
 
+func (rm *MaturityAnalysisReadModel) fetchCandidates(ctx context.Context, query string, tenantID any) ([]MaturityAnalysisCandidateDTO, int, error) {
 	var candidates []MaturityAnalysisCandidateDTO
 	var totalGap int
 
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx, query, tenantID.Value())
+	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, query, tenantID)
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
 
 		for rows.Next() {
-			var dto MaturityAnalysisCandidateDTO
-			var category sql.NullString
-			var targetMaturity sql.NullInt64
-
-			if err := rows.Scan(
-				&dto.EnterpriseCapabilityID, &dto.EnterpriseCapabilityName, &category, &targetMaturity,
-				&dto.ImplementationCount, &dto.DomainCount,
-				&dto.MaxMaturity, &dto.MinMaturity, &dto.AverageMaturity, &dto.MaxGap,
-			); err != nil {
+			dto, err := rm.scanCandidate(rows)
+			if err != nil {
 				return err
 			}
-
-			if category.Valid {
-				dto.Category = category.String
-			}
-			if targetMaturity.Valid {
-				tm := int(targetMaturity.Int64)
-				dto.TargetMaturity = &tm
-				dto.TargetMaturitySection = getMaturitySection(tm)
-			}
-
 			totalGap += dto.MaxGap
 			candidates = append(candidates, dto)
 		}
-
 		return rows.Err()
 	})
 
-	if err != nil {
-		return nil, MaturityAnalysisSummaryDTO{}, err
+	return candidates, totalGap, err
+}
+
+func (rm *MaturityAnalysisReadModel) scanCandidate(rows *sql.Rows) (MaturityAnalysisCandidateDTO, error) {
+	var dto MaturityAnalysisCandidateDTO
+	var category sql.NullString
+	var targetMaturity sql.NullInt64
+
+	if err := rows.Scan(
+		&dto.EnterpriseCapabilityID, &dto.EnterpriseCapabilityName, &category, &targetMaturity,
+		&dto.ImplementationCount, &dto.DomainCount,
+		&dto.MaxMaturity, &dto.MinMaturity, &dto.AverageMaturity, &dto.MaxGap,
+	); err != nil {
+		return dto, err
 	}
 
+	if category.Valid {
+		dto.Category = category.String
+	}
+	if targetMaturity.Valid {
+		tm := int(targetMaturity.Int64)
+		dto.TargetMaturity = &tm
+		dto.TargetMaturitySection = getMaturitySection(tm)
+	}
+	return dto, nil
+}
+
+func (rm *MaturityAnalysisReadModel) enrichCandidatesWithDistribution(ctx context.Context, candidates []MaturityAnalysisCandidateDTO) {
 	for i := range candidates {
 		dist, _ := rm.getMaturityDistribution(ctx, candidates[i].EnterpriseCapabilityID)
 		candidates[i].MaturityDistribution = dist
 	}
+}
 
+func (rm *MaturityAnalysisReadModel) buildSummary(candidates []MaturityAnalysisCandidateDTO, totalGap int) MaturityAnalysisSummaryDTO {
 	var totalImplementations int
 	for _, c := range candidates {
 		totalImplementations += c.ImplementationCount
@@ -176,13 +196,11 @@ func (rm *MaturityAnalysisReadModel) GetMaturityAnalysisCandidates(ctx context.C
 		avgGap = totalGap / len(candidates)
 	}
 
-	summary := MaturityAnalysisSummaryDTO{
+	return MaturityAnalysisSummaryDTO{
 		CandidateCount:       len(candidates),
 		TotalImplementations: totalImplementations,
 		AverageGap:           avgGap,
 	}
-
-	return candidates, summary, nil
 }
 
 func (rm *MaturityAnalysisReadModel) getMaturityDistribution(ctx context.Context, enterpriseCapabilityID string) (MaturityDistributionDTO, error) {
@@ -335,42 +353,61 @@ func (rm *MaturityAnalysisReadModel) getImplementations(ctx context.Context, ent
 	return implementations, err
 }
 
+type unlinkedQueryParams struct {
+	conditions []string
+	args       []any
+}
+
 func (rm *MaturityAnalysisReadModel) GetUnlinkedCapabilities(ctx context.Context, businessDomainFilter, search string) ([]UnlinkedCapabilityDTO, int, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	args := []interface{}{tenantID.Value()}
+	params := rm.buildUnlinkedQueryParams(tenantID.Value(), businessDomainFilter, search)
+	query := rm.buildUnlinkedQuery(params.conditions)
+	capabilities, err := rm.fetchUnlinkedCapabilities(ctx, query, params.args)
+
+	return capabilities, len(capabilities), err
+}
+
+func (rm *MaturityAnalysisReadModel) buildUnlinkedQueryParams(tenantID any, businessDomainFilter, search string) unlinkedQueryParams {
+	params := unlinkedQueryParams{
+		conditions: []string{
+			"c.tenant_id = $1",
+			`NOT EXISTS (SELECT 1 FROM enterprise_capability_links ecl WHERE ecl.domain_capability_id = c.id AND ecl.tenant_id = c.tenant_id)`,
+		},
+		args: []any{tenantID},
+	}
 	argIdx := 2
 
-	whereConditions := []string{"c.tenant_id = $1"}
-	whereConditions = append(whereConditions, `NOT EXISTS (
-		SELECT 1 FROM enterprise_capability_links ecl
-		WHERE ecl.domain_capability_id = c.id AND ecl.tenant_id = c.tenant_id
-	)`)
-
 	if businessDomainFilter != "" {
-		whereConditions = append(whereConditions, fmt.Sprintf("dcm.business_domain_id = $%d", argIdx))
-		args = append(args, businessDomainFilter)
+		params.conditions = append(params.conditions, fmt.Sprintf("dcm.business_domain_id = $%d", argIdx))
+		params.args = append(params.args, businessDomainFilter)
 		argIdx++
 	}
 
 	if search != "" {
-		whereConditions = append(whereConditions, fmt.Sprintf("c.name ILIKE $%d", argIdx))
-		args = append(args, "%"+search+"%")
+		params.conditions = append(params.conditions, fmt.Sprintf("c.name ILIKE $%d", argIdx))
+		params.args = append(params.args, "%"+search+"%")
 	}
 
-	query := `
+	return params
+}
+
+func (rm *MaturityAnalysisReadModel) buildUnlinkedQuery(conditions []string) string {
+	return `
 		SELECT c.id, c.name, dcm.business_domain_id, dcm.business_domain_name, COALESCE(c.maturity_value, 0)
 		FROM capabilities c
 		LEFT JOIN domain_capability_metadata dcm ON c.id = dcm.capability_id AND c.tenant_id = dcm.tenant_id
-		WHERE ` + strings.Join(whereConditions, " AND ") + `
+		WHERE ` + strings.Join(conditions, " AND ") + `
 		ORDER BY dcm.business_domain_name NULLS LAST, c.name
 		LIMIT 100`
+}
 
+func (rm *MaturityAnalysisReadModel) fetchUnlinkedCapabilities(ctx context.Context, query string, args []any) ([]UnlinkedCapabilityDTO, error) {
 	var capabilities []UnlinkedCapabilityDTO
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
 			return err
@@ -378,32 +415,38 @@ func (rm *MaturityAnalysisReadModel) GetUnlinkedCapabilities(ctx context.Context
 		defer rows.Close()
 
 		for rows.Next() {
-			var dto UnlinkedCapabilityDTO
-			var businessDomainID, businessDomainName sql.NullString
-			var maturityValue sql.NullInt64
-
-			if err := rows.Scan(&dto.CapabilityID, &dto.CapabilityName, &businessDomainID, &businessDomainName, &maturityValue); err != nil {
+			dto, err := rm.scanUnlinkedCapability(rows)
+			if err != nil {
 				return err
 			}
-
-			if businessDomainID.Valid {
-				dto.BusinessDomainID = businessDomainID.String
-			}
-			if businessDomainName.Valid {
-				dto.BusinessDomainName = businessDomainName.String
-			}
-			if maturityValue.Valid {
-				dto.MaturityValue = int(maturityValue.Int64)
-			}
-			dto.MaturitySection = getMaturitySection(dto.MaturityValue)
-
 			capabilities = append(capabilities, dto)
 		}
-
 		return rows.Err()
 	})
+	return capabilities, err
+}
 
-	return capabilities, len(capabilities), err
+func (rm *MaturityAnalysisReadModel) scanUnlinkedCapability(rows *sql.Rows) (UnlinkedCapabilityDTO, error) {
+	var dto UnlinkedCapabilityDTO
+	var businessDomainID, businessDomainName sql.NullString
+	var maturityValue sql.NullInt64
+
+	if err := rows.Scan(&dto.CapabilityID, &dto.CapabilityName, &businessDomainID, &businessDomainName, &maturityValue); err != nil {
+		return dto, err
+	}
+
+	if businessDomainID.Valid {
+		dto.BusinessDomainID = businessDomainID.String
+	}
+	if businessDomainName.Valid {
+		dto.BusinessDomainName = businessDomainName.String
+	}
+	if maturityValue.Valid {
+		dto.MaturityValue = int(maturityValue.Int64)
+	}
+	dto.MaturitySection = getMaturitySection(dto.MaturityValue)
+
+	return dto, nil
 }
 
 func getMaturitySection(value int) string {
