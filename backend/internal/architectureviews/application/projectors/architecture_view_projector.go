@@ -140,5 +140,10 @@ func (p *ArchitectureViewProjector) projectViewVisibilityChanged(ctx context.Con
 		return err
 	}
 
-	return p.readModel.UpdateVisibility(ctx, event.ViewID, event.IsPrivate, event.OwnerUserID, event.OwnerEmail)
+	return p.readModel.UpdateVisibility(ctx, readmodels.VisibilityUpdate{
+		ViewID:      event.ViewID,
+		IsPrivate:   event.IsPrivate,
+		OwnerUserID: event.OwnerUserID,
+		OwnerEmail:  event.OwnerEmail,
+	})
 }

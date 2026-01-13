@@ -57,6 +57,13 @@ type ViewFieldUpdate struct {
 	Value  interface{}
 }
 
+type VisibilityUpdate struct {
+	ViewID      string
+	IsPrivate   bool
+	OwnerUserID string
+	OwnerEmail  string
+}
+
 type ComponentPositionDTO struct {
 	ComponentID string      `json:"componentId"`
 	X           float64     `json:"x"`
@@ -226,7 +233,7 @@ func (rm *ArchitectureViewReadModel) UpdateLayoutDirection(ctx context.Context, 
 	return rm.updateViewField(ctx, update)
 }
 
-func (rm *ArchitectureViewReadModel) UpdateVisibility(ctx context.Context, viewID string, isPrivate bool, ownerUserID, ownerEmail string) error {
+func (rm *ArchitectureViewReadModel) UpdateVisibility(ctx context.Context, update VisibilityUpdate) error {
 	tenantID, err := rm.getTenantID(ctx)
 	if err != nil {
 		return err
@@ -234,7 +241,7 @@ func (rm *ArchitectureViewReadModel) UpdateVisibility(ctx context.Context, viewI
 
 	_, err = rm.db.ExecContext(ctx,
 		"UPDATE architecture_views SET is_private = $1, owner_user_id = $2, owner_email = $3, updated_at = $4 WHERE tenant_id = $5 AND id = $6",
-		isPrivate, ownerUserID, ownerEmail, time.Now().UTC(), tenantID, viewID,
+		update.IsPrivate, update.OwnerUserID, update.OwnerEmail, time.Now().UTC(), tenantID, update.ViewID,
 	)
 	return err
 }

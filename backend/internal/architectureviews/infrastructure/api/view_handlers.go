@@ -891,28 +891,25 @@ func (h *ViewHandlers) checkViewEditPermission(w http.ResponseWriter, r *http.Re
 	return true
 }
 
+func (h *ViewHandlers) buildElementLinks(viewID, elementType, elementID string, canEdit bool) sharedAPI.Links {
+	links := sharedAPI.Links{}
+	if !canEdit {
+		return links
+	}
+	basePath := fmt.Sprintf("/api/v1/views/%s/%s/%s", viewID, elementType, elementID)
+	links["x-update-color"] = sharedAPI.NewLink(basePath+"/color", "PATCH")
+	links["x-clear-color"] = sharedAPI.NewLink(basePath+"/color", "DELETE")
+	links["x-update-position"] = sharedAPI.NewLink(basePath+"/position", "PATCH")
+	links["x-remove"] = sharedAPI.NewLink(basePath, "DELETE")
+	return links
+}
+
 func (h *ViewHandlers) addElementLinks(view *readmodels.ArchitectureViewDTO, canEdit bool) {
 	for i := range view.Components {
-		componentID := view.Components[i].ComponentID
-		links := sharedAPI.Links{}
-		if canEdit {
-			links["x-update-color"] = sharedAPI.NewLink(fmt.Sprintf("/api/v1/views/%s/components/%s/color", view.ID, componentID), "PATCH")
-			links["x-clear-color"] = sharedAPI.NewLink(fmt.Sprintf("/api/v1/views/%s/components/%s/color", view.ID, componentID), "DELETE")
-			links["x-update-position"] = sharedAPI.NewLink(fmt.Sprintf("/api/v1/views/%s/components/%s/position", view.ID, componentID), "PATCH")
-			links["x-remove"] = sharedAPI.NewLink(fmt.Sprintf("/api/v1/views/%s/components/%s", view.ID, componentID), "DELETE")
-		}
-		view.Components[i].Links = links
+		view.Components[i].Links = h.buildElementLinks(view.ID, "components", view.Components[i].ComponentID, canEdit)
 	}
 
 	for i := range view.Capabilities {
-		capabilityID := view.Capabilities[i].CapabilityID
-		links := sharedAPI.Links{}
-		if canEdit {
-			links["x-update-color"] = sharedAPI.NewLink(fmt.Sprintf("/api/v1/views/%s/capabilities/%s/color", view.ID, capabilityID), "PATCH")
-			links["x-clear-color"] = sharedAPI.NewLink(fmt.Sprintf("/api/v1/views/%s/capabilities/%s/color", view.ID, capabilityID), "DELETE")
-			links["x-update-position"] = sharedAPI.NewLink(fmt.Sprintf("/api/v1/views/%s/capabilities/%s/position", view.ID, capabilityID), "PATCH")
-			links["x-remove"] = sharedAPI.NewLink(fmt.Sprintf("/api/v1/views/%s/capabilities/%s", view.ID, capabilityID), "DELETE")
-		}
-		view.Capabilities[i].Links = links
+		view.Capabilities[i].Links = h.buildElementLinks(view.ID, "capabilities", view.Capabilities[i].CapabilityID, canEdit)
 	}
 }

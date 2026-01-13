@@ -178,6 +178,39 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ componentId, canEdit, can
   );
 };
 
+interface ConditionalColorPickerProps {
+  componentInView: ViewComponent | undefined;
+  currentView: View | null;
+  onColorChange?: (color: string) => void;
+  onClearColor?: () => void;
+}
+
+const hasRequiredColorPickerProps = (
+  componentInView: ViewComponent | undefined,
+  currentView: View | null,
+  onColorChange?: (color: string) => void,
+  onClearColor?: () => void,
+): componentInView is ViewComponent =>
+  componentInView !== undefined && currentView !== null && onColorChange !== undefined && onClearColor !== undefined;
+
+const ConditionalColorPicker: React.FC<ConditionalColorPickerProps> = ({
+  componentInView,
+  currentView,
+  onColorChange,
+  onClearColor,
+}) => {
+  if (!hasRequiredColorPickerProps(componentInView, currentView, onColorChange, onClearColor)) return null;
+
+  return (
+    <ColorPickerField
+      componentInView={componentInView}
+      colorScheme={currentView!.colorScheme || 'maturity'}
+      onColorChange={onColorChange!}
+      onClearColor={onClearColor!}
+    />
+  );
+};
+
 interface ComponentContentProps {
   component: Component;
   componentInView: ViewComponent | undefined;
@@ -185,8 +218,8 @@ interface ComponentContentProps {
   realizations: CapabilityRealization[];
   capabilities: Capability[];
   isInCurrentView: boolean;
-  onColorChange: (color: string) => void;
-  onClearColor: () => void;
+  onColorChange?: (color: string) => void;
+  onClearColor?: () => void;
   onEdit: (componentId: string) => void;
   onRemoveFromView?: () => void;
 }
@@ -224,14 +257,12 @@ const ComponentContentInternal: React.FC<ComponentContentProps> = ({
       <DetailField label="Created"><span className="detail-date">{formattedDate}</span></DetailField>
       <TypeField referenceUrl={component._links.describedby?.href} />
 
-      {componentInView && currentView && onColorChange && onClearColor && (
-        <ColorPickerField
-          componentInView={componentInView}
-          colorScheme={currentView.colorScheme || 'maturity'}
-          onColorChange={onColorChange}
-          onClearColor={onClearColor}
-        />
-      )}
+      <ConditionalColorPicker
+        componentInView={componentInView}
+        currentView={currentView}
+        onColorChange={onColorChange}
+        onClearColor={onClearColor}
+      />
 
       <RealizationsField realizations={realizations} capabilities={capabilities} />
 
@@ -267,8 +298,8 @@ export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (
         realizations={realizations}
         capabilities={capabilities}
         isInCurrentView={isInCurrentView}
-        onColorChange={onColorChange ?? (() => {})}
-        onClearColor={onClearColor ?? (() => {})}
+        onColorChange={onColorChange}
+        onClearColor={onClearColor}
         onEdit={onEdit}
         onRemoveFromView={onRemoveFromView}
       />

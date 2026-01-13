@@ -94,21 +94,31 @@ type ViewInfo struct {
 	OwnerUserID *string
 }
 
+func (v ViewInfo) isOwnedBy(actorID string) bool {
+	return v.OwnerUserID != nil && *v.OwnerUserID == actorID
+}
+
+func (v ViewInfo) canBeEditedBy(actor sharedctx.Actor) bool {
+	return (!v.IsPrivate || v.isOwnedBy(actor.ID)) && actor.CanWrite("views")
+}
+
+func (v ViewInfo) canBeDeletedBy(actor sharedctx.Actor) bool {
+	return (!v.IsPrivate || v.isOwnedBy(actor.ID)) && actor.CanDelete("views") && !v.IsDefault
+}
+
 func (h *HATEOASLinks) ViewLinksForActor(v ViewInfo, actor sharedctx.Actor) Links {
+	p := "/views/" + v.ID
 	links := Links{
-		"self":         h.get("/views/" + v.ID),
-		"x-components": h.get("/views/" + v.ID + "/components"),
+		"self":         h.get(p),
+		"x-components": h.get(p + "/components"),
 		"collection":   h.get("/views"),
 	}
-	isOwner := v.OwnerUserID != nil && *v.OwnerUserID == actor.ID
-	canEdit := (!v.IsPrivate || isOwner) && actor.CanWrite("views")
-	if canEdit {
-		links["edit"] = h.patch("/views/" + v.ID + "/name")
-		links["x-change-visibility"] = h.patch("/views/" + v.ID + "/visibility")
+	if v.canBeEditedBy(actor) {
+		links["edit"] = h.patch(p + "/name")
+		links["x-change-visibility"] = h.patch(p + "/visibility")
 	}
-	canDelete := (!v.IsPrivate || isOwner) && actor.CanDelete("views") && !v.IsDefault
-	if canDelete {
-		links["delete"] = h.del("/views/" + v.ID)
+	if v.canBeDeletedBy(actor) {
+		links["delete"] = h.del(p)
 	}
 	return links
 }
