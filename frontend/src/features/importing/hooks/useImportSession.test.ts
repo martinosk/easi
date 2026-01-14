@@ -1,5 +1,7 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ImportSession, ImportSessionId, CreateImportSessionRequest } from '../types';
 
 const { mockPost, mockGet, mockDelete } = vi.hoisted(() => ({
@@ -23,8 +25,27 @@ vi.mock('axios', () => ({
 
 import { useImportSession } from './useImportSession';
 
+function createQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+    },
+  });
+}
+
+function createWrapper(queryClient: QueryClient) {
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client: queryClient }, children);
+}
+
 describe('useImportSession', () => {
+  let queryClient: QueryClient;
+
   beforeEach(() => {
+    queryClient = createQueryClient();
     vi.clearAllMocks();
     mockPost.mockReset();
     mockGet.mockReset();
@@ -63,7 +84,9 @@ describe('useImportSession', () => {
 
       mockPost.mockResolvedValue({ data: mockSession });
 
-      const { result } = renderHook(() => useImportSession());
+      const { result } = renderHook(() => useImportSession(), {
+        wrapper: createWrapper(queryClient),
+      });
 
       const file = new File(['test'], 'test.xml', { type: 'application/xml' });
       const request: CreateImportSessionRequest = {
@@ -86,7 +109,9 @@ describe('useImportSession', () => {
       const errorMessage = 'Invalid file format';
       mockPost.mockRejectedValue(new Error(errorMessage));
 
-      const { result } = renderHook(() => useImportSession());
+      const { result } = renderHook(() => useImportSession(), {
+        wrapper: createWrapper(queryClient),
+      });
 
       const file = new File(['test'], 'test.xml', { type: 'application/xml' });
       const request: CreateImportSessionRequest = {
@@ -130,7 +155,9 @@ describe('useImportSession', () => {
         .mockResolvedValueOnce({ data: pendingSession })
         .mockResolvedValueOnce({ data: importingSession });
 
-      const { result } = renderHook(() => useImportSession());
+      const { result } = renderHook(() => useImportSession(), {
+        wrapper: createWrapper(queryClient),
+      });
 
       const file = new File(['test'], 'test.xml', { type: 'application/xml' });
       await act(async () => {
@@ -165,7 +192,9 @@ describe('useImportSession', () => {
         .mockResolvedValueOnce({ data: mockSession })
         .mockRejectedValueOnce(new Error(errorMessage));
 
-      const { result } = renderHook(() => useImportSession());
+      const { result } = renderHook(() => useImportSession(), {
+        wrapper: createWrapper(queryClient),
+      });
 
       const file = new File(['test'], 'test.xml', { type: 'application/xml' });
       await act(async () => {
@@ -202,7 +231,9 @@ describe('useImportSession', () => {
       mockPost.mockResolvedValue({ data: mockSession });
       mockDelete.mockResolvedValue({});
 
-      const { result } = renderHook(() => useImportSession());
+      const { result } = renderHook(() => useImportSession(), {
+        wrapper: createWrapper(queryClient),
+      });
 
       const file = new File(['test'], 'test.xml', { type: 'application/xml' });
       await act(async () => {
@@ -254,7 +285,9 @@ describe('useImportSession', () => {
         .mockResolvedValueOnce({ data: importingSession })
         .mockResolvedValueOnce({ data: completedSession });
 
-      const { result } = renderHook(() => useImportSession());
+      const { result } = renderHook(() => useImportSession(), {
+        wrapper: createWrapper(queryClient),
+      });
 
       const file = new File(['test'], 'test.xml', { type: 'application/xml' });
       await act(async () => {
@@ -294,7 +327,9 @@ describe('useImportSession', () => {
 
       mockPost.mockResolvedValue({ data: completedSession });
 
-      const { result } = renderHook(() => useImportSession());
+      const { result } = renderHook(() => useImportSession(), {
+        wrapper: createWrapper(queryClient),
+      });
 
       const file = new File(['test'], 'test.xml', { type: 'application/xml' });
       await act(async () => {
@@ -325,7 +360,9 @@ describe('useImportSession', () => {
 
       mockPost.mockResolvedValue({ data: mockSession });
 
-      const { result } = renderHook(() => useImportSession());
+      const { result } = renderHook(() => useImportSession(), {
+        wrapper: createWrapper(queryClient),
+      });
 
       const file = new File(['test'], 'test.xml', { type: 'application/xml' });
       await act(async () => {
