@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"time"
 
 	"easi/backend/internal/architecturemodeling/application/commands"
+	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
@@ -29,7 +31,12 @@ func (h *RemoveApplicationComponentExpertHandler) Handle(ctx context.Context, cm
 		return cqrs.EmptyResult(), err
 	}
 
-	if err := component.RemoveExpert(command.ExpertName, command.ExpertRole, command.ContactInfo); err != nil {
+	expert, err := valueobjects.NewExpert(command.ExpertName, command.ExpertRole, command.ContactInfo, time.Now().UTC())
+	if err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	if err := component.RemoveExpert(expert); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 

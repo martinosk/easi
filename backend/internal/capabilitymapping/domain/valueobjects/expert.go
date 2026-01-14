@@ -1,4 +1,4 @@
-package entities
+package valueobjects
 
 import (
 	"errors"
@@ -19,42 +19,50 @@ type Expert struct {
 	addedAt time.Time
 }
 
-func NewExpert(name, role, contact string) (*Expert, error) {
+func NewExpert(name, role, contact string, addedAt time.Time) (Expert, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return nil, ErrExpertNameEmpty
+		return Expert{}, ErrExpertNameEmpty
 	}
 
 	role = strings.TrimSpace(role)
 	if role == "" {
-		return nil, ErrExpertRoleEmpty
+		return Expert{}, ErrExpertRoleEmpty
 	}
 
 	contact = strings.TrimSpace(contact)
 	if contact == "" {
-		return nil, ErrExpertContactEmpty
+		return Expert{}, ErrExpertContactEmpty
 	}
 
-	return &Expert{
+	return Expert{
 		name:    name,
 		role:    role,
 		contact: contact,
-		addedAt: time.Now().UTC(),
+		addedAt: addedAt,
 	}, nil
 }
 
-func (e *Expert) Name() string {
+func MustNewExpert(name, role, contact string, addedAt time.Time) Expert {
+	expert, err := NewExpert(name, role, contact, addedAt)
+	if err != nil {
+		panic(err)
+	}
+	return expert
+}
+
+func (e Expert) Name() string {
 	return e.name
 }
 
-func (e *Expert) Role() string {
+func (e Expert) Role() string {
 	return e.role
 }
 
-func (e *Expert) Contact() string {
+func (e Expert) Contact() string {
 	return e.contact
 }
 
-func (e *Expert) AddedAt() time.Time {
+func (e Expert) AddedAt() time.Time {
 	return e.addedAt
 }

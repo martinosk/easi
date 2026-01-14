@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
-	"easi/backend/internal/capabilitymapping/domain/entities"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	domain "easi/backend/internal/shared/eventsourcing"
 
@@ -40,27 +39,13 @@ func TestCapabilityDeserializers_RoundTrip(t *testing.T) {
 }
 
 func TestCapabilityDeserializers_RoundTripWithUpdate(t *testing.T) {
-	name, _ := valueobjects.NewCapabilityName("Payment Processing")
-	description := valueobjects.MustNewDescription("Handles payments")
-
-	original, err := aggregates.NewCapability(name, description, valueobjects.CapabilityID{}, valueobjects.LevelL1)
-	require.NoError(t, err)
+	original := createTestCapability(t, "Payment Processing", "Handles payments")
 
 	newName, _ := valueobjects.NewCapabilityName("Payment Gateway")
 	newDescription := valueobjects.MustNewDescription("Updated payment description")
 	_ = original.Update(newName, newDescription)
 
-	events := original.GetUncommittedChanges()
-	require.Len(t, events, 2, "Expected 2 events: Created, Updated")
-
-	storedEvents := simulateCapabilityEventStoreRoundTrip(t, events)
-	deserializedEvents, err := capabilityEventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
-	require.Len(t, deserializedEvents, 2, "All events should be deserialized")
-
-	loaded, err := aggregates.LoadCapabilityFromHistory(deserializedEvents)
-	require.NoError(t, err)
+	loaded := roundTripAndLoad(t, original, 2)
 
 	assert.Equal(t, newName.Value(), loaded.Name().Value())
 	assert.Equal(t, newDescription.Value(), loaded.Description().Value())
@@ -105,7 +90,7 @@ func TestCapabilityDeserializers_RoundTripWithExpertAndTag(t *testing.T) {
 	original, err := aggregates.NewCapability(name, description, valueobjects.CapabilityID{}, valueobjects.LevelL1)
 	require.NoError(t, err)
 
-	expert, _ := entities.NewExpert("Jane Doe", "Domain Expert", "jane@example.com")
+	expert, _ := valueobjects.NewExpert("Jane Doe", "Domain Expert", "jane@example.com", time.Now().UTC())
 	_ = original.AddExpert(expert)
 
 	tag, _ := valueobjects.NewTag("core-capability")
@@ -128,27 +113,13 @@ func TestCapabilityDeserializers_RoundTripWithExpertAndTag(t *testing.T) {
 }
 
 func TestCapabilityDeserializers_RoundTripWithParentChange(t *testing.T) {
-	name, _ := valueobjects.NewCapabilityName("Order Fulfillment")
-	description := valueobjects.MustNewDescription("Fulfills orders")
+	original := createTestCapability(t, "Order Fulfillment", "Fulfills orders")
 
-	original, err := aggregates.NewCapability(name, description, valueobjects.CapabilityID{}, valueobjects.LevelL1)
-	require.NoError(t, err)
-
-	parentCapability, _ := aggregates.NewCapability(name, description, valueobjects.CapabilityID{}, valueobjects.LevelL1)
+	parentCapability := createTestCapability(t, "Parent Capability", "Parent description")
 	newParentID, _ := valueobjects.NewCapabilityIDFromString(parentCapability.ID())
 	_ = original.ChangeParent(newParentID, valueobjects.LevelL2)
 
-	events := original.GetUncommittedChanges()
-	require.Len(t, events, 2, "Expected 2 events: Created, ParentChanged")
-
-	storedEvents := simulateCapabilityEventStoreRoundTrip(t, events)
-	deserializedEvents, err := capabilityEventDeserializers.Deserialize(storedEvents)
-	require.NoError(t, err)
-
-	require.Len(t, deserializedEvents, 2, "All events should be deserialized")
-
-	loaded, err := aggregates.LoadCapabilityFromHistory(deserializedEvents)
-	require.NoError(t, err)
+	loaded := roundTripAndLoad(t, original, 2)
 
 	assert.Equal(t, valueobjects.LevelL2.Value(), loaded.Level().Value())
 }
@@ -172,7 +143,7 @@ func TestCapabilityDeserializers_AllEventsCanBeDeserialized(t *testing.T) {
 	metadata := valueobjects.NewCapabilityMetadata(maturityLevel, ownershipModel, primaryOwner, eaOwner, status)
 	_ = capability.UpdateMetadata(metadata)
 
-	expert, _ := entities.NewExpert("Expert", "Role", "contact")
+	expert, _ := valueobjects.NewExpert("Expert", "Role", "contact", time.Now().UTC())
 	_ = capability.AddExpert(expert)
 
 	tag, _ := valueobjects.NewTag("test-tag")
@@ -196,6 +167,30 @@ func TestCapabilityDeserializers_AllEventsCanBeDeserialized(t *testing.T) {
 		assert.Equal(t, originalEvent.EventType(), deserializedEvents[i].EventType(),
 			"Event type mismatch at index %d", i)
 	}
+}
+
+func createTestCapability(t *testing.T, name, description string) *aggregates.Capability {
+	t.Helper()
+	capName, _ := valueobjects.NewCapabilityName(name)
+	capDesc := valueobjects.MustNewDescription(description)
+	capability, err := aggregates.NewCapability(capName, capDesc, valueobjects.CapabilityID{}, valueobjects.LevelL1)
+	require.NoError(t, err)
+	return capability
+}
+
+func roundTripAndLoad(t *testing.T, capability *aggregates.Capability, expectedEventCount int) *aggregates.Capability {
+	t.Helper()
+	events := capability.GetUncommittedChanges()
+	require.Len(t, events, expectedEventCount)
+
+	storedEvents := simulateCapabilityEventStoreRoundTrip(t, events)
+	deserializedEvents, err := capabilityEventDeserializers.Deserialize(storedEvents)
+	require.NoError(t, err)
+	require.Len(t, deserializedEvents, expectedEventCount)
+
+	loaded, err := aggregates.LoadCapabilityFromHistory(deserializedEvents)
+	require.NoError(t, err)
+	return loaded
 }
 
 type capabilityStoredEventWrapper struct {

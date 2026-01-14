@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"easi/backend/internal/architecturemodeling/domain/aggregates"
-	"easi/backend/internal/architecturemodeling/domain/entities"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	domain "easi/backend/internal/shared/eventsourcing"
 
@@ -76,10 +75,10 @@ func TestApplicationComponentDeserializers_AllEventsCanBeDeserialized(t *testing
 	newDescription := valueobjects.MustNewDescription("Updated description")
 	_ = component.Update(newName, newDescription)
 
-	expert, _ := entities.NewExpert("Alice Smith", "Product Owner", "alice@example.com")
+	expert, _ := valueobjects.NewExpert("Alice Smith", "Product Owner", "alice@example.com", time.Now().UTC())
 	_ = component.AddExpert(expert)
 
-	_ = component.RemoveExpert("Alice Smith", "Product Owner", "alice@example.com")
+	_ = component.RemoveExpert(expert)
 
 	_ = component.Delete()
 

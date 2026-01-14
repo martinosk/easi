@@ -2,9 +2,10 @@ package handlers
 
 import (
 	"context"
+	"time"
 
 	"easi/backend/internal/architecturemodeling/application/commands"
-	"easi/backend/internal/architecturemodeling/domain/entities"
+	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
@@ -30,7 +31,7 @@ func (h *AddApplicationComponentExpertHandler) Handle(ctx context.Context, cmd c
 		return cqrs.EmptyResult(), err
 	}
 
-	expert, err := entities.NewExpert(command.ExpertName, command.ExpertRole, command.ContactInfo)
+	expert, err := valueobjects.NewExpert(command.ExpertName, command.ExpertRole, command.ContactInfo, time.Now().UTC())
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}

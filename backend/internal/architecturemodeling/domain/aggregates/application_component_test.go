@@ -2,8 +2,8 @@ package aggregates
 
 import (
 	"testing"
+	"time"
 
-	"easi/backend/internal/architecturemodeling/domain/entities"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 
 	"github.com/stretchr/testify/assert"
@@ -183,7 +183,7 @@ func TestApplicationComponent_AddExpert(t *testing.T) {
 
 	component.MarkChangesAsCommitted()
 
-	expert, err := entities.NewExpert("Alice Smith", "Product Owner", "alice@example.com")
+	expert, err := valueobjects.NewExpert("Alice Smith", "Product Owner", "alice@example.com", time.Now().UTC())
 	require.NoError(t, err)
 
 	err = component.AddExpert(expert)
@@ -207,7 +207,7 @@ func TestApplicationComponent_RemoveExpert(t *testing.T) {
 	component, err := NewApplicationComponent(name, description)
 	require.NoError(t, err)
 
-	expert, err := entities.NewExpert("Alice Smith", "Product Owner", "alice@example.com")
+	expert, err := valueobjects.NewExpert("Alice Smith", "Product Owner", "alice@example.com", time.Now().UTC())
 	require.NoError(t, err)
 
 	component.AddExpert(expert)
@@ -215,7 +215,7 @@ func TestApplicationComponent_RemoveExpert(t *testing.T) {
 
 	assert.Len(t, component.Experts(), 1)
 
-	err = component.RemoveExpert("Alice Smith", "Product Owner", "alice@example.com")
+	err = component.RemoveExpert(expert)
 	require.NoError(t, err)
 
 	assert.Len(t, component.Experts(), 0)
@@ -232,8 +232,8 @@ func TestApplicationComponent_AddMultipleExperts(t *testing.T) {
 	component, err := NewApplicationComponent(name, description)
 	require.NoError(t, err)
 
-	expert1, _ := entities.NewExpert("Alice Smith", "Product Owner", "alice@example.com")
-	expert2, _ := entities.NewExpert("Bob Johnson", "Tech Lead", "bob@example.com")
+	expert1, _ := valueobjects.NewExpert("Alice Smith", "Product Owner", "alice@example.com", time.Now().UTC())
+	expert2, _ := valueobjects.NewExpert("Bob Johnson", "Tech Lead", "bob@example.com", time.Now().UTC())
 
 	component.AddExpert(expert1)
 	component.AddExpert(expert2)
@@ -249,7 +249,7 @@ func TestLoadApplicationComponentFromHistory_WithExpertEvents(t *testing.T) {
 	component, err := NewApplicationComponent(name, description)
 	require.NoError(t, err)
 
-	expert, _ := entities.NewExpert("Alice Smith", "Product Owner", "alice@example.com")
+	expert, _ := valueobjects.NewExpert("Alice Smith", "Product Owner", "alice@example.com", time.Now().UTC())
 	component.AddExpert(expert)
 
 	allEvents := component.GetUncommittedChanges()

@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
-	"easi/backend/internal/capabilitymapping/domain/entities"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -21,9 +20,9 @@ func isValidationError(err error) bool {
 		errors.Is(err, valueobjects.ErrInvalidOwnershipModel) ||
 		errors.Is(err, valueobjects.ErrInvalidCapabilityStatus) ||
 		errors.Is(err, valueobjects.ErrTagEmpty) ||
-		errors.Is(err, entities.ErrExpertNameEmpty) ||
-		errors.Is(err, entities.ErrExpertRoleEmpty) ||
-		errors.Is(err, entities.ErrExpertContactEmpty)
+		errors.Is(err, valueobjects.ErrExpertNameEmpty) ||
+		errors.Is(err, valueobjects.ErrExpertRoleEmpty) ||
+		errors.Is(err, valueobjects.ErrExpertContactEmpty)
 }
 
 func isNotFoundError(err error) bool {

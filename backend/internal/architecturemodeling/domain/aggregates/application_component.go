@@ -4,7 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"easi/backend/internal/architecturemodeling/domain/entities"
 	"easi/backend/internal/architecturemodeling/domain/events"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	domain "easi/backend/internal/shared/eventsourcing"
@@ -21,7 +20,7 @@ type ApplicationComponent struct {
 	description valueobjects.Description
 	createdAt   time.Time
 	isDeleted   bool
-	experts     []*entities.Expert
+	experts     []valueobjects.Expert
 }
 
 func NewApplicationComponent(name valueobjects.ComponentName, description valueobjects.Description) (*ApplicationComponent, error) {
@@ -78,11 +77,9 @@ func (a *ApplicationComponent) Delete() error {
 	return nil
 }
 
-func (a *ApplicationComponent) AddExpert(expert *entities.Expert) error {
+func (a *ApplicationComponent) AddExpert(expert valueobjects.Expert) error {
 	for _, existing := range a.experts {
-		if existing.Name().Equals(expert.Name()) &&
-			existing.Role().Equals(expert.Role()) &&
-			existing.Contact().Equals(expert.Contact()) {
+		if existing.Equals(expert) {
 			return ErrDuplicateExpert
 		}
 	}
@@ -100,12 +97,12 @@ func (a *ApplicationComponent) AddExpert(expert *entities.Expert) error {
 	return nil
 }
 
-func (a *ApplicationComponent) RemoveExpert(expertName, expertRole, contactInfo string) error {
+func (a *ApplicationComponent) RemoveExpert(expert valueobjects.Expert) error {
 	event := events.NewApplicationComponentExpertRemoved(
 		a.ID(),
-		expertName,
-		expertRole,
-		contactInfo,
+		expert.Name().Value(),
+		expert.Role().Value(),
+		expert.Contact().Value(),
 	)
 
 	a.apply(event)
@@ -114,7 +111,7 @@ func (a *ApplicationComponent) RemoveExpert(expertName, expertRole, contactInfo 
 	return nil
 }
 
-func (a *ApplicationComponent) Experts() []*entities.Expert {
+func (a *ApplicationComponent) Experts() []valueobjects.Expert {
 	return a.experts
 }
 
@@ -132,19 +129,17 @@ func (a *ApplicationComponent) apply(event domain.DomainEvent) {
 	case events.ApplicationComponentDeleted:
 		a.isDeleted = true
 	case events.ApplicationComponentExpertAdded:
-		expert, _ := entities.NewExpert(e.ExpertName, e.ExpertRole, e.ContactInfo)
+		expert := valueobjects.MustNewExpert(e.ExpertName, e.ExpertRole, e.ContactInfo, e.AddedAt)
 		a.experts = append(a.experts, expert)
 	case events.ApplicationComponentExpertRemoved:
 		a.experts = removeExpert(a.experts, e.ExpertName, e.ExpertRole, e.ContactInfo)
 	}
 }
 
-func removeExpert(experts []*entities.Expert, name, role, contact string) []*entities.Expert {
-	result := make([]*entities.Expert, 0, len(experts))
+func removeExpert(experts []valueobjects.Expert, name, role, contact string) []valueobjects.Expert {
+	result := make([]valueobjects.Expert, 0, len(experts))
 	for _, expert := range experts {
-		if expert.Name().Value() != name ||
-			expert.Role().Value() != role ||
-			expert.Contact().Value() != contact {
+		if !expert.MatchesValues(name, role, contact) {
 			result = append(result, expert)
 		}
 	}
