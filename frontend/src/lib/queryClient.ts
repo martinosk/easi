@@ -59,6 +59,7 @@ export const queryKeys = {
       componentIds
         ? (['realizations', 'byComponents', componentIds.sort().join(',')] as const)
         : (['realizations', 'byComponents'] as const),
+    expertRoles: () => [...queryKeys.capabilities.all, 'expert-roles'] as const,
   },
   businessDomains: {
     all: ['businessDomains'] as const,

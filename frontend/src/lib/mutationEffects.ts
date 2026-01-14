@@ -233,6 +233,16 @@ export const mutationEffects = {
     ],
 
     /**
+     * Invalidates queries after removing an expert from a capability.
+     * @param capabilityId - The capability losing the expert
+     */
+    removeExpert: (capabilityId: string) => [
+      queryKeys.capabilities.detail(capabilityId),
+      queryKeys.capabilities.lists(),
+      queryKeys.audit.history(capabilityId),
+    ],
+
+    /**
      * Invalidates queries after adding a tag to a capability.
      * @param capabilityId - The capability receiving the tag
      */

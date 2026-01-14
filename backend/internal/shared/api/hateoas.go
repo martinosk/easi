@@ -189,12 +189,22 @@ func (h *HATEOASLinks) capabilityBaseForActor(id string, actor sharedctx.Actor) 
 		"x-outgoing-dependencies": h.get(p + "/dependencies/outgoing"),
 		"x-incoming-dependencies": h.get(p + "/dependencies/incoming"),
 		"collection":              h.get("/capabilities"),
+		"x-expert-roles":          h.get("/capabilities/expert-roles"),
 	}
 	if actor.CanWrite("capabilities") {
 		links["edit"] = h.put(p)
+		links["x-add-expert"] = h.post(p + "/experts")
 	}
 	if actor.CanDelete("capabilities") {
 		links["delete"] = h.del(p)
+	}
+	return links
+}
+
+func (h *HATEOASLinks) CapabilityExpertLinksForActor(capabilityID, expertName, expertRole, contactInfo string, actor sharedctx.Actor) Links {
+	links := Links{}
+	if actor.CanDelete("capabilities") {
+		links["x-remove"] = h.del("/capabilities/" + capabilityID + "/experts?name=" + url.QueryEscape(expertName) + "&role=" + url.QueryEscape(expertRole) + "&contact=" + url.QueryEscape(contactInfo))
 	}
 	return links
 }

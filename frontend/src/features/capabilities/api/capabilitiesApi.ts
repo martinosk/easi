@@ -52,6 +52,23 @@ export const capabilitiesApi = {
     await httpClient.post(`/api/v1/capabilities/${id}/experts`, request);
   },
 
+  async removeExpert(
+    id: CapabilityId,
+    expert: { name: string; role: string; contact: string }
+  ): Promise<void> {
+    const params = new URLSearchParams({
+      name: expert.name,
+      role: expert.role,
+      contact: expert.contact,
+    });
+    await httpClient.delete(`/api/v1/capabilities/${id}/experts?${params.toString()}`);
+  },
+
+  async getExpertRoles(): Promise<string[]> {
+    const response = await httpClient.get<{ roles: string[] }>('/api/v1/capabilities/expert-roles');
+    return response.data.roles || [];
+  },
+
   async addTag(id: CapabilityId, request: AddCapabilityTagRequest): Promise<void> {
     await httpClient.post(`/api/v1/capabilities/${id}/tags`, request);
   },

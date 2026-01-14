@@ -66,3 +66,9 @@ func (e Expert) Contact() string {
 func (e Expert) AddedAt() time.Time {
 	return e.addedAt
 }
+
+func (e Expert) MatchesValues(name, role, contact string) bool {
+	return e.name == name &&
+		e.role == role &&
+		e.contact == contact
+}

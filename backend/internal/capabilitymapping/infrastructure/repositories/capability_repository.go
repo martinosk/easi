@@ -131,6 +131,26 @@ var capabilityEventDeserializers = repository.NewEventDeserializers(
 
 			return events.NewCapabilityExpertAdded(capabilityID, expertName, expertRole, contactInfo), nil
 		},
+		"CapabilityExpertRemoved": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			capabilityID, err := repository.GetRequiredString(data, "capabilityId")
+			if err != nil {
+				return nil, err
+			}
+			expertName, err := repository.GetRequiredString(data, "expertName")
+			if err != nil {
+				return nil, err
+			}
+			expertRole, err := repository.GetRequiredString(data, "expertRole")
+			if err != nil {
+				return nil, err
+			}
+			contactInfo, err := repository.GetOptionalString(data, "contactInfo", "")
+			if err != nil {
+				return nil, err
+			}
+
+			return events.NewCapabilityExpertRemoved(capabilityID, expertName, expertRole, contactInfo), nil
+		},
 		"CapabilityTagAdded": func(data map[string]interface{}) (domain.DomainEvent, error) {
 			capabilityID, err := repository.GetRequiredString(data, "capabilityId")
 			if err != nil {

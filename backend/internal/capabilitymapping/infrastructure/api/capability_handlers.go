@@ -32,6 +32,13 @@ func NewCapabilityHandlers(
 	}
 }
 
+func (h *CapabilityHandlers) addLinksToCapability(cap *readmodels.CapabilityDTO, actor sharedctx.Actor) {
+	cap.Links = h.hateoas.CapabilityLinksForActor(cap.ID, cap.ParentID, actor)
+	for i := range cap.Experts {
+		cap.Experts[i].Links = h.hateoas.CapabilityExpertLinksForActor(cap.ID, cap.Experts[i].Name, cap.Experts[i].Role, cap.Experts[i].Contact, actor)
+	}
+}
+
 type CreateCapabilityRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
@@ -118,7 +125,7 @@ func (h *CapabilityHandlers) handleCreateCapabilityResponse(w http.ResponseWrite
 	}
 
 	actor, _ := sharedctx.GetActor(r.Context())
-	capability.Links = h.hateoas.CapabilityLinksForActor(capability.ID, capability.ParentID, actor)
+	h.addLinksToCapability(capability, actor)
 	sharedAPI.RespondCreated(w, location, capability)
 }
 
@@ -139,7 +146,7 @@ func (h *CapabilityHandlers) GetAllCapabilities(w http.ResponseWriter, r *http.R
 
 	actor, _ := sharedctx.GetActor(r.Context())
 	for i := range capabilities {
-		capabilities[i].Links = h.hateoas.CapabilityLinksForActor(capabilities[i].ID, capabilities[i].ParentID, actor)
+		h.addLinksToCapability(&capabilities[i], actor)
 	}
 
 	links := sharedAPI.Links{
@@ -174,7 +181,7 @@ func (h *CapabilityHandlers) GetCapabilityByID(w http.ResponseWriter, r *http.Re
 	}
 
 	actor, _ := sharedctx.GetActor(r.Context())
-	capability.Links = h.hateoas.CapabilityLinksForActor(capability.ID, capability.ParentID, actor)
+	h.addLinksToCapability(capability, actor)
 	sharedAPI.RespondJSON(w, http.StatusOK, capability)
 }
 
@@ -210,7 +217,7 @@ func (h *CapabilityHandlers) GetCapabilityChildren(w http.ResponseWriter, r *htt
 
 	actor, _ := sharedctx.GetActor(r.Context())
 	for i := range children {
-		children[i].Links = h.hateoas.CapabilityLinksForActor(children[i].ID, children[i].ParentID, actor)
+		h.addLinksToCapability(&children[i], actor)
 	}
 
 	links := sharedAPI.NewResourceLinks().
@@ -270,7 +277,7 @@ func (h *CapabilityHandlers) UpdateCapability(w http.ResponseWriter, r *http.Req
 	}
 
 	actor, _ := sharedctx.GetActor(r.Context())
-	capability.Links = h.hateoas.CapabilityLinksForActor(capability.ID, capability.ParentID, actor)
+	h.addLinksToCapability(capability, actor)
 	sharedAPI.RespondJSON(w, http.StatusOK, capability)
 }
 

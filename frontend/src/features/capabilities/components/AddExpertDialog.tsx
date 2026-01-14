@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, TextInput, Button, Group, Stack, Alert } from '@mantine/core';
-import { useForm } from 'react-hook-form';
+import { Modal, TextInput, Button, Group, Stack, Alert, Autocomplete } from '@mantine/core';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAddCapabilityExpert } from '../hooks/useCapabilities';
+import { useAddCapabilityExpert, useCapabilityExpertRoles } from '../hooks/useCapabilities';
 import { addExpertSchema, type AddExpertFormData } from '../../../lib/schemas';
 import { toCapabilityId } from '../../../api/types';
 
@@ -21,11 +21,13 @@ export const AddExpertDialog: React.FC<AddExpertDialogProps> = ({
 }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const addExpertMutation = useAddCapabilityExpert();
+  const { data: expertRoles = [] } = useCapabilityExpertRoles();
 
   const {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isValid },
   } = useForm<AddExpertFormData>({
     resolver: zodResolver(addExpertSchema),
@@ -83,15 +85,24 @@ export const AddExpertDialog: React.FC<AddExpertDialogProps> = ({
             data-testid="expert-name-input"
           />
 
-          <TextInput
-            label="Role"
-            placeholder="Enter expert role"
-            {...register('role')}
-            required
-            withAsterisk
-            disabled={addExpertMutation.isPending}
-            error={errors.role?.message}
-            data-testid="expert-role-input"
+          <Controller
+            name="role"
+            control={control}
+            render={({ field }) => (
+              <Autocomplete
+                label="Role"
+                placeholder="Enter or select expert role"
+                data={expertRoles}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                required
+                withAsterisk
+                disabled={addExpertMutation.isPending}
+                error={errors.role?.message}
+                data-testid="expert-role-input"
+              />
+            )}
           />
 
           <TextInput

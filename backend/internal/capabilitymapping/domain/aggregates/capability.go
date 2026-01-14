@@ -120,6 +120,20 @@ func (c *Capability) AddExpert(expert valueobjects.Expert) error {
 	return nil
 }
 
+func (c *Capability) RemoveExpert(expert valueobjects.Expert) error {
+	event := events.NewCapabilityExpertRemoved(
+		c.ID(),
+		expert.Name(),
+		expert.Role(),
+		expert.Contact(),
+	)
+
+	c.apply(event)
+	c.RaiseEvent(event)
+
+	return nil
+}
+
 func (c *Capability) AddTag(tag valueobjects.Tag) error {
 	for _, existingTag := range c.tags {
 		if existingTag.Value() == tag.Value() {
@@ -145,6 +159,8 @@ func (c *Capability) apply(event domain.DomainEvent) {
 		c.applyMetadataUpdated(e)
 	case events.CapabilityExpertAdded:
 		c.applyExpertAdded(e)
+	case events.CapabilityExpertRemoved:
+		c.applyExpertRemoved(e)
 	case events.CapabilityTagAdded:
 		c.applyTagAdded(e)
 	case events.CapabilityParentChanged:
@@ -182,6 +198,20 @@ func (c *Capability) applyMetadataUpdated(e events.CapabilityMetadataUpdated) {
 func (c *Capability) applyExpertAdded(e events.CapabilityExpertAdded) {
 	expert := valueobjects.MustNewExpert(e.ExpertName, e.ExpertRole, e.ContactInfo, e.AddedAt)
 	c.experts = append(c.experts, expert)
+}
+
+func (c *Capability) applyExpertRemoved(e events.CapabilityExpertRemoved) {
+	c.experts = removeExpert(c.experts, e.ExpertName, e.ExpertRole, e.ContactInfo)
+}
+
+func removeExpert(experts []valueobjects.Expert, name, role, contact string) []valueobjects.Expert {
+	result := make([]valueobjects.Expert, 0, len(experts))
+	for _, expert := range experts {
+		if !expert.MatchesValues(name, role, contact) {
+			result = append(result, expert)
+		}
+	}
+	return result
 }
 
 func (c *Capability) applyTagAdded(e events.CapabilityTagAdded) {

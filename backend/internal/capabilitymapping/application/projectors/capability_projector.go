@@ -37,6 +37,7 @@ func (p *CapabilityProjector) ProjectEvent(ctx context.Context, eventType string
 		"CapabilityUpdated":         p.handleCapabilityUpdated,
 		"CapabilityMetadataUpdated": p.handleCapabilityMetadataUpdated,
 		"CapabilityExpertAdded":     p.handleCapabilityExpertAdded,
+		"CapabilityExpertRemoved":   p.handleCapabilityExpertRemoved,
 		"CapabilityTagAdded":        p.handleCapabilityTagAdded,
 		"CapabilityParentChanged":   p.handleCapabilityParentChanged,
 		"CapabilityDeleted":         p.handleCapabilityDeleted,
@@ -123,6 +124,20 @@ func (p *CapabilityProjector) handleCapabilityExpertAdded(ctx context.Context, e
 		Role:         event.ExpertRole,
 		Contact:      event.ContactInfo,
 		AddedAt:      event.AddedAt,
+	})
+}
+
+func (p *CapabilityProjector) handleCapabilityExpertRemoved(ctx context.Context, eventData []byte) error {
+	var event events.CapabilityExpertRemoved
+	if err := json.Unmarshal(eventData, &event); err != nil {
+		log.Printf("Failed to unmarshal CapabilityExpertRemoved event: %v", err)
+		return err
+	}
+	return p.readModel.RemoveExpert(ctx, readmodels.ExpertInfo{
+		CapabilityID: event.CapabilityID,
+		Name:         event.ExpertName,
+		Role:         event.ExpertRole,
+		Contact:      event.ContactInfo,
 	})
 }
 

@@ -42,10 +42,11 @@ type CapabilityDTO struct {
 }
 
 type ExpertDTO struct {
-	Name    string    `json:"name"`
-	Role    string    `json:"role"`
-	Contact string    `json:"contact"`
-	AddedAt time.Time `json:"addedAt"`
+	Name    string      `json:"name"`
+	Role    string      `json:"role"`
+	Contact string      `json:"contact"`
+	AddedAt time.Time   `json:"addedAt"`
+	Links   types.Links `json:"_links,omitempty"`
 }
 
 type CapabilityMetadataUpdate struct {
@@ -123,6 +124,48 @@ func (rm *CapabilityReadModel) AddExpert(ctx context.Context, info ExpertInfo) e
 		info.CapabilityID, tenantID.Value(), info.Name, info.Role, info.Contact, info.AddedAt,
 	)
 	return err
+}
+
+func (rm *CapabilityReadModel) RemoveExpert(ctx context.Context, info ExpertInfo) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"DELETE FROM capability_experts WHERE tenant_id = $1 AND capability_id = $2 AND expert_name = $3 AND expert_role = $4 AND contact_info = $5",
+		tenantID.Value(), info.CapabilityID, info.Name, info.Role, info.Contact,
+	)
+	return err
+}
+
+func (rm *CapabilityReadModel) GetDistinctExpertRoles(ctx context.Context) ([]string, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var roles []string
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx,
+			"SELECT DISTINCT expert_role FROM capability_experts WHERE tenant_id = $1 ORDER BY expert_role",
+			tenantID.Value(),
+		)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var role string
+			if err := rows.Scan(&role); err != nil {
+				return err
+			}
+			roles = append(roles, role)
+		}
+		return rows.Err()
+	})
+	return roles, err
 }
 
 func (rm *CapabilityReadModel) AddTag(ctx context.Context, capabilityID, tag string, addedAt time.Time) error {
