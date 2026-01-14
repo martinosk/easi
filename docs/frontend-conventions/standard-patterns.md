@@ -2,208 +2,100 @@
 
 ## HATEOAS-Driven UI
 
-The frontend follows a HATEOAS driven approach where the backend controls what actions are available to users through hypermedia links in API responses.
-
-### Core Principle
-
-**Never hardcode action availability in the frontend.** The backend is the single source of truth for what a user can do with a resource. The frontend simply renders UI controls based on the presence or absence of HATEOAS links.
+**Never hardcode action availability.** The backend controls what actions are available through `_links` in API responses.
 
 ### Link Structure
 
-API responses include a `_links` object with available actions:
-
 ```typescript
-interface HATEOASLink {
-  href: string;
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-}
-
 interface HATEOASLinks {
-  self?: HATEOASLink;
-  edit?: HATEOASLink;
-  delete?: HATEOASLink;
-  collection?: HATEOASLink;
-  [key: string]: HATEOASLink | undefined;
+  self?: { href: string; method: string };
+  edit?: { href: string; method: string };
+  delete?: { href: string; method: string };
+  [key: string]: { href: string; method: string } | undefined;
 }
 ```
 
-### HATEOAS Utility Functions
+### Utilities
 
-Use the utility functions from `src/utils/hateoas.ts`:
+Use helpers from `src/utils/hateoas.ts`:
 
 ```typescript
-import { hasLink, getLink, canEdit, canDelete } from '../utils/hateoas';
+import { hasLink, canEdit, canDelete } from '../utils/hateoas';
 
-// Check if an action is available
-if (hasLink(resource, 'edit')) {
-  // Show edit button
-}
-
-// Get the URL for an action
-const editUrl = getLink(resource, 'edit');
-
-// Convenience helpers
-if (canEdit(resource)) { /* ... */ }
-if (canDelete(resource)) { /* ... */ }
+if (canEdit(resource)) { /* show edit button */ }
 ```
 
-### Standard Link Relations
+### Standard Relations
 
-| Relation | Purpose | HTTP Method |
-|----------|---------|-------------|
-| `self` | Current resource URL | GET |
-| `edit` | Update the resource | PUT |
-| `delete` | Delete the resource | DELETE |
-| `collection` | Parent collection | GET |
-| `create` | Create a new child resource | POST |
-| `up` | Parent resource (hierarchy) | GET |
+| Relation | Purpose | Custom Relations |
+|----------|---------|------------------|
+| `self` | Current resource | `x-children` |
+| `edit` | Update resource | `x-remove` |
+| `delete` | Delete resource | `x-create-link` |
+| `collection` | Parent collection | |
 
-### Custom Link Relations
-
-Custom relations are prefixed with `x-`:
-
-| Relation | Purpose |
-|----------|---------|
-| `x-children` | Child resources |
-| `x-remove` | Remove from a relationship |
-| `x-create-link` | Create a link/association |
-
-### Conditional UI Rendering
-
-Always gate UI actions on link presence:
+### Conditional Rendering
 
 ```tsx
-// CORRECT - UI controlled by backend
-function ResourceCard({ resource }: { resource: Resource }) {
-  const canEditResource = resource._links?.edit !== undefined;
-  const canDeleteResource = resource._links?.delete !== undefined;
+// CORRECT - gate on link presence
+{resource._links?.edit && <button onClick={handleEdit}>Edit</button>}
 
-  return (
-    <div>
-      <h3>{resource.name}</h3>
-      {canEditResource && (
-        <button onClick={handleEdit}>Edit</button>
-      )}
-      {canDeleteResource && (
-        <button onClick={handleDelete}>Delete</button>
-      )}
-    </div>
-  );
-}
-
-// INCORRECT - Hardcoded permission logic
-function ResourceCard({ resource, userRole }: Props) {
-  // DON'T DO THIS - duplicates backend logic
-  const canEdit = userRole === 'admin' || resource.ownerId === currentUserId;
-  // ...
-}
-```
-
-### Drag and Drop with HATEOAS
-
-For drag-and-drop operations, check the appropriate link before accepting:
-
-```tsx
-function DropTarget({ target, onDrop }: Props) {
-  const canAcceptDrop = target._links?.['x-create-link'] !== undefined;
-
-  const handleDragOver = (e: React.DragEvent) => {
-    if (!canAcceptDrop) return;
-    e.preventDefault();
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    if (!canAcceptDrop) return;
-    e.preventDefault();
-    onDrop(/* ... */);
-  };
-
-  return (
-    <div
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-      style={{ opacity: canAcceptDrop ? 1 : 0.5 }}
-    >
-      {/* ... */}
-    </div>
-  );
-}
-```
-
-### API Calls Using Links
-
-When making API calls, prefer using the href from links:
-
-```typescript
-// CORRECT - Use the link href
-async function updateResource(resource: Resource, data: UpdateData) {
-  const editLink = resource._links?.edit;
-  if (!editLink) throw new Error('Edit not permitted');
-
-  return fetch(editLink.href, {
-    method: editLink.method,
-    body: JSON.stringify(data),
-  });
-}
-
-// ACCEPTABLE - Construct URL when link not available
-async function fetchResource(id: string) {
-  return fetch(`/api/v1/resources/${id}`);
-}
+// WRONG - hardcoded logic
+{userRole === 'admin' && <button>Edit</button>}
 ```
 
 ### Type Definitions
-
-Resource types should include `_links`:
 
 ```typescript
 interface Capability {
   id: CapabilityId;
   name: string;
-  description?: string;
-  _links: HATEOASLinks;  // Required for resources
-}
-
-interface ViewCapability {
-  capabilityId: CapabilityId;
-  x: number;
-  y: number;
-  _links?: HATEOASLinks;  // Optional for embedded resources
+  _links: HATEOASLinks;  // Required
 }
 ```
 
-### Testing HATEOAS Behavior
+---
 
-Test that UI correctly responds to link presence/absence:
+## Cache Invalidation & Mutations
 
-```typescript
-describe('CapabilityDetails', () => {
-  it('shows edit button when edit link is present', () => {
-    const capability = {
-      id: '123',
-      name: 'Test',
-      _links: {
-        self: { href: '/api/v1/capabilities/123', method: 'GET' },
-        edit: { href: '/api/v1/capabilities/123', method: 'PUT' },
-      },
-    };
+TanStack Query with centralized cache invalidation.
 
-    render(<CapabilityDetails capability={capability} />);
-    expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument();
-  });
+### Key Files
 
-  it('hides edit button when edit link is absent', () => {
-    const capability = {
-      id: '123',
-      name: 'Test',
-      _links: {
-        self: { href: '/api/v1/capabilities/123', method: 'GET' },
-        // No edit link
-      },
-    };
+| File | Purpose |
+|------|---------|
+| `src/lib/queryClient.ts` | QueryClient config (5min stale, 30min gc) |
+| `src/lib/queryKeys.ts` | Hierarchical query key definitions |
+| `src/lib/mutationEffects.ts` | Cache invalidation rules per mutation |
+| `src/lib/invalidateFor.ts` | Helper to invalidate multiple keys |
 
-    render(<CapabilityDetails capability={capability} />);
-    expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
-  });
-});
-```
+### Patterns
+
+1. **Query keys** are hierarchical: `all` → `lists()` → `detail(id)`. Add new domains to `queryKeys.ts`.
+
+2. **Mutation effects** define which queries to invalidate per mutation type. Add new effects to `mutationEffects.ts`.
+
+3. **Mutation hooks** follow the pattern: call API → `invalidateFor(queryClient, mutationEffects.x.y())` → show toast.
+
+4. **Conditional queries** use `enabled: !!dependency` to wait for required data.
+
+5. **Static metadata** uses `staleTime: Infinity`.
+
+6. **Optimistic updates** are avoided for domain state. Always wait for server confirmation.
+
+### Reference Implementation
+
+See `src/features/components/hooks/useComponents.ts` for the standard patterns.
+
+---
+
+## Quick Reference
+
+| Aspect | Pattern |
+|--------|---------|
+| Action availability | Check `_links` presence, never hardcode |
+| Query keys | Hierarchical: `all` → `lists()` → `detail(id)` |
+| Cache invalidation | Centralized in `mutationEffects` |
+| Mutation structure | `mutationFn` → `invalidateFor` → `toast` |
+| Static data | `staleTime: Infinity` |
+| Optimistic updates | Avoid for domain state |
