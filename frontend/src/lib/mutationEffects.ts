@@ -12,6 +12,20 @@ import { queryKeys } from './queryClient';
  * ```
  */
 export const mutationEffects = {
+  imports: {
+    /**
+     * Invalidates queries after a completed import to refresh all imported data.
+     * Covers capabilities, components, business domains, and realizations.
+     */
+    completed: () => [
+      queryKeys.capabilities.lists(),
+      queryKeys.capabilities.realizationsByComponents(),
+      queryKeys.components.lists(),
+      queryKeys.businessDomains.lists(),
+      queryKeys.maturityAnalysis.unlinked(),
+    ],
+  },
+
   components: {
     /**
      * Invalidates queries after creating a component.
@@ -47,6 +61,7 @@ export const mutationEffects = {
     addExpert: (componentId: string) => [
       queryKeys.components.detail(componentId),
       queryKeys.components.lists(),
+      queryKeys.components.expertRoles(),
       queryKeys.audit.history(componentId),
     ],
 
@@ -57,6 +72,7 @@ export const mutationEffects = {
     removeExpert: (componentId: string) => [
       queryKeys.components.detail(componentId),
       queryKeys.components.lists(),
+      queryKeys.components.expertRoles(),
       queryKeys.audit.history(componentId),
     ],
   },
@@ -229,6 +245,7 @@ export const mutationEffects = {
     addExpert: (capabilityId: string) => [
       queryKeys.capabilities.detail(capabilityId),
       queryKeys.capabilities.lists(),
+      queryKeys.capabilities.expertRoles(),
       queryKeys.audit.history(capabilityId),
     ],
 
@@ -239,6 +256,7 @@ export const mutationEffects = {
     removeExpert: (capabilityId: string) => [
       queryKeys.capabilities.detail(capabilityId),
       queryKeys.capabilities.lists(),
+      queryKeys.capabilities.expertRoles(),
       queryKeys.audit.history(capabilityId),
     ],
 

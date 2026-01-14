@@ -15,6 +15,10 @@ vi.mock('../hooks/useComponents', () => ({
     mutateAsync: mockMutateAsync,
     isPending: false,
   }),
+  useComponent: () => ({
+    data: undefined,
+    isLoading: false,
+  }),
   useAddComponentExpert: () => ({
     mutateAsync: mockAddExpertMutate,
     mutate: mockAddExpertMutate,

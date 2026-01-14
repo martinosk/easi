@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { httpClient } from '../../../api/core/httpClient';
+import { invalidateFor } from '../../../lib/invalidateFor';
+import { mutationEffects } from '../../../lib/mutationEffects';
 import type { ImportSession, CreateImportSessionRequest, ImportSessionId } from '../types';
 
 interface UseImportSessionReturn {
@@ -15,6 +18,7 @@ interface UseImportSessionReturn {
 const POLL_INTERVAL = 2000;
 
 export function useImportSession(): UseImportSessionReturn {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<ImportSession | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,13 +46,16 @@ export function useImportSession(): UseImportSessionReturn {
         pollTimerRef.current = setTimeout(() => pollSession(sessionId), POLL_INTERVAL);
       } else {
         stopPolling();
+        if (response.data.status === 'completed') {
+          invalidateFor(queryClient, mutationEffects.imports.completed());
+        }
       }
     } catch (err) {
       if (!isMountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Failed to fetch session status');
       stopPolling();
     }
-  }, [stopPolling]);
+  }, [stopPolling, queryClient]);
 
   const createSession = async (request: CreateImportSessionRequest): Promise<void> => {
     setIsLoading(true);
@@ -60,6 +67,9 @@ export function useImportSession(): UseImportSessionReturn {
       formData.append('sourceFormat', request.sourceFormat);
       if (request.businessDomainId) {
         formData.append('businessDomainId', request.businessDomainId);
+      }
+      if (request.capabilityEAOwner) {
+        formData.append('capabilityEAOwner', request.capabilityEAOwner);
       }
 
       const response = await httpClient.post<ImportSession>('/api/v1/imports', formData, {

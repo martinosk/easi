@@ -49,22 +49,24 @@ type ImportResult struct {
 
 type ImportSession struct {
 	domain.AggregateRoot
-	id               valueobjects.ImportSessionID
-	sourceFormat     valueobjects.SourceFormat
-	businessDomainID string
-	status           valueobjects.ImportStatus
-	preview          valueobjects.ImportPreview
-	progress         valueobjects.ImportProgress
-	parsedData       ParsedData
-	result           ImportResult
-	createdAt        time.Time
-	completedAt      *time.Time
-	isCancelled      bool
+	id                valueobjects.ImportSessionID
+	sourceFormat      valueobjects.SourceFormat
+	businessDomainID  string
+	capabilityEAOwner string
+	status            valueobjects.ImportStatus
+	preview           valueobjects.ImportPreview
+	progress          valueobjects.ImportProgress
+	parsedData        ParsedData
+	result            ImportResult
+	createdAt         time.Time
+	completedAt       *time.Time
+	isCancelled       bool
 }
 
 func NewImportSession(
 	sourceFormat valueobjects.SourceFormat,
 	businessDomainID string,
+	capabilityEAOwner string,
 	preview valueobjects.ImportPreview,
 	parsedData ParsedData,
 ) (*ImportSession, error) {
@@ -96,6 +98,7 @@ func NewImportSession(
 		session.id.Value(),
 		sourceFormat.Value(),
 		businessDomainID,
+		capabilityEAOwner,
 		previewMap,
 		parsedDataMap,
 	)
@@ -116,6 +119,10 @@ func (s *ImportSession) SourceFormat() valueobjects.SourceFormat {
 
 func (s *ImportSession) BusinessDomainID() string {
 	return s.businessDomainID
+}
+
+func (s *ImportSession) CapabilityEAOwner() string {
+	return s.capabilityEAOwner
 }
 
 func (s *ImportSession) Status() valueobjects.ImportStatus {
@@ -238,6 +245,7 @@ func (s *ImportSession) apply(event domain.DomainEvent) {
 		s.id, _ = valueobjects.NewImportSessionIDFromString(e.ID)
 		s.sourceFormat, _ = valueobjects.NewSourceFormat(e.SourceFormat)
 		s.businessDomainID = e.BusinessDomainID
+		s.capabilityEAOwner = e.CapabilityEAOwner
 		s.status = valueobjects.ImportStatusPending()
 		s.preview = deserializePreview(e.Preview)
 		s.parsedData = deserializeParsedData(e.ParsedData)

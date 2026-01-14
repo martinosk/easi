@@ -216,7 +216,7 @@ func createTestSession(t *testing.T, parsedData aggregates.ParsedData) *aggregat
 		valueobjects.UnsupportedCounts{},
 	)
 
-	session, err := aggregates.NewImportSession(sourceFormat, "", preview, parsedData)
+	session, err := aggregates.NewImportSession(sourceFormat, "", "", preview, parsedData)
 	if err != nil {
 		t.Fatalf("failed to create test session: %v", err)
 	}

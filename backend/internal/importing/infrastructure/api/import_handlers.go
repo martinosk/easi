@@ -17,9 +17,19 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-const (
-	maxFileSize = 50 << 20
-)
+const maxFileSize = 50 << 20
+
+func isValidXMLContentType(contentType string) bool {
+	return contentType == "" || strings.Contains(contentType, "xml") || strings.Contains(contentType, "application/octet-stream")
+}
+
+func isFileTooLarge(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "request body too large")
+}
+
+func hasXMLExtension(filename string) bool {
+	return strings.HasSuffix(strings.ToLower(filename), ".xml")
+}
 
 type ImportHandlers struct {
 	commandBus cqrs.CommandBus
@@ -47,6 +57,7 @@ func NewImportHandlers(
 // @Param file formData file true "ArchiMate XML file"
 // @Param sourceFormat formData string true "Source format (e.g., 'archimate')"
 // @Param businessDomainId formData string false "Target business domain ID"
+// @Param capabilityEAOwner formData string false "EA Owner user ID to assign to all imported capabilities"
 // @Success 201 {object} readmodels.ImportSessionDTO "Import session created"
 // @Failure 400 {object} sharedAPI.ErrorResponse "Invalid request or missing required fields"
 // @Failure 413 {object} sharedAPI.ErrorResponse "File exceeds maximum size"
@@ -56,7 +67,7 @@ func NewImportHandlers(
 // @Router /imports [post]
 func (h *ImportHandlers) CreateImportSession(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(maxFileSize); err != nil {
-		if strings.Contains(err.Error(), "request body too large") {
+		if isFileTooLarge(err) {
 			sharedAPI.RespondError(w, http.StatusRequestEntityTooLarge, err, "File exceeds maximum size of 50MB")
 			return
 		}
@@ -76,6 +87,7 @@ func (h *ImportHandlers) CreateImportSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	businessDomainID := r.FormValue("businessDomainId")
+	capabilityEAOwner := r.FormValue("capabilityEAOwner")
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
@@ -84,13 +96,12 @@ func (h *ImportHandlers) CreateImportSession(w http.ResponseWriter, r *http.Requ
 	}
 	defer file.Close()
 
-	if !strings.HasSuffix(strings.ToLower(header.Filename), ".xml") {
+	if !hasXMLExtension(header.Filename) {
 		sharedAPI.RespondError(w, http.StatusUnsupportedMediaType, nil, "File must be an XML file")
 		return
 	}
 
-	contentType := header.Header.Get("Content-Type")
-	if contentType != "" && !strings.Contains(contentType, "xml") && !strings.Contains(contentType, "application/octet-stream") {
+	if !isValidXMLContentType(header.Header.Get("Content-Type")) {
 		sharedAPI.RespondError(w, http.StatusUnsupportedMediaType, nil, "File must be an XML file")
 		return
 	}
@@ -102,9 +113,10 @@ func (h *ImportHandlers) CreateImportSession(w http.ResponseWriter, r *http.Requ
 	}
 
 	cmd := &commands.CreateImportSession{
-		SourceFormat:     sourceFormat,
-		BusinessDomainID: businessDomainID,
-		ParseResult:      parseResult,
+		SourceFormat:      sourceFormat,
+		BusinessDomainID:  businessDomainID,
+		CapabilityEAOwner: capabilityEAOwner,
+		ParseResult:       parseResult,
 	}
 
 	result, err := h.commandBus.Dispatch(r.Context(), cmd)

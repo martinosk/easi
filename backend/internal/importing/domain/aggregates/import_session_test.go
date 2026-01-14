@@ -16,7 +16,7 @@ func TestNewImportSession(t *testing.T) {
 		Capabilities: []ParsedElement{{SourceID: "cap-1", Name: "Cap 1"}},
 	}
 
-	session, err := NewImportSession(sourceFormat, "", preview, parsedData)
+	session, err := NewImportSession(sourceFormat, "", "", preview, parsedData)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -180,7 +180,7 @@ func TestImportSession_BusinessDomainID(t *testing.T) {
 	)
 	parsedData := ParsedData{}
 
-	session, _ := NewImportSession(sourceFormat, "domain-123", preview, parsedData)
+	session, _ := NewImportSession(sourceFormat, "domain-123", "", preview, parsedData)
 
 	if session.BusinessDomainID() != "domain-123" {
 		t.Errorf("expected 'domain-123', got %q", session.BusinessDomainID())
@@ -198,7 +198,7 @@ func createTestSession(t *testing.T) *ImportSession {
 		Capabilities: []ParsedElement{{SourceID: "cap-1", Name: "Cap 1"}},
 	}
 
-	session, err := NewImportSession(sourceFormat, "", preview, parsedData)
+	session, err := NewImportSession(sourceFormat, "", "", preview, parsedData)
 	if err != nil {
 		t.Fatalf("failed to create test session: %v", err)
 	}

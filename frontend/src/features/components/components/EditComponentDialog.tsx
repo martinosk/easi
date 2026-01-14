@@ -3,12 +3,13 @@ import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantin
 import { useForm } from 'react-hook-form';
 import type { UseFormRegister, FieldErrors, UseFormReset } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useUpdateComponent } from '../hooks/useComponents';
+import { useUpdateComponent, useComponent } from '../hooks/useComponents';
 import { editComponentSchema, type EditComponentFormData } from '../../../lib/schemas';
 import { hasLink } from '../../../utils/hateoas';
 import type { Component } from '../../../api/types';
 import { ComponentExpertsList } from './ComponentExpertsList';
 import { AddComponentExpertDialog } from './AddComponentExpertDialog';
+import { toComponentId } from '../../../api/types';
 
 interface EditComponentDialogProps {
   isOpen: boolean;
@@ -80,11 +81,15 @@ function useFormReset(
 export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
   isOpen,
   onClose,
-  component,
+  component: componentProp,
 }) => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const [isAddExpertOpen, setIsAddExpertOpen] = useState(false);
   const updateComponentMutation = useUpdateComponent();
+
+  const componentId = componentProp?.id ? toComponentId(componentProp.id) : undefined;
+  const { data: freshComponent } = useComponent(componentId);
+  const component = freshComponent ?? componentProp;
 
   const { register, handleSubmit, reset, formState: { errors, isValid } } = useForm<EditComponentFormData>({
     resolver: zodResolver(editComponentSchema),
@@ -92,7 +97,7 @@ export const EditComponentDialog: React.FC<EditComponentDialogProps> = ({
     mode: 'onChange',
   });
 
-  useFormReset(isOpen, component, reset, setBackendError);
+  useFormReset(isOpen, componentProp, reset, setBackendError);
 
   const onSubmit = useCallback(async (data: EditComponentFormData) => {
     if (!component) return setBackendError('No application selected');

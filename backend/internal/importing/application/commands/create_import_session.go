@@ -6,9 +6,10 @@ import (
 )
 
 type CreateImportSession struct {
-	SourceFormat     string
-	BusinessDomainID string
-	ParseResult      *parsers.ParseResult
+	SourceFormat      string
+	BusinessDomainID  string
+	CapabilityEAOwner string
+	ParseResult       *parsers.ParseResult
 }
 
 func (c CreateImportSession) CommandName() string {

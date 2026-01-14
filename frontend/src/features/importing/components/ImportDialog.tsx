@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ImportUploadStep } from './ImportUploadStep';
 import { ImportPreviewStep } from './ImportPreviewStep';
 import { ImportProgressStep } from './ImportProgressStep';
 import { ImportResultsStep } from './ImportResultsStep';
 import { useImportSession } from '../hooks/useImportSession';
+import { useEAOwnerCandidates } from '../../users/hooks/useUsers';
 import type { BusinessDomain } from '../../../api/types';
 
 interface ImportDialogProps {
@@ -31,6 +32,14 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({
     cancelSession,
     reset,
   } = useImportSession();
+
+  const { data: eaOwnerCandidates = [] } = useEAOwnerCandidates();
+
+  const eaOwnerName = useMemo(() => {
+    if (!session?.capabilityEAOwner) return undefined;
+    const user = eaOwnerCandidates.find((u) => u.id === session.capabilityEAOwner);
+    return user?.name || user?.email;
+  }, [session?.capabilityEAOwner, eaOwnerCandidates]);
 
   const handleBackdropClick = useCallback((e: React.MouseEvent<HTMLDialogElement>) => {
     if (e.target === dialogRef.current) {
@@ -72,11 +81,12 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({
     }
   }, [session]);
 
-  const handleUpload = async (file: File, businessDomainId?: string) => {
+  const handleUpload = async (file: File, businessDomainId?: string, capabilityEAOwner?: string) => {
     await createSession({
       file,
       sourceFormat: 'archimate-openexchange',
       businessDomainId,
+      capabilityEAOwner,
     });
   };
 
@@ -97,42 +107,42 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({
     onClose();
   };
 
-  const renderStep = () => {
-    switch (currentStep) {
-      case 'upload':
-        return (
-          <ImportUploadStep
-            businessDomains={businessDomains}
-            isLoading={isLoading}
-            error={error}
-            onUpload={handleUpload}
-            onCancel={handleCancel}
-          />
-        );
+  const renderUploadStep = () => (
+    <ImportUploadStep
+      businessDomains={businessDomains}
+      eaOwnerCandidates={eaOwnerCandidates}
+      isLoading={isLoading}
+      error={error}
+      onUpload={handleUpload}
+      onCancel={handleCancel}
+    />
+  );
 
-      case 'preview':
-        if (!session?.preview) return null;
-        return (
-          <ImportPreviewStep
-            preview={session.preview}
-            onConfirm={handleConfirm}
-            onCancel={handleCancel}
-            isLoading={isLoading}
-          />
-        );
+  const renderPreviewStep = () =>
+    session?.preview && (
+      <ImportPreviewStep
+        preview={session.preview}
+        eaOwnerName={eaOwnerName}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+        isLoading={isLoading}
+      />
+    );
 
-      case 'progress':
-        if (!session?.progress) return null;
-        return <ImportProgressStep progress={session.progress} />;
+  const renderProgressStep = () =>
+    session?.progress && <ImportProgressStep progress={session.progress} />;
 
-      case 'results':
-        if (!session?.result) return null;
-        return <ImportResultsStep result={session.result} onClose={handleClose} />;
+  const renderResultsStep = () =>
+    session?.result && <ImportResultsStep result={session.result} onClose={handleClose} />;
 
-      default:
-        return null;
-    }
+  const stepRenderers: Record<ImportStep, () => React.ReactNode> = {
+    upload: renderUploadStep,
+    preview: renderPreviewStep,
+    progress: renderProgressStep,
+    results: renderResultsStep,
   };
+
+  const renderStep = () => stepRenderers[currentStep]?.() ?? null;
 
   return (
     <dialog
