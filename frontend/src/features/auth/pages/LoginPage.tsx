@@ -1,26 +1,45 @@
-import { useState, useEffect, type FormEvent, type FC } from 'react';
+import { useState, useEffect, useMemo, type FormEvent, type FC } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { authApi } from '../api/authApi';
 import { resetLoginRedirectFlag } from '../../../api';
 
-function isValidRedirectUrl(url: string): boolean {
+function getReturnUrlFromParams(searchParams: URLSearchParams): string | undefined {
+  return searchParams.get('returnUrl') ?? undefined;
+}
+
+function isExternalHttps(url: URL): boolean {
+  return url.protocol === 'https:' && url.origin !== window.location.origin;
+}
+
+function isDevLocalhost(url: URL): boolean {
+  if (!import.meta.env.DEV) return false;
+  if (url.protocol !== 'http:') return false;
+  return url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+}
+
+function isAllowedAuthorizeUrl(url: URL): boolean {
+  return isExternalHttps(url) || isDevLocalhost(url);
+}
+
+function sanitizeAuthorizeUrl(untrustedUrl: string): string | null {
+  let parsed: URL;
   try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-      return false;
-    }
-    if (parsed.protocol === 'http:' && parsed.hostname !== 'localhost' && parsed.hostname !== '127.0.0.1') {
-      return false;
-    }
-    return true;
+    parsed = new URL(untrustedUrl);
   } catch {
-    return false;
+    return null;
   }
+  if (isAllowedAuthorizeUrl(parsed)) {
+    return parsed.href;
+  }
+  return null;
 }
 
 export const LoginPage: FC = () => {
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const returnUrl = useMemo(() => getReturnUrlFromParams(searchParams), [searchParams]);
 
   useEffect(() => {
     resetLoginRedirectFlag();
@@ -38,14 +57,14 @@ export const LoginPage: FC = () => {
     setError(null);
 
     try {
-      const response = await authApi.initiateLogin(email);
-      const authorizeUrl = response._links.authorize;
-      if (!isValidRedirectUrl(authorizeUrl)) {
+      const response = await authApi.initiateLogin(email, returnUrl);
+      const sanitizedUrl = sanitizeAuthorizeUrl(response._links.authorize);
+      if (sanitizedUrl === null) {
         setLoading(false);
         setError('Invalid authorization URL received');
         return;
       }
-      window.location.href = authorizeUrl;
+      window.location.href = sanitizedUrl;
     } catch (err) {
       setLoading(false);
       if (err instanceof Error) {

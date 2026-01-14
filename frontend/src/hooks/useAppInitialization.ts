@@ -2,26 +2,55 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useViews, useCreateView } from '../features/views/hooks/useViews';
 import { useAppStore } from '../store/appStore';
-import type { View } from '../api/types';
+import type { View, ViewId } from '../api/types';
+import { toViewId } from '../api/types';
 import toast from 'react-hot-toast';
 import { queryKeys } from '../lib/queryClient';
 import { metadataApi } from '../api/metadata';
+import { getParamValue, clearParams, deepLinkParams } from '../lib/deepLinks';
 
 function findDefaultView(views: View[]): View {
   return views.find(v => v.isDefault) ?? views[0];
 }
 
-function shouldSkipInitialization(
+function resolveViewFromDeepLink(views: View[], setCurrentViewId: (id: ViewId) => void): void {
+  const viewIdFromUrl = getParamValue(deepLinkParams.VIEW.param);
+  if (!viewIdFromUrl) {
+    setCurrentViewId(findDefaultView(views).id);
+    return;
+  }
+
+  const linkedView = views.find(v => v.id === toViewId(viewIdFromUrl));
+  if (linkedView) {
+    setCurrentViewId(linkedView.id);
+  } else {
+    toast.error('The linked view does not exist');
+    setCurrentViewId(findDefaultView(views).id);
+  }
+  clearParams([deepLinkParams.VIEW.param]);
+}
+
+function usePrefetchMetadata(): void {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.metadata.maturityScale(),
+      queryFn: () => metadataApi.getMaturityScale(),
+      staleTime: Infinity,
+    });
+  }, [queryClient]);
+}
+
+function canInitialize(
   isInitialized: boolean,
   isLoadingViews: boolean,
   views: View[] | undefined,
   isInitializing: boolean
 ): boolean {
-  return isInitialized || isLoadingViews || !views || isInitializing;
+  return !isInitialized && !isLoadingViews && !!views && !isInitializing;
 }
 
 export function useAppInitialization() {
-  const queryClient = useQueryClient();
   const { data: views, isLoading: isLoadingViews, error: viewsError } = useViews();
   const createViewMutation = useCreateView();
   const setCurrentViewId = useAppStore((state) => state.setCurrentViewId);
@@ -30,13 +59,7 @@ export function useAppInitialization() {
   const isInitialized = useAppStore((state) => state.isInitialized);
   const isInitializingRef = useRef(false);
 
-  useEffect(() => {
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.metadata.maturityScale(),
-      queryFn: () => metadataApi.getMaturityScale(),
-      staleTime: Infinity,
-    });
-  }, [queryClient]);
+  usePrefetchMetadata();
 
   const createDefaultView = useCallback(async () => {
     const newView = await createViewMutation.mutateAsync({
@@ -47,24 +70,18 @@ export function useAppInitialization() {
     toast.success('Created default view');
   }, [createViewMutation, setCurrentViewId]);
 
-  const selectExistingView = useCallback((availableViews: View[]) => {
-    const viewToSelect = findDefaultView(availableViews);
-    setCurrentViewId(viewToSelect.id);
-  }, [setCurrentViewId]);
-
   useEffect(() => {
-    if (shouldSkipInitialization(isInitialized, isLoadingViews, views, isInitializingRef.current)) {
-      return;
-    }
+    if (!canInitialize(isInitialized, isLoadingViews, views, isInitializingRef.current) || !views) return;
 
     isInitializingRef.current = true;
+    const availableViews = views;
 
     const initializeView = async () => {
       try {
-        if (!views || views.length === 0) {
+        if (availableViews.length === 0) {
           await createDefaultView();
         } else {
-          selectExistingView(views);
+          resolveViewFromDeepLink(availableViews, setCurrentViewId);
         }
         setInitialized(true);
         toast.success('Data loaded successfully');
@@ -76,12 +93,10 @@ export function useAppInitialization() {
     };
 
     initializeView();
-  }, [views, isLoadingViews, isInitialized, setInitialized, createDefaultView, selectExistingView]);
-
-  const isLoading = isLoadingViews || (!isInitialized && !viewsError);
+  }, [views, isLoadingViews, isInitialized, setInitialized, createDefaultView, setCurrentViewId]);
 
   return {
-    isLoading,
+    isLoading: isLoadingViews || (!isInitialized && !viewsError),
     error: viewsError,
     isInitialized,
     currentViewId,

@@ -59,7 +59,8 @@ func (h *AuthHandlers) WithLoginService(loginService *services.LoginService) *Au
 }
 
 type PostSessionsRequest struct {
-	Email string `json:"email"`
+	Email     string `json:"email"`
+	ReturnURL string `json:"returnUrl,omitempty"`
 }
 
 type PostSessionsResponse struct {
@@ -91,7 +92,7 @@ func (h *AuthHandlers) PostSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authURL, err := h.initiateOIDCFlow(r, domain, tenantConfig)
+	authURL, err := h.initiateOIDCFlow(r, req.ReturnURL, domain, tenantConfig)
 	if err != nil {
 		h.handleOIDCFlowError(w, err)
 		return
@@ -152,14 +153,14 @@ func (e *oidcFlowError) Error() string {
 	return e.message
 }
 
-func (h *AuthHandlers) initiateOIDCFlow(r *http.Request, domain string, tenantConfig *repositories.TenantOIDCConfig) (string, error) {
+func (h *AuthHandlers) initiateOIDCFlow(r *http.Request, requestReturnURL string, domain string, tenantConfig *repositories.TenantOIDCConfig) (string, error) {
 	provider, err := h.createOIDCProvider(r.Context(), tenantConfig)
 	if err != nil {
 		return "", &oidcFlowError{http.StatusServiceUnavailable, "IdP unavailable", err}
 	}
 
 	tenantID, _ := sharedvo.NewTenantID(tenantConfig.TenantID)
-	returnURL := h.validateReturnURL(r.Header.Get("Origin"))
+	returnURL := h.resolveReturnURL(returnURLRequest{requestURL: requestReturnURL, origin: r.Header.Get("Origin")})
 	preAuth := session.NewPreAuthSession(tenantID, domain, returnURL)
 
 	if err := h.sessionManager.StorePreAuthSession(r.Context(), preAuth); err != nil {
@@ -361,26 +362,58 @@ func isValidEmailParts(parts []string) bool {
 	return len(parts) == 2 && parts[0] != "" && parts[1] != ""
 }
 
-func (h *AuthHandlers) validateReturnURL(origin string) string {
-	if origin == "" {
+type returnURLRequest struct {
+	requestURL string
+	origin     string
+}
+
+func (h *AuthHandlers) resolveReturnURL(req returnURLRequest) string {
+	if req.requestURL != "" {
+		if validated := h.validateReturnURLWithPath(req.requestURL); validated != "" {
+			return validated
+		}
+	}
+	return h.validateOriginAsReturnURL(req.origin)
+}
+
+func (h *AuthHandlers) validateReturnURLWithPath(returnURL string) string {
+	if returnURL == "" {
 		return ""
 	}
+	parsedURL, err := url.Parse(returnURL)
+	if err != nil {
+		return ""
+	}
+	if h.isRelativePath(parsedURL) {
+		return returnURL
+	}
+	origin := parsedURL.Scheme + "://" + parsedURL.Host
 	if !h.isAllowedOrigin(origin) {
+		return ""
+	}
+	return returnURL
+}
+
+func (h *AuthHandlers) isRelativePath(parsedURL *url.URL) bool {
+	if parsedURL.Scheme != "" || parsedURL.Host != "" {
+		return false
+	}
+	return strings.HasPrefix(parsedURL.Path, "/") && !strings.HasPrefix(parsedURL.Path, "//")
+}
+
+func (h *AuthHandlers) validateOriginAsReturnURL(origin string) string {
+	if origin == "" || !h.isAllowedOrigin(origin) {
 		return ""
 	}
 	return origin + "/easi/"
 }
 
-func (h *AuthHandlers) isAllowedOrigin(targetURL string) bool {
-	parsedURL, err := url.Parse(targetURL)
+func (h *AuthHandlers) isAllowedOrigin(origin string) bool {
+	parsedURL, err := url.Parse(origin)
 	if err != nil {
 		return false
 	}
 	targetHost := strings.ToLower(parsedURL.Host)
-	return h.matchesAllowedHost(targetHost)
-}
-
-func (h *AuthHandlers) matchesAllowedHost(targetHost string) bool {
 	for _, allowed := range h.config.AllowedOrigins {
 		allowedURL, err := url.Parse(allowed)
 		if err != nil {
@@ -394,10 +427,28 @@ func (h *AuthHandlers) matchesAllowedHost(targetHost string) bool {
 }
 
 func (h *AuthHandlers) getSafeRedirectURL(returnURL string) string {
-	if returnURL != "" && h.isAllowedOrigin(returnURL) {
+	if returnURL == "" {
+		return h.getDefaultRedirectURL()
+	}
+	parsedURL, err := url.Parse(returnURL)
+	if err != nil {
+		return h.getDefaultRedirectURL()
+	}
+	if h.isRelativePath(parsedURL) {
+		return h.prependFrontendURL(returnURL)
+	}
+	if h.isAllowedOrigin(returnURL) {
 		return returnURL
 	}
 	return h.getDefaultRedirectURL()
+}
+
+func (h *AuthHandlers) prependFrontendURL(relativePath string) string {
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		return relativePath
+	}
+	return strings.TrimSuffix(frontendURL, "/") + relativePath
 }
 
 func (h *AuthHandlers) getDefaultRedirectURL() string {

@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { useBusinessDomains } from './useBusinessDomains';
 import { useDomainCapabilities } from './useDomainCapabilities';
 import { useCapabilityTree } from './useCapabilityTree';
@@ -14,6 +15,7 @@ import { useCapabilityRealizations } from './useCapabilityRealizations';
 import { useCapabilitySelection } from './useCapabilitySelection';
 import { useCapabilityContextMenu } from './useCapabilityContextMenu';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
+import { getParamValue, clearParams, deepLinkParams } from '../../../lib/deepLinks';
 import type { BusinessDomain, Capability, ComponentId } from '../../../api/types';
 
 export function useBusinessDomainsPage() {
@@ -28,6 +30,25 @@ export function useBusinessDomainsPage() {
 
   const { domains, isLoading, error, createDomain, updateDomain, deleteDomain } = useBusinessDomains();
   const { tree, isLoading: treeLoading } = useCapabilityTree();
+  const deepLinkProcessedRef = useRef(false);
+
+  useEffect(() => {
+    if (isLoading || deepLinkProcessedRef.current) return;
+
+    const domainIdFromUrl = getParamValue(deepLinkParams.DOMAIN.param);
+    if (!domainIdFromUrl) return;
+
+    deepLinkProcessedRef.current = true;
+    const linkedDomain = domains.find(d => d.id === domainIdFromUrl);
+
+    if (linkedDomain) {
+      setVisualizedDomain(linkedDomain);
+    } else {
+      toast.error('The linked domain does not exist');
+    }
+
+    clearParams([deepLinkParams.DOMAIN.param]);
+  }, [domains, isLoading]);
 
   const sidebarState = useSidebarState();
 

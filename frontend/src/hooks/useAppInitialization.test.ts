@@ -7,6 +7,8 @@ import { useAppStore } from '../store/appStore';
 import type { View, ViewId } from '../api/types';
 
 const mockCreateViewMutateAsync = vi.fn();
+const mockGetParamValue = vi.fn();
+const mockClearParams = vi.fn();
 
 vi.mock('../features/views/hooks/useViews', () => ({
   useViews: vi.fn(),
@@ -21,6 +23,12 @@ vi.mock('react-hot-toast', () => ({
     success: vi.fn(),
     error: vi.fn(),
   },
+}));
+
+vi.mock('../lib/deepLinks', () => ({
+  getParamValue: (...args: unknown[]) => mockGetParamValue(...args),
+  clearParams: (...args: unknown[]) => mockClearParams(...args),
+  deepLinkParams: { VIEW: { param: 'view', routes: ['*'] } },
 }));
 
 const { useViews } = await import('../features/views/hooks/useViews');
@@ -77,6 +85,7 @@ function renderInitializationHook() {
 describe('useAppInitialization', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetParamValue.mockReturnValue(null);
     useAppStore.setState({
       currentViewId: null,
       isInitialized: false,
@@ -215,6 +224,52 @@ describe('useAppInitialization', () => {
 
       expect(result.current.error).toBe(viewsError);
       expect(result.current.isLoading).toBe(false);
+
+      await act(async () => {
+        unmount();
+      });
+    });
+  });
+
+  describe('view deep linking', () => {
+    it('should select view from URL parameter when valid', async () => {
+      const views = [
+        createMockView({ id: 'view-1' as ViewId, isDefault: true }),
+        createMockView({ id: 'view-linked' as ViewId, isDefault: false }),
+      ];
+      mockGetParamValue.mockReturnValue('view-linked');
+      mockUseViewsReturn({ views });
+
+      const { result, unmount } = renderInitializationHook();
+
+      await waitFor(() => {
+        expect(result.current.isInitialized).toBe(true);
+      });
+
+      expect(useAppStore.getState().currentViewId).toBe('view-linked');
+      expect(mockClearParams).toHaveBeenCalledWith(['view']);
+
+      await act(async () => {
+        unmount();
+      });
+    });
+
+    it('should show error and fall back to default when view ID is invalid', async () => {
+      const views = [
+        createMockView({ id: 'view-default' as ViewId, isDefault: true }),
+      ];
+      mockGetParamValue.mockReturnValue('non-existent-view');
+      mockUseViewsReturn({ views });
+
+      const { result, unmount } = renderInitializationHook();
+
+      await waitFor(() => {
+        expect(result.current.isInitialized).toBe(true);
+      });
+
+      expect(mockToast.error).toHaveBeenCalledWith('The linked view does not exist');
+      expect(useAppStore.getState().currentViewId).toBe('view-default');
+      expect(mockClearParams).toHaveBeenCalledWith(['view']);
 
       await act(async () => {
         unmount();
