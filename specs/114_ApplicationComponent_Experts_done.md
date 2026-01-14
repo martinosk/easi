@@ -120,4 +120,4 @@ Experts are included in component details via `GET /components/{id}`.
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] API Documentation updated in OpenAPI specification
-- [ ] User sign-off
+- [x] User sign-off
