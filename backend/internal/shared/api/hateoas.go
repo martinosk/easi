@@ -42,15 +42,25 @@ func (h *HATEOASLinks) ComponentLinks(id string) Links {
 func (h *HATEOASLinks) ComponentLinksForActor(id string, actor sharedctx.Actor) Links {
 	p := "/components/" + id
 	links := Links{
-		"self":        h.get(p),
-		"describedby": h.get("/reference/components"),
-		"collection":  h.get("/components"),
+		"self":           h.get(p),
+		"describedby":    h.get("/reference/components"),
+		"collection":     h.get("/components"),
+		"x-expert-roles": h.get("/components/expert-roles"),
 	}
 	if actor.CanWrite("components") {
 		links["edit"] = h.put(p)
+		links["x-add-expert"] = h.post(p + "/experts")
 	}
 	if actor.CanDelete("components") {
 		links["delete"] = h.del(p)
+	}
+	return links
+}
+
+func (h *HATEOASLinks) ComponentExpertLinksForActor(componentID, expertName string, actor sharedctx.Actor) Links {
+	links := Links{}
+	if actor.CanDelete("components") {
+		links["x-remove"] = h.del("/components/" + componentID + "/experts/" + expertName)
 	}
 	return links
 }

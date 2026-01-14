@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"easi/backend/internal/architecturemodeling/domain/aggregates"
+	"easi/backend/internal/architecturemodeling/domain/entities"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	domain "easi/backend/internal/shared/eventsourcing"
 
@@ -75,10 +76,15 @@ func TestApplicationComponentDeserializers_AllEventsCanBeDeserialized(t *testing
 	newDescription := valueobjects.MustNewDescription("Updated description")
 	_ = component.Update(newName, newDescription)
 
+	expert, _ := entities.NewExpert("Alice Smith", "Product Owner", "alice@example.com")
+	_ = component.AddExpert(expert)
+
+	_ = component.RemoveExpert("Alice Smith")
+
 	_ = component.Delete()
 
 	events := component.GetUncommittedChanges()
-	require.Len(t, events, 3, "Expected 3 events: Created, Updated, Deleted")
+	require.Len(t, events, 5, "Expected 5 events: Created, Updated, ExpertAdded, ExpertRemoved, Deleted")
 
 	storedEvents := simulateComponentEventStoreRoundTrip(t, events)
 	deserializedEvents, err := componentEventDeserializers.Deserialize(storedEvents)
