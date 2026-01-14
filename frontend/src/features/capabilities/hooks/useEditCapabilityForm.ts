@@ -8,7 +8,7 @@ import {
 } from './useCapabilities';
 import { useStatuses, useOwnershipModels } from '../../../hooks/useMetadata';
 import { useMaturityScale } from '../../../hooks/useMaturityScale';
-import { useActiveUsers } from '../../users/hooks/useUsers';
+import { useEAOwnerCandidates } from '../../users/hooks/useUsers';
 import { editCapabilitySchema, type EditCapabilityFormData } from '../../../lib/schemas';
 import type { Capability } from '../../../api/types';
 import { deriveLegacyMaturityValue, getDefaultSections, getMaturityBounds } from '../../../utils/maturity';
@@ -87,7 +87,7 @@ export function useEditCapabilityForm(
   const { data: maturityScale } = useMaturityScale();
   const { data: statusesData, isLoading: isLoadingStatuses } = useStatuses();
   const { data: ownershipModelsData, isLoading: isLoadingOwnershipModels } = useOwnershipModels();
-  const { data: usersData, isLoading: isLoadingUsers } = useActiveUsers();
+  const { data: usersData, isLoading: isLoadingUsers } = useEAOwnerCandidates();
   const { data: capabilities = [] } = useCapabilities();
 
   const updateCapabilityMutation = useUpdateCapability();
