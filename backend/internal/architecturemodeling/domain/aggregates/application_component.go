@@ -1,12 +1,17 @@
 package aggregates
 
 import (
+	"errors"
 	"time"
 
 	"easi/backend/internal/architecturemodeling/domain/entities"
 	"easi/backend/internal/architecturemodeling/domain/events"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	domain "easi/backend/internal/shared/eventsourcing"
+)
+
+var (
+	ErrDuplicateExpert = errors.New("this exact expert entry already exists on this component")
 )
 
 // ApplicationComponent represents an application component aggregate
@@ -74,11 +79,19 @@ func (a *ApplicationComponent) Delete() error {
 }
 
 func (a *ApplicationComponent) AddExpert(expert *entities.Expert) error {
+	for _, existing := range a.experts {
+		if existing.Name().Equals(expert.Name()) &&
+			existing.Role().Equals(expert.Role()) &&
+			existing.Contact().Equals(expert.Contact()) {
+			return ErrDuplicateExpert
+		}
+	}
+
 	event := events.NewApplicationComponentExpertAdded(
 		a.ID(),
-		expert.Name(),
-		expert.Role(),
-		expert.Contact(),
+		expert.Name().Value(),
+		expert.Role().Value(),
+		expert.Contact().Value(),
 	)
 
 	a.apply(event)
@@ -87,10 +100,12 @@ func (a *ApplicationComponent) AddExpert(expert *entities.Expert) error {
 	return nil
 }
 
-func (a *ApplicationComponent) RemoveExpert(expertName string) error {
+func (a *ApplicationComponent) RemoveExpert(expertName, expertRole, contactInfo string) error {
 	event := events.NewApplicationComponentExpertRemoved(
 		a.ID(),
 		expertName,
+		expertRole,
+		contactInfo,
 	)
 
 	a.apply(event)
@@ -120,14 +135,16 @@ func (a *ApplicationComponent) apply(event domain.DomainEvent) {
 		expert, _ := entities.NewExpert(e.ExpertName, e.ExpertRole, e.ContactInfo)
 		a.experts = append(a.experts, expert)
 	case events.ApplicationComponentExpertRemoved:
-		a.experts = removeExpertByName(a.experts, e.ExpertName)
+		a.experts = removeExpert(a.experts, e.ExpertName, e.ExpertRole, e.ContactInfo)
 	}
 }
 
-func removeExpertByName(experts []*entities.Expert, name string) []*entities.Expert {
+func removeExpert(experts []*entities.Expert, name, role, contact string) []*entities.Expert {
 	result := make([]*entities.Expert, 0, len(experts))
 	for _, expert := range experts {
-		if expert.Name() != name {
+		if expert.Name().Value() != name ||
+			expert.Role().Value() != role ||
+			expert.Contact().Value() != contact {
 			result = append(result, expert)
 		}
 	}

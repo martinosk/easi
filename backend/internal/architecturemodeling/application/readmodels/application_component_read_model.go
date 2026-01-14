@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/lib/pq"
+
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
@@ -191,7 +193,11 @@ func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, li
 		defer rows.Close()
 
 		components, err = rm.scanComponents(rows)
-		return err
+		if err != nil {
+			return err
+		}
+
+		return rm.loadExpertsForComponents(ctx, tx, tenantID.Value(), components)
 	})
 
 	if err != nil {
@@ -241,21 +247,21 @@ func (rm *ApplicationComponentReadModel) AddExpert(ctx context.Context, info Exp
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO application_component_experts (component_id, tenant_id, expert_name, expert_role, contact_info, added_at) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (tenant_id, component_id, expert_name) DO NOTHING",
+		"INSERT INTO application_component_experts (component_id, tenant_id, expert_name, expert_role, contact_info, added_at) VALUES ($1, $2, $3, $4, $5, $6)",
 		info.ComponentID, tenantID.Value(), info.Name, info.Role, info.Contact, info.AddedAt,
 	)
 	return err
 }
 
-func (rm *ApplicationComponentReadModel) RemoveExpert(ctx context.Context, componentID, expertName string) error {
+func (rm *ApplicationComponentReadModel) RemoveExpert(ctx context.Context, componentID, expertName, expertRole, contactInfo string) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM application_component_experts WHERE tenant_id = $1 AND component_id = $2 AND expert_name = $3",
-		tenantID.Value(), componentID, expertName,
+		"DELETE FROM application_component_experts WHERE tenant_id = $1 AND component_id = $2 AND expert_name = $3 AND expert_role = $4 AND contact_info = $5",
+		tenantID.Value(), componentID, expertName, expertRole, contactInfo,
 	)
 	return err
 }
@@ -308,4 +314,38 @@ func (rm *ApplicationComponentReadModel) fetchExperts(ctx context.Context, tx *s
 		experts = append(experts, expert)
 	}
 	return experts, rows.Err()
+}
+
+func (rm *ApplicationComponentReadModel) loadExpertsForComponents(ctx context.Context, tx *sql.Tx, tenantID string, components []ApplicationComponentDTO) error {
+	if len(components) == 0 {
+		return nil
+	}
+
+	componentIDs := make([]string, len(components))
+	componentIndex := make(map[string]int)
+	for i, c := range components {
+		componentIDs[i] = c.ID
+		componentIndex[c.ID] = i
+	}
+
+	rows, err := tx.QueryContext(ctx,
+		"SELECT component_id, expert_name, expert_role, contact_info, added_at FROM application_component_experts WHERE tenant_id = $1 AND component_id = ANY($2)",
+		tenantID, pq.Array(componentIDs),
+	)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var componentID string
+		var expert ExpertDTO
+		if err := rows.Scan(&componentID, &expert.Name, &expert.Role, &expert.Contact, &expert.AddedAt); err != nil {
+			return err
+		}
+		if idx, ok := componentIndex[componentID]; ok {
+			components[idx].Experts = append(components[idx].Experts, expert)
+		}
+	}
+	return rows.Err()
 }

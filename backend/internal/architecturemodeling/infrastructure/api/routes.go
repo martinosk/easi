@@ -95,7 +95,7 @@ func SetupArchitectureModelingRoutes(
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsDelete))
 			r.Delete("/{id}", componentHandlers.DeleteApplicationComponent)
-			r.Delete("/{id}/experts/{name}", expertHandlers.RemoveComponentExpert)
+			r.Delete("/{id}/experts", expertHandlers.RemoveComponentExpert)
 		})
 	})
 

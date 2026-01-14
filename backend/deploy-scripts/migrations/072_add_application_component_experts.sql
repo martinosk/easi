@@ -8,8 +8,7 @@ CREATE TABLE IF NOT EXISTS application_component_experts (
     expert_name VARCHAR(500) NOT NULL,
     expert_role VARCHAR(500) NOT NULL,
     contact_info VARCHAR(500) NOT NULL,
-    added_at TIMESTAMP NOT NULL,
-    PRIMARY KEY (tenant_id, component_id, expert_name)
+    added_at TIMESTAMP NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_application_component_experts_component

@@ -191,9 +191,9 @@ func TestApplicationComponent_AddExpert(t *testing.T) {
 
 	experts := component.Experts()
 	assert.Len(t, experts, 1)
-	assert.Equal(t, "Alice Smith", experts[0].Name())
-	assert.Equal(t, "Product Owner", experts[0].Role())
-	assert.Equal(t, "alice@example.com", experts[0].Contact())
+	assert.Equal(t, "Alice Smith", experts[0].Name().Value())
+	assert.Equal(t, "Product Owner", experts[0].Role().Value())
+	assert.Equal(t, "alice@example.com", experts[0].Contact().Value())
 
 	uncommittedEvents := component.GetUncommittedChanges()
 	assert.Len(t, uncommittedEvents, 1)
@@ -215,7 +215,7 @@ func TestApplicationComponent_RemoveExpert(t *testing.T) {
 
 	assert.Len(t, component.Experts(), 1)
 
-	err = component.RemoveExpert("Alice Smith")
+	err = component.RemoveExpert("Alice Smith", "Product Owner", "alice@example.com")
 	require.NoError(t, err)
 
 	assert.Len(t, component.Experts(), 0)
@@ -258,5 +258,5 @@ func TestLoadApplicationComponentFromHistory_WithExpertEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, reconstructed.Experts(), 1)
-	assert.Equal(t, "Alice Smith", reconstructed.Experts()[0].Name())
+	assert.Equal(t, "Alice Smith", reconstructed.Experts()[0].Name().Value())
 }

@@ -7,7 +7,7 @@ import (
 
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
-	"easi/backend/internal/architecturemodeling/domain/entities"
+	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
@@ -37,9 +37,9 @@ type AddComponentExpertRequest struct {
 }
 
 func isExpertValidationError(err error) bool {
-	return errors.Is(err, entities.ErrExpertNameEmpty) ||
-		errors.Is(err, entities.ErrExpertRoleEmpty) ||
-		errors.Is(err, entities.ErrExpertContactEmpty)
+	return errors.Is(err, valueobjects.ErrExpertNameEmpty) ||
+		errors.Is(err, valueobjects.ErrExpertRoleEmpty) ||
+		errors.Is(err, valueobjects.ErrContactInfoEmpty)
 }
 
 func isComponentNotFoundError(err error) bool {
@@ -53,7 +53,7 @@ func isComponentNotFoundError(err error) bool {
 // @Accept json
 // @Param id path string true "Component ID"
 // @Param expert body AddComponentExpertRequest true "Expert data"
-// @Success 204 "No Content"
+// @Success 201 "Expert added"
 // @Failure 400 {object} sharedAPI.ErrorResponse
 // @Failure 404 {object} sharedAPI.ErrorResponse
 // @Failure 500 {object} sharedAPI.ErrorResponse
@@ -87,7 +87,8 @@ func (h *ComponentExpertHandlers) AddComponentExpert(w http.ResponseWriter, r *h
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	w.Header().Set("Location", "/api/v1/components/"+id)
+	w.WriteHeader(http.StatusCreated)
 }
 
 // RemoveComponentExpert godoc
@@ -95,18 +96,30 @@ func (h *ComponentExpertHandlers) AddComponentExpert(w http.ResponseWriter, r *h
 // @Description Removes a subject matter expert from an application component
 // @Tags components
 // @Param id path string true "Component ID"
-// @Param name path string true "Expert name"
+// @Param name query string true "Expert name"
+// @Param role query string true "Expert role"
+// @Param contact query string true "Contact info"
 // @Success 204 "No Content"
+// @Failure 400 {object} sharedAPI.ErrorResponse
 // @Failure 404 {object} sharedAPI.ErrorResponse
 // @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /components/{id}/experts/{name} [delete]
+// @Router /components/{id}/experts [delete]
 func (h *ComponentExpertHandlers) RemoveComponentExpert(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	expertName := chi.URLParam(r, "name")
+	expertName := r.URL.Query().Get("name")
+	expertRole := r.URL.Query().Get("role")
+	contactInfo := r.URL.Query().Get("contact")
+
+	if expertName == "" || expertRole == "" || contactInfo == "" {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Missing required query parameters: name, role, contact")
+		return
+	}
 
 	cmd := &commands.RemoveApplicationComponentExpert{
 		ComponentID: id,
 		ExpertName:  expertName,
+		ExpertRole:  expertRole,
+		ContactInfo: contactInfo,
 	}
 
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {

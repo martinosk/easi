@@ -108,8 +108,16 @@ var componentEventDeserializers = repository.NewEventDeserializers(
 			if err != nil {
 				return nil, err
 			}
+			expertRole, err := repository.GetRequiredString(data, "expertRole")
+			if err != nil {
+				return nil, err
+			}
+			contactInfo, err := repository.GetRequiredString(data, "contactInfo")
+			if err != nil {
+				return nil, err
+			}
 
-			return events.NewApplicationComponentExpertRemoved(componentID, expertName), nil
+			return events.NewApplicationComponentExpertRemoved(componentID, expertName, expertRole, contactInfo), nil
 		},
 	},
 )

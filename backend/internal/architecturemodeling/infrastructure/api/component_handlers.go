@@ -117,9 +117,8 @@ func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	actor, _ := sharedctx.GetActor(r.Context())
 	for i := range components {
-		components[i].Links = h.hateoas.ComponentLinksForActor(components[i].ID, actor)
+		h.enrichWithLinks(r, &components[i])
 	}
 
 	pageables := ConvertToNamePageable(components)
@@ -252,6 +251,7 @@ func (h *ComponentHandlers) enrichWithLinks(r *http.Request, component *readmode
 	actor, _ := sharedctx.GetActor(r.Context())
 	component.Links = h.hateoas.ComponentLinksForActor(component.ID, actor)
 	for i := range component.Experts {
-		component.Experts[i].Links = h.hateoas.ComponentExpertLinksForActor(component.ID, component.Experts[i].Name, actor)
+		e := component.Experts[i]
+		component.Experts[i].Links = h.hateoas.ComponentExpertLinksForActor(component.ID, e.Name, e.Role, e.Contact, actor)
 	}
 }

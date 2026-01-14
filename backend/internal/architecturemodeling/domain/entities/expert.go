@@ -1,57 +1,75 @@
 package entities
 
 import (
-	"errors"
-	"strings"
 	"time"
-)
 
-var (
-	ErrExpertNameEmpty    = errors.New("expert name cannot be empty")
-	ErrExpertRoleEmpty    = errors.New("expert role cannot be empty")
-	ErrExpertContactEmpty = errors.New("expert contact cannot be empty")
+	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 )
 
 type Expert struct {
-	name    string
-	role    string
-	contact string
+	name    valueobjects.ExpertName
+	role    valueobjects.ExpertRole
+	contact valueobjects.ContactInfo
 	addedAt time.Time
 }
 
 func NewExpert(name, role, contact string) (*Expert, error) {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return nil, ErrExpertNameEmpty
+	expertName, err := valueobjects.NewExpertName(name)
+	if err != nil {
+		return nil, err
 	}
 
-	role = strings.TrimSpace(role)
-	if role == "" {
-		return nil, ErrExpertRoleEmpty
+	expertRole, err := valueobjects.NewExpertRole(role)
+	if err != nil {
+		return nil, err
 	}
 
-	contact = strings.TrimSpace(contact)
-	if contact == "" {
-		return nil, ErrExpertContactEmpty
+	contactInfo, err := valueobjects.NewContactInfo(contact)
+	if err != nil {
+		return nil, err
 	}
 
 	return &Expert{
-		name:    name,
-		role:    role,
-		contact: contact,
+		name:    expertName,
+		role:    expertRole,
+		contact: contactInfo,
 		addedAt: time.Now().UTC(),
 	}, nil
 }
 
-func (e *Expert) Name() string {
+func NewExpertWithAddedAt(name, role, contact string, addedAt time.Time) (*Expert, error) {
+	expertName, err := valueobjects.NewExpertName(name)
+	if err != nil {
+		return nil, err
+	}
+
+	expertRole, err := valueobjects.NewExpertRole(role)
+	if err != nil {
+		return nil, err
+	}
+
+	contactInfo, err := valueobjects.NewContactInfo(contact)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Expert{
+		name:    expertName,
+		role:    expertRole,
+		contact: contactInfo,
+		addedAt: addedAt,
+	}, nil
+}
+
+func (e *Expert) Name() valueobjects.ExpertName {
 	return e.name
 }
 
-func (e *Expert) Role() string {
+func (e *Expert) Role() valueobjects.ExpertRole {
 	return e.role
 }
 
-func (e *Expert) Contact() string {
+func (e *Expert) Contact() valueobjects.ContactInfo {
 	return e.contact
 }
 

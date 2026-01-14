@@ -29,7 +29,7 @@ func (h *RemoveApplicationComponentExpertHandler) Handle(ctx context.Context, cm
 		return cqrs.EmptyResult(), err
 	}
 
-	if err := component.RemoveExpert(command.ExpertName); err != nil {
+	if err := component.RemoveExpert(command.ExpertName, command.ExpertRole, command.ContactInfo); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 

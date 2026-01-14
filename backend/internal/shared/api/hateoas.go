@@ -1,6 +1,8 @@
 package api
 
 import (
+	"net/url"
+
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
 )
@@ -57,10 +59,10 @@ func (h *HATEOASLinks) ComponentLinksForActor(id string, actor sharedctx.Actor) 
 	return links
 }
 
-func (h *HATEOASLinks) ComponentExpertLinksForActor(componentID, expertName string, actor sharedctx.Actor) Links {
+func (h *HATEOASLinks) ComponentExpertLinksForActor(componentID, expertName, expertRole, contactInfo string, actor sharedctx.Actor) Links {
 	links := Links{}
 	if actor.CanDelete("components") {
-		links["x-remove"] = h.del("/components/" + componentID + "/experts/" + expertName)
+		links["x-remove"] = h.del("/components/" + componentID + "/experts?name=" + url.QueryEscape(expertName) + "&role=" + url.QueryEscape(expertRole) + "&contact=" + url.QueryEscape(contactInfo))
 	}
 	return links
 }

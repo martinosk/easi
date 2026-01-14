@@ -79,7 +79,7 @@ func TestApplicationComponentDeserializers_AllEventsCanBeDeserialized(t *testing
 	expert, _ := entities.NewExpert("Alice Smith", "Product Owner", "alice@example.com")
 	_ = component.AddExpert(expert)
 
-	_ = component.RemoveExpert("Alice Smith")
+	_ = component.RemoveExpert("Alice Smith", "Product Owner", "alice@example.com")
 
 	_ = component.Delete()
 

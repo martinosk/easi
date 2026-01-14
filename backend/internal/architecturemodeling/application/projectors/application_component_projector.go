@@ -105,5 +105,5 @@ func (p *ApplicationComponentProjector) projectExpertRemoved(ctx context.Context
 		return err
 	}
 
-	return p.readModel.RemoveExpert(ctx, event.ComponentID, event.ExpertName)
+	return p.readModel.RemoveExpert(ctx, event.ComponentID, event.ExpertName, event.ExpertRole, event.ContactInfo)
 }
