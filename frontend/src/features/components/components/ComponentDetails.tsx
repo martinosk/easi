@@ -1,13 +1,16 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAppStore } from '../../../store/appStore';
 import { DetailField } from '../../../components/shared/DetailField';
 import { ColorPicker } from '../../../components/shared/ColorPicker';
 import { ComponentFitScores } from './ComponentFitScores';
+import { ComponentExpertsList } from './ComponentExpertsList';
+import { AddComponentExpertDialog } from './AddComponentExpertDialog';
 import { AuditHistorySection } from '../../audit';
 import { useCapabilities, useCapabilitiesByComponent } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../hooks/useComponents';
 import { useUpdateComponentColor, useClearComponentColor } from '../../views/hooks/useViews';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { hasLink } from '../../../utils/hateoas';
 import type { CapabilityRealization, Capability, ViewComponent, Component, View } from '../../../api/types';
 import toast from 'react-hot-toast';
 
@@ -27,6 +30,9 @@ export interface ComponentDetailsContentProps {
   onRemoveFromView?: () => void;
   onColorChange?: (color: string) => void;
   onClearColor?: () => void;
+  onAddExpert?: () => void;
+  isAddExpertOpen?: boolean;
+  onCloseAddExpert?: () => void;
 }
 
 const getLevelBadge = (level: string): string => {
@@ -222,6 +228,7 @@ interface ComponentContentProps {
   onClearColor?: () => void;
   onEdit: (componentId: string) => void;
   onRemoveFromView?: () => void;
+  onAddExpert?: () => void;
 }
 
 const ComponentContentInternal: React.FC<ComponentContentProps> = ({
@@ -235,10 +242,12 @@ const ComponentContentInternal: React.FC<ComponentContentProps> = ({
   onClearColor,
   onEdit,
   onRemoveFromView,
+  onAddExpert,
 }) => {
   const formattedDate = new Date(component.createdAt).toLocaleString();
   const canEdit = component._links?.edit !== undefined;
   const canRemoveFromView = isInCurrentView && componentInView?._links?.['x-remove'] !== undefined;
+  const canAddExpert = hasLink(component, 'x-add-expert');
 
   return (
     <div className="detail-content">
@@ -253,6 +262,15 @@ const ComponentContentInternal: React.FC<ComponentContentProps> = ({
       <DetailField label="Name">{component.name}</DetailField>
 
       <OptionalField value={component.description} label="Description" render={(desc) => desc} />
+
+      {onAddExpert && (
+        <ComponentExpertsList
+          componentId={component.id}
+          experts={component.experts}
+          canAddExpert={canAddExpert}
+          onAddClick={onAddExpert}
+        />
+      )}
 
       <DetailField label="Created"><span className="detail-date">{formattedDate}</span></DetailField>
       <TypeField referenceUrl={component._links.describedby?.href} />
@@ -284,6 +302,9 @@ export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (
   onRemoveFromView,
   onColorChange,
   onClearColor,
+  onAddExpert,
+  isAddExpertOpen,
+  onCloseAddExpert,
 }) => {
   return (
     <div className="detail-panel">
@@ -302,7 +323,16 @@ export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (
         onClearColor={onClearColor}
         onEdit={onEdit}
         onRemoveFromView={onRemoveFromView}
+        onAddExpert={onAddExpert}
       />
+
+      {isAddExpertOpen !== undefined && onCloseAddExpert && (
+        <AddComponentExpertDialog
+          isOpen={isAddExpertOpen}
+          onClose={onCloseAddExpert}
+          componentId={component.id}
+        />
+      )}
     </div>
   );
 };
@@ -315,6 +345,7 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
   const { data: componentRealizations = [] } = useCapabilitiesByComponent(selectedNodeId ?? undefined);
   const updateComponentColorMutation = useUpdateComponentColor();
   const clearComponentColorMutation = useClearComponentColor();
+  const [isAddExpertOpen, setIsAddExpertOpen] = useState(false);
 
   const component = useMemo(() =>
     components.find((c) => c.id === selectedNodeId),
@@ -362,6 +393,9 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
       onRemoveFromView={onRemoveFromView}
       onColorChange={handleColorChange}
       onClearColor={handleClearColor}
+      onAddExpert={() => setIsAddExpertOpen(true)}
+      isAddExpertOpen={isAddExpertOpen}
+      onCloseAddExpert={() => setIsAddExpertOpen(false)}
     />
   );
 };

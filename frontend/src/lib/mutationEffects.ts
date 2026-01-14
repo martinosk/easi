@@ -39,6 +39,26 @@ export const mutationEffects = {
       queryKeys.components.lists(),
       queryKeys.components.detail(componentId),
     ],
+
+    /**
+     * Invalidates queries after adding an expert to a component.
+     * @param componentId - The component receiving the expert
+     */
+    addExpert: (componentId: string) => [
+      queryKeys.components.detail(componentId),
+      queryKeys.components.lists(),
+      queryKeys.audit.history(componentId),
+    ],
+
+    /**
+     * Invalidates queries after removing an expert from a component.
+     * @param componentId - The component losing the expert
+     */
+    removeExpert: (componentId: string) => [
+      queryKeys.components.detail(componentId),
+      queryKeys.components.lists(),
+      queryKeys.audit.history(componentId),
+    ],
   },
 
   relations: {

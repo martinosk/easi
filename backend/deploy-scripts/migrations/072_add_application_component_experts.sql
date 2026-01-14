@@ -20,4 +20,6 @@ CREATE INDEX IF NOT EXISTS idx_application_component_experts_role
 ALTER TABLE application_component_experts ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY application_component_experts_tenant_isolation ON application_component_experts
-    USING (tenant_id = current_setting('app.current_tenant_id', TRUE));
+    FOR ALL TO easi_app
+    USING (tenant_id = current_setting('app.current_tenant', true))
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true));

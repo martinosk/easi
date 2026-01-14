@@ -253,7 +253,7 @@ func (rm *ApplicationComponentReadModel) AddExpert(ctx context.Context, info Exp
 	return err
 }
 
-func (rm *ApplicationComponentReadModel) RemoveExpert(ctx context.Context, componentID, expertName, expertRole, contactInfo string) error {
+func (rm *ApplicationComponentReadModel) RemoveExpert(ctx context.Context, info ExpertInfo) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -261,7 +261,7 @@ func (rm *ApplicationComponentReadModel) RemoveExpert(ctx context.Context, compo
 
 	_, err = rm.db.ExecContext(ctx,
 		"DELETE FROM application_component_experts WHERE tenant_id = $1 AND component_id = $2 AND expert_name = $3 AND expert_role = $4 AND contact_info = $5",
-		tenantID.Value(), componentID, expertName, expertRole, contactInfo,
+		tenantID.Value(), info.ComponentID, info.Name, info.Role, info.Contact,
 	)
 	return err
 }

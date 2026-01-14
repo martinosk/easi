@@ -46,6 +46,15 @@ func isComponentNotFoundError(err error) bool {
 	return errors.Is(err, repositories.ErrComponentNotFound)
 }
 
+func hasEmptyString(values ...string) bool {
+	for _, v := range values {
+		if v == "" {
+			return true
+		}
+	}
+	return false
+}
+
 // AddComponentExpert godoc
 // @Summary Add an expert to an application component
 // @Description Associates a subject matter expert with an application component
@@ -110,7 +119,7 @@ func (h *ComponentExpertHandlers) RemoveComponentExpert(w http.ResponseWriter, r
 	expertRole := r.URL.Query().Get("role")
 	contactInfo := r.URL.Query().Get("contact")
 
-	if expertName == "" || expertRole == "" || contactInfo == "" {
+	if hasEmptyString(expertName, expertRole, contactInfo) {
 		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Missing required query parameters: name, role, contact")
 		return
 	}
