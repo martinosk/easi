@@ -3,6 +3,7 @@ import { apiClient } from '../../../api/client';
 import type { Release } from '../../../api/types';
 import { ReleaseNotesSidebar } from './ReleaseNotesSidebar';
 import { ReleaseNotesContent } from './ReleaseNotesContent';
+import { compareSemver } from './releaseNotesUtils';
 
 interface ReleaseNotesBrowserProps {
   isOpen: boolean;
@@ -30,7 +31,7 @@ export const ReleaseNotesBrowser: React.FC<ReleaseNotesBrowserProps> = ({
           apiClient.getVersion(),
         ]);
         const sortedReleases = [...releasesData].sort((a, b) =>
-          new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()
+          compareSemver(b.version, a.version)
         );
         setReleases(sortedReleases);
         setCurrentVersion(version);

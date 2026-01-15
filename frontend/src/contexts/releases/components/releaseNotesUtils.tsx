@@ -139,3 +139,16 @@ export function formatShortDate(releaseDate: string): string {
     day: 'numeric',
   });
 }
+
+export function compareSemver(a: string, b: string): number {
+  const parseVersion = (v: string): number[] =>
+    v.replace(/^v/, '').split('.').map(Number);
+
+  const [aParts, bParts] = [parseVersion(a), parseVersion(b)];
+
+  for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+    const diff = (aParts[i] || 0) - (bParts[i] || 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}

@@ -43,10 +43,29 @@ describe('ReleaseNotesBrowser', () => {
   });
 
   describe('Release Sorting and Selection', () => {
-    it('should sort releases by date descending', async () => {
-      const unsortedReleases = [mockReleases[2], mockReleases[0], mockReleases[1]];
-      vi.mocked(apiClient.getReleases).mockResolvedValue(unsortedReleases);
-      vi.mocked(apiClient.getVersion).mockResolvedValue('2.0.0');
+    it('should sort releases by semver descending', async () => {
+      const releasesWithSemverTrap: Release[] = [
+        {
+          version: toReleaseVersion('0.20.2'),
+          releaseDate: '2024-01-15T00:00:00Z',
+          notes: 'v0.20.2',
+          _links: { self: { href: '/api/v1/releases/0.20.2', method: 'GET' } },
+        },
+        {
+          version: toReleaseVersion('0.20.10'),
+          releaseDate: '2024-01-15T00:00:00Z',
+          notes: 'v0.20.10',
+          _links: { self: { href: '/api/v1/releases/0.20.10', method: 'GET' } },
+        },
+        {
+          version: toReleaseVersion('0.20.3'),
+          releaseDate: '2024-01-15T00:00:00Z',
+          notes: 'v0.20.3',
+          _links: { self: { href: '/api/v1/releases/0.20.3', method: 'GET' } },
+        },
+      ];
+      vi.mocked(apiClient.getReleases).mockResolvedValue(releasesWithSemverTrap);
+      vi.mocked(apiClient.getVersion).mockResolvedValue('0.20.10');
 
       render(<ReleaseNotesBrowser isOpen={true} onClose={mockOnClose} />);
 
@@ -54,7 +73,9 @@ describe('ReleaseNotesBrowser', () => {
         const releaseItems = screen.getAllByRole('button', { hidden: true }).filter(
           btn => btn.classList.contains('release-browser-item')
         );
-        expect(releaseItems[0]).toHaveTextContent('v2.0.0');
+        expect(releaseItems[0]).toHaveTextContent('v0.20.10');
+        expect(releaseItems[1]).toHaveTextContent('v0.20.3');
+        expect(releaseItems[2]).toHaveTextContent('v0.20.2');
       });
     });
 
