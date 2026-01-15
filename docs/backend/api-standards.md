@@ -1,6 +1,56 @@
 # Backend API Standards
 
-This document covers HATEOAS-specific patterns. For general API standards (HTTP status codes, response wrapping, API versioning), see `CLAUDE.md`.
+REST Level 3 API patterns and conventions.
+
+## HTTP Status Codes
+
+| Code | Use Case |
+|------|----------|
+| 200 OK | Successful GET, PUT, PATCH |
+| 201 Created | Successful POST creating resource |
+| 204 No Content | Successful DELETE, PATCH without response |
+| 400 Bad Request | Validation errors, invalid input |
+| 401 Unauthorized | Authentication required |
+| 403 Forbidden | Authenticated but lacks permission |
+| 404 Not Found | Resource does not exist |
+| 409 Conflict | Business rule violations, duplicates |
+| 500 Internal Server Error | Unhandled server errors |
+
+## Response Wrapping
+
+### Single Resource (GET by ID, POST, PUT)
+Return resource directly with embedded `_links`:
+```go
+sharedAPI.RespondJSON(w, statusCode, resource)
+```
+
+### Non-Paginated Collection (GET all)
+Use envelope with `data` and `_links`:
+```go
+sharedAPI.RespondCollection(w, statusCode, data, links)
+```
+
+### Paginated Collection
+Use envelope with `data`, `pagination`, and `_links`:
+```go
+sharedAPI.RespondPaginated(w, statusCode, data, hasMore, nextCursor, limit, selfLink, baseLink)
+```
+
+### Created (201)
+```go
+w.Header().Set("Location", location)
+sharedAPI.RespondJSON(w, http.StatusCreated, resource)
+```
+
+### No Content (204)
+```go
+w.WriteHeader(http.StatusNoContent)
+```
+
+### Errors
+```go
+sharedAPI.RespondError(w, statusCode, err, message)
+```
 
 ## HATEOAS Link Types
 

@@ -29,7 +29,7 @@ Supporting domains can use CRUD or whatever other architecture makes sense for t
 The system uses event sourcing for core aggregates, REST Level 3 APIs with HATEOAS, and a clean separation between domain models and infrastructure.
 
 ### Bounded contexts
-See [detailed bounded context documentation](docs/bounded-contexts/README.md).
+See [detailed bounded context documentation](docs/architecture/README.md).
 
 #### ArchitectureModeling
 This is a supporting domain that manages the IT application landscape - what systems exist and how they interact.

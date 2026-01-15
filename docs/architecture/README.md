@@ -1,6 +1,6 @@
-# EASI Bounded Contexts
+# EASI Architecture
 
-This directory contains Bounded Context Canvases for all contexts in the EASI enterprise architecture platform. Each canvas follows the [DDD Crew Bounded Context Canvas](https://github.com/ddd-crew/bounded-context-canvas) template.
+Bounded Context Canvases for all contexts in the EASI platform. Each canvas follows the [DDD Crew Bounded Context Canvas](https://github.com/ddd-crew/bounded-context-canvas) template.
 
 ## Overview
 
