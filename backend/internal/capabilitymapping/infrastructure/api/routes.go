@@ -219,7 +219,7 @@ func subscribeDependencyEvents(eventBus events.EventBus, projector *projectors.D
 func subscribeRealizationEvents(eventBus events.EventBus, projector *projectors.RealizationProjector) {
 	events := []string{"SystemLinkedToCapability", "SystemRealizationUpdated",
 		"SystemRealizationDeleted", "CapabilityParentChanged", "CapabilityUpdated",
-		"ApplicationComponentUpdated"}
+		"ApplicationComponentUpdated", "ApplicationComponentDeleted"}
 	for _, event := range events {
 		eventBus.Subscribe(event, projector)
 	}

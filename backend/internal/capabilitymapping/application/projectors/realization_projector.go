@@ -53,6 +53,8 @@ func (p *RealizationProjector) ProjectEvent(ctx context.Context, eventType strin
 		return p.handleCapabilityUpdated(ctx, eventData)
 	case "ApplicationComponentUpdated":
 		return p.handleApplicationComponentUpdated(ctx, eventData)
+	case "ApplicationComponentDeleted":
+		return p.handleApplicationComponentDeleted(ctx, eventData)
 	}
 	return nil
 }
@@ -237,4 +239,12 @@ func (p *RealizationProjector) handleApplicationComponentUpdated(ctx context.Con
 		return err
 	}
 	return p.readModel.UpdateComponentName(ctx, event.ID, event.Name)
+}
+
+func (p *RealizationProjector) handleApplicationComponentDeleted(ctx context.Context, eventData []byte) error {
+	var event archEvents.ApplicationComponentDeleted
+	if err := unmarshalEvent(eventData, &event, "ApplicationComponentDeleted"); err != nil {
+		return err
+	}
+	return p.readModel.DeleteByComponentID(ctx, event.ID)
 }

@@ -19,12 +19,14 @@ type mockRealizationReadModel struct {
 	updatedRealizations           []updateCall
 	deletedIDs                    []string
 	deletedBySourceIDs            []string
+	deletedByComponentIDs         []string
 	realizationsByCapability      map[string][]readmodels.RealizationDTO
 	insertErr                     error
 	insertInheritedErr            error
 	updateErr                     error
 	deleteErr                     error
 	deleteBySourceErr             error
+	deleteByComponentErr          error
 	getByCapabilityErr            error
 }
 
@@ -74,6 +76,14 @@ func (m *mockRealizationReadModel) DeleteBySourceRealizationID(ctx context.Conte
 	return nil
 }
 
+func (m *mockRealizationReadModel) DeleteByComponentID(ctx context.Context, componentID string) error {
+	if m.deleteByComponentErr != nil {
+		return m.deleteByComponentErr
+	}
+	m.deletedByComponentIDs = append(m.deletedByComponentIDs, componentID)
+	return nil
+}
+
 func (m *mockRealizationReadModel) GetByCapabilityID(ctx context.Context, capabilityID string) ([]readmodels.RealizationDTO, error) {
 	if m.getByCapabilityErr != nil {
 		return nil, m.getByCapabilityErr
@@ -106,6 +116,7 @@ type realizationReadModelInterface interface {
 	Update(ctx context.Context, id, realizationLevel, notes string) error
 	Delete(ctx context.Context, id string) error
 	DeleteBySourceRealizationID(ctx context.Context, sourceRealizationID string) error
+	DeleteByComponentID(ctx context.Context, componentID string) error
 	GetByCapabilityID(ctx context.Context, capabilityID string) ([]readmodels.RealizationDTO, error)
 }
 
@@ -138,8 +149,24 @@ func (p *testableRealizationProjector) ProjectEvent(ctx context.Context, eventTy
 		return p.handleRealizationDeleted(ctx, eventData)
 	case "CapabilityParentChanged":
 		return p.handleCapabilityParentChanged(ctx, eventData)
+	case "ApplicationComponentDeleted":
+		return p.handleApplicationComponentDeleted(ctx, eventData)
 	}
 	return nil
+}
+
+type applicationComponentDeletedEvent struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	DeletedAt time.Time `json:"deletedAt"`
+}
+
+func (p *testableRealizationProjector) handleApplicationComponentDeleted(ctx context.Context, eventData []byte) error {
+	var event applicationComponentDeletedEvent
+	if err := json.Unmarshal(eventData, &event); err != nil {
+		return err
+	}
+	return p.readModel.DeleteByComponentID(ctx, event.ID)
 }
 
 func (p *testableRealizationProjector) handleSystemLinked(ctx context.Context, eventData []byte) error {
@@ -513,6 +540,11 @@ func (o *orderTrackingReadModel) DeleteBySourceRealizationID(ctx context.Context
 	return nil
 }
 
+func (o *orderTrackingReadModel) DeleteByComponentID(ctx context.Context, componentID string) error {
+	*o.deletionOrder = append(*o.deletionOrder, "component:"+componentID)
+	return nil
+}
+
 func (o *orderTrackingReadModel) GetByCapabilityID(ctx context.Context, capabilityID string) ([]readmodels.RealizationDTO, error) {
 	return nil, nil
 }
@@ -775,4 +807,49 @@ func TestRealizationProjector_HandleCapabilityParentChanged_HandlesDirectRealiza
 		"Should set SourceCapabilityID to the capability where the direct realization exists")
 	assert.Equal(t, "A", mockRealRM.insertedInheritedRealizations[0].SourceCapabilityName,
 		"Should set SourceCapabilityName")
+}
+
+func TestRealizationProjector_HandleApplicationComponentDeleted_DeletesAllRealizationsForComponent(t *testing.T) {
+	mockRealRM := &mockRealizationReadModel{}
+	mockCapRM := &mockCapabilityReadModelForProjector{}
+
+	projector := newTestableRealizationProjector(mockRealRM, mockCapRM)
+
+	event := applicationComponentDeletedEvent{
+		ID:        "comp-1",
+		Name:      "Test Component",
+		DeletedAt: time.Now(),
+	}
+
+	eventData, err := json.Marshal(event)
+	require.NoError(t, err)
+
+	err = projector.ProjectEvent(context.Background(), "ApplicationComponentDeleted", eventData)
+	require.NoError(t, err)
+
+	require.Len(t, mockRealRM.deletedByComponentIDs, 1, "Should delete realizations by component ID")
+	assert.Equal(t, "comp-1", mockRealRM.deletedByComponentIDs[0])
+}
+
+func TestRealizationProjector_HandleApplicationComponentDeleted_CleansUpDomainViewRealizations(t *testing.T) {
+	mockRealRM := &mockRealizationReadModel{}
+	mockCapRM := &mockCapabilityReadModelForProjector{}
+
+	projector := newTestableRealizationProjector(mockRealRM, mockCapRM)
+
+	event := applicationComponentDeletedEvent{
+		ID:        "deleted-component",
+		Name:      "Deleted Component",
+		DeletedAt: time.Now(),
+	}
+
+	eventData, err := json.Marshal(event)
+	require.NoError(t, err)
+
+	err = projector.ProjectEvent(context.Background(), "ApplicationComponentDeleted", eventData)
+	require.NoError(t, err)
+
+	require.Len(t, mockRealRM.deletedByComponentIDs, 1)
+	assert.Equal(t, "deleted-component", mockRealRM.deletedByComponentIDs[0],
+		"Should delete all realizations for the deleted component so they no longer appear in business domain views")
 }

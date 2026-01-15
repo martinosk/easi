@@ -178,6 +178,7 @@ export const mutationEffects = {
       queryKeys.capabilities.realizations(capabilityId),
       queryKeys.capabilities.byComponent(componentId),
       queryKeys.capabilities.realizationsByComponents(),
+      queryKeys.businessDomains.details(),
     ],
 
     /**
@@ -189,6 +190,7 @@ export const mutationEffects = {
       queryKeys.capabilities.realizations(capabilityId),
       queryKeys.capabilities.byComponent(componentId),
       queryKeys.capabilities.realizationsByComponents(),
+      queryKeys.businessDomains.details(),
     ],
 
     /**
@@ -200,6 +202,7 @@ export const mutationEffects = {
       queryKeys.capabilities.realizations(capabilityId),
       queryKeys.capabilities.byComponent(componentId),
       queryKeys.capabilities.realizationsByComponents(),
+      queryKeys.businessDomains.details(),
     ],
 
     /**

@@ -170,6 +170,16 @@ func (rm *RealizationReadModel) DeleteBySourceRealizationID(ctx context.Context,
 	return err
 }
 
+func (rm *RealizationReadModel) DeleteByComponentID(ctx context.Context, componentID string) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx, "DELETE FROM capability_realizations WHERE tenant_id = $1 AND component_id = $2", tenantID.Value(), componentID)
+	return err
+}
+
 func (rm *RealizationReadModel) InsertInherited(ctx context.Context, dto RealizationDTO) error {
 	return rm.insertRealization(ctx, dto, `INSERT INTO capability_realizations (id, tenant_id, capability_id, component_id, realization_level, notes, origin, source_realization_id, source_capability_id, linked_at, component_name, source_capability_name)
 		 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
