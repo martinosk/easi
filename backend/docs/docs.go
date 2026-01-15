@@ -1106,6 +1106,38 @@ const docTemplate = `{
                 }
             }
         },
+        "/capabilities/expert-roles": {
+            "get": {
+                "description": "Retrieves distinct expert roles used across all capabilities for autocomplete support",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Get distinct expert roles for autocomplete",
+                "responses": {
+                    "200": {
+                        "description": "Roles list",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/capabilities/metadata": {
             "get": {
                 "description": "Returns HATEOAS links to all capability metadata endpoints",
@@ -1606,6 +1638,66 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.AddCapabilityExpertRequest"
                         }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Removes a subject matter expert from a capability",
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Remove an expert from a capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Expert name",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Expert role",
+                        "name": "role",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Contact info",
+                        "name": "contact",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -2323,6 +2415,38 @@ const docTemplate = `{
                 }
             }
         },
+        "/components/expert-roles": {
+            "get": {
+                "description": "Retrieves distinct expert roles used across all application components for autocomplete support",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "components"
+                ],
+                "summary": "Get distinct expert roles for autocomplete",
+                "responses": {
+                    "200": {
+                        "description": "Roles list",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/components/{id}": {
             "get": {
                 "description": "Retrieves a specific application component by its ID",
@@ -2435,6 +2559,119 @@ const docTemplate = `{
                         "description": "Component ID",
                         "name": "id",
                         "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/components/{id}/experts": {
+            "post": {
+                "description": "Associates a subject matter expert with an application component",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "components"
+                ],
+                "summary": "Add an expert to an application component",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Expert data",
+                        "name": "expert",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.AddComponentExpertRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Expert added"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Removes a subject matter expert from an application component",
+                "tags": [
+                    "components"
+                ],
+                "summary": "Remove an expert from an application component",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Expert name",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Expert role",
+                        "name": "role",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Contact info",
+                        "name": "contact",
+                        "in": "query",
                         "required": true
                     }
                 ],
@@ -7228,6 +7465,12 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "experts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.ExpertDTO"
+                    }
+                },
                 "id": {
                     "type": "string"
                 },
@@ -7261,6 +7504,26 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "targetComponentId": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_architecturemodeling_application_readmodels.ExpertDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "addedAt": {
+                    "type": "string"
+                },
+                "contact": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
                     "type": "string"
                 }
             }
@@ -7507,6 +7770,9 @@ const docTemplate = `{
         "easi_backend_internal_capabilitymapping_application_readmodels.ExpertDTO": {
             "type": "object",
             "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
                 "addedAt": {
                     "type": "string"
                 },
@@ -8264,6 +8530,20 @@ const docTemplate = `{
                 "$ref": "#/definitions/easi_backend_internal_shared_types.Link"
             }
         },
+        "internal_architecturemodeling_infrastructure_api.AddComponentExpertRequest": {
+            "type": "object",
+            "properties": {
+                "contactInfo": {
+                    "type": "string"
+                },
+                "expertName": {
+                    "type": "string"
+                },
+                "expertRole": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_architecturemodeling_infrastructure_api.CreateApplicationComponentRequest": {
             "type": "object",
             "properties": {
@@ -8558,6 +8838,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "email": {
+                    "type": "string"
+                },
+                "returnUrl": {
                     "type": "string"
                 }
             }

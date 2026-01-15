@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useAppStore } from '../../../store/appStore';
 import { EditCapabilityDialog } from './EditCapabilityDialog';
+import { AddExpertDialog } from './AddExpertDialog';
+import { CapabilityExpertsList } from './CapabilityExpertsList';
 import { DetailField } from '../../../components/shared/DetailField';
 import { ColorPicker } from '../../../components/shared/ColorPicker';
 import { RealizationFitContext } from './RealizationFitContext';
@@ -12,7 +14,8 @@ import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useMaturityScale } from '../../../hooks/useMaturityScale';
 import { useStrategyImportanceByCapability } from '../../business-domains/hooks/useStrategyImportance';
 import { deriveLegacyMaturityValue, getDefaultSections } from '../../../utils/maturity';
-import type { Capability, Component, CapabilityRealization, Expert, View, ViewCapability, CapabilityId, StrategyImportance } from '../../../api/types';
+import { hasLink } from '../../../utils/hateoas';
+import type { Capability, Component, CapabilityRealization, View, ViewCapability, CapabilityId, StrategyImportance } from '../../../api/types';
 import toast from 'react-hot-toast';
 
 interface CapabilityDetailsProps {
@@ -44,17 +47,6 @@ const getComponentName = (components: Component[], componentId: string): string 
   const comp = components.find((c) => c.id === componentId);
   return comp?.name || 'Unknown';
 };
-
-const ExpertList: React.FC<{ experts: Expert[] }> = ({ experts }) => (
-  <ul className="expert-list">
-    {experts.map((expert, idx) => (
-      <li key={idx} className="expert-item">
-        <strong>{expert.name}</strong> - {expert.role}
-        {expert.contact && <span className="expert-contact"> ({expert.contact})</span>}
-      </li>
-    ))}
-  </ul>
-);
 
 const TagList: React.FC<{ tags: string[] }> = ({ tags }) => (
   <div className="tag-list">
@@ -161,11 +153,6 @@ const CapabilityOptionalFields: React.FC<CapabilityFieldsProps> = ({ capability 
       render={(owner) => owner}
     />
     <OptionalField
-      value={capability.experts}
-      label="Experts"
-      render={(experts) => <ExpertList experts={experts} />}
-    />
-    <OptionalField
       value={capability.tags}
       label="Tags"
       render={(tags) => <TagList tags={tags} />}
@@ -233,6 +220,7 @@ interface CapabilityContentProps {
   onColorChange: (color: string) => void;
   onEdit: () => void;
   onRemoveFromView: () => void;
+  onAddExpert: () => void;
 }
 
 const CapabilityContent: React.FC<CapabilityContentProps> = ({
@@ -245,6 +233,7 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
   onColorChange,
   onEdit,
   onRemoveFromView,
+  onAddExpert,
 }) => {
   const formattedDate = new Date(capability.createdAt).toLocaleString();
   const { data: maturityScale } = useMaturityScale();
@@ -258,6 +247,7 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
 
   const canEdit = capability._links?.edit !== undefined;
   const canRemoveFromView = capabilityInView?._links?.['x-remove'] !== undefined;
+  const canAddExpert = hasLink(capability, 'x-add-expert');
   const showActionButtons = canEdit || canRemoveFromView;
 
   return (
@@ -279,6 +269,13 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
       </DetailField>
       <DetailField label="Created"><span className="detail-date">{formattedDate}</span></DetailField>
       <DetailField label="ID"><span className="detail-id">{capability.id}</span></DetailField>
+
+      <CapabilityExpertsList
+        capabilityId={capability.id}
+        experts={capability.experts}
+        canAddExpert={canAddExpert}
+        onAddClick={onAddExpert}
+      />
 
       {capabilityInView && currentView && (
         <ColorPickerField
@@ -309,6 +306,7 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
   const { data: importanceRatings = [] } = useStrategyImportanceByCapability(selectedCapabilityId ?? undefined);
   const updateCapabilityColorMutation = useUpdateCapabilityColor();
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showAddExpertDialog, setShowAddExpertDialog] = useState(false);
 
   const capability = capabilities.find((c) => c.id === selectedCapabilityId);
   if (!selectedCapabilityId || !capability) return null;
@@ -347,9 +345,11 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
         onColorChange={handleColorChange}
         onEdit={() => setShowEditDialog(true)}
         onRemoveFromView={onRemoveFromView}
+        onAddExpert={() => setShowAddExpertDialog(true)}
       />
 
       <EditCapabilityDialog isOpen={showEditDialog} onClose={() => setShowEditDialog(false)} capability={capability} />
+      <AddExpertDialog isOpen={showAddExpertDialog} onClose={() => setShowAddExpertDialog(false)} capabilityId={capability.id} />
     </div>
   );
 };

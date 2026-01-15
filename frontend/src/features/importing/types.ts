@@ -51,6 +51,7 @@ export interface ImportSession {
   status: ImportStatus;
   sourceFormat: SourceFormat;
   businessDomainId?: string;
+  capabilityEAOwner?: string;
   preview?: ImportPreview;
   progress?: ImportProgress;
   result?: ImportResult;
@@ -67,4 +68,5 @@ export interface CreateImportSessionRequest {
   file: File;
   sourceFormat: SourceFormat;
   businessDomainId?: string;
+  capabilityEAOwner?: string;
 }

@@ -534,3 +534,106 @@ func TestCapability_CanBeAssignedToDomain_L4_Fails(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, ErrOnlyL1CanBeAssignedToDomain, err)
 }
+
+func TestCapability_AddExpert_RaisesExpertAddedEvent(t *testing.T) {
+	capability := createL1Capability(t, "Customer Management")
+	capability.MarkChangesAsCommitted()
+
+	expert := valueobjects.MustNewExpert("Alice Smith", "Product Owner", "alice@example.com", capability.CreatedAt())
+
+	err := capability.AddExpert(expert)
+	require.NoError(t, err)
+
+	uncommittedEvents := capability.GetUncommittedChanges()
+	require.Len(t, uncommittedEvents, 1)
+	assert.Equal(t, "CapabilityExpertAdded", uncommittedEvents[0].EventType())
+
+	eventData := uncommittedEvents[0].EventData()
+	assert.Equal(t, "Alice Smith", eventData["expertName"])
+	assert.Equal(t, "Product Owner", eventData["expertRole"])
+	assert.Equal(t, "alice@example.com", eventData["contactInfo"])
+}
+
+func TestCapability_RemoveExpert_RaisesExpertRemovedEvent(t *testing.T) {
+	capability := createL1Capability(t, "Customer Management")
+	expert := valueobjects.MustNewExpert("Alice Smith", "Product Owner", "alice@example.com", capability.CreatedAt())
+	_ = capability.AddExpert(expert)
+	capability.MarkChangesAsCommitted()
+
+	err := capability.RemoveExpert(expert)
+	require.NoError(t, err)
+
+	uncommittedEvents := capability.GetUncommittedChanges()
+	require.Len(t, uncommittedEvents, 1)
+	assert.Equal(t, "CapabilityExpertRemoved", uncommittedEvents[0].EventType())
+
+	eventData := uncommittedEvents[0].EventData()
+	assert.Equal(t, "Alice Smith", eventData["expertName"])
+	assert.Equal(t, "Product Owner", eventData["expertRole"])
+	assert.Equal(t, "alice@example.com", eventData["contactInfo"])
+}
+
+func TestCapability_RemoveExpert_ExpertNoLongerInList(t *testing.T) {
+	capability := createL1Capability(t, "Customer Management")
+	expert1 := valueobjects.MustNewExpert("Alice Smith", "Product Owner", "alice@example.com", capability.CreatedAt())
+	expert2 := valueobjects.MustNewExpert("Bob Jones", "Domain Expert", "bob@example.com", capability.CreatedAt())
+	_ = capability.AddExpert(expert1)
+	_ = capability.AddExpert(expert2)
+	capability.MarkChangesAsCommitted()
+
+	err := capability.RemoveExpert(expert1)
+	require.NoError(t, err)
+
+	experts := capability.Experts()
+	assert.Len(t, experts, 1)
+	assert.Equal(t, "Bob Jones", experts[0].Name())
+}
+
+func TestCapability_RemoveExpert_LoadFromHistory(t *testing.T) {
+	capability := createL1Capability(t, "Customer Management")
+	expert := valueobjects.MustNewExpert("Alice Smith", "Product Owner", "alice@example.com", capability.CreatedAt())
+	_ = capability.AddExpert(expert)
+	_ = capability.RemoveExpert(expert)
+
+	allEvents := capability.GetUncommittedChanges()
+	require.Len(t, allEvents, 3)
+
+	loadedCapability, err := LoadCapabilityFromHistory(allEvents)
+	require.NoError(t, err)
+
+	assert.Equal(t, capability.ID(), loadedCapability.ID())
+	assert.Empty(t, loadedCapability.Experts())
+}
+
+func TestCapability_AddExpert_CustomRole_SavesRole(t *testing.T) {
+	capability := createL1Capability(t, "Customer Management")
+	capability.MarkChangesAsCommitted()
+
+	expert := valueobjects.MustNewExpert("Jane Doe", "Security Champion", "jane@example.com", capability.CreatedAt())
+
+	err := capability.AddExpert(expert)
+	require.NoError(t, err)
+
+	experts := capability.Experts()
+	require.Len(t, experts, 1)
+	assert.Equal(t, "Security Champion", experts[0].Role())
+}
+
+func TestCapability_MultipleExperts_AllPersist(t *testing.T) {
+	capability := createL1Capability(t, "Customer Management")
+	expert1 := valueobjects.MustNewExpert("Alice Smith", "Product Owner", "alice@example.com", capability.CreatedAt())
+	expert2 := valueobjects.MustNewExpert("Bob Jones", "Domain Expert", "bob@example.com", capability.CreatedAt())
+	_ = capability.AddExpert(expert1)
+	_ = capability.AddExpert(expert2)
+
+	allEvents := capability.GetUncommittedChanges()
+	loadedCapability, err := LoadCapabilityFromHistory(allEvents)
+	require.NoError(t, err)
+
+	experts := loadedCapability.Experts()
+	assert.Len(t, experts, 2)
+
+	names := []string{experts[0].Name(), experts[1].Name()}
+	assert.Contains(t, names, "Alice Smith")
+	assert.Contains(t, names, "Bob Jones")
+}

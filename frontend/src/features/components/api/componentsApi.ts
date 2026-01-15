@@ -4,6 +4,8 @@ import type {
   Component,
   ComponentId,
   CreateComponentRequest,
+  AddComponentExpertRequest,
+  Expert,
 } from '../../../api/types';
 
 export const componentsApi = {
@@ -33,6 +35,19 @@ export const componentsApi = {
 
   async delete(component: Component): Promise<void> {
     await httpClient.delete(followLink(component, 'delete'));
+  },
+
+  async addExpert(id: ComponentId, request: AddComponentExpertRequest): Promise<void> {
+    await httpClient.post(`/api/v1/components/${id}/experts`, request);
+  },
+
+  async removeExpert(expert: Expert): Promise<void> {
+    await httpClient.delete(followLink(expert, 'x-remove'));
+  },
+
+  async getExpertRoles(): Promise<string[]> {
+    const response = await httpClient.get<{ roles: string[] }>('/api/v1/components/expert-roles');
+    return response.data.roles;
   },
 };
 

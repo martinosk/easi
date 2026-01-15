@@ -58,8 +58,7 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 		return
 	}
 
-	if _, err := valueobjects.NewComponentName(req.Name); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+	if !h.validateComponentName(w, req.Name) {
 		return
 	}
 
@@ -89,8 +88,7 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 		return
 	}
 
-	actor, _ := sharedctx.GetActor(r.Context())
-	component.Links = h.hateoas.ComponentLinksForActor(component.ID, actor)
+	h.enrichWithLinks(r, component)
 	sharedAPI.RespondCreated(w, location, component)
 }
 
@@ -119,9 +117,8 @@ func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	actor, _ := sharedctx.GetActor(r.Context())
 	for i := range components {
-		components[i].Links = h.hateoas.ComponentLinksForActor(components[i].ID, actor)
+		h.enrichWithLinks(r, &components[i])
 	}
 
 	pageables := ConvertToNamePageable(components)
@@ -163,8 +160,7 @@ func (h *ComponentHandlers) GetComponentByID(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	actor, _ := sharedctx.GetActor(r.Context())
-	component.Links = h.hateoas.ComponentLinksForActor(component.ID, actor)
+	h.enrichWithLinks(r, component)
 	sharedAPI.RespondJSON(w, http.StatusOK, component)
 }
 
@@ -189,8 +185,7 @@ func (h *ComponentHandlers) UpdateApplicationComponent(w http.ResponseWriter, r 
 		return
 	}
 
-	if _, err := valueobjects.NewComponentName(req.Name); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+	if !h.validateComponentName(w, req.Name) {
 		return
 	}
 
@@ -216,8 +211,7 @@ func (h *ComponentHandlers) UpdateApplicationComponent(w http.ResponseWriter, r 
 		return
 	}
 
-	actor, _ := sharedctx.GetActor(r.Context())
-	component.Links = h.hateoas.ComponentLinksForActor(component.ID, actor)
+	h.enrichWithLinks(r, component)
 	sharedAPI.RespondJSON(w, http.StatusOK, component)
 }
 
@@ -243,4 +237,21 @@ func (h *ComponentHandlers) DeleteApplicationComponent(w http.ResponseWriter, r 
 	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
 		sharedAPI.RespondDeleted(w)
 	})
+}
+
+func (h *ComponentHandlers) validateComponentName(w http.ResponseWriter, name string) bool {
+	if _, err := valueobjects.NewComponentName(name); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return false
+	}
+	return true
+}
+
+func (h *ComponentHandlers) enrichWithLinks(r *http.Request, component *readmodels.ApplicationComponentDTO) {
+	actor, _ := sharedctx.GetActor(r.Context())
+	component.Links = h.hateoas.ComponentLinksForActor(component.ID, actor)
+	for i := range component.Experts {
+		e := component.Experts[i]
+		component.Experts[i].Links = h.hateoas.ComponentExpertLinksForActor(component.ID, e.Name, e.Role, e.Contact, actor)
+	}
 }

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"easi/backend/internal/capabilitymapping/domain/entities"
 	"easi/backend/internal/capabilitymapping/domain/events"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	domain "easi/backend/internal/shared/eventsourcing"
@@ -32,7 +31,7 @@ type Capability struct {
 	primaryOwner   valueobjects.Owner
 	eaOwner        valueobjects.Owner
 	status         valueobjects.CapabilityStatus
-	experts        []*entities.Expert
+	experts        []valueobjects.Expert
 	tags           []valueobjects.Tag
 }
 
@@ -107,8 +106,22 @@ func (c *Capability) UpdateMetadata(metadata valueobjects.CapabilityMetadata) er
 	return nil
 }
 
-func (c *Capability) AddExpert(expert *entities.Expert) error {
+func (c *Capability) AddExpert(expert valueobjects.Expert) error {
 	event := events.NewCapabilityExpertAdded(
+		c.ID(),
+		expert.Name(),
+		expert.Role(),
+		expert.Contact(),
+	)
+
+	c.apply(event)
+	c.RaiseEvent(event)
+
+	return nil
+}
+
+func (c *Capability) RemoveExpert(expert valueobjects.Expert) error {
+	event := events.NewCapabilityExpertRemoved(
 		c.ID(),
 		expert.Name(),
 		expert.Role(),
@@ -139,40 +152,80 @@ func (c *Capability) AddTag(tag valueobjects.Tag) error {
 func (c *Capability) apply(event domain.DomainEvent) {
 	switch e := event.(type) {
 	case events.CapabilityCreated:
-		c.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-		c.name, _ = valueobjects.NewCapabilityName(e.Name)
-		c.description = valueobjects.MustNewDescription(e.Description)
-		if e.ParentID != "" {
-			c.parentID, _ = valueobjects.NewCapabilityIDFromString(e.ParentID)
-		}
-		c.level, _ = valueobjects.NewCapabilityLevel(e.Level)
-		c.createdAt = e.CreatedAt
-		c.status = valueobjects.StatusActive
-		c.maturityLevel = valueobjects.MaturityGenesis
+		c.applyCreated(e)
 	case events.CapabilityUpdated:
-		c.name, _ = valueobjects.NewCapabilityName(e.Name)
-		c.description = valueobjects.MustNewDescription(e.Description)
+		c.applyUpdated(e)
 	case events.CapabilityMetadataUpdated:
-		c.maturityLevel, _ = valueobjects.NewMaturityLevelFromValue(e.MaturityValue)
-		c.ownershipModel, _ = valueobjects.NewOwnershipModel(e.OwnershipModel)
-		c.primaryOwner = valueobjects.NewOwner(e.PrimaryOwner)
-		c.eaOwner = valueobjects.NewOwner(e.EAOwner)
-		c.status, _ = valueobjects.NewCapabilityStatus(e.Status)
+		c.applyMetadataUpdated(e)
 	case events.CapabilityExpertAdded:
-		expert, _ := entities.NewExpert(e.ExpertName, e.ExpertRole, e.ContactInfo)
-		c.experts = append(c.experts, expert)
+		c.applyExpertAdded(e)
+	case events.CapabilityExpertRemoved:
+		c.applyExpertRemoved(e)
 	case events.CapabilityTagAdded:
-		tag, _ := valueobjects.NewTag(e.Tag)
-		c.tags = append(c.tags, tag)
+		c.applyTagAdded(e)
 	case events.CapabilityParentChanged:
-		if e.NewParentID != "" {
-			c.parentID, _ = valueobjects.NewCapabilityIDFromString(e.NewParentID)
-		} else {
-			c.parentID = valueobjects.CapabilityID{}
-		}
-		c.level, _ = valueobjects.NewCapabilityLevel(e.NewLevel)
+		c.applyParentChanged(e)
 	case events.CapabilityDeleted:
 	}
+}
+
+func (c *Capability) applyCreated(e events.CapabilityCreated) {
+	c.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
+	c.name, _ = valueobjects.NewCapabilityName(e.Name)
+	c.description = valueobjects.MustNewDescription(e.Description)
+	if e.ParentID != "" {
+		c.parentID, _ = valueobjects.NewCapabilityIDFromString(e.ParentID)
+	}
+	c.level, _ = valueobjects.NewCapabilityLevel(e.Level)
+	c.createdAt = e.CreatedAt
+	c.status = valueobjects.StatusActive
+	c.maturityLevel = valueobjects.MaturityGenesis
+}
+
+func (c *Capability) applyUpdated(e events.CapabilityUpdated) {
+	c.name, _ = valueobjects.NewCapabilityName(e.Name)
+	c.description = valueobjects.MustNewDescription(e.Description)
+}
+
+func (c *Capability) applyMetadataUpdated(e events.CapabilityMetadataUpdated) {
+	c.maturityLevel, _ = valueobjects.NewMaturityLevelFromValue(e.MaturityValue)
+	c.ownershipModel, _ = valueobjects.NewOwnershipModel(e.OwnershipModel)
+	c.primaryOwner = valueobjects.NewOwner(e.PrimaryOwner)
+	c.eaOwner = valueobjects.NewOwner(e.EAOwner)
+	c.status, _ = valueobjects.NewCapabilityStatus(e.Status)
+}
+
+func (c *Capability) applyExpertAdded(e events.CapabilityExpertAdded) {
+	expert := valueobjects.MustNewExpert(e.ExpertName, e.ExpertRole, e.ContactInfo, e.AddedAt)
+	c.experts = append(c.experts, expert)
+}
+
+func (c *Capability) applyExpertRemoved(e events.CapabilityExpertRemoved) {
+	c.experts = removeExpert(c.experts, e.ExpertName, e.ExpertRole, e.ContactInfo)
+}
+
+func removeExpert(experts []valueobjects.Expert, name, role, contact string) []valueobjects.Expert {
+	result := make([]valueobjects.Expert, 0, len(experts))
+	for _, expert := range experts {
+		if !expert.MatchesValues(name, role, contact) {
+			result = append(result, expert)
+		}
+	}
+	return result
+}
+
+func (c *Capability) applyTagAdded(e events.CapabilityTagAdded) {
+	tag, _ := valueobjects.NewTag(e.Tag)
+	c.tags = append(c.tags, tag)
+}
+
+func (c *Capability) applyParentChanged(e events.CapabilityParentChanged) {
+	if e.NewParentID != "" {
+		c.parentID, _ = valueobjects.NewCapabilityIDFromString(e.NewParentID)
+	} else {
+		c.parentID = valueobjects.CapabilityID{}
+	}
+	c.level, _ = valueobjects.NewCapabilityLevel(e.NewLevel)
 }
 
 func (c *Capability) Name() valueobjects.CapabilityName {
@@ -215,7 +268,7 @@ func (c *Capability) Status() valueobjects.CapabilityStatus {
 	return c.status
 }
 
-func (c *Capability) Experts() []*entities.Expert {
+func (c *Capability) Experts() []valueobjects.Expert {
 	return c.experts
 }
 

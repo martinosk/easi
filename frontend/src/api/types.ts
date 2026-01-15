@@ -89,6 +89,7 @@ export interface Component {
   id: ComponentId;
   name: string;
   description?: string;
+  experts?: Expert[];
   createdAt: string;
   _links: HATEOASLinks;
 }
@@ -145,6 +146,12 @@ export interface AddCapabilityToViewRequest {
 export interface CreateComponentRequest {
   name: string;
   description?: string;
+}
+
+export interface AddComponentExpertRequest {
+  expertName: string;
+  expertRole: string;
+  contactInfo: string;
 }
 
 export interface CreateRelationRequest {
@@ -241,6 +248,7 @@ export interface Expert {
   role: string;
   contact: string;
   addedAt: string;
+  _links?: HATEOASLinks;
 }
 
 export interface MaturitySection {

@@ -3,6 +3,7 @@ import type { ImportPreview } from '../types';
 
 interface ImportPreviewStepProps {
   preview: ImportPreview;
+  eaOwnerName?: string;
   onConfirm: () => void;
   onCancel: () => void;
   isLoading: boolean;
@@ -10,6 +11,7 @@ interface ImportPreviewStepProps {
 
 export const ImportPreviewStep: React.FC<ImportPreviewStepProps> = ({
   preview,
+  eaOwnerName,
   onConfirm,
   onCancel,
   isLoading,
@@ -44,6 +46,17 @@ export const ImportPreviewStep: React.FC<ImportPreviewStepProps> = ({
             </li>
           </ul>
         </div>
+
+        {eaOwnerName && (
+          <div className="import-section import-settings" data-testid="import-settings">
+            <h4>Import Settings</h4>
+            <ul className="import-list">
+              <li>
+                EA Owner for capabilities: <strong>{eaOwnerName}</strong>
+              </li>
+            </ul>
+          </div>
+        )}
 
         {hasUnsupported && (
           <div className="import-section import-warning">

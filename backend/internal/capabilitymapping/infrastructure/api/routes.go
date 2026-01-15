@@ -205,7 +205,7 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pill
 
 func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.CapabilityProjector) {
 	events := []string{"CapabilityCreated", "CapabilityUpdated", "CapabilityMetadataUpdated",
-		"CapabilityExpertAdded", "CapabilityTagAdded", "CapabilityParentChanged", "CapabilityDeleted"}
+		"CapabilityExpertAdded", "CapabilityExpertRemoved", "CapabilityTagAdded", "CapabilityParentChanged", "CapabilityDeleted"}
 	for _, event := range events {
 		eventBus.Subscribe(event, projector)
 	}
@@ -318,6 +318,7 @@ func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repos
 	commandBus.Register("UpdateCapability", handlers.NewUpdateCapabilityHandler(repo))
 	commandBus.Register("UpdateCapabilityMetadata", handlers.NewUpdateCapabilityMetadataHandler(repo))
 	commandBus.Register("AddCapabilityExpert", handlers.NewAddCapabilityExpertHandler(repo))
+	commandBus.Register("RemoveCapabilityExpert", handlers.NewRemoveCapabilityExpertHandler(repo))
 	commandBus.Register("AddCapabilityTag", handlers.NewAddCapabilityTagHandler(repo))
 	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(repo, rm))
 	commandBus.Register("DeleteCapability", handlers.NewDeleteCapabilityHandler(repo, deletionService))
@@ -398,6 +399,7 @@ func registerCapabilityRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware
 			r.Get("/metadata/maturity-levels", h.maturityLevel.GetMaturityLevels)
 			r.Get("/metadata/statuses", h.maturityLevel.GetStatuses)
 			r.Get("/metadata/ownership-models", h.maturityLevel.GetOwnershipModels)
+			r.Get("/expert-roles", h.capability.GetExpertRoles)
 			r.Get("/", h.capability.GetAllCapabilities)
 			r.Get("/{id}", h.capability.GetCapabilityByID)
 			r.Get("/{id}/children", h.capability.GetCapabilityChildren)
@@ -415,6 +417,7 @@ func registerCapabilityRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware
 			r.Put("/{id}/metadata", h.capability.UpdateCapabilityMetadata)
 			r.Patch("/{id}/parent", h.capability.ChangeCapabilityParent)
 			r.Post("/{id}/experts", h.capability.AddCapabilityExpert)
+			r.Delete("/{id}/experts", h.capability.RemoveCapabilityExpert)
 			r.Post("/{id}/tags", h.capability.AddCapabilityTag)
 		})
 		r.Group(func(r chi.Router) {

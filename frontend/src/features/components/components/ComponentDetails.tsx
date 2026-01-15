@@ -1,13 +1,16 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAppStore } from '../../../store/appStore';
 import { DetailField } from '../../../components/shared/DetailField';
 import { ColorPicker } from '../../../components/shared/ColorPicker';
 import { ComponentFitScores } from './ComponentFitScores';
+import { ComponentExpertsList } from './ComponentExpertsList';
+import { AddComponentExpertDialog } from './AddComponentExpertDialog';
 import { AuditHistorySection } from '../../audit';
 import { useCapabilities, useCapabilitiesByComponent } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../hooks/useComponents';
 import { useUpdateComponentColor, useClearComponentColor } from '../../views/hooks/useViews';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { hasLink } from '../../../utils/hateoas';
 import type { CapabilityRealization, Capability, ViewComponent, Component, View } from '../../../api/types';
 import toast from 'react-hot-toast';
 
@@ -27,6 +30,9 @@ export interface ComponentDetailsContentProps {
   onRemoveFromView?: () => void;
   onColorChange?: (color: string) => void;
   onClearColor?: () => void;
+  onAddExpert?: () => void;
+  isAddExpertOpen?: boolean;
+  onCloseAddExpert?: () => void;
 }
 
 const getLevelBadge = (level: string): string => {
@@ -178,6 +184,39 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ componentId, canEdit, can
   );
 };
 
+interface ConditionalColorPickerProps {
+  componentInView: ViewComponent | undefined;
+  currentView: View | null;
+  onColorChange?: (color: string) => void;
+  onClearColor?: () => void;
+}
+
+const hasRequiredColorPickerProps = (
+  componentInView: ViewComponent | undefined,
+  currentView: View | null,
+  onColorChange?: (color: string) => void,
+  onClearColor?: () => void,
+): componentInView is ViewComponent =>
+  componentInView !== undefined && currentView !== null && onColorChange !== undefined && onClearColor !== undefined;
+
+const ConditionalColorPicker: React.FC<ConditionalColorPickerProps> = ({
+  componentInView,
+  currentView,
+  onColorChange,
+  onClearColor,
+}) => {
+  if (!hasRequiredColorPickerProps(componentInView, currentView, onColorChange, onClearColor)) return null;
+
+  return (
+    <ColorPickerField
+      componentInView={componentInView}
+      colorScheme={currentView!.colorScheme || 'maturity'}
+      onColorChange={onColorChange!}
+      onClearColor={onClearColor!}
+    />
+  );
+};
+
 interface ComponentContentProps {
   component: Component;
   componentInView: ViewComponent | undefined;
@@ -185,10 +224,11 @@ interface ComponentContentProps {
   realizations: CapabilityRealization[];
   capabilities: Capability[];
   isInCurrentView: boolean;
-  onColorChange: (color: string) => void;
-  onClearColor: () => void;
+  onColorChange?: (color: string) => void;
+  onClearColor?: () => void;
   onEdit: (componentId: string) => void;
   onRemoveFromView?: () => void;
+  onAddExpert?: () => void;
 }
 
 const ComponentContentInternal: React.FC<ComponentContentProps> = ({
@@ -202,10 +242,12 @@ const ComponentContentInternal: React.FC<ComponentContentProps> = ({
   onClearColor,
   onEdit,
   onRemoveFromView,
+  onAddExpert,
 }) => {
   const formattedDate = new Date(component.createdAt).toLocaleString();
   const canEdit = component._links?.edit !== undefined;
   const canRemoveFromView = isInCurrentView && componentInView?._links?.['x-remove'] !== undefined;
+  const canAddExpert = hasLink(component, 'x-add-expert');
 
   return (
     <div className="detail-content">
@@ -221,17 +263,24 @@ const ComponentContentInternal: React.FC<ComponentContentProps> = ({
 
       <OptionalField value={component.description} label="Description" render={(desc) => desc} />
 
+      {onAddExpert && (
+        <ComponentExpertsList
+          componentId={component.id}
+          experts={component.experts}
+          canAddExpert={canAddExpert}
+          onAddClick={onAddExpert}
+        />
+      )}
+
       <DetailField label="Created"><span className="detail-date">{formattedDate}</span></DetailField>
       <TypeField referenceUrl={component._links.describedby?.href} />
 
-      {componentInView && currentView && onColorChange && onClearColor && (
-        <ColorPickerField
-          componentInView={componentInView}
-          colorScheme={currentView.colorScheme || 'maturity'}
-          onColorChange={onColorChange}
-          onClearColor={onClearColor}
-        />
-      )}
+      <ConditionalColorPicker
+        componentInView={componentInView}
+        currentView={currentView}
+        onColorChange={onColorChange}
+        onClearColor={onClearColor}
+      />
 
       <RealizationsField realizations={realizations} capabilities={capabilities} />
 
@@ -253,6 +302,9 @@ export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (
   onRemoveFromView,
   onColorChange,
   onClearColor,
+  onAddExpert,
+  isAddExpertOpen,
+  onCloseAddExpert,
 }) => {
   return (
     <div className="detail-panel">
@@ -267,11 +319,20 @@ export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (
         realizations={realizations}
         capabilities={capabilities}
         isInCurrentView={isInCurrentView}
-        onColorChange={onColorChange ?? (() => {})}
-        onClearColor={onClearColor ?? (() => {})}
+        onColorChange={onColorChange}
+        onClearColor={onClearColor}
         onEdit={onEdit}
         onRemoveFromView={onRemoveFromView}
+        onAddExpert={onAddExpert}
       />
+
+      {isAddExpertOpen !== undefined && onCloseAddExpert && (
+        <AddComponentExpertDialog
+          isOpen={isAddExpertOpen}
+          onClose={onCloseAddExpert}
+          componentId={component.id}
+        />
+      )}
     </div>
   );
 };
@@ -284,6 +345,7 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
   const { data: componentRealizations = [] } = useCapabilitiesByComponent(selectedNodeId ?? undefined);
   const updateComponentColorMutation = useUpdateComponentColor();
   const clearComponentColorMutation = useClearComponentColor();
+  const [isAddExpertOpen, setIsAddExpertOpen] = useState(false);
 
   const component = useMemo(() =>
     components.find((c) => c.id === selectedNodeId),
@@ -331,6 +393,9 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
       onRemoveFromView={onRemoveFromView}
       onColorChange={handleColorChange}
       onClearColor={handleClearColor}
+      onAddExpert={() => setIsAddExpertOpen(true)}
+      isAddExpertOpen={isAddExpertOpen}
+      onCloseAddExpert={() => setIsAddExpertOpen(false)}
     />
   );
 };

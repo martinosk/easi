@@ -9,19 +9,21 @@ var ErrInvalidImportPhase = errors.New("invalid import phase")
 var ErrInvalidProgressCounts = errors.New("invalid progress counts: total must be non-negative and completed must not exceed total")
 
 const (
-	PhaseCreatingComponents         = "creating_components"
-	PhaseCreatingCapabilities       = "creating_capabilities"
-	PhaseCreatingRealizations       = "creating_realizations"
-	PhaseCreatingComponentRelations = "creating_component_relations"
-	PhaseAssigningDomains           = "assigning_domains"
+	PhaseCreatingComponents          = "creating_components"
+	PhaseCreatingCapabilities        = "creating_capabilities"
+	PhaseCreatingRealizations        = "creating_realizations"
+	PhaseCreatingComponentRelations  = "creating_component_relations"
+	PhaseAssigningDomains            = "assigning_domains"
+	PhaseAssigningCapabilityMetadata = "assigning_capability_metadata"
 )
 
 var validPhases = map[string]bool{
-	PhaseCreatingComponents:         true,
-	PhaseCreatingCapabilities:       true,
-	PhaseCreatingRealizations:       true,
-	PhaseCreatingComponentRelations: true,
-	PhaseAssigningDomains:           true,
+	PhaseCreatingComponents:          true,
+	PhaseCreatingCapabilities:        true,
+	PhaseCreatingRealizations:        true,
+	PhaseCreatingComponentRelations:  true,
+	PhaseAssigningDomains:            true,
+	PhaseAssigningCapabilityMetadata: true,
 }
 
 type ImportProgress struct {

@@ -101,26 +101,23 @@ function CanvasView({
   permissions,
 }: CanvasViewProps) {
   return (
-    <>
-      <DockviewLayout
-        canvasRef={canvasRef}
-        selectedNodeId={selectedNodeId}
-        selectedEdgeId={selectedEdgeId}
-        onAddComponent={permissions.canCreateComponent ? dialogActions.openComponentDialog : undefined}
-        onAddCapability={permissions.canCreateCapability ? dialogActions.openCapabilityDialog : undefined}
-        canCreateView={permissions.canCreateView}
-        onConnect={dialogActions.openRelationDialog}
-        onComponentDrop={(id, x, y) => addComponentToView(id as import('./api/types').ComponentId, x, y)}
-        onComponentSelect={navigateToComponent}
-        onCapabilitySelect={navigateToCapability}
-        onViewSelect={async (id) => switchView(id as import('./api/types').ViewId)}
-        onEditComponent={dialogActions.openEditComponentDialog}
-        onEditRelation={dialogActions.openEditRelationDialog}
-        onEditCapability={dialogActions.openEditCapabilityDialog}
-        onRemoveFromView={onRemoveFromView}
-      />
-      <DialogManager />
-    </>
+    <DockviewLayout
+      canvasRef={canvasRef}
+      selectedNodeId={selectedNodeId}
+      selectedEdgeId={selectedEdgeId}
+      onAddComponent={permissions.canCreateComponent ? dialogActions.openComponentDialog : undefined}
+      onAddCapability={permissions.canCreateCapability ? dialogActions.openCapabilityDialog : undefined}
+      canCreateView={permissions.canCreateView}
+      onConnect={dialogActions.openRelationDialog}
+      onComponentDrop={(id, x, y) => addComponentToView(id as import('./api/types').ComponentId, x, y)}
+      onComponentSelect={navigateToComponent}
+      onCapabilitySelect={navigateToCapability}
+      onViewSelect={async (id) => switchView(id as import('./api/types').ViewId)}
+      onEditComponent={dialogActions.openEditComponentDialog}
+      onEditRelation={dialogActions.openEditRelationDialog}
+      onEditCapability={dialogActions.openEditCapabilityDialog}
+      onRemoveFromView={onRemoveFromView}
+    />
   );
 }
 
@@ -250,6 +247,7 @@ function App({ view }: AppProps) {
     <AppLayout>
       <AppNavigation currentView={view} onOpenReleaseNotes={dialogActions.openReleaseNotesBrowser} />
       <MainContent view={view} canvasViewProps={canvasViewProps} />
+      <DialogManager />
       <ReleaseNotesDisplay
         showOverlay={showReleaseNotes}
         release={release}

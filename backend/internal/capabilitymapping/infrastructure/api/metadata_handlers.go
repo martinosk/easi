@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
-	"easi/backend/internal/capabilitymapping/domain/entities"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -21,9 +20,9 @@ func isValidationError(err error) bool {
 		errors.Is(err, valueobjects.ErrInvalidOwnershipModel) ||
 		errors.Is(err, valueobjects.ErrInvalidCapabilityStatus) ||
 		errors.Is(err, valueobjects.ErrTagEmpty) ||
-		errors.Is(err, entities.ErrExpertNameEmpty) ||
-		errors.Is(err, entities.ErrExpertRoleEmpty) ||
-		errors.Is(err, entities.ErrExpertContactEmpty)
+		errors.Is(err, valueobjects.ErrExpertNameEmpty) ||
+		errors.Is(err, valueobjects.ErrExpertRoleEmpty) ||
+		errors.Is(err, valueobjects.ErrExpertContactEmpty)
 }
 
 func isNotFoundError(err error) bool {
@@ -111,7 +110,7 @@ func (h *CapabilityHandlers) UpdateCapabilityMetadata(w http.ResponseWriter, r *
 	}
 
 	actor, _ := sharedctx.GetActor(r.Context())
-	capability.Links = h.hateoas.CapabilityLinksForActor(capability.ID, capability.ParentID, actor)
+	h.addLinksToCapability(capability, actor)
 
 	sharedAPI.RespondJSON(w, http.StatusOK, capability)
 }
@@ -158,6 +157,82 @@ func (h *CapabilityHandlers) AddCapabilityExpert(w http.ResponseWriter, r *http.
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// RemoveCapabilityExpert godoc
+// @Summary Remove an expert from a capability
+// @Description Removes a subject matter expert from a capability
+// @Tags capabilities
+// @Param id path string true "Capability ID"
+// @Param name query string true "Expert name"
+// @Param role query string true "Expert role"
+// @Param contact query string true "Contact info"
+// @Success 204 "No Content"
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /capabilities/{id}/experts [delete]
+func (h *CapabilityHandlers) RemoveCapabilityExpert(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	expertName := r.URL.Query().Get("name")
+	expertRole := r.URL.Query().Get("role")
+	contactInfo := r.URL.Query().Get("contact")
+
+	if !hasAllRequiredParams(expertName, expertRole, contactInfo) {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "Missing required query parameters: name, role, contact")
+		return
+	}
+
+	cmd := &commands.RemoveCapabilityExpert{
+		CapabilityID: id,
+		ExpertName:   expertName,
+		ExpertRole:   expertRole,
+		ContactInfo:  contactInfo,
+	}
+
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		if isNotFoundError(err) {
+			sharedAPI.RespondError(w, http.StatusNotFound, err, "Capability not found")
+			return
+		}
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to remove expert")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func hasAllRequiredParams(params ...string) bool {
+	for _, p := range params {
+		if p == "" {
+			return false
+		}
+	}
+	return true
+}
+
+// GetExpertRoles godoc
+// @Summary Get distinct expert roles for autocomplete
+// @Description Retrieves distinct expert roles used across all capabilities for autocomplete support
+// @Tags capabilities
+// @Produce json
+// @Success 200 {object} map[string][]string "Roles list"
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /capabilities/expert-roles [get]
+func (h *CapabilityHandlers) GetExpertRoles(w http.ResponseWriter, r *http.Request) {
+	roles, err := h.readModel.GetDistinctExpertRoles(r.Context())
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve expert roles")
+		return
+	}
+
+	if roles == nil {
+		roles = []string{}
+	}
+
+	sharedAPI.RespondJSON(w, http.StatusOK, map[string][]string{
+		"roles": roles,
+	})
 }
 
 // AddCapabilityTag godoc

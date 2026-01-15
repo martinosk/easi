@@ -11,3 +11,14 @@ export function useActiveUsers() {
     staleTime: 1000 * 60 * 5,
   });
 }
+
+export function useEAOwnerCandidates() {
+  return useQuery<User[]>({
+    queryKey: [...USERS_QUERY_KEY, 'ea-owner-candidates'],
+    queryFn: async () => {
+      const users = await userApi.getAll('active');
+      return users.filter((u) => u.role === 'admin' || u.role === 'architect');
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+}

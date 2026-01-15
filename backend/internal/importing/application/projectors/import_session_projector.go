@@ -29,6 +29,15 @@ func (p *ImportSessionProjector) Handle(ctx context.Context, event domain.Domain
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
 
+func unmarshalEventData[T any](eventData []byte, eventName string) (*T, error) {
+	var data T
+	if err := json.Unmarshal(eventData, &data); err != nil {
+		log.Printf("Failed to unmarshal %s: %v", eventName, err)
+		return nil, err
+	}
+	return &data, nil
+}
+
 func (p *ImportSessionProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	switch eventType {
 	case "ImportSessionCreated":
@@ -49,11 +58,12 @@ func (p *ImportSessionProjector) ProjectEvent(ctx context.Context, eventType str
 
 func (p *ImportSessionProjector) handleImportSessionCreated(ctx context.Context, eventData []byte) error {
 	var data struct {
-		ID               string                 `json:"id"`
-		SourceFormat     string                 `json:"sourceFormat"`
-		BusinessDomainID string                 `json:"businessDomainId"`
-		Preview          map[string]interface{} `json:"preview"`
-		CreatedAt        time.Time              `json:"createdAt"`
+		ID                string                 `json:"id"`
+		SourceFormat      string                 `json:"sourceFormat"`
+		BusinessDomainID  string                 `json:"businessDomainId"`
+		CapabilityEAOwner string                 `json:"capabilityEAOwner"`
+		Preview           map[string]interface{} `json:"preview"`
+		CreatedAt         time.Time              `json:"createdAt"`
 	}
 	if err := json.Unmarshal(eventData, &data); err != nil {
 		log.Printf("Failed to unmarshal ImportSessionCreated: %v", err)
@@ -78,12 +88,13 @@ func (p *ImportSessionProjector) handleImportSessionCreated(ctx context.Context,
 	}
 
 	dto := readmodels.ImportSessionDTO{
-		ID:               data.ID,
-		SourceFormat:     data.SourceFormat,
-		BusinessDomainID: data.BusinessDomainID,
-		Status:           "pending",
-		Preview:          &preview,
-		CreatedAt:        data.CreatedAt,
+		ID:                data.ID,
+		SourceFormat:      data.SourceFormat,
+		BusinessDomainID:  data.BusinessDomainID,
+		CapabilityEAOwner: data.CapabilityEAOwner,
+		Status:            "pending",
+		Preview:           &preview,
+		CreatedAt:         data.CreatedAt,
 	}
 
 	return p.readModel.Insert(ctx, dto)
@@ -171,28 +182,28 @@ func (p *ImportSessionProjector) handleImportCompleted(ctx context.Context, even
 	return p.readModel.MarkCompleted(ctx, data.ID, result, data.CompletedAt)
 }
 
+type importFailedData struct {
+	ID       string    `json:"id"`
+	FailedAt time.Time `json:"failedAt"`
+}
+
+type importCancelledData struct {
+	ID string `json:"id"`
+}
+
 func (p *ImportSessionProjector) handleImportFailed(ctx context.Context, eventData []byte) error {
-	var data struct {
-		ID       string    `json:"id"`
-		FailedAt time.Time `json:"failedAt"`
-	}
-	if err := json.Unmarshal(eventData, &data); err != nil {
-		log.Printf("Failed to unmarshal ImportFailed: %v", err)
+	data, err := unmarshalEventData[importFailedData](eventData, "ImportFailed")
+	if err != nil {
 		return err
 	}
-
 	return p.readModel.MarkFailed(ctx, data.ID, data.FailedAt)
 }
 
 func (p *ImportSessionProjector) handleImportSessionCancelled(ctx context.Context, eventData []byte) error {
-	var data struct {
-		ID string `json:"id"`
-	}
-	if err := json.Unmarshal(eventData, &data); err != nil {
-		log.Printf("Failed to unmarshal ImportSessionCancelled: %v", err)
+	data, err := unmarshalEventData[importCancelledData](eventData, "ImportSessionCancelled")
+	if err != nil {
 		return err
 	}
-
 	return p.readModel.MarkCancelled(ctx, data.ID)
 }
 

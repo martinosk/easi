@@ -33,6 +33,7 @@ type importExecutionContext struct {
 	result               *aggregates.ImportResult
 	sourceToComponentID  map[string]string
 	sourceToCapabilityID map[string]string
+	createdCapabilityIDs []string
 }
 
 func (o *ImportOrchestrator) Execute(ctx context.Context, session *aggregates.ImportSession) (aggregates.ImportResult, error) {
@@ -45,10 +46,12 @@ func (o *ImportOrchestrator) Execute(ctx context.Context, session *aggregates.Im
 		result:               &result,
 		sourceToComponentID:  make(map[string]string),
 		sourceToCapabilityID: make(map[string]string),
+		createdCapabilityIDs: make([]string, 0),
 	}
 
 	o.executeComponentPhase(execCtx, parsedData)
 	o.executeCapabilityPhase(execCtx, parsedData)
+	o.executeCapabilityMetadataPhase(execCtx)
 	o.executeRealizationPhase(execCtx, parsedData)
 	o.executeComponentRelationPhase(execCtx, parsedData)
 	o.executeDomainAssignmentPhase(execCtx, parsedData)
@@ -65,10 +68,22 @@ func (o *ImportOrchestrator) executeComponentPhase(execCtx *importExecutionConte
 }
 
 func (o *ImportOrchestrator) executeCapabilityPhase(execCtx *importExecutionContext, parsedData aggregates.ParsedData) {
-	created, errors := o.createCapabilities(execCtx.ctx, parsedData.Capabilities, parsedData.Relationships, execCtx.sourceToCapabilityID)
+	created, createdIDs, errors := o.createCapabilities(execCtx.ctx, parsedData.Capabilities, parsedData.Relationships, execCtx.sourceToCapabilityID)
 	execCtx.result.CapabilitiesCreated = created
+	execCtx.createdCapabilityIDs = createdIDs
 	execCtx.result.Errors = append(execCtx.result.Errors, errors...)
 	o.saveProgress(execCtx, valueobjects.PhaseCreatingCapabilities, len(parsedData.Capabilities), created)
+}
+
+func (o *ImportOrchestrator) executeCapabilityMetadataPhase(execCtx *importExecutionContext) {
+	eaOwner := execCtx.session.CapabilityEAOwner()
+	if eaOwner == "" || len(execCtx.createdCapabilityIDs) == 0 {
+		return
+	}
+
+	assigned, errors := o.assignCapabilityMetadata(execCtx.ctx, execCtx.createdCapabilityIDs, eaOwner)
+	execCtx.result.Errors = append(execCtx.result.Errors, errors...)
+	o.saveProgress(execCtx, valueobjects.PhaseAssigningCapabilityMetadata, len(execCtx.createdCapabilityIDs), assigned)
 }
 
 func (o *ImportOrchestrator) executeRealizationPhase(execCtx *importExecutionContext, parsedData aggregates.ParsedData) {
@@ -144,8 +159,9 @@ func (o *ImportOrchestrator) createComponents(ctx context.Context, components []
 	return created, errors
 }
 
-func (o *ImportOrchestrator) createCapabilities(ctx context.Context, capabilities []aggregates.ParsedElement, relationships []aggregates.ParsedRelationship, sourceToID map[string]string) (int, []valueobjects.ImportError) {
+func (o *ImportOrchestrator) createCapabilities(ctx context.Context, capabilities []aggregates.ParsedElement, relationships []aggregates.ParsedRelationship, sourceToID map[string]string) (int, []string, []valueobjects.ImportError) {
 	var errors []valueobjects.ImportError
+	var createdIDs []string
 	created := 0
 
 	parentMap := buildParentMap(relationships)
@@ -187,11 +203,33 @@ func (o *ImportOrchestrator) createCapabilities(ctx context.Context, capabilitie
 			}
 
 			sourceToID[sourceID] = result.CreatedID
+			createdIDs = append(createdIDs, result.CreatedID)
 			created++
 		}
 	}
 
-	return created, errors
+	return created, createdIDs, errors
+}
+
+func (o *ImportOrchestrator) assignCapabilityMetadata(ctx context.Context, capabilityIDs []string, eaOwner string) (int, []valueobjects.ImportError) {
+	var errors []valueobjects.ImportError
+	assigned := 0
+
+	for _, capID := range capabilityIDs {
+		cmd := &capabilityCommands.UpdateCapabilityMetadata{
+			ID:      capID,
+			EAOwner: eaOwner,
+			Status:  "Active",
+		}
+
+		if _, err := o.commandBus.Dispatch(ctx, cmd); err != nil {
+			errors = append(errors, valueobjects.NewImportError(capID, "", "failed to assign EA Owner: "+err.Error(), "warning"))
+			continue
+		}
+		assigned++
+	}
+
+	return assigned, errors
 }
 
 type relationshipContext struct {

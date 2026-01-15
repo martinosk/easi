@@ -2,6 +2,7 @@ package aggregates
 
 import (
 	"testing"
+	"time"
 
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 
@@ -171,4 +172,91 @@ func TestApplicationComponent_EmptyDescription(t *testing.T) {
 	assert.NotNil(t, component)
 	assert.True(t, component.Description().IsEmpty())
 	assert.Equal(t, "", component.Description().Value())
+}
+
+func TestApplicationComponent_AddExpert(t *testing.T) {
+	name, _ := valueobjects.NewComponentName("Customer Portal")
+	description := valueobjects.MustNewDescription("Portal for customers")
+
+	component, err := NewApplicationComponent(name, description)
+	require.NoError(t, err)
+
+	component.MarkChangesAsCommitted()
+
+	expert, err := valueobjects.NewExpert("Alice Smith", "Product Owner", "alice@example.com", time.Now().UTC())
+	require.NoError(t, err)
+
+	err = component.AddExpert(expert)
+	require.NoError(t, err)
+
+	experts := component.Experts()
+	assert.Len(t, experts, 1)
+	assert.Equal(t, "Alice Smith", experts[0].Name().Value())
+	assert.Equal(t, "Product Owner", experts[0].Role().Value())
+	assert.Equal(t, "alice@example.com", experts[0].Contact().Value())
+
+	uncommittedEvents := component.GetUncommittedChanges()
+	assert.Len(t, uncommittedEvents, 1)
+	assert.Equal(t, "ApplicationComponentExpertAdded", uncommittedEvents[0].EventType())
+}
+
+func TestApplicationComponent_RemoveExpert(t *testing.T) {
+	name, _ := valueobjects.NewComponentName("Customer Portal")
+	description := valueobjects.MustNewDescription("Portal for customers")
+
+	component, err := NewApplicationComponent(name, description)
+	require.NoError(t, err)
+
+	expert, err := valueobjects.NewExpert("Alice Smith", "Product Owner", "alice@example.com", time.Now().UTC())
+	require.NoError(t, err)
+
+	component.AddExpert(expert)
+	component.MarkChangesAsCommitted()
+
+	assert.Len(t, component.Experts(), 1)
+
+	err = component.RemoveExpert(expert)
+	require.NoError(t, err)
+
+	assert.Len(t, component.Experts(), 0)
+
+	uncommittedEvents := component.GetUncommittedChanges()
+	assert.Len(t, uncommittedEvents, 1)
+	assert.Equal(t, "ApplicationComponentExpertRemoved", uncommittedEvents[0].EventType())
+}
+
+func TestApplicationComponent_AddMultipleExperts(t *testing.T) {
+	name, _ := valueobjects.NewComponentName("Customer Portal")
+	description := valueobjects.MustNewDescription("Portal for customers")
+
+	component, err := NewApplicationComponent(name, description)
+	require.NoError(t, err)
+
+	expert1, _ := valueobjects.NewExpert("Alice Smith", "Product Owner", "alice@example.com", time.Now().UTC())
+	expert2, _ := valueobjects.NewExpert("Bob Johnson", "Tech Lead", "bob@example.com", time.Now().UTC())
+
+	component.AddExpert(expert1)
+	component.AddExpert(expert2)
+
+	experts := component.Experts()
+	assert.Len(t, experts, 2)
+}
+
+func TestLoadApplicationComponentFromHistory_WithExpertEvents(t *testing.T) {
+	name, _ := valueobjects.NewComponentName("Customer Portal")
+	description := valueobjects.MustNewDescription("Portal for customers")
+
+	component, err := NewApplicationComponent(name, description)
+	require.NoError(t, err)
+
+	expert, _ := valueobjects.NewExpert("Alice Smith", "Product Owner", "alice@example.com", time.Now().UTC())
+	component.AddExpert(expert)
+
+	allEvents := component.GetUncommittedChanges()
+
+	reconstructed, err := LoadApplicationComponentFromHistory(allEvents)
+	require.NoError(t, err)
+
+	assert.Len(t, reconstructed.Experts(), 1)
+	assert.Equal(t, "Alice Smith", reconstructed.Experts()[0].Name().Value())
 }

@@ -47,6 +47,8 @@ func SetupArchitectureModelingRoutes(
 	eventBus.Subscribe("ApplicationComponentCreated", componentProjector)
 	eventBus.Subscribe("ApplicationComponentUpdated", componentProjector)
 	eventBus.Subscribe("ApplicationComponentDeleted", componentProjector)
+	eventBus.Subscribe("ApplicationComponentExpertAdded", componentProjector)
+	eventBus.Subscribe("ApplicationComponentExpertRemoved", componentProjector)
 	eventBus.Subscribe("ComponentRelationCreated", relationProjector)
 	eventBus.Subscribe("ComponentRelationUpdated", relationProjector)
 	eventBus.Subscribe("ComponentRelationDeleted", relationProjector)
@@ -55,6 +57,8 @@ func SetupArchitectureModelingRoutes(
 	createComponentHandler := handlers.NewCreateApplicationComponentHandler(componentRepo)
 	updateComponentHandler := handlers.NewUpdateApplicationComponentHandler(componentRepo)
 	deleteComponentHandler := handlers.NewDeleteApplicationComponentHandler(componentRepo, relationReadModel, commandBus)
+	addExpertHandler := handlers.NewAddApplicationComponentExpertHandler(componentRepo)
+	removeExpertHandler := handlers.NewRemoveApplicationComponentExpertHandler(componentRepo)
 	createRelationHandler := handlers.NewCreateComponentRelationHandler(relationRepo)
 	updateRelationHandler := handlers.NewUpdateComponentRelationHandler(relationRepo)
 	deleteRelationHandler := handlers.NewDeleteComponentRelationHandler(relationRepo)
@@ -63,12 +67,15 @@ func SetupArchitectureModelingRoutes(
 	commandBus.Register("CreateApplicationComponent", createComponentHandler)
 	commandBus.Register("UpdateApplicationComponent", updateComponentHandler)
 	commandBus.Register("DeleteApplicationComponent", deleteComponentHandler)
+	commandBus.Register("AddApplicationComponentExpert", addExpertHandler)
+	commandBus.Register("RemoveApplicationComponentExpert", removeExpertHandler)
 	commandBus.Register("CreateComponentRelation", createRelationHandler)
 	commandBus.Register("UpdateComponentRelation", updateRelationHandler)
 	commandBus.Register("DeleteComponentRelation", deleteRelationHandler)
 
 	// Initialize HTTP handlers
 	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, hateoas)
+	expertHandlers := NewComponentExpertHandlers(commandBus, componentReadModel)
 	relationHandlers := NewRelationHandlers(commandBus, relationReadModel, hateoas)
 
 	// Register component routes
@@ -76,16 +83,19 @@ func SetupArchitectureModelingRoutes(
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsRead))
 			r.Get("/", componentHandlers.GetAllComponents)
+			r.Get("/expert-roles", expertHandlers.GetExpertRoles)
 			r.Get("/{id}", componentHandlers.GetComponentByID)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsWrite))
 			r.Post("/", componentHandlers.CreateApplicationComponent)
 			r.Put("/{id}", componentHandlers.UpdateApplicationComponent)
+			r.Post("/{id}/experts", expertHandlers.AddComponentExpert)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsDelete))
 			r.Delete("/{id}", componentHandlers.DeleteApplicationComponent)
+			r.Delete("/{id}/experts", expertHandlers.RemoveComponentExpert)
 		})
 	})
 

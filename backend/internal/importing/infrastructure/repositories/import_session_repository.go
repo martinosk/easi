@@ -44,6 +44,10 @@ var importSessionEventDeserializers = repository.NewEventDeserializers(
 			if err != nil {
 				return nil, err
 			}
+			capabilityEAOwner, err := repository.GetOptionalString(data, "capabilityEAOwner", "")
+			if err != nil {
+				return nil, err
+			}
 			preview, err := repository.GetOptionalMap(data, "preview")
 			if err != nil {
 				return nil, err
@@ -57,7 +61,7 @@ var importSessionEventDeserializers = repository.NewEventDeserializers(
 				return nil, err
 			}
 
-			evt := events.NewImportSessionCreated(id, sourceFormat, businessDomainId, preview, parsedData)
+			evt := events.NewImportSessionCreated(id, sourceFormat, businessDomainId, capabilityEAOwner, preview, parsedData)
 			evt.CreatedAt = createdAt
 			return evt, nil
 		},

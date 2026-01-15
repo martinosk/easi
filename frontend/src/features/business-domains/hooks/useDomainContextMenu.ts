@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { BusinessDomain } from '../../../api/types';
 import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
+import { copyToClipboard, generateDomainShareUrl } from '../../../utils/clipboard';
 
 interface DomainContextMenuState {
   x: number;
@@ -22,6 +23,14 @@ export function useDomainContextMenu({ onEdit, onDelete }: UseDomainContextMenuP
 
   const getContextMenuItems = (menu: DomainContextMenuState): ContextMenuItem[] => {
     const items: ContextMenuItem[] = [];
+
+    items.push({
+      label: 'Share (copy URL)...',
+      onClick: () => {
+        const url = generateDomainShareUrl(menu.domain.id);
+        copyToClipboard(url);
+      },
+    });
 
     if (menu.domain._links.update) {
       items.push({

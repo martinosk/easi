@@ -161,6 +161,34 @@ export function useAddCapabilityExpert() {
   });
 }
 
+export function useCapabilityExpertRoles() {
+  return useQuery({
+    queryKey: queryKeys.capabilities.expertRoles(),
+    queryFn: () => capabilitiesApi.getExpertRoles(),
+  });
+}
+
+export function useRemoveCapabilityExpert() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      expert,
+    }: {
+      id: CapabilityId;
+      expert: { name: string; role: string; contact: string };
+    }) => capabilitiesApi.removeExpert(id, expert),
+    onSuccess: (_, { id }) => {
+      invalidateFor(queryClient, mutationEffects.capabilities.removeExpert(id));
+      toast.success('Expert removed');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to remove expert');
+    },
+  });
+}
+
 export function useAddCapabilityTag() {
   const queryClient = useQueryClient();
 

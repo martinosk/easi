@@ -1,5 +1,6 @@
 export interface InitiateLoginRequest {
   email: string;
+  returnUrl?: string;
 }
 
 export interface InitiateLoginResponse {

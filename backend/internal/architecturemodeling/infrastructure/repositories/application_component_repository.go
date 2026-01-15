@@ -79,5 +79,45 @@ var componentEventDeserializers = repository.NewEventDeserializers(
 
 			return events.NewApplicationComponentDeleted(id, name), nil
 		},
+		"ApplicationComponentExpertAdded": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			componentID, err := repository.GetRequiredString(data, "componentId")
+			if err != nil {
+				return nil, err
+			}
+			expertName, err := repository.GetRequiredString(data, "expertName")
+			if err != nil {
+				return nil, err
+			}
+			expertRole, err := repository.GetRequiredString(data, "expertRole")
+			if err != nil {
+				return nil, err
+			}
+			contactInfo, err := repository.GetRequiredString(data, "contactInfo")
+			if err != nil {
+				return nil, err
+			}
+
+			return events.NewApplicationComponentExpertAdded(componentID, expertName, expertRole, contactInfo), nil
+		},
+		"ApplicationComponentExpertRemoved": func(data map[string]interface{}) (domain.DomainEvent, error) {
+			componentID, err := repository.GetRequiredString(data, "componentId")
+			if err != nil {
+				return nil, err
+			}
+			expertName, err := repository.GetRequiredString(data, "expertName")
+			if err != nil {
+				return nil, err
+			}
+			expertRole, err := repository.GetRequiredString(data, "expertRole")
+			if err != nil {
+				return nil, err
+			}
+			contactInfo, err := repository.GetRequiredString(data, "contactInfo")
+			if err != nil {
+				return nil, err
+			}
+
+			return events.NewApplicationComponentExpertRemoved(componentID, expertName, expertRole, contactInfo), nil
+		},
 	},
 )

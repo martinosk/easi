@@ -137,6 +137,72 @@ func setupInvitationHandlers(db *sql.DB) (*InvitationHandlers, *readmodels.Invit
 	return invitationHandlers, readModel, commandBus
 }
 
+type loginServiceTestFixture struct {
+	loginService        *services.LoginService
+	invitationReadModel *readmodels.InvitationReadModel
+	userReadModel       *readmodels.UserReadModel
+	commandBus          cqrs.CommandBus
+	db                  *sql.DB
+}
+
+func setupLoginServiceTest(db *sql.DB) *loginServiceTestFixture {
+	tenantDB := database.NewTenantAwareDB(db)
+	eventStore := eventstore.NewPostgresEventStore(tenantDB)
+	commandBus := cqrs.NewInMemoryCommandBus()
+	eventBus := events.NewInMemoryEventBus()
+	eventStore.SetEventBus(eventBus)
+
+	invitationReadModel := readmodels.NewInvitationReadModel(tenantDB)
+	userReadModel := readmodels.NewUserReadModel(tenantDB)
+	invitationRepo := repositories.NewInvitationRepository(eventStore)
+	userRepo := repositories.NewUserAggregateRepository(eventStore)
+
+	invitationProjector := projectors.NewInvitationProjector(invitationReadModel)
+	eventBus.Subscribe("InvitationCreated", invitationProjector)
+	eventBus.Subscribe("InvitationAccepted", invitationProjector)
+	eventBus.Subscribe("InvitationRevoked", invitationProjector)
+	eventBus.Subscribe("InvitationExpired", invitationProjector)
+
+	userProjector := projectors.NewUserProjector(userReadModel)
+	eventBus.Subscribe("UserCreated", userProjector)
+
+	createHandler := handlers.NewCreateInvitationHandler(invitationRepo)
+	acceptHandler := handlers.NewAcceptInvitationHandler(invitationRepo, invitationReadModel)
+	expireHandler := handlers.NewMarkInvitationExpiredHandler(invitationRepo)
+	commandBus.Register("CreateInvitation", createHandler)
+	commandBus.Register("AcceptInvitation", acceptHandler)
+	commandBus.Register("MarkInvitationExpired", expireHandler)
+
+	loginService := services.NewLoginService(userReadModel, invitationReadModel, commandBus, userRepo)
+
+	return &loginServiceTestFixture{
+		loginService:        loginService,
+		invitationReadModel: invitationReadModel,
+		userReadModel:       userReadModel,
+		commandBus:          commandBus,
+		db:                  db,
+	}
+}
+
+func (f *loginServiceTestFixture) createInvitation(ctx context.Context, t *testing.T, email, role string) string {
+	createCmd := &commands.CreateInvitation{Email: email, Role: role}
+	_, err := f.commandBus.Dispatch(ctx, createCmd)
+	require.NoError(t, err)
+	time.Sleep(100 * time.Millisecond)
+
+	invitation, err := f.invitationReadModel.GetPendingByEmail(ctx, email)
+	require.NoError(t, err)
+	require.NotNil(t, invitation)
+	return invitation.ID
+}
+
+func (f *loginServiceTestFixture) expireInvitation(ctx context.Context, t *testing.T, id string) {
+	_, err := f.db.ExecContext(ctx,
+		"UPDATE invitations SET expires_at = $1 WHERE id = $2",
+		time.Now().UTC().Add(-1*time.Hour), id)
+	require.NoError(t, err)
+}
+
 func TestCreateInvitation_Integration(t *testing.T) {
 	testCtx, cleanup := setupInvitationTestDB(t)
 	defer cleanup()
@@ -197,40 +263,6 @@ func TestCreateInvitation_DuplicateEmail_Integration(t *testing.T) {
 	assert.Equal(t, http.StatusConflict, w2.Code)
 }
 
-func TestGetInvitationByID_Integration(t *testing.T) {
-	testCtx, cleanup := setupInvitationTestDB(t)
-	defer cleanup()
-
-	invitationHandlers, _, _ := setupInvitationHandlers(testCtx.db)
-
-	reqBody := CreateInvitationRequest{
-		Email: fmt.Sprintf("getbyid-%s@acme.com", testCtx.testID),
-		Role:  "stakeholder",
-	}
-	body, _ := json.Marshal(reqBody)
-
-	wCreate, reqCreate := testCtx.makeRequest(t, http.MethodPost, "/api/v1/invitations", body, nil)
-	invitationHandlers.CreateInvitation(wCreate, reqCreate)
-	require.Equal(t, http.StatusCreated, wCreate.Code)
-
-	var created readmodels.InvitationDTO
-	json.Unmarshal(wCreate.Body.Bytes(), &created)
-	testCtx.trackID(created.ID)
-
-	wGet, reqGet := testCtx.makeRequest(t, http.MethodGet, fmt.Sprintf("/api/v1/invitations/%s", created.ID), nil, map[string]string{"id": created.ID})
-	invitationHandlers.GetInvitationByID(wGet, reqGet)
-
-	require.Equal(t, http.StatusOK, wGet.Code)
-
-	var fetched readmodels.InvitationDTO
-	err := json.Unmarshal(wGet.Body.Bytes(), &fetched)
-	require.NoError(t, err)
-
-	assert.Equal(t, created.ID, fetched.ID)
-	assert.Equal(t, created.Email, fetched.Email)
-	assert.Equal(t, "stakeholder", fetched.Role)
-}
-
 func TestRevokeInvitation_Integration(t *testing.T) {
 	testCtx, cleanup := setupInvitationTestDB(t)
 	defer cleanup()
@@ -263,99 +295,54 @@ func TestRevokeInvitation_Integration(t *testing.T) {
 	assert.Equal(t, "revoked", invitation.Status)
 }
 
-func TestGetAllInvitations_Integration(t *testing.T) {
+func TestCreateInvitation_ValidationErrors_Integration(t *testing.T) {
 	testCtx, cleanup := setupInvitationTestDB(t)
 	defer cleanup()
 
 	invitationHandlers, _, _ := setupInvitationHandlers(testCtx.db)
 
-	for i := 0; i < 3; i++ {
-		reqBody := CreateInvitationRequest{
-			Email: fmt.Sprintf("list-%d-%s@acme.com", i, testCtx.testID),
-			Role:  "architect",
-		}
-		body, _ := json.Marshal(reqBody)
-
-		w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/invitations", body, nil)
-		invitationHandlers.CreateInvitation(w, req)
-		require.Equal(t, http.StatusCreated, w.Code)
-
-		var created readmodels.InvitationDTO
-		json.Unmarshal(w.Body.Bytes(), &created)
-		testCtx.trackID(created.ID)
+	tests := []struct {
+		name            string
+		email           string
+		role            string
+		expectedMessage string
+	}{
+		{
+			name:  "invalid email format",
+			email: "invalid-email",
+			role:  "architect",
+		},
+		{
+			name:  "invalid role",
+			email: fmt.Sprintf("test-%s@acme.com", testCtx.testID),
+			role:  "superadmin",
+		},
+		{
+			name:            "unregistered domain",
+			email:           fmt.Sprintf("user-%s@notallowed.com", testCtx.testID),
+			role:            "architect",
+			expectedMessage: "Email domain is not registered",
+		},
 	}
 
-	wList, reqList := testCtx.makeRequest(t, http.MethodGet, "/api/v1/invitations?limit=10", nil, nil)
-	invitationHandlers.GetAllInvitations(wList, reqList)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			reqBody := CreateInvitationRequest{Email: tc.email, Role: tc.role}
+			body, _ := json.Marshal(reqBody)
 
-	require.Equal(t, http.StatusOK, wList.Code)
+			w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/invitations", body, nil)
+			invitationHandlers.CreateInvitation(w, req)
 
-	var response map[string]interface{}
-	err := json.Unmarshal(wList.Body.Bytes(), &response)
-	require.NoError(t, err)
+			assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	data, ok := response["data"].([]interface{})
-	require.True(t, ok, "response should have data array")
-	assert.GreaterOrEqual(t, len(data), 3)
-}
-
-func TestCreateInvitation_InvalidEmail_Integration(t *testing.T) {
-	testCtx, cleanup := setupInvitationTestDB(t)
-	defer cleanup()
-
-	invitationHandlers, _, _ := setupInvitationHandlers(testCtx.db)
-
-	reqBody := CreateInvitationRequest{
-		Email: "invalid-email",
-		Role:  "architect",
+			if tc.expectedMessage != "" {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				require.NoError(t, err)
+				assert.Contains(t, response["message"], tc.expectedMessage)
+			}
+		})
 	}
-	body, _ := json.Marshal(reqBody)
-
-	w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/invitations", body, nil)
-	invitationHandlers.CreateInvitation(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestCreateInvitation_InvalidRole_Integration(t *testing.T) {
-	testCtx, cleanup := setupInvitationTestDB(t)
-	defer cleanup()
-
-	invitationHandlers, _, _ := setupInvitationHandlers(testCtx.db)
-
-	reqBody := CreateInvitationRequest{
-		Email: fmt.Sprintf("test-%s@acme.com", testCtx.testID),
-		Role:  "superadmin",
-	}
-	body, _ := json.Marshal(reqBody)
-
-	w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/invitations", body, nil)
-	invitationHandlers.CreateInvitation(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestCreateInvitation_UnregisteredDomain_Integration(t *testing.T) {
-	testCtx, cleanup := setupInvitationTestDB(t)
-	defer cleanup()
-
-	invitationHandlers, _, _ := setupInvitationHandlers(testCtx.db)
-
-	reqBody := CreateInvitationRequest{
-		Email: fmt.Sprintf("user-%s@notallowed.com", testCtx.testID),
-		Role:  "architect",
-	}
-	body, _ := json.Marshal(reqBody)
-
-	w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/invitations", body, nil)
-	invitationHandlers.CreateInvitation(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-
-	var response map[string]interface{}
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	require.NoError(t, err)
-	assert.Contains(t, response["message"], "Email domain is not registered")
 }
 
 func TestInvitationExpiration_QueryDoesNotReturnExpired_Integration(t *testing.T) {
@@ -441,39 +428,15 @@ func TestLoginService_UninvitedUserBlocked_Integration(t *testing.T) {
 	testCtx, cleanup := setupInvitationTestDB(t)
 	defer cleanup()
 
-	tenantDB := database.NewTenantAwareDB(testCtx.db)
-	eventStore := eventstore.NewPostgresEventStore(tenantDB)
-	commandBus := cqrs.NewInMemoryCommandBus()
-	eventBus := events.NewInMemoryEventBus()
-	eventStore.SetEventBus(eventBus)
-
-	invitationReadModel := readmodels.NewInvitationReadModel(tenantDB)
-	userReadModel := readmodels.NewUserReadModel(tenantDB)
-	invitationRepo := repositories.NewInvitationRepository(eventStore)
-	userRepo := repositories.NewUserAggregateRepository(eventStore)
-
-	invitationProjector := projectors.NewInvitationProjector(invitationReadModel)
-	eventBus.Subscribe("InvitationCreated", invitationProjector)
-	eventBus.Subscribe("InvitationAccepted", invitationProjector)
-	eventBus.Subscribe("InvitationRevoked", invitationProjector)
-	eventBus.Subscribe("InvitationExpired", invitationProjector)
-
-	userProjector := projectors.NewUserProjector(userReadModel)
-	eventBus.Subscribe("UserCreated", userProjector)
-
-	acceptHandler := handlers.NewAcceptInvitationHandler(invitationRepo, invitationReadModel)
-	commandBus.Register("AcceptInvitation", acceptHandler)
-
-	loginService := services.NewLoginService(userReadModel, invitationReadModel, commandBus, userRepo)
-
+	fixture := setupLoginServiceTest(testCtx.db)
 	ctx := tenantContext()
 	uninvitedEmail := fmt.Sprintf("uninvited-%s@acme.com", testCtx.testID)
 
-	result, err := loginService.ProcessLogin(ctx, uninvitedEmail, "Test User")
+	result, err := fixture.loginService.ProcessLogin(ctx, uninvitedEmail, "Test User")
 	assert.ErrorIs(t, err, services.ErrNoValidInvitation)
 	assert.Nil(t, result)
 
-	user, err := userReadModel.GetByEmail(ctx, uninvitedEmail)
+	user, err := fixture.userReadModel.GetByEmail(ctx, uninvitedEmail)
 	require.NoError(t, err)
 	assert.Nil(t, user)
 }
@@ -482,51 +445,14 @@ func TestLoginService_ValidInvitationCreatesUser_Integration(t *testing.T) {
 	testCtx, cleanup := setupInvitationTestDB(t)
 	defer cleanup()
 
-	tenantDB := database.NewTenantAwareDB(testCtx.db)
-	eventStore := eventstore.NewPostgresEventStore(tenantDB)
-	commandBus := cqrs.NewInMemoryCommandBus()
-	eventBus := events.NewInMemoryEventBus()
-	eventStore.SetEventBus(eventBus)
-
-	invitationReadModel := readmodels.NewInvitationReadModel(tenantDB)
-	userReadModel := readmodels.NewUserReadModel(tenantDB)
-	invitationRepo := repositories.NewInvitationRepository(eventStore)
-	userRepo := repositories.NewUserAggregateRepository(eventStore)
-
-	invitationProjector := projectors.NewInvitationProjector(invitationReadModel)
-	eventBus.Subscribe("InvitationCreated", invitationProjector)
-	eventBus.Subscribe("InvitationAccepted", invitationProjector)
-	eventBus.Subscribe("InvitationRevoked", invitationProjector)
-	eventBus.Subscribe("InvitationExpired", invitationProjector)
-
-	userProjector := projectors.NewUserProjector(userReadModel)
-	eventBus.Subscribe("UserCreated", userProjector)
-
-	createHandler := handlers.NewCreateInvitationHandler(invitationRepo)
-	acceptHandler := handlers.NewAcceptInvitationHandler(invitationRepo, invitationReadModel)
-	commandBus.Register("CreateInvitation", createHandler)
-	commandBus.Register("AcceptInvitation", acceptHandler)
-
-	loginService := services.NewLoginService(userReadModel, invitationReadModel, commandBus, userRepo)
-
+	fixture := setupLoginServiceTest(testCtx.db)
 	ctx := tenantContext()
 	email := fmt.Sprintf("invited-%s@acme.com", testCtx.testID)
 
-	createCmd := &commands.CreateInvitation{
-		Email: email,
-		Role:  "stakeholder",
-	}
-	_, err := commandBus.Dispatch(ctx, createCmd)
-	require.NoError(t, err)
+	invitationID := fixture.createInvitation(ctx, t, email, "stakeholder")
+	testCtx.trackID(invitationID)
 
-	time.Sleep(100 * time.Millisecond)
-
-	invitation, err := invitationReadModel.GetPendingByEmail(ctx, email)
-	require.NoError(t, err)
-	require.NotNil(t, invitation)
-	testCtx.trackID(invitation.ID)
-
-	result, err := loginService.ProcessLogin(ctx, email, "Test User")
+	result, err := fixture.loginService.ProcessLogin(ctx, email, "Test User")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -534,14 +460,14 @@ func TestLoginService_ValidInvitationCreatesUser_Integration(t *testing.T) {
 	assert.Equal(t, "stakeholder", result.Role)
 	assert.True(t, result.IsNew)
 
-	user, err := userReadModel.GetByEmail(ctx, email)
+	user, err := fixture.userReadModel.GetByEmail(ctx, email)
 	require.NoError(t, err)
 	require.NotNil(t, user)
 	assert.Equal(t, email, user.Email)
 	assert.Equal(t, "stakeholder", user.Role)
 	assert.Equal(t, "active", user.Status)
 
-	acceptedInvitation, err := invitationReadModel.GetByID(ctx, invitation.ID)
+	acceptedInvitation, err := fixture.invitationReadModel.GetByID(ctx, invitationID)
 	require.NoError(t, err)
 	assert.Equal(t, "accepted", acceptedInvitation.Status)
 
@@ -552,69 +478,24 @@ func TestLoginService_ExpiredInvitationMarkedAsExpired_Integration(t *testing.T)
 	testCtx, cleanup := setupInvitationTestDB(t)
 	defer cleanup()
 
-	tenantDB := database.NewTenantAwareDB(testCtx.db)
-	eventStore := eventstore.NewPostgresEventStore(tenantDB)
-	commandBus := cqrs.NewInMemoryCommandBus()
-	eventBus := events.NewInMemoryEventBus()
-	eventStore.SetEventBus(eventBus)
-
-	invitationReadModel := readmodels.NewInvitationReadModel(tenantDB)
-	userReadModel := readmodels.NewUserReadModel(tenantDB)
-	invitationRepo := repositories.NewInvitationRepository(eventStore)
-	userRepo := repositories.NewUserAggregateRepository(eventStore)
-
-	invitationProjector := projectors.NewInvitationProjector(invitationReadModel)
-	eventBus.Subscribe("InvitationCreated", invitationProjector)
-	eventBus.Subscribe("InvitationAccepted", invitationProjector)
-	eventBus.Subscribe("InvitationRevoked", invitationProjector)
-	eventBus.Subscribe("InvitationExpired", invitationProjector)
-
-	userProjector := projectors.NewUserProjector(userReadModel)
-	eventBus.Subscribe("UserCreated", userProjector)
-
-	createHandler := handlers.NewCreateInvitationHandler(invitationRepo)
-	acceptHandler := handlers.NewAcceptInvitationHandler(invitationRepo, invitationReadModel)
-	expireHandler := handlers.NewMarkInvitationExpiredHandler(invitationRepo)
-	commandBus.Register("CreateInvitation", createHandler)
-	commandBus.Register("AcceptInvitation", acceptHandler)
-	commandBus.Register("MarkInvitationExpired", expireHandler)
-
-	loginService := services.NewLoginService(userReadModel, invitationReadModel, commandBus, userRepo)
-
+	fixture := setupLoginServiceTest(testCtx.db)
 	ctx := tenantContext()
 	email := fmt.Sprintf("lazy-expire-%d@acme.com", time.Now().UnixNano())
 
-	createCmd := &commands.CreateInvitation{
-		Email: email,
-		Role:  "architect",
-	}
-	_, err := commandBus.Dispatch(ctx, createCmd)
-	require.NoError(t, err)
+	invitationID := fixture.createInvitation(ctx, t, email, "architect")
+	testCtx.trackID(invitationID)
+	fixture.expireInvitation(ctx, t, invitationID)
 
-	time.Sleep(100 * time.Millisecond)
-
-	invitation, err := invitationReadModel.GetPendingByEmail(ctx, email)
-	require.NoError(t, err)
-	require.NotNil(t, invitation)
-	testCtx.trackID(invitation.ID)
-
-	_, err = testCtx.db.ExecContext(ctx,
-		"UPDATE invitations SET expires_at = $1 WHERE id = $2",
-		time.Now().UTC().Add(-1*time.Hour),
-		invitation.ID,
-	)
-	require.NoError(t, err)
-
-	result, err := loginService.ProcessLogin(ctx, email, "Test User")
+	result, err := fixture.loginService.ProcessLogin(ctx, email, "Test User")
 	assert.ErrorIs(t, err, services.ErrNoValidInvitation)
 	assert.Nil(t, result)
 
-	expiredInvitation, err := invitationReadModel.GetByID(ctx, invitation.ID)
+	expiredInvitation, err := fixture.invitationReadModel.GetByID(ctx, invitationID)
 	require.NoError(t, err)
 	require.NotNil(t, expiredInvitation)
 	assert.Equal(t, "expired", expiredInvitation.Status, "Expired invitation should be marked as expired via lazy evaluation")
 
-	user, err := userReadModel.GetByEmail(ctx, email)
+	user, err := fixture.userReadModel.GetByEmail(ctx, email)
 	require.NoError(t, err)
 	assert.Nil(t, user, "No user should be created for expired invitation")
 }

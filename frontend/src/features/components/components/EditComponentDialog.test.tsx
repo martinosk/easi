@@ -7,11 +7,31 @@ import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const mockMutateAsync = vi.fn();
+const mockAddExpertMutate = vi.fn();
+const mockRemoveExpertMutate = vi.fn();
 
 vi.mock('../hooks/useComponents', () => ({
   useUpdateComponent: () => ({
     mutateAsync: mockMutateAsync,
     isPending: false,
+  }),
+  useComponent: () => ({
+    data: undefined,
+    isLoading: false,
+  }),
+  useAddComponentExpert: () => ({
+    mutateAsync: mockAddExpertMutate,
+    mutate: mockAddExpertMutate,
+    isPending: false,
+  }),
+  useRemoveComponentExpert: () => ({
+    mutateAsync: mockRemoveExpertMutate,
+    mutate: mockRemoveExpertMutate,
+    isPending: false,
+  }),
+  useComponentExpertRoles: () => ({
+    data: [],
+    isLoading: false,
   }),
 }));
 

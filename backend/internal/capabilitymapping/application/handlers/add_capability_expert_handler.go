@@ -2,9 +2,10 @@ package handlers
 
 import (
 	"context"
+	"time"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
-	"easi/backend/internal/capabilitymapping/domain/entities"
+	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
@@ -30,7 +31,7 @@ func (h *AddCapabilityExpertHandler) Handle(ctx context.Context, cmd cqrs.Comman
 		return cqrs.EmptyResult(), err
 	}
 
-	expert, err := entities.NewExpert(command.ExpertName, command.ExpertRole, command.ContactInfo)
+	expert, err := valueobjects.NewExpert(command.ExpertName, command.ExpertRole, command.ContactInfo, time.Now().UTC())
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}

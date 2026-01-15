@@ -1,6 +1,8 @@
 package api
 
 import (
+	"net/url"
+
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
 )
@@ -42,15 +44,25 @@ func (h *HATEOASLinks) ComponentLinks(id string) Links {
 func (h *HATEOASLinks) ComponentLinksForActor(id string, actor sharedctx.Actor) Links {
 	p := "/components/" + id
 	links := Links{
-		"self":        h.get(p),
-		"describedby": h.get("/reference/components"),
-		"collection":  h.get("/components"),
+		"self":           h.get(p),
+		"describedby":    h.get("/reference/components"),
+		"collection":     h.get("/components"),
+		"x-expert-roles": h.get("/components/expert-roles"),
 	}
 	if actor.CanWrite("components") {
 		links["edit"] = h.put(p)
+		links["x-add-expert"] = h.post(p + "/experts")
 	}
 	if actor.CanDelete("components") {
 		links["delete"] = h.del(p)
+	}
+	return links
+}
+
+func (h *HATEOASLinks) ComponentExpertLinksForActor(componentID, expertName, expertRole, contactInfo string, actor sharedctx.Actor) Links {
+	links := Links{}
+	if actor.CanDelete("components") {
+		links["x-remove"] = h.del("/components/" + componentID + "/experts?name=" + url.QueryEscape(expertName) + "&role=" + url.QueryEscape(expertRole) + "&contact=" + url.QueryEscape(contactInfo))
 	}
 	return links
 }
@@ -94,21 +106,31 @@ type ViewInfo struct {
 	OwnerUserID *string
 }
 
+func (v ViewInfo) isOwnedBy(actorID string) bool {
+	return v.OwnerUserID != nil && *v.OwnerUserID == actorID
+}
+
+func (v ViewInfo) canBeEditedBy(actor sharedctx.Actor) bool {
+	return (!v.IsPrivate || v.isOwnedBy(actor.ID)) && actor.CanWrite("views")
+}
+
+func (v ViewInfo) canBeDeletedBy(actor sharedctx.Actor) bool {
+	return (!v.IsPrivate || v.isOwnedBy(actor.ID)) && actor.CanDelete("views") && !v.IsDefault
+}
+
 func (h *HATEOASLinks) ViewLinksForActor(v ViewInfo, actor sharedctx.Actor) Links {
+	p := "/views/" + v.ID
 	links := Links{
-		"self":         h.get("/views/" + v.ID),
-		"x-components": h.get("/views/" + v.ID + "/components"),
+		"self":         h.get(p),
+		"x-components": h.get(p + "/components"),
 		"collection":   h.get("/views"),
 	}
-	isOwner := v.OwnerUserID != nil && *v.OwnerUserID == actor.ID
-	canEdit := (!v.IsPrivate || isOwner) && actor.CanWrite("views")
-	if canEdit {
-		links["edit"] = h.patch("/views/" + v.ID + "/name")
-		links["x-change-visibility"] = h.patch("/views/" + v.ID + "/visibility")
+	if v.canBeEditedBy(actor) {
+		links["edit"] = h.patch(p + "/name")
+		links["x-change-visibility"] = h.patch(p + "/visibility")
 	}
-	canDelete := (!v.IsPrivate || isOwner) && actor.CanDelete("views") && !v.IsDefault
-	if canDelete {
-		links["delete"] = h.del("/views/" + v.ID)
+	if v.canBeDeletedBy(actor) {
+		links["delete"] = h.del(p)
 	}
 	return links
 }
@@ -167,12 +189,22 @@ func (h *HATEOASLinks) capabilityBaseForActor(id string, actor sharedctx.Actor) 
 		"x-outgoing-dependencies": h.get(p + "/dependencies/outgoing"),
 		"x-incoming-dependencies": h.get(p + "/dependencies/incoming"),
 		"collection":              h.get("/capabilities"),
+		"x-expert-roles":          h.get("/capabilities/expert-roles"),
 	}
 	if actor.CanWrite("capabilities") {
 		links["edit"] = h.put(p)
+		links["x-add-expert"] = h.post(p + "/experts")
 	}
 	if actor.CanDelete("capabilities") {
 		links["delete"] = h.del(p)
+	}
+	return links
+}
+
+func (h *HATEOASLinks) CapabilityExpertLinksForActor(capabilityID, expertName, expertRole, contactInfo string, actor sharedctx.Actor) Links {
+	links := Links{}
+	if actor.CanDelete("capabilities") {
+		links["x-remove"] = h.del("/capabilities/" + capabilityID + "/experts?name=" + url.QueryEscape(expertName) + "&role=" + url.QueryEscape(expertRole) + "&contact=" + url.QueryEscape(contactInfo))
 	}
 	return links
 }

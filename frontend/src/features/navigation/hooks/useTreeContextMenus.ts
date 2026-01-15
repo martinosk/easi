@@ -5,6 +5,7 @@ import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
 import { useUpdateComponent, useDeleteComponent } from '../../components/hooks/useComponents';
 import { useCreateView, useDeleteView, useRenameView, useSetDefaultView, useChangeViewVisibility } from '../../views/hooks/useViews';
 import { getContextMenuPosition } from '../utils/treeUtils';
+import { copyToClipboard, generateViewShareUrl } from '../../../utils/clipboard';
 
 interface UseTreeContextMenusProps {
   components: Component[];
@@ -114,6 +115,14 @@ export function useTreeContextMenus({ components, onEditCapability, onEditCompon
     const canEdit = view._links?.edit !== undefined;
     const canDelete = view._links?.delete !== undefined;
     const canChangeVisibility = view._links?.['x-change-visibility'] !== undefined;
+
+    items.push({
+      label: 'Share (copy URL)...',
+      onClick: () => {
+        const url = generateViewShareUrl(view.id);
+        copyToClipboard(url);
+      },
+    });
 
     if (canEdit) {
       items.push({

@@ -12,6 +12,20 @@ import { queryKeys } from './queryClient';
  * ```
  */
 export const mutationEffects = {
+  imports: {
+    /**
+     * Invalidates queries after a completed import to refresh all imported data.
+     * Covers capabilities, components, business domains, and realizations.
+     */
+    completed: () => [
+      queryKeys.capabilities.lists(),
+      queryKeys.capabilities.realizationsByComponents(),
+      queryKeys.components.lists(),
+      queryKeys.businessDomains.lists(),
+      queryKeys.maturityAnalysis.unlinked(),
+    ],
+  },
+
   components: {
     /**
      * Invalidates queries after creating a component.
@@ -38,6 +52,28 @@ export const mutationEffects = {
     delete: (componentId: string) => [
       queryKeys.components.lists(),
       queryKeys.components.detail(componentId),
+    ],
+
+    /**
+     * Invalidates queries after adding an expert to a component.
+     * @param componentId - The component receiving the expert
+     */
+    addExpert: (componentId: string) => [
+      queryKeys.components.detail(componentId),
+      queryKeys.components.lists(),
+      queryKeys.components.expertRoles(),
+      queryKeys.audit.history(componentId),
+    ],
+
+    /**
+     * Invalidates queries after removing an expert from a component.
+     * @param componentId - The component losing the expert
+     */
+    removeExpert: (componentId: string) => [
+      queryKeys.components.detail(componentId),
+      queryKeys.components.lists(),
+      queryKeys.components.expertRoles(),
+      queryKeys.audit.history(componentId),
     ],
   },
 
@@ -212,6 +248,18 @@ export const mutationEffects = {
     addExpert: (capabilityId: string) => [
       queryKeys.capabilities.detail(capabilityId),
       queryKeys.capabilities.lists(),
+      queryKeys.capabilities.expertRoles(),
+      queryKeys.audit.history(capabilityId),
+    ],
+
+    /**
+     * Invalidates queries after removing an expert from a capability.
+     * @param capabilityId - The capability losing the expert
+     */
+    removeExpert: (capabilityId: string) => [
+      queryKeys.capabilities.detail(capabilityId),
+      queryKeys.capabilities.lists(),
+      queryKeys.capabilities.expertRoles(),
       queryKeys.audit.history(capabilityId),
     ],
 
