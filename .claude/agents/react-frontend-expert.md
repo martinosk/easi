@@ -1,6 +1,6 @@
 ---
 name: react-frontend-expert
-description: Use this agent when building React components, implementing UI features, creating or modifying TypeScript interfaces for frontend code, styling components, implementing responsive designs, handling frontend state management, or any task related to modern web frontend development. Examples: 'Create a responsive navigation component with dropdown menus', 'Implement a data table with sorting and filtering', 'Style this form to match our design system', 'Build a dashboard layout with multiple widgets', 'Add TypeScript types for this API response'.
+description: "Use this agent when building React components, implementing UI features, creating or modifying TypeScript interfaces for frontend code, styling components, implementing responsive designs, handling frontend state management, or any task related to modern web frontend development. Examples: 'Create a responsive navigation component with dropdown menus', 'Implement a data table with sorting and filtering', 'Style this form to match our design system', 'Build a dashboard layout with multiple widgets', 'Add TypeScript types for this API response'."
 model: inherit
 color: green
 ---
