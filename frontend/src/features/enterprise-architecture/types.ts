@@ -190,19 +190,3 @@ export interface MaturityGapDetail {
   };
 }
 
-export interface UnlinkedCapability {
-  capabilityId: string;
-  capabilityName: string;
-  businessDomainId?: string;
-  businessDomainName?: string;
-  maturityValue: number;
-  maturitySection: string;
-}
-
-export interface UnlinkedCapabilitiesResponse {
-  data: UnlinkedCapability[];
-  total: number;
-  _links: {
-    self: HATEOASLink;
-  };
-}

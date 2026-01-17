@@ -10,7 +10,6 @@ import type {
   MaturityAnalysisCandidate,
   MaturityAnalysisSummary,
   MaturityGapDetail,
-  UnlinkedCapability,
 } from '../types';
 import toast from 'react-hot-toast';
 
@@ -69,38 +68,6 @@ export function useMaturityGapDetailHook(enterpriseCapabilityId: EnterpriseCapab
 
   return {
     detail: query.data ?? null,
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch,
-  };
-}
-
-export interface UseUnlinkedCapabilitiesResult {
-  capabilities: UnlinkedCapability[];
-  total: number;
-  isLoading: boolean;
-  error: Error | null;
-  refetch: () => Promise<void>;
-}
-
-export function useUnlinkedCapabilities(
-  businessDomainId?: string,
-  search?: string
-): UseUnlinkedCapabilitiesResult {
-  const filters = { businessDomainId, search };
-
-  const query = useQuery({
-    queryKey: queryKeys.maturityAnalysis.unlinked(filters),
-    queryFn: () => enterpriseArchApi.getUnlinkedCapabilities(filters),
-  });
-
-  const refetch = useCallback(async () => {
-    await query.refetch();
-  }, [query]);
-
-  return {
-    capabilities: query.data?.data ?? [],
-    total: query.data?.total ?? 0,
     isLoading: query.isLoading,
     error: query.error,
     refetch,

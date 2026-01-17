@@ -4,7 +4,6 @@ import { EnterpriseArchContent } from '../components/EnterpriseArchContent';
 import { CreateEnterpriseCapabilityModal } from '../components/CreateEnterpriseCapabilityModal';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import { MaturityAnalysisTab } from '../components/MaturityAnalysisTab';
-import { UnlinkedCapabilitiesTab } from '../components/UnlinkedCapabilitiesTab';
 import { StrategicFitTab } from '../components/StrategicFitTab';
 import { MaturityGapDetailPanel } from '../components/MaturityGapDetailPanel';
 import { useEnterpriseCapabilities } from '../hooks/useEnterpriseCapabilities';
@@ -15,7 +14,7 @@ import type { Capability } from '../../../api/types';
 import { useUserStore } from '../../../store/userStore';
 import './EnterpriseArchPage.css';
 
-type TabType = 'capabilities' | 'maturity-analysis' | 'unlinked' | 'strategic-fit';
+type TabType = 'capabilities' | 'maturity-analysis' | 'strategic-fit';
 
 function useEnterpriseArchPermissions() {
   const hasPermission = useUserStore((state) => state.hasPermission);
@@ -144,10 +143,6 @@ export function EnterpriseArchPage() {
       return <MaturityAnalysisTab onViewDetail={handleViewMaturityGapDetail} />;
     }
 
-    if (activeTab === 'unlinked') {
-      return <UnlinkedCapabilitiesTab />;
-    }
-
     if (activeTab === 'strategic-fit') {
       return <StrategicFitTab />;
     }
@@ -197,13 +192,6 @@ export function EnterpriseArchPage() {
             onClick={() => handleTabChange('maturity-analysis')}
           >
             Maturity Analysis
-          </button>
-          <button
-            type="button"
-            className={`tab-button ${activeTab === 'unlinked' ? 'active' : ''}`}
-            onClick={() => handleTabChange('unlinked')}
-          >
-            Unlinked Capabilities
           </button>
           <button
             type="button"

@@ -3,8 +3,6 @@ package readmodels
 import (
 	"context"
 	"database/sql"
-	"fmt"
-	"strings"
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
@@ -67,16 +65,6 @@ type MaturityGapDetailDTO struct {
 	Implementations          []ImplementationDetailDTO `json:"implementations"`
 	InvestmentPriorities     InvestmentPrioritiesDTO `json:"investmentPriorities"`
 	Links                    types.Links             `json:"_links,omitempty"`
-}
-
-type UnlinkedCapabilityDTO struct {
-	CapabilityID       string      `json:"capabilityId"`
-	CapabilityName     string      `json:"capabilityName"`
-	BusinessDomainID   string      `json:"businessDomainId,omitempty"`
-	BusinessDomainName string      `json:"businessDomainName,omitempty"`
-	MaturityValue      int         `json:"maturityValue"`
-	MaturitySection    string      `json:"maturitySection"`
-	Links              types.Links `json:"_links,omitempty"`
 }
 
 type MaturityAnalysisReadModel struct {
@@ -351,102 +339,6 @@ func (rm *MaturityAnalysisReadModel) getImplementations(ctx context.Context, ent
 	})
 
 	return implementations, err
-}
-
-type unlinkedQueryParams struct {
-	conditions []string
-	args       []any
-}
-
-func (rm *MaturityAnalysisReadModel) GetUnlinkedCapabilities(ctx context.Context, businessDomainFilter, search string) ([]UnlinkedCapabilityDTO, int, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	params := rm.buildUnlinkedQueryParams(tenantID.Value(), businessDomainFilter, search)
-	query := rm.buildUnlinkedQuery(params.conditions)
-	capabilities, err := rm.fetchUnlinkedCapabilities(ctx, query, params.args)
-
-	return capabilities, len(capabilities), err
-}
-
-func (rm *MaturityAnalysisReadModel) buildUnlinkedQueryParams(tenantID any, businessDomainFilter, search string) unlinkedQueryParams {
-	params := unlinkedQueryParams{
-		conditions: []string{
-			"c.tenant_id = $1",
-			`NOT EXISTS (SELECT 1 FROM enterprise_capability_links ecl WHERE ecl.domain_capability_id = c.id AND ecl.tenant_id = c.tenant_id)`,
-		},
-		args: []any{tenantID},
-	}
-	argIdx := 2
-
-	if businessDomainFilter != "" {
-		params.conditions = append(params.conditions, fmt.Sprintf("dcm.business_domain_id = $%d", argIdx))
-		params.args = append(params.args, businessDomainFilter)
-		argIdx++
-	}
-
-	if search != "" {
-		params.conditions = append(params.conditions, fmt.Sprintf("c.name ILIKE $%d", argIdx))
-		params.args = append(params.args, "%"+search+"%")
-	}
-
-	return params
-}
-
-func (rm *MaturityAnalysisReadModel) buildUnlinkedQuery(conditions []string) string {
-	return `
-		SELECT c.id, c.name, dcm.business_domain_id, dcm.business_domain_name, COALESCE(c.maturity_value, 0)
-		FROM capabilities c
-		LEFT JOIN domain_capability_metadata dcm ON c.id = dcm.capability_id AND c.tenant_id = dcm.tenant_id
-		WHERE ` + strings.Join(conditions, " AND ") + `
-		ORDER BY dcm.business_domain_name NULLS LAST, c.name
-		LIMIT 100`
-}
-
-func (rm *MaturityAnalysisReadModel) fetchUnlinkedCapabilities(ctx context.Context, query string, args []any) ([]UnlinkedCapabilityDTO, error) {
-	var capabilities []UnlinkedCapabilityDTO
-	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx, query, args...)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			dto, err := rm.scanUnlinkedCapability(rows)
-			if err != nil {
-				return err
-			}
-			capabilities = append(capabilities, dto)
-		}
-		return rows.Err()
-	})
-	return capabilities, err
-}
-
-func (rm *MaturityAnalysisReadModel) scanUnlinkedCapability(rows *sql.Rows) (UnlinkedCapabilityDTO, error) {
-	var dto UnlinkedCapabilityDTO
-	var businessDomainID, businessDomainName sql.NullString
-	var maturityValue sql.NullInt64
-
-	if err := rows.Scan(&dto.CapabilityID, &dto.CapabilityName, &businessDomainID, &businessDomainName, &maturityValue); err != nil {
-		return dto, err
-	}
-
-	if businessDomainID.Valid {
-		dto.BusinessDomainID = businessDomainID.String
-	}
-	if businessDomainName.Valid {
-		dto.BusinessDomainName = businessDomainName.String
-	}
-	if maturityValue.Valid {
-		dto.MaturityValue = int(maturityValue.Int64)
-	}
-	dto.MaturitySection = getMaturitySection(dto.MaturityValue)
-
-	return dto, nil
 }
 
 func getMaturitySection(value int) string {

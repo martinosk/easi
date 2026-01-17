@@ -207,6 +207,5 @@ func registerRoutes(r chi.Router, h *EnterpriseCapabilityHandlers, authMiddlewar
 		r.Get("/domain-capabilities/{domainCapabilityId}/enterprise-capability", h.GetEnterpriseCapabilityForDomainCapability)
 		r.Get("/domain-capabilities/{domainCapabilityId}/enterprise-link-status", h.GetCapabilityLinkStatus)
 		r.Get("/domain-capabilities/enterprise-link-status", h.GetBatchCapabilityLinkStatus)
-		r.Get("/domain-capabilities/unlinked", h.GetUnlinkedCapabilities)
 	})
 }

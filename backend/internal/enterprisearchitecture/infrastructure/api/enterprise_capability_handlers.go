@@ -776,30 +776,3 @@ func (h *EnterpriseCapabilityHandlers) GetMaturityGapDetail(w http.ResponseWrite
 	sharedAPI.RespondJSON(w, http.StatusOK, detail)
 }
 
-// GetUnlinkedCapabilities godoc
-// @Summary Get domain capabilities not linked to any enterprise capability
-// @Description Retrieves domain capabilities that are not yet linked to an enterprise capability
-// @Tags enterprise-capabilities
-// @Produce json
-// @Param businessDomainId query string false "Filter by business domain ID"
-// @Param search query string false "Search by capability name"
-// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_enterprisearchitecture_application_readmodels.UnlinkedCapabilityDTO}
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /domain-capabilities/unlinked [get]
-func (h *EnterpriseCapabilityHandlers) GetUnlinkedCapabilities(w http.ResponseWriter, r *http.Request) {
-	businessDomainID := r.URL.Query().Get("businessDomainId")
-	search := r.URL.Query().Get("search")
-
-	capabilities, total, err := h.readModels.MaturityAnalysis.GetUnlinkedCapabilities(r.Context(), businessDomainID, search)
-	if err != nil {
-		sharedAPI.HandleError(w, err)
-		return
-	}
-
-	sharedAPI.RespondCollectionWithTotal(w, sharedAPI.CollectionWithTotalParams{
-		Data:       capabilities,
-		Total:      total,
-		Links:      h.hateoas.UnlinkedCapabilitiesLinks(),
-		StatusCode: http.StatusOK,
-	})
-}
