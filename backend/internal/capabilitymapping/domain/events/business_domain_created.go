@@ -8,19 +8,21 @@ import (
 
 type BusinessDomainCreated struct {
 	domain.BaseEvent
-	ID          string
-	Name        string
-	Description string
-	CreatedAt   time.Time
+	ID                string
+	Name              string
+	Description       string
+	DomainArchitectID string
+	CreatedAt         time.Time
 }
 
-func NewBusinessDomainCreated(id, name, description string) BusinessDomainCreated {
+func NewBusinessDomainCreated(id, name, description, domainArchitectID string) BusinessDomainCreated {
 	return BusinessDomainCreated{
-		BaseEvent:   domain.NewBaseEvent(id),
-		ID:          id,
-		Name:        name,
-		Description: description,
-		CreatedAt:   time.Now().UTC(),
+		BaseEvent:         domain.NewBaseEvent(id),
+		ID:                id,
+		Name:              name,
+		Description:       description,
+		DomainArchitectID: domainArchitectID,
+		CreatedAt:         time.Now().UTC(),
 	}
 }
 
@@ -30,9 +32,10 @@ func (e BusinessDomainCreated) EventType() string {
 
 func (e BusinessDomainCreated) EventData() map[string]interface{} {
 	return map[string]interface{}{
-		"id":          e.ID,
-		"name":        e.Name,
-		"description": e.Description,
-		"createdAt":   e.CreatedAt,
+		"id":                e.ID,
+		"name":              e.Name,
+		"description":       e.Description,
+		"domainArchitectId": e.DomainArchitectID,
+		"createdAt":         e.CreatedAt,
 	}
 }

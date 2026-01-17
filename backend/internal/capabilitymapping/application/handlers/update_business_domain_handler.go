@@ -67,7 +67,7 @@ func (h *UpdateBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Comma
 		return cqrs.EmptyResult(), err
 	}
 
-	if err := domain.Update(name, description); err != nil {
+	if err := domain.Update(name, description, command.DomainArchitectID); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 

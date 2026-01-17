@@ -52,10 +52,11 @@ func (p *BusinessDomainProjector) handleBusinessDomainCreated(ctx context.Contex
 	}
 
 	dto := readmodels.BusinessDomainDTO{
-		ID:          event.ID,
-		Name:        event.Name,
-		Description: event.Description,
-		CreatedAt:   event.CreatedAt,
+		ID:                event.ID,
+		Name:              event.Name,
+		Description:       event.Description,
+		DomainArchitectID: event.DomainArchitectID,
+		CreatedAt:         event.CreatedAt,
 	}
 	return p.readModel.Insert(ctx, dto)
 }
@@ -66,7 +67,7 @@ func (p *BusinessDomainProjector) handleBusinessDomainUpdated(ctx context.Contex
 		log.Printf("Failed to unmarshal BusinessDomainUpdated event: %v", err)
 		return err
 	}
-	return p.readModel.Update(ctx, event.ID, event.Name, event.Description)
+	return p.readModel.Update(ctx, event.ID, event.Name, event.Description, event.DomainArchitectID)
 }
 
 func (p *BusinessDomainProjector) handleBusinessDomainDeleted(ctx context.Context, eventData []byte) error {

@@ -10,14 +10,16 @@ import (
 
 type BusinessDomain struct {
 	domain.AggregateRoot
-	name        valueobjects.DomainName
-	description valueobjects.Description
-	createdAt   time.Time
+	name              valueobjects.DomainName
+	description       valueobjects.Description
+	domainArchitectID string
+	createdAt         time.Time
 }
 
 func NewBusinessDomain(
 	name valueobjects.DomainName,
 	description valueobjects.Description,
+	domainArchitectID string,
 ) (*BusinessDomain, error) {
 	id := valueobjects.NewBusinessDomainID()
 	aggregate := &BusinessDomain{
@@ -28,6 +30,7 @@ func NewBusinessDomain(
 		aggregate.ID(),
 		name.Value(),
 		description.Value(),
+		domainArchitectID,
 	)
 
 	aggregate.apply(event)
@@ -48,11 +51,12 @@ func LoadBusinessDomainFromHistory(events []domain.DomainEvent) (*BusinessDomain
 	return aggregate, nil
 }
 
-func (b *BusinessDomain) Update(name valueobjects.DomainName, description valueobjects.Description) error {
+func (b *BusinessDomain) Update(name valueobjects.DomainName, description valueobjects.Description, domainArchitectID string) error {
 	event := events.NewBusinessDomainUpdated(
 		b.ID(),
 		name.Value(),
 		description.Value(),
+		domainArchitectID,
 	)
 
 	b.apply(event)
@@ -76,10 +80,12 @@ func (b *BusinessDomain) apply(event domain.DomainEvent) {
 		b.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
 		b.name, _ = valueobjects.NewDomainName(e.Name)
 		b.description = valueobjects.MustNewDescription(e.Description)
+		b.domainArchitectID = e.DomainArchitectID
 		b.createdAt = e.CreatedAt
 	case events.BusinessDomainUpdated:
 		b.name, _ = valueobjects.NewDomainName(e.Name)
 		b.description = valueobjects.MustNewDescription(e.Description)
+		b.domainArchitectID = e.DomainArchitectID
 	case events.BusinessDomainDeleted:
 	}
 }
@@ -90,6 +96,10 @@ func (b *BusinessDomain) Name() valueobjects.DomainName {
 
 func (b *BusinessDomain) Description() valueobjects.Description {
 	return b.description
+}
+
+func (b *BusinessDomain) DomainArchitectID() string {
+	return b.domainArchitectID
 }
 
 func (b *BusinessDomain) CreatedAt() time.Time {

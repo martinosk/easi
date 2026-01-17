@@ -42,12 +42,13 @@ var businessDomainEventDeserializers = repository.NewEventDeserializers(
 			if err != nil {
 				return nil, err
 			}
+			domainArchitectID, _ := repository.GetOptionalString(data, "domainArchitectId", "")
 			createdAt, err := repository.GetRequiredTime(data, "createdAt")
 			if err != nil {
 				return nil, err
 			}
 
-			evt := events.NewBusinessDomainCreated(id, name, description)
+			evt := events.NewBusinessDomainCreated(id, name, description, domainArchitectID)
 			evt.CreatedAt = createdAt
 			return evt, nil
 		},
@@ -64,8 +65,9 @@ var businessDomainEventDeserializers = repository.NewEventDeserializers(
 			if err != nil {
 				return nil, err
 			}
+			domainArchitectID, _ := repository.GetOptionalString(data, "domainArchitectId", "")
 
-			return events.NewBusinessDomainUpdated(id, name, description), nil
+			return events.NewBusinessDomainUpdated(id, name, description, domainArchitectID), nil
 		},
 		"BusinessDomainDeleted": func(data map[string]interface{}) (domain.DomainEvent, error) {
 			id, err := repository.GetRequiredString(data, "id")

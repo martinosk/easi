@@ -11,13 +11,14 @@ import (
 )
 
 type BusinessDomainDTO struct {
-	ID              string      `json:"id"`
-	Name            string      `json:"name"`
-	Description     string      `json:"description,omitempty"`
-	CapabilityCount int         `json:"capabilityCount"`
-	CreatedAt       time.Time   `json:"createdAt"`
-	UpdatedAt       *time.Time  `json:"updatedAt,omitempty"`
-	Links           types.Links `json:"_links,omitempty"`
+	ID                string      `json:"id"`
+	Name              string      `json:"name"`
+	Description       string      `json:"description,omitempty"`
+	DomainArchitectID string      `json:"domainArchitectId,omitempty"`
+	CapabilityCount   int         `json:"capabilityCount"`
+	CreatedAt         time.Time   `json:"createdAt"`
+	UpdatedAt         *time.Time  `json:"updatedAt,omitempty"`
+	Links             types.Links `json:"_links,omitempty"`
 }
 
 type BusinessDomainReadModel struct {
@@ -34,22 +35,32 @@ func (rm *BusinessDomainReadModel) Insert(ctx context.Context, dto BusinessDomai
 		return err
 	}
 
+	var domainArchitectID interface{} = nil
+	if dto.DomainArchitectID != "" {
+		domainArchitectID = dto.DomainArchitectID
+	}
+
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		dto.ID, tenantID.Value(), dto.Name, dto.Description, 0, dto.CreatedAt,
+		"INSERT INTO business_domains (id, tenant_id, name, description, domain_architect_id, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		dto.ID, tenantID.Value(), dto.Name, dto.Description, domainArchitectID, 0, dto.CreatedAt,
 	)
 	return err
 }
 
-func (rm *BusinessDomainReadModel) Update(ctx context.Context, id, name, description string) error {
+func (rm *BusinessDomainReadModel) Update(ctx context.Context, id, name, description, domainArchitectID string) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
 	}
 
+	var archID interface{} = nil
+	if domainArchitectID != "" {
+		archID = domainArchitectID
+	}
+
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE business_domains SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
-		name, description, tenantID.Value(), id,
+		"UPDATE business_domains SET name = $1, description = $2, domain_architect_id = $3, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $4 AND id = $5",
+		name, description, archID, tenantID.Value(), id,
 	)
 	return err
 }
@@ -102,7 +113,7 @@ func (rm *BusinessDomainReadModel) GetAll(ctx context.Context) ([]BusinessDomain
 	var domains []BusinessDomainDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, description, capability_count, created_at, updated_at FROM business_domains WHERE tenant_id = $1 ORDER BY name",
+			"SELECT id, name, description, domain_architect_id, capability_count, created_at, updated_at FROM business_domains WHERE tenant_id = $1 ORDER BY name",
 			tenantID.Value(),
 		)
 		if err != nil {
@@ -113,11 +124,15 @@ func (rm *BusinessDomainReadModel) GetAll(ctx context.Context) ([]BusinessDomain
 		for rows.Next() {
 			var dto BusinessDomainDTO
 			var updatedAt sql.NullTime
-			if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CapabilityCount, &dto.CreatedAt, &updatedAt); err != nil {
+			var domainArchitectID sql.NullString
+			if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &domainArchitectID, &dto.CapabilityCount, &dto.CreatedAt, &updatedAt); err != nil {
 				return err
 			}
 			if updatedAt.Valid {
 				dto.UpdatedAt = &updatedAt.Time
+			}
+			if domainArchitectID.Valid {
+				dto.DomainArchitectID = domainArchitectID.String
 			}
 			domains = append(domains, dto)
 		}
@@ -136,13 +151,14 @@ func (rm *BusinessDomainReadModel) GetByID(ctx context.Context, id string) (*Bus
 
 	var dto BusinessDomainDTO
 	var updatedAt sql.NullTime
+	var domainArchitectID sql.NullString
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, description, capability_count, created_at, updated_at FROM business_domains WHERE tenant_id = $1 AND id = $2",
+			"SELECT id, name, description, domain_architect_id, capability_count, created_at, updated_at FROM business_domains WHERE tenant_id = $1 AND id = $2",
 			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CapabilityCount, &dto.CreatedAt, &updatedAt)
+		).Scan(&dto.ID, &dto.Name, &dto.Description, &domainArchitectID, &dto.CapabilityCount, &dto.CreatedAt, &updatedAt)
 
 		if err == sql.ErrNoRows {
 			notFound = true
@@ -160,6 +176,9 @@ func (rm *BusinessDomainReadModel) GetByID(ctx context.Context, id string) (*Bus
 
 	if updatedAt.Valid {
 		dto.UpdatedAt = &updatedAt.Time
+	}
+	if domainArchitectID.Valid {
+		dto.DomainArchitectID = domainArchitectID.String
 	}
 
 	return &dto, nil
@@ -173,13 +192,14 @@ func (rm *BusinessDomainReadModel) GetByName(ctx context.Context, name string) (
 
 	var dto BusinessDomainDTO
 	var updatedAt sql.NullTime
+	var domainArchitectID sql.NullString
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, description, capability_count, created_at, updated_at FROM business_domains WHERE tenant_id = $1 AND name = $2",
+			"SELECT id, name, description, domain_architect_id, capability_count, created_at, updated_at FROM business_domains WHERE tenant_id = $1 AND name = $2",
 			tenantID.Value(), name,
-		).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CapabilityCount, &dto.CreatedAt, &updatedAt)
+		).Scan(&dto.ID, &dto.Name, &dto.Description, &domainArchitectID, &dto.CapabilityCount, &dto.CreatedAt, &updatedAt)
 
 		if err == sql.ErrNoRows {
 			notFound = true
@@ -197,6 +217,9 @@ func (rm *BusinessDomainReadModel) GetByName(ctx context.Context, name string) (
 
 	if updatedAt.Valid {
 		dto.UpdatedAt = &updatedAt.Time
+	}
+	if domainArchitectID.Valid {
+		dto.DomainArchitectID = domainArchitectID.String
 	}
 
 	return &dto, nil

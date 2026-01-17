@@ -17,7 +17,7 @@ func TestBusinessDomainDeserializers_RoundTrip(t *testing.T) {
 	name, _ := valueobjects.NewDomainName("Sales")
 	description := valueobjects.MustNewDescription("Sales domain operations")
 
-	original, err := aggregates.NewBusinessDomain(name, description)
+	original, err := aggregates.NewBusinessDomain(name, description, "")
 	require.NoError(t, err)
 
 	events := original.GetUncommittedChanges()
@@ -41,12 +41,12 @@ func TestBusinessDomainDeserializers_RoundTripWithUpdate(t *testing.T) {
 	name, _ := valueobjects.NewDomainName("Marketing")
 	description := valueobjects.MustNewDescription("Marketing operations")
 
-	original, err := aggregates.NewBusinessDomain(name, description)
+	original, err := aggregates.NewBusinessDomain(name, description, "")
 	require.NoError(t, err)
 
 	newName, _ := valueobjects.NewDomainName("Digital Marketing")
 	newDescription := valueobjects.MustNewDescription("Updated marketing description")
-	_ = original.Update(newName, newDescription)
+	_ = original.Update(newName, newDescription, "")
 
 	events := original.GetUncommittedChanges()
 	require.Len(t, events, 2, "Expected 2 events: Created, Updated")
@@ -68,12 +68,12 @@ func TestBusinessDomainDeserializers_AllEventsCanBeDeserialized(t *testing.T) {
 	name, _ := valueobjects.NewDomainName("Finance")
 	description := valueobjects.MustNewDescription("Finance operations")
 
-	businessDomain, err := aggregates.NewBusinessDomain(name, description)
+	businessDomain, err := aggregates.NewBusinessDomain(name, description, "")
 	require.NoError(t, err)
 
 	newName, _ := valueobjects.NewDomainName("Financial Services")
 	newDescription := valueobjects.MustNewDescription("Updated finance description")
-	_ = businessDomain.Update(newName, newDescription)
+	_ = businessDomain.Update(newName, newDescription, "")
 
 	_ = businessDomain.Delete()
 

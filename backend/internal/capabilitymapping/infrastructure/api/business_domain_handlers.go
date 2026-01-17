@@ -39,13 +39,15 @@ func NewBusinessDomainHandlers(
 }
 
 type CreateBusinessDomainRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
+	Name              string `json:"name"`
+	Description       string `json:"description,omitempty"`
+	DomainArchitectID string `json:"domainArchitectId,omitempty"`
 }
 
 type UpdateBusinessDomainRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
+	Name              string `json:"name"`
+	Description       string `json:"description,omitempty"`
+	DomainArchitectID string `json:"domainArchitectId,omitempty"`
 }
 
 type AssignCapabilityRequest struct {
@@ -94,8 +96,9 @@ func (h *BusinessDomainHandlers) CreateBusinessDomain(w http.ResponseWriter, r *
 	}
 
 	cmd := &commands.CreateBusinessDomain{
-		Name:        req.Name,
-		Description: req.Description,
+		Name:              req.Name,
+		Description:       req.Description,
+		DomainArchitectID: req.DomainArchitectID,
 	}
 
 	result, err := h.commandBus.Dispatch(r.Context(), cmd)
@@ -186,9 +189,10 @@ func (h *BusinessDomainHandlers) UpdateBusinessDomain(w http.ResponseWriter, r *
 	}
 
 	cmd := &commands.UpdateBusinessDomain{
-		ID:          id,
-		Name:        req.Name,
-		Description: req.Description,
+		ID:                id,
+		Name:              req.Name,
+		Description:       req.Description,
+		DomainArchitectID: req.DomainArchitectID,
 	}
 
 	result, err := h.commandBus.Dispatch(r.Context(), cmd)
@@ -261,18 +265,26 @@ func (h *BusinessDomainHandlers) DeleteBusinessDomain(w http.ResponseWriter, r *
 // @Router /business-domains/{id}/capabilities [get]
 func (h *BusinessDomainHandlers) GetCapabilitiesInDomain(w http.ResponseWriter, r *http.Request) {
 	domainID := sharedAPI.GetPathParam(r, "id")
+	if h.getDomainOrNotFound(w, r, domainID) == nil {
+		return
+	}
+	h.respondWithCapabilitiesInDomain(w, r, domainID)
+}
 
-	domain, err := h.readModels.Domain.GetByID(r.Context(), domainID)
+func (h *BusinessDomainHandlers) getCapabilityOrNotFound(w http.ResponseWriter, r *http.Request, id string) *readmodels.CapabilityDTO {
+	capability, err := h.readModels.Capability.GetByID(r.Context(), id)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve domain")
-		return
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve capability")
+		return nil
 	}
-
-	if domain == nil {
-		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Domain not found")
-		return
+	if capability == nil {
+		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Capability not found")
+		return nil
 	}
+	return capability
+}
 
+func (h *BusinessDomainHandlers) respondWithCapabilitiesInDomain(w http.ResponseWriter, r *http.Request, domainID string) {
 	assignments, err := h.readModels.Assignment.GetByDomainID(r.Context(), domainID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve capabilities")
@@ -296,7 +308,6 @@ func (h *BusinessDomainHandlers) GetCapabilitiesInDomain(w http.ResponseWriter, 
 		"self": sharedAPI.NewLink(fmt.Sprintf("/api/v1/business-domains/%s/capabilities", domainID), "GET"),
 		"up":   sharedAPI.NewLink(fmt.Sprintf("/api/v1/business-domains/%s", domainID), "GET"),
 	}
-
 	sharedAPI.RespondCollection(w, http.StatusOK, capabilities, links)
 }
 
@@ -410,18 +421,13 @@ func (h *BusinessDomainHandlers) RemoveCapabilityFromDomain(w http.ResponseWrite
 // @Router /capabilities/{id}/business-domains [get]
 func (h *BusinessDomainHandlers) GetDomainsForCapability(w http.ResponseWriter, r *http.Request) {
 	capabilityID := sharedAPI.GetPathParam(r, "id")
-
-	capability, err := h.readModels.Capability.GetByID(r.Context(), capabilityID)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve capability")
+	if h.getCapabilityOrNotFound(w, r, capabilityID) == nil {
 		return
 	}
+	h.respondWithDomainsForCapability(w, r, capabilityID)
+}
 
-	if capability == nil {
-		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Capability not found")
-		return
-	}
-
+func (h *BusinessDomainHandlers) respondWithDomainsForCapability(w http.ResponseWriter, r *http.Request, capabilityID string) {
 	assignments, err := h.readModels.Assignment.GetByCapabilityID(r.Context(), capabilityID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve domains")
@@ -443,7 +449,6 @@ func (h *BusinessDomainHandlers) GetDomainsForCapability(w http.ResponseWriter, 
 		"self": sharedAPI.NewLink(fmt.Sprintf("/api/v1/capabilities/%s/business-domains", capabilityID), "GET"),
 		"up":   sharedAPI.NewLink(fmt.Sprintf("/api/v1/capabilities/%s", capabilityID), "GET"),
 	}
-
 	sharedAPI.RespondCollection(w, http.StatusOK, domains, links)
 }
 

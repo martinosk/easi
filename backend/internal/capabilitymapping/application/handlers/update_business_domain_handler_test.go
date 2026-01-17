@@ -57,7 +57,7 @@ func createTestBusinessDomain(t *testing.T, name, description string) *aggregate
 
 	desc := valueobjects.MustNewDescription(description)
 
-	domain, err := aggregates.NewBusinessDomain(domainName, desc)
+	domain, err := aggregates.NewBusinessDomain(domainName, desc, "")
 	require.NoError(t, err)
 	domain.MarkChangesAsCommitted()
 

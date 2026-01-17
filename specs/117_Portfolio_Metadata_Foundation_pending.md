@@ -374,42 +374,42 @@ When an ApplicationComponent is deleted:
 - [ ] Specification approved
 
 **Acquired Entities:**
-- [ ] AcquiredEntity aggregate (domain model, events)
-- [ ] AcquiredEntity CRUD command handlers
-- [ ] AcquiredEntity API endpoints
+- [x] AcquiredEntity aggregate (domain model, events)
+- [x] AcquiredEntity CRUD command handlers
+- [x] AcquiredEntity API endpoints
 - [ ] AcquiredEntity UI (tree, detail panel, create/edit)
 
 **Vendors:**
-- [ ] Vendor aggregate (domain model, events)
-- [ ] Vendor CRUD command handlers
-- [ ] Vendor API endpoints
+- [x] Vendor aggregate (domain model, events)
+- [x] Vendor CRUD command handlers
+- [x] Vendor API endpoints
 - [ ] Vendor UI (tree, detail panel, create/edit)
 
 **Internal Teams:**
-- [ ] InternalTeam aggregate (domain model, events)
-- [ ] InternalTeam CRUD command handlers
-- [ ] InternalTeam API endpoints
+- [x] InternalTeam aggregate (domain model, events)
+- [x] InternalTeam CRUD command handlers
+- [x] InternalTeam API endpoints
 - [ ] InternalTeam UI (tree, detail panel, create/edit)
 
 **Origin Relationships:**
-- [ ] AcquiredViaRelationship aggregate (domain model, events)
-- [ ] PurchasedFromRelationship aggregate (domain model, events)
-- [ ] BuiltByRelationship aggregate (domain model, events)
-- [ ] Origin relationship command handlers
-- [ ] Origin relationship API endpoints (path-based filtering)
+- [x] AcquiredViaRelationship aggregate (domain model, events)
+- [x] PurchasedFromRelationship aggregate (domain model, events)
+- [x] BuiltByRelationship aggregate (domain model, events)
+- [x] Origin relationship command handlers
+- [x] Origin relationship API endpoints (path-based filtering)
 - [ ] Canvas: draw relationships from origin entities to components
 - [ ] Auto-detect relationship type based on source entity
 - [ ] Component detail panel: show origins section
 - [ ] Component origins convenience endpoint
 
 **Domain Architect:**
-- [ ] Domain architect field (domain model, events)
-- [ ] Domain architect API (update business domain endpoint)
+- [x] Domain architect field (domain model, events)
+- [x] Domain architect API (update business domain endpoint)
 - [ ] Users query API (filter by Architect/Admin role)
 - [ ] Domain architect UI (dropdown from eligible users)
 
 **General:**
-- [ ] Cascade deletion for origin entities
-- [ ] Test-data added to scripts\seed-test-data.ts
+- [x] Cascade deletion for origin entities
+- [x] Test-data added to scripts\seed-test-data.ts
 - [ ] Tests passing
 - [ ] User sign-off

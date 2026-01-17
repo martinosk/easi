@@ -59,7 +59,7 @@ func (h *CreateBusinessDomainHandler) Handle(ctx context.Context, cmd cqrs.Comma
 		return cqrs.EmptyResult(), err
 	}
 
-	domain, err := aggregates.NewBusinessDomain(name, description)
+	domain, err := aggregates.NewBusinessDomain(name, description, command.DomainArchitectID)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}

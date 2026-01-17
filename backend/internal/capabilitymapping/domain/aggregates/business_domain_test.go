@@ -15,7 +15,7 @@ func TestNewBusinessDomain(t *testing.T) {
 
 	description := valueobjects.MustNewDescription("Financial business domain")
 
-	domain, err := NewBusinessDomain(name, description)
+	domain, err := NewBusinessDomain(name, description, "")
 	require.NoError(t, err)
 	assert.NotNil(t, domain)
 	assert.NotEmpty(t, domain.ID())
@@ -31,7 +31,7 @@ func TestBusinessDomain_RaisesCreatedEvent(t *testing.T) {
 
 	description := valueobjects.MustNewDescription("Customer-facing business domain")
 
-	domain, err := NewBusinessDomain(name, description)
+	domain, err := NewBusinessDomain(name, description, "")
 	require.NoError(t, err)
 
 	uncommittedEvents := domain.GetUncommittedChanges()
@@ -51,7 +51,7 @@ func TestBusinessDomain_Update(t *testing.T) {
 
 	description := valueobjects.MustNewDescription("Financial capabilities")
 
-	domain, err := NewBusinessDomain(name, description)
+	domain, err := NewBusinessDomain(name, description, "")
 	require.NoError(t, err)
 
 	domain.MarkChangesAsCommitted()
@@ -61,7 +61,7 @@ func TestBusinessDomain_Update(t *testing.T) {
 
 	newDescription := valueobjects.MustNewDescription("Financial and accounting capabilities")
 
-	err = domain.Update(newName, newDescription)
+	err = domain.Update(newName, newDescription, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, newName, domain.Name())
@@ -78,7 +78,7 @@ func TestBusinessDomain_UpdateRaisesEvent(t *testing.T) {
 
 	description := valueobjects.MustNewDescription("Operational domain")
 
-	domain, err := NewBusinessDomain(name, description)
+	domain, err := NewBusinessDomain(name, description, "")
 	require.NoError(t, err)
 
 	domain.MarkChangesAsCommitted()
@@ -88,7 +88,7 @@ func TestBusinessDomain_UpdateRaisesEvent(t *testing.T) {
 
 	newDescription := valueobjects.MustNewDescription("Operations and support domain")
 
-	err = domain.Update(newName, newDescription)
+	err = domain.Update(newName, newDescription, "")
 	require.NoError(t, err)
 
 	uncommittedEvents := domain.GetUncommittedChanges()
@@ -126,7 +126,7 @@ func TestBusinessDomain_DeletePreservesState(t *testing.T) {
 
 	description := valueobjects.MustNewDescription("Financial capabilities")
 
-	domain, err := NewBusinessDomain(name, description)
+	domain, err := NewBusinessDomain(name, description, "")
 	require.NoError(t, err)
 	domain.MarkChangesAsCommitted()
 
@@ -146,7 +146,7 @@ func TestBusinessDomain_LoadFromHistory(t *testing.T) {
 
 	description := valueobjects.MustNewDescription("Operational capabilities")
 
-	domain, err := NewBusinessDomain(name, description)
+	domain, err := NewBusinessDomain(name, description, "")
 	require.NoError(t, err)
 
 	events := domain.GetUncommittedChanges()
@@ -165,7 +165,7 @@ func TestBusinessDomain_LoadFromHistoryWithMultipleEvents(t *testing.T) {
 
 	description := valueobjects.MustNewDescription("Financial domain")
 
-	domain, err := NewBusinessDomain(name, description)
+	domain, err := NewBusinessDomain(name, description, "")
 	require.NoError(t, err)
 
 	newName, err := valueobjects.NewDomainName("Finance & Accounting")
@@ -173,7 +173,7 @@ func TestBusinessDomain_LoadFromHistoryWithMultipleEvents(t *testing.T) {
 
 	newDescription := valueobjects.MustNewDescription("Financial and accounting domain")
 
-	err = domain.Update(newName, newDescription)
+	err = domain.Update(newName, newDescription, "")
 	require.NoError(t, err)
 
 	allEvents := domain.GetUncommittedChanges()
@@ -209,7 +209,7 @@ func createBusinessDomain(t *testing.T, domainName string) *BusinessDomain {
 
 	description := valueobjects.MustNewDescription("Test business domain")
 
-	domain, err := NewBusinessDomain(name, description)
+	domain, err := NewBusinessDomain(name, description, "")
 	require.NoError(t, err)
 
 	return domain

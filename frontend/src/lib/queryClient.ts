@@ -139,4 +139,25 @@ export const queryKeys = {
     history: (aggregateId: string) =>
       [...queryKeys.audit.all, 'history', aggregateId] as const,
   },
+  acquiredEntities: {
+    all: ['acquiredEntities'] as const,
+    lists: () => [...queryKeys.acquiredEntities.all, 'list'] as const,
+    details: () => [...queryKeys.acquiredEntities.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.acquiredEntities.details(), id] as const,
+    relationships: (id: string) => [...queryKeys.acquiredEntities.detail(id), 'relationships'] as const,
+  },
+  vendors: {
+    all: ['vendors'] as const,
+    lists: () => [...queryKeys.vendors.all, 'list'] as const,
+    details: () => [...queryKeys.vendors.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.vendors.details(), id] as const,
+    relationships: (id: string) => [...queryKeys.vendors.detail(id), 'relationships'] as const,
+  },
+  internalTeams: {
+    all: ['internalTeams'] as const,
+    lists: () => [...queryKeys.internalTeams.all, 'list'] as const,
+    details: () => [...queryKeys.internalTeams.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.internalTeams.details(), id] as const,
+    relationships: (id: string) => [...queryKeys.internalTeams.detail(id), 'relationships'] as const,
+  },
 } as const;

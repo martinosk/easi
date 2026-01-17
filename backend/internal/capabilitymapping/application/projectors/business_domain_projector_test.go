@@ -161,6 +161,7 @@ func TestBusinessDomainProjector_HandleBusinessDomainCreated(t *testing.T) {
 		"bd-123",
 		"Finance",
 		"Financial operations and planning",
+		"",
 	)
 
 	eventData, err := json.Marshal(event)
@@ -185,6 +186,7 @@ func TestBusinessDomainProjector_HandleBusinessDomainUpdated(t *testing.T) {
 		"bd-123",
 		"Finance & Accounting",
 		"Updated description",
+		"",
 	)
 
 	eventData, err := json.Marshal(event)

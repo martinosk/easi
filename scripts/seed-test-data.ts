@@ -110,6 +110,29 @@ interface StrategyPillar {
   fitScoringEnabled: boolean;
 }
 
+interface AcquiredEntity {
+  id: string;
+  name: string;
+  acquisitionDate?: string;
+  integrationStatus: string;
+  notes?: string;
+}
+
+interface Vendor {
+  id: string;
+  name: string;
+  implementationPartner?: string;
+  notes?: string;
+}
+
+interface InternalTeam {
+  id: string;
+  name: string;
+  department?: string;
+  contactPerson?: string;
+  notes?: string;
+}
+
 function buildHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -322,28 +345,28 @@ async function getStrategyPillars(): Promise<StrategyPillar[]> {
   return result.pillars;
 }
 
-async function enableFitScoringOnPillar(
-  pillarId: string,
-  fitCriteria: string,
-  etag: string
+async function apiCallWithEtag(
+  method: "PUT" | "PATCH",
+  url: string,
+  body: unknown,
+  etag: string,
+  errorContext: string
 ): Promise<string> {
-  console.log(`  Enabling fit scoring on pillar`);
-  const url = `${API_URL}/meta-model/strategy-pillars/${pillarId}/fit-configuration`;
   const headers = buildHeaders();
   headers["If-Match"] = etag;
 
-  const response = await fetch(url, {
-    method: "PUT",
-    headers,
-    body: JSON.stringify({ fitScoringEnabled: true, fitCriteria }),
-  });
-
+  const response = await fetch(url, { method, headers, body: JSON.stringify(body) });
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Failed to enable fit scoring: ${response.status}: ${text}`);
+    throw new Error(`${errorContext}: ${response.status}: ${text}`);
   }
-
   return response.headers.get("etag") || etag;
+}
+
+async function enableFitScoringOnPillar(pillarId: string, fitCriteria: string, etag: string): Promise<string> {
+  console.log(`  Enabling fit scoring on pillar`);
+  const url = `${API_URL}/meta-model/strategy-pillars/${pillarId}/fit-configuration`;
+  return apiCallWithEtag("PUT", url, { fitScoringEnabled: true, fitCriteria }, etag, "Failed to enable fit scoring");
 }
 
 interface PillarChange {
@@ -355,27 +378,10 @@ interface PillarChange {
   fitCriteria?: string;
 }
 
-async function batchUpdatePillars(
-  changes: PillarChange[],
-  etag: string
-): Promise<string> {
+async function batchUpdatePillars(changes: PillarChange[], etag: string): Promise<string> {
   console.log(`  Batch updating ${changes.length} pillars`);
   const url = `${API_URL}/meta-model/strategy-pillars`;
-  const headers = buildHeaders();
-  headers["If-Match"] = etag;
-
-  const response = await fetch(url, {
-    method: "PATCH",
-    headers,
-    body: JSON.stringify({ changes }),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Failed to batch update pillars: ${response.status}: ${text}`);
-  }
-
-  return response.headers.get("etag") || etag;
+  return apiCallWithEtag("PATCH", url, { changes }, etag, "Failed to batch update pillars");
 }
 
 async function createStrategyPillar(
@@ -411,6 +417,64 @@ async function setApplicationFitScore(
     score,
     rationale,
   });
+}
+
+async function createAcquiredEntity(
+  name: string,
+  acquisitionDate: string,
+  integrationStatus: string,
+  notes: string
+): Promise<AcquiredEntity> {
+  console.log(`  Creating acquired entity: ${name}`);
+  return apiCall<AcquiredEntity>("POST", "/acquired-entities", {
+    name,
+    acquisitionDate,
+    integrationStatus,
+    notes,
+  });
+}
+
+async function createVendor(
+  name: string,
+  implementationPartner: string,
+  notes: string
+): Promise<Vendor> {
+  console.log(`  Creating vendor: ${name}`);
+  return apiCall<Vendor>("POST", "/vendors", {
+    name,
+    implementationPartner,
+    notes,
+  });
+}
+
+async function createInternalTeam(
+  name: string,
+  department: string,
+  contactPerson: string,
+  notes: string
+): Promise<InternalTeam> {
+  console.log(`  Creating internal team: ${name}`);
+  return apiCall<InternalTeam>("POST", "/internal-teams", {
+    name,
+    department,
+    contactPerson,
+    notes,
+  });
+}
+
+async function linkComponentToAcquiredEntity(acquiredEntityId: string, componentId: string, notes: string): Promise<void> {
+  console.log(`  Linking component to acquired entity`);
+  await apiCall("POST", `/components/${componentId}/origin/acquired-via`, { acquiredEntityId, notes });
+}
+
+async function linkComponentToVendor(vendorId: string, componentId: string, notes: string): Promise<void> {
+  console.log(`  Linking component to vendor`);
+  await apiCall("POST", `/components/${componentId}/origin/purchased-from`, { vendorId, notes });
+}
+
+async function linkComponentToInternalTeam(internalTeamId: string, componentId: string, notes: string): Promise<void> {
+  console.log(`  Linking component to internal team`);
+  await apiCall("POST", `/components/${componentId}/origin/built-by`, { internalTeamId, notes });
 }
 
 async function seedComponents(): Promise<Map<string, Component>> {
@@ -1028,6 +1092,184 @@ async function seedApplicationFitScores(components: Map<string, Component>): Pro
   }
 }
 
+async function tryLinkComponents(
+  componentNames: string[],
+  components: Map<string, Component>,
+  linkFn: (componentId: string) => Promise<void>
+): Promise<void> {
+  for (const compName of componentNames) {
+    const component = components.get(compName);
+    if (component) {
+      try {
+        await linkFn(component.id);
+      } catch {
+        console.log(`    (Skipping link - may already exist)`);
+      }
+    }
+  }
+}
+
+async function seedAcquiredEntities(components: Map<string, Component>): Promise<void> {
+  const acquiredEntities = [
+    {
+      name: "DataTech Solutions",
+      acquisitionDate: "2023-06-15",
+      integrationStatus: "COMPLETED",
+      notes: "Acquired for their analytics capabilities. Integration completed Q4 2023.",
+      components: ["Analytics Platform", "Recommendation Engine"],
+    },
+    {
+      name: "SecurePay Inc",
+      acquisitionDate: "2022-03-20",
+      integrationStatus: "IN_PROGRESS",
+      notes: "Acquired for payment processing expertise. Currently migrating to unified auth.",
+      components: ["Payment Gateway", "Fraud Detection"],
+    },
+    {
+      name: "CloudScale Systems",
+      acquisitionDate: "2024-01-10",
+      integrationStatus: "NOT_STARTED",
+      notes: "Recent acquisition. Integration planning phase Q2 2024.",
+      components: ["API Gateway", "Cache Layer"],
+    },
+    {
+      name: "RetailTech Corp",
+      acquisitionDate: "2021-09-01",
+      integrationStatus: "COMPLETED",
+      notes: "Legacy retail systems acquisition. Fully integrated into e-commerce platform.",
+      components: ["Product Catalog", "Inventory Service"],
+    },
+  ];
+
+  for (const ae of acquiredEntities) {
+    try {
+      const entity = await createAcquiredEntity(ae.name, ae.acquisitionDate, ae.integrationStatus, ae.notes);
+      await tryLinkComponents(ae.components, components, (compId) =>
+        linkComponentToAcquiredEntity(entity.id, compId, `Acquired from ${ae.name}`)
+      );
+    } catch {
+      console.log(`    (Skipping acquired entity - may already exist)`);
+    }
+  }
+}
+
+async function seedVendors(components: Map<string, Component>): Promise<void> {
+  const vendors = [
+    {
+      name: "Elastic NV",
+      implementationPartner: "SearchTech Consulting",
+      notes: "Enterprise search platform. Contract renewal due 2025.",
+      components: ["Search Engine"],
+    },
+    {
+      name: "Redis Labs",
+      implementationPartner: "",
+      notes: "In-memory data store provider. Redis Enterprise license.",
+      components: ["Cache Layer"],
+    },
+    {
+      name: "AWS",
+      implementationPartner: "Cloud Solutions Inc",
+      notes: "Primary cloud infrastructure provider. Enterprise agreement.",
+      components: ["Message Queue"],
+    },
+    {
+      name: "Twilio",
+      implementationPartner: "",
+      notes: "SMS and communication APIs for customer notifications.",
+      components: ["Notification Service"],
+    },
+    {
+      name: "Stripe",
+      implementationPartner: "FinTech Partners",
+      notes: "Payment processing integration. PCI compliant.",
+      components: ["Payment Gateway"],
+    },
+    {
+      name: "Salesforce",
+      implementationPartner: "CRM Consultants Ltd",
+      notes: "CRM integration for customer data sync.",
+      components: ["Customer Portal"],
+    },
+  ];
+
+  for (const v of vendors) {
+    try {
+      const vendor = await createVendor(v.name, v.implementationPartner, v.notes);
+      await tryLinkComponents(v.components, components, (compId) =>
+        linkComponentToVendor(vendor.id, compId, `Purchased from ${v.name}`)
+      );
+    } catch {
+      console.log(`    (Skipping vendor - may already exist)`);
+    }
+  }
+}
+
+async function seedInternalTeams(components: Map<string, Component>): Promise<void> {
+  const internalTeams = [
+    {
+      name: "Core Platform Team",
+      department: "Engineering",
+      contactPerson: "Jane Smith",
+      notes: "Responsible for core microservices and platform infrastructure.",
+      components: ["User Service", "Order Service", "Inventory Service", "API Gateway"],
+    },
+    {
+      name: "Customer Experience Team",
+      department: "Product",
+      contactPerson: "John Doe",
+      notes: "Owns customer-facing applications and user journey.",
+      components: ["Customer Portal", "Shopping Cart"],
+    },
+    {
+      name: "Data Engineering Team",
+      department: "Engineering",
+      contactPerson: "Alice Johnson",
+      notes: "Builds data pipelines, analytics, and ML infrastructure.",
+      components: ["Reporting Service", "Analytics Platform", "Recommendation Engine"],
+    },
+    {
+      name: "Operations Team",
+      department: "IT Operations",
+      contactPerson: "Bob Williams",
+      notes: "Manages internal tools and operational systems.",
+      components: ["Admin Dashboard", "Pricing Service", "Shipping Service"],
+    },
+    {
+      name: "Security Team",
+      department: "Engineering",
+      contactPerson: "Carol Chen",
+      notes: "Responsible for security, fraud prevention, and compliance.",
+      components: ["Fraud Detection"],
+    },
+    {
+      name: "Content Team",
+      department: "Marketing",
+      contactPerson: "David Lee",
+      notes: "Manages product content and digital assets.",
+      components: ["Content Management", "Product Catalog"],
+    },
+  ];
+
+  for (const team of internalTeams) {
+    try {
+      const internalTeam = await createInternalTeam(team.name, team.department, team.contactPerson, team.notes);
+      await tryLinkComponents(team.components, components, (compId) =>
+        linkComponentToInternalTeam(internalTeam.id, compId, `Built by ${team.name}`)
+      );
+    } catch {
+      console.log(`    (Skipping internal team - may already exist)`);
+    }
+  }
+}
+
+async function seedOriginEntities(components: Map<string, Component>): Promise<void> {
+  console.log("\n🏭 Seeding Origin Entities...");
+  await seedAcquiredEntities(components);
+  await seedVendors(components);
+  await seedInternalTeams(components);
+}
+
 async function checkApiHealth(): Promise<boolean> {
   try {
     const response = await fetch(`${BASE_URL}/health`);
@@ -1075,6 +1317,8 @@ async function main(): Promise<void> {
 
     await seedApplicationFitScores(components);
 
+    await seedOriginEntities(components);
+
     console.log("\n✅ Test data seeding complete!");
     console.log("\nSummary:");
     console.log(`  - ${components.size} components created`);
@@ -1082,6 +1326,7 @@ async function main(): Promise<void> {
     console.log(`  - Business domains, enterprise capabilities, and views created`);
     console.log(`  - System realizations and dependencies linked`);
     console.log(`  - Application fit scores set for strategic pillars`);
+    console.log(`  - Origin entities (acquired entities, vendors, internal teams) created`);
   } catch (error) {
     console.error("\n❌ Seeding failed:", error);
     process.exit(1);

@@ -15,6 +15,10 @@ export type EnterpriseCapabilityLinkId = Branded<string, 'EnterpriseCapabilityLi
 export type EnterpriseStrategicImportanceId = Branded<string, 'EnterpriseStrategicImportanceId'>;
 export type LayoutContainerId = Branded<string, 'LayoutContainerId'>;
 export type StrategyImportanceId = Branded<string, 'StrategyImportanceId'>;
+export type AcquiredEntityId = Branded<string, 'AcquiredEntityId'>;
+export type VendorId = Branded<string, 'VendorId'>;
+export type InternalTeamId = Branded<string, 'InternalTeamId'>;
+export type OriginRelationshipId = Branded<string, 'OriginRelationshipId'>;
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0;
@@ -46,6 +50,10 @@ export const toEnterpriseCapabilityLinkId = createBrandedFactory<EnterpriseCapab
 export const toEnterpriseStrategicImportanceId = createBrandedFactory<EnterpriseStrategicImportanceId>('EnterpriseStrategicImportanceId');
 export const toLayoutContainerId = createBrandedFactory<LayoutContainerId>('LayoutContainerId');
 export const toStrategyImportanceId = createBrandedFactory<StrategyImportanceId>('StrategyImportanceId');
+export const toAcquiredEntityId = createBrandedFactory<AcquiredEntityId>('AcquiredEntityId');
+export const toVendorId = createBrandedFactory<VendorId>('VendorId');
+export const toInternalTeamId = createBrandedFactory<InternalTeamId>('InternalTeamId');
+export const toOriginRelationshipId = createBrandedFactory<OriginRelationshipId>('OriginRelationshipId');
 
 export const isComponentId = createBrandedTypeGuard<ComponentId>();
 export const isRelationId = createBrandedTypeGuard<RelationId>();
@@ -60,6 +68,10 @@ export const isEnterpriseCapabilityLinkId = createBrandedTypeGuard<EnterpriseCap
 export const isEnterpriseStrategicImportanceId = createBrandedTypeGuard<EnterpriseStrategicImportanceId>();
 export const isLayoutContainerId = createBrandedTypeGuard<LayoutContainerId>();
 export const isStrategyImportanceId = createBrandedTypeGuard<StrategyImportanceId>();
+export const isAcquiredEntityId = createBrandedTypeGuard<AcquiredEntityId>();
+export const isVendorId = createBrandedTypeGuard<VendorId>();
+export const isInternalTeamId = createBrandedTypeGuard<InternalTeamId>();
+export const isOriginRelationshipId = createBrandedTypeGuard<OriginRelationshipId>();
 
 export interface Position {
   x: number;
@@ -415,6 +427,7 @@ export interface BusinessDomain {
   id: BusinessDomainId;
   name: string;
   description: string;
+  domainArchitectId?: string;
   capabilityCount: number;
   createdAt: string;
   updatedAt?: string;
@@ -424,11 +437,13 @@ export interface BusinessDomain {
 export interface CreateBusinessDomainRequest {
   name: string;
   description?: string;
+  domainArchitectId?: string;
 }
 
 export interface UpdateBusinessDomainRequest {
   name: string;
   description?: string;
+  domainArchitectId?: string;
 }
 
 export interface AssociateCapabilityRequest {
@@ -690,3 +705,103 @@ export interface AuditHistoryResponse {
   pagination?: AuditPaginationInfo;
   _links: HATEOASLinks;
 }
+
+export type IntegrationStatus = 'NotStarted' | 'InProgress' | 'Completed' | 'OnHold';
+export type OriginRelationshipType = 'AcquiredVia' | 'PurchasedFrom' | 'BuiltBy';
+
+export interface AcquiredEntity {
+  id: AcquiredEntityId;
+  name: string;
+  acquisitionDate?: string;
+  integrationStatus: IntegrationStatus;
+  notes?: string;
+  componentCount: number;
+  createdAt: string;
+  updatedAt?: string;
+  _links: HATEOASLinks;
+}
+
+export interface CreateAcquiredEntityRequest {
+  name: string;
+  acquisitionDate?: string;
+  integrationStatus?: IntegrationStatus;
+  notes?: string;
+}
+
+export interface UpdateAcquiredEntityRequest {
+  name: string;
+  acquisitionDate?: string;
+  integrationStatus?: IntegrationStatus;
+  notes?: string;
+}
+
+export interface Vendor {
+  id: VendorId;
+  name: string;
+  implementationPartner?: string;
+  notes?: string;
+  componentCount: number;
+  createdAt: string;
+  updatedAt?: string;
+  _links: HATEOASLinks;
+}
+
+export interface CreateVendorRequest {
+  name: string;
+  implementationPartner?: string;
+  notes?: string;
+}
+
+export interface UpdateVendorRequest {
+  name: string;
+  implementationPartner?: string;
+  notes?: string;
+}
+
+export interface InternalTeam {
+  id: InternalTeamId;
+  name: string;
+  department?: string;
+  contactPerson?: string;
+  notes?: string;
+  componentCount: number;
+  createdAt: string;
+  updatedAt?: string;
+  _links: HATEOASLinks;
+}
+
+export interface CreateInternalTeamRequest {
+  name: string;
+  department?: string;
+  contactPerson?: string;
+  notes?: string;
+}
+
+export interface UpdateInternalTeamRequest {
+  name: string;
+  department?: string;
+  contactPerson?: string;
+  notes?: string;
+}
+
+export interface OriginRelationship {
+  id: OriginRelationshipId;
+  componentId: ComponentId;
+  componentName: string;
+  relationshipType: OriginRelationshipType;
+  originEntityId: string;
+  originEntityName: string;
+  notes?: string;
+  createdAt: string;
+  _links: HATEOASLinks;
+}
+
+export interface CreateOriginRelationshipRequest {
+  componentId: ComponentId;
+  notes?: string;
+}
+
+export type AcquiredEntitiesResponse = CollectionResponse<AcquiredEntity>;
+export type VendorsResponse = CollectionResponse<Vendor>;
+export type InternalTeamsResponse = CollectionResponse<InternalTeam>;
+export type OriginRelationshipsResponse = CollectionResponse<OriginRelationship>;
