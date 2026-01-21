@@ -97,7 +97,7 @@ describe('createOriginRelationshipEdges', () => {
 
       const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
 
-      expect(edges[0].source).toBe('acq-ae-123');
+      expect(edges[0].target).toBe('acq-ae-123');
     });
 
     it('should map PurchasedFrom to vendor- prefix', () => {
@@ -113,7 +113,7 @@ describe('createOriginRelationshipEdges', () => {
 
       const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
 
-      expect(edges[0].source).toBe('vendor-v-456');
+      expect(edges[0].target).toBe('vendor-v-456');
     });
 
     it('should map BuiltBy to team- prefix', () => {
@@ -129,7 +129,7 @@ describe('createOriginRelationshipEdges', () => {
 
       const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
 
-      expect(edges[0].source).toBe('team-it-789');
+      expect(edges[0].target).toBe('team-it-789');
     });
   });
 
@@ -246,7 +246,7 @@ describe('createOriginRelationshipEdges', () => {
       expect(edges[0].id).toBe('origin-rel-999');
     });
 
-    it('should set target to component ID', () => {
+    it('should set source to component ID', () => {
       const relationship = createMockOriginRelationship({ componentId: 'comp-target' as ComponentId });
       const nodes = [createMockNode('acq-ae-789'), createMockNode('comp-target')];
       const originEntityNodeIds = new Set(['acq-ae-789']);
@@ -255,7 +255,7 @@ describe('createOriginRelationshipEdges', () => {
 
       const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
 
-      expect(edges[0].target).toBe('comp-target');
+      expect(edges[0].source).toBe('comp-target');
     });
 
     it('should include arrow marker at end', () => {

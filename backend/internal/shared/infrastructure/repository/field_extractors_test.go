@@ -7,17 +7,42 @@ import (
 	"time"
 )
 
-func checkError(t *testing.T, funcName string, err error, wantErr bool, errContains string) bool {
-	t.Helper()
-	if (err != nil) != wantErr {
-		t.Errorf("%s() error = %v, wantErr %v", funcName, err, wantErr)
+type testResult struct {
+	t           *testing.T
+	funcName    string
+	err         error
+	wantErr     bool
+	errContains string
+}
+
+func (r testResult) checkError() bool {
+	r.t.Helper()
+	if r.hasUnexpectedError() {
 		return false
 	}
-	if wantErr && errContains != "" && (err == nil || !strings.Contains(err.Error(), errContains)) {
-		t.Errorf("%s() error = %v, want error containing %q", funcName, err, errContains)
+	if r.hasMismatchedErrorContent() {
 		return false
 	}
-	return !wantErr
+	return !r.wantErr
+}
+
+func (r testResult) hasUnexpectedError() bool {
+	if (r.err != nil) != r.wantErr {
+		r.t.Errorf("%s() error = %v, wantErr %v", r.funcName, r.err, r.wantErr)
+		return true
+	}
+	return false
+}
+
+func (r testResult) hasMismatchedErrorContent() bool {
+	if !r.wantErr || r.errContains == "" {
+		return false
+	}
+	if r.err == nil || !strings.Contains(r.err.Error(), r.errContains) {
+		r.t.Errorf("%s() error = %v, want error containing %q", r.funcName, r.err, r.errContains)
+		return true
+	}
+	return false
 }
 
 func TestGetRequiredString(t *testing.T) {
@@ -38,7 +63,8 @@ func TestGetRequiredString(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetRequiredString(tt.data, tt.key)
-			if checkError(t, "GetRequiredString", err, tt.wantErr, tt.errContains) && got != tt.want {
+			r := testResult{t, "GetRequiredString", err, tt.wantErr, tt.errContains}
+			if r.checkError() && got != tt.want {
 				t.Errorf("GetRequiredString() = %v, want %v", got, tt.want)
 			}
 		})
@@ -63,7 +89,8 @@ func TestGetOptionalString(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetOptionalString(tt.data, tt.key, tt.defaultVal)
-			if checkError(t, "GetOptionalString", err, tt.wantErr, tt.errContains) && got != tt.want {
+			r := testResult{t, "GetOptionalString", err, tt.wantErr, tt.errContains}
+			if r.checkError() && got != tt.want {
 				t.Errorf("GetOptionalString() = %v, want %v", got, tt.want)
 			}
 		})
@@ -89,7 +116,8 @@ func TestGetRequiredInt(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetRequiredInt(tt.data, tt.key)
-			if checkError(t, "GetRequiredInt", err, tt.wantErr, tt.errContains) && got != tt.want {
+			r := testResult{t, "GetRequiredInt", err, tt.wantErr, tt.errContains}
+			if r.checkError() && got != tt.want {
 				t.Errorf("GetRequiredInt() = %v, want %v", got, tt.want)
 			}
 		})
@@ -114,7 +142,8 @@ func TestGetOptionalInt(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetOptionalInt(tt.data, tt.key, tt.defaultVal)
-			if checkError(t, "GetOptionalInt", err, tt.wantErr, tt.errContains) && got != tt.want {
+			r := testResult{t, "GetOptionalInt", err, tt.wantErr, tt.errContains}
+			if r.checkError() && got != tt.want {
 				t.Errorf("GetOptionalInt() = %v, want %v", got, tt.want)
 			}
 		})
@@ -138,7 +167,8 @@ func TestGetRequiredFloat64(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetRequiredFloat64(tt.data, tt.key)
-			if checkError(t, "GetRequiredFloat64", err, tt.wantErr, tt.errContains) && got != tt.want {
+			r := testResult{t, "GetRequiredFloat64", err, tt.wantErr, tt.errContains}
+			if r.checkError() && got != tt.want {
 				t.Errorf("GetRequiredFloat64() = %v, want %v", got, tt.want)
 			}
 		})
@@ -163,7 +193,8 @@ func TestGetOptionalFloat64(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetOptionalFloat64(tt.data, tt.key, tt.defaultVal)
-			if checkError(t, "GetOptionalFloat64", err, tt.wantErr, tt.errContains) && got != tt.want {
+			r := testResult{t, "GetOptionalFloat64", err, tt.wantErr, tt.errContains}
+			if r.checkError() && got != tt.want {
 				t.Errorf("GetOptionalFloat64() = %v, want %v", got, tt.want)
 			}
 		})
@@ -187,7 +218,8 @@ func TestGetRequiredBool(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetRequiredBool(tt.data, tt.key)
-			if checkError(t, "GetRequiredBool", err, tt.wantErr, tt.errContains) && got != tt.want {
+			r := testResult{t, "GetRequiredBool", err, tt.wantErr, tt.errContains}
+			if r.checkError() && got != tt.want {
 				t.Errorf("GetRequiredBool() = %v, want %v", got, tt.want)
 			}
 		})
@@ -213,7 +245,8 @@ func TestGetOptionalBool(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetOptionalBool(tt.data, tt.key, tt.defaultVal)
-			if checkError(t, "GetOptionalBool", err, tt.wantErr, tt.errContains) && got != tt.want {
+			r := testResult{t, "GetOptionalBool", err, tt.wantErr, tt.errContains}
+			if r.checkError() && got != tt.want {
 				t.Errorf("GetOptionalBool() = %v, want %v", got, tt.want)
 			}
 		})
@@ -240,7 +273,8 @@ func TestGetRequiredTime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetRequiredTime(tt.data, tt.key)
-			if checkError(t, "GetRequiredTime", err, tt.wantErr, tt.errContains) && !got.Equal(tt.want) {
+			r := testResult{t, "GetRequiredTime", err, tt.wantErr, tt.errContains}
+			if r.checkError() && !got.Equal(tt.want) {
 				t.Errorf("GetRequiredTime() = %v, want %v", got, tt.want)
 			}
 		})
@@ -268,7 +302,8 @@ func TestGetOptionalTime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetOptionalTime(tt.data, tt.key, tt.defaultVal)
-			if checkError(t, "GetOptionalTime", err, tt.wantErr, tt.errContains) && !got.Equal(tt.want) {
+			r := testResult{t, "GetOptionalTime", err, tt.wantErr, tt.errContains}
+			if r.checkError() && !got.Equal(tt.want) {
 				t.Errorf("GetOptionalTime() = %v, want %v", got, tt.want)
 			}
 		})
@@ -291,7 +326,8 @@ func TestGetRequiredMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetRequiredMap(tt.data, tt.key)
-			if checkError(t, "GetRequiredMap", err, tt.wantErr, tt.errContains) && got == nil {
+			r := testResult{t, "GetRequiredMap", err, tt.wantErr, tt.errContains}
+			if r.checkError() && got == nil {
 				t.Errorf("GetRequiredMap() returned nil for valid input")
 			}
 		})
@@ -315,7 +351,8 @@ func TestGetOptionalMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetOptionalMap(tt.data, tt.key)
-			if !checkError(t, "GetOptionalMap", err, tt.wantErr, tt.errContains) {
+			r := testResult{t, "GetOptionalMap", err, tt.wantErr, tt.errContains}
+			if !r.checkError() {
 				return
 			}
 			if tt.wantNil && got != nil {
@@ -353,7 +390,8 @@ func TestGetRequiredMapSlice(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetRequiredMapSlice(tt.data, tt.key)
-			if checkError(t, "GetRequiredMapSlice", err, tt.wantErr, tt.errContains) && len(got) != tt.wantLen {
+			r := testResult{t, "GetRequiredMapSlice", err, tt.wantErr, tt.errContains}
+			if r.checkError() && len(got) != tt.wantLen {
 				t.Errorf("GetRequiredMapSlice() returned %d items, want %d", len(got), tt.wantLen)
 			}
 		})
@@ -387,7 +425,8 @@ func TestGetOptionalMapSlice(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetOptionalMapSlice(tt.data, tt.key)
-			if !checkError(t, "GetOptionalMapSlice", err, tt.wantErr, tt.errContains) {
+			r := testResult{t, "GetOptionalMapSlice", err, tt.wantErr, tt.errContains}
+			if !r.checkError() {
 				return
 			}
 			if tt.wantNil && got != nil {
@@ -416,7 +455,8 @@ func TestGetRequiredStringSlice(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetRequiredStringSlice(tt.data, tt.key)
-			if checkError(t, "GetRequiredStringSlice", err, tt.wantErr, tt.errContains) && !reflect.DeepEqual(got, tt.want) {
+			r := testResult{t, "GetRequiredStringSlice", err, tt.wantErr, tt.errContains}
+			if r.checkError() && !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetRequiredStringSlice() = %v, want %v", got, tt.want)
 			}
 		})
@@ -442,7 +482,8 @@ func TestGetOptionalStringSlice(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GetOptionalStringSlice(tt.data, tt.key)
-			if !checkError(t, "GetOptionalStringSlice", err, tt.wantErr, tt.errContains) {
+			r := testResult{t, "GetOptionalStringSlice", err, tt.wantErr, tt.errContains}
+			if !r.checkError() {
 				return
 			}
 			if tt.wantNil && got != nil {
