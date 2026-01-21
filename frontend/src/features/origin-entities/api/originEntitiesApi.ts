@@ -17,9 +17,15 @@ import type {
   UpdateInternalTeamRequest,
   OriginRelationship,
   OriginRelationshipId,
+  AllOriginRelationshipsResponse,
 } from '../../../api/types';
 
 export const originEntitiesApi = {
+  async getAllOriginRelationships(): Promise<AllOriginRelationshipsResponse> {
+    const response = await httpClient.get<AllOriginRelationshipsResponse>('/api/v1/origin-relationships');
+    return response.data;
+  },
+
   acquiredEntities: {
     async getAll(): Promise<AcquiredEntity[]> {
       const response = await httpClient.get<AcquiredEntitiesResponse>('/api/v1/acquired-entities');
@@ -45,10 +51,14 @@ export const originEntitiesApi = {
       await httpClient.delete(`/api/v1/acquired-entities/${id}`);
     },
 
-    async linkComponent(componentId: string, acquiredEntityId: AcquiredEntityId): Promise<OriginRelationship> {
+    async linkComponent(
+      componentId: string,
+      acquiredEntityId: AcquiredEntityId,
+      replaceExisting: boolean = false
+    ): Promise<OriginRelationship> {
       const response = await httpClient.post<OriginRelationship>(
         `/api/v1/components/${componentId}/origin/acquired-via`,
-        { acquiredEntityId }
+        { acquiredEntityId, replaceExisting }
       );
       return response.data;
     },
@@ -83,10 +93,14 @@ export const originEntitiesApi = {
       await httpClient.delete(`/api/v1/vendors/${id}`);
     },
 
-    async linkComponent(componentId: string, vendorId: VendorId): Promise<OriginRelationship> {
+    async linkComponent(
+      componentId: string,
+      vendorId: VendorId,
+      replaceExisting: boolean = false
+    ): Promise<OriginRelationship> {
       const response = await httpClient.post<OriginRelationship>(
         `/api/v1/components/${componentId}/origin/purchased-from`,
-        { vendorId }
+        { vendorId, replaceExisting }
       );
       return response.data;
     },
@@ -121,10 +135,14 @@ export const originEntitiesApi = {
       await httpClient.delete(`/api/v1/internal-teams/${id}`);
     },
 
-    async linkComponent(componentId: string, internalTeamId: InternalTeamId): Promise<OriginRelationship> {
+    async linkComponent(
+      componentId: string,
+      internalTeamId: InternalTeamId,
+      replaceExisting: boolean = false
+    ): Promise<OriginRelationship> {
       const response = await httpClient.post<OriginRelationship>(
         `/api/v1/components/${componentId}/origin/built-by`,
-        { internalTeamId }
+        { internalTeamId, replaceExisting }
       );
       return response.data;
     },

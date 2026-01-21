@@ -163,3 +163,39 @@ func (rm *BuiltByRelationshipReadModel) GetByComponentID(ctx context.Context, co
 
 	return relationships, err
 }
+
+func (rm *BuiltByRelationshipReadModel) GetAll(ctx context.Context) ([]BuiltByRelationshipDTO, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	relationships := make([]BuiltByRelationshipDTO, 0)
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx,
+			`SELECT r.id, r.internal_team_id, COALESCE(t.name, '') as internal_team_name,
+			        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
+			 FROM built_by_relationships r
+			 LEFT JOIN internal_teams t ON t.tenant_id = r.tenant_id AND t.id = r.internal_team_id AND t.is_deleted = FALSE
+			 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
+			 WHERE r.tenant_id = $1 AND r.is_deleted = FALSE`,
+			tenantID.Value(),
+		)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var dto BuiltByRelationshipDTO
+			if err := rows.Scan(&dto.ID, &dto.InternalTeamID, &dto.InternalTeamName, &dto.ComponentID, &dto.ComponentName, &dto.Notes, &dto.CreatedAt); err != nil {
+				return err
+			}
+			relationships = append(relationships, dto)
+		}
+
+		return rows.Err()
+	})
+
+	return relationships, err
+}

@@ -163,3 +163,39 @@ func (rm *AcquiredViaRelationshipReadModel) GetByComponentID(ctx context.Context
 
 	return relationships, err
 }
+
+func (rm *AcquiredViaRelationshipReadModel) GetAll(ctx context.Context) ([]AcquiredViaRelationshipDTO, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	relationships := make([]AcquiredViaRelationshipDTO, 0)
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx,
+			`SELECT r.id, r.acquired_entity_id, COALESCE(ae.name, '') as acquired_entity_name,
+			        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
+			 FROM acquired_via_relationships r
+			 LEFT JOIN acquired_entities ae ON ae.tenant_id = r.tenant_id AND ae.id = r.acquired_entity_id AND ae.is_deleted = FALSE
+			 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
+			 WHERE r.tenant_id = $1 AND r.is_deleted = FALSE`,
+			tenantID.Value(),
+		)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var dto AcquiredViaRelationshipDTO
+			if err := rows.Scan(&dto.ID, &dto.AcquiredEntityID, &dto.AcquiredEntityName, &dto.ComponentID, &dto.ComponentName, &dto.Notes, &dto.CreatedAt); err != nil {
+				return err
+			}
+			relationships = append(relationships, dto)
+		}
+
+		return rows.Err()
+	})
+
+	return relationships, err
+}

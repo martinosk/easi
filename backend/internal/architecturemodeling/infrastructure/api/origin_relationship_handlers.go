@@ -5,18 +5,29 @@ import (
 
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
+	"easi/backend/internal/architecturemodeling/domain"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/types"
 )
 
+type OriginReadModels struct {
+	AcquiredVia   *readmodels.AcquiredViaRelationshipReadModel
+	PurchasedFrom *readmodels.PurchasedFromRelationshipReadModel
+	BuiltBy       *readmodels.BuiltByRelationshipReadModel
+}
+
+type OriginRelationshipHandlersConfig struct {
+	CommandBus cqrs.CommandBus
+	ReadModels OriginReadModels
+	HATEOAS    *sharedAPI.HATEOASLinks
+}
+
 type OriginRelationshipHandlers struct {
-	commandBus             cqrs.CommandBus
-	acquiredViaReadModel   *readmodels.AcquiredViaRelationshipReadModel
-	purchasedFromReadModel *readmodels.PurchasedFromRelationshipReadModel
-	builtByReadModel       *readmodels.BuiltByRelationshipReadModel
-	hateoas                *sharedAPI.HATEOASLinks
+	commandBus cqrs.CommandBus
+	readModels OriginReadModels
+	hateoas    *sharedAPI.HATEOASLinks
 }
 
 func NewOriginRelationshipHandlers(
@@ -26,12 +37,22 @@ func NewOriginRelationshipHandlers(
 	builtByReadModel *readmodels.BuiltByRelationshipReadModel,
 	hateoas *sharedAPI.HATEOASLinks,
 ) *OriginRelationshipHandlers {
+	return NewOriginRelationshipHandlersFromConfig(OriginRelationshipHandlersConfig{
+		CommandBus: commandBus,
+		ReadModels: OriginReadModels{
+			AcquiredVia:   acquiredViaReadModel,
+			PurchasedFrom: purchasedFromReadModel,
+			BuiltBy:       builtByReadModel,
+		},
+		HATEOAS: hateoas,
+	})
+}
+
+func NewOriginRelationshipHandlersFromConfig(cfg OriginRelationshipHandlersConfig) *OriginRelationshipHandlers {
 	return &OriginRelationshipHandlers{
-		commandBus:             commandBus,
-		acquiredViaReadModel:   acquiredViaReadModel,
-		purchasedFromReadModel: purchasedFromReadModel,
-		builtByReadModel:       builtByReadModel,
-		hateoas:                hateoas,
+		commandBus: cfg.CommandBus,
+		readModels: cfg.ReadModels,
+		hateoas:    cfg.HATEOAS,
 	}
 }
 
@@ -39,22 +60,32 @@ type CreateAcquiredViaRelationshipRequest struct {
 	AcquiredEntityID string `json:"acquiredEntityId"`
 	ComponentID      string `json:"componentId"`
 	Notes            string `json:"notes,omitempty"`
+	ReplaceExisting  bool   `json:"replaceExisting,omitempty"`
 }
 
 type CreatePurchasedFromRelationshipRequest struct {
-	VendorID    string `json:"vendorId"`
-	ComponentID string `json:"componentId"`
-	Notes       string `json:"notes,omitempty"`
+	VendorID        string `json:"vendorId"`
+	ComponentID     string `json:"componentId"`
+	Notes           string `json:"notes,omitempty"`
+	ReplaceExisting bool   `json:"replaceExisting,omitempty"`
 }
 
 type CreateBuiltByRelationshipRequest struct {
-	InternalTeamID string `json:"internalTeamId"`
-	ComponentID    string `json:"componentId"`
-	Notes          string `json:"notes,omitempty"`
+	InternalTeamID  string `json:"internalTeamId"`
+	ComponentID     string `json:"componentId"`
+	Notes           string `json:"notes,omitempty"`
+	ReplaceExisting bool   `json:"replaceExisting,omitempty"`
 }
 
 type ComponentOriginsDTO struct {
 	ComponentID   string                                    `json:"componentId"`
+	AcquiredVia   []readmodels.AcquiredViaRelationshipDTO   `json:"acquiredVia"`
+	PurchasedFrom []readmodels.PurchasedFromRelationshipDTO `json:"purchasedFrom"`
+	BuiltBy       []readmodels.BuiltByRelationshipDTO       `json:"builtBy"`
+	Links         types.Links                               `json:"_links,omitempty"`
+}
+
+type AllOriginRelationshipsDTO struct {
 	AcquiredVia   []readmodels.AcquiredViaRelationshipDTO   `json:"acquiredVia"`
 	PurchasedFrom []readmodels.PurchasedFromRelationshipDTO `json:"purchasedFrom"`
 	BuiltBy       []readmodels.BuiltByRelationshipDTO       `json:"builtBy"`
@@ -76,24 +107,94 @@ func (h *OriginRelationshipHandlers) GetAllOriginsByComponent(w http.ResponseWri
 	componentID := sharedAPI.GetPathParam(r, "componentId")
 	actor, _ := sharedctx.GetActor(r.Context())
 
-	acquiredVia, err := h.acquiredViaReadModel.GetByComponentID(r.Context(), componentID)
+	acquiredVia, err := h.readModels.AcquiredVia.GetByComponentID(r.Context(), componentID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve acquired-via relationships")
 		return
 	}
 
-	purchasedFrom, err := h.purchasedFromReadModel.GetByComponentID(r.Context(), componentID)
+	purchasedFrom, err := h.readModels.PurchasedFrom.GetByComponentID(r.Context(), componentID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve purchased-from relationships")
 		return
 	}
 
-	builtBy, err := h.builtByReadModel.GetByComponentID(r.Context(), componentID)
+	builtBy, err := h.readModels.BuiltBy.GetByComponentID(r.Context(), componentID)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve built-by relationships")
 		return
 	}
 
+	h.enrichAllRelationships(actor, acquiredVia, purchasedFrom, builtBy)
+
+	origins := ComponentOriginsDTO{
+		ComponentID:   componentID,
+		AcquiredVia:   acquiredVia,
+		PurchasedFrom: purchasedFrom,
+		BuiltBy:       builtBy,
+		Links: types.Links{
+			"self":           {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origins"), Method: "GET"},
+			"component":      {Href: sharedAPI.BuildResourceLink("/components", sharedAPI.ResourceID(componentID)), Method: "GET"},
+			"acquired-via":   {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origin/acquired-via"), Method: "GET"},
+			"purchased-from": {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origin/purchased-from"), Method: "GET"},
+			"built-by":       {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origin/built-by"), Method: "GET"},
+		},
+	}
+
+	sharedAPI.RespondJSON(w, http.StatusOK, origins)
+}
+
+// GetAllOriginRelationships godoc
+// @Summary Get all origin relationships
+// @Description Retrieves all origin relationships (acquired-via, purchased-from, built-by) across all components
+// @Tags origin-relationships
+// @Produce json
+// @Success 200 {object} AllOriginRelationshipsDTO
+// @Failure 401 {object} sharedAPI.ErrorResponse "Unauthorized - authentication required"
+// @Failure 403 {object} sharedAPI.ErrorResponse "Forbidden - insufficient permissions"
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /origin-relationships [get]
+func (h *OriginRelationshipHandlers) GetAllOriginRelationships(w http.ResponseWriter, r *http.Request) {
+	actor, _ := sharedctx.GetActor(r.Context())
+
+	acquiredVia, err := h.readModels.AcquiredVia.GetAll(r.Context())
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve acquired-via relationships")
+		return
+	}
+
+	purchasedFrom, err := h.readModels.PurchasedFrom.GetAll(r.Context())
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve purchased-from relationships")
+		return
+	}
+
+	builtBy, err := h.readModels.BuiltBy.GetAll(r.Context())
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve built-by relationships")
+		return
+	}
+
+	h.enrichAllRelationships(actor, acquiredVia, purchasedFrom, builtBy)
+
+	result := AllOriginRelationshipsDTO{
+		AcquiredVia:   acquiredVia,
+		PurchasedFrom: purchasedFrom,
+		BuiltBy:       builtBy,
+		Links: types.Links{
+			"self": {Href: sharedAPI.BuildResourceLink("/origin-relationships", ""), Method: "GET"},
+		},
+	}
+
+	sharedAPI.RespondJSON(w, http.StatusOK, result)
+}
+
+func (h *OriginRelationshipHandlers) enrichAllRelationships(
+	actor sharedctx.Actor,
+	acquiredVia []readmodels.AcquiredViaRelationshipDTO,
+	purchasedFrom []readmodels.PurchasedFromRelationshipDTO,
+	builtBy []readmodels.BuiltByRelationshipDTO,
+) {
 	for i := range acquiredVia {
 		h.enrichAcquiredViaWithLinks(actor, &acquiredVia[i])
 	}
@@ -103,22 +204,6 @@ func (h *OriginRelationshipHandlers) GetAllOriginsByComponent(w http.ResponseWri
 	for i := range builtBy {
 		h.enrichBuiltByWithLinks(actor, &builtBy[i])
 	}
-
-	origins := ComponentOriginsDTO{
-		ComponentID:   componentID,
-		AcquiredVia:   acquiredVia,
-		PurchasedFrom: purchasedFrom,
-		BuiltBy:       builtBy,
-		Links: types.Links{
-			"self":         {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origins"), Method: "GET"},
-			"component":    {Href: sharedAPI.BuildResourceLink("/components", sharedAPI.ResourceID(componentID)), Method: "GET"},
-			"acquired-via": {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origin/acquired-via"), Method: "GET"},
-			"purchased-from": {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origin/purchased-from"), Method: "GET"},
-			"built-by":     {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origin/built-by"), Method: "GET"},
-		},
-	}
-
-	sharedAPI.RespondJSON(w, http.StatusOK, origins)
 }
 
 // CreateAcquiredViaRelationship godoc
@@ -143,17 +228,16 @@ func (h *OriginRelationshipHandlers) CreateAcquiredViaRelationship(w http.Respon
 		AcquiredEntityID: req.AcquiredEntityID,
 		ComponentID:      componentID,
 		Notes:            req.Notes,
-	}
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
+		ReplaceExisting:  req.ReplaceExisting,
 	}
 
-	actor, _ := sharedctx.GetActor(r.Context())
-	relationship, fetchErr := h.acquiredViaReadModel.GetByID(r.Context(), result.CreatedID)
-	respondCreatedRelationship(w, componentID, "acquired-via", result.CreatedID, relationship, fetchErr, func(rel *readmodels.AcquiredViaRelationshipDTO) {
-		h.enrichAcquiredViaWithLinks(actor, rel)
+	h.dispatchCreateAndRespond(w, r, cmd, componentID, "acquired-via", func(createdID string) (interface{}, error) {
+		return h.readModels.AcquiredVia.GetByID(r.Context(), createdID)
+	}, func(rel interface{}) {
+		if dto, ok := rel.(*readmodels.AcquiredViaRelationshipDTO); ok {
+			actor, _ := sharedctx.GetActor(r.Context())
+			h.enrichAcquiredViaWithLinks(actor, dto)
+		}
 	})
 }
 
@@ -169,7 +253,7 @@ func (h *OriginRelationshipHandlers) CreateAcquiredViaRelationship(w http.Respon
 func (h *OriginRelationshipHandlers) GetAcquiredViaByComponent(w http.ResponseWriter, r *http.Request) {
 	componentID := sharedAPI.GetPathParam(r, "componentId")
 	actor, _ := sharedctx.GetActor(r.Context())
-	relationships, err := h.acquiredViaReadModel.GetByComponentID(r.Context(), componentID)
+	relationships, err := h.readModels.AcquiredVia.GetByComponentID(r.Context(), componentID)
 	respondRelationshipsByComponent(w, componentID, "acquired-via", relationships, err, func(rel *readmodels.AcquiredViaRelationshipDTO) {
 		h.enrichAcquiredViaWithLinks(actor, rel)
 	})
@@ -208,20 +292,19 @@ func (h *OriginRelationshipHandlers) CreatePurchasedFromRelationship(w http.Resp
 	}
 
 	cmd := &commands.CreatePurchasedFromRelationship{
-		VendorID:    req.VendorID,
-		ComponentID: componentID,
-		Notes:       req.Notes,
-	}
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
+		VendorID:        req.VendorID,
+		ComponentID:     componentID,
+		Notes:           req.Notes,
+		ReplaceExisting: req.ReplaceExisting,
 	}
 
-	actor, _ := sharedctx.GetActor(r.Context())
-	relationship, fetchErr := h.purchasedFromReadModel.GetByID(r.Context(), result.CreatedID)
-	respondCreatedRelationship(w, componentID, "purchased-from", result.CreatedID, relationship, fetchErr, func(rel *readmodels.PurchasedFromRelationshipDTO) {
-		h.enrichPurchasedFromWithLinks(actor, rel)
+	h.dispatchCreateAndRespond(w, r, cmd, componentID, "purchased-from", func(createdID string) (interface{}, error) {
+		return h.readModels.PurchasedFrom.GetByID(r.Context(), createdID)
+	}, func(rel interface{}) {
+		if dto, ok := rel.(*readmodels.PurchasedFromRelationshipDTO); ok {
+			actor, _ := sharedctx.GetActor(r.Context())
+			h.enrichPurchasedFromWithLinks(actor, dto)
+		}
 	})
 }
 
@@ -237,7 +320,7 @@ func (h *OriginRelationshipHandlers) CreatePurchasedFromRelationship(w http.Resp
 func (h *OriginRelationshipHandlers) GetPurchasedFromByComponent(w http.ResponseWriter, r *http.Request) {
 	componentID := sharedAPI.GetPathParam(r, "componentId")
 	actor, _ := sharedctx.GetActor(r.Context())
-	relationships, err := h.purchasedFromReadModel.GetByComponentID(r.Context(), componentID)
+	relationships, err := h.readModels.PurchasedFrom.GetByComponentID(r.Context(), componentID)
 	respondRelationshipsByComponent(w, componentID, "purchased-from", relationships, err, func(rel *readmodels.PurchasedFromRelationshipDTO) {
 		h.enrichPurchasedFromWithLinks(actor, rel)
 	})
@@ -276,20 +359,19 @@ func (h *OriginRelationshipHandlers) CreateBuiltByRelationship(w http.ResponseWr
 	}
 
 	cmd := &commands.CreateBuiltByRelationship{
-		InternalTeamID: req.InternalTeamID,
-		ComponentID:    componentID,
-		Notes:          req.Notes,
-	}
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
+		InternalTeamID:  req.InternalTeamID,
+		ComponentID:     componentID,
+		Notes:           req.Notes,
+		ReplaceExisting: req.ReplaceExisting,
 	}
 
-	actor, _ := sharedctx.GetActor(r.Context())
-	relationship, fetchErr := h.builtByReadModel.GetByID(r.Context(), result.CreatedID)
-	respondCreatedRelationship(w, componentID, "built-by", result.CreatedID, relationship, fetchErr, func(rel *readmodels.BuiltByRelationshipDTO) {
-		h.enrichBuiltByWithLinks(actor, rel)
+	h.dispatchCreateAndRespond(w, r, cmd, componentID, "built-by", func(createdID string) (interface{}, error) {
+		return h.readModels.BuiltBy.GetByID(r.Context(), createdID)
+	}, func(rel interface{}) {
+		if dto, ok := rel.(*readmodels.BuiltByRelationshipDTO); ok {
+			actor, _ := sharedctx.GetActor(r.Context())
+			h.enrichBuiltByWithLinks(actor, dto)
+		}
 	})
 }
 
@@ -305,7 +387,7 @@ func (h *OriginRelationshipHandlers) CreateBuiltByRelationship(w http.ResponseWr
 func (h *OriginRelationshipHandlers) GetBuiltByByComponent(w http.ResponseWriter, r *http.Request) {
 	componentID := sharedAPI.GetPathParam(r, "componentId")
 	actor, _ := sharedctx.GetActor(r.Context())
-	relationships, err := h.builtByReadModel.GetByComponentID(r.Context(), componentID)
+	relationships, err := h.readModels.BuiltBy.GetByComponentID(r.Context(), componentID)
 	respondRelationshipsByComponent(w, componentID, "built-by", relationships, err, func(rel *readmodels.BuiltByRelationshipDTO) {
 		h.enrichBuiltByWithLinks(actor, rel)
 	})
@@ -323,6 +405,42 @@ func (h *OriginRelationshipHandlers) GetBuiltByByComponent(w http.ResponseWriter
 // @Router /origin-relationships/built-by/{id} [delete]
 func (h *OriginRelationshipHandlers) DeleteBuiltByRelationship(w http.ResponseWriter, r *http.Request) {
 	h.dispatchDeleteAndRespond(w, r, &commands.DeleteBuiltByRelationship{ID: sharedAPI.GetPathParam(r, "id")})
+}
+
+func (h *OriginRelationshipHandlers) dispatchCreateAndRespond(
+	w http.ResponseWriter,
+	r *http.Request,
+	cmd cqrs.Command,
+	componentID string,
+	originType string,
+	fetchFn func(createdID string) (interface{}, error),
+	enrichFn func(interface{}),
+) {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	if err != nil {
+		if existsErr, ok := err.(*domain.RelationshipExistsError); ok {
+			respondRelationshipConflict(w, existsErr)
+			return
+		}
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	location := sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), sharedAPI.ResourcePath("/origin/"+originType))
+	relationship, fetchErr := fetchFn(result.CreatedID)
+	if fetchErr != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, fetchErr, "Failed to retrieve created relationship")
+		return
+	}
+	if relationship == nil {
+		sharedAPI.RespondCreated(w, location, map[string]string{
+			"id":      result.CreatedID,
+			"message": "Relationship created, processing",
+		})
+		return
+	}
+	enrichFn(relationship)
+	sharedAPI.RespondCreated(w, location, relationship)
 }
 
 func (h *OriginRelationshipHandlers) dispatchDeleteAndRespond(w http.ResponseWriter, r *http.Request, cmd cqrs.Command) {
@@ -348,31 +466,6 @@ func respondRelationshipsByComponent[T any](
 		enrichFn(&relationships[i])
 	}
 	sharedAPI.RespondCollection(w, http.StatusOK, relationships, buildComponentOriginLinks(componentID, originType))
-}
-
-func respondCreatedRelationship[T any](
-	w http.ResponseWriter,
-	componentID string,
-	originType string,
-	createdID string,
-	relationship *T,
-	err error,
-	enrichFn func(*T),
-) {
-	location := sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), sharedAPI.ResourcePath("/origin/"+originType))
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve created relationship")
-		return
-	}
-	if relationship == nil {
-		sharedAPI.RespondCreated(w, location, map[string]string{
-			"id":      createdID,
-			"message": "Relationship created, processing",
-		})
-		return
-	}
-	enrichFn(relationship)
-	sharedAPI.RespondCreated(w, location, relationship)
 }
 
 func buildComponentOriginLinks(componentID, originType string) types.Links {
@@ -401,4 +494,25 @@ func (h *OriginRelationshipHandlers) enrichBuiltByWithLinks(actor sharedctx.Acto
 		"internalTeam": {Href: sharedAPI.BuildResourceLink("/internal-teams", sharedAPI.ResourceID(rel.InternalTeamID)), Method: "GET"},
 	}
 	rel.Links = h.hateoas.OriginRelationshipLinksForActor("/origin-relationships/built-by", rel.ID, rel.ComponentID, extraLinks, actor)
+}
+
+type RelationshipConflictResponse struct {
+	Error                  string `json:"error"`
+	ExistingRelationshipID string `json:"existingRelationshipId"`
+	ComponentID            string `json:"componentId"`
+	OriginEntityID         string `json:"originEntityId"`
+	OriginEntityName       string `json:"originEntityName"`
+	RelationshipType       string `json:"relationshipType"`
+}
+
+func respondRelationshipConflict(w http.ResponseWriter, err *domain.RelationshipExistsError) {
+	response := RelationshipConflictResponse{
+		Error:                  err.Error(),
+		ExistingRelationshipID: err.ExistingRelationshipID,
+		ComponentID:            err.ComponentID,
+		OriginEntityID:         err.OriginEntityID,
+		OriginEntityName:       err.OriginEntityName,
+		RelationshipType:       err.RelationshipType,
+	}
+	sharedAPI.RespondJSON(w, http.StatusConflict, response)
 }

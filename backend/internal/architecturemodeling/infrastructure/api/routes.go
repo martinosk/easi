@@ -21,251 +21,303 @@ type AuthMiddleware interface {
 	RequirePermission(permission authValueObjects.Permission) func(http.Handler) http.Handler
 }
 
-// SetupArchitectureModelingRoutes initializes and registers architecture modeling routes
-func SetupArchitectureModelingRoutes(
-	r chi.Router,
-	commandBus *cqrs.InMemoryCommandBus,
-	eventStore eventstore.EventStore,
-	eventBus events.EventBus,
-	db *database.TenantAwareDB,
-	hateoas *sharedAPI.HATEOASLinks,
-	authMiddleware AuthMiddleware,
-) error {
-	// Initialize repositories
-	componentRepo := repositories.NewApplicationComponentRepository(eventStore)
-	relationRepo := repositories.NewComponentRelationRepository(eventStore)
-	acquiredEntityRepo := repositories.NewAcquiredEntityRepository(eventStore)
-	vendorRepo := repositories.NewVendorRepository(eventStore)
-	internalTeamRepo := repositories.NewInternalTeamRepository(eventStore)
-	acquiredViaRepo := repositories.NewAcquiredViaRelationshipRepository(eventStore)
-	purchasedFromRepo := repositories.NewPurchasedFromRelationshipRepository(eventStore)
-	builtByRepo := repositories.NewBuiltByRelationshipRepository(eventStore)
+type RouteConfig struct {
+	Router         chi.Router
+	CommandBus     *cqrs.InMemoryCommandBus
+	EventStore     eventstore.EventStore
+	EventBus       events.EventBus
+	DB             *database.TenantAwareDB
+	HATEOAS        *sharedAPI.HATEOASLinks
+	AuthMiddleware AuthMiddleware
+}
 
-	// Initialize read models
-	componentReadModel := readmodels.NewApplicationComponentReadModel(db)
-	relationReadModel := readmodels.NewComponentRelationReadModel(db)
-	acquiredEntityReadModel := readmodels.NewAcquiredEntityReadModel(db)
-	vendorReadModel := readmodels.NewVendorReadModel(db)
-	internalTeamReadModel := readmodels.NewInternalTeamReadModel(db)
-	acquiredViaReadModel := readmodels.NewAcquiredViaRelationshipReadModel(db)
-	purchasedFromReadModel := readmodels.NewPurchasedFromRelationshipReadModel(db)
-	builtByReadModel := readmodels.NewBuiltByRelationshipReadModel(db)
+type repositorySet struct {
+	component     *repositories.ApplicationComponentRepository
+	relation      *repositories.ComponentRelationRepository
+	acquiredEntity *repositories.AcquiredEntityRepository
+	vendor        *repositories.VendorRepository
+	internalTeam  *repositories.InternalTeamRepository
+	acquiredVia   *repositories.AcquiredViaRelationshipRepository
+	purchasedFrom *repositories.PurchasedFromRelationshipRepository
+	builtBy       *repositories.BuiltByRelationshipRepository
+}
 
-	// Initialize projectors
-	componentProjector := projectors.NewApplicationComponentProjector(componentReadModel)
-	relationProjector := projectors.NewComponentRelationProjector(relationReadModel)
-	acquiredEntityProjector := projectors.NewAcquiredEntityProjector(acquiredEntityReadModel)
-	vendorProjector := projectors.NewVendorProjector(vendorReadModel)
-	internalTeamProjector := projectors.NewInternalTeamProjector(internalTeamReadModel)
-	originRelationshipProjector := projectors.NewOriginRelationshipProjector(acquiredViaReadModel, purchasedFromReadModel, builtByReadModel)
+type readModelSet struct {
+	component     *readmodels.ApplicationComponentReadModel
+	relation      *readmodels.ComponentRelationReadModel
+	acquiredEntity *readmodels.AcquiredEntityReadModel
+	vendor        *readmodels.VendorReadModel
+	internalTeam  *readmodels.InternalTeamReadModel
+	acquiredVia   *readmodels.AcquiredViaRelationshipReadModel
+	purchasedFrom *readmodels.PurchasedFromRelationshipReadModel
+	builtBy       *readmodels.BuiltByRelationshipReadModel
+}
 
-	// Wire up projectors to event bus
-	eventBus.Subscribe("ApplicationComponentCreated", componentProjector)
-	eventBus.Subscribe("ApplicationComponentUpdated", componentProjector)
-	eventBus.Subscribe("ApplicationComponentDeleted", componentProjector)
-	eventBus.Subscribe("ApplicationComponentExpertAdded", componentProjector)
-	eventBus.Subscribe("ApplicationComponentExpertRemoved", componentProjector)
-	eventBus.Subscribe("ComponentRelationCreated", relationProjector)
-	eventBus.Subscribe("ComponentRelationUpdated", relationProjector)
-	eventBus.Subscribe("ComponentRelationDeleted", relationProjector)
+type httpHandlerSet struct {
+	component          *ComponentHandlers
+	expert             *ComponentExpertHandlers
+	relation           *RelationHandlers
+	acquiredEntity     *AcquiredEntityHandlers
+	vendor             *VendorHandlers
+	internalTeam       *InternalTeamHandlers
+	originRelationship *OriginRelationshipHandlers
+}
 
-	// Subscribe origin entity projectors
-	eventBus.Subscribe("AcquiredEntityCreated", acquiredEntityProjector)
-	eventBus.Subscribe("AcquiredEntityUpdated", acquiredEntityProjector)
-	eventBus.Subscribe("AcquiredEntityDeleted", acquiredEntityProjector)
-	eventBus.Subscribe("VendorCreated", vendorProjector)
-	eventBus.Subscribe("VendorUpdated", vendorProjector)
-	eventBus.Subscribe("VendorDeleted", vendorProjector)
-	eventBus.Subscribe("InternalTeamCreated", internalTeamProjector)
-	eventBus.Subscribe("InternalTeamUpdated", internalTeamProjector)
-	eventBus.Subscribe("InternalTeamDeleted", internalTeamProjector)
+func newRepositorySet(eventStore eventstore.EventStore) *repositorySet {
+	return &repositorySet{
+		component:     repositories.NewApplicationComponentRepository(eventStore),
+		relation:      repositories.NewComponentRelationRepository(eventStore),
+		acquiredEntity: repositories.NewAcquiredEntityRepository(eventStore),
+		vendor:        repositories.NewVendorRepository(eventStore),
+		internalTeam:  repositories.NewInternalTeamRepository(eventStore),
+		acquiredVia:   repositories.NewAcquiredViaRelationshipRepository(eventStore),
+		purchasedFrom: repositories.NewPurchasedFromRelationshipRepository(eventStore),
+		builtBy:       repositories.NewBuiltByRelationshipRepository(eventStore),
+	}
+}
 
-	// Subscribe origin relationship projectors
-	eventBus.Subscribe("AcquiredViaRelationshipCreated", originRelationshipProjector)
-	eventBus.Subscribe("AcquiredViaRelationshipDeleted", originRelationshipProjector)
-	eventBus.Subscribe("PurchasedFromRelationshipCreated", originRelationshipProjector)
-	eventBus.Subscribe("PurchasedFromRelationshipDeleted", originRelationshipProjector)
-	eventBus.Subscribe("BuiltByRelationshipCreated", originRelationshipProjector)
-	eventBus.Subscribe("BuiltByRelationshipDeleted", originRelationshipProjector)
+func newReadModelSet(db *database.TenantAwareDB) *readModelSet {
+	return &readModelSet{
+		component:     readmodels.NewApplicationComponentReadModel(db),
+		relation:      readmodels.NewComponentRelationReadModel(db),
+		acquiredEntity: readmodels.NewAcquiredEntityReadModel(db),
+		vendor:        readmodels.NewVendorReadModel(db),
+		internalTeam:  readmodels.NewInternalTeamReadModel(db),
+		acquiredVia:   readmodels.NewAcquiredViaRelationshipReadModel(db),
+		purchasedFrom: readmodels.NewPurchasedFromRelationshipReadModel(db),
+		builtBy:       readmodels.NewBuiltByRelationshipReadModel(db),
+	}
+}
 
-	// Initialize command handlers
-	createComponentHandler := handlers.NewCreateApplicationComponentHandler(componentRepo)
-	updateComponentHandler := handlers.NewUpdateApplicationComponentHandler(componentRepo)
-	deleteComponentHandler := handlers.NewDeleteApplicationComponentHandler(componentRepo, relationReadModel, commandBus)
-	addExpertHandler := handlers.NewAddApplicationComponentExpertHandler(componentRepo)
-	removeExpertHandler := handlers.NewRemoveApplicationComponentExpertHandler(componentRepo)
-	createRelationHandler := handlers.NewCreateComponentRelationHandler(relationRepo)
-	updateRelationHandler := handlers.NewUpdateComponentRelationHandler(relationRepo)
-	deleteRelationHandler := handlers.NewDeleteComponentRelationHandler(relationRepo)
+func subscribeProjectors(eventBus events.EventBus, rm *readModelSet) {
+	componentProjector := projectors.NewApplicationComponentProjector(rm.component)
+	relationProjector := projectors.NewComponentRelationProjector(rm.relation)
+	acquiredEntityProjector := projectors.NewAcquiredEntityProjector(rm.acquiredEntity)
+	vendorProjector := projectors.NewVendorProjector(rm.vendor)
+	internalTeamProjector := projectors.NewInternalTeamProjector(rm.internalTeam)
+	originRelationshipProjector := projectors.NewOriginRelationshipProjector(rm.acquiredVia, rm.purchasedFrom, rm.builtBy)
 
-	// Origin entity command handlers
-	createAcquiredEntityHandler := handlers.NewCreateAcquiredEntityHandler(acquiredEntityRepo)
-	updateAcquiredEntityHandler := handlers.NewUpdateAcquiredEntityHandler(acquiredEntityRepo)
-	deleteAcquiredEntityHandler := handlers.NewDeleteAcquiredEntityHandler(acquiredEntityRepo, acquiredViaReadModel, commandBus)
-	createVendorHandler := handlers.NewCreateVendorHandler(vendorRepo)
-	updateVendorHandler := handlers.NewUpdateVendorHandler(vendorRepo)
-	deleteVendorHandler := handlers.NewDeleteVendorHandler(vendorRepo, purchasedFromReadModel, commandBus)
-	createInternalTeamHandler := handlers.NewCreateInternalTeamHandler(internalTeamRepo)
-	updateInternalTeamHandler := handlers.NewUpdateInternalTeamHandler(internalTeamRepo)
-	deleteInternalTeamHandler := handlers.NewDeleteInternalTeamHandler(internalTeamRepo, builtByReadModel, commandBus)
+	subscribeComponentProjectors(eventBus, componentProjector, relationProjector)
+	subscribeOriginEntityProjectors(eventBus, acquiredEntityProjector, vendorProjector, internalTeamProjector)
+	subscribeOriginRelationshipProjectors(eventBus, originRelationshipProjector)
+}
 
-	// Origin relationship command handlers
-	createAcquiredViaHandler := handlers.NewCreateAcquiredViaRelationshipHandler(acquiredViaRepo)
-	deleteAcquiredViaHandler := handlers.NewDeleteAcquiredViaRelationshipHandler(acquiredViaRepo)
-	createPurchasedFromHandler := handlers.NewCreatePurchasedFromRelationshipHandler(purchasedFromRepo)
-	deletePurchasedFromHandler := handlers.NewDeletePurchasedFromRelationshipHandler(purchasedFromRepo)
-	createBuiltByHandler := handlers.NewCreateBuiltByRelationshipHandler(builtByRepo)
-	deleteBuiltByHandler := handlers.NewDeleteBuiltByRelationshipHandler(builtByRepo)
+func subscribeComponentProjectors(eventBus events.EventBus, component, relation events.EventHandler) {
+	eventBus.Subscribe("ApplicationComponentCreated", component)
+	eventBus.Subscribe("ApplicationComponentUpdated", component)
+	eventBus.Subscribe("ApplicationComponentDeleted", component)
+	eventBus.Subscribe("ApplicationComponentExpertAdded", component)
+	eventBus.Subscribe("ApplicationComponentExpertRemoved", component)
+	eventBus.Subscribe("ComponentRelationCreated", relation)
+	eventBus.Subscribe("ComponentRelationUpdated", relation)
+	eventBus.Subscribe("ComponentRelationDeleted", relation)
+}
 
-	// Register command handlers
-	commandBus.Register("CreateApplicationComponent", createComponentHandler)
-	commandBus.Register("UpdateApplicationComponent", updateComponentHandler)
-	commandBus.Register("DeleteApplicationComponent", deleteComponentHandler)
-	commandBus.Register("AddApplicationComponentExpert", addExpertHandler)
-	commandBus.Register("RemoveApplicationComponentExpert", removeExpertHandler)
-	commandBus.Register("CreateComponentRelation", createRelationHandler)
-	commandBus.Register("UpdateComponentRelation", updateRelationHandler)
-	commandBus.Register("DeleteComponentRelation", deleteRelationHandler)
+func subscribeOriginEntityProjectors(eventBus events.EventBus, acquired, vendor, team events.EventHandler) {
+	eventBus.Subscribe("AcquiredEntityCreated", acquired)
+	eventBus.Subscribe("AcquiredEntityUpdated", acquired)
+	eventBus.Subscribe("AcquiredEntityDeleted", acquired)
+	eventBus.Subscribe("VendorCreated", vendor)
+	eventBus.Subscribe("VendorUpdated", vendor)
+	eventBus.Subscribe("VendorDeleted", vendor)
+	eventBus.Subscribe("InternalTeamCreated", team)
+	eventBus.Subscribe("InternalTeamUpdated", team)
+	eventBus.Subscribe("InternalTeamDeleted", team)
+}
 
-	// Register origin entity command handlers
-	commandBus.Register("CreateAcquiredEntity", createAcquiredEntityHandler)
-	commandBus.Register("UpdateAcquiredEntity", updateAcquiredEntityHandler)
-	commandBus.Register("DeleteAcquiredEntity", deleteAcquiredEntityHandler)
-	commandBus.Register("CreateVendor", createVendorHandler)
-	commandBus.Register("UpdateVendor", updateVendorHandler)
-	commandBus.Register("DeleteVendor", deleteVendorHandler)
-	commandBus.Register("CreateInternalTeam", createInternalTeamHandler)
-	commandBus.Register("UpdateInternalTeam", updateInternalTeamHandler)
-	commandBus.Register("DeleteInternalTeam", deleteInternalTeamHandler)
+func subscribeOriginRelationshipProjectors(eventBus events.EventBus, projector events.EventHandler) {
+	eventBus.Subscribe("AcquiredViaRelationshipCreated", projector)
+	eventBus.Subscribe("AcquiredViaRelationshipDeleted", projector)
+	eventBus.Subscribe("PurchasedFromRelationshipCreated", projector)
+	eventBus.Subscribe("PurchasedFromRelationshipDeleted", projector)
+	eventBus.Subscribe("BuiltByRelationshipCreated", projector)
+	eventBus.Subscribe("BuiltByRelationshipDeleted", projector)
+}
 
-	// Register origin relationship command handlers
-	commandBus.Register("CreateAcquiredViaRelationship", createAcquiredViaHandler)
-	commandBus.Register("DeleteAcquiredViaRelationship", deleteAcquiredViaHandler)
-	commandBus.Register("CreatePurchasedFromRelationship", createPurchasedFromHandler)
-	commandBus.Register("DeletePurchasedFromRelationship", deletePurchasedFromHandler)
-	commandBus.Register("CreateBuiltByRelationship", createBuiltByHandler)
-	commandBus.Register("DeleteBuiltByRelationship", deleteBuiltByHandler)
+func registerCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *repositorySet, rm *readModelSet) {
+	registerComponentCommandHandlers(bus, repos, rm)
+	registerOriginEntityCommandHandlers(bus, repos, rm)
+	registerOriginRelationshipCommandHandlers(bus, repos, rm)
+}
 
-	// Initialize HTTP handlers
-	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, hateoas)
-	expertHandlers := NewComponentExpertHandlers(commandBus, componentReadModel)
-	relationHandlers := NewRelationHandlers(commandBus, relationReadModel, hateoas)
-	acquiredEntityHandlers := NewAcquiredEntityHandlers(commandBus, acquiredEntityReadModel, hateoas)
-	vendorHandlers := NewVendorHandlers(commandBus, vendorReadModel, hateoas)
-	internalTeamHandlers := NewInternalTeamHandlers(commandBus, internalTeamReadModel, hateoas)
-	originRelationshipHandlers := NewOriginRelationshipHandlers(commandBus, acquiredViaReadModel, purchasedFromReadModel, builtByReadModel, hateoas)
+func registerComponentCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *repositorySet, rm *readModelSet) {
+	bus.Register("CreateApplicationComponent", handlers.NewCreateApplicationComponentHandler(repos.component))
+	bus.Register("UpdateApplicationComponent", handlers.NewUpdateApplicationComponentHandler(repos.component))
+	bus.Register("DeleteApplicationComponent", handlers.NewDeleteApplicationComponentHandler(repos.component, rm.relation, bus))
+	bus.Register("AddApplicationComponentExpert", handlers.NewAddApplicationComponentExpertHandler(repos.component))
+	bus.Register("RemoveApplicationComponentExpert", handlers.NewRemoveApplicationComponentExpertHandler(repos.component))
+	bus.Register("CreateComponentRelation", handlers.NewCreateComponentRelationHandler(repos.relation))
+	bus.Register("UpdateComponentRelation", handlers.NewUpdateComponentRelationHandler(repos.relation))
+	bus.Register("DeleteComponentRelation", handlers.NewDeleteComponentRelationHandler(repos.relation))
+}
 
-	// Register component routes
+func registerOriginEntityCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *repositorySet, rm *readModelSet) {
+	bus.Register("CreateAcquiredEntity", handlers.NewCreateAcquiredEntityHandler(repos.acquiredEntity))
+	bus.Register("UpdateAcquiredEntity", handlers.NewUpdateAcquiredEntityHandler(repos.acquiredEntity))
+	bus.Register("DeleteAcquiredEntity", handlers.NewDeleteAcquiredEntityHandler(repos.acquiredEntity, rm.acquiredVia, bus))
+	bus.Register("CreateVendor", handlers.NewCreateVendorHandler(repos.vendor))
+	bus.Register("UpdateVendor", handlers.NewUpdateVendorHandler(repos.vendor))
+	bus.Register("DeleteVendor", handlers.NewDeleteVendorHandler(repos.vendor, rm.purchasedFrom, bus))
+	bus.Register("CreateInternalTeam", handlers.NewCreateInternalTeamHandler(repos.internalTeam))
+	bus.Register("UpdateInternalTeam", handlers.NewUpdateInternalTeamHandler(repos.internalTeam))
+	bus.Register("DeleteInternalTeam", handlers.NewDeleteInternalTeamHandler(repos.internalTeam, rm.builtBy, bus))
+}
+
+func registerOriginRelationshipCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *repositorySet, rm *readModelSet) {
+	bus.Register("CreateAcquiredViaRelationship", handlers.NewCreateAcquiredViaRelationshipHandler(repos.acquiredVia, rm.acquiredVia))
+	bus.Register("DeleteAcquiredViaRelationship", handlers.NewDeleteAcquiredViaRelationshipHandler(repos.acquiredVia))
+	bus.Register("CreatePurchasedFromRelationship", handlers.NewCreatePurchasedFromRelationshipHandler(repos.purchasedFrom, rm.purchasedFrom))
+	bus.Register("DeletePurchasedFromRelationship", handlers.NewDeletePurchasedFromRelationshipHandler(repos.purchasedFrom))
+	bus.Register("CreateBuiltByRelationship", handlers.NewCreateBuiltByRelationshipHandler(repos.builtBy, rm.builtBy))
+	bus.Register("DeleteBuiltByRelationship", handlers.NewDeleteBuiltByRelationshipHandler(repos.builtBy))
+}
+
+func newHTTPHandlerSet(bus *cqrs.InMemoryCommandBus, rm *readModelSet, hateoas *sharedAPI.HATEOASLinks) *httpHandlerSet {
+	return &httpHandlerSet{
+		component:          NewComponentHandlers(bus, rm.component, hateoas),
+		expert:             NewComponentExpertHandlers(bus, rm.component),
+		relation:           NewRelationHandlers(bus, rm.relation, hateoas),
+		acquiredEntity:     NewAcquiredEntityHandlers(bus, rm.acquiredEntity, hateoas),
+		vendor:             NewVendorHandlers(bus, rm.vendor, hateoas),
+		internalTeam:       NewInternalTeamHandlers(bus, rm.internalTeam, hateoas),
+		originRelationship: NewOriginRelationshipHandlers(bus, rm.acquiredVia, rm.purchasedFrom, rm.builtBy, hateoas),
+	}
+}
+
+func registerRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddleware) {
+	registerComponentRoutes(r, h, auth)
+	registerRelationRoutes(r, h, auth)
+	registerOriginEntityRoutes(r, h, auth)
+	registerOriginRelationshipRoutes(r, h, auth)
+}
+
+func registerComponentRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddleware) {
 	r.Route("/components", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsRead))
-			r.Get("/", componentHandlers.GetAllComponents)
-			r.Get("/expert-roles", expertHandlers.GetExpertRoles)
-			r.Get("/{id}", componentHandlers.GetComponentByID)
-			r.Get("/{componentId}/origins", originRelationshipHandlers.GetAllOriginsByComponent)
-			r.Get("/{componentId}/origin/acquired-via", originRelationshipHandlers.GetAcquiredViaByComponent)
-			r.Get("/{componentId}/origin/purchased-from", originRelationshipHandlers.GetPurchasedFromByComponent)
-			r.Get("/{componentId}/origin/built-by", originRelationshipHandlers.GetBuiltByByComponent)
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsRead))
+			r.Get("/", h.component.GetAllComponents)
+			r.Get("/expert-roles", h.expert.GetExpertRoles)
+			r.Get("/{id}", h.component.GetComponentByID)
+			r.Get("/{componentId}/origins", h.originRelationship.GetAllOriginsByComponent)
+			r.Get("/{componentId}/origin/acquired-via", h.originRelationship.GetAcquiredViaByComponent)
+			r.Get("/{componentId}/origin/purchased-from", h.originRelationship.GetPurchasedFromByComponent)
+			r.Get("/{componentId}/origin/built-by", h.originRelationship.GetBuiltByByComponent)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsWrite))
-			r.Post("/", componentHandlers.CreateApplicationComponent)
-			r.Put("/{id}", componentHandlers.UpdateApplicationComponent)
-			r.Post("/{id}/experts", expertHandlers.AddComponentExpert)
-			r.Post("/{componentId}/origin/acquired-via", originRelationshipHandlers.CreateAcquiredViaRelationship)
-			r.Post("/{componentId}/origin/purchased-from", originRelationshipHandlers.CreatePurchasedFromRelationship)
-			r.Post("/{componentId}/origin/built-by", originRelationshipHandlers.CreateBuiltByRelationship)
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsWrite))
+			r.Post("/", h.component.CreateApplicationComponent)
+			r.Put("/{id}", h.component.UpdateApplicationComponent)
+			r.Post("/{id}/experts", h.expert.AddComponentExpert)
+			r.Post("/{componentId}/origin/acquired-via", h.originRelationship.CreateAcquiredViaRelationship)
+			r.Post("/{componentId}/origin/purchased-from", h.originRelationship.CreatePurchasedFromRelationship)
+			r.Post("/{componentId}/origin/built-by", h.originRelationship.CreateBuiltByRelationship)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsDelete))
-			r.Delete("/{id}", componentHandlers.DeleteApplicationComponent)
-			r.Delete("/{id}/experts", expertHandlers.RemoveComponentExpert)
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsDelete))
+			r.Delete("/{id}", h.component.DeleteApplicationComponent)
+			r.Delete("/{id}/experts", h.expert.RemoveComponentExpert)
 		})
 	})
+}
 
-	// Register relation routes
+func registerRelationRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddleware) {
 	r.Route("/relations", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsRead))
-			r.Get("/", relationHandlers.GetAllRelations)
-			r.Get("/{id}", relationHandlers.GetRelationByID)
-			r.Get("/from/{componentId}", relationHandlers.GetRelationsFromComponent)
-			r.Get("/to/{componentId}", relationHandlers.GetRelationsToComponent)
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsRead))
+			r.Get("/", h.relation.GetAllRelations)
+			r.Get("/{id}", h.relation.GetRelationByID)
+			r.Get("/from/{componentId}", h.relation.GetRelationsFromComponent)
+			r.Get("/to/{componentId}", h.relation.GetRelationsToComponent)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsWrite))
-			r.Post("/", relationHandlers.CreateComponentRelation)
-			r.Put("/{id}", relationHandlers.UpdateComponentRelation)
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsWrite))
+			r.Post("/", h.relation.CreateComponentRelation)
+			r.Put("/{id}", h.relation.UpdateComponentRelation)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsDelete))
-			r.Delete("/{id}", relationHandlers.DeleteComponentRelation)
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsDelete))
+			r.Delete("/{id}", h.relation.DeleteComponentRelation)
 		})
 	})
+}
 
-	// Register acquired entity routes
+func registerOriginEntityRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddleware) {
 	r.Route("/acquired-entities", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsRead))
-			r.Get("/", acquiredEntityHandlers.GetAllAcquiredEntities)
-			r.Get("/{id}", acquiredEntityHandlers.GetAcquiredEntityByID)
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsRead))
+			r.Get("/", h.acquiredEntity.GetAllAcquiredEntities)
+			r.Get("/{id}", h.acquiredEntity.GetAcquiredEntityByID)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsWrite))
-			r.Post("/", acquiredEntityHandlers.CreateAcquiredEntity)
-			r.Put("/{id}", acquiredEntityHandlers.UpdateAcquiredEntity)
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsWrite))
+			r.Post("/", h.acquiredEntity.CreateAcquiredEntity)
+			r.Put("/{id}", h.acquiredEntity.UpdateAcquiredEntity)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsDelete))
-			r.Delete("/{id}", acquiredEntityHandlers.DeleteAcquiredEntity)
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsDelete))
+			r.Delete("/{id}", h.acquiredEntity.DeleteAcquiredEntity)
 		})
 	})
 
-	// Register vendor routes
 	r.Route("/vendors", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsRead))
-			r.Get("/", vendorHandlers.GetAllVendors)
-			r.Get("/{id}", vendorHandlers.GetVendorByID)
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsRead))
+			r.Get("/", h.vendor.GetAllVendors)
+			r.Get("/{id}", h.vendor.GetVendorByID)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsWrite))
-			r.Post("/", vendorHandlers.CreateVendor)
-			r.Put("/{id}", vendorHandlers.UpdateVendor)
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsWrite))
+			r.Post("/", h.vendor.CreateVendor)
+			r.Put("/{id}", h.vendor.UpdateVendor)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsDelete))
-			r.Delete("/{id}", vendorHandlers.DeleteVendor)
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsDelete))
+			r.Delete("/{id}", h.vendor.DeleteVendor)
 		})
 	})
 
-	// Register internal team routes
 	r.Route("/internal-teams", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsRead))
-			r.Get("/", internalTeamHandlers.GetAllInternalTeams)
-			r.Get("/{id}", internalTeamHandlers.GetInternalTeamByID)
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsRead))
+			r.Get("/", h.internalTeam.GetAllInternalTeams)
+			r.Get("/{id}", h.internalTeam.GetInternalTeamByID)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsWrite))
-			r.Post("/", internalTeamHandlers.CreateInternalTeam)
-			r.Put("/{id}", internalTeamHandlers.UpdateInternalTeam)
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsWrite))
+			r.Post("/", h.internalTeam.CreateInternalTeam)
+			r.Put("/{id}", h.internalTeam.UpdateInternalTeam)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsDelete))
-			r.Delete("/{id}", internalTeamHandlers.DeleteInternalTeam)
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsDelete))
+			r.Delete("/{id}", h.internalTeam.DeleteInternalTeam)
 		})
 	})
+}
 
-	// Register origin relationship routes for delete operations
+func registerOriginRelationshipRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddleware) {
 	r.Route("/origin-relationships", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsDelete))
-			r.Delete("/acquired-via/{id}", originRelationshipHandlers.DeleteAcquiredViaRelationship)
-			r.Delete("/purchased-from/{id}", originRelationshipHandlers.DeletePurchasedFromRelationship)
-			r.Delete("/built-by/{id}", originRelationshipHandlers.DeleteBuiltByRelationship)
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsRead))
+			r.Get("/", h.originRelationship.GetAllOriginRelationships)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(auth.RequirePermission(authValueObjects.PermComponentsDelete))
+			r.Delete("/acquired-via/{id}", h.originRelationship.DeleteAcquiredViaRelationship)
+			r.Delete("/purchased-from/{id}", h.originRelationship.DeletePurchasedFromRelationship)
+			r.Delete("/built-by/{id}", h.originRelationship.DeleteBuiltByRelationship)
 		})
 	})
+}
+
+func SetupArchitectureModelingRoutes(cfg RouteConfig) error {
+	repos := newRepositorySet(cfg.EventStore)
+	rm := newReadModelSet(cfg.DB)
+
+	subscribeProjectors(cfg.EventBus, rm)
+	registerCommandHandlers(cfg.CommandBus, repos, rm)
+
+	handlers := newHTTPHandlerSet(cfg.CommandBus, rm, cfg.HATEOAS)
+	registerRoutes(cfg.Router, handlers, cfg.AuthMiddleware)
 
 	return nil
 }

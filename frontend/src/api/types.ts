@@ -706,7 +706,7 @@ export interface AuditHistoryResponse {
   _links: HATEOASLinks;
 }
 
-export type IntegrationStatus = 'NotStarted' | 'InProgress' | 'Completed' | 'OnHold';
+export type IntegrationStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
 export type OriginRelationshipType = 'AcquiredVia' | 'PurchasedFrom' | 'BuiltBy';
 
 export interface AcquiredEntity {
@@ -805,3 +805,52 @@ export type AcquiredEntitiesResponse = CollectionResponse<AcquiredEntity>;
 export type VendorsResponse = CollectionResponse<Vendor>;
 export type InternalTeamsResponse = CollectionResponse<InternalTeam>;
 export type OriginRelationshipsResponse = CollectionResponse<OriginRelationship>;
+
+export interface AcquiredViaRelationshipDTO {
+  id: string;
+  acquiredEntityId: string;
+  acquiredEntityName: string;
+  componentId: string;
+  componentName: string;
+  notes?: string;
+  createdAt: string;
+  _links: HATEOASLinks;
+}
+
+export interface PurchasedFromRelationshipDTO {
+  id: string;
+  vendorId: string;
+  vendorName: string;
+  componentId: string;
+  componentName: string;
+  notes?: string;
+  createdAt: string;
+  _links: HATEOASLinks;
+}
+
+export interface BuiltByRelationshipDTO {
+  id: string;
+  internalTeamId: string;
+  internalTeamName: string;
+  componentId: string;
+  componentName: string;
+  notes?: string;
+  createdAt: string;
+  _links: HATEOASLinks;
+}
+
+export interface AllOriginRelationshipsResponse {
+  acquiredVia: AcquiredViaRelationshipDTO[];
+  purchasedFrom: PurchasedFromRelationshipDTO[];
+  builtBy: BuiltByRelationshipDTO[];
+  _links: HATEOASLinks;
+}
+
+export interface RelationshipConflictError {
+  error: string;
+  existingRelationshipId: string;
+  componentId: string;
+  originEntityId: string;
+  originEntityName: string;
+  relationshipType: string;
+}

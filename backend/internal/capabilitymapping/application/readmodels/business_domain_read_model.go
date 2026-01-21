@@ -21,12 +21,27 @@ type BusinessDomainDTO struct {
 	Links             types.Links `json:"_links,omitempty"`
 }
 
+type BusinessDomainUpdate struct {
+	Name              string
+	Description       string
+	DomainArchitectID string
+}
+
 type BusinessDomainReadModel struct {
 	db *database.TenantAwareDB
 }
 
 func NewBusinessDomainReadModel(db *database.TenantAwareDB) *BusinessDomainReadModel {
 	return &BusinessDomainReadModel{db: db}
+}
+
+func (rm *BusinessDomainReadModel) execTenantQuery(ctx context.Context, query string, args ...interface{}) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = rm.db.ExecContext(ctx, query, append([]interface{}{tenantID.Value()}, args...)...)
+	return err
 }
 
 func (rm *BusinessDomainReadModel) Insert(ctx context.Context, dto BusinessDomainDTO) error {
@@ -47,61 +62,34 @@ func (rm *BusinessDomainReadModel) Insert(ctx context.Context, dto BusinessDomai
 	return err
 }
 
-func (rm *BusinessDomainReadModel) Update(ctx context.Context, id, name, description, domainArchitectID string) error {
+func (rm *BusinessDomainReadModel) Update(ctx context.Context, id string, update BusinessDomainUpdate) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
 	}
 
 	var archID interface{} = nil
-	if domainArchitectID != "" {
-		archID = domainArchitectID
+	if update.DomainArchitectID != "" {
+		archID = update.DomainArchitectID
 	}
 
 	_, err = rm.db.ExecContext(ctx,
 		"UPDATE business_domains SET name = $1, description = $2, domain_architect_id = $3, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $4 AND id = $5",
-		name, description, archID, tenantID.Value(), id,
+		update.Name, update.Description, archID, tenantID.Value(), id,
 	)
 	return err
 }
 
 func (rm *BusinessDomainReadModel) Delete(ctx context.Context, id string) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM business_domains WHERE tenant_id = $1 AND id = $2",
-		tenantID.Value(), id,
-	)
-	return err
+	return rm.execTenantQuery(ctx, "DELETE FROM business_domains WHERE tenant_id = $1 AND id = $2", id)
 }
 
 func (rm *BusinessDomainReadModel) IncrementCapabilityCount(ctx context.Context, id string) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
-		"UPDATE business_domains SET capability_count = capability_count + 1 WHERE tenant_id = $1 AND id = $2",
-		tenantID.Value(), id,
-	)
-	return err
+	return rm.execTenantQuery(ctx, "UPDATE business_domains SET capability_count = capability_count + 1 WHERE tenant_id = $1 AND id = $2", id)
 }
 
 func (rm *BusinessDomainReadModel) DecrementCapabilityCount(ctx context.Context, id string) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
-		"UPDATE business_domains SET capability_count = GREATEST(0, capability_count - 1) WHERE tenant_id = $1 AND id = $2",
-		tenantID.Value(), id,
-	)
-	return err
+	return rm.execTenantQuery(ctx, "UPDATE business_domains SET capability_count = GREATEST(0, capability_count - 1) WHERE tenant_id = $1 AND id = $2", id)
 }
 
 func (rm *BusinessDomainReadModel) GetAll(ctx context.Context) ([]BusinessDomainDTO, error) {
@@ -122,19 +110,11 @@ func (rm *BusinessDomainReadModel) GetAll(ctx context.Context) ([]BusinessDomain
 		defer rows.Close()
 
 		for rows.Next() {
-			var dto BusinessDomainDTO
-			var updatedAt sql.NullTime
-			var domainArchitectID sql.NullString
-			if err := rows.Scan(&dto.ID, &dto.Name, &dto.Description, &domainArchitectID, &dto.CapabilityCount, &dto.CreatedAt, &updatedAt); err != nil {
+			dto, err := scanBusinessDomain(rows)
+			if err != nil {
 				return err
 			}
-			if updatedAt.Valid {
-				dto.UpdatedAt = &updatedAt.Time
-			}
-			if domainArchitectID.Valid {
-				dto.DomainArchitectID = domainArchitectID.String
-			}
-			domains = append(domains, dto)
+			domains = append(domains, *dto)
 		}
 
 		return rows.Err()
@@ -143,35 +123,17 @@ func (rm *BusinessDomainReadModel) GetAll(ctx context.Context) ([]BusinessDomain
 	return domains, err
 }
 
-func (rm *BusinessDomainReadModel) GetByID(ctx context.Context, id string) (*BusinessDomainDTO, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
+type scanner interface {
+	Scan(dest ...interface{}) error
+}
 
+func scanBusinessDomain(s scanner) (*BusinessDomainDTO, error) {
 	var dto BusinessDomainDTO
 	var updatedAt sql.NullTime
 	var domainArchitectID sql.NullString
-	var notFound bool
 
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, description, domain_architect_id, capability_count, created_at, updated_at FROM business_domains WHERE tenant_id = $1 AND id = $2",
-			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.Name, &dto.Description, &domainArchitectID, &dto.CapabilityCount, &dto.CreatedAt, &updatedAt)
-
-		if err == sql.ErrNoRows {
-			notFound = true
-			return nil
-		}
-		return err
-	})
-
-	if err != nil {
+	if err := s.Scan(&dto.ID, &dto.Name, &dto.Description, &domainArchitectID, &dto.CapabilityCount, &dto.CreatedAt, &updatedAt); err != nil {
 		return nil, err
-	}
-	if notFound {
-		return nil, nil
 	}
 
 	if updatedAt.Valid {
@@ -184,45 +146,39 @@ func (rm *BusinessDomainReadModel) GetByID(ctx context.Context, id string) (*Bus
 	return &dto, nil
 }
 
-func (rm *BusinessDomainReadModel) GetByName(ctx context.Context, name string) (*BusinessDomainDTO, error) {
+func (rm *BusinessDomainReadModel) getByCondition(ctx context.Context, whereClause string, arg interface{}) (*BusinessDomainDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var dto BusinessDomainDTO
-	var updatedAt sql.NullTime
-	var domainArchitectID sql.NullString
-	var notFound bool
-
+	var dto *BusinessDomainDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, description, domain_architect_id, capability_count, created_at, updated_at FROM business_domains WHERE tenant_id = $1 AND name = $2",
-			tenantID.Value(), name,
-		).Scan(&dto.ID, &dto.Name, &dto.Description, &domainArchitectID, &dto.CapabilityCount, &dto.CreatedAt, &updatedAt)
+		row := tx.QueryRowContext(ctx,
+			"SELECT id, name, description, domain_architect_id, capability_count, created_at, updated_at FROM business_domains WHERE tenant_id = $1 AND "+whereClause,
+			tenantID.Value(), arg,
+		)
 
+		result, err := scanBusinessDomain(row)
 		if err == sql.ErrNoRows {
-			notFound = true
 			return nil
 		}
-		return err
+		if err != nil {
+			return err
+		}
+		dto = result
+		return nil
 	})
 
-	if err != nil {
-		return nil, err
-	}
-	if notFound {
-		return nil, nil
-	}
+	return dto, err
+}
 
-	if updatedAt.Valid {
-		dto.UpdatedAt = &updatedAt.Time
-	}
-	if domainArchitectID.Valid {
-		dto.DomainArchitectID = domainArchitectID.String
-	}
+func (rm *BusinessDomainReadModel) GetByID(ctx context.Context, id string) (*BusinessDomainDTO, error) {
+	return rm.getByCondition(ctx, "id = $2", id)
+}
 
-	return &dto, nil
+func (rm *BusinessDomainReadModel) GetByName(ctx context.Context, name string) (*BusinessDomainDTO, error) {
+	return rm.getByCondition(ctx, "name = $2", name)
 }
 
 func (rm *BusinessDomainReadModel) NameExists(ctx context.Context, name, excludeID string) (bool, error) {

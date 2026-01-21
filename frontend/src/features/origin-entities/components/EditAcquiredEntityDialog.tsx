@@ -4,7 +4,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useUpdateAcquiredEntity } from '../hooks/useAcquiredEntities';
 import { editAcquiredEntitySchema, type EditAcquiredEntityFormData } from '../../../lib/schemas';
-import type { AcquiredEntity, AcquiredEntityId } from '../../../api/types';
+import type { AcquiredEntity, AcquiredEntityId, IntegrationStatus } from '../../../api/types';
 
 interface EditAcquiredEntityDialogProps {
   isOpen: boolean;
@@ -16,8 +16,19 @@ const INTEGRATION_STATUS_OPTIONS = [
   { value: 'NotStarted', label: 'Not Started' },
   { value: 'InProgress', label: 'In Progress' },
   { value: 'Completed', label: 'Completed' },
-  { value: 'OnHold', label: 'On Hold' },
 ];
+
+const integrationStatusToApi: Record<string, IntegrationStatus> = {
+  NotStarted: 'NOT_STARTED',
+  InProgress: 'IN_PROGRESS',
+  Completed: 'COMPLETED',
+};
+
+const integrationStatusFromApi: Record<IntegrationStatus, string> = {
+  NOT_STARTED: 'NotStarted',
+  IN_PROGRESS: 'InProgress',
+  COMPLETED: 'Completed',
+};
 
 export const EditAcquiredEntityDialog: React.FC<EditAcquiredEntityDialogProps> = ({
   isOpen,
@@ -40,10 +51,11 @@ export const EditAcquiredEntityDialog: React.FC<EditAcquiredEntityDialogProps> =
 
   useEffect(() => {
     if (isOpen && entity) {
+      const formStatus = entity.integrationStatus ? integrationStatusFromApi[entity.integrationStatus] : undefined;
       reset({
         name: entity.name,
         acquisitionDate: entity.acquisitionDate?.split('T')[0] || '',
-        integrationStatus: entity.integrationStatus,
+        integrationStatus: formStatus as EditAcquiredEntityFormData['integrationStatus'],
         notes: entity.notes || '',
       });
       setBackendError(null);
@@ -59,12 +71,13 @@ export const EditAcquiredEntityDialog: React.FC<EditAcquiredEntityDialogProps> =
 
     setBackendError(null);
     try {
+      const apiStatus = data.integrationStatus ? integrationStatusToApi[data.integrationStatus] : undefined;
       await updateMutation.mutateAsync({
         id: entity.id as AcquiredEntityId,
         request: {
           name: data.name,
           acquisitionDate: data.acquisitionDate || undefined,
-          integrationStatus: data.integrationStatus || undefined,
+          integrationStatus: apiStatus,
           notes: data.notes || undefined,
         },
       });

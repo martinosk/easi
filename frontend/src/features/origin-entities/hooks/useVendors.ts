@@ -133,8 +133,15 @@ export function useLinkComponentToVendor() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ componentId, vendorId }: { componentId: ComponentId; vendorId: VendorId }) =>
-      originEntitiesApi.vendors.linkComponent(componentId, vendorId),
+    mutationFn: ({
+      componentId,
+      vendorId,
+      replaceExisting = false,
+    }: {
+      componentId: ComponentId;
+      vendorId: VendorId;
+      replaceExisting?: boolean;
+    }) => originEntitiesApi.vendors.linkComponent(componentId, vendorId, replaceExisting),
     onSuccess: (_, { vendorId }) => {
       invalidateFor(queryClient, mutationEffects.vendors.linkComponent(vendorId));
       toast.success('Component linked to vendor');

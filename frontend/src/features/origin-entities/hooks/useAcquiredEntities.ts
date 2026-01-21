@@ -133,8 +133,15 @@ export function useLinkComponentToAcquiredEntity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ componentId, entityId }: { componentId: ComponentId; entityId: AcquiredEntityId }) =>
-      originEntitiesApi.acquiredEntities.linkComponent(componentId, entityId),
+    mutationFn: ({
+      componentId,
+      entityId,
+      replaceExisting = false,
+    }: {
+      componentId: ComponentId;
+      entityId: AcquiredEntityId;
+      replaceExisting?: boolean;
+    }) => originEntitiesApi.acquiredEntities.linkComponent(componentId, entityId, replaceExisting),
     onSuccess: (_, { entityId }) => {
       invalidateFor(queryClient, mutationEffects.acquiredEntities.linkComponent(entityId));
       toast.success('Component linked to acquired entity');

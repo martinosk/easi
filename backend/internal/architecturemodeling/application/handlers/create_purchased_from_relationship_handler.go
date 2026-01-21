@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"easi/backend/internal/architecturemodeling/application/commands"
+	"easi/backend/internal/architecturemodeling/application/readmodels"
+	"easi/backend/internal/architecturemodeling/domain"
 	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
@@ -12,12 +14,42 @@ import (
 
 type CreatePurchasedFromRelationshipHandler struct {
 	repository *repositories.PurchasedFromRelationshipRepository
+	readModel  *readmodels.PurchasedFromRelationshipReadModel
 }
 
-func NewCreatePurchasedFromRelationshipHandler(repository *repositories.PurchasedFromRelationshipRepository) *CreatePurchasedFromRelationshipHandler {
+func NewCreatePurchasedFromRelationshipHandler(
+	repository *repositories.PurchasedFromRelationshipRepository,
+	readModel *readmodels.PurchasedFromRelationshipReadModel,
+) *CreatePurchasedFromRelationshipHandler {
 	return &CreatePurchasedFromRelationshipHandler{
 		repository: repository,
+		readModel:  readModel,
 	}
+}
+
+type purchasedFromParams struct {
+	vendorID    valueobjects.VendorID
+	componentID valueobjects.ComponentID
+	notes       valueobjects.Notes
+}
+
+func parsePurchasedFromParams(cmd *commands.CreatePurchasedFromRelationship) (*purchasedFromParams, error) {
+	vendorID, err := valueobjects.NewVendorIDFromString(cmd.VendorID)
+	if err != nil {
+		return nil, err
+	}
+
+	componentID, err := valueobjects.NewComponentIDFromString(cmd.ComponentID)
+	if err != nil {
+		return nil, err
+	}
+
+	notes, err := valueobjects.NewNotes(cmd.Notes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &purchasedFromParams{vendorID: vendorID, componentID: componentID, notes: notes}, nil
 }
 
 func (h *CreatePurchasedFromRelationshipHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.CommandResult, error) {
@@ -26,22 +58,16 @@ func (h *CreatePurchasedFromRelationshipHandler) Handle(ctx context.Context, cmd
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
-	vendorID, err := valueobjects.NewVendorIDFromString(command.VendorID)
+	params, err := parsePurchasedFromParams(command)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
-	componentID, err := valueobjects.NewComponentIDFromString(command.ComponentID)
-	if err != nil {
+	if err := h.handleExistingRelationship(ctx, command); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
-	notes, err := valueobjects.NewNotes(command.Notes)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	relationship, err := aggregates.NewPurchasedFromRelationship(vendorID, componentID, notes)
+	relationship, err := aggregates.NewPurchasedFromRelationship(params.vendorID, params.componentID, params.notes)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
@@ -51,4 +77,39 @@ func (h *CreatePurchasedFromRelationshipHandler) Handle(ctx context.Context, cmd
 	}
 
 	return cqrs.NewResult(relationship.ID()), nil
+}
+
+func (h *CreatePurchasedFromRelationshipHandler) handleExistingRelationship(ctx context.Context, cmd *commands.CreatePurchasedFromRelationship) error {
+	existing, err := h.readModel.GetByComponentID(ctx, cmd.ComponentID)
+	if err != nil {
+		return err
+	}
+
+	if len(existing) == 0 {
+		return nil
+	}
+
+	existingRel := existing[0]
+	if !cmd.ReplaceExisting {
+		return domain.NewRelationshipExistsError(
+			existingRel.ID,
+			existingRel.ComponentID,
+			existingRel.VendorID,
+			existingRel.VendorName,
+			"PurchasedFrom",
+		)
+	}
+
+	return h.deleteExistingRelationship(ctx, existingRel.ID)
+}
+
+func (h *CreatePurchasedFromRelationshipHandler) deleteExistingRelationship(ctx context.Context, id string) error {
+	existingAggregate, err := h.repository.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := existingAggregate.Delete(); err != nil {
+		return err
+	}
+	return h.repository.Save(ctx, existingAggregate)
 }

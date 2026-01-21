@@ -138,7 +138,15 @@ func registerAPIRoutes(r chi.Router, deps routerDependencies) {
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.TenantMiddlewareWithSession(deps.authDeps.SessionManager, deps.userReadModel))
 
-			mustSetup(architectureAPI.SetupArchitectureModelingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas, deps.authDeps.AuthMiddleware), "architecture modeling routes")
+			mustSetup(architectureAPI.SetupArchitectureModelingRoutes(architectureAPI.RouteConfig{
+				Router:         r,
+				CommandBus:     deps.commandBus,
+				EventStore:     deps.eventStore,
+				EventBus:       deps.eventBus,
+				DB:             deps.db,
+				HATEOAS:        deps.hateoas,
+				AuthMiddleware: deps.authDeps.AuthMiddleware,
+			}), "architecture modeling routes")
 			mustSetup(viewsAPI.SetupArchitectureViewsRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas, deps.authDeps.AuthMiddleware), "architecture views routes")
 			mustSetup(capabilityAPI.SetupCapabilityMappingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas, deps.authDeps.SessionManager, deps.authDeps.AuthMiddleware), "capability mapping routes")
 			mustSetup(enterpriseArchAPI.SetupEnterpriseArchitectureRoutes(enterpriseArchAPI.EnterpriseArchRoutesDeps{

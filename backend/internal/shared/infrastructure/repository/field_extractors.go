@@ -6,119 +6,75 @@ import (
 )
 
 type fieldData = map[string]interface{}
+type converter[T any] func(key string, val interface{}) (T, error)
 
 func getField(data fieldData, key string) (interface{}, bool) {
 	val, exists := data[key]
 	return val, exists && val != nil
 }
 
-func GetRequiredString(data fieldData, key string) (string, error) {
+func extractRequired[T any](data fieldData, key string, convert converter[T]) (T, error) {
+	var zero T
 	val, exists := getField(data, key)
 	if !exists {
-		return "", NewMissingFieldError(key)
+		return zero, NewMissingFieldError(key)
 	}
-	str, ok := val.(string)
-	if !ok {
-		return "", NewTypeError(key, "string", fmt.Sprintf("%T", val))
-	}
-	return str, nil
+	return convert(key, val)
 }
 
-func GetOptionalString(data fieldData, key string, defaultVal string) (string, error) {
+func extractOptional[T any](data fieldData, key string, defaultVal T, convert converter[T]) (T, error) {
 	val, exists := getField(data, key)
 	if !exists {
 		return defaultVal, nil
 	}
-	str, ok := val.(string)
-	if !ok {
-		return "", NewTypeError(key, "string", fmt.Sprintf("%T", val))
-	}
-	return str, nil
+	return convert(key, val)
 }
 
-func convertToInt(key string, val interface{}) (int, error) {
+func newSimpleConverter[T any](typeName string) converter[T] {
+	return func(key string, val interface{}) (T, error) {
+		var zero T
+		v, ok := val.(T)
+		if !ok {
+			return zero, NewTypeError(key, typeName, fmt.Sprintf("%T", val))
+		}
+		return v, nil
+	}
+}
+
+var convertString = newSimpleConverter[string]("string")
+
+func extractNumeric(val interface{}) (intVal int, floatVal float64, ok bool) {
 	switch v := val.(type) {
 	case int:
-		return v, nil
+		return v, float64(v), true
 	case int64:
-		return int(v), nil
+		return int(v), float64(v), true
 	case float64:
-		return int(v), nil
+		return int(v), v, true
 	default:
+		return 0, 0, false
+	}
+}
+
+func convertInt(key string, val interface{}) (int, error) {
+	intVal, _, ok := extractNumeric(val)
+	if !ok {
 		return 0, NewTypeError(key, "int", fmt.Sprintf("%T", val))
 	}
+	return intVal, nil
 }
 
-func GetRequiredInt(data fieldData, key string) (int, error) {
-	val, exists := getField(data, key)
-	if !exists {
-		return 0, NewMissingFieldError(key)
-	}
-	return convertToInt(key, val)
-}
-
-func GetOptionalInt(data fieldData, key string, defaultVal int) (int, error) {
-	val, exists := getField(data, key)
-	if !exists {
-		return defaultVal, nil
-	}
-	return convertToInt(key, val)
-}
-
-func convertToFloat64(key string, val interface{}) (float64, error) {
-	switch v := val.(type) {
-	case float64:
-		return v, nil
-	case int:
-		return float64(v), nil
-	case int64:
-		return float64(v), nil
-	default:
+func convertFloat64(key string, val interface{}) (float64, error) {
+	_, floatVal, ok := extractNumeric(val)
+	if !ok {
 		return 0, NewTypeError(key, "float64", fmt.Sprintf("%T", val))
 	}
+	return floatVal, nil
 }
 
-func GetRequiredFloat64(data fieldData, key string) (float64, error) {
-	val, exists := getField(data, key)
-	if !exists {
-		return 0, NewMissingFieldError(key)
-	}
-	return convertToFloat64(key, val)
-}
+var convertBool = newSimpleConverter[bool]("bool")
 
-func GetOptionalFloat64(data fieldData, key string, defaultVal float64) (float64, error) {
-	val, exists := getField(data, key)
-	if !exists {
-		return defaultVal, nil
-	}
-	return convertToFloat64(key, val)
-}
-
-func GetRequiredBool(data fieldData, key string) (bool, error) {
-	val, exists := getField(data, key)
-	if !exists {
-		return false, NewMissingFieldError(key)
-	}
-	b, ok := val.(bool)
-	if !ok {
-		return false, NewTypeError(key, "bool", fmt.Sprintf("%T", val))
-	}
-	return b, nil
-}
-
-func GetOptionalBool(data fieldData, key string, defaultVal bool) (bool, error) {
-	val, exists := getField(data, key)
-	if !exists {
-		return defaultVal, nil
-	}
-	b, ok := val.(bool)
-	if !ok {
-		return false, NewTypeError(key, "bool", fmt.Sprintf("%T", val))
-	}
-	return b, nil
-}
-
-func parseTime(key string, val interface{}) (time.Time, error) {
+func convertTime(key string, val interface{}) (time.Time, error) {
 	str, ok := val.(string)
 	if !ok {
 		return time.Time{}, NewTypeError(key, "string (RFC3339)", fmt.Sprintf("%T", val))
@@ -136,106 +92,100 @@ func parseTime(key string, val interface{}) (time.Time, error) {
 	return t, nil
 }
 
-func GetRequiredTime(data fieldData, key string) (time.Time, error) {
-	val, exists := getField(data, key)
-	if !exists {
-		return time.Time{}, NewMissingFieldError(key)
+var convertMap = newSimpleConverter[map[string]interface{}]("map[string]interface{}")
+
+type elementConverter[T any] func(interface{}) (T, bool)
+
+func convertSlice[T any](key string, val interface{}, convert elementConverter[T], typeName string) ([]T, error) {
+	raw, ok := val.([]interface{})
+	if !ok {
+		return nil, NewTypeError(key, "[]interface{}", fmt.Sprintf("%T", val))
 	}
-	return parseTime(key, val)
+	result := make([]T, 0, len(raw))
+	for _, item := range raw {
+		elem, ok := convert(item)
+		if !ok {
+			return nil, NewTypeError(key, typeName, fmt.Sprintf("slice containing %T", item))
+		}
+		result = append(result, elem)
+	}
+	return result, nil
+}
+
+func convertMapSlice(key string, val interface{}) ([]map[string]interface{}, error) {
+	return convertSlice(key, val, func(v interface{}) (map[string]interface{}, bool) {
+		m, ok := v.(map[string]interface{})
+		return m, ok
+	}, "[]map[string]interface{}")
+}
+
+func convertStringSlice(key string, val interface{}) ([]string, error) {
+	return convertSlice(key, val, func(v interface{}) (string, bool) {
+		s, ok := v.(string)
+		return s, ok
+	}, "[]string")
+}
+
+func GetRequiredString(data fieldData, key string) (string, error) {
+	return extractRequired(data, key, convertString)
+}
+
+func GetOptionalString(data fieldData, key string, defaultVal string) (string, error) {
+	return extractOptional(data, key, defaultVal, convertString)
+}
+
+func GetRequiredInt(data fieldData, key string) (int, error) {
+	return extractRequired(data, key, convertInt)
+}
+
+func GetOptionalInt(data fieldData, key string, defaultVal int) (int, error) {
+	return extractOptional(data, key, defaultVal, convertInt)
+}
+
+func GetRequiredFloat64(data fieldData, key string) (float64, error) {
+	return extractRequired(data, key, convertFloat64)
+}
+
+func GetOptionalFloat64(data fieldData, key string, defaultVal float64) (float64, error) {
+	return extractOptional(data, key, defaultVal, convertFloat64)
+}
+
+func GetRequiredBool(data fieldData, key string) (bool, error) {
+	return extractRequired(data, key, convertBool)
+}
+
+func GetOptionalBool(data fieldData, key string, defaultVal bool) (bool, error) {
+	return extractOptional(data, key, defaultVal, convertBool)
+}
+
+func GetRequiredTime(data fieldData, key string) (time.Time, error) {
+	return extractRequired(data, key, convertTime)
 }
 
 func GetOptionalTime(data fieldData, key string, defaultVal time.Time) (time.Time, error) {
-	val, exists := getField(data, key)
-	if !exists {
-		return defaultVal, nil
-	}
-	return parseTime(key, val)
+	return extractOptional(data, key, defaultVal, convertTime)
 }
 
 func GetRequiredMap(data fieldData, key string) (map[string]interface{}, error) {
-	val, exists := getField(data, key)
-	if !exists {
-		return nil, NewMissingFieldError(key)
-	}
-	m, ok := val.(map[string]interface{})
-	if !ok {
-		return nil, NewTypeError(key, "map[string]interface{}", fmt.Sprintf("%T", val))
-	}
-	return m, nil
+	return extractRequired(data, key, convertMap)
 }
 
 func GetOptionalMap(data fieldData, key string) (map[string]interface{}, error) {
-	val, exists := getField(data, key)
-	if !exists {
-		return nil, nil
-	}
-	m, ok := val.(map[string]interface{})
-	if !ok {
-		return nil, NewTypeError(key, "map[string]interface{}", fmt.Sprintf("%T", val))
-	}
-	return m, nil
-}
-
-func convertToMapSlice(key string, val interface{}) ([]map[string]interface{}, error) {
-	raw, ok := val.([]interface{})
-	if !ok {
-		return nil, NewTypeError(key, "[]interface{}", fmt.Sprintf("%T", val))
-	}
-	result := make([]map[string]interface{}, 0, len(raw))
-	for _, item := range raw {
-		m, ok := item.(map[string]interface{})
-		if !ok {
-			return nil, NewTypeError(key, "[]map[string]interface{}", fmt.Sprintf("slice containing %T", item))
-		}
-		result = append(result, m)
-	}
-	return result, nil
+	return extractOptional(data, key, nil, convertMap)
 }
 
 func GetRequiredMapSlice(data fieldData, key string) ([]map[string]interface{}, error) {
-	val, exists := getField(data, key)
-	if !exists {
-		return nil, NewMissingFieldError(key)
-	}
-	return convertToMapSlice(key, val)
+	return extractRequired(data, key, convertMapSlice)
 }
 
 func GetOptionalMapSlice(data fieldData, key string) ([]map[string]interface{}, error) {
-	val, exists := getField(data, key)
-	if !exists {
-		return nil, nil
-	}
-	return convertToMapSlice(key, val)
-}
-
-func convertToStringSlice(key string, val interface{}) ([]string, error) {
-	raw, ok := val.([]interface{})
-	if !ok {
-		return nil, NewTypeError(key, "[]interface{}", fmt.Sprintf("%T", val))
-	}
-	result := make([]string, 0, len(raw))
-	for _, item := range raw {
-		s, ok := item.(string)
-		if !ok {
-			return nil, NewTypeError(key, "[]string", fmt.Sprintf("slice containing %T", item))
-		}
-		result = append(result, s)
-	}
-	return result, nil
+	return extractOptional(data, key, nil, convertMapSlice)
 }
 
 func GetRequiredStringSlice(data fieldData, key string) ([]string, error) {
-	val, exists := getField(data, key)
-	if !exists {
-		return nil, NewMissingFieldError(key)
-	}
-	return convertToStringSlice(key, val)
+	return extractRequired(data, key, convertStringSlice)
 }
 
 func GetOptionalStringSlice(data fieldData, key string) ([]string, error) {
-	val, exists := getField(data, key)
-	if !exists {
-		return nil, nil
-	}
-	return convertToStringSlice(key, val)
+	return extractOptional(data, key, nil, convertStringSlice)
 }

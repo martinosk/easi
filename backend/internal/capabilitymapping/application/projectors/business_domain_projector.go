@@ -67,7 +67,11 @@ func (p *BusinessDomainProjector) handleBusinessDomainUpdated(ctx context.Contex
 		log.Printf("Failed to unmarshal BusinessDomainUpdated event: %v", err)
 		return err
 	}
-	return p.readModel.Update(ctx, event.ID, event.Name, event.Description, event.DomainArchitectID)
+	return p.readModel.Update(ctx, event.ID, readmodels.BusinessDomainUpdate{
+		Name:              event.Name,
+		Description:       event.Description,
+		DomainArchitectID: event.DomainArchitectID,
+	})
 }
 
 func (p *BusinessDomainProjector) handleBusinessDomainDeleted(ctx context.Context, eventData []byte) error {

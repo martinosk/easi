@@ -133,8 +133,15 @@ export function useLinkComponentToInternalTeam() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ componentId, teamId }: { componentId: ComponentId; teamId: InternalTeamId }) =>
-      originEntitiesApi.internalTeams.linkComponent(componentId, teamId),
+    mutationFn: ({
+      componentId,
+      teamId,
+      replaceExisting = false,
+    }: {
+      componentId: ComponentId;
+      teamId: InternalTeamId;
+      replaceExisting?: boolean;
+    }) => originEntitiesApi.internalTeams.linkComponent(componentId, teamId, replaceExisting),
     onSuccess: (_, { teamId }) => {
       invalidateFor(queryClient, mutationEffects.internalTeams.linkComponent(teamId));
       toast.success('Component linked to internal team');

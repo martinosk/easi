@@ -206,8 +206,8 @@ export function createOriginRelationshipEdges(
       const edgeColor = ctx.isClassicScheme ? '#000000' : ORIGIN_RELATIONSHIP_COLORS[rel.relationshipType];
       const label = ORIGIN_RELATIONSHIP_LABELS[rel.relationshipType];
 
-      const sourceNodeId = getOriginEntityNodeId(rel.relationshipType, rel.originEntityId);
-      const targetNodeId = rel.componentId;
+      const sourceNodeId = rel.componentId;
+      const targetNodeId = getOriginEntityNodeId(rel.relationshipType, rel.originEntityId);
 
       const sourceNode = ctx.nodes.find((n) => n.id === sourceNodeId);
       const targetNode = ctx.nodes.find((n) => n.id === targetNodeId);

@@ -160,4 +160,8 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.internalTeams.details(), id] as const,
     relationships: (id: string) => [...queryKeys.internalTeams.detail(id), 'relationships'] as const,
   },
+  originRelationships: {
+    all: ['originRelationships'] as const,
+    lists: () => [...queryKeys.originRelationships.all, 'list'] as const,
+  },
 } as const;

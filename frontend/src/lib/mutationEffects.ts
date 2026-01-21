@@ -496,18 +496,21 @@ export const mutationEffects = {
       queryKeys.acquiredEntities.lists(),
       queryKeys.acquiredEntities.detail(id),
       queryKeys.components.lists(),
+      queryKeys.originRelationships.lists(),
     ],
 
     linkComponent: (id: string) => [
       queryKeys.acquiredEntities.relationships(id),
       queryKeys.acquiredEntities.detail(id),
       queryKeys.acquiredEntities.lists(),
+      queryKeys.originRelationships.lists(),
     ],
 
     unlinkComponent: (id: string) => [
       queryKeys.acquiredEntities.relationships(id),
       queryKeys.acquiredEntities.detail(id),
       queryKeys.acquiredEntities.lists(),
+      queryKeys.originRelationships.lists(),
     ],
   },
 
@@ -526,18 +529,21 @@ export const mutationEffects = {
       queryKeys.vendors.lists(),
       queryKeys.vendors.detail(id),
       queryKeys.components.lists(),
+      queryKeys.originRelationships.lists(),
     ],
 
     linkComponent: (id: string) => [
       queryKeys.vendors.relationships(id),
       queryKeys.vendors.detail(id),
       queryKeys.vendors.lists(),
+      queryKeys.originRelationships.lists(),
     ],
 
     unlinkComponent: (id: string) => [
       queryKeys.vendors.relationships(id),
       queryKeys.vendors.detail(id),
       queryKeys.vendors.lists(),
+      queryKeys.originRelationships.lists(),
     ],
   },
 
@@ -556,18 +562,21 @@ export const mutationEffects = {
       queryKeys.internalTeams.lists(),
       queryKeys.internalTeams.detail(id),
       queryKeys.components.lists(),
+      queryKeys.originRelationships.lists(),
     ],
 
     linkComponent: (id: string) => [
       queryKeys.internalTeams.relationships(id),
       queryKeys.internalTeams.detail(id),
       queryKeys.internalTeams.lists(),
+      queryKeys.originRelationships.lists(),
     ],
 
     unlinkComponent: (id: string) => [
       queryKeys.internalTeams.relationships(id),
       queryKeys.internalTeams.detail(id),
       queryKeys.internalTeams.lists(),
+      queryKeys.originRelationships.lists(),
     ],
   },
 } as const;

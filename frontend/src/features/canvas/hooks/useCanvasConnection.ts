@@ -1,35 +1,8 @@
 import { useCallback } from 'react';
 import type { Connection } from '@xyflow/react';
-import { useChangeCapabilityParent, useLinkSystemToCapability } from '../../capabilities/hooks/useCapabilities';
-import {
-  useLinkComponentToAcquiredEntity,
-  useLinkComponentToVendor,
-  useLinkComponentToInternalTeam,
-} from '../../origin-entities/hooks';
-import {
-  toComponentId,
-  toCapabilityId,
-  toAcquiredEntityId,
-  toVendorId,
-  toInternalTeamId,
-} from '../../../api/types';
-import { isOriginEntityNode, getOriginEntityTypeFromNodeId, extractOriginEntityId } from '../utils/nodeFactory';
-import toast from 'react-hot-toast';
-
-const CAPABILITY_PREFIX = 'cap-';
-
-const isCapabilityNode = (nodeId: string): boolean => nodeId.startsWith(CAPABILITY_PREFIX);
-
-const isComponentNode = (nodeId: string): boolean =>
-  !isCapabilityNode(nodeId) && !isOriginEntityNode(nodeId);
-
-const extractCapabilityId = (nodeId: string): string => nodeId.replace(CAPABILITY_PREFIX, '');
-
-const getErrorMessage = (error: unknown, fallback: string): string =>
-  error instanceof Error ? error.message : fallback;
-
-const isHierarchyDepthError = (message: string): boolean =>
-  message.includes('depth') || message.includes('L5');
+import { isOriginEntityNode } from '../utils/nodeFactory';
+import { useCapabilityConnection, isCapabilityNode } from './useCapabilityConnection';
+import { useOriginConnection } from './useOriginConnection';
 
 type ConnectionType =
   | 'capability-to-capability'
@@ -38,124 +11,37 @@ type ConnectionType =
   | 'origin-component-mixed'
   | 'invalid';
 
-const getConnectionType = (
-  source: string,
-  target: string
-): ConnectionType => {
-  const sourceIsCapability = isCapabilityNode(source);
-  const targetIsCapability = isCapabilityNode(target);
-  const sourceIsOriginEntity = isOriginEntityNode(source);
-  const targetIsOriginEntity = isOriginEntityNode(target);
-  const sourceIsComponent = isComponentNode(source);
-  const targetIsComponent = isComponentNode(target);
+type NodeKind = 'capability' | 'component' | 'origin';
 
-  if (sourceIsCapability && targetIsCapability) return 'capability-to-capability';
-  if (sourceIsComponent && targetIsComponent) return 'component-to-component';
-  if ((sourceIsCapability && targetIsComponent) || (sourceIsComponent && targetIsCapability)) {
-    return 'capability-component-mixed';
-  }
-  if ((sourceIsOriginEntity && targetIsComponent) || (sourceIsComponent && targetIsOriginEntity)) {
-    return 'origin-component-mixed';
-  }
-  return 'invalid';
+const getNodeKind = (nodeId: string): NodeKind => {
+  if (isCapabilityNode(nodeId)) return 'capability';
+  if (isOriginEntityNode(nodeId)) return 'origin';
+  return 'component';
+};
+
+const CONNECTION_TYPE_MAP: Record<`${NodeKind}-${NodeKind}`, ConnectionType> = {
+  'capability-capability': 'capability-to-capability',
+  'component-component': 'component-to-component',
+  'capability-component': 'capability-component-mixed',
+  'component-capability': 'capability-component-mixed',
+  'origin-component': 'origin-component-mixed',
+  'component-origin': 'origin-component-mixed',
+  'capability-origin': 'invalid',
+  'origin-capability': 'invalid',
+  'origin-origin': 'invalid',
+};
+
+const getConnectionType = (source: string, target: string): ConnectionType => {
+  const sourceKind = getNodeKind(source);
+  const targetKind = getNodeKind(target);
+  return CONNECTION_TYPE_MAP[`${sourceKind}-${targetKind}`];
 };
 
 export const useCanvasConnection = (
   onConnect: (source: string, target: string) => void
 ) => {
-  const changeCapabilityParentMutation = useChangeCapabilityParent();
-  const linkSystemToCapabilityMutation = useLinkSystemToCapability();
-  const linkComponentToAcquiredEntityMutation = useLinkComponentToAcquiredEntity();
-  const linkComponentToVendorMutation = useLinkComponentToVendor();
-  const linkComponentToInternalTeamMutation = useLinkComponentToInternalTeam();
-
-  const handleCapabilityParentConnection = useCallback(
-    async (source: string, target: string) => {
-      const parentId = toCapabilityId(extractCapabilityId(target));
-      const childId = toCapabilityId(extractCapabilityId(source));
-
-      try {
-        await changeCapabilityParentMutation.mutateAsync({
-          id: childId,
-          newParentId: parentId,
-        });
-      } catch (error) {
-        const errorMessage = getErrorMessage(error, 'Failed to create parent relationship');
-        if (isHierarchyDepthError(errorMessage)) {
-          toast.error('Cannot create this parent relationship: would result in hierarchy deeper than L4');
-        }
-      }
-    },
-    [changeCapabilityParentMutation]
-  );
-
-  const handleCapabilityComponentConnection = useCallback(
-    async (source: string, target: string) => {
-      const sourceIsCapability = isCapabilityNode(source);
-      const capabilityId = toCapabilityId(
-        sourceIsCapability ? extractCapabilityId(source) : extractCapabilityId(target)
-      );
-      const componentId = toComponentId(sourceIsCapability ? target : source);
-
-      try {
-        await linkSystemToCapabilityMutation.mutateAsync({
-          capabilityId,
-          request: {
-            componentId,
-            realizationLevel: 'Full',
-          },
-        });
-      } catch (error) {
-        const errorMessage = getErrorMessage(error, 'Failed to create realization');
-        toast.error(errorMessage);
-      }
-    },
-    [linkSystemToCapabilityMutation]
-  );
-
-  const handleOriginComponentConnection = useCallback(
-    async (source: string, target: string) => {
-      const sourceIsOriginEntity = isOriginEntityNode(source);
-      const originNodeId = sourceIsOriginEntity ? source : target;
-      const componentNodeId = sourceIsOriginEntity ? target : source;
-
-      const originEntityType = getOriginEntityTypeFromNodeId(originNodeId);
-      const entityId = extractOriginEntityId(originNodeId);
-      const componentId = toComponentId(componentNodeId);
-
-      if (!entityId || !originEntityType) {
-        toast.error('Invalid origin entity');
-        return;
-      }
-
-      try {
-        switch (originEntityType) {
-          case 'acquired':
-            await linkComponentToAcquiredEntityMutation.mutateAsync({
-              componentId,
-              entityId: toAcquiredEntityId(entityId),
-            });
-            break;
-          case 'vendor':
-            await linkComponentToVendorMutation.mutateAsync({
-              componentId,
-              vendorId: toVendorId(entityId),
-            });
-            break;
-          case 'team':
-            await linkComponentToInternalTeamMutation.mutateAsync({
-              componentId,
-              teamId: toInternalTeamId(entityId),
-            });
-            break;
-        }
-      } catch (error) {
-        const errorMessage = getErrorMessage(error, 'Failed to create origin relationship');
-        toast.error(errorMessage);
-      }
-    },
-    [linkComponentToAcquiredEntityMutation, linkComponentToVendorMutation, linkComponentToInternalTeamMutation]
-  );
+  const { handleCapabilityParentConnection, handleCapabilityComponentConnection } = useCapabilityConnection();
+  const { handleOriginComponentConnection } = useOriginConnection();
 
   const onConnectHandler = useCallback(
     async (connection: Connection) => {

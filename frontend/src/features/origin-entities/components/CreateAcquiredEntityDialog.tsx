@@ -4,6 +4,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCreateAcquiredEntity } from '../hooks/useAcquiredEntities';
 import { createAcquiredEntitySchema, type CreateAcquiredEntityFormData } from '../../../lib/schemas';
+import type { IntegrationStatus } from '../../../api/types';
 
 interface CreateAcquiredEntityDialogProps {
   isOpen: boolean;
@@ -14,8 +15,13 @@ const INTEGRATION_STATUS_OPTIONS = [
   { value: 'NotStarted', label: 'Not Started' },
   { value: 'InProgress', label: 'In Progress' },
   { value: 'Completed', label: 'Completed' },
-  { value: 'OnHold', label: 'On Hold' },
 ];
+
+const integrationStatusToApi: Record<string, IntegrationStatus> = {
+  NotStarted: 'NOT_STARTED',
+  InProgress: 'IN_PROGRESS',
+  Completed: 'COMPLETED',
+};
 
 const DEFAULT_VALUES: CreateAcquiredEntityFormData = {
   name: '',
@@ -57,10 +63,11 @@ export const CreateAcquiredEntityDialog: React.FC<CreateAcquiredEntityDialogProp
   const onSubmit = async (data: CreateAcquiredEntityFormData) => {
     setBackendError(null);
     try {
+      const apiStatus = data.integrationStatus ? integrationStatusToApi[data.integrationStatus] : undefined;
       await createMutation.mutateAsync({
         name: data.name,
         acquisitionDate: data.acquisitionDate || undefined,
-        integrationStatus: data.integrationStatus || undefined,
+        integrationStatus: apiStatus,
         notes: data.notes || undefined,
       });
       handleClose();
