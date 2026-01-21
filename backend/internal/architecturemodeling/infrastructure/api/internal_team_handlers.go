@@ -5,26 +5,28 @@ import (
 
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
-	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
-	"easi/backend/internal/shared/types"
 )
 
 type InternalTeamHandlers struct {
 	commandBus       cqrs.CommandBus
 	readModel        *readmodels.InternalTeamReadModel
 	paginationHelper *sharedAPI.PaginationHelper
+	hateoas          *sharedAPI.HATEOASLinks
 }
 
 func NewInternalTeamHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.InternalTeamReadModel,
+	hateoas *sharedAPI.HATEOASLinks,
 ) *InternalTeamHandlers {
 	return &InternalTeamHandlers{
 		commandBus:       commandBus,
 		readModel:        readModel,
 		paginationHelper: sharedAPI.NewPaginationHelper("/api/v1/internal-teams"),
+		hateoas:          hateoas,
 	}
 }
 
@@ -59,14 +61,6 @@ func (h *InternalTeamHandlers) CreateInternalTeam(w http.ResponseWriter, r *http
 		return
 	}
 
-	if !h.validateName(w, req.Name) {
-		return
-	}
-
-	if req.Notes != "" && !h.validateNotes(w, req.Notes) {
-		return
-	}
-
 	cmd := &commands.CreateInternalTeam{
 		Name:          req.Name,
 		Department:    req.Department,
@@ -76,14 +70,14 @@ func (h *InternalTeamHandlers) CreateInternalTeam(w http.ResponseWriter, r *http
 
 	result, err := h.commandBus.Dispatch(r.Context(), cmd)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create internal team")
+		sharedAPI.HandleError(w, err)
 		return
 	}
 
 	location := sharedAPI.BuildResourceLink(sharedAPI.ResourcePath("/internal-teams"), sharedAPI.ResourceID(result.CreatedID))
 	team, err := h.readModel.GetByID(r.Context(), result.CreatedID)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve created team")
+		sharedAPI.HandleErrorWithDefault(w, err, "Failed to retrieve created team")
 		return
 	}
 
@@ -95,7 +89,7 @@ func (h *InternalTeamHandlers) CreateInternalTeam(w http.ResponseWriter, r *http
 		return
 	}
 
-	h.enrichWithLinks(team)
+	h.enrichWithLinks(r, team)
 	sharedAPI.RespondCreated(w, location, team)
 }
 
@@ -125,7 +119,7 @@ func (h *InternalTeamHandlers) GetAllInternalTeams(w http.ResponseWriter, r *htt
 	}
 
 	for i := range teams {
-		h.enrichWithLinks(&teams[i])
+		h.enrichWithLinks(r, &teams[i])
 	}
 
 	pageables := ConvertInternalTeamsToNamePageable(teams)
@@ -167,7 +161,7 @@ func (h *InternalTeamHandlers) GetInternalTeamByID(w http.ResponseWriter, r *htt
 		return
 	}
 
-	h.enrichWithLinks(team)
+	h.enrichWithLinks(r, team)
 	sharedAPI.RespondJSON(w, http.StatusOK, team)
 }
 
@@ -192,14 +186,6 @@ func (h *InternalTeamHandlers) UpdateInternalTeam(w http.ResponseWriter, r *http
 		return
 	}
 
-	if !h.validateName(w, req.Name) {
-		return
-	}
-
-	if req.Notes != "" && !h.validateNotes(w, req.Notes) {
-		return
-	}
-
 	cmd := &commands.UpdateInternalTeam{
 		ID:            id,
 		Name:          req.Name,
@@ -209,13 +195,13 @@ func (h *InternalTeamHandlers) UpdateInternalTeam(w http.ResponseWriter, r *http
 	}
 
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update internal team")
+		sharedAPI.HandleError(w, err)
 		return
 	}
 
 	team, err := h.readModel.GetByID(r.Context(), id)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve updated team")
+		sharedAPI.HandleErrorWithDefault(w, err, "Failed to retrieve updated team")
 		return
 	}
 
@@ -224,7 +210,7 @@ func (h *InternalTeamHandlers) UpdateInternalTeam(w http.ResponseWriter, r *http
 		return
 	}
 
-	h.enrichWithLinks(team)
+	h.enrichWithLinks(r, team)
 	sharedAPI.RespondJSON(w, http.StatusOK, team)
 }
 
@@ -251,26 +237,7 @@ func (h *InternalTeamHandlers) DeleteInternalTeam(w http.ResponseWriter, r *http
 	})
 }
 
-func (h *InternalTeamHandlers) validateName(w http.ResponseWriter, name string) bool {
-	if _, err := valueobjects.NewEntityName(name); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return false
-	}
-	return true
-}
-
-func (h *InternalTeamHandlers) validateNotes(w http.ResponseWriter, notes string) bool {
-	if _, err := valueobjects.NewNotes(notes); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return false
-	}
-	return true
-}
-
-func (h *InternalTeamHandlers) enrichWithLinks(team *readmodels.InternalTeamDTO) {
-	team.Links = types.Links{
-		"self":   {Href: sharedAPI.BuildResourceLink("/internal-teams", sharedAPI.ResourceID(team.ID)), Method: "GET"},
-		"edit":   {Href: sharedAPI.BuildResourceLink("/internal-teams", sharedAPI.ResourceID(team.ID)), Method: "PUT"},
-		"delete": {Href: sharedAPI.BuildResourceLink("/internal-teams", sharedAPI.ResourceID(team.ID)), Method: "DELETE"},
-	}
+func (h *InternalTeamHandlers) enrichWithLinks(r *http.Request, team *readmodels.InternalTeamDTO) {
+	actor, _ := sharedctx.GetActor(r.Context())
+	team.Links = h.hateoas.InternalTeamLinksForActor(team.ID, actor)
 }

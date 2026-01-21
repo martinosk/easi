@@ -11,12 +11,14 @@ import (
 )
 
 type PurchasedFromRelationshipDTO struct {
-	ID          string      `json:"id"`
-	VendorID    string      `json:"vendorId"`
-	ComponentID string      `json:"componentId"`
-	Notes       string      `json:"notes,omitempty"`
-	CreatedAt   time.Time   `json:"createdAt"`
-	Links       types.Links `json:"_links,omitempty"`
+	ID            string      `json:"id"`
+	VendorID      string      `json:"vendorId"`
+	VendorName    string      `json:"vendorName,omitempty"`
+	ComponentID   string      `json:"componentId"`
+	ComponentName string      `json:"componentName,omitempty"`
+	Notes         string      `json:"notes,omitempty"`
+	CreatedAt     time.Time   `json:"createdAt"`
+	Links         types.Links `json:"_links,omitempty"`
 }
 
 type PurchasedFromRelationshipReadModel struct {
@@ -64,9 +66,14 @@ func (rm *PurchasedFromRelationshipReadModel) GetByID(ctx context.Context, id st
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, vendor_id, component_id, notes, created_at FROM purchased_from_relationships WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
+			`SELECT r.id, r.vendor_id, COALESCE(v.name, '') as vendor_name,
+			        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
+			 FROM purchased_from_relationships r
+			 LEFT JOIN vendors v ON v.tenant_id = r.tenant_id AND v.id = r.vendor_id AND v.is_deleted = FALSE
+			 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
+			 WHERE r.tenant_id = $1 AND r.id = $2 AND r.is_deleted = FALSE`,
 			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.VendorID, &dto.ComponentID, &dto.Notes, &dto.CreatedAt)
+		).Scan(&dto.ID, &dto.VendorID, &dto.VendorName, &dto.ComponentID, &dto.ComponentName, &dto.Notes, &dto.CreatedAt)
 
 		if err == sql.ErrNoRows {
 			notFound = true
@@ -94,7 +101,12 @@ func (rm *PurchasedFromRelationshipReadModel) GetByVendorID(ctx context.Context,
 	relationships := make([]PurchasedFromRelationshipDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, vendor_id, component_id, notes, created_at FROM purchased_from_relationships WHERE tenant_id = $1 AND vendor_id = $2 AND is_deleted = FALSE",
+			`SELECT r.id, r.vendor_id, COALESCE(v.name, '') as vendor_name,
+			        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
+			 FROM purchased_from_relationships r
+			 LEFT JOIN vendors v ON v.tenant_id = r.tenant_id AND v.id = r.vendor_id AND v.is_deleted = FALSE
+			 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
+			 WHERE r.tenant_id = $1 AND r.vendor_id = $2 AND r.is_deleted = FALSE`,
 			tenantID.Value(), vendorID,
 		)
 		if err != nil {
@@ -104,7 +116,7 @@ func (rm *PurchasedFromRelationshipReadModel) GetByVendorID(ctx context.Context,
 
 		for rows.Next() {
 			var dto PurchasedFromRelationshipDTO
-			if err := rows.Scan(&dto.ID, &dto.VendorID, &dto.ComponentID, &dto.Notes, &dto.CreatedAt); err != nil {
+			if err := rows.Scan(&dto.ID, &dto.VendorID, &dto.VendorName, &dto.ComponentID, &dto.ComponentName, &dto.Notes, &dto.CreatedAt); err != nil {
 				return err
 			}
 			relationships = append(relationships, dto)
@@ -125,7 +137,12 @@ func (rm *PurchasedFromRelationshipReadModel) GetByComponentID(ctx context.Conte
 	relationships := make([]PurchasedFromRelationshipDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, vendor_id, component_id, notes, created_at FROM purchased_from_relationships WHERE tenant_id = $1 AND component_id = $2 AND is_deleted = FALSE",
+			`SELECT r.id, r.vendor_id, COALESCE(v.name, '') as vendor_name,
+			        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
+			 FROM purchased_from_relationships r
+			 LEFT JOIN vendors v ON v.tenant_id = r.tenant_id AND v.id = r.vendor_id AND v.is_deleted = FALSE
+			 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
+			 WHERE r.tenant_id = $1 AND r.component_id = $2 AND r.is_deleted = FALSE`,
 			tenantID.Value(), componentID,
 		)
 		if err != nil {
@@ -135,7 +152,7 @@ func (rm *PurchasedFromRelationshipReadModel) GetByComponentID(ctx context.Conte
 
 		for rows.Next() {
 			var dto PurchasedFromRelationshipDTO
-			if err := rows.Scan(&dto.ID, &dto.VendorID, &dto.ComponentID, &dto.Notes, &dto.CreatedAt); err != nil {
+			if err := rows.Scan(&dto.ID, &dto.VendorID, &dto.VendorName, &dto.ComponentID, &dto.ComponentName, &dto.Notes, &dto.CreatedAt); err != nil {
 				return err
 			}
 			relationships = append(relationships, dto)

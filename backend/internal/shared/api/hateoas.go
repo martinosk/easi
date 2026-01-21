@@ -561,3 +561,53 @@ func (h *HATEOASLinks) FitScoresCollectionLinksForActor(componentID string, acto
 	}
 	return links
 }
+
+func (h *HATEOASLinks) AcquiredEntityLinksForActor(id string, actor sharedctx.Actor) Links {
+	p := "/acquired-entities/" + id
+	links := Links{"self": h.get(p), "collection": h.get("/acquired-entities")}
+	if actor.CanWrite("components") {
+		links["edit"] = h.put(p)
+	}
+	if actor.CanDelete("components") {
+		links["delete"] = h.del(p)
+	}
+	return links
+}
+
+func (h *HATEOASLinks) VendorLinksForActor(id string, actor sharedctx.Actor) Links {
+	p := "/vendors/" + id
+	links := Links{"self": h.get(p), "collection": h.get("/vendors")}
+	if actor.CanWrite("components") {
+		links["edit"] = h.put(p)
+	}
+	if actor.CanDelete("components") {
+		links["delete"] = h.del(p)
+	}
+	return links
+}
+
+func (h *HATEOASLinks) InternalTeamLinksForActor(id string, actor sharedctx.Actor) Links {
+	p := "/internal-teams/" + id
+	links := Links{"self": h.get(p), "collection": h.get("/internal-teams")}
+	if actor.CanWrite("components") {
+		links["edit"] = h.put(p)
+	}
+	if actor.CanDelete("components") {
+		links["delete"] = h.del(p)
+	}
+	return links
+}
+
+func (h *HATEOASLinks) OriginRelationshipLinksForActor(basePath, id, componentID string, extraLinks map[string]types.Link, actor sharedctx.Actor) Links {
+	links := Links{
+		"self":      h.get(basePath + "/" + id),
+		"component": h.get("/components/" + componentID),
+	}
+	for k, v := range extraLinks {
+		links[k] = v
+	}
+	if actor.CanDelete("components") {
+		links["delete"] = h.del(basePath + "/" + id)
+	}
+	return links
+}

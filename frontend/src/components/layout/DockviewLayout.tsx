@@ -25,6 +25,7 @@ interface DockviewLayoutProps {
   onAddComponent?: () => void;
   onAddCapability?: () => void;
   canCreateView?: boolean;
+  canCreateOriginEntity?: boolean;
   onConnect: (source: string, target: string) => void;
   onComponentDrop: (componentId: string, x: number, y: number) => Promise<void>;
   onComponentSelect: (componentId: string) => void;
@@ -128,7 +129,8 @@ function usePanelParams(props: DockviewLayoutProps) {
     onEditCapability: props.onEditCapability,
     onEditComponent: props.onEditComponent,
     canCreateView: props.canCreateView,
-  }), [props.onComponentSelect, props.onCapabilitySelect, props.onViewSelect, props.onAddComponent, props.onAddCapability, props.onEditCapability, props.onEditComponent, props.canCreateView]);
+    canCreateOriginEntity: props.canCreateOriginEntity,
+  }), [props.onComponentSelect, props.onCapabilitySelect, props.onViewSelect, props.onAddComponent, props.onAddCapability, props.onEditCapability, props.onEditComponent, props.canCreateView, props.canCreateOriginEntity]);
 
   const details = useCallback(() => ({
     selectedNodeId: props.selectedNodeId,
@@ -249,6 +251,7 @@ const NavigationTreePanel = (props: IDockviewPanelProps<{
   onEditCapability: (capability: Capability) => void;
   onEditComponent: (componentId?: string) => void;
   canCreateView?: boolean;
+  canCreateOriginEntity?: boolean;
 }>) => {
   return (
     <div style={{ height: '100%', width: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -266,6 +269,7 @@ const NavigationTreePanel = (props: IDockviewPanelProps<{
           onEditCapability={props.params.onEditCapability}
           onEditComponent={props.params.onEditComponent}
           canCreateView={props.params.canCreateView}
+          canCreateOriginEntity={props.params.canCreateOriginEntity}
         />
       </ErrorBoundary>
     </div>

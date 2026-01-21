@@ -150,10 +150,10 @@ func SetupArchitectureModelingRoutes(
 	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, hateoas)
 	expertHandlers := NewComponentExpertHandlers(commandBus, componentReadModel)
 	relationHandlers := NewRelationHandlers(commandBus, relationReadModel, hateoas)
-	acquiredEntityHandlers := NewAcquiredEntityHandlers(commandBus, acquiredEntityReadModel)
-	vendorHandlers := NewVendorHandlers(commandBus, vendorReadModel)
-	internalTeamHandlers := NewInternalTeamHandlers(commandBus, internalTeamReadModel)
-	originRelationshipHandlers := NewOriginRelationshipHandlers(commandBus, acquiredViaReadModel, purchasedFromReadModel, builtByReadModel)
+	acquiredEntityHandlers := NewAcquiredEntityHandlers(commandBus, acquiredEntityReadModel, hateoas)
+	vendorHandlers := NewVendorHandlers(commandBus, vendorReadModel, hateoas)
+	internalTeamHandlers := NewInternalTeamHandlers(commandBus, internalTeamReadModel, hateoas)
+	originRelationshipHandlers := NewOriginRelationshipHandlers(commandBus, acquiredViaReadModel, purchasedFromReadModel, builtByReadModel, hateoas)
 
 	// Register component routes
 	r.Route("/components", func(r chi.Router) {
@@ -162,6 +162,7 @@ func SetupArchitectureModelingRoutes(
 			r.Get("/", componentHandlers.GetAllComponents)
 			r.Get("/expert-roles", expertHandlers.GetExpertRoles)
 			r.Get("/{id}", componentHandlers.GetComponentByID)
+			r.Get("/{componentId}/origins", originRelationshipHandlers.GetAllOriginsByComponent)
 			r.Get("/{componentId}/origin/acquired-via", originRelationshipHandlers.GetAcquiredViaByComponent)
 			r.Get("/{componentId}/origin/purchased-from", originRelationshipHandlers.GetPurchasedFromByComponent)
 			r.Get("/{componentId}/origin/built-by", originRelationshipHandlers.GetBuiltByByComponent)

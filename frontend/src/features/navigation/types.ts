@@ -14,6 +14,7 @@ export interface NavigationTreeProps {
   onEditCapability?: (capability: Capability) => void;
   onEditComponent?: (componentId: string) => void;
   canCreateView?: boolean;
+  canCreateOriginEntity?: boolean;
 }
 
 export interface ViewContextMenuState {

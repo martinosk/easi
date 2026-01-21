@@ -5,26 +5,28 @@ import (
 
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
-	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
-	"easi/backend/internal/shared/types"
 )
 
 type VendorHandlers struct {
 	commandBus       cqrs.CommandBus
 	readModel        *readmodels.VendorReadModel
 	paginationHelper *sharedAPI.PaginationHelper
+	hateoas          *sharedAPI.HATEOASLinks
 }
 
 func NewVendorHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.VendorReadModel,
+	hateoas *sharedAPI.HATEOASLinks,
 ) *VendorHandlers {
 	return &VendorHandlers{
 		commandBus:       commandBus,
 		readModel:        readModel,
 		paginationHelper: sharedAPI.NewPaginationHelper("/api/v1/vendors"),
+		hateoas:          hateoas,
 	}
 }
 
@@ -57,14 +59,6 @@ func (h *VendorHandlers) CreateVendor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !h.validateName(w, req.Name) {
-		return
-	}
-
-	if req.Notes != "" && !h.validateNotes(w, req.Notes) {
-		return
-	}
-
 	cmd := &commands.CreateVendor{
 		Name:                  req.Name,
 		ImplementationPartner: req.ImplementationPartner,
@@ -73,14 +67,14 @@ func (h *VendorHandlers) CreateVendor(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.commandBus.Dispatch(r.Context(), cmd)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create vendor")
+		sharedAPI.HandleError(w, err)
 		return
 	}
 
 	location := sharedAPI.BuildResourceLink(sharedAPI.ResourcePath("/vendors"), sharedAPI.ResourceID(result.CreatedID))
 	vendor, err := h.readModel.GetByID(r.Context(), result.CreatedID)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve created vendor")
+		sharedAPI.HandleErrorWithDefault(w, err, "Failed to retrieve created vendor")
 		return
 	}
 
@@ -92,7 +86,7 @@ func (h *VendorHandlers) CreateVendor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.enrichWithLinks(vendor)
+	h.enrichWithLinks(r, vendor)
 	sharedAPI.RespondCreated(w, location, vendor)
 }
 
@@ -122,7 +116,7 @@ func (h *VendorHandlers) GetAllVendors(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for i := range vendors {
-		h.enrichWithLinks(&vendors[i])
+		h.enrichWithLinks(r, &vendors[i])
 	}
 
 	pageables := ConvertVendorsToNamePageable(vendors)
@@ -164,7 +158,7 @@ func (h *VendorHandlers) GetVendorByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.enrichWithLinks(vendor)
+	h.enrichWithLinks(r, vendor)
 	sharedAPI.RespondJSON(w, http.StatusOK, vendor)
 }
 
@@ -189,14 +183,6 @@ func (h *VendorHandlers) UpdateVendor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !h.validateName(w, req.Name) {
-		return
-	}
-
-	if req.Notes != "" && !h.validateNotes(w, req.Notes) {
-		return
-	}
-
 	cmd := &commands.UpdateVendor{
 		ID:                    id,
 		Name:                  req.Name,
@@ -205,13 +191,13 @@ func (h *VendorHandlers) UpdateVendor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update vendor")
+		sharedAPI.HandleError(w, err)
 		return
 	}
 
 	vendor, err := h.readModel.GetByID(r.Context(), id)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve updated vendor")
+		sharedAPI.HandleErrorWithDefault(w, err, "Failed to retrieve updated vendor")
 		return
 	}
 
@@ -220,7 +206,7 @@ func (h *VendorHandlers) UpdateVendor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.enrichWithLinks(vendor)
+	h.enrichWithLinks(r, vendor)
 	sharedAPI.RespondJSON(w, http.StatusOK, vendor)
 }
 
@@ -247,26 +233,7 @@ func (h *VendorHandlers) DeleteVendor(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *VendorHandlers) validateName(w http.ResponseWriter, name string) bool {
-	if _, err := valueobjects.NewEntityName(name); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return false
-	}
-	return true
-}
-
-func (h *VendorHandlers) validateNotes(w http.ResponseWriter, notes string) bool {
-	if _, err := valueobjects.NewNotes(notes); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return false
-	}
-	return true
-}
-
-func (h *VendorHandlers) enrichWithLinks(vendor *readmodels.VendorDTO) {
-	vendor.Links = types.Links{
-		"self":   {Href: sharedAPI.BuildResourceLink("/vendors", sharedAPI.ResourceID(vendor.ID)), Method: "GET"},
-		"edit":   {Href: sharedAPI.BuildResourceLink("/vendors", sharedAPI.ResourceID(vendor.ID)), Method: "PUT"},
-		"delete": {Href: sharedAPI.BuildResourceLink("/vendors", sharedAPI.ResourceID(vendor.ID)), Method: "DELETE"},
-	}
+func (h *VendorHandlers) enrichWithLinks(r *http.Request, vendor *readmodels.VendorDTO) {
+	actor, _ := sharedctx.GetActor(r.Context())
+	vendor.Links = h.hateoas.VendorLinksForActor(vendor.ID, actor)
 }

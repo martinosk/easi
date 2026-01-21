@@ -6,6 +6,7 @@ import (
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/types"
 )
@@ -15,6 +16,7 @@ type OriginRelationshipHandlers struct {
 	acquiredViaReadModel   *readmodels.AcquiredViaRelationshipReadModel
 	purchasedFromReadModel *readmodels.PurchasedFromRelationshipReadModel
 	builtByReadModel       *readmodels.BuiltByRelationshipReadModel
+	hateoas                *sharedAPI.HATEOASLinks
 }
 
 func NewOriginRelationshipHandlers(
@@ -22,12 +24,14 @@ func NewOriginRelationshipHandlers(
 	acquiredViaReadModel *readmodels.AcquiredViaRelationshipReadModel,
 	purchasedFromReadModel *readmodels.PurchasedFromRelationshipReadModel,
 	builtByReadModel *readmodels.BuiltByRelationshipReadModel,
+	hateoas *sharedAPI.HATEOASLinks,
 ) *OriginRelationshipHandlers {
 	return &OriginRelationshipHandlers{
 		commandBus:             commandBus,
 		acquiredViaReadModel:   acquiredViaReadModel,
 		purchasedFromReadModel: purchasedFromReadModel,
 		builtByReadModel:       builtByReadModel,
+		hateoas:                hateoas,
 	}
 }
 
@@ -47,6 +51,74 @@ type CreateBuiltByRelationshipRequest struct {
 	InternalTeamID string `json:"internalTeamId"`
 	ComponentID    string `json:"componentId"`
 	Notes          string `json:"notes,omitempty"`
+}
+
+type ComponentOriginsDTO struct {
+	ComponentID   string                                    `json:"componentId"`
+	AcquiredVia   []readmodels.AcquiredViaRelationshipDTO   `json:"acquiredVia"`
+	PurchasedFrom []readmodels.PurchasedFromRelationshipDTO `json:"purchasedFrom"`
+	BuiltBy       []readmodels.BuiltByRelationshipDTO       `json:"builtBy"`
+	Links         types.Links                               `json:"_links,omitempty"`
+}
+
+// GetAllOriginsByComponent godoc
+// @Summary Get all origin relationships for a component
+// @Description Retrieves all origin relationships (acquired-via, purchased-from, built-by) for a component
+// @Tags origin-relationships
+// @Produce json
+// @Param componentId path string true "Component ID"
+// @Success 200 {object} ComponentOriginsDTO
+// @Failure 401 {object} sharedAPI.ErrorResponse "Unauthorized - authentication required"
+// @Failure 403 {object} sharedAPI.ErrorResponse "Forbidden - insufficient permissions"
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /components/{componentId}/origins [get]
+func (h *OriginRelationshipHandlers) GetAllOriginsByComponent(w http.ResponseWriter, r *http.Request) {
+	componentID := sharedAPI.GetPathParam(r, "componentId")
+	actor, _ := sharedctx.GetActor(r.Context())
+
+	acquiredVia, err := h.acquiredViaReadModel.GetByComponentID(r.Context(), componentID)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve acquired-via relationships")
+		return
+	}
+
+	purchasedFrom, err := h.purchasedFromReadModel.GetByComponentID(r.Context(), componentID)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve purchased-from relationships")
+		return
+	}
+
+	builtBy, err := h.builtByReadModel.GetByComponentID(r.Context(), componentID)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve built-by relationships")
+		return
+	}
+
+	for i := range acquiredVia {
+		h.enrichAcquiredViaWithLinks(actor, &acquiredVia[i])
+	}
+	for i := range purchasedFrom {
+		h.enrichPurchasedFromWithLinks(actor, &purchasedFrom[i])
+	}
+	for i := range builtBy {
+		h.enrichBuiltByWithLinks(actor, &builtBy[i])
+	}
+
+	origins := ComponentOriginsDTO{
+		ComponentID:   componentID,
+		AcquiredVia:   acquiredVia,
+		PurchasedFrom: purchasedFrom,
+		BuiltBy:       builtBy,
+		Links: types.Links{
+			"self":         {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origins"), Method: "GET"},
+			"component":    {Href: sharedAPI.BuildResourceLink("/components", sharedAPI.ResourceID(componentID)), Method: "GET"},
+			"acquired-via": {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origin/acquired-via"), Method: "GET"},
+			"purchased-from": {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origin/purchased-from"), Method: "GET"},
+			"built-by":     {Href: sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(componentID), "/origin/built-by"), Method: "GET"},
+		},
+	}
+
+	sharedAPI.RespondJSON(w, http.StatusOK, origins)
 }
 
 // CreateAcquiredViaRelationship godoc
@@ -78,8 +150,11 @@ func (h *OriginRelationshipHandlers) CreateAcquiredViaRelationship(w http.Respon
 		return
 	}
 
+	actor, _ := sharedctx.GetActor(r.Context())
 	relationship, fetchErr := h.acquiredViaReadModel.GetByID(r.Context(), result.CreatedID)
-	respondCreatedRelationship(w, componentID, "acquired-via", result.CreatedID, relationship, fetchErr, h.enrichAcquiredViaWithLinks)
+	respondCreatedRelationship(w, componentID, "acquired-via", result.CreatedID, relationship, fetchErr, func(rel *readmodels.AcquiredViaRelationshipDTO) {
+		h.enrichAcquiredViaWithLinks(actor, rel)
+	})
 }
 
 // GetAcquiredViaByComponent godoc
@@ -93,8 +168,11 @@ func (h *OriginRelationshipHandlers) CreateAcquiredViaRelationship(w http.Respon
 // @Router /components/{componentId}/origin/acquired-via [get]
 func (h *OriginRelationshipHandlers) GetAcquiredViaByComponent(w http.ResponseWriter, r *http.Request) {
 	componentID := sharedAPI.GetPathParam(r, "componentId")
+	actor, _ := sharedctx.GetActor(r.Context())
 	relationships, err := h.acquiredViaReadModel.GetByComponentID(r.Context(), componentID)
-	respondRelationshipsByComponent(w, componentID, "acquired-via", relationships, err, h.enrichAcquiredViaWithLinks)
+	respondRelationshipsByComponent(w, componentID, "acquired-via", relationships, err, func(rel *readmodels.AcquiredViaRelationshipDTO) {
+		h.enrichAcquiredViaWithLinks(actor, rel)
+	})
 }
 
 // DeleteAcquiredViaRelationship godoc
@@ -140,8 +218,11 @@ func (h *OriginRelationshipHandlers) CreatePurchasedFromRelationship(w http.Resp
 		return
 	}
 
+	actor, _ := sharedctx.GetActor(r.Context())
 	relationship, fetchErr := h.purchasedFromReadModel.GetByID(r.Context(), result.CreatedID)
-	respondCreatedRelationship(w, componentID, "purchased-from", result.CreatedID, relationship, fetchErr, h.enrichPurchasedFromWithLinks)
+	respondCreatedRelationship(w, componentID, "purchased-from", result.CreatedID, relationship, fetchErr, func(rel *readmodels.PurchasedFromRelationshipDTO) {
+		h.enrichPurchasedFromWithLinks(actor, rel)
+	})
 }
 
 // GetPurchasedFromByComponent godoc
@@ -155,8 +236,11 @@ func (h *OriginRelationshipHandlers) CreatePurchasedFromRelationship(w http.Resp
 // @Router /components/{componentId}/origin/purchased-from [get]
 func (h *OriginRelationshipHandlers) GetPurchasedFromByComponent(w http.ResponseWriter, r *http.Request) {
 	componentID := sharedAPI.GetPathParam(r, "componentId")
+	actor, _ := sharedctx.GetActor(r.Context())
 	relationships, err := h.purchasedFromReadModel.GetByComponentID(r.Context(), componentID)
-	respondRelationshipsByComponent(w, componentID, "purchased-from", relationships, err, h.enrichPurchasedFromWithLinks)
+	respondRelationshipsByComponent(w, componentID, "purchased-from", relationships, err, func(rel *readmodels.PurchasedFromRelationshipDTO) {
+		h.enrichPurchasedFromWithLinks(actor, rel)
+	})
 }
 
 // DeletePurchasedFromRelationship godoc
@@ -202,8 +286,11 @@ func (h *OriginRelationshipHandlers) CreateBuiltByRelationship(w http.ResponseWr
 		return
 	}
 
+	actor, _ := sharedctx.GetActor(r.Context())
 	relationship, fetchErr := h.builtByReadModel.GetByID(r.Context(), result.CreatedID)
-	respondCreatedRelationship(w, componentID, "built-by", result.CreatedID, relationship, fetchErr, h.enrichBuiltByWithLinks)
+	respondCreatedRelationship(w, componentID, "built-by", result.CreatedID, relationship, fetchErr, func(rel *readmodels.BuiltByRelationshipDTO) {
+		h.enrichBuiltByWithLinks(actor, rel)
+	})
 }
 
 // GetBuiltByByComponent godoc
@@ -217,8 +304,11 @@ func (h *OriginRelationshipHandlers) CreateBuiltByRelationship(w http.ResponseWr
 // @Router /components/{componentId}/origin/built-by [get]
 func (h *OriginRelationshipHandlers) GetBuiltByByComponent(w http.ResponseWriter, r *http.Request) {
 	componentID := sharedAPI.GetPathParam(r, "componentId")
+	actor, _ := sharedctx.GetActor(r.Context())
 	relationships, err := h.builtByReadModel.GetByComponentID(r.Context(), componentID)
-	respondRelationshipsByComponent(w, componentID, "built-by", relationships, err, h.enrichBuiltByWithLinks)
+	respondRelationshipsByComponent(w, componentID, "built-by", relationships, err, func(rel *readmodels.BuiltByRelationshipDTO) {
+		h.enrichBuiltByWithLinks(actor, rel)
+	})
 }
 
 // DeleteBuiltByRelationship godoc
@@ -292,32 +382,23 @@ func buildComponentOriginLinks(componentID, originType string) types.Links {
 	}
 }
 
-func buildRelationshipLinks(basePath, id, componentID string, extraLinks map[string]types.Link) types.Links {
-	links := types.Links{
-		"self":      {Href: sharedAPI.BuildResourceLink(sharedAPI.ResourcePath(basePath), sharedAPI.ResourceID(id)), Method: "GET"},
-		"delete":    {Href: sharedAPI.BuildResourceLink(sharedAPI.ResourcePath(basePath), sharedAPI.ResourceID(id)), Method: "DELETE"},
-		"component": {Href: sharedAPI.BuildResourceLink("/components", sharedAPI.ResourceID(componentID)), Method: "GET"},
-	}
-	for k, v := range extraLinks {
-		links[k] = v
-	}
-	return links
-}
-
-func (h *OriginRelationshipHandlers) enrichAcquiredViaWithLinks(rel *readmodels.AcquiredViaRelationshipDTO) {
-	rel.Links = buildRelationshipLinks("/origin-relationships/acquired-via", rel.ID, rel.ComponentID, map[string]types.Link{
+func (h *OriginRelationshipHandlers) enrichAcquiredViaWithLinks(actor sharedctx.Actor, rel *readmodels.AcquiredViaRelationshipDTO) {
+	extraLinks := map[string]types.Link{
 		"acquiredEntity": {Href: sharedAPI.BuildResourceLink("/acquired-entities", sharedAPI.ResourceID(rel.AcquiredEntityID)), Method: "GET"},
-	})
+	}
+	rel.Links = h.hateoas.OriginRelationshipLinksForActor("/origin-relationships/acquired-via", rel.ID, rel.ComponentID, extraLinks, actor)
 }
 
-func (h *OriginRelationshipHandlers) enrichPurchasedFromWithLinks(rel *readmodels.PurchasedFromRelationshipDTO) {
-	rel.Links = buildRelationshipLinks("/origin-relationships/purchased-from", rel.ID, rel.ComponentID, map[string]types.Link{
+func (h *OriginRelationshipHandlers) enrichPurchasedFromWithLinks(actor sharedctx.Actor, rel *readmodels.PurchasedFromRelationshipDTO) {
+	extraLinks := map[string]types.Link{
 		"vendor": {Href: sharedAPI.BuildResourceLink("/vendors", sharedAPI.ResourceID(rel.VendorID)), Method: "GET"},
-	})
+	}
+	rel.Links = h.hateoas.OriginRelationshipLinksForActor("/origin-relationships/purchased-from", rel.ID, rel.ComponentID, extraLinks, actor)
 }
 
-func (h *OriginRelationshipHandlers) enrichBuiltByWithLinks(rel *readmodels.BuiltByRelationshipDTO) {
-	rel.Links = buildRelationshipLinks("/origin-relationships/built-by", rel.ID, rel.ComponentID, map[string]types.Link{
+func (h *OriginRelationshipHandlers) enrichBuiltByWithLinks(actor sharedctx.Actor, rel *readmodels.BuiltByRelationshipDTO) {
+	extraLinks := map[string]types.Link{
 		"internalTeam": {Href: sharedAPI.BuildResourceLink("/internal-teams", sharedAPI.ResourceID(rel.InternalTeamID)), Method: "GET"},
-	})
+	}
+	rel.Links = h.hateoas.OriginRelationshipLinksForActor("/origin-relationships/built-by", rel.ID, rel.ComponentID, extraLinks, actor)
 }

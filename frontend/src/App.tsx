@@ -72,6 +72,7 @@ function useCanvasPermissions() {
     canCreateComponent: hasPermission('components:write'),
     canCreateCapability: hasPermission('capabilities:write'),
     canCreateView: hasPermission('views:write'),
+    canCreateOriginEntity: hasPermission('components:write'),
   }), [hasPermission]);
 }
 
@@ -108,6 +109,7 @@ function CanvasView({
       onAddComponent={permissions.canCreateComponent ? dialogActions.openComponentDialog : undefined}
       onAddCapability={permissions.canCreateCapability ? dialogActions.openCapabilityDialog : undefined}
       canCreateView={permissions.canCreateView}
+      canCreateOriginEntity={permissions.canCreateOriginEntity}
       onConnect={dialogActions.openRelationDialog}
       onComponentDrop={(id, x, y) => addComponentToView(id as import('./api/types').ComponentId, x, y)}
       onComponentSelect={navigateToComponent}

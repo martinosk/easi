@@ -35,6 +35,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   onEditCapability,
   onEditComponent,
   canCreateView = true,
+  canCreateOriginEntity = false,
 }) => {
   const { data: components = [] } = useComponents();
   const { currentView } = useCurrentView();
@@ -116,7 +117,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
               selectedEntityId={selectedNodeId?.startsWith('acq-') ? selectedNodeId.slice(4) : null}
               isExpanded={treeState.isAcquiredEntitiesExpanded}
               onToggle={() => treeState.setIsAcquiredEntitiesExpanded(!treeState.isAcquiredEntitiesExpanded)}
-              onAddEntity={() => setOpenOriginDialog('acquired')}
+              onAddEntity={canCreateOriginEntity ? () => setOpenOriginDialog('acquired') : undefined}
               onEntityContextMenu={(e) => e.preventDefault()}
             />
 
@@ -125,7 +126,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
               selectedVendorId={selectedNodeId?.startsWith('vendor-') ? selectedNodeId.slice(7) : null}
               isExpanded={treeState.isVendorsExpanded}
               onToggle={() => treeState.setIsVendorsExpanded(!treeState.isVendorsExpanded)}
-              onAddVendor={() => setOpenOriginDialog('vendor')}
+              onAddVendor={canCreateOriginEntity ? () => setOpenOriginDialog('vendor') : undefined}
               onVendorContextMenu={(e) => e.preventDefault()}
             />
 
@@ -134,7 +135,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
               selectedTeamId={selectedNodeId?.startsWith('team-') ? selectedNodeId.slice(5) : null}
               isExpanded={treeState.isInternalTeamsExpanded}
               onToggle={() => treeState.setIsInternalTeamsExpanded(!treeState.isInternalTeamsExpanded)}
-              onAddTeam={() => setOpenOriginDialog('team')}
+              onAddTeam={canCreateOriginEntity ? () => setOpenOriginDialog('team') : undefined}
               onTeamContextMenu={(e) => e.preventDefault()}
             />
           </div>

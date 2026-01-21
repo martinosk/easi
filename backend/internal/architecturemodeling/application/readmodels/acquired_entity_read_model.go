@@ -17,6 +17,7 @@ type AcquiredEntityDTO struct {
 	IntegrationStatus string      `json:"integrationStatus,omitempty"`
 	Notes             string      `json:"notes,omitempty"`
 	CreatedAt         time.Time   `json:"createdAt"`
+	UpdatedAt         *time.Time  `json:"updatedAt,omitempty"`
 	Links             types.Links `json:"_links,omitempty"`
 }
 
@@ -78,9 +79,9 @@ func (rm *AcquiredEntityReadModel) GetByID(ctx context.Context, id string) (*Acq
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, acquisition_date, integration_status, notes, created_at FROM acquired_entities WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
+			"SELECT id, name, acquisition_date, integration_status, notes, created_at, updated_at FROM acquired_entities WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
 			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.Name, &dto.AcquisitionDate, &dto.IntegrationStatus, &dto.Notes, &dto.CreatedAt)
+		).Scan(&dto.ID, &dto.Name, &dto.AcquisitionDate, &dto.IntegrationStatus, &dto.Notes, &dto.CreatedAt, &dto.UpdatedAt)
 
 		if err == sql.ErrNoRows {
 			notFound = true
@@ -108,7 +109,7 @@ func (rm *AcquiredEntityReadModel) GetAll(ctx context.Context) ([]AcquiredEntity
 	entities := make([]AcquiredEntityDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, acquisition_date, integration_status, notes, created_at FROM acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC",
+			"SELECT id, name, acquisition_date, integration_status, notes, created_at, updated_at FROM acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC",
 			tenantID.Value(),
 		)
 		if err != nil {
@@ -118,7 +119,7 @@ func (rm *AcquiredEntityReadModel) GetAll(ctx context.Context) ([]AcquiredEntity
 
 		for rows.Next() {
 			var dto AcquiredEntityDTO
-			if err := rows.Scan(&dto.ID, &dto.Name, &dto.AcquisitionDate, &dto.IntegrationStatus, &dto.Notes, &dto.CreatedAt); err != nil {
+			if err := rows.Scan(&dto.ID, &dto.Name, &dto.AcquisitionDate, &dto.IntegrationStatus, &dto.Notes, &dto.CreatedAt, &dto.UpdatedAt); err != nil {
 				return err
 			}
 			entities = append(entities, dto)
@@ -145,12 +146,12 @@ func (rm *AcquiredEntityReadModel) GetAllPaginated(ctx context.Context, limit in
 
 		if afterCursor == "" {
 			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, acquisition_date, integration_status, notes, created_at FROM acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
+				"SELECT id, name, acquisition_date, integration_status, notes, created_at, updated_at FROM acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
 				tenantID.Value(), queryLimit,
 			)
 		} else {
 			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, acquisition_date, integration_status, notes, created_at FROM acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
+				"SELECT id, name, acquisition_date, integration_status, notes, created_at, updated_at FROM acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
 				tenantID.Value(), afterName, afterCursor, queryLimit,
 			)
 		}
@@ -161,7 +162,7 @@ func (rm *AcquiredEntityReadModel) GetAllPaginated(ctx context.Context, limit in
 
 		for rows.Next() {
 			var dto AcquiredEntityDTO
-			if err := rows.Scan(&dto.ID, &dto.Name, &dto.AcquisitionDate, &dto.IntegrationStatus, &dto.Notes, &dto.CreatedAt); err != nil {
+			if err := rows.Scan(&dto.ID, &dto.Name, &dto.AcquisitionDate, &dto.IntegrationStatus, &dto.Notes, &dto.CreatedAt, &dto.UpdatedAt); err != nil {
 				return err
 			}
 			entities = append(entities, dto)

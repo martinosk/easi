@@ -16,6 +16,7 @@ type VendorDTO struct {
 	ImplementationPartner string      `json:"implementationPartner,omitempty"`
 	Notes                 string      `json:"notes,omitempty"`
 	CreatedAt             time.Time   `json:"createdAt"`
+	UpdatedAt             *time.Time  `json:"updatedAt,omitempty"`
 	Links                 types.Links `json:"_links,omitempty"`
 }
 
@@ -77,9 +78,9 @@ func (rm *VendorReadModel) GetByID(ctx context.Context, id string) (*VendorDTO, 
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, implementation_partner, notes, created_at FROM vendors WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
+			"SELECT id, name, implementation_partner, notes, created_at, updated_at FROM vendors WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
 			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.Name, &dto.ImplementationPartner, &dto.Notes, &dto.CreatedAt)
+		).Scan(&dto.ID, &dto.Name, &dto.ImplementationPartner, &dto.Notes, &dto.CreatedAt, &dto.UpdatedAt)
 
 		if err == sql.ErrNoRows {
 			notFound = true
@@ -107,7 +108,7 @@ func (rm *VendorReadModel) GetAll(ctx context.Context) ([]VendorDTO, error) {
 	vendors := make([]VendorDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, implementation_partner, notes, created_at FROM vendors WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC",
+			"SELECT id, name, implementation_partner, notes, created_at, updated_at FROM vendors WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC",
 			tenantID.Value(),
 		)
 		if err != nil {
@@ -117,7 +118,7 @@ func (rm *VendorReadModel) GetAll(ctx context.Context) ([]VendorDTO, error) {
 
 		for rows.Next() {
 			var dto VendorDTO
-			if err := rows.Scan(&dto.ID, &dto.Name, &dto.ImplementationPartner, &dto.Notes, &dto.CreatedAt); err != nil {
+			if err := rows.Scan(&dto.ID, &dto.Name, &dto.ImplementationPartner, &dto.Notes, &dto.CreatedAt, &dto.UpdatedAt); err != nil {
 				return err
 			}
 			vendors = append(vendors, dto)
@@ -144,12 +145,12 @@ func (rm *VendorReadModel) GetAllPaginated(ctx context.Context, limit int, after
 
 		if afterCursor == "" {
 			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, implementation_partner, notes, created_at FROM vendors WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
+				"SELECT id, name, implementation_partner, notes, created_at, updated_at FROM vendors WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
 				tenantID.Value(), queryLimit,
 			)
 		} else {
 			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, implementation_partner, notes, created_at FROM vendors WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
+				"SELECT id, name, implementation_partner, notes, created_at, updated_at FROM vendors WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
 				tenantID.Value(), afterName, afterCursor, queryLimit,
 			)
 		}
@@ -160,7 +161,7 @@ func (rm *VendorReadModel) GetAllPaginated(ctx context.Context, limit int, after
 
 		for rows.Next() {
 			var dto VendorDTO
-			if err := rows.Scan(&dto.ID, &dto.Name, &dto.ImplementationPartner, &dto.Notes, &dto.CreatedAt); err != nil {
+			if err := rows.Scan(&dto.ID, &dto.Name, &dto.ImplementationPartner, &dto.Notes, &dto.CreatedAt, &dto.UpdatedAt); err != nil {
 				return err
 			}
 			vendors = append(vendors, dto)

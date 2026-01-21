@@ -11,12 +11,14 @@ import (
 )
 
 type BuiltByRelationshipDTO struct {
-	ID             string      `json:"id"`
-	InternalTeamID string      `json:"internalTeamId"`
-	ComponentID    string      `json:"componentId"`
-	Notes          string      `json:"notes,omitempty"`
-	CreatedAt      time.Time   `json:"createdAt"`
-	Links          types.Links `json:"_links,omitempty"`
+	ID               string      `json:"id"`
+	InternalTeamID   string      `json:"internalTeamId"`
+	InternalTeamName string      `json:"internalTeamName,omitempty"`
+	ComponentID      string      `json:"componentId"`
+	ComponentName    string      `json:"componentName,omitempty"`
+	Notes            string      `json:"notes,omitempty"`
+	CreatedAt        time.Time   `json:"createdAt"`
+	Links            types.Links `json:"_links,omitempty"`
 }
 
 type BuiltByRelationshipReadModel struct {
@@ -64,9 +66,14 @@ func (rm *BuiltByRelationshipReadModel) GetByID(ctx context.Context, id string) 
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, internal_team_id, component_id, notes, created_at FROM built_by_relationships WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
+			`SELECT r.id, r.internal_team_id, COALESCE(t.name, '') as internal_team_name,
+			        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
+			 FROM built_by_relationships r
+			 LEFT JOIN internal_teams t ON t.tenant_id = r.tenant_id AND t.id = r.internal_team_id AND t.is_deleted = FALSE
+			 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
+			 WHERE r.tenant_id = $1 AND r.id = $2 AND r.is_deleted = FALSE`,
 			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.InternalTeamID, &dto.ComponentID, &dto.Notes, &dto.CreatedAt)
+		).Scan(&dto.ID, &dto.InternalTeamID, &dto.InternalTeamName, &dto.ComponentID, &dto.ComponentName, &dto.Notes, &dto.CreatedAt)
 
 		if err == sql.ErrNoRows {
 			notFound = true
@@ -94,7 +101,12 @@ func (rm *BuiltByRelationshipReadModel) GetByTeamID(ctx context.Context, teamID 
 	relationships := make([]BuiltByRelationshipDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, internal_team_id, component_id, notes, created_at FROM built_by_relationships WHERE tenant_id = $1 AND internal_team_id = $2 AND is_deleted = FALSE",
+			`SELECT r.id, r.internal_team_id, COALESCE(t.name, '') as internal_team_name,
+			        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
+			 FROM built_by_relationships r
+			 LEFT JOIN internal_teams t ON t.tenant_id = r.tenant_id AND t.id = r.internal_team_id AND t.is_deleted = FALSE
+			 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
+			 WHERE r.tenant_id = $1 AND r.internal_team_id = $2 AND r.is_deleted = FALSE`,
 			tenantID.Value(), teamID,
 		)
 		if err != nil {
@@ -104,7 +116,7 @@ func (rm *BuiltByRelationshipReadModel) GetByTeamID(ctx context.Context, teamID 
 
 		for rows.Next() {
 			var dto BuiltByRelationshipDTO
-			if err := rows.Scan(&dto.ID, &dto.InternalTeamID, &dto.ComponentID, &dto.Notes, &dto.CreatedAt); err != nil {
+			if err := rows.Scan(&dto.ID, &dto.InternalTeamID, &dto.InternalTeamName, &dto.ComponentID, &dto.ComponentName, &dto.Notes, &dto.CreatedAt); err != nil {
 				return err
 			}
 			relationships = append(relationships, dto)
@@ -125,7 +137,12 @@ func (rm *BuiltByRelationshipReadModel) GetByComponentID(ctx context.Context, co
 	relationships := make([]BuiltByRelationshipDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, internal_team_id, component_id, notes, created_at FROM built_by_relationships WHERE tenant_id = $1 AND component_id = $2 AND is_deleted = FALSE",
+			`SELECT r.id, r.internal_team_id, COALESCE(t.name, '') as internal_team_name,
+			        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
+			 FROM built_by_relationships r
+			 LEFT JOIN internal_teams t ON t.tenant_id = r.tenant_id AND t.id = r.internal_team_id AND t.is_deleted = FALSE
+			 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
+			 WHERE r.tenant_id = $1 AND r.component_id = $2 AND r.is_deleted = FALSE`,
 			tenantID.Value(), componentID,
 		)
 		if err != nil {
@@ -135,7 +152,7 @@ func (rm *BuiltByRelationshipReadModel) GetByComponentID(ctx context.Context, co
 
 		for rows.Next() {
 			var dto BuiltByRelationshipDTO
-			if err := rows.Scan(&dto.ID, &dto.InternalTeamID, &dto.ComponentID, &dto.Notes, &dto.CreatedAt); err != nil {
+			if err := rows.Scan(&dto.ID, &dto.InternalTeamID, &dto.InternalTeamName, &dto.ComponentID, &dto.ComponentName, &dto.Notes, &dto.CreatedAt); err != nil {
 				return err
 			}
 			relationships = append(relationships, dto)

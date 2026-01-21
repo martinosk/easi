@@ -11,12 +11,14 @@ import (
 )
 
 type AcquiredViaRelationshipDTO struct {
-	ID               string      `json:"id"`
-	AcquiredEntityID string      `json:"acquiredEntityId"`
-	ComponentID      string      `json:"componentId"`
-	Notes            string      `json:"notes,omitempty"`
-	CreatedAt        time.Time   `json:"createdAt"`
-	Links            types.Links `json:"_links,omitempty"`
+	ID                 string      `json:"id"`
+	AcquiredEntityID   string      `json:"acquiredEntityId"`
+	AcquiredEntityName string      `json:"acquiredEntityName,omitempty"`
+	ComponentID        string      `json:"componentId"`
+	ComponentName      string      `json:"componentName,omitempty"`
+	Notes              string      `json:"notes,omitempty"`
+	CreatedAt          time.Time   `json:"createdAt"`
+	Links              types.Links `json:"_links,omitempty"`
 }
 
 type AcquiredViaRelationshipReadModel struct {
@@ -64,9 +66,14 @@ func (rm *AcquiredViaRelationshipReadModel) GetByID(ctx context.Context, id stri
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, acquired_entity_id, component_id, notes, created_at FROM acquired_via_relationships WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
+			`SELECT r.id, r.acquired_entity_id, COALESCE(ae.name, '') as acquired_entity_name,
+			        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
+			 FROM acquired_via_relationships r
+			 LEFT JOIN acquired_entities ae ON ae.tenant_id = r.tenant_id AND ae.id = r.acquired_entity_id AND ae.is_deleted = FALSE
+			 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
+			 WHERE r.tenant_id = $1 AND r.id = $2 AND r.is_deleted = FALSE`,
 			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.AcquiredEntityID, &dto.ComponentID, &dto.Notes, &dto.CreatedAt)
+		).Scan(&dto.ID, &dto.AcquiredEntityID, &dto.AcquiredEntityName, &dto.ComponentID, &dto.ComponentName, &dto.Notes, &dto.CreatedAt)
 
 		if err == sql.ErrNoRows {
 			notFound = true
@@ -94,7 +101,12 @@ func (rm *AcquiredViaRelationshipReadModel) GetByEntityID(ctx context.Context, e
 	relationships := make([]AcquiredViaRelationshipDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, acquired_entity_id, component_id, notes, created_at FROM acquired_via_relationships WHERE tenant_id = $1 AND acquired_entity_id = $2 AND is_deleted = FALSE",
+			`SELECT r.id, r.acquired_entity_id, COALESCE(ae.name, '') as acquired_entity_name,
+			        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
+			 FROM acquired_via_relationships r
+			 LEFT JOIN acquired_entities ae ON ae.tenant_id = r.tenant_id AND ae.id = r.acquired_entity_id AND ae.is_deleted = FALSE
+			 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
+			 WHERE r.tenant_id = $1 AND r.acquired_entity_id = $2 AND r.is_deleted = FALSE`,
 			tenantID.Value(), entityID,
 		)
 		if err != nil {
@@ -104,7 +116,7 @@ func (rm *AcquiredViaRelationshipReadModel) GetByEntityID(ctx context.Context, e
 
 		for rows.Next() {
 			var dto AcquiredViaRelationshipDTO
-			if err := rows.Scan(&dto.ID, &dto.AcquiredEntityID, &dto.ComponentID, &dto.Notes, &dto.CreatedAt); err != nil {
+			if err := rows.Scan(&dto.ID, &dto.AcquiredEntityID, &dto.AcquiredEntityName, &dto.ComponentID, &dto.ComponentName, &dto.Notes, &dto.CreatedAt); err != nil {
 				return err
 			}
 			relationships = append(relationships, dto)
@@ -125,7 +137,12 @@ func (rm *AcquiredViaRelationshipReadModel) GetByComponentID(ctx context.Context
 	relationships := make([]AcquiredViaRelationshipDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, acquired_entity_id, component_id, notes, created_at FROM acquired_via_relationships WHERE tenant_id = $1 AND component_id = $2 AND is_deleted = FALSE",
+			`SELECT r.id, r.acquired_entity_id, COALESCE(ae.name, '') as acquired_entity_name,
+			        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
+			 FROM acquired_via_relationships r
+			 LEFT JOIN acquired_entities ae ON ae.tenant_id = r.tenant_id AND ae.id = r.acquired_entity_id AND ae.is_deleted = FALSE
+			 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
+			 WHERE r.tenant_id = $1 AND r.component_id = $2 AND r.is_deleted = FALSE`,
 			tenantID.Value(), componentID,
 		)
 		if err != nil {
@@ -135,7 +152,7 @@ func (rm *AcquiredViaRelationshipReadModel) GetByComponentID(ctx context.Context
 
 		for rows.Next() {
 			var dto AcquiredViaRelationshipDTO
-			if err := rows.Scan(&dto.ID, &dto.AcquiredEntityID, &dto.ComponentID, &dto.Notes, &dto.CreatedAt); err != nil {
+			if err := rows.Scan(&dto.ID, &dto.AcquiredEntityID, &dto.AcquiredEntityName, &dto.ComponentID, &dto.ComponentName, &dto.Notes, &dto.CreatedAt); err != nil {
 				return err
 			}
 			relationships = append(relationships, dto)

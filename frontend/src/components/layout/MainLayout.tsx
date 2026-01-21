@@ -18,6 +18,7 @@ interface MainLayoutProps {
   onAddComponent?: () => void;
   onAddCapability?: () => void;
   canCreateView?: boolean;
+  canCreateOriginEntity?: boolean;
   onConnect: (source: string, target: string) => void;
   onComponentDrop: (componentId: string, x: number, y: number) => Promise<void>;
   onComponentSelect: (componentId: string) => void;
@@ -79,6 +80,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   onAddComponent,
   onAddCapability,
   canCreateView = true,
+  canCreateOriginEntity = false,
   onConnect,
   onComponentDrop,
   onComponentSelect,
@@ -116,6 +118,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           onEditCapability={onEditCapability}
           onEditComponent={onEditComponent}
           canCreateView={canCreateView}
+          canCreateOriginEntity={canCreateOriginEntity}
         />
 
         <div className="canvas-section">

@@ -6,26 +6,28 @@ import (
 
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
-	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
-	"easi/backend/internal/shared/types"
 )
 
 type AcquiredEntityHandlers struct {
 	commandBus       cqrs.CommandBus
 	readModel        *readmodels.AcquiredEntityReadModel
 	paginationHelper *sharedAPI.PaginationHelper
+	hateoas          *sharedAPI.HATEOASLinks
 }
 
 func NewAcquiredEntityHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.AcquiredEntityReadModel,
+	hateoas *sharedAPI.HATEOASLinks,
 ) *AcquiredEntityHandlers {
 	return &AcquiredEntityHandlers{
 		commandBus:       commandBus,
 		readModel:        readModel,
 		paginationHelper: sharedAPI.NewPaginationHelper("/api/v1/acquired-entities"),
+		hateoas:          hateoas,
 	}
 }
 
@@ -51,8 +53,10 @@ type UpdateAcquiredEntityRequest struct {
 // @Produce json
 // @Param entity body CreateAcquiredEntityRequest true "Acquired entity data"
 // @Success 201 {object} readmodels.AcquiredEntityDTO
-// @Failure 400 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse "Validation error"
+// @Failure 401 {object} sharedAPI.ErrorResponse "Unauthorized - authentication required"
+// @Failure 403 {object} sharedAPI.ErrorResponse "Forbidden - insufficient permissions"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
 // @Router /acquired-entities [post]
 func (h *AcquiredEntityHandlers) CreateAcquiredEntity(w http.ResponseWriter, r *http.Request) {
 	req, ok := sharedAPI.DecodeRequestOrFail[CreateAcquiredEntityRequest](w, r)
@@ -60,28 +64,29 @@ func (h *AcquiredEntityHandlers) CreateAcquiredEntity(w http.ResponseWriter, r *
 		return
 	}
 
-	input, ok := h.validateAndParseInput(w, req.Name, req.Notes, req.AcquisitionDate)
-	if !ok {
+	acquisitionDate, err := parseAcquisitionDate(req.AcquisitionDate)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid acquisition date format (expected YYYY-MM-DD)")
 		return
 	}
 
 	cmd := &commands.CreateAcquiredEntity{
-		Name:              input.Name,
-		AcquisitionDate:   input.AcquisitionDate,
+		Name:              req.Name,
+		AcquisitionDate:   acquisitionDate,
 		IntegrationStatus: req.IntegrationStatus,
-		Notes:             input.Notes,
+		Notes:             req.Notes,
 	}
 
 	result, err := h.commandBus.Dispatch(r.Context(), cmd)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create acquired entity")
+		sharedAPI.HandleError(w, err)
 		return
 	}
 
 	location := sharedAPI.BuildResourceLink(sharedAPI.ResourcePath("/acquired-entities"), sharedAPI.ResourceID(result.CreatedID))
 	entity, err := h.readModel.GetByID(r.Context(), result.CreatedID)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve created entity")
+		sharedAPI.HandleErrorWithDefault(w, err, "Failed to retrieve created entity")
 		return
 	}
 
@@ -93,7 +98,7 @@ func (h *AcquiredEntityHandlers) CreateAcquiredEntity(w http.ResponseWriter, r *
 		return
 	}
 
-	h.enrichWithLinks(entity)
+	h.enrichWithLinks(r, entity)
 	sharedAPI.RespondCreated(w, location, entity)
 }
 
@@ -105,7 +110,9 @@ func (h *AcquiredEntityHandlers) CreateAcquiredEntity(w http.ResponseWriter, r *
 // @Param limit query int false "Number of items per page (max 100)" default(50)
 // @Param after query string false "Cursor for pagination"
 // @Success 200 {object} sharedAPI.PaginatedResponse{data=[]readmodels.AcquiredEntityDTO}
-// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Failure 401 {object} sharedAPI.ErrorResponse "Unauthorized - authentication required"
+// @Failure 403 {object} sharedAPI.ErrorResponse "Forbidden - insufficient permissions"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
 // @Router /acquired-entities [get]
 func (h *AcquiredEntityHandlers) GetAllAcquiredEntities(w http.ResponseWriter, r *http.Request) {
 	params := sharedAPI.ParsePaginationParams(r)
@@ -123,7 +130,7 @@ func (h *AcquiredEntityHandlers) GetAllAcquiredEntities(w http.ResponseWriter, r
 	}
 
 	for i := range entities {
-		h.enrichWithLinks(&entities[i])
+		h.enrichWithLinks(r, &entities[i])
 	}
 
 	pageables := ConvertAcquiredEntitiesToNamePageable(entities)
@@ -148,8 +155,10 @@ func (h *AcquiredEntityHandlers) GetAllAcquiredEntities(w http.ResponseWriter, r
 // @Produce json
 // @Param id path string true "Acquired entity ID"
 // @Success 200 {object} readmodels.AcquiredEntityDTO
-// @Failure 404 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Failure 401 {object} sharedAPI.ErrorResponse "Unauthorized - authentication required"
+// @Failure 403 {object} sharedAPI.ErrorResponse "Forbidden - insufficient permissions"
+// @Failure 404 {object} sharedAPI.ErrorResponse "Acquired entity not found"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
 // @Router /acquired-entities/{id} [get]
 func (h *AcquiredEntityHandlers) GetAcquiredEntityByID(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")
@@ -165,7 +174,7 @@ func (h *AcquiredEntityHandlers) GetAcquiredEntityByID(w http.ResponseWriter, r 
 		return
 	}
 
-	h.enrichWithLinks(entity)
+	h.enrichWithLinks(r, entity)
 	sharedAPI.RespondJSON(w, http.StatusOK, entity)
 }
 
@@ -178,9 +187,11 @@ func (h *AcquiredEntityHandlers) GetAcquiredEntityByID(w http.ResponseWriter, r 
 // @Param id path string true "Acquired entity ID"
 // @Param entity body UpdateAcquiredEntityRequest true "Updated entity data"
 // @Success 200 {object} readmodels.AcquiredEntityDTO
-// @Failure 400 {object} sharedAPI.ErrorResponse
-// @Failure 404 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Failure 400 {object} sharedAPI.ErrorResponse "Validation error"
+// @Failure 401 {object} sharedAPI.ErrorResponse "Unauthorized - authentication required"
+// @Failure 403 {object} sharedAPI.ErrorResponse "Forbidden - insufficient permissions"
+// @Failure 404 {object} sharedAPI.ErrorResponse "Acquired entity not found"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
 // @Router /acquired-entities/{id} [put]
 func (h *AcquiredEntityHandlers) UpdateAcquiredEntity(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")
@@ -190,27 +201,28 @@ func (h *AcquiredEntityHandlers) UpdateAcquiredEntity(w http.ResponseWriter, r *
 		return
 	}
 
-	input, ok := h.validateAndParseInput(w, req.Name, req.Notes, req.AcquisitionDate)
-	if !ok {
+	acquisitionDate, err := parseAcquisitionDate(req.AcquisitionDate)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid acquisition date format (expected YYYY-MM-DD)")
 		return
 	}
 
 	cmd := &commands.UpdateAcquiredEntity{
 		ID:                id,
-		Name:              input.Name,
-		AcquisitionDate:   input.AcquisitionDate,
+		Name:              req.Name,
+		AcquisitionDate:   acquisitionDate,
 		IntegrationStatus: req.IntegrationStatus,
-		Notes:             input.Notes,
+		Notes:             req.Notes,
 	}
 
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update acquired entity")
+		sharedAPI.HandleError(w, err)
 		return
 	}
 
 	entity, err := h.readModel.GetByID(r.Context(), id)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve updated entity")
+		sharedAPI.HandleErrorWithDefault(w, err, "Failed to retrieve updated entity")
 		return
 	}
 
@@ -219,7 +231,7 @@ func (h *AcquiredEntityHandlers) UpdateAcquiredEntity(w http.ResponseWriter, r *
 		return
 	}
 
-	h.enrichWithLinks(entity)
+	h.enrichWithLinks(r, entity)
 	sharedAPI.RespondJSON(w, http.StatusOK, entity)
 }
 
@@ -229,9 +241,11 @@ func (h *AcquiredEntityHandlers) UpdateAcquiredEntity(w http.ResponseWriter, r *
 // @Tags acquired-entities
 // @Produce json
 // @Param id path string true "Acquired entity ID"
-// @Success 204
-// @Failure 404 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Success 204 "Successfully deleted"
+// @Failure 401 {object} sharedAPI.ErrorResponse "Unauthorized - authentication required"
+// @Failure 403 {object} sharedAPI.ErrorResponse "Forbidden - insufficient permissions"
+// @Failure 404 {object} sharedAPI.ErrorResponse "Acquired entity not found"
+// @Failure 500 {object} sharedAPI.ErrorResponse "Internal server error"
 // @Router /acquired-entities/{id} [delete]
 func (h *AcquiredEntityHandlers) DeleteAcquiredEntity(w http.ResponseWriter, r *http.Request) {
 	id := sharedAPI.GetPathParam(r, "id")
@@ -246,38 +260,6 @@ func (h *AcquiredEntityHandlers) DeleteAcquiredEntity(w http.ResponseWriter, r *
 	})
 }
 
-type validatedEntityInput struct {
-	Name            string
-	AcquisitionDate *time.Time
-	Notes           string
-}
-
-func (h *AcquiredEntityHandlers) validateAndParseInput(w http.ResponseWriter, name, notes string, acquisitionDateStr *string) (*validatedEntityInput, bool) {
-	if _, err := valueobjects.NewEntityName(name); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return nil, false
-	}
-
-	if notes != "" {
-		if _, err := valueobjects.NewNotes(notes); err != nil {
-			sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-			return nil, false
-		}
-	}
-
-	acquisitionDate, err := parseAcquisitionDate(acquisitionDateStr)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid acquisition date format (expected YYYY-MM-DD)")
-		return nil, false
-	}
-
-	return &validatedEntityInput{
-		Name:            name,
-		AcquisitionDate: acquisitionDate,
-		Notes:           notes,
-	}, true
-}
-
 func parseAcquisitionDate(dateStr *string) (*time.Time, error) {
 	if dateStr == nil || *dateStr == "" {
 		return nil, nil
@@ -289,10 +271,7 @@ func parseAcquisitionDate(dateStr *string) (*time.Time, error) {
 	return &t, nil
 }
 
-func (h *AcquiredEntityHandlers) enrichWithLinks(entity *readmodels.AcquiredEntityDTO) {
-	entity.Links = types.Links{
-		"self":   {Href: sharedAPI.BuildResourceLink("/acquired-entities", sharedAPI.ResourceID(entity.ID)), Method: "GET"},
-		"edit":   {Href: sharedAPI.BuildResourceLink("/acquired-entities", sharedAPI.ResourceID(entity.ID)), Method: "PUT"},
-		"delete": {Href: sharedAPI.BuildResourceLink("/acquired-entities", sharedAPI.ResourceID(entity.ID)), Method: "DELETE"},
-	}
+func (h *AcquiredEntityHandlers) enrichWithLinks(r *http.Request, entity *readmodels.AcquiredEntityDTO) {
+	actor, _ := sharedctx.GetActor(r.Context())
+	entity.Links = h.hateoas.AcquiredEntityLinksForActor(entity.ID, actor)
 }
