@@ -252,6 +252,11 @@ func (h *ComponentHandlers) enrichWithLinks(r *http.Request, component *readmode
 	component.Links = h.hateoas.ComponentLinksForActor(component.ID, actor)
 	for i := range component.Experts {
 		e := component.Experts[i]
-		component.Experts[i].Links = h.hateoas.ComponentExpertLinksForActor(component.ID, e.Name, e.Role, e.Contact, actor)
+		component.Experts[i].Links = h.hateoas.ComponentExpertLinksForActor(sharedAPI.ExpertParams{
+			ResourcePath: "/components/" + component.ID,
+			ExpertName:   e.Name,
+			ExpertRole:   e.Role,
+			ContactInfo:  e.Contact,
+		}, actor)
 	}
 }
