@@ -34,7 +34,6 @@ Always apply: [CLAUDE.md](/CLAUDE.md) (root)
 ## API Documentation
 
 - OpenAPI spec served at: `http://localhost:8080/swagger/index.html`
-- Manual API specs: [docs/api/](api/)
 
 ## User Documentation
 
