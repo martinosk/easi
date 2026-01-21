@@ -5,6 +5,7 @@ import { ColorPicker } from '../../../components/shared/ColorPicker';
 import { ComponentFitScores } from './ComponentFitScores';
 import { ComponentExpertsList } from './ComponentExpertsList';
 import { AddComponentExpertDialog } from './AddComponentExpertDialog';
+import { ComponentOriginsSection } from './ComponentOriginsSection';
 import { AuditHistorySection } from '../../audit';
 import { useCapabilities, useCapabilitiesByComponent } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../hooks/useComponents';
@@ -283,6 +284,8 @@ const ComponentContentInternal: React.FC<ComponentContentProps> = ({
       />
 
       <RealizationsField realizations={realizations} capabilities={capabilities} />
+
+      <ComponentOriginsSection componentId={component.id} />
 
       <ComponentFitScores componentId={component.id} />
 

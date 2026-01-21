@@ -10,7 +10,7 @@ import type {
   CreateAcquiredEntityRequest,
   UpdateAcquiredEntityRequest,
   OriginRelationshipId,
-  CreateOriginRelationshipRequest,
+  ComponentId,
 } from '../../../api/types';
 import toast from 'react-hot-toast';
 
@@ -129,26 +129,18 @@ export function useDeleteAcquiredEntity() {
   });
 }
 
-export function useAcquiredEntityRelationships(id: AcquiredEntityId | undefined) {
-  return useQuery({
-    queryKey: queryKeys.acquiredEntities.relationships(id!),
-    queryFn: () => originEntitiesApi.acquiredEntities.getRelationships(id!),
-    enabled: !!id,
-  });
-}
-
 export function useLinkComponentToAcquiredEntity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ entityId, request }: { entityId: AcquiredEntityId; request: CreateOriginRelationshipRequest }) =>
-      originEntitiesApi.acquiredEntities.linkComponent(entityId, request),
+    mutationFn: ({ componentId, entityId }: { componentId: ComponentId; entityId: AcquiredEntityId }) =>
+      originEntitiesApi.acquiredEntities.linkComponent(componentId, entityId),
     onSuccess: (_, { entityId }) => {
       invalidateFor(queryClient, mutationEffects.acquiredEntities.linkComponent(entityId));
-      toast.success('Component linked successfully');
+      toast.success('Component linked to acquired entity');
     },
     onError: () => {
-      toast.error('Failed to link component');
+      toast.error('Failed to link component to acquired entity');
     },
   });
 }
@@ -157,8 +149,8 @@ export function useUnlinkComponentFromAcquiredEntity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ entityId, relationshipId }: { entityId: AcquiredEntityId; relationshipId: OriginRelationshipId }) =>
-      originEntitiesApi.acquiredEntities.unlinkComponent(entityId, relationshipId),
+    mutationFn: ({ relationshipId }: { entityId: AcquiredEntityId; relationshipId: OriginRelationshipId }) =>
+      originEntitiesApi.acquiredEntities.unlinkComponent(relationshipId),
     onSuccess: (_, { entityId }) => {
       invalidateFor(queryClient, mutationEffects.acquiredEntities.unlinkComponent(entityId));
       toast.success('Component unlinked');

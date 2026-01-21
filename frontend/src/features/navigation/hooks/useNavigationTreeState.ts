@@ -1,32 +1,35 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getPersistedBoolean, getPersistedSet } from '../utils/treeUtils';
+import { getPersistedBoolean, getPersistedSet, persistBoolean, persistSet } from '../utils/treeUtils';
+
+function usePersistedBoolean(key: string, defaultValue: boolean): [boolean, React.Dispatch<React.SetStateAction<boolean>>] {
+  const [value, setValue] = useState(() => getPersistedBoolean(key, defaultValue));
+
+  useEffect(() => {
+    persistBoolean(key, value);
+  }, [key, value]);
+
+  return [value, setValue];
+}
+
+function usePersistedSet(key: string): [Set<string>, React.Dispatch<React.SetStateAction<Set<string>>>] {
+  const [value, setValue] = useState(() => getPersistedSet(key));
+
+  useEffect(() => {
+    persistSet(key, value);
+  }, [key, value]);
+
+  return [value, setValue];
+}
 
 export function useNavigationTreeState() {
-  const [isOpen, setIsOpen] = useState(() => getPersistedBoolean('navigationTreeOpen', true));
-  const [isModelsExpanded, setIsModelsExpanded] = useState(() => getPersistedBoolean('navigationTreeModelsExpanded', true));
-  const [isViewsExpanded, setIsViewsExpanded] = useState(() => getPersistedBoolean('navigationTreeViewsExpanded', true));
-  const [isCapabilitiesExpanded, setIsCapabilitiesExpanded] = useState(() => getPersistedBoolean('navigationTreeCapabilitiesExpanded', true));
-  const [expandedCapabilities, setExpandedCapabilities] = useState<Set<string>>(() => getPersistedSet('navigationTreeExpandedCapabilities'));
-
-  useEffect(() => {
-    localStorage.setItem('navigationTreeOpen', JSON.stringify(isOpen));
-  }, [isOpen]);
-
-  useEffect(() => {
-    localStorage.setItem('navigationTreeModelsExpanded', JSON.stringify(isModelsExpanded));
-  }, [isModelsExpanded]);
-
-  useEffect(() => {
-    localStorage.setItem('navigationTreeViewsExpanded', JSON.stringify(isViewsExpanded));
-  }, [isViewsExpanded]);
-
-  useEffect(() => {
-    localStorage.setItem('navigationTreeCapabilitiesExpanded', JSON.stringify(isCapabilitiesExpanded));
-  }, [isCapabilitiesExpanded]);
-
-  useEffect(() => {
-    localStorage.setItem('navigationTreeExpandedCapabilities', JSON.stringify([...expandedCapabilities]));
-  }, [expandedCapabilities]);
+  const [isOpen, setIsOpen] = usePersistedBoolean('navigationTreeOpen', true);
+  const [isModelsExpanded, setIsModelsExpanded] = usePersistedBoolean('navigationTreeModelsExpanded', true);
+  const [isViewsExpanded, setIsViewsExpanded] = usePersistedBoolean('navigationTreeViewsExpanded', true);
+  const [isCapabilitiesExpanded, setIsCapabilitiesExpanded] = usePersistedBoolean('navigationTreeCapabilitiesExpanded', true);
+  const [expandedCapabilities, setExpandedCapabilities] = usePersistedSet('navigationTreeExpandedCapabilities');
+  const [isAcquiredEntitiesExpanded, setIsAcquiredEntitiesExpanded] = usePersistedBoolean('navigationTreeAcquiredEntitiesExpanded', false);
+  const [isVendorsExpanded, setIsVendorsExpanded] = usePersistedBoolean('navigationTreeVendorsExpanded', false);
+  const [isInternalTeamsExpanded, setIsInternalTeamsExpanded] = usePersistedBoolean('navigationTreeInternalTeamsExpanded', false);
 
   const toggleCapabilityExpanded = useCallback((capabilityId: string) => {
     setExpandedCapabilities((prev) => {
@@ -51,5 +54,11 @@ export function useNavigationTreeState() {
     setIsCapabilitiesExpanded,
     expandedCapabilities,
     toggleCapabilityExpanded,
+    isAcquiredEntitiesExpanded,
+    setIsAcquiredEntitiesExpanded,
+    isVendorsExpanded,
+    setIsVendorsExpanded,
+    isInternalTeamsExpanded,
+    setIsInternalTeamsExpanded,
   };
 }

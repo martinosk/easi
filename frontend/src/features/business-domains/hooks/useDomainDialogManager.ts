@@ -5,8 +5,8 @@ import type { BusinessDomain } from '../../../api/types';
 type DialogMode = 'create' | 'edit' | null;
 
 interface UseDomainDialogManagerProps {
-  createDomain: (name: string, description?: string) => Promise<BusinessDomain>;
-  updateDomain: (domain: BusinessDomain, name: string, description?: string) => Promise<BusinessDomain>;
+  createDomain: (name: string, description?: string, domainArchitectId?: string) => Promise<BusinessDomain>;
+  updateDomain: (domain: BusinessDomain, name: string, description?: string, domainArchitectId?: string) => Promise<BusinessDomain>;
   deleteDomain: (domain: BusinessDomain) => Promise<void>;
   onDomainDeleted?: (deletedDomainId: string) => void;
 }
@@ -47,12 +47,12 @@ export function useDomainDialogManager({
     setDomainToDelete(domain);
   };
 
-  const handleFormSubmit = async (name: string, description: string) => {
+  const handleFormSubmit = async (name: string, description: string, domainArchitectId?: string) => {
     if (dialogMode === 'create') {
-      await createDomain(name, description);
+      await createDomain(name, description, domainArchitectId);
       toast.success('Domain created successfully');
     } else if (dialogMode === 'edit' && selectedDomain) {
-      await updateDomain(selectedDomain, name, description);
+      await updateDomain(selectedDomain, name, description, domainArchitectId);
       toast.success('Domain updated successfully');
     }
     setDialogMode(null);

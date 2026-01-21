@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import type { BusinessDomain } from '../../../api/types';
+import { useEAOwnerCandidates } from '../../users/hooks/useUsers';
 
 interface DomainFormProps {
   domain?: BusinessDomain;
   mode: 'create' | 'edit';
-  onSubmit: (name: string, description: string) => Promise<void>;
+  onSubmit: (name: string, description: string, domainArchitectId?: string) => Promise<void>;
   onCancel: () => void;
 }
 
 interface FormState {
   name: string;
   description: string;
+  domainArchitectId: string;
 }
 
 interface FormErrors {
@@ -48,9 +50,12 @@ function getSubmitButtonText(isSubmitting: boolean, mode: 'create' | 'edit'): st
 }
 
 export function DomainForm({ domain, mode, onSubmit, onCancel }: DomainFormProps) {
+  const { data: eligibleUsers = [], isLoading: isLoadingUsers } = useEAOwnerCandidates();
+
   const [form, setForm] = useState<FormState>({
     name: domain?.name || '',
     description: domain?.description || '',
+    domainArchitectId: domain?.domainArchitectId || '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,13 +66,14 @@ export function DomainForm({ domain, mode, onSubmit, onCancel }: DomainFormProps
       setForm({
         name: domain.name,
         description: domain.description || '',
+        domainArchitectId: domain.domainArchitectId || '',
       });
     }
   }, [domain]);
 
   const handleFieldChange = (field: keyof FormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
+    if (errors[field as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
     if (backendError) {
@@ -88,7 +94,11 @@ export function DomainForm({ domain, mode, onSubmit, onCancel }: DomainFormProps
     setIsSubmitting(true);
 
     try {
-      await onSubmit(form.name.trim(), form.description.trim());
+      await onSubmit(
+        form.name.trim(),
+        form.description.trim(),
+        form.domainArchitectId || undefined
+      );
     } catch (err) {
       setBackendError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -138,6 +148,30 @@ export function DomainForm({ domain, mode, onSubmit, onCancel }: DomainFormProps
           <div className="field-error" data-testid="domain-description-error">
             {errors.description}
           </div>
+        )}
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="domain-architect" className="form-label">
+          Domain Architect
+        </label>
+        <select
+          id="domain-architect"
+          className="form-input"
+          value={form.domainArchitectId}
+          onChange={(e) => handleFieldChange('domainArchitectId', e.target.value)}
+          disabled={isSubmitting || isLoadingUsers}
+          data-testid="domain-architect-select"
+        >
+          <option value="">-- Select Domain Architect (optional) --</option>
+          {eligibleUsers.map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.name || user.email} ({user.role})
+            </option>
+          ))}
+        </select>
+        {isLoadingUsers && (
+          <div className="field-hint">Loading eligible users...</div>
         )}
       </div>
 

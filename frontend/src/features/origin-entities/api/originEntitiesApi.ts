@@ -17,8 +17,6 @@ import type {
   UpdateInternalTeamRequest,
   OriginRelationship,
   OriginRelationshipId,
-  OriginRelationshipsResponse,
-  CreateOriginRelationshipRequest,
 } from '../../../api/types';
 
 export const originEntitiesApi = {
@@ -47,23 +45,16 @@ export const originEntitiesApi = {
       await httpClient.delete(`/api/v1/acquired-entities/${id}`);
     },
 
-    async getRelationships(id: AcquiredEntityId): Promise<OriginRelationship[]> {
-      const response = await httpClient.get<OriginRelationshipsResponse>(
-        `/api/v1/acquired-entities/${id}/components`
-      );
-      return response.data.data;
-    },
-
-    async linkComponent(id: AcquiredEntityId, request: CreateOriginRelationshipRequest): Promise<OriginRelationship> {
+    async linkComponent(componentId: string, acquiredEntityId: AcquiredEntityId): Promise<OriginRelationship> {
       const response = await httpClient.post<OriginRelationship>(
-        `/api/v1/acquired-entities/${id}/components`,
-        request
+        `/api/v1/components/${componentId}/origin/acquired-via`,
+        { acquiredEntityId }
       );
       return response.data;
     },
 
-    async unlinkComponent(id: AcquiredEntityId, relationshipId: OriginRelationshipId): Promise<void> {
-      await httpClient.delete(`/api/v1/acquired-entities/${id}/components/${relationshipId}`);
+    async unlinkComponent(relationshipId: OriginRelationshipId): Promise<void> {
+      await httpClient.delete(`/api/v1/origin-relationships/acquired-via/${relationshipId}`);
     },
   },
 
@@ -92,23 +83,16 @@ export const originEntitiesApi = {
       await httpClient.delete(`/api/v1/vendors/${id}`);
     },
 
-    async getRelationships(id: VendorId): Promise<OriginRelationship[]> {
-      const response = await httpClient.get<OriginRelationshipsResponse>(
-        `/api/v1/vendors/${id}/components`
-      );
-      return response.data.data;
-    },
-
-    async linkComponent(id: VendorId, request: CreateOriginRelationshipRequest): Promise<OriginRelationship> {
+    async linkComponent(componentId: string, vendorId: VendorId): Promise<OriginRelationship> {
       const response = await httpClient.post<OriginRelationship>(
-        `/api/v1/vendors/${id}/components`,
-        request
+        `/api/v1/components/${componentId}/origin/purchased-from`,
+        { vendorId }
       );
       return response.data;
     },
 
-    async unlinkComponent(id: VendorId, relationshipId: OriginRelationshipId): Promise<void> {
-      await httpClient.delete(`/api/v1/vendors/${id}/components/${relationshipId}`);
+    async unlinkComponent(relationshipId: OriginRelationshipId): Promise<void> {
+      await httpClient.delete(`/api/v1/origin-relationships/purchased-from/${relationshipId}`);
     },
   },
 
@@ -137,23 +121,16 @@ export const originEntitiesApi = {
       await httpClient.delete(`/api/v1/internal-teams/${id}`);
     },
 
-    async getRelationships(id: InternalTeamId): Promise<OriginRelationship[]> {
-      const response = await httpClient.get<OriginRelationshipsResponse>(
-        `/api/v1/internal-teams/${id}/components`
-      );
-      return response.data.data;
-    },
-
-    async linkComponent(id: InternalTeamId, request: CreateOriginRelationshipRequest): Promise<OriginRelationship> {
+    async linkComponent(componentId: string, internalTeamId: InternalTeamId): Promise<OriginRelationship> {
       const response = await httpClient.post<OriginRelationship>(
-        `/api/v1/internal-teams/${id}/components`,
-        request
+        `/api/v1/components/${componentId}/origin/built-by`,
+        { internalTeamId }
       );
       return response.data;
     },
 
-    async unlinkComponent(id: InternalTeamId, relationshipId: OriginRelationshipId): Promise<void> {
-      await httpClient.delete(`/api/v1/internal-teams/${id}/components/${relationshipId}`);
+    async unlinkComponent(relationshipId: OriginRelationshipId): Promise<void> {
+      await httpClient.delete(`/api/v1/origin-relationships/built-by/${relationshipId}`);
     },
   },
 };

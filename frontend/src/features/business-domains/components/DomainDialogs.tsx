@@ -10,7 +10,7 @@ interface DomainDialogsProps {
   selectedDomain: BusinessDomain | null;
   domainToDelete: BusinessDomain | null;
   dialogRef: RefObject<HTMLDialogElement | null>;
-  onFormSubmit: (name: string, description: string) => Promise<void>;
+  onFormSubmit: (name: string, description: string, domainArchitectId?: string) => Promise<void>;
   onFormCancel: () => void;
   onConfirmDelete: () => Promise<void>;
   onCancelDelete: () => void;

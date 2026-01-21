@@ -1,7 +1,8 @@
 import type { Edge, Node } from '@xyflow/react';
 import { MarkerType } from '@xyflow/react';
 import { getBestHandles } from './handleCalculation';
-import type { Capability, CapabilityRealization, Relation, ViewCapability, ViewComponent } from '../../../api/types';
+import type { Capability, CapabilityRealization, Relation, ViewCapability, ViewComponent, OriginRelationship, OriginRelationshipType } from '../../../api/types';
+import { ORIGIN_ENTITY_PREFIXES } from './nodeFactory';
 
 export interface EdgeCreationContext {
   nodes: Node[];
@@ -161,4 +162,76 @@ export function createRealizationEdges(
   return capabilityRealizations
     .filter((r) => isRealizationVisible(r, visibility))
     .map((r) => buildRealizationEdge(r, ctx));
+}
+
+const ORIGIN_RELATIONSHIP_COLORS: Record<OriginRelationshipType, string> = {
+  AcquiredVia: '#8b5cf6',
+  PurchasedFrom: '#ec4899',
+  BuiltBy: '#14b8a6',
+};
+
+const ORIGIN_RELATIONSHIP_LABELS: Record<OriginRelationshipType, string> = {
+  AcquiredVia: 'Acquired via',
+  PurchasedFrom: 'Purchased from',
+  BuiltBy: 'Built by',
+};
+
+const getOriginEntityNodeId = (relationshipType: OriginRelationshipType, entityId: string): string => {
+  switch (relationshipType) {
+    case 'AcquiredVia':
+      return `${ORIGIN_ENTITY_PREFIXES.acquired}${entityId}`;
+    case 'PurchasedFrom':
+      return `${ORIGIN_ENTITY_PREFIXES.vendor}${entityId}`;
+    case 'BuiltBy':
+      return `${ORIGIN_ENTITY_PREFIXES.team}${entityId}`;
+    default:
+      return entityId;
+  }
+};
+
+export function createOriginRelationshipEdges(
+  originRelationships: OriginRelationship[],
+  originEntityNodeIds: Set<string>,
+  componentIdsOnCanvas: Set<string>,
+  ctx: EdgeCreationContext
+): Edge[] {
+  return originRelationships
+    .filter((rel) => {
+      const originNodeId = getOriginEntityNodeId(rel.relationshipType, rel.originEntityId);
+      return originEntityNodeIds.has(originNodeId) && componentIdsOnCanvas.has(rel.componentId);
+    })
+    .map((rel) => {
+      const edgeId = `origin-${rel.id}`;
+      const isSelected = ctx.selectedEdgeId === edgeId;
+      const edgeColor = ctx.isClassicScheme ? '#000000' : ORIGIN_RELATIONSHIP_COLORS[rel.relationshipType];
+      const label = ORIGIN_RELATIONSHIP_LABELS[rel.relationshipType];
+
+      const sourceNodeId = getOriginEntityNodeId(rel.relationshipType, rel.originEntityId);
+      const targetNodeId = rel.componentId;
+
+      const sourceNode = ctx.nodes.find((n) => n.id === sourceNodeId);
+      const targetNode = ctx.nodes.find((n) => n.id === targetNodeId);
+      const { sourceHandle, targetHandle } = getBestHandles(sourceNode, targetNode);
+
+      return {
+        id: edgeId,
+        source: sourceNodeId,
+        target: targetNodeId,
+        sourceHandle,
+        targetHandle,
+        label,
+        type: ctx.edgeType,
+        animated: isSelected,
+        style: {
+          stroke: edgeColor,
+          strokeWidth: isSelected ? 3 : 2,
+        },
+        markerEnd: { type: MarkerType.ArrowClosed, color: edgeColor },
+        labelStyle: {
+          fill: edgeColor,
+          fontWeight: isSelected ? 700 : 500,
+        },
+        labelBgStyle: { fill: '#ffffff' },
+      };
+    });
 }

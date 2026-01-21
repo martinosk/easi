@@ -4,16 +4,27 @@ import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useViews } from '../../views/hooks/useViews';
+import { useAcquiredEntitiesQuery } from '../../origin-entities/hooks/useAcquiredEntities';
+import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
+import { useInternalTeamsQuery } from '../../origin-entities/hooks/useInternalTeams';
 import { DeleteCapabilityDialog } from '../../capabilities/components/DeleteCapabilityDialog';
+import { CreateAcquiredEntityDialog } from '../../origin-entities/components/CreateAcquiredEntityDialog';
+import { CreateVendorDialog } from '../../origin-entities/components/CreateVendorDialog';
+import { CreateInternalTeamDialog } from '../../origin-entities/components/CreateInternalTeamDialog';
 import { useNavigationTreeState } from '../hooks/useNavigationTreeState';
 import { useTreeContextMenus } from '../hooks/useTreeContextMenus';
 import { ApplicationsSection } from './sections/ApplicationsSection';
 import { ViewsSection } from './sections/ViewsSection';
 import { CapabilitiesSection } from './sections/CapabilitiesSection';
+import { AcquiredEntitiesSection } from './sections/AcquiredEntitiesSection';
+import { VendorsSection } from './sections/VendorsSection';
+import { InternalTeamsSection } from './sections/InternalTeamsSection';
 import { TreeContextMenus } from './TreeContextMenus';
 import { CreateViewDialog } from './CreateViewDialog';
 import { DeleteConfirmation } from './DeleteConfirmation';
 import type { NavigationTreeProps } from '../types';
+
+type OriginEntityDialogType = 'acquired' | 'vendor' | 'team' | null;
 
 export const NavigationTree: React.FC<NavigationTreeProps> = ({
   onComponentSelect,
@@ -30,8 +41,12 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const { data: capabilities = [] } = useCapabilities();
   const { data: views = [] } = useViews();
+  const { data: acquiredEntities = [] } = useAcquiredEntitiesQuery();
+  const { data: vendors = [] } = useVendorsQuery();
+  const { data: internalTeams = [] } = useInternalTeamsQuery();
 
   const [selectedCapabilityId, setSelectedCapabilityId] = useState<string | null>(null);
+  const [openOriginDialog, setOpenOriginDialog] = useState<OriginEntityDialogType>(null);
 
   const treeState = useNavigationTreeState();
   const contextMenus = useTreeContextMenus({ components, onEditCapability, onEditComponent });
@@ -95,6 +110,33 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
               selectedCapabilityId={selectedCapabilityId}
               setSelectedCapabilityId={setSelectedCapabilityId}
             />
+
+            <AcquiredEntitiesSection
+              acquiredEntities={acquiredEntities}
+              selectedEntityId={selectedNodeId?.startsWith('acq-') ? selectedNodeId.slice(4) : null}
+              isExpanded={treeState.isAcquiredEntitiesExpanded}
+              onToggle={() => treeState.setIsAcquiredEntitiesExpanded(!treeState.isAcquiredEntitiesExpanded)}
+              onAddEntity={() => setOpenOriginDialog('acquired')}
+              onEntityContextMenu={(e) => e.preventDefault()}
+            />
+
+            <VendorsSection
+              vendors={vendors}
+              selectedVendorId={selectedNodeId?.startsWith('vendor-') ? selectedNodeId.slice(7) : null}
+              isExpanded={treeState.isVendorsExpanded}
+              onToggle={() => treeState.setIsVendorsExpanded(!treeState.isVendorsExpanded)}
+              onAddVendor={() => setOpenOriginDialog('vendor')}
+              onVendorContextMenu={(e) => e.preventDefault()}
+            />
+
+            <InternalTeamsSection
+              internalTeams={internalTeams}
+              selectedTeamId={selectedNodeId?.startsWith('team-') ? selectedNodeId.slice(5) : null}
+              isExpanded={treeState.isInternalTeamsExpanded}
+              onToggle={() => treeState.setIsInternalTeamsExpanded(!treeState.isInternalTeamsExpanded)}
+              onAddTeam={() => setOpenOriginDialog('team')}
+              onTeamContextMenu={(e) => e.preventDefault()}
+            />
           </div>
         )}
       </div>
@@ -140,6 +182,21 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
         isOpen={contextMenus.deleteCapability !== null}
         onClose={() => contextMenus.setDeleteCapability(null)}
         capability={contextMenus.deleteCapability}
+      />
+
+      <CreateAcquiredEntityDialog
+        isOpen={openOriginDialog === 'acquired'}
+        onClose={() => setOpenOriginDialog(null)}
+      />
+
+      <CreateVendorDialog
+        isOpen={openOriginDialog === 'vendor'}
+        onClose={() => setOpenOriginDialog(null)}
+      />
+
+      <CreateInternalTeamDialog
+        isOpen={openOriginDialog === 'team'}
+        onClose={() => setOpenOriginDialog(null)}
       />
     </>
   );

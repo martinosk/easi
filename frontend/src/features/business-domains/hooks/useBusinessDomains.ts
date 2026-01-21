@@ -17,8 +17,8 @@ export interface UseBusinessDomainsResult {
   isLoading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
-  createDomain: (name: string, description?: string) => Promise<BusinessDomain>;
-  updateDomain: (domain: BusinessDomain, name: string, description?: string) => Promise<BusinessDomain>;
+  createDomain: (name: string, description?: string, domainArchitectId?: string) => Promise<BusinessDomain>;
+  updateDomain: (domain: BusinessDomain, name: string, description?: string, domainArchitectId?: string) => Promise<BusinessDomain>;
   deleteDomain: (domain: BusinessDomain) => Promise<void>;
 }
 
@@ -29,15 +29,15 @@ export function useBusinessDomains(): UseBusinessDomainsResult {
   const deleteMutation = useDeleteBusinessDomain();
 
   const createDomain = useCallback(
-    async (name: string, description?: string): Promise<BusinessDomain> => {
-      return createMutation.mutateAsync({ name, description });
+    async (name: string, description?: string, domainArchitectId?: string): Promise<BusinessDomain> => {
+      return createMutation.mutateAsync({ name, description, domainArchitectId });
     },
     [createMutation]
   );
 
   const updateDomain = useCallback(
-    async (domain: BusinessDomain, name: string, description?: string): Promise<BusinessDomain> => {
-      return updateMutation.mutateAsync({ domain, request: { name, description } });
+    async (domain: BusinessDomain, name: string, description?: string, domainArchitectId?: string): Promise<BusinessDomain> => {
+      return updateMutation.mutateAsync({ domain, request: { name, description, domainArchitectId } });
     },
     [updateMutation]
   );

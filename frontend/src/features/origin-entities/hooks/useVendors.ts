@@ -10,7 +10,7 @@ import type {
   CreateVendorRequest,
   UpdateVendorRequest,
   OriginRelationshipId,
-  CreateOriginRelationshipRequest,
+  ComponentId,
 } from '../../../api/types';
 import toast from 'react-hot-toast';
 
@@ -129,26 +129,18 @@ export function useDeleteVendor() {
   });
 }
 
-export function useVendorRelationships(id: VendorId | undefined) {
-  return useQuery({
-    queryKey: queryKeys.vendors.relationships(id!),
-    queryFn: () => originEntitiesApi.vendors.getRelationships(id!),
-    enabled: !!id,
-  });
-}
-
 export function useLinkComponentToVendor() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ vendorId, request }: { vendorId: VendorId; request: CreateOriginRelationshipRequest }) =>
-      originEntitiesApi.vendors.linkComponent(vendorId, request),
+    mutationFn: ({ componentId, vendorId }: { componentId: ComponentId; vendorId: VendorId }) =>
+      originEntitiesApi.vendors.linkComponent(componentId, vendorId),
     onSuccess: (_, { vendorId }) => {
       invalidateFor(queryClient, mutationEffects.vendors.linkComponent(vendorId));
-      toast.success('Component linked successfully');
+      toast.success('Component linked to vendor');
     },
     onError: () => {
-      toast.error('Failed to link component');
+      toast.error('Failed to link component to vendor');
     },
   });
 }
@@ -157,8 +149,8 @@ export function useUnlinkComponentFromVendor() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ vendorId, relationshipId }: { vendorId: VendorId; relationshipId: OriginRelationshipId }) =>
-      originEntitiesApi.vendors.unlinkComponent(vendorId, relationshipId),
+    mutationFn: ({ relationshipId }: { vendorId: VendorId; relationshipId: OriginRelationshipId }) =>
+      originEntitiesApi.vendors.unlinkComponent(relationshipId),
     onSuccess: (_, { vendorId }) => {
       invalidateFor(queryClient, mutationEffects.vendors.unlinkComponent(vendorId));
       toast.success('Component unlinked');

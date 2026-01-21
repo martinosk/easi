@@ -10,7 +10,7 @@ import type {
   CreateInternalTeamRequest,
   UpdateInternalTeamRequest,
   OriginRelationshipId,
-  CreateOriginRelationshipRequest,
+  ComponentId,
 } from '../../../api/types';
 import toast from 'react-hot-toast';
 
@@ -129,26 +129,18 @@ export function useDeleteInternalTeam() {
   });
 }
 
-export function useInternalTeamRelationships(id: InternalTeamId | undefined) {
-  return useQuery({
-    queryKey: queryKeys.internalTeams.relationships(id!),
-    queryFn: () => originEntitiesApi.internalTeams.getRelationships(id!),
-    enabled: !!id,
-  });
-}
-
 export function useLinkComponentToInternalTeam() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ teamId, request }: { teamId: InternalTeamId; request: CreateOriginRelationshipRequest }) =>
-      originEntitiesApi.internalTeams.linkComponent(teamId, request),
+    mutationFn: ({ componentId, teamId }: { componentId: ComponentId; teamId: InternalTeamId }) =>
+      originEntitiesApi.internalTeams.linkComponent(componentId, teamId),
     onSuccess: (_, { teamId }) => {
       invalidateFor(queryClient, mutationEffects.internalTeams.linkComponent(teamId));
-      toast.success('Component linked successfully');
+      toast.success('Component linked to internal team');
     },
     onError: () => {
-      toast.error('Failed to link component');
+      toast.error('Failed to link component to internal team');
     },
   });
 }
@@ -157,8 +149,8 @@ export function useUnlinkComponentFromInternalTeam() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ teamId, relationshipId }: { teamId: InternalTeamId; relationshipId: OriginRelationshipId }) =>
-      originEntitiesApi.internalTeams.unlinkComponent(teamId, relationshipId),
+    mutationFn: ({ relationshipId }: { teamId: InternalTeamId; relationshipId: OriginRelationshipId }) =>
+      originEntitiesApi.internalTeams.unlinkComponent(relationshipId),
     onSuccess: (_, { teamId }) => {
       invalidateFor(queryClient, mutationEffects.internalTeams.unlinkComponent(teamId));
       toast.success('Component unlinked');

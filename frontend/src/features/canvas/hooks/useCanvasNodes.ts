@@ -2,10 +2,21 @@ import { useMemo } from 'react';
 import type { Node } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
-import { createComponentNode, createCapabilityNode, isComponentInView } from '../utils/nodeFactory';
+import {
+  createComponentNode,
+  createCapabilityNode,
+  createAcquiredEntityNode,
+  createVendorNode,
+  createInternalTeamNode,
+  isComponentInView,
+  ORIGIN_ENTITY_PREFIXES,
+} from '../utils/nodeFactory';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
+import { useAcquiredEntitiesQuery } from '../../origin-entities/hooks/useAcquiredEntities';
+import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
+import { useInternalTeamsQuery } from '../../origin-entities/hooks/useInternalTeams';
 import type { ViewCapability } from '../../../api/types';
 
 export const useCanvasNodes = (): Node[] => {
@@ -15,6 +26,9 @@ export const useCanvasNodes = (): Node[] => {
   const { data: capabilities = [] } = useCapabilities();
   const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
   const { positions: layoutPositions } = useCanvasLayoutContext();
+  const { data: acquiredEntities = [] } = useAcquiredEntitiesQuery();
+  const { data: vendors = [] } = useVendorsQuery();
+  const { data: internalTeams = [] } = useInternalTeamsQuery();
 
   return useMemo(() => {
     if (!currentView) return [];
@@ -32,6 +46,27 @@ export const useCanvasNodes = (): Node[] => {
       })
       .filter((n): n is Node => n !== null);
 
-    return [...componentNodes, ...capabilityNodes];
-  }, [components, currentView, selectedNodeId, capabilities, selectedCapabilityId, layoutPositions]);
+    const acquiredEntityNodes = acquiredEntities
+      .filter((entity) => {
+        const nodeId = `${ORIGIN_ENTITY_PREFIXES.acquired}${entity.id}`;
+        return layoutPositions[nodeId] !== undefined;
+      })
+      .map((entity) => createAcquiredEntityNode(entity, layoutPositions, selectedNodeId));
+
+    const vendorNodes = vendors
+      .filter((vendor) => {
+        const nodeId = `${ORIGIN_ENTITY_PREFIXES.vendor}${vendor.id}`;
+        return layoutPositions[nodeId] !== undefined;
+      })
+      .map((vendor) => createVendorNode(vendor, layoutPositions, selectedNodeId));
+
+    const internalTeamNodes = internalTeams
+      .filter((team) => {
+        const nodeId = `${ORIGIN_ENTITY_PREFIXES.team}${team.id}`;
+        return layoutPositions[nodeId] !== undefined;
+      })
+      .map((team) => createInternalTeamNode(team, layoutPositions, selectedNodeId));
+
+    return [...componentNodes, ...capabilityNodes, ...acquiredEntityNodes, ...vendorNodes, ...internalTeamNodes];
+  }, [components, currentView, selectedNodeId, capabilities, selectedCapabilityId, layoutPositions, acquiredEntities, vendors, internalTeams]);
 };

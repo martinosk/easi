@@ -11,6 +11,14 @@ export const getPersistedSet = (key: string): Set<string> => {
   return saved ? new Set(JSON.parse(saved)) : new Set();
 };
 
+export const persistBoolean = (key: string, value: boolean): void => {
+  localStorage.setItem(key, JSON.stringify(value));
+};
+
+export const persistSet = (key: string, value: Set<string>): void => {
+  localStorage.setItem(key, JSON.stringify([...value]));
+};
+
 const LEVEL_NUMBER_MAP: Record<string, number> = {
   L1: 1, L2: 2, L3: 3, L4: 4,
 };

@@ -16,6 +16,7 @@ import '@xyflow/react/dist/style.css';
 import { useAppStore } from '../../../store/appStore';
 import { CapabilityNode } from '../../../components/canvas/CapabilityNode';
 import { ComponentNode } from '../../../components/canvas/ComponentNode';
+import { OriginEntityNode } from '../../../components/canvas/OriginEntityNode';
 import { useCanvasNodes } from '../hooks/useCanvasNodes';
 import { useCanvasEdges } from '../hooks/useCanvasEdges';
 import { useCanvasSelection } from '../hooks/useCanvasSelection';
@@ -41,6 +42,7 @@ export interface ComponentCanvasRef {
 const nodeTypes: NodeTypes = {
   component: ComponentNode,
   capability: CapabilityNode,
+  originEntity: OriginEntityNode,
 };
 
 const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps>(
