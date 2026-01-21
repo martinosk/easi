@@ -104,7 +104,7 @@ func (rm *VendorReadModel) GetAll(ctx context.Context) ([]VendorDTO, error) {
 		return nil, err
 	}
 
-	var vendors []VendorDTO
+	vendors := make([]VendorDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			"SELECT id, name, implementation_partner, notes, created_at FROM vendors WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC",
@@ -136,7 +136,7 @@ func (rm *VendorReadModel) GetAllPaginated(ctx context.Context, limit int, after
 	}
 
 	queryLimit := limit + 1
-	var vendors []VendorDTO
+	vendors := make([]VendorDTO, 0)
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		var rows *sql.Rows

@@ -105,7 +105,7 @@ func (rm *InternalTeamReadModel) GetAll(ctx context.Context) ([]InternalTeamDTO,
 		return nil, err
 	}
 
-	var teams []InternalTeamDTO
+	teams := make([]InternalTeamDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			"SELECT id, name, department, contact_person, notes, created_at FROM internal_teams WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC",
@@ -137,7 +137,7 @@ func (rm *InternalTeamReadModel) GetAllPaginated(ctx context.Context, limit int,
 	}
 
 	queryLimit := limit + 1
-	var teams []InternalTeamDTO
+	teams := make([]InternalTeamDTO, 0)
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		var rows *sql.Rows

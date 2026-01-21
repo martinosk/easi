@@ -91,7 +91,7 @@ func (rm *AcquiredViaRelationshipReadModel) GetByEntityID(ctx context.Context, e
 		return nil, err
 	}
 
-	var relationships []AcquiredViaRelationshipDTO
+	relationships := make([]AcquiredViaRelationshipDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			"SELECT id, acquired_entity_id, component_id, notes, created_at FROM acquired_via_relationships WHERE tenant_id = $1 AND acquired_entity_id = $2 AND is_deleted = FALSE",
@@ -122,7 +122,7 @@ func (rm *AcquiredViaRelationshipReadModel) GetByComponentID(ctx context.Context
 		return nil, err
 	}
 
-	var relationships []AcquiredViaRelationshipDTO
+	relationships := make([]AcquiredViaRelationshipDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			"SELECT id, acquired_entity_id, component_id, notes, created_at FROM acquired_via_relationships WHERE tenant_id = $1 AND component_id = $2 AND is_deleted = FALSE",

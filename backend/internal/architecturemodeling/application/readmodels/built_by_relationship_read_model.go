@@ -91,7 +91,7 @@ func (rm *BuiltByRelationshipReadModel) GetByTeamID(ctx context.Context, teamID 
 		return nil, err
 	}
 
-	var relationships []BuiltByRelationshipDTO
+	relationships := make([]BuiltByRelationshipDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			"SELECT id, internal_team_id, component_id, notes, created_at FROM built_by_relationships WHERE tenant_id = $1 AND internal_team_id = $2 AND is_deleted = FALSE",
@@ -122,7 +122,7 @@ func (rm *BuiltByRelationshipReadModel) GetByComponentID(ctx context.Context, co
 		return nil, err
 	}
 
-	var relationships []BuiltByRelationshipDTO
+	relationships := make([]BuiltByRelationshipDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			"SELECT id, internal_team_id, component_id, notes, created_at FROM built_by_relationships WHERE tenant_id = $1 AND component_id = $2 AND is_deleted = FALSE",

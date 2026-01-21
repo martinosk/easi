@@ -91,7 +91,7 @@ func (rm *PurchasedFromRelationshipReadModel) GetByVendorID(ctx context.Context,
 		return nil, err
 	}
 
-	var relationships []PurchasedFromRelationshipDTO
+	relationships := make([]PurchasedFromRelationshipDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			"SELECT id, vendor_id, component_id, notes, created_at FROM purchased_from_relationships WHERE tenant_id = $1 AND vendor_id = $2 AND is_deleted = FALSE",
@@ -122,7 +122,7 @@ func (rm *PurchasedFromRelationshipReadModel) GetByComponentID(ctx context.Conte
 		return nil, err
 	}
 
-	var relationships []PurchasedFromRelationshipDTO
+	relationships := make([]PurchasedFromRelationshipDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			"SELECT id, vendor_id, component_id, notes, created_at FROM purchased_from_relationships WHERE tenant_id = $1 AND component_id = $2 AND is_deleted = FALSE",

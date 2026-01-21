@@ -105,7 +105,7 @@ func (rm *AcquiredEntityReadModel) GetAll(ctx context.Context) ([]AcquiredEntity
 		return nil, err
 	}
 
-	var entities []AcquiredEntityDTO
+	entities := make([]AcquiredEntityDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			"SELECT id, name, acquisition_date, integration_status, notes, created_at FROM acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC",
@@ -137,7 +137,7 @@ func (rm *AcquiredEntityReadModel) GetAllPaginated(ctx context.Context, limit in
 	}
 
 	queryLimit := limit + 1
-	var entities []AcquiredEntityDTO
+	entities := make([]AcquiredEntityDTO, 0)
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		var rows *sql.Rows
