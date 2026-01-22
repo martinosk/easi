@@ -3,12 +3,10 @@ import { Toolbar } from './Toolbar';
 import { NavigationTree } from '../../features/navigation';
 import { ViewSelector } from '../../features/views';
 import { ComponentCanvas, type ComponentCanvasRef } from '../../features/canvas';
-import { ComponentDetails } from '../../features/components';
-import { RelationDetails, RealizationDetails } from '../../features/relations';
-import { CapabilityDetails } from '../../features/capabilities';
 import { useAppStore } from '../../store/appStore';
 import { useRemoveCapabilityFromView } from '../../features/views/hooks/useViews';
 import { useCurrentView } from '../../features/views/hooks/useCurrentView';
+import { DetailContentRenderer } from '../shared/DetailContentRenderer';
 import type { Capability } from '../../api/types';
 
 interface MainLayoutProps {
@@ -23,16 +21,13 @@ interface MainLayoutProps {
   onComponentDrop: (componentId: string, x: number, y: number) => Promise<void>;
   onComponentSelect: (componentId: string) => void;
   onCapabilitySelect: (capabilityId: string) => void;
+  onOriginEntitySelect: (nodeId: string) => void;
   onViewSelect: (viewId: string) => Promise<void>;
   onEditComponent: (componentId?: string) => void;
   onEditRelation: () => void;
   onEditCapability: (capability: Capability) => void;
   onRemoveFromView: () => void;
 }
-
-const isRealizationEdge = (edgeId: string): boolean => edgeId.startsWith('realization-');
-const isParentEdge = (edgeId: string): boolean => edgeId.startsWith('parent-');
-const isRelationEdge = (edgeId: string): boolean => !isRealizationEdge(edgeId) && !isParentEdge(edgeId);
 
 interface DetailSectionProps {
   selectedNodeId: string | null;
@@ -44,31 +39,13 @@ interface DetailSectionProps {
   onRemoveCapabilityFromView: () => void;
 }
 
-function renderDetailContent(props: DetailSectionProps): React.ReactNode {
-  const { selectedNodeId, selectedEdgeId, selectedCapabilityId } = props;
-
-  if (selectedNodeId) {
-    return <ComponentDetails onEdit={props.onEditComponent} onRemoveFromView={props.onRemoveFromView} />;
-  }
-  if (selectedEdgeId && isRealizationEdge(selectedEdgeId)) {
-    return <RealizationDetails />;
-  }
-  if (selectedEdgeId && isRelationEdge(selectedEdgeId)) {
-    return <RelationDetails onEdit={props.onEditRelation} />;
-  }
-  if (selectedCapabilityId) {
-    return <CapabilityDetails onRemoveFromView={props.onRemoveCapabilityFromView} />;
-  }
-  return null;
-}
-
 const DetailSection: React.FC<DetailSectionProps> = (props) => {
   const hasSelection = props.selectedNodeId || props.selectedEdgeId || props.selectedCapabilityId;
   if (!hasSelection) return null;
 
   return (
     <div className="detail-section">
-      {renderDetailContent(props)}
+      <DetailContentRenderer {...props} />
     </div>
   );
 };
@@ -85,6 +62,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   onComponentDrop,
   onComponentSelect,
   onCapabilitySelect,
+  onOriginEntitySelect,
   onViewSelect,
   onEditComponent,
   onEditRelation,
@@ -112,6 +90,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         <NavigationTree
           onComponentSelect={onComponentSelect}
           onCapabilitySelect={onCapabilitySelect}
+          onOriginEntitySelect={onOriginEntitySelect}
           onViewSelect={onViewSelect}
           onAddComponent={onAddComponent}
           onAddCapability={onAddCapability}

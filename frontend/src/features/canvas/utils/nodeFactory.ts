@@ -1,7 +1,7 @@
 import type { Node } from '@xyflow/react';
 import type { Component, View, Capability, ViewCapability, Position, AcquiredEntity, Vendor, InternalTeam } from '../../../api/types';
 import type { CanvasPositionMap } from '../hooks/useCanvasLayout';
-import type { OriginEntityType } from '../../../components/canvas';
+import { NODE_PREFIXES, type OriginEntityType } from '../../../constants/entityIdentifiers';
 
 const DEFAULT_POSITION: Position = { x: 400, y: 300 };
 
@@ -61,9 +61,9 @@ export const isComponentInView = (component: Component, currentView: View): bool
   currentView.components.some((vc) => vc.componentId === component.id);
 
 export const ORIGIN_ENTITY_PREFIXES = {
-  acquired: 'acq-',
-  vendor: 'vendor-',
-  team: 'team-',
+  acquired: NODE_PREFIXES.acquired,
+  vendor: NODE_PREFIXES.vendor,
+  team: NODE_PREFIXES.team,
 } as const;
 
 export const createOriginEntityNode = (

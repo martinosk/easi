@@ -42,5 +42,14 @@ export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRe
     [currentView, selectCapability, selectNode, canvasRef]
   );
 
-  return { navigateToComponent, navigateToCapability };
+  const navigateToOriginEntity = useCallback(
+    (nodeId: string) => {
+      selectNode(nodeId as import('../../../api/types').ComponentId);
+      selectCapability(null);
+      canvasRef.current?.centerOnNode(nodeId);
+    },
+    [selectNode, selectCapability, canvasRef]
+  );
+
+  return { navigateToComponent, navigateToCapability, navigateToOriginEntity };
 }

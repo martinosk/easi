@@ -1,9 +1,10 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
+import type { OriginEntityType } from '../../constants/entityIdentifiers';
 
 type HexColor = string;
 
-export type OriginEntityType = 'acquired' | 'vendor' | 'team';
+export type { OriginEntityType };
 
 export interface OriginEntityNodeData {
   label: string;

@@ -5,11 +5,9 @@ import { Toolbar } from './Toolbar';
 import { NavigationTree } from '../../features/navigation';
 import { ViewSelector } from '../../features/views';
 import { ComponentCanvas, type ComponentCanvasRef } from '../../features/canvas';
-import { ComponentDetails } from '../../features/components';
-import { RelationDetails, RealizationDetails } from '../../features/relations';
-import { CapabilityDetails } from '../../features/capabilities';
 import { useAppStore } from '../../store/appStore';
 import { ErrorBoundary, FeatureErrorFallback } from '../shared/ErrorBoundary';
+import { DetailContentRendererWithPlaceholder } from '../shared/DetailContentRenderer';
 import { useRemoveCapabilityFromView } from '../../features/views/hooks/useViews';
 import { useCurrentView } from '../../features/views/hooks/useCurrentView';
 import type { Capability } from '../../api/types';
@@ -30,6 +28,7 @@ interface DockviewLayoutProps {
   onComponentDrop: (componentId: string, x: number, y: number) => Promise<void>;
   onComponentSelect: (componentId: string) => void;
   onCapabilitySelect: (capabilityId: string) => void;
+  onOriginEntitySelect?: (nodeId: string) => void;
   onViewSelect: (viewId: string) => Promise<void>;
   onEditComponent: (componentId?: string) => void;
   onEditRelation: () => void;
@@ -37,9 +36,6 @@ interface DockviewLayoutProps {
   onRemoveFromView: () => void;
 }
 
-const isRealizationEdge = (edgeId: string): boolean => edgeId.startsWith('realization-');
-const isParentEdge = (edgeId: string): boolean => edgeId.startsWith('parent-');
-const isRelationEdge = (edgeId: string): boolean => !isRealizationEdge(edgeId) && !isParentEdge(edgeId);
 
 const LAYOUT_STORAGE_KEY = 'easi-canvas-dockview-layout';
 
@@ -123,6 +119,7 @@ function usePanelParams(props: DockviewLayoutProps) {
   const navigation = useCallback(() => ({
     onComponentSelect: props.onComponentSelect,
     onCapabilitySelect: props.onCapabilitySelect,
+    onOriginEntitySelect: props.onOriginEntitySelect,
     onViewSelect: props.onViewSelect,
     onAddComponent: props.onAddComponent,
     onAddCapability: props.onAddCapability,
@@ -130,7 +127,7 @@ function usePanelParams(props: DockviewLayoutProps) {
     onEditComponent: props.onEditComponent,
     canCreateView: props.canCreateView,
     canCreateOriginEntity: props.canCreateOriginEntity,
-  }), [props.onComponentSelect, props.onCapabilitySelect, props.onViewSelect, props.onAddComponent, props.onAddCapability, props.onEditCapability, props.onEditComponent, props.canCreateView, props.canCreateOriginEntity]);
+  }), [props.onComponentSelect, props.onCapabilitySelect, props.onOriginEntitySelect, props.onViewSelect, props.onAddComponent, props.onAddCapability, props.onEditCapability, props.onEditComponent, props.canCreateView, props.canCreateOriginEntity]);
 
   const details = useCallback(() => ({
     selectedNodeId: props.selectedNodeId,
@@ -245,6 +242,7 @@ function useDockviewLayout(props: DockviewLayoutProps) {
 const NavigationTreePanel = (props: IDockviewPanelProps<{
   onComponentSelect: (id: string) => void;
   onCapabilitySelect: (id: string) => void;
+  onOriginEntitySelect?: (nodeId: string) => void;
   onViewSelect: (id: string) => Promise<void>;
   onAddComponent?: () => void;
   onAddCapability?: () => void;
@@ -263,6 +261,7 @@ const NavigationTreePanel = (props: IDockviewPanelProps<{
         <NavigationTree
           onComponentSelect={props.params.onComponentSelect}
           onCapabilitySelect={props.params.onCapabilitySelect}
+          onOriginEntitySelect={props.params.onOriginEntitySelect}
           onViewSelect={props.params.onViewSelect}
           onAddComponent={props.params.onAddComponent}
           onAddCapability={props.params.onAddCapability}
@@ -310,8 +309,6 @@ const DetailPanel = (props: IDockviewPanelProps<{
   onRemoveFromView: () => void;
   onRemoveCapabilityFromView: () => void;
 }>) => {
-  const { selectedNodeId, selectedEdgeId, selectedCapabilityId, onEditComponent, onEditRelation, onRemoveFromView, onRemoveCapabilityFromView } = props.params;
-
   return (
     <div style={{ height: '100%', width: '100%', overflow: 'auto', padding: '1rem' }}>
       <ErrorBoundary
@@ -319,17 +316,7 @@ const DetailPanel = (props: IDockviewPanelProps<{
           <FeatureErrorFallback featureName="Details" error={error} onReset={reset} />
         )}
       >
-        {selectedNodeId ? (
-          <ComponentDetails onEdit={onEditComponent} onRemoveFromView={onRemoveFromView} />
-        ) : selectedEdgeId && isRealizationEdge(selectedEdgeId) ? (
-          <RealizationDetails />
-        ) : selectedEdgeId && isRelationEdge(selectedEdgeId) ? (
-          <RelationDetails onEdit={onEditRelation} />
-        ) : selectedCapabilityId ? (
-          <CapabilityDetails onRemoveFromView={onRemoveCapabilityFromView} />
-        ) : (
-          <div style={{ color: 'var(--color-gray-500)' }}>Select a component, relation, or capability to view details</div>
-        )}
+        <DetailContentRendererWithPlaceholder {...props.params} />
       </ErrorBoundary>
     </div>
   );

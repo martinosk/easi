@@ -7,8 +7,13 @@ import { useRemoveComponentFromView, useRemoveCapabilityFromView } from '../../v
 import { useComponents } from '../../components/hooks/useComponents';
 import { useRelations } from '../../relations/hooks/useRelations';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
+import { useDeleteAcquiredEntity, useUnlinkComponentFromAcquiredEntity } from '../../origin-entities/hooks/useAcquiredEntities';
+import { useDeleteVendor, useUnlinkComponentFromVendor } from '../../origin-entities/hooks/useVendors';
+import { useDeleteInternalTeam, useUnlinkComponentFromInternalTeam } from '../../origin-entities/hooks/useInternalTeams';
+import { extractOriginEntityId } from '../utils/nodeFactory';
 import { toComponentId, toCapabilityId, toRealizationId } from '../../../api/types';
-import type { CapabilityId, ComponentId, ViewId, Component, Relation, Capability, HATEOASLinks } from '../../../api/types';
+import type { CapabilityId, ComponentId, ViewId, Component, Relation, Capability, HATEOASLinks, AcquiredEntityId, VendorId, InternalTeamId, OriginRelationshipId, OriginRelationshipType } from '../../../api/types';
+import type { OriginEntityType } from '../../../constants/entityIdentifiers';
 
 export type DeleteTargetType =
   | 'component-from-view'
@@ -17,7 +22,9 @@ export type DeleteTargetType =
   | 'capability-from-canvas'
   | 'capability-from-model'
   | 'parent-relation'
-  | 'realization';
+  | 'realization'
+  | 'origin-entity-from-model'
+  | 'origin-relationship';
 
 export interface DeleteTarget {
   type: DeleteTargetType;
@@ -26,6 +33,10 @@ export interface DeleteTarget {
   childId?: string;
   capabilityId?: CapabilityId;
   componentId?: ComponentId;
+  originEntityType?: OriginEntityType;
+  originRelationshipId?: OriginRelationshipId;
+  originRelationshipType?: OriginRelationshipType;
+  originEntityId?: string;
   _links?: HATEOASLinks;
 }
 
@@ -39,6 +50,56 @@ type DeleteHandler = (
   }
 ) => Promise<void>;
 
+interface OriginEntityDeleteMutations {
+  deleteAcquired: { mutateAsync: (params: { id: AcquiredEntityId; name: string }) => Promise<void> };
+  deleteVendor: { mutateAsync: (params: { id: VendorId; name: string }) => Promise<void> };
+  deleteTeam: { mutateAsync: (params: { id: InternalTeamId; name: string }) => Promise<void> };
+}
+
+interface OriginRelationshipUnlinkMutations {
+  unlinkAcquired: { mutateAsync: (params: { entityId: AcquiredEntityId; relationshipId: OriginRelationshipId }) => Promise<void> };
+  unlinkVendor: { mutateAsync: (params: { vendorId: VendorId; relationshipId: OriginRelationshipId }) => Promise<void> };
+  unlinkTeam: { mutateAsync: (params: { teamId: InternalTeamId; relationshipId: OriginRelationshipId }) => Promise<void> };
+}
+
+type OriginEntityDeleteStrategy = (
+  mutations: OriginEntityDeleteMutations,
+  entityId: string,
+  name: string
+) => Promise<void>;
+
+type OriginRelationshipUnlinkStrategy = (
+  mutations: OriginRelationshipUnlinkMutations,
+  originEntityId: string,
+  relationshipId: OriginRelationshipId
+) => Promise<void>;
+
+const ORIGIN_ENTITY_DELETE_STRATEGIES: Record<OriginEntityType, OriginEntityDeleteStrategy> = {
+  acquired: (mutations, entityId, name) =>
+    mutations.deleteAcquired.mutateAsync({ id: entityId as AcquiredEntityId, name }),
+  vendor: (mutations, entityId, name) =>
+    mutations.deleteVendor.mutateAsync({ id: entityId as VendorId, name }),
+  team: (mutations, entityId, name) =>
+    mutations.deleteTeam.mutateAsync({ id: entityId as InternalTeamId, name }),
+};
+
+const ORIGIN_RELATIONSHIP_UNLINK_STRATEGIES: Record<OriginRelationshipType, OriginRelationshipUnlinkStrategy> = {
+  AcquiredVia: (mutations, originEntityId, relationshipId) =>
+    mutations.unlinkAcquired.mutateAsync({ entityId: originEntityId as AcquiredEntityId, relationshipId }),
+  PurchasedFrom: (mutations, originEntityId, relationshipId) =>
+    mutations.unlinkVendor.mutateAsync({ vendorId: originEntityId as VendorId, relationshipId }),
+  BuiltBy: (mutations, originEntityId, relationshipId) =>
+    mutations.unlinkTeam.mutateAsync({ teamId: originEntityId as InternalTeamId, relationshipId }),
+};
+
+function hasRealizationData(target: DeleteTarget): boolean {
+  return Boolean(target.capabilityId && target.componentId && target._links);
+}
+
+function hasOriginRelationshipData(target: DeleteTarget): boolean {
+  return Boolean(target.originRelationshipId && target.originRelationshipType && target.originEntityId);
+}
+
 function useDeleteHandlers() {
   const removeComponentFromViewMutation = useRemoveComponentFromView();
   const removeCapabilityFromViewMutation = useRemoveCapabilityFromView();
@@ -47,6 +108,24 @@ function useDeleteHandlers() {
   const deleteCapabilityMutation = useDeleteCapability();
   const changeCapabilityParentMutation = useChangeCapabilityParent();
   const deleteRealizationMutation = useDeleteRealization();
+  const deleteAcquiredEntityMutation = useDeleteAcquiredEntity();
+  const deleteVendorMutation = useDeleteVendor();
+  const deleteInternalTeamMutation = useDeleteInternalTeam();
+  const unlinkFromAcquiredMutation = useUnlinkComponentFromAcquiredEntity();
+  const unlinkFromVendorMutation = useUnlinkComponentFromVendor();
+  const unlinkFromInternalTeamMutation = useUnlinkComponentFromInternalTeam();
+
+  const originEntityDeleteMutations: OriginEntityDeleteMutations = useMemo(() => ({
+    deleteAcquired: deleteAcquiredEntityMutation,
+    deleteVendor: deleteVendorMutation,
+    deleteTeam: deleteInternalTeamMutation,
+  }), [deleteAcquiredEntityMutation, deleteVendorMutation, deleteInternalTeamMutation]);
+
+  const originRelationshipUnlinkMutations: OriginRelationshipUnlinkMutations = useMemo(() => ({
+    unlinkAcquired: unlinkFromAcquiredMutation,
+    unlinkVendor: unlinkFromVendorMutation,
+    unlinkTeam: unlinkFromInternalTeamMutation,
+  }), [unlinkFromAcquiredMutation, unlinkFromVendorMutation, unlinkFromInternalTeamMutation]);
 
   return useMemo((): Record<DeleteTargetType, DeleteHandler> => ({
     'component-from-view': async (target, viewId) => {
@@ -87,16 +166,30 @@ function useDeleteHandlers() {
       });
     },
     'realization': async (target) => {
-      if (!target.capabilityId || !target.componentId || !target._links) return;
+      if (!hasRealizationData(target)) return;
       await deleteRealizationMutation.mutateAsync({
         id: toRealizationId(target.id),
-        capabilityId: target.capabilityId,
-        componentId: target.componentId,
+        capabilityId: target.capabilityId!,
+        componentId: target.componentId!,
         realizationLevel: 'Full',
         origin: 'Direct',
         linkedAt: '',
-        _links: target._links,
+        _links: target._links!,
       });
+    },
+    'origin-entity-from-model': async (target) => {
+      if (!target.originEntityType) return;
+      const entityId = extractOriginEntityId(target.id);
+      if (!entityId) return;
+
+      const strategy = ORIGIN_ENTITY_DELETE_STRATEGIES[target.originEntityType];
+      await strategy(originEntityDeleteMutations, entityId, target.name);
+    },
+    'origin-relationship': async (target) => {
+      if (!hasOriginRelationshipData(target)) return;
+
+      const strategy = ORIGIN_RELATIONSHIP_UNLINK_STRATEGIES[target.originRelationshipType!];
+      await strategy(originRelationshipUnlinkMutations, target.originEntityId!, target.originRelationshipId!);
     },
   }), [
     removeComponentFromViewMutation,
@@ -106,6 +199,8 @@ function useDeleteHandlers() {
     deleteCapabilityMutation,
     changeCapabilityParentMutation,
     deleteRealizationMutation,
+    originEntityDeleteMutations,
+    originRelationshipUnlinkMutations,
   ]);
 }
 

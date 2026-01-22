@@ -13,6 +13,7 @@ export interface NavigationTreeProps {
   onAddCapability?: () => void;
   onEditCapability?: (capability: Capability) => void;
   onEditComponent?: (componentId: string) => void;
+  onOriginEntitySelect?: (nodeId: string) => void;
   canCreateView?: boolean;
   canCreateOriginEntity?: boolean;
 }

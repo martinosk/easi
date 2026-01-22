@@ -1,24 +1,75 @@
-import { useState, useRef } from 'react';
-import type { View, Component, Capability } from '../../../api/types';
+import { useState, useRef, useCallback } from 'react';
+import type { View, Component, Capability, AcquiredEntity, Vendor, InternalTeam, HATEOASLinks } from '../../../api/types';
 import type { ViewContextMenuState, ComponentContextMenuState, CapabilityContextMenuState, EditingState } from '../types';
+import type { DeleteTarget } from '../components/DeleteConfirmation';
 import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
 import { useUpdateComponent, useDeleteComponent } from '../../components/hooks/useComponents';
 import { useCreateView, useDeleteView, useRenameView, useSetDefaultView, useChangeViewVisibility } from '../../views/hooks/useViews';
+import { useDeleteAcquiredEntity } from '../../origin-entities/hooks/useAcquiredEntities';
+import { useDeleteVendor } from '../../origin-entities/hooks/useVendors';
+import { useDeleteInternalTeam } from '../../origin-entities/hooks/useInternalTeams';
 import { getContextMenuPosition } from '../utils/treeUtils';
 import { copyToClipboard, generateViewShareUrl } from '../../../utils/clipboard';
+
+export interface OriginEntityContextMenuState {
+  x: number;
+  y: number;
+  entity: AcquiredEntity | Vendor | InternalTeam;
+  entityType: 'acquired' | 'vendor' | 'team';
+}
+
+interface EntityMenuConfig {
+  links?: HATEOASLinks;
+  onEdit?: () => void;
+  onDelete: () => void;
+  deleteLabel: string;
+  deleteAriaLabel: string;
+}
+
+function buildEntityMenuItems(config: EntityMenuConfig): ContextMenuItem[] {
+  const items: ContextMenuItem[] = [];
+  const canEdit = config.links?.edit !== undefined;
+  const canDelete = config.links?.delete !== undefined;
+
+  if (canEdit && config.onEdit) {
+    items.push({ label: 'Edit', onClick: config.onEdit });
+  }
+
+  if (canDelete) {
+    items.push({
+      label: config.deleteLabel,
+      onClick: config.onDelete,
+      isDanger: true,
+      ariaLabel: config.deleteAriaLabel,
+    });
+  }
+
+  return items;
+}
 
 interface UseTreeContextMenusProps {
   components: Component[];
   onEditCapability?: (capability: Capability) => void;
   onEditComponent?: (componentId: string) => void;
+  onEditAcquiredEntity?: (entity: AcquiredEntity) => void;
+  onEditVendor?: (vendor: Vendor) => void;
+  onEditInternalTeam?: (team: InternalTeam) => void;
 }
 
-export function useTreeContextMenus({ components, onEditCapability, onEditComponent }: UseTreeContextMenusProps) {
+export function useTreeContextMenus({
+  components,
+  onEditCapability,
+  onEditComponent,
+  onEditAcquiredEntity,
+  onEditVendor,
+  onEditInternalTeam,
+}: UseTreeContextMenusProps) {
   const [viewContextMenu, setViewContextMenu] = useState<ViewContextMenuState | null>(null);
   const [componentContextMenu, setComponentContextMenu] = useState<ComponentContextMenuState | null>(null);
   const [capabilityContextMenu, setCapabilityContextMenu] = useState<CapabilityContextMenuState | null>(null);
+  const [originEntityContextMenu, setOriginEntityContextMenu] = useState<OriginEntityContextMenuState | null>(null);
   const [editingState, setEditingState] = useState<EditingState | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{ type: 'view'; view: View } | { type: 'component'; component: Component } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createViewName, setCreateViewName] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
@@ -32,6 +83,9 @@ export function useTreeContextMenus({ components, onEditCapability, onEditCompon
   const renameViewMutation = useRenameView();
   const setDefaultViewMutation = useSetDefaultView();
   const changeVisibilityMutation = useChangeViewVisibility();
+  const deleteAcquiredEntityMutation = useDeleteAcquiredEntity();
+  const deleteVendorMutation = useDeleteVendor();
+  const deleteInternalTeamMutation = useDeleteInternalTeam();
 
   const handleViewContextMenu = (e: React.MouseEvent, view: View) => {
     const pos = getContextMenuPosition(e);
@@ -46,6 +100,24 @@ export function useTreeContextMenus({ components, onEditCapability, onEditCompon
   const handleCapabilityContextMenu = (e: React.MouseEvent, capability: Capability) => {
     const pos = getContextMenuPosition(e);
     setCapabilityContextMenu({ ...pos, capability });
+  };
+
+  const handleAcquiredEntityContextMenu = (e: React.MouseEvent, entity: AcquiredEntity) => {
+    e.preventDefault();
+    const pos = getContextMenuPosition(e);
+    setOriginEntityContextMenu({ ...pos, entity, entityType: 'acquired' });
+  };
+
+  const handleVendorContextMenu = (e: React.MouseEvent, vendor: Vendor) => {
+    e.preventDefault();
+    const pos = getContextMenuPosition(e);
+    setOriginEntityContextMenu({ ...pos, entity: vendor, entityType: 'vendor' });
+  };
+
+  const handleInternalTeamContextMenu = (e: React.MouseEvent, team: InternalTeam) => {
+    e.preventDefault();
+    const pos = getContextMenuPosition(e);
+    setOriginEntityContextMenu({ ...pos, entity: team, entityType: 'team' });
   };
 
   const handleRenameSubmit = async () => {
@@ -91,16 +163,32 @@ export function useTreeContextMenus({ components, onEditCapability, onEditCompon
     }
   };
 
+  const executeDelete = useCallback(async (target: DeleteTarget): Promise<void> => {
+    switch (target.type) {
+      case 'view':
+        await deleteViewMutation.mutateAsync(target.view);
+        break;
+      case 'component':
+        await deleteComponentMutation.mutateAsync(target.component);
+        break;
+      case 'acquired':
+        await deleteAcquiredEntityMutation.mutateAsync({ id: target.entity.id, name: target.entity.name });
+        break;
+      case 'vendor':
+        await deleteVendorMutation.mutateAsync({ id: target.entity.id, name: target.entity.name });
+        break;
+      case 'team':
+        await deleteInternalTeamMutation.mutateAsync({ id: target.entity.id, name: target.entity.name });
+        break;
+    }
+  }, [deleteViewMutation, deleteComponentMutation, deleteAcquiredEntityMutation, deleteVendorMutation, deleteInternalTeamMutation]);
+
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
 
     setIsDeleting(true);
     try {
-      if (deleteTarget.type === 'view') {
-        await deleteViewMutation.mutateAsync(deleteTarget.view);
-      } else if (deleteTarget.type === 'component') {
-        await deleteComponentMutation.mutateAsync(deleteTarget.component);
-      }
+      await executeDelete(deleteTarget);
       setDeleteTarget(null);
     } catch (error) {
       console.error('Failed to delete:', error);
@@ -111,119 +199,88 @@ export function useTreeContextMenus({ components, onEditCapability, onEditCompon
 
   const getViewContextMenuItems = (menu: ViewContextMenuState): ContextMenuItem[] => {
     const { view } = menu;
-    const items: ContextMenuItem[] = [];
     const canEdit = view._links?.edit !== undefined;
-    const canDelete = view._links?.delete !== undefined;
+    const canDelete = view._links?.delete !== undefined && !view.isDefault;
     const canChangeVisibility = view._links?.['x-change-visibility'] !== undefined;
 
-    items.push({
+    const shareItem: ContextMenuItem = {
       label: 'Share (copy URL)...',
-      onClick: () => {
-        const url = generateViewShareUrl(view.id);
-        copyToClipboard(url);
-      },
-    });
+      onClick: () => copyToClipboard(generateViewShareUrl(view.id)),
+    };
 
-    if (canEdit) {
-      items.push({
-        label: 'Rename View',
-        onClick: () => {
-          setEditingState({ viewId: view.id, name: view.name });
-        },
-      });
-    }
+    const renameItem: ContextMenuItem | null = canEdit ? {
+      label: 'Rename View',
+      onClick: () => setEditingState({ viewId: view.id, name: view.name }),
+    } : null;
 
-    if (canChangeVisibility) {
-      items.push({
-        label: view.isPrivate ? 'Make Public' : 'Make Private',
-        onClick: async () => {
-          try {
-            await changeVisibilityMutation.mutateAsync({
-              viewId: view.id,
-              isPrivate: !view.isPrivate,
-            });
-          } catch (error) {
-            console.error('Failed to change visibility:', error);
-          }
-        },
-      });
-    }
+    const visibilityItem: ContextMenuItem | null = canChangeVisibility ? {
+      label: view.isPrivate ? 'Make Public' : 'Make Private',
+      onClick: () => changeVisibilityMutation.mutate({ viewId: view.id, isPrivate: !view.isPrivate }),
+    } : null;
 
-    if (!view.isDefault) {
-      items.push({
-        label: 'Set as Default',
-        onClick: async () => {
-          try {
-            await setDefaultViewMutation.mutateAsync(view.id);
-          } catch (error) {
-            console.error('Failed to set default view:', error);
-          }
-        },
-      });
+    const setDefaultItem: ContextMenuItem | null = !view.isDefault ? {
+      label: 'Set as Default',
+      onClick: () => setDefaultViewMutation.mutate(view.id),
+    } : null;
 
-      if (canDelete) {
-        items.push({
-          label: 'Delete View',
-          onClick: () => {
-            setDeleteTarget({ type: 'view', view });
-          },
-          isDanger: true,
-        });
-      }
-    }
+    const deleteItem: ContextMenuItem | null = canDelete ? {
+      label: 'Delete View',
+      onClick: () => setDeleteTarget({ type: 'view', view }),
+      isDanger: true,
+    } : null;
 
-    return items;
+    return [shareItem, renameItem, visibilityItem, setDefaultItem, deleteItem].filter(
+      (item): item is ContextMenuItem => item !== null
+    );
   };
 
   const getComponentContextMenuItems = (menu: ComponentContextMenuState): ContextMenuItem[] => {
     const { component } = menu;
-    const items: ContextMenuItem[] = [];
-    const canEdit = component._links?.edit !== undefined;
-    const canDelete = component._links?.delete !== undefined;
-
-    if (canEdit && onEditComponent) {
-      items.push({
-        label: 'Edit',
-        onClick: () => onEditComponent(component.id),
-      });
-    }
-
-    if (canDelete) {
-      items.push({
-        label: 'Delete from Model',
-        onClick: () => {
-          setDeleteTarget({ type: 'component', component });
-        },
-        isDanger: true,
-        ariaLabel: 'Delete application from model',
-      });
-    }
-
-    return items;
+    return buildEntityMenuItems({
+      links: component._links,
+      onEdit: onEditComponent ? () => onEditComponent(component.id) : undefined,
+      onDelete: () => setDeleteTarget({ type: 'component', component }),
+      deleteLabel: 'Delete from Model',
+      deleteAriaLabel: 'Delete application from model',
+    });
   };
 
   const getCapabilityContextMenuItems = (menu: CapabilityContextMenuState): ContextMenuItem[] => {
-    const items: ContextMenuItem[] = [];
-    const canEdit = menu.capability._links?.edit !== undefined;
-    const canDelete = menu.capability._links?.delete !== undefined;
+    return buildEntityMenuItems({
+      links: menu.capability._links,
+      onEdit: onEditCapability ? () => onEditCapability(menu.capability) : undefined,
+      onDelete: () => setDeleteCapability(menu.capability),
+      deleteLabel: 'Delete from Model',
+      deleteAriaLabel: 'Delete capability from model',
+    });
+  };
 
-    if (canEdit && onEditCapability) {
-      items.push({
-        label: 'Edit',
-        onClick: () => onEditCapability(menu.capability),
-      });
-    }
+  const getOriginEntityContextMenuItems = (menu: OriginEntityContextMenuState): ContextMenuItem[] => {
+    const entityTypeLabels: Record<OriginEntityContextMenuState['entityType'], string> = {
+      acquired: 'acquired entity',
+      vendor: 'vendor',
+      team: 'internal team',
+    };
 
-    if (canDelete) {
-      items.push({
-        label: 'Delete from Model',
-        onClick: () => setDeleteCapability(menu.capability),
-        isDanger: true,
-        ariaLabel: 'Delete capability from model',
-      });
-    }
+    const editHandlers: Record<OriginEntityContextMenuState['entityType'], (() => void) | undefined> = {
+      acquired: onEditAcquiredEntity ? () => onEditAcquiredEntity(menu.entity as AcquiredEntity) : undefined,
+      vendor: onEditVendor ? () => onEditVendor(menu.entity as Vendor) : undefined,
+      team: onEditInternalTeam ? () => onEditInternalTeam(menu.entity as InternalTeam) : undefined,
+    };
 
-    return items;
+    const deleteTargetFactories: Record<OriginEntityContextMenuState['entityType'], () => DeleteTarget> = {
+      acquired: () => ({ type: 'acquired', entity: menu.entity as AcquiredEntity }),
+      vendor: () => ({ type: 'vendor', entity: menu.entity as Vendor }),
+      team: () => ({ type: 'team', entity: menu.entity as InternalTeam }),
+    };
+
+    return buildEntityMenuItems({
+      links: menu.entity._links,
+      onEdit: editHandlers[menu.entityType],
+      onDelete: () => setDeleteTarget(deleteTargetFactories[menu.entityType]()),
+      deleteLabel: 'Delete from Model',
+      deleteAriaLabel: `Delete ${entityTypeLabels[menu.entityType]} from model`,
+    });
   };
 
   return {
@@ -233,6 +290,8 @@ export function useTreeContextMenus({ components, onEditCapability, onEditCompon
     setComponentContextMenu,
     capabilityContextMenu,
     setCapabilityContextMenu,
+    originEntityContextMenu,
+    setOriginEntityContextMenu,
     editingState,
     setEditingState,
     deleteTarget,
@@ -248,11 +307,15 @@ export function useTreeContextMenus({ components, onEditCapability, onEditCompon
     handleViewContextMenu,
     handleComponentContextMenu,
     handleCapabilityContextMenu,
+    handleAcquiredEntityContextMenu,
+    handleVendorContextMenu,
+    handleInternalTeamContextMenu,
     handleRenameSubmit,
     handleCreateView,
     handleDeleteConfirm,
     getViewContextMenuItems,
     getComponentContextMenuItems,
     getCapabilityContextMenuItems,
+    getOriginEntityContextMenuItems,
   };
 }

@@ -85,6 +85,7 @@ interface CanvasViewProps {
   switchView: ReturnType<typeof useViewOperations>['switchView'];
   navigateToComponent: ReturnType<typeof useCanvasNavigation>['navigateToComponent'];
   navigateToCapability: ReturnType<typeof useCanvasNavigation>['navigateToCapability'];
+  navigateToOriginEntity: ReturnType<typeof useCanvasNavigation>['navigateToOriginEntity'];
   onRemoveFromView: () => void;
   permissions: ReturnType<typeof useCanvasPermissions>;
 }
@@ -98,6 +99,7 @@ function CanvasView({
   switchView,
   navigateToComponent,
   navigateToCapability,
+  navigateToOriginEntity,
   onRemoveFromView,
   permissions,
 }: CanvasViewProps) {
@@ -114,6 +116,7 @@ function CanvasView({
       onComponentDrop={(id, x, y) => addComponentToView(id as import('./api/types').ComponentId, x, y)}
       onComponentSelect={navigateToComponent}
       onCapabilitySelect={navigateToCapability}
+      onOriginEntitySelect={navigateToOriginEntity}
       onViewSelect={async (id) => switchView(id as import('./api/types').ViewId)}
       onEditComponent={dialogActions.openEditComponentDialog}
       onEditRelation={dialogActions.openEditRelationDialog}
@@ -199,7 +202,7 @@ function App({ view }: AppProps) {
   const { showOverlay: showReleaseNotes, release, dismiss: dismissReleaseNotes } = useReleaseNotes();
   const dialogActions = useCanvasDialogs(selectedEdgeId, relations, components);
   const { removeComponentFromView, addComponentToView, switchView } = useViewOperations();
-  const { navigateToComponent, navigateToCapability } = useCanvasNavigation(canvasRef);
+  const { navigateToComponent, navigateToCapability, navigateToOriginEntity } = useCanvasNavigation(canvasRef);
 
   const handleRemoveFromView = () => {
     if (selectedNodeId) {
@@ -241,6 +244,7 @@ function App({ view }: AppProps) {
     switchView,
     navigateToComponent,
     navigateToCapability,
+    navigateToOriginEntity,
     onRemoveFromView: handleRemoveFromView,
     permissions,
   };

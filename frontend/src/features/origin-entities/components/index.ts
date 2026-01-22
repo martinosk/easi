@@ -1,6 +1,10 @@
 export { AcquiredEntityDetails } from './AcquiredEntityDetails';
+export { AcquiredEntityDetailsPanel } from './AcquiredEntityDetailsPanel';
 export { VendorDetails } from './VendorDetails';
+export { VendorDetailsPanel } from './VendorDetailsPanel';
 export { InternalTeamDetails } from './InternalTeamDetails';
+export { InternalTeamDetailsPanel } from './InternalTeamDetailsPanel';
+export { OriginEntityDetailsPanel } from './OriginEntityDetailsPanel';
 export { CreateAcquiredEntityDialog } from './CreateAcquiredEntityDialog';
 export { EditAcquiredEntityDialog } from './EditAcquiredEntityDialog';
 export { CreateVendorDialog } from './CreateVendorDialog';

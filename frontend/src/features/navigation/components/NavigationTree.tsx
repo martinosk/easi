@@ -34,6 +34,7 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   onAddCapability,
   onEditCapability,
   onEditComponent,
+  onOriginEntitySelect,
   canCreateView = true,
   canCreateOriginEntity = false,
 }) => {
@@ -118,7 +119,8 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
               isExpanded={treeState.isAcquiredEntitiesExpanded}
               onToggle={() => treeState.setIsAcquiredEntitiesExpanded(!treeState.isAcquiredEntitiesExpanded)}
               onAddEntity={canCreateOriginEntity ? () => setOpenOriginDialog('acquired') : undefined}
-              onEntityContextMenu={(e) => e.preventDefault()}
+              onEntitySelect={(entityId) => onOriginEntitySelect?.(`acq-${entityId}`)}
+              onEntityContextMenu={contextMenus.handleAcquiredEntityContextMenu}
             />
 
             <VendorsSection
@@ -127,7 +129,8 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
               isExpanded={treeState.isVendorsExpanded}
               onToggle={() => treeState.setIsVendorsExpanded(!treeState.isVendorsExpanded)}
               onAddVendor={canCreateOriginEntity ? () => setOpenOriginDialog('vendor') : undefined}
-              onVendorContextMenu={(e) => e.preventDefault()}
+              onVendorSelect={(vendorId) => onOriginEntitySelect?.(`vendor-${vendorId}`)}
+              onVendorContextMenu={contextMenus.handleVendorContextMenu}
             />
 
             <InternalTeamsSection
@@ -136,7 +139,8 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
               isExpanded={treeState.isInternalTeamsExpanded}
               onToggle={() => treeState.setIsInternalTeamsExpanded(!treeState.isInternalTeamsExpanded)}
               onAddTeam={canCreateOriginEntity ? () => setOpenOriginDialog('team') : undefined}
-              onTeamContextMenu={(e) => e.preventDefault()}
+              onTeamSelect={(teamId) => onOriginEntitySelect?.(`team-${teamId}`)}
+              onTeamContextMenu={contextMenus.handleInternalTeamContextMenu}
             />
           </div>
         )}
@@ -156,12 +160,15 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
         viewContextMenu={contextMenus.viewContextMenu}
         componentContextMenu={contextMenus.componentContextMenu}
         capabilityContextMenu={contextMenus.capabilityContextMenu}
+        originEntityContextMenu={contextMenus.originEntityContextMenu}
         getViewContextMenuItems={contextMenus.getViewContextMenuItems}
         getComponentContextMenuItems={contextMenus.getComponentContextMenuItems}
         getCapabilityContextMenuItems={contextMenus.getCapabilityContextMenuItems}
+        getOriginEntityContextMenuItems={contextMenus.getOriginEntityContextMenuItems}
         setViewContextMenu={contextMenus.setViewContextMenu}
         setComponentContextMenu={contextMenus.setComponentContextMenu}
         setCapabilityContextMenu={contextMenus.setCapabilityContextMenu}
+        setOriginEntityContextMenu={contextMenus.setOriginEntityContextMenu}
       />
 
       <CreateViewDialog
