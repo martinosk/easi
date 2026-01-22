@@ -1,9 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import type { AcquiredEntity } from '../../../../api/types';
+import type { AcquiredEntity, View, OriginRelationship } from '../../../../api/types';
 import { TreeSection } from '../TreeSection';
+import { TreeSearchInput } from '../shared/TreeSearchInput';
+import { TreeItemList } from '../shared/TreeItemList';
 
 interface AcquiredEntitiesSectionProps {
   acquiredEntities: AcquiredEntity[];
+  currentView: View | null;
+  originRelationships: OriginRelationship[];
   selectedEntityId: string | null;
   isExpanded: boolean;
   onToggle: () => void;
@@ -12,7 +16,7 @@ interface AcquiredEntitiesSectionProps {
   onEntityContextMenu: (e: React.MouseEvent, entity: AcquiredEntity) => void;
 }
 
-const formatAcquisitionYear = (acquisitionDate: string | undefined): string => {
+function formatAcquisitionYear(acquisitionDate: string | undefined): string {
   if (!acquisitionDate) return '';
   try {
     const year = new Date(acquisitionDate).getFullYear();
@@ -20,10 +24,35 @@ const formatAcquisitionYear = (acquisitionDate: string | undefined): string => {
   } catch {
     return '';
   }
-};
+}
+
+function filterEntities(entities: AcquiredEntity[], search: string): AcquiredEntity[] {
+  if (!search.trim()) return entities;
+  const searchLower = search.toLowerCase();
+  return entities.filter(
+    (e) =>
+      e.name.toLowerCase().includes(searchLower) ||
+      (e.notes && e.notes.toLowerCase().includes(searchLower))
+  );
+}
+
+function buildEntityIdsInView(
+  relationships: OriginRelationship[],
+  componentIdsInView: Set<string>
+): Set<string> {
+  const inView = new Set<string>();
+  for (const rel of relationships) {
+    if (rel.relationshipType === 'AcquiredVia' && componentIdsInView.has(rel.componentId)) {
+      inView.add(rel.originEntityId);
+    }
+  }
+  return inView;
+}
 
 export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = ({
   acquiredEntities,
+  currentView,
+  originRelationships,
   selectedEntityId,
   isExpanded,
   onToggle,
@@ -33,24 +62,23 @@ export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = (
 }) => {
   const [search, setSearch] = useState('');
 
-  const filteredEntities = useMemo(() => {
-    if (!search.trim()) {
-      return acquiredEntities;
-    }
-    const searchLower = search.toLowerCase();
-    return acquiredEntities.filter(
-      (e) =>
-        e.name.toLowerCase().includes(searchLower) ||
-        (e.notes && e.notes.toLowerCase().includes(searchLower))
-    );
-  }, [acquiredEntities, search]);
+  const componentIdsInView = useMemo(() => {
+    if (!currentView) return new Set<string>();
+    return new Set(currentView.components.map(vc => vc.componentId));
+  }, [currentView]);
 
-  const handleEntityClick = (entityId: string) => {
-    if (onEntitySelect) {
-      onEntitySelect(entityId);
-    }
-  };
+  const entityIdsInView = useMemo(
+    () => buildEntityIdsInView(originRelationships, componentIdsInView),
+    [originRelationships, componentIdsInView]
+  );
 
+  const filteredEntities = useMemo(
+    () => filterEntities(acquiredEntities, search),
+    [acquiredEntities, search]
+  );
+
+  const hasNoEntities = acquiredEntities.length === 0;
+  const emptyMessage = hasNoEntities ? 'No acquired entities' : 'No matches';
 
   return (
     <TreeSection
@@ -62,55 +90,31 @@ export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = (
       addTitle="Create new acquired entity"
       addTestId="create-acquired-entity-button"
     >
-      <div className="tree-search">
-        <input
-          type="text"
-          className="tree-search-input"
-          placeholder="Search acquired entities..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        {search && (
-          <button
-            className="tree-search-clear"
-            onClick={() => setSearch('')}
-            aria-label="Clear search"
-          >
-            x
-          </button>
-        )}
-      </div>
+      <TreeSearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder="Search acquired entities..."
+      />
       <div className="tree-items">
-        {filteredEntities.length === 0 ? (
-          <div className="tree-item-empty">
-            {acquiredEntities.length === 0 ? 'No acquired entities' : 'No matches'}
-          </div>
-        ) : (
-          filteredEntities.map((entity) => {
-            const isSelected = selectedEntityId === entity.id;
-
-            return (
-              <button
-                key={entity.id}
-                className={`tree-item ${isSelected ? 'selected' : ''}`}
-                onClick={() => handleEntityClick(entity.id)}
-                onContextMenu={(e) => onEntityContextMenu(e, entity)}
-                title={entity.name}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('acquiredEntityId', entity.id);
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
-              >
-                <span className="tree-item-icon">🏢</span>
-                <span className="tree-item-label">
-                  {entity.name}
-                  {formatAcquisitionYear(entity.acquisitionDate)}
-                </span>
-              </button>
-            );
-          })
-        )}
+        <TreeItemList
+          items={filteredEntities}
+          emptyMessage={emptyMessage}
+          icon="🏢"
+          dragDataKey="acquiredEntityId"
+          isSelected={(entity) => selectedEntityId === entity.id}
+          isInView={(entity) => !currentView || entityIdsInView.has(entity.id)}
+          getTitle={(entity, isInView) =>
+            isInView ? entity.name : `${entity.name} (not linked to components in current view)`
+          }
+          renderLabel={(entity) => (
+            <>
+              {entity.name}
+              {formatAcquisitionYear(entity.acquisitionDate)}
+            </>
+          )}
+          onSelect={(entity) => onEntitySelect?.(entity.id)}
+          onContextMenu={onEntityContextMenu}
+        />
       </div>
     </TreeSection>
   );

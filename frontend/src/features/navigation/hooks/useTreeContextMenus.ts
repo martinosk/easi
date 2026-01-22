@@ -47,6 +47,17 @@ function buildEntityMenuItems(config: EntityMenuConfig): ContextMenuItem[] {
   return items;
 }
 
+function createConditionalMenuItem(
+  condition: boolean,
+  item: ContextMenuItem
+): ContextMenuItem | null {
+  return condition ? item : null;
+}
+
+function filterNullItems(items: (ContextMenuItem | null)[]): ContextMenuItem[] {
+  return items.filter((item): item is ContextMenuItem => item !== null);
+}
+
 interface UseTreeContextMenusProps {
   components: Component[];
   onEditCapability?: (capability: Capability) => void;
@@ -202,36 +213,33 @@ export function useTreeContextMenus({
     const canEdit = view._links?.edit !== undefined;
     const canDelete = view._links?.delete !== undefined && !view.isDefault;
     const canChangeVisibility = view._links?.['x-change-visibility'] !== undefined;
+    const visibilityLabel = view.isPrivate ? 'Make Public' : 'Make Private';
 
     const shareItem: ContextMenuItem = {
       label: 'Share (copy URL)...',
       onClick: () => copyToClipboard(generateViewShareUrl(view.id)),
     };
 
-    const renameItem: ContextMenuItem | null = canEdit ? {
-      label: 'Rename View',
-      onClick: () => setEditingState({ viewId: view.id, name: view.name }),
-    } : null;
-
-    const visibilityItem: ContextMenuItem | null = canChangeVisibility ? {
-      label: view.isPrivate ? 'Make Public' : 'Make Private',
-      onClick: () => changeVisibilityMutation.mutate({ viewId: view.id, isPrivate: !view.isPrivate }),
-    } : null;
-
-    const setDefaultItem: ContextMenuItem | null = !view.isDefault ? {
-      label: 'Set as Default',
-      onClick: () => setDefaultViewMutation.mutate(view.id),
-    } : null;
-
-    const deleteItem: ContextMenuItem | null = canDelete ? {
-      label: 'Delete View',
-      onClick: () => setDeleteTarget({ type: 'view', view }),
-      isDanger: true,
-    } : null;
-
-    return [shareItem, renameItem, visibilityItem, setDefaultItem, deleteItem].filter(
-      (item): item is ContextMenuItem => item !== null
-    );
+    return filterNullItems([
+      shareItem,
+      createConditionalMenuItem(canEdit, {
+        label: 'Rename View',
+        onClick: () => setEditingState({ viewId: view.id, name: view.name }),
+      }),
+      createConditionalMenuItem(canChangeVisibility, {
+        label: visibilityLabel,
+        onClick: () => changeVisibilityMutation.mutate({ viewId: view.id, isPrivate: !view.isPrivate }),
+      }),
+      createConditionalMenuItem(!view.isDefault, {
+        label: 'Set as Default',
+        onClick: () => setDefaultViewMutation.mutate(view.id),
+      }),
+      createConditionalMenuItem(canDelete, {
+        label: 'Delete View',
+        onClick: () => setDeleteTarget({ type: 'view', view }),
+        isDanger: true,
+      }),
+    ]);
   };
 
   const getComponentContextMenuItems = (menu: ComponentContextMenuState): ContextMenuItem[] => {

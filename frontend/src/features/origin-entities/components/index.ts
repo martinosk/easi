@@ -5,6 +5,7 @@ export { VendorDetailsPanel } from './VendorDetailsPanel';
 export { InternalTeamDetails } from './InternalTeamDetails';
 export { InternalTeamDetailsPanel } from './InternalTeamDetailsPanel';
 export { OriginEntityDetailsPanel } from './OriginEntityDetailsPanel';
+export { OriginRelationshipDetails } from './OriginRelationshipDetails';
 export { CreateAcquiredEntityDialog } from './CreateAcquiredEntityDialog';
 export { EditAcquiredEntityDialog } from './EditAcquiredEntityDialog';
 export { CreateVendorDialog } from './CreateVendorDialog';

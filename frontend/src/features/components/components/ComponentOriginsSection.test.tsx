@@ -32,6 +32,16 @@ describe('ComponentOriginsSection', () => {
     );
   };
 
+  const createEmptyResponse = () => ({
+    data: {
+      componentId: 'comp-123',
+      acquiredVia: [],
+      purchasedFrom: [],
+      builtBy: [],
+      _links: { self: { href: '/test', method: 'GET' } },
+    },
+  });
+
   describe('loading state', () => {
     it('should display loading text while fetching origins', async () => {
       vi.mocked(httpClient.get).mockImplementation(
@@ -46,9 +56,7 @@ describe('ComponentOriginsSection', () => {
 
   describe('empty state', () => {
     it('should render nothing when no origins exist', async () => {
-      vi.mocked(httpClient.get).mockResolvedValue({
-        data: { data: [] },
-      });
+      vi.mocked(httpClient.get).mockResolvedValue(createEmptyResponse());
 
       const { container } = renderComponent('comp-123' as ComponentId);
 
@@ -62,18 +70,21 @@ describe('ComponentOriginsSection', () => {
     it('should display AcquiredVia relationship correctly', async () => {
       vi.mocked(httpClient.get).mockResolvedValue({
         data: {
-          data: [
+          componentId: 'comp-123',
+          acquiredVia: [
             {
               id: 'rel-1',
+              acquiredEntityId: 'ae-123',
+              acquiredEntityName: 'TechCorp',
               componentId: 'comp-123',
               componentName: 'SAP HR',
-              relationshipType: 'AcquiredVia',
-              originEntityId: 'ae-123',
-              originEntityName: 'TechCorp',
               createdAt: '2021-01-01T00:00:00Z',
               _links: { self: { href: '/test', method: 'GET' } },
             },
           ],
+          purchasedFrom: [],
+          builtBy: [],
+          _links: { self: { href: '/test', method: 'GET' } },
         },
       });
 
@@ -88,18 +99,21 @@ describe('ComponentOriginsSection', () => {
     it('should display PurchasedFrom relationship correctly', async () => {
       vi.mocked(httpClient.get).mockResolvedValue({
         data: {
-          data: [
+          componentId: 'comp-123',
+          acquiredVia: [],
+          purchasedFrom: [
             {
               id: 'rel-2',
+              vendorId: 'v-123',
+              vendorName: 'SAP',
               componentId: 'comp-123',
               componentName: 'SAP HR',
-              relationshipType: 'PurchasedFrom',
-              originEntityId: 'v-123',
-              originEntityName: 'SAP',
               createdAt: '2021-01-01T00:00:00Z',
               _links: { self: { href: '/test', method: 'GET' } },
             },
           ],
+          builtBy: [],
+          _links: { self: { href: '/test', method: 'GET' } },
         },
       });
 
@@ -114,18 +128,21 @@ describe('ComponentOriginsSection', () => {
     it('should display BuiltBy relationship correctly', async () => {
       vi.mocked(httpClient.get).mockResolvedValue({
         data: {
-          data: [
+          componentId: 'comp-123',
+          acquiredVia: [],
+          purchasedFrom: [],
+          builtBy: [
             {
               id: 'rel-3',
+              internalTeamId: 'it-123',
+              internalTeamName: 'Platform Engineering',
               componentId: 'comp-123',
               componentName: 'SAP HR',
-              relationshipType: 'BuiltBy',
-              originEntityId: 'it-123',
-              originEntityName: 'Platform Engineering',
               createdAt: '2021-01-01T00:00:00Z',
               _links: { self: { href: '/test', method: 'GET' } },
             },
           ],
+          _links: { self: { href: '/test', method: 'GET' } },
         },
       });
 
@@ -140,28 +157,31 @@ describe('ComponentOriginsSection', () => {
     it('should display multiple origins', async () => {
       vi.mocked(httpClient.get).mockResolvedValue({
         data: {
-          data: [
+          componentId: 'comp-123',
+          acquiredVia: [
             {
               id: 'rel-1',
+              acquiredEntityId: 'ae-123',
+              acquiredEntityName: 'TechCorp',
               componentId: 'comp-123',
               componentName: 'SAP HR',
-              relationshipType: 'AcquiredVia',
-              originEntityId: 'ae-123',
-              originEntityName: 'TechCorp',
-              createdAt: '2021-01-01T00:00:00Z',
-              _links: { self: { href: '/test', method: 'GET' } },
-            },
-            {
-              id: 'rel-2',
-              componentId: 'comp-123',
-              componentName: 'SAP HR',
-              relationshipType: 'BuiltBy',
-              originEntityId: 'it-123',
-              originEntityName: 'TechCorp Engineering',
               createdAt: '2021-01-01T00:00:00Z',
               _links: { self: { href: '/test', method: 'GET' } },
             },
           ],
+          purchasedFrom: [],
+          builtBy: [
+            {
+              id: 'rel-2',
+              internalTeamId: 'it-123',
+              internalTeamName: 'TechCorp Engineering',
+              componentId: 'comp-123',
+              componentName: 'SAP HR',
+              createdAt: '2021-01-01T00:00:00Z',
+              _links: { self: { href: '/test', method: 'GET' } },
+            },
+          ],
+          _links: { self: { href: '/test', method: 'GET' } },
         },
       });
 
@@ -178,38 +198,41 @@ describe('ComponentOriginsSection', () => {
     it('should display correct icons for each relationship type', async () => {
       vi.mocked(httpClient.get).mockResolvedValue({
         data: {
-          data: [
+          componentId: 'comp-123',
+          acquiredVia: [
             {
               id: 'rel-1',
+              acquiredEntityId: 'ae-123',
+              acquiredEntityName: 'TechCorp',
               componentId: 'comp-123',
               componentName: 'SAP HR',
-              relationshipType: 'AcquiredVia',
-              originEntityId: 'ae-123',
-              originEntityName: 'TechCorp',
-              createdAt: '2021-01-01T00:00:00Z',
-              _links: { self: { href: '/test', method: 'GET' } },
-            },
-            {
-              id: 'rel-2',
-              componentId: 'comp-123',
-              componentName: 'SAP HR',
-              relationshipType: 'PurchasedFrom',
-              originEntityId: 'v-123',
-              originEntityName: 'SAP',
-              createdAt: '2021-01-01T00:00:00Z',
-              _links: { self: { href: '/test', method: 'GET' } },
-            },
-            {
-              id: 'rel-3',
-              componentId: 'comp-123',
-              componentName: 'SAP HR',
-              relationshipType: 'BuiltBy',
-              originEntityId: 'it-123',
-              originEntityName: 'Platform Engineering',
               createdAt: '2021-01-01T00:00:00Z',
               _links: { self: { href: '/test', method: 'GET' } },
             },
           ],
+          purchasedFrom: [
+            {
+              id: 'rel-2',
+              vendorId: 'v-123',
+              vendorName: 'SAP',
+              componentId: 'comp-123',
+              componentName: 'SAP HR',
+              createdAt: '2021-01-01T00:00:00Z',
+              _links: { self: { href: '/test', method: 'GET' } },
+            },
+          ],
+          builtBy: [
+            {
+              id: 'rel-3',
+              internalTeamId: 'it-123',
+              internalTeamName: 'Platform Engineering',
+              componentId: 'comp-123',
+              componentName: 'SAP HR',
+              createdAt: '2021-01-01T00:00:00Z',
+              _links: { self: { href: '/test', method: 'GET' } },
+            },
+          ],
+          _links: { self: { href: '/test', method: 'GET' } },
         },
       });
 
@@ -223,9 +246,7 @@ describe('ComponentOriginsSection', () => {
 
   describe('API integration', () => {
     it('should fetch origins from correct endpoint', async () => {
-      vi.mocked(httpClient.get).mockResolvedValue({
-        data: { data: [] },
-      });
+      vi.mocked(httpClient.get).mockResolvedValue(createEmptyResponse());
 
       renderComponent('comp-123' as ComponentId);
 
@@ -235,9 +256,7 @@ describe('ComponentOriginsSection', () => {
     });
 
     it('should not fetch when componentId is empty', async () => {
-      vi.mocked(httpClient.get).mockResolvedValue({
-        data: { data: [] },
-      });
+      vi.mocked(httpClient.get).mockResolvedValue(createEmptyResponse());
 
       renderComponent('' as ComponentId);
 

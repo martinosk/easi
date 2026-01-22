@@ -19,6 +19,8 @@ describe('VendorsSection', () => {
 
   const defaultProps = {
     vendors: [],
+    currentView: null,
+    originRelationships: [],
     selectedVendorId: null,
     isExpanded: true,
     onToggle: vi.fn(),

@@ -6,12 +6,14 @@ import {
   AcquiredEntityDetailsPanel,
   VendorDetailsPanel,
   InternalTeamDetailsPanel,
+  OriginRelationshipDetails,
 } from '../../features/origin-entities';
 import {
   getEntityType,
   getEntityId,
   isRealizationEdge,
   isRelationEdge,
+  isOriginRelationshipEdge,
   type NodeEntityType,
 } from '../../constants/entityIdentifiers';
 
@@ -62,6 +64,9 @@ interface EdgeDetailProps {
 const EdgeDetail: React.FC<EdgeDetailProps> = ({ edgeId, onEditRelation }) => {
   if (isRealizationEdge(edgeId)) {
     return <RealizationDetails />;
+  }
+  if (isOriginRelationshipEdge(edgeId)) {
+    return <OriginRelationshipDetails />;
   }
   if (isRelationEdge(edgeId)) {
     return <RelationDetails onEdit={onEditRelation} />;

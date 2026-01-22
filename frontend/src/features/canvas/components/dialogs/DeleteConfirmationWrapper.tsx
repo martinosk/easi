@@ -26,6 +26,10 @@ export const DeleteConfirmationWrapper = ({
         return 'Remove Parent Relationship';
       case 'realization':
         return 'Delete Realization';
+      case 'origin-entity-from-model':
+        return 'Delete Origin Entity from Model';
+      case 'origin-relationship':
+        return 'Delete Relationship';
       default:
         return 'Delete Relation from Model';
     }
@@ -41,6 +45,10 @@ export const DeleteConfirmationWrapper = ({
         return 'This will remove the parent-child relationship. The child capability will become a top-level (L1) capability.';
       case 'realization':
         return 'This will remove the link between this capability and application. Any inherited realizations will also be removed.';
+      case 'origin-entity-from-model':
+        return 'This will delete the origin entity from the entire model and remove all relationships to applications.';
+      case 'origin-relationship':
+        return 'This will unlink this origin entity from the application.';
       default:
         return 'This will delete the relation from the entire model and remove it from ALL views.';
     }
@@ -51,7 +59,7 @@ export const DeleteConfirmationWrapper = ({
       title={getTitle()}
       message={getMessage()}
       itemName={deleteTarget.name}
-      confirmText={deleteTarget.type === 'parent-relation' ? 'Remove' : 'Delete'}
+      confirmText={['parent-relation', 'origin-relationship'].includes(deleteTarget.type) ? 'Remove' : 'Delete'}
       cancelText="Cancel"
       onConfirm={onConfirm}
       onCancel={onCancel}

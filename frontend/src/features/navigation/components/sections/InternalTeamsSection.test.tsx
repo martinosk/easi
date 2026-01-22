@@ -20,6 +20,8 @@ describe('InternalTeamsSection', () => {
 
   const defaultProps = {
     internalTeams: [],
+    currentView: null,
+    originRelationships: [],
     selectedTeamId: null,
     isExpanded: true,
     onToggle: vi.fn(),

@@ -1,9 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import type { Vendor } from '../../../../api/types';
+import type { Vendor, View, OriginRelationship } from '../../../../api/types';
 import { TreeSection } from '../TreeSection';
+import { TreeSearchInput } from '../shared/TreeSearchInput';
+import { TreeItemList } from '../shared/TreeItemList';
 
 interface VendorsSectionProps {
   vendors: Vendor[];
+  currentView: View | null;
+  originRelationships: OriginRelationship[];
   selectedVendorId: string | null;
   isExpanded: boolean;
   onToggle: () => void;
@@ -12,8 +16,34 @@ interface VendorsSectionProps {
   onVendorContextMenu: (e: React.MouseEvent, vendor: Vendor) => void;
 }
 
+function filterVendors(vendors: Vendor[], search: string): Vendor[] {
+  if (!search.trim()) return vendors;
+  const searchLower = search.toLowerCase();
+  return vendors.filter(
+    (v) =>
+      v.name.toLowerCase().includes(searchLower) ||
+      (v.implementationPartner && v.implementationPartner.toLowerCase().includes(searchLower)) ||
+      (v.notes && v.notes.toLowerCase().includes(searchLower))
+  );
+}
+
+function buildVendorIdsInView(
+  relationships: OriginRelationship[],
+  componentIdsInView: Set<string>
+): Set<string> {
+  const inView = new Set<string>();
+  for (const rel of relationships) {
+    if (rel.relationshipType === 'PurchasedFrom' && componentIdsInView.has(rel.componentId)) {
+      inView.add(rel.originEntityId);
+    }
+  }
+  return inView;
+}
+
 export const VendorsSection: React.FC<VendorsSectionProps> = ({
   vendors,
+  currentView,
+  originRelationships,
   selectedVendorId,
   isExpanded,
   onToggle,
@@ -23,25 +53,23 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
 }) => {
   const [search, setSearch] = useState('');
 
-  const filteredVendors = useMemo(() => {
-    if (!search.trim()) {
-      return vendors;
-    }
-    const searchLower = search.toLowerCase();
-    return vendors.filter(
-      (v) =>
-        v.name.toLowerCase().includes(searchLower) ||
-        (v.implementationPartner && v.implementationPartner.toLowerCase().includes(searchLower)) ||
-        (v.notes && v.notes.toLowerCase().includes(searchLower))
-    );
-  }, [vendors, search]);
+  const componentIdsInView = useMemo(() => {
+    if (!currentView) return new Set<string>();
+    return new Set(currentView.components.map(vc => vc.componentId));
+  }, [currentView]);
 
-  const handleVendorClick = (vendorId: string) => {
-    if (onVendorSelect) {
-      onVendorSelect(vendorId);
-    }
-  };
+  const vendorIdsInView = useMemo(
+    () => buildVendorIdsInView(originRelationships, componentIdsInView),
+    [originRelationships, componentIdsInView]
+  );
 
+  const filteredVendors = useMemo(
+    () => filterVendors(vendors, search),
+    [vendors, search]
+  );
+
+  const hasNoVendors = vendors.length === 0;
+  const emptyMessage = hasNoVendors ? 'No vendors' : 'No matches';
 
   return (
     <TreeSection
@@ -53,52 +81,26 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
       addTitle="Create new vendor"
       addTestId="create-vendor-button"
     >
-      <div className="tree-search">
-        <input
-          type="text"
-          className="tree-search-input"
-          placeholder="Search vendors..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        {search && (
-          <button
-            className="tree-search-clear"
-            onClick={() => setSearch('')}
-            aria-label="Clear search"
-          >
-            x
-          </button>
-        )}
-      </div>
+      <TreeSearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder="Search vendors..."
+      />
       <div className="tree-items">
-        {filteredVendors.length === 0 ? (
-          <div className="tree-item-empty">
-            {vendors.length === 0 ? 'No vendors' : 'No matches'}
-          </div>
-        ) : (
-          filteredVendors.map((vendor) => {
-            const isSelected = selectedVendorId === vendor.id;
-
-            return (
-              <button
-                key={vendor.id}
-                className={`tree-item ${isSelected ? 'selected' : ''}`}
-                onClick={() => handleVendorClick(vendor.id)}
-                onContextMenu={(e) => onVendorContextMenu(e, vendor)}
-                title={vendor.name}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('vendorId', vendor.id);
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
-              >
-                <span className="tree-item-icon">🏪</span>
-                <span className="tree-item-label">{vendor.name}</span>
-              </button>
-            );
-          })
-        )}
+        <TreeItemList
+          items={filteredVendors}
+          emptyMessage={emptyMessage}
+          icon="🏪"
+          dragDataKey="vendorId"
+          isSelected={(vendor) => selectedVendorId === vendor.id}
+          isInView={(vendor) => !currentView || vendorIdsInView.has(vendor.id)}
+          getTitle={(vendor, isInView) =>
+            isInView ? vendor.name : `${vendor.name} (not linked to components in current view)`
+          }
+          renderLabel={(vendor) => vendor.name}
+          onSelect={(vendor) => onVendorSelect?.(vendor.id)}
+          onContextMenu={onVendorContextMenu}
+        />
       </div>
     </TreeSection>
   );

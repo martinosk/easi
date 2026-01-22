@@ -640,7 +640,7 @@ Note: Phase 6 is optional for this spec but recommended for maintainability.
 
 ## Checklist
 
-- [ ] Specification approved
+- [x] Specification approved
 
 **Frontend Architecture:**
 - [x] Entity type detection utilities (`frontend/src/features/canvas/utils/nodeFactory.ts`)
@@ -649,7 +649,7 @@ Note: Phase 6 is optional for this spec but recommended for maintainability.
 - [x] Tree context menu for origin entities
 - [x] Canvas node context menu for origin entities
 - [x] Edge context menu for origin relationships
-- [ ] Origin relationship details panel
+- [x] Origin relationship details panel
 
 **Acquired Entities:**
 - [x] AcquiredEntity aggregate (domain model, events)
@@ -680,17 +680,17 @@ Note: Phase 6 is optional for this spec but recommended for maintainability.
 - [x] Origin relationship API endpoints (path-based filtering)
 - [x] Canvas: draw relationships from origin entities to components
 - [x] Auto-detect relationship type based on source entity
-- [ ] Component detail panel: show origins section
-- [ ] Component origins convenience endpoint
+- [x] Component detail panel: show origins section
+- [x] Component origins convenience endpoint
 
 **Domain Architect:**
 - [x] Domain architect field (domain model, events)
 - [x] Domain architect API (update business domain endpoint)
-- [ ] Users query API (filter by Architect/Admin role)
-- [ ] Domain architect UI (dropdown from eligible users)
+- [x] Users query API (filter by Architect/Admin role)
+- [x] Domain architect UI (dropdown from eligible users)
 
 **General:**
 - [x] Cascade deletion for origin entities
 - [x] Test-data added to scripts\seed-test-data.ts
-- [ ] Tests passing
+- [x] Tests passing
 - [ ] User sign-off

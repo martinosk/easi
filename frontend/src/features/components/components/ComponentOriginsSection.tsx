@@ -2,19 +2,94 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { httpClient } from '../../../api/core/httpClient';
 import { DetailField } from '../../../components/shared/DetailField';
-import type { ComponentId, OriginRelationship, CollectionResponse, OriginRelationshipType } from '../../../api/types';
+import type { ComponentId, OriginRelationshipType, HATEOASLinks } from '../../../api/types';
 
 interface ComponentOriginsSectionProps {
   componentId: ComponentId;
 }
 
-interface ComponentOriginsResponse extends CollectionResponse<OriginRelationship> {}
+interface AcquiredViaRelationshipDTO {
+  id: string;
+  acquiredEntityId: string;
+  acquiredEntityName: string;
+  componentId: string;
+  componentName: string;
+  notes?: string;
+  createdAt: string;
+  _links: HATEOASLinks;
+}
 
-const fetchComponentOrigins = async (componentId: ComponentId): Promise<OriginRelationship[]> => {
+interface PurchasedFromRelationshipDTO {
+  id: string;
+  vendorId: string;
+  vendorName: string;
+  componentId: string;
+  componentName: string;
+  notes?: string;
+  createdAt: string;
+  _links: HATEOASLinks;
+}
+
+interface BuiltByRelationshipDTO {
+  id: string;
+  internalTeamId: string;
+  internalTeamName: string;
+  componentId: string;
+  componentName: string;
+  notes?: string;
+  createdAt: string;
+  _links: HATEOASLinks;
+}
+
+interface ComponentOriginsResponse {
+  componentId: string;
+  acquiredVia: AcquiredViaRelationshipDTO[];
+  purchasedFrom: PurchasedFromRelationshipDTO[];
+  builtBy: BuiltByRelationshipDTO[];
+  _links: HATEOASLinks;
+}
+
+interface OriginItem {
+  id: string;
+  originEntityName: string;
+  relationshipType: OriginRelationshipType;
+}
+
+const transformToOriginItems = (response: ComponentOriginsResponse): OriginItem[] => {
+  const items: OriginItem[] = [];
+
+  for (const rel of response.acquiredVia) {
+    items.push({
+      id: rel.id,
+      originEntityName: rel.acquiredEntityName,
+      relationshipType: 'AcquiredVia',
+    });
+  }
+
+  for (const rel of response.purchasedFrom) {
+    items.push({
+      id: rel.id,
+      originEntityName: rel.vendorName,
+      relationshipType: 'PurchasedFrom',
+    });
+  }
+
+  for (const rel of response.builtBy) {
+    items.push({
+      id: rel.id,
+      originEntityName: rel.internalTeamName,
+      relationshipType: 'BuiltBy',
+    });
+  }
+
+  return items;
+};
+
+const fetchComponentOrigins = async (componentId: ComponentId): Promise<OriginItem[]> => {
   const response = await httpClient.get<ComponentOriginsResponse>(
     `/api/v1/components/${componentId}/origins`
   );
-  return response.data.data;
+  return transformToOriginItems(response.data);
 };
 
 const getRelationshipTypeLabel = (type: OriginRelationshipType): string => {

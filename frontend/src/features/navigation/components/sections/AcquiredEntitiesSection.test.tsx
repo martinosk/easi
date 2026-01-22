@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AcquiredEntitiesSection } from './AcquiredEntitiesSection';
-import type { AcquiredEntity, AcquiredEntityId, IntegrationStatus, HATEOASLinks } from '../../../../api/types';
+import type { AcquiredEntity, AcquiredEntityId, IntegrationStatus, HATEOASLinks, ViewId, OriginRelationshipId, ComponentId } from '../../../../api/types';
 
 describe('AcquiredEntitiesSection', () => {
   const mockLinks: HATEOASLinks = { self: { href: '/test', method: 'GET' } };
@@ -20,6 +20,8 @@ describe('AcquiredEntitiesSection', () => {
 
   const defaultProps = {
     acquiredEntities: [],
+    currentView: null,
+    originRelationships: [],
     selectedEntityId: null,
     isExpanded: true,
     onToggle: vi.fn(),
@@ -287,6 +289,103 @@ describe('AcquiredEntitiesSection', () => {
       fireEvent.click(screen.getByText('Acquired Entities'));
 
       expect(onToggle).toHaveBeenCalled();
+    });
+  });
+
+  describe('in-view status', () => {
+    const createMockView = (id: string, componentIds: string[]) => ({
+      id: id as ViewId,
+      name: 'Test View',
+      isDefault: false,
+      isPrivate: false,
+      components: componentIds.map(cid => ({ componentId: cid as ComponentId, x: 0, y: 0 })),
+      capabilities: [],
+      createdAt: '2021-01-01T00:00:00Z',
+      _links: mockLinks,
+    });
+
+    const createMockRelationship = (
+      id: string,
+      componentId: string,
+      originEntityId: string
+    ) => ({
+      id: id as OriginRelationshipId,
+      componentId: componentId as ComponentId,
+      componentName: 'Test Component',
+      relationshipType: 'AcquiredVia' as const,
+      originEntityId,
+      originEntityName: 'TechCorp',
+      createdAt: '2021-01-01T00:00:00Z',
+      _links: mockLinks,
+    });
+
+    it('should show entity as in-view when linked to a component in the current view', () => {
+      const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, name: 'TechCorp' });
+      const currentView = createMockView('view-1', ['comp-456']);
+      const originRelationships = [createMockRelationship('rel-1', 'comp-456', 'ae-123')];
+
+      render(
+        <AcquiredEntitiesSection
+          {...defaultProps}
+          acquiredEntities={[entity]}
+          currentView={currentView}
+          originRelationships={originRelationships}
+        />
+      );
+
+      const entityButton = screen.getByTitle('TechCorp');
+      expect(entityButton).not.toHaveClass('not-in-view');
+    });
+
+    it('should show entity as not-in-view when not linked to any component in the current view', () => {
+      const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, name: 'TechCorp' });
+      const currentView = createMockView('view-1', ['comp-456']);
+
+      render(
+        <AcquiredEntitiesSection
+          {...defaultProps}
+          acquiredEntities={[entity]}
+          currentView={currentView}
+          originRelationships={[]}
+        />
+      );
+
+      const entityButton = screen.getByTitle('TechCorp (not linked to components in current view)');
+      expect(entityButton).toHaveClass('not-in-view');
+    });
+
+    it('should show entity as not-in-view when linked to a component not in the current view', () => {
+      const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, name: 'TechCorp' });
+      const currentView = createMockView('view-1', ['comp-456']);
+      const originRelationships = [createMockRelationship('rel-1', 'comp-999', 'ae-123')];
+
+      render(
+        <AcquiredEntitiesSection
+          {...defaultProps}
+          acquiredEntities={[entity]}
+          currentView={currentView}
+          originRelationships={originRelationships}
+        />
+      );
+
+      const entityButton = screen.getByTitle('TechCorp (not linked to components in current view)');
+      expect(entityButton).toHaveClass('not-in-view');
+    });
+
+    it('should show all entities as in-view when no current view is selected', () => {
+      const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, name: 'TechCorp' });
+
+      render(
+        <AcquiredEntitiesSection
+          {...defaultProps}
+          acquiredEntities={[entity]}
+          currentView={null}
+          originRelationships={[]}
+        />
+      );
+
+      const entityButton = screen.getByTitle('TechCorp');
+      expect(entityButton).not.toHaveClass('not-in-view');
     });
   });
 });

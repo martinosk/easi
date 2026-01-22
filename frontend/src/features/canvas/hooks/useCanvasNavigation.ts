@@ -3,7 +3,25 @@ import { useAppStore } from '../../../store/appStore';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import type { ComponentCanvasRef } from '../components/ComponentCanvas';
 import { toComponentId, toCapabilityId } from '../../../api/types';
-import type { ViewComponent, ViewCapability } from '../../../api/types';
+import type { View, ViewComponent, ViewCapability } from '../../../api/types';
+
+function isComponentInView(view: View | null, componentId: string): boolean {
+  return view?.components.some((vc: ViewComponent) => vc.componentId === componentId) ?? false;
+}
+
+function isCapabilityInView(view: View | null, capabilityId: string): boolean {
+  return view?.capabilities?.some((vc: ViewCapability) => vc.capabilityId === capabilityId) ?? false;
+}
+
+function centerOnNodeIfNeeded(
+  canvasRef: React.RefObject<ComponentCanvasRef | null>,
+  nodeId: string,
+  shouldCenter: boolean
+): void {
+  if (shouldCenter) {
+    canvasRef.current?.centerOnNode(nodeId);
+  }
+}
 
 export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRef | null>) {
   const { currentView } = useCurrentView();
@@ -14,14 +32,7 @@ export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRe
     (componentId: string) => {
       selectNode(toComponentId(componentId));
       selectCapability(null);
-
-      const isInCurrentView = currentView?.components.some(
-        (vc: ViewComponent) => vc.componentId === componentId
-      );
-
-      if (isInCurrentView) {
-        canvasRef.current?.centerOnNode(componentId);
-      }
+      centerOnNodeIfNeeded(canvasRef, componentId, isComponentInView(currentView, componentId));
     },
     [currentView, selectNode, selectCapability, canvasRef]
   );
@@ -30,14 +41,7 @@ export function useCanvasNavigation(canvasRef: React.RefObject<ComponentCanvasRe
     (capabilityId: string) => {
       selectCapability(toCapabilityId(capabilityId));
       selectNode(null);
-
-      const isOnCanvas = (currentView?.capabilities || []).some(
-        (vc: ViewCapability) => vc.capabilityId === capabilityId
-      );
-
-      if (isOnCanvas) {
-        canvasRef.current?.centerOnNode(`cap-${capabilityId}`);
-      }
+      centerOnNodeIfNeeded(canvasRef, `cap-${capabilityId}`, isCapabilityInView(currentView, capabilityId));
     },
     [currentView, selectCapability, selectNode, canvasRef]
   );
