@@ -7,7 +7,6 @@ import { useViews } from '../../views/hooks/useViews';
 import { useAcquiredEntitiesQuery } from '../../origin-entities/hooks/useAcquiredEntities';
 import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
 import { useInternalTeamsQuery } from '../../origin-entities/hooks/useInternalTeams';
-import { useOriginRelationshipsQuery } from '../../origin-entities/hooks/useOriginRelationships';
 import { useNavigationTreeState } from '../hooks/useNavigationTreeState';
 import { useTreeContextMenus } from '../hooks/useTreeContextMenus';
 import { NavigationTreeContent } from './NavigationTreeContent';
@@ -53,7 +52,6 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   const { data: acquiredEntities = [] } = useAcquiredEntitiesQuery();
   const { data: vendors = [] } = useVendorsQuery();
   const { data: internalTeams = [] } = useInternalTeamsQuery();
-  const { data: originRelationships = [] } = useOriginRelationshipsQuery();
 
   const [selectedCapabilityId, setSelectedCapabilityId] = useState<string | null>(null);
   const [openOriginDialog, setOpenOriginDialog] = useState<OriginEntityDialogType>(null);
@@ -83,7 +81,6 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
             acquiredEntities={acquiredEntities}
             vendors={vendors}
             internalTeams={internalTeams}
-            originRelationships={originRelationships}
             selectedCapabilityId={selectedCapabilityId}
             setSelectedCapabilityId={setSelectedCapabilityId}
             selectedEntityIds={selectedEntityIds}

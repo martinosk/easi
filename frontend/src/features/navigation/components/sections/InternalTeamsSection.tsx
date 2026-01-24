@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import type { InternalTeam, View, OriginRelationship } from '../../../../api/types';
+import type { InternalTeam, View } from '../../../../api/types';
 import { TreeSection } from '../TreeSection';
 import { TreeSearchInput } from '../shared/TreeSearchInput';
 import { TreeItemList } from '../shared/TreeItemList';
+import { useCanvasLayoutContext } from '../../../canvas/context/CanvasLayoutContext';
+import { ORIGIN_ENTITY_PREFIXES } from '../../../canvas/utils/nodeFactory';
 
 interface InternalTeamsSectionProps {
   internalTeams: InternalTeam[];
   currentView: View | null;
-  originRelationships: OriginRelationship[];
   selectedTeamId: string | null;
   isExpanded: boolean;
   onToggle: () => void;
@@ -28,23 +29,9 @@ function filterTeams(teams: InternalTeam[], search: string): InternalTeam[] {
   );
 }
 
-function buildTeamIdsInView(
-  relationships: OriginRelationship[],
-  componentIdsInView: Set<string>
-): Set<string> {
-  const inView = new Set<string>();
-  for (const rel of relationships) {
-    if (rel.relationshipType === 'BuiltBy' && componentIdsInView.has(rel.componentId)) {
-      inView.add(rel.originEntityId);
-    }
-  }
-  return inView;
-}
-
 export const InternalTeamsSection: React.FC<InternalTeamsSectionProps> = ({
   internalTeams,
   currentView,
-  originRelationships,
   selectedTeamId,
   isExpanded,
   onToggle,
@@ -53,16 +40,18 @@ export const InternalTeamsSection: React.FC<InternalTeamsSectionProps> = ({
   onTeamContextMenu,
 }) => {
   const [search, setSearch] = useState('');
+  const { positions: layoutPositions } = useCanvasLayoutContext();
 
-  const componentIdsInView = useMemo(() => {
-    if (!currentView) return new Set<string>();
-    return new Set(currentView.components.map(vc => vc.componentId));
-  }, [currentView]);
-
-  const teamIdsInView = useMemo(
-    () => buildTeamIdsInView(originRelationships, componentIdsInView),
-    [originRelationships, componentIdsInView]
-  );
+  const teamIdsOnCanvas = useMemo(() => {
+    const onCanvas = new Set<string>();
+    for (const team of internalTeams) {
+      const nodeId = `${ORIGIN_ENTITY_PREFIXES.team}${team.id}`;
+      if (layoutPositions[nodeId] !== undefined) {
+        onCanvas.add(team.id);
+      }
+    }
+    return onCanvas;
+  }, [internalTeams, layoutPositions]);
 
   const filteredTeams = useMemo(
     () => filterTeams(internalTeams, search),
@@ -94,9 +83,9 @@ export const InternalTeamsSection: React.FC<InternalTeamsSectionProps> = ({
           icon="👥"
           dragDataKey="internalTeamId"
           isSelected={(team) => selectedTeamId === team.id}
-          isInView={(team) => !currentView || teamIdsInView.has(team.id)}
+          isInView={(team) => !currentView || teamIdsOnCanvas.has(team.id)}
           getTitle={(team, isInView) =>
-            isInView ? team.name : `${team.name} (not linked to components in current view)`
+            isInView ? team.name : `${team.name} (not on canvas)`
           }
           renderLabel={(team) => team.name}
           onSelect={(team) => onTeamSelect?.(team.id)}

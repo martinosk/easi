@@ -39,87 +39,187 @@ func (p *OriginRelationshipProjector) Handle(ctx context.Context, event domain.D
 
 func (p *OriginRelationshipProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	switch eventType {
-	case "AcquiredViaRelationshipCreated":
-		return p.projectAcquiredViaCreated(ctx, eventData)
-	case "AcquiredViaRelationshipDeleted":
-		return p.projectAcquiredViaDeleted(ctx, eventData)
-	case "PurchasedFromRelationshipCreated":
-		return p.projectPurchasedFromCreated(ctx, eventData)
-	case "PurchasedFromRelationshipDeleted":
-		return p.projectPurchasedFromDeleted(ctx, eventData)
-	case "BuiltByRelationshipCreated":
-		return p.projectBuiltByCreated(ctx, eventData)
-	case "BuiltByRelationshipDeleted":
-		return p.projectBuiltByDeleted(ctx, eventData)
+	case "ComponentOriginsCreated":
+		return nil
+	case "AcquiredViaRelationshipSet":
+		return p.projectAcquiredViaSet(ctx, eventData)
+	case "AcquiredViaRelationshipReplaced":
+		return p.projectAcquiredViaReplaced(ctx, eventData)
+	case "AcquiredViaNotesUpdated":
+		return p.projectAcquiredViaNotesUpdated(ctx, eventData)
+	case "AcquiredViaRelationshipCleared":
+		return p.projectAcquiredViaCleared(ctx, eventData)
+	case "PurchasedFromRelationshipSet":
+		return p.projectPurchasedFromSet(ctx, eventData)
+	case "PurchasedFromRelationshipReplaced":
+		return p.projectPurchasedFromReplaced(ctx, eventData)
+	case "PurchasedFromNotesUpdated":
+		return p.projectPurchasedFromNotesUpdated(ctx, eventData)
+	case "PurchasedFromRelationshipCleared":
+		return p.projectPurchasedFromCleared(ctx, eventData)
+	case "BuiltByRelationshipSet":
+		return p.projectBuiltBySet(ctx, eventData)
+	case "BuiltByRelationshipReplaced":
+		return p.projectBuiltByReplaced(ctx, eventData)
+	case "BuiltByNotesUpdated":
+		return p.projectBuiltByNotesUpdated(ctx, eventData)
+	case "BuiltByRelationshipCleared":
+		return p.projectBuiltByCleared(ctx, eventData)
+	case "ComponentOriginsDeleted":
+		return p.projectComponentOriginsDeleted(ctx, eventData)
 	}
 	return nil
 }
 
-func (p *OriginRelationshipProjector) projectAcquiredViaCreated(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.AcquiredViaRelationshipCreated](eventData, "AcquiredViaRelationshipCreated")
+func (p *OriginRelationshipProjector) projectAcquiredViaSet(ctx context.Context, eventData []byte) error {
+	event, err := unmarshalEvent[events.AcquiredViaRelationshipSet](eventData, "AcquiredViaRelationshipSet")
 	if err != nil {
 		return err
 	}
 
 	return p.acquiredViaReadModel.Insert(ctx, readmodels.AcquiredViaRelationshipDTO{
-		ID:               event.ID,
-		AcquiredEntityID: event.AcquiredEntityID,
+		ID:               event.ComponentID,
+		AcquiredEntityID: event.EntityID,
 		ComponentID:      event.ComponentID,
 		Notes:            event.Notes,
-		CreatedAt:        event.CreatedAt,
+		CreatedAt:        event.LinkedAt,
 	})
 }
 
-func (p *OriginRelationshipProjector) projectAcquiredViaDeleted(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.AcquiredViaRelationshipDeleted](eventData, "AcquiredViaRelationshipDeleted")
+func (p *OriginRelationshipProjector) projectAcquiredViaReplaced(ctx context.Context, eventData []byte) error {
+	event, err := unmarshalEvent[events.AcquiredViaRelationshipReplaced](eventData, "AcquiredViaRelationshipReplaced")
 	if err != nil {
 		return err
 	}
-	return p.acquiredViaReadModel.MarkAsDeleted(ctx, event.ID, event.DeletedAt)
+
+	return p.acquiredViaReadModel.UpdateByComponentID(ctx, readmodels.AcquiredViaRelationshipDTO{
+		AcquiredEntityID: event.NewEntityID,
+		ComponentID:      event.ComponentID,
+		Notes:            event.Notes,
+		CreatedAt:        event.LinkedAt,
+	})
 }
 
-func (p *OriginRelationshipProjector) projectPurchasedFromCreated(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.PurchasedFromRelationshipCreated](eventData, "PurchasedFromRelationshipCreated")
+func (p *OriginRelationshipProjector) projectAcquiredViaNotesUpdated(ctx context.Context, eventData []byte) error {
+	event, err := unmarshalEvent[events.AcquiredViaNotesUpdated](eventData, "AcquiredViaNotesUpdated")
+	if err != nil {
+		return err
+	}
+
+	return p.acquiredViaReadModel.UpdateNotesByComponentID(ctx, event.ComponentID, event.NewNotes)
+}
+
+func (p *OriginRelationshipProjector) projectAcquiredViaCleared(ctx context.Context, eventData []byte) error {
+	event, err := unmarshalEvent[events.AcquiredViaRelationshipCleared](eventData, "AcquiredViaRelationshipCleared")
+	if err != nil {
+		return err
+	}
+	return p.acquiredViaReadModel.DeleteByComponentID(ctx, event.ComponentID)
+}
+
+func (p *OriginRelationshipProjector) projectPurchasedFromSet(ctx context.Context, eventData []byte) error {
+	event, err := unmarshalEvent[events.PurchasedFromRelationshipSet](eventData, "PurchasedFromRelationshipSet")
 	if err != nil {
 		return err
 	}
 
 	return p.purchasedFromReadModel.Insert(ctx, readmodels.PurchasedFromRelationshipDTO{
-		ID:          event.ID,
+		ID:          event.ComponentID,
 		VendorID:    event.VendorID,
 		ComponentID: event.ComponentID,
 		Notes:       event.Notes,
-		CreatedAt:   event.CreatedAt,
+		CreatedAt:   event.LinkedAt,
 	})
 }
 
-func (p *OriginRelationshipProjector) projectPurchasedFromDeleted(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.PurchasedFromRelationshipDeleted](eventData, "PurchasedFromRelationshipDeleted")
+func (p *OriginRelationshipProjector) projectPurchasedFromReplaced(ctx context.Context, eventData []byte) error {
+	event, err := unmarshalEvent[events.PurchasedFromRelationshipReplaced](eventData, "PurchasedFromRelationshipReplaced")
 	if err != nil {
 		return err
 	}
-	return p.purchasedFromReadModel.MarkAsDeleted(ctx, event.ID, event.DeletedAt)
+
+	return p.purchasedFromReadModel.UpdateByComponentID(ctx, readmodels.PurchasedFromRelationshipDTO{
+		VendorID:    event.NewVendorID,
+		ComponentID: event.ComponentID,
+		Notes:       event.Notes,
+		CreatedAt:   event.LinkedAt,
+	})
 }
 
-func (p *OriginRelationshipProjector) projectBuiltByCreated(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.BuiltByRelationshipCreated](eventData, "BuiltByRelationshipCreated")
+func (p *OriginRelationshipProjector) projectPurchasedFromNotesUpdated(ctx context.Context, eventData []byte) error {
+	event, err := unmarshalEvent[events.PurchasedFromNotesUpdated](eventData, "PurchasedFromNotesUpdated")
+	if err != nil {
+		return err
+	}
+
+	return p.purchasedFromReadModel.UpdateNotesByComponentID(ctx, event.ComponentID, event.NewNotes)
+}
+
+func (p *OriginRelationshipProjector) projectPurchasedFromCleared(ctx context.Context, eventData []byte) error {
+	event, err := unmarshalEvent[events.PurchasedFromRelationshipCleared](eventData, "PurchasedFromRelationshipCleared")
+	if err != nil {
+		return err
+	}
+	return p.purchasedFromReadModel.DeleteByComponentID(ctx, event.ComponentID)
+}
+
+func (p *OriginRelationshipProjector) projectBuiltBySet(ctx context.Context, eventData []byte) error {
+	event, err := unmarshalEvent[events.BuiltByRelationshipSet](eventData, "BuiltByRelationshipSet")
 	if err != nil {
 		return err
 	}
 
 	return p.builtByReadModel.Insert(ctx, readmodels.BuiltByRelationshipDTO{
-		ID:             event.ID,
-		InternalTeamID: event.InternalTeamID,
+		ID:             event.ComponentID,
+		InternalTeamID: event.TeamID,
 		ComponentID:    event.ComponentID,
 		Notes:          event.Notes,
-		CreatedAt:      event.CreatedAt,
+		CreatedAt:      event.LinkedAt,
 	})
 }
 
-func (p *OriginRelationshipProjector) projectBuiltByDeleted(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.BuiltByRelationshipDeleted](eventData, "BuiltByRelationshipDeleted")
+func (p *OriginRelationshipProjector) projectBuiltByReplaced(ctx context.Context, eventData []byte) error {
+	event, err := unmarshalEvent[events.BuiltByRelationshipReplaced](eventData, "BuiltByRelationshipReplaced")
 	if err != nil {
 		return err
 	}
-	return p.builtByReadModel.MarkAsDeleted(ctx, event.ID, event.DeletedAt)
+
+	return p.builtByReadModel.UpdateByComponentID(ctx, readmodels.BuiltByRelationshipDTO{
+		InternalTeamID: event.NewTeamID,
+		ComponentID:    event.ComponentID,
+		Notes:          event.Notes,
+		CreatedAt:      event.LinkedAt,
+	})
+}
+
+func (p *OriginRelationshipProjector) projectBuiltByNotesUpdated(ctx context.Context, eventData []byte) error {
+	event, err := unmarshalEvent[events.BuiltByNotesUpdated](eventData, "BuiltByNotesUpdated")
+	if err != nil {
+		return err
+	}
+
+	return p.builtByReadModel.UpdateNotesByComponentID(ctx, event.ComponentID, event.NewNotes)
+}
+
+func (p *OriginRelationshipProjector) projectBuiltByCleared(ctx context.Context, eventData []byte) error {
+	event, err := unmarshalEvent[events.BuiltByRelationshipCleared](eventData, "BuiltByRelationshipCleared")
+	if err != nil {
+		return err
+	}
+	return p.builtByReadModel.DeleteByComponentID(ctx, event.ComponentID)
+}
+
+func (p *OriginRelationshipProjector) projectComponentOriginsDeleted(ctx context.Context, eventData []byte) error {
+	event, err := unmarshalEvent[events.ComponentOriginsDeleted](eventData, "ComponentOriginsDeleted")
+	if err != nil {
+		return err
+	}
+
+	if err := p.acquiredViaReadModel.DeleteByComponentID(ctx, event.ComponentID); err != nil {
+		return err
+	}
+	if err := p.purchasedFromReadModel.DeleteByComponentID(ctx, event.ComponentID); err != nil {
+		return err
+	}
+	return p.builtByReadModel.DeleteByComponentID(ctx, event.ComponentID)
 }

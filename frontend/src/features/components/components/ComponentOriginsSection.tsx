@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { httpClient } from '../../../api/core/httpClient';
 import { DetailField } from '../../../components/shared/DetailField';
+import { queryKeys } from '../../../lib/queryClient';
 import type { ComponentId, OriginRelationshipType, HATEOASLinks } from '../../../api/types';
 
 interface ComponentOriginsSectionProps {
@@ -123,7 +124,7 @@ export const ComponentOriginsSection: React.FC<ComponentOriginsSectionProps> = (
   componentId,
 }) => {
   const { data: origins = [], isLoading } = useQuery({
-    queryKey: ['components', componentId, 'origins'],
+    queryKey: queryKeys.components.origins(componentId),
     queryFn: () => fetchComponentOrigins(componentId),
     enabled: !!componentId,
   });

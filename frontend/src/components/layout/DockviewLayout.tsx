@@ -10,6 +10,7 @@ import { ErrorBoundary, FeatureErrorFallback } from '../shared/ErrorBoundary';
 import { DetailContentRendererWithPlaceholder } from '../shared/DetailContentRenderer';
 import { useRemoveCapabilityFromView } from '../../features/views/hooks/useViews';
 import { useCurrentView } from '../../features/views/hooks/useCurrentView';
+import { CanvasLayoutProvider } from '../../features/canvas/context/CanvasLayoutContext';
 import type { Capability } from '../../api/types';
 
 const NonClosableTab = (props: IDockviewPanelHeaderProps) => {
@@ -336,19 +337,21 @@ export const DockviewLayout: React.FC<DockviewLayoutProps> = (props) => {
   const { panelVisibility, togglePanel, onReady } = useDockviewLayout(props);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-      <Toolbar />
-      <PanelToggleBar panelVisibility={panelVisibility} onToggle={togglePanel} />
-      <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-          <DockviewReact
-            onReady={onReady}
-            components={components}
-            tabComponents={tabComponents}
-            className="dockview-theme-light"
-          />
+    <CanvasLayoutProvider>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <Toolbar />
+        <PanelToggleBar panelVisibility={panelVisibility} onToggle={togglePanel} />
+        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+            <DockviewReact
+              onReady={onReady}
+              components={components}
+              tabComponents={tabComponents}
+              className="dockview-theme-light"
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </CanvasLayoutProvider>
   );
 };

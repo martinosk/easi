@@ -22,6 +22,7 @@ export const queryKeys = {
       [...queryKeys.components.lists(), filters] as const,
     details: () => [...queryKeys.components.all, 'detail'] as const,
     detail: (id: string) => [...queryKeys.components.details(), id] as const,
+    origins: (id: string) => [...queryKeys.components.detail(id), 'origins'] as const,
     expertRoles: () => [...queryKeys.components.all, 'expert-roles'] as const,
   },
   relations: {

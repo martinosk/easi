@@ -2778,8 +2778,8 @@ const docTemplate = `{
                     }
                 }
             },
-            "post": {
-                "description": "Links a component to an acquired entity",
+            "put": {
+                "description": "Sets or updates the acquired-via relationship for a component (idempotent)",
                 "consumes": [
                     "application/json"
                 ],
@@ -2789,8 +2789,15 @@ const docTemplate = `{
                 "tags": [
                     "origin-relationships"
                 ],
-                "summary": "Create an acquired-via relationship",
+                "summary": "Set or update an acquired-via relationship",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "componentId",
+                        "in": "path",
+                        "required": true
+                    },
                     {
                         "description": "Relationship data",
                         "name": "relationship",
@@ -2802,14 +2809,50 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.AcquiredViaRelationshipDTO"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Removes an acquired-via relationship",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "origin-relationships"
+                ],
+                "summary": "Delete an acquired-via relationship",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "componentId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -2860,8 +2903,8 @@ const docTemplate = `{
                     }
                 }
             },
-            "post": {
-                "description": "Links a component to an internal team",
+            "put": {
+                "description": "Sets or updates the built-by relationship for a component (idempotent)",
                 "consumes": [
                     "application/json"
                 ],
@@ -2871,8 +2914,15 @@ const docTemplate = `{
                 "tags": [
                     "origin-relationships"
                 ],
-                "summary": "Create a built-by relationship",
+                "summary": "Set or update a built-by relationship",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "componentId",
+                        "in": "path",
+                        "required": true
+                    },
                     {
                         "description": "Relationship data",
                         "name": "relationship",
@@ -2884,14 +2934,50 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.BuiltByRelationshipDTO"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Removes a built-by relationship",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "origin-relationships"
+                ],
+                "summary": "Delete a built-by relationship",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "componentId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -2942,8 +3028,8 @@ const docTemplate = `{
                     }
                 }
             },
-            "post": {
-                "description": "Links a component to a vendor",
+            "put": {
+                "description": "Sets or updates the purchased-from relationship for a component (idempotent)",
                 "consumes": [
                     "application/json"
                 ],
@@ -2953,8 +3039,15 @@ const docTemplate = `{
                 "tags": [
                     "origin-relationships"
                 ],
-                "summary": "Create a purchased-from relationship",
+                "summary": "Set or update a purchased-from relationship",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "componentId",
+                        "in": "path",
+                        "required": true
+                    },
                     {
                         "description": "Relationship data",
                         "name": "relationship",
@@ -2966,14 +3059,50 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.PurchasedFromRelationshipDTO"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Removes a purchased-from relationship",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "origin-relationships"
+                ],
+                "summary": "Delete a purchased-from relationship",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Component ID",
+                        "name": "componentId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -6174,107 +6303,31 @@ const docTemplate = `{
                 }
             }
         },
-        "/origin-relationships/acquired-via/{id}": {
-            "delete": {
-                "description": "Removes an acquired-via relationship",
+        "/origin-relationships": {
+            "get": {
+                "description": "Retrieves all origin relationships (acquired-via, purchased-from, built-by) across all components",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "origin-relationships"
                 ],
-                "summary": "Delete an acquired-via relationship",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Relationship ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
+                "summary": "Get all origin relationships",
                 "responses": {
-                    "204": {
-                        "description": "No Content"
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_architecturemodeling_infrastructure_api.AllOriginRelationshipsDTO"
+                        }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "401": {
+                        "description": "Unauthorized - authentication required",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/origin-relationships/built-by/{id}": {
-            "delete": {
-                "description": "Removes a built-by relationship",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "origin-relationships"
-                ],
-                "summary": "Delete a built-by relationship",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Relationship ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/origin-relationships/purchased-from/{id}": {
-            "delete": {
-                "description": "Removes a purchased-from relationship",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "origin-relationships"
-                ],
-                "summary": "Delete a purchased-from relationship",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Relationship ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    },
-                    "404": {
-                        "description": "Not Found",
+                    "403": {
+                        "description": "Forbidden - insufficient permissions",
                         "schema": {
                             "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
@@ -8623,9 +8676,6 @@ const docTemplate = `{
                 "createdAt": {
                     "type": "string"
                 },
-                "id": {
-                    "type": "string"
-                },
                 "notes": {
                     "type": "string"
                 }
@@ -8670,9 +8720,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "createdAt": {
-                    "type": "string"
-                },
-                "id": {
                     "type": "string"
                 },
                 "internalTeamId": {
@@ -8777,9 +8824,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "createdAt": {
-                    "type": "string"
-                },
-                "id": {
                     "type": "string"
                 },
                 "notes": {
@@ -9812,6 +9856,32 @@ const docTemplate = `{
                 },
                 "expertRole": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_architecturemodeling_infrastructure_api.AllOriginRelationshipsDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "acquiredVia": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.AcquiredViaRelationshipDTO"
+                    }
+                },
+                "builtBy": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.BuiltByRelationshipDTO"
+                    }
+                },
+                "purchasedFrom": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architecturemodeling_application_readmodels.PurchasedFromRelationshipDTO"
+                    }
                 }
             }
         },

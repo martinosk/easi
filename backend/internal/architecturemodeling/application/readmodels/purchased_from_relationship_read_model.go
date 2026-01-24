@@ -42,6 +42,47 @@ func (rm *PurchasedFromRelationshipReadModel) Insert(ctx context.Context, dto Pu
 	return err
 }
 
+func (rm *PurchasedFromRelationshipReadModel) UpdateByComponentID(ctx context.Context, dto PurchasedFromRelationshipDTO) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`UPDATE purchased_from_relationships
+		 SET vendor_id = $1, notes = $2, created_at = $3, is_deleted = FALSE, deleted_at = NULL
+		 WHERE tenant_id = $4 AND component_id = $5`,
+		dto.VendorID, dto.Notes, dto.CreatedAt, tenantID.Value(), dto.ComponentID,
+	)
+	return err
+}
+
+func (rm *PurchasedFromRelationshipReadModel) UpdateNotesByComponentID(ctx context.Context, componentID string, notes string) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`UPDATE purchased_from_relationships SET notes = $1 WHERE tenant_id = $2 AND component_id = $3`,
+		notes, tenantID.Value(), componentID,
+	)
+	return err
+}
+
+func (rm *PurchasedFromRelationshipReadModel) DeleteByComponentID(ctx context.Context, componentID string) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"DELETE FROM purchased_from_relationships WHERE tenant_id = $1 AND component_id = $2",
+		tenantID.Value(), componentID,
+	)
+	return err
+}
+
 func (rm *PurchasedFromRelationshipReadModel) MarkAsDeleted(ctx context.Context, id string, deletedAt time.Time) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {

@@ -57,9 +57,9 @@ interface OriginEntityDeleteMutations {
 }
 
 interface OriginRelationshipUnlinkMutations {
-  unlinkAcquired: { mutateAsync: (params: { entityId: AcquiredEntityId; relationshipId: OriginRelationshipId }) => Promise<void> };
-  unlinkVendor: { mutateAsync: (params: { vendorId: VendorId; relationshipId: OriginRelationshipId }) => Promise<void> };
-  unlinkTeam: { mutateAsync: (params: { teamId: InternalTeamId; relationshipId: OriginRelationshipId }) => Promise<void> };
+  unlinkAcquired: { mutateAsync: (params: { entityId: AcquiredEntityId; componentId: ComponentId }) => Promise<void> };
+  unlinkVendor: { mutateAsync: (params: { vendorId: VendorId; componentId: ComponentId }) => Promise<void> };
+  unlinkTeam: { mutateAsync: (params: { teamId: InternalTeamId; componentId: ComponentId }) => Promise<void> };
 }
 
 type OriginEntityDeleteStrategy = (
@@ -71,7 +71,7 @@ type OriginEntityDeleteStrategy = (
 type OriginRelationshipUnlinkStrategy = (
   mutations: OriginRelationshipUnlinkMutations,
   originEntityId: string,
-  relationshipId: OriginRelationshipId
+  componentId: ComponentId
 ) => Promise<void>;
 
 const ORIGIN_ENTITY_DELETE_STRATEGIES: Record<OriginEntityType, OriginEntityDeleteStrategy> = {
@@ -84,12 +84,12 @@ const ORIGIN_ENTITY_DELETE_STRATEGIES: Record<OriginEntityType, OriginEntityDele
 };
 
 const ORIGIN_RELATIONSHIP_UNLINK_STRATEGIES: Record<OriginRelationshipType, OriginRelationshipUnlinkStrategy> = {
-  AcquiredVia: (mutations, originEntityId, relationshipId) =>
-    mutations.unlinkAcquired.mutateAsync({ entityId: originEntityId as AcquiredEntityId, relationshipId }),
-  PurchasedFrom: (mutations, originEntityId, relationshipId) =>
-    mutations.unlinkVendor.mutateAsync({ vendorId: originEntityId as VendorId, relationshipId }),
-  BuiltBy: (mutations, originEntityId, relationshipId) =>
-    mutations.unlinkTeam.mutateAsync({ teamId: originEntityId as InternalTeamId, relationshipId }),
+  AcquiredVia: (mutations, originEntityId, componentId) =>
+    mutations.unlinkAcquired.mutateAsync({ entityId: originEntityId as AcquiredEntityId, componentId }),
+  PurchasedFrom: (mutations, originEntityId, componentId) =>
+    mutations.unlinkVendor.mutateAsync({ vendorId: originEntityId as VendorId, componentId }),
+  BuiltBy: (mutations, originEntityId, componentId) =>
+    mutations.unlinkTeam.mutateAsync({ teamId: originEntityId as InternalTeamId, componentId }),
 };
 
 function hasRealizationData(target: DeleteTarget): boolean {
@@ -97,7 +97,7 @@ function hasRealizationData(target: DeleteTarget): boolean {
 }
 
 function hasOriginRelationshipData(target: DeleteTarget): boolean {
-  return Boolean(target.originRelationshipId && target.originRelationshipType && target.originEntityId);
+  return Boolean(target.componentId && target.originRelationshipType && target.originEntityId);
 }
 
 function useDeleteHandlers() {
@@ -189,7 +189,7 @@ function useDeleteHandlers() {
       if (!hasOriginRelationshipData(target)) return;
 
       const strategy = ORIGIN_RELATIONSHIP_UNLINK_STRATEGIES[target.originRelationshipType!];
-      await strategy(originRelationshipUnlinkMutations, target.originEntityId!, target.originRelationshipId!);
+      await strategy(originRelationshipUnlinkMutations, target.originEntityId!, target.componentId!);
     },
   }), [
     removeComponentFromViewMutation,

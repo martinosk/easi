@@ -16,7 +16,6 @@ import type {
   CreateInternalTeamRequest,
   UpdateInternalTeamRequest,
   OriginRelationship,
-  OriginRelationshipId,
   AllOriginRelationshipsResponse,
 } from '../../../api/types';
 
@@ -54,17 +53,17 @@ export const originEntitiesApi = {
     async linkComponent(
       componentId: string,
       acquiredEntityId: AcquiredEntityId,
-      replaceExisting: boolean = false
+      notes?: string
     ): Promise<OriginRelationship> {
-      const response = await httpClient.post<OriginRelationship>(
+      const response = await httpClient.put<OriginRelationship>(
         `/api/v1/components/${componentId}/origin/acquired-via`,
-        { acquiredEntityId, replaceExisting }
+        { acquiredEntityId, componentId, notes }
       );
       return response.data;
     },
 
-    async unlinkComponent(relationshipId: OriginRelationshipId): Promise<void> {
-      await httpClient.delete(`/api/v1/origin-relationships/acquired-via/${relationshipId}`);
+    async unlinkComponent(componentId: string): Promise<void> {
+      await httpClient.delete(`/api/v1/components/${componentId}/origin/acquired-via`);
     },
   },
 
@@ -96,17 +95,17 @@ export const originEntitiesApi = {
     async linkComponent(
       componentId: string,
       vendorId: VendorId,
-      replaceExisting: boolean = false
+      notes?: string
     ): Promise<OriginRelationship> {
-      const response = await httpClient.post<OriginRelationship>(
+      const response = await httpClient.put<OriginRelationship>(
         `/api/v1/components/${componentId}/origin/purchased-from`,
-        { vendorId, replaceExisting }
+        { vendorId, componentId, notes }
       );
       return response.data;
     },
 
-    async unlinkComponent(relationshipId: OriginRelationshipId): Promise<void> {
-      await httpClient.delete(`/api/v1/origin-relationships/purchased-from/${relationshipId}`);
+    async unlinkComponent(componentId: string): Promise<void> {
+      await httpClient.delete(`/api/v1/components/${componentId}/origin/purchased-from`);
     },
   },
 
@@ -138,17 +137,17 @@ export const originEntitiesApi = {
     async linkComponent(
       componentId: string,
       internalTeamId: InternalTeamId,
-      replaceExisting: boolean = false
+      notes?: string
     ): Promise<OriginRelationship> {
-      const response = await httpClient.post<OriginRelationship>(
+      const response = await httpClient.put<OriginRelationship>(
         `/api/v1/components/${componentId}/origin/built-by`,
-        { internalTeamId, replaceExisting }
+        { internalTeamId, componentId, notes }
       );
       return response.data;
     },
 
-    async unlinkComponent(relationshipId: OriginRelationshipId): Promise<void> {
-      await httpClient.delete(`/api/v1/origin-relationships/built-by/${relationshipId}`);
+    async unlinkComponent(componentId: string): Promise<void> {
+      await httpClient.delete(`/api/v1/components/${componentId}/origin/built-by`);
     },
   },
 };

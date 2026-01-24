@@ -9,7 +9,6 @@ import type {
   InternalTeamId,
   CreateInternalTeamRequest,
   UpdateInternalTeamRequest,
-  OriginRelationshipId,
   ComponentId,
 } from '../../../api/types';
 import toast from 'react-hot-toast';
@@ -136,14 +135,14 @@ export function useLinkComponentToInternalTeam() {
     mutationFn: ({
       componentId,
       teamId,
-      replaceExisting = false,
+      notes,
     }: {
       componentId: ComponentId;
       teamId: InternalTeamId;
-      replaceExisting?: boolean;
-    }) => originEntitiesApi.internalTeams.linkComponent(componentId, teamId, replaceExisting),
-    onSuccess: (_, { teamId }) => {
-      invalidateFor(queryClient, mutationEffects.internalTeams.linkComponent(teamId));
+      notes?: string;
+    }) => originEntitiesApi.internalTeams.linkComponent(componentId, teamId, notes),
+    onSuccess: (_, { teamId, componentId }) => {
+      invalidateFor(queryClient, mutationEffects.internalTeams.linkComponent(teamId, componentId));
       toast.success('Component linked to internal team');
     },
     onError: () => {
@@ -156,10 +155,10 @@ export function useUnlinkComponentFromInternalTeam() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ relationshipId }: { teamId: InternalTeamId; relationshipId: OriginRelationshipId }) =>
-      originEntitiesApi.internalTeams.unlinkComponent(relationshipId),
-    onSuccess: (_, { teamId }) => {
-      invalidateFor(queryClient, mutationEffects.internalTeams.unlinkComponent(teamId));
+    mutationFn: ({ componentId }: { teamId: InternalTeamId; componentId: ComponentId }) =>
+      originEntitiesApi.internalTeams.unlinkComponent(componentId),
+    onSuccess: (_, { teamId, componentId }) => {
+      invalidateFor(queryClient, mutationEffects.internalTeams.unlinkComponent(teamId, componentId));
       toast.success('Component unlinked');
     },
     onError: () => {

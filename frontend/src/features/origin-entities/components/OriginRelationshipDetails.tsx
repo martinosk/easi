@@ -60,19 +60,19 @@ const handleUnlink = async (
     case 'AcquiredVia':
       await unlinkFromAcquired.mutateAsync({
         entityId: relationship.originEntityId as AcquiredEntityId,
-        relationshipId: relationship.id,
+        componentId: relationship.componentId,
       });
       break;
     case 'PurchasedFrom':
       await unlinkFromVendor.mutateAsync({
         vendorId: relationship.originEntityId as VendorId,
-        relationshipId: relationship.id,
+        componentId: relationship.componentId,
       });
       break;
     case 'BuiltBy':
       await unlinkFromTeam.mutateAsync({
         teamId: relationship.originEntityId as InternalTeamId,
-        relationshipId: relationship.id,
+        componentId: relationship.componentId,
       });
       break;
   }

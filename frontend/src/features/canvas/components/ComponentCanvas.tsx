@@ -28,7 +28,6 @@ import { useDeleteConfirmation } from '../hooks/useDeleteConfirmation';
 import { NodeContextMenu } from './context-menus/NodeContextMenu';
 import { EdgeContextMenu } from './context-menus/EdgeContextMenu';
 import { DeleteConfirmationWrapper } from './dialogs/DeleteConfirmationWrapper';
-import { CanvasLayoutProvider } from '../context/CanvasLayoutContext';
 
 interface ComponentCanvasProps {
   onConnect: (source: string, target: string) => void;
@@ -178,9 +177,7 @@ export const ComponentCanvas = forwardRef<ComponentCanvasRef, ComponentCanvasPro
   (props, ref) => {
     return (
       <ReactFlowProvider>
-        <CanvasLayoutProvider>
-          <ComponentCanvasInner {...props} ref={ref} />
-        </CanvasLayoutProvider>
+        <ComponentCanvasInner {...props} ref={ref} />
       </ReactFlowProvider>
     );
   }

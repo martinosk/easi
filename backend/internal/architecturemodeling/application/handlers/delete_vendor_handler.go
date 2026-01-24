@@ -58,12 +58,12 @@ func (h *DeleteVendorHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqr
 	}
 
 	for _, relation := range relations {
-		deleteCmd := &commands.DeletePurchasedFromRelationship{ID: relation.ID}
-		if _, err := h.commandBus.Dispatch(ctx, deleteCmd); err != nil {
-			log.Printf("Error cascading delete for relationship %s: %v", relation.ID, err)
+		clearCmd := &commands.ClearPurchasedFrom{ComponentID: relation.ComponentID}
+		if _, err := h.commandBus.Dispatch(ctx, clearCmd); err != nil {
+			log.Printf("Error cascading clear for relationship on component %s: %v", relation.ComponentID, err)
 			continue
 		}
-		log.Printf("Cascaded delete for purchased from relationship %s", relation.ID)
+		log.Printf("Cascaded clear for purchased from relationship on component %s", relation.ComponentID)
 	}
 
 	return cqrs.EmptyResult(), nil

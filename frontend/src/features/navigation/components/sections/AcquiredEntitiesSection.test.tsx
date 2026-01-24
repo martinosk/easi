@@ -1,7 +1,23 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AcquiredEntitiesSection } from './AcquiredEntitiesSection';
-import type { AcquiredEntity, AcquiredEntityId, IntegrationStatus, HATEOASLinks, ViewId, OriginRelationshipId, ComponentId } from '../../../../api/types';
+import type { AcquiredEntity, AcquiredEntityId, IntegrationStatus, HATEOASLinks, ViewId, ComponentId } from '../../../../api/types';
+
+vi.mock('../../../canvas/context/CanvasLayoutContext', () => ({
+  useCanvasLayoutContext: vi.fn(() => ({
+    positions: {},
+    isLoading: false,
+    error: null,
+    updateComponentPosition: vi.fn(),
+    updateCapabilityPosition: vi.fn(),
+    updateOriginEntityPosition: vi.fn(),
+    batchUpdatePositions: vi.fn(),
+    getPositionForElement: vi.fn(),
+    refetch: vi.fn(),
+  })),
+}));
+
+import { useCanvasLayoutContext } from '../../../canvas/context/CanvasLayoutContext';
 
 describe('AcquiredEntitiesSection', () => {
   const mockLinks: HATEOASLinks = { self: { href: '/test', method: 'GET' } };
@@ -21,7 +37,6 @@ describe('AcquiredEntitiesSection', () => {
   const defaultProps = {
     acquiredEntities: [],
     currentView: null,
-    originRelationships: [],
     selectedEntityId: null,
     isExpanded: true,
     onToggle: vi.fn(),
@@ -29,6 +44,20 @@ describe('AcquiredEntitiesSection', () => {
     onEntitySelect: vi.fn(),
     onEntityContextMenu: vi.fn(),
   };
+
+  beforeEach(() => {
+    vi.mocked(useCanvasLayoutContext).mockReturnValue({
+      positions: {},
+      isLoading: false,
+      error: null,
+      updateComponentPosition: vi.fn(),
+      updateCapabilityPosition: vi.fn(),
+      updateOriginEntityPosition: vi.fn(),
+      batchUpdatePositions: vi.fn(),
+      getPositionForElement: vi.fn(),
+      refetch: vi.fn(),
+    });
+  });
 
   describe('rendering', () => {
     it('should display section label with count', () => {
@@ -292,7 +321,7 @@ describe('AcquiredEntitiesSection', () => {
     });
   });
 
-  describe('in-view status', () => {
+  describe('on-canvas status', () => {
     const createMockView = (id: string, componentIds: string[]) => ({
       id: id as ViewId,
       name: 'Test View',
@@ -304,32 +333,27 @@ describe('AcquiredEntitiesSection', () => {
       _links: mockLinks,
     });
 
-    const createMockRelationship = (
-      id: string,
-      componentId: string,
-      originEntityId: string
-    ) => ({
-      id: id as OriginRelationshipId,
-      componentId: componentId as ComponentId,
-      componentName: 'Test Component',
-      relationshipType: 'AcquiredVia' as const,
-      originEntityId,
-      originEntityName: 'TechCorp',
-      createdAt: '2021-01-01T00:00:00Z',
-      _links: mockLinks,
-    });
+    it('should show entity as on-canvas when it has a layout position', () => {
+      vi.mocked(useCanvasLayoutContext).mockReturnValue({
+        positions: { 'acq-ae-123': { x: 100, y: 200 } },
+        isLoading: false,
+        error: null,
+        updateComponentPosition: vi.fn(),
+        updateCapabilityPosition: vi.fn(),
+        updateOriginEntityPosition: vi.fn(),
+        batchUpdatePositions: vi.fn(),
+        getPositionForElement: vi.fn(),
+        refetch: vi.fn(),
+      });
 
-    it('should show entity as in-view when linked to a component in the current view', () => {
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, name: 'TechCorp' });
       const currentView = createMockView('view-1', ['comp-456']);
-      const originRelationships = [createMockRelationship('rel-1', 'comp-456', 'ae-123')];
 
       render(
         <AcquiredEntitiesSection
           {...defaultProps}
           acquiredEntities={[entity]}
           currentView={currentView}
-          originRelationships={originRelationships}
         />
       );
 
@@ -337,7 +361,19 @@ describe('AcquiredEntitiesSection', () => {
       expect(entityButton).not.toHaveClass('not-in-view');
     });
 
-    it('should show entity as not-in-view when not linked to any component in the current view', () => {
+    it('should show entity as not-on-canvas when it has no layout position', () => {
+      vi.mocked(useCanvasLayoutContext).mockReturnValue({
+        positions: {},
+        isLoading: false,
+        error: null,
+        updateComponentPosition: vi.fn(),
+        updateCapabilityPosition: vi.fn(),
+        updateOriginEntityPosition: vi.fn(),
+        batchUpdatePositions: vi.fn(),
+        getPositionForElement: vi.fn(),
+        refetch: vi.fn(),
+      });
+
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, name: 'TechCorp' });
       const currentView = createMockView('view-1', ['comp-456']);
 
@@ -346,33 +382,26 @@ describe('AcquiredEntitiesSection', () => {
           {...defaultProps}
           acquiredEntities={[entity]}
           currentView={currentView}
-          originRelationships={[]}
         />
       );
 
-      const entityButton = screen.getByTitle('TechCorp (not linked to components in current view)');
+      const entityButton = screen.getByTitle('TechCorp (not on canvas)');
       expect(entityButton).toHaveClass('not-in-view');
     });
 
-    it('should show entity as not-in-view when linked to a component not in the current view', () => {
-      const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, name: 'TechCorp' });
-      const currentView = createMockView('view-1', ['comp-456']);
-      const originRelationships = [createMockRelationship('rel-1', 'comp-999', 'ae-123')];
+    it('should show all entities as on-canvas when no current view is selected', () => {
+      vi.mocked(useCanvasLayoutContext).mockReturnValue({
+        positions: {},
+        isLoading: false,
+        error: null,
+        updateComponentPosition: vi.fn(),
+        updateCapabilityPosition: vi.fn(),
+        updateOriginEntityPosition: vi.fn(),
+        batchUpdatePositions: vi.fn(),
+        getPositionForElement: vi.fn(),
+        refetch: vi.fn(),
+      });
 
-      render(
-        <AcquiredEntitiesSection
-          {...defaultProps}
-          acquiredEntities={[entity]}
-          currentView={currentView}
-          originRelationships={originRelationships}
-        />
-      );
-
-      const entityButton = screen.getByTitle('TechCorp (not linked to components in current view)');
-      expect(entityButton).toHaveClass('not-in-view');
-    });
-
-    it('should show all entities as in-view when no current view is selected', () => {
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, name: 'TechCorp' });
 
       render(
@@ -380,7 +409,6 @@ describe('AcquiredEntitiesSection', () => {
           {...defaultProps}
           acquiredEntities={[entity]}
           currentView={null}
-          originRelationships={[]}
         />
       );
 

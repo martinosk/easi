@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import type { AcquiredEntity, View, OriginRelationship } from '../../../../api/types';
+import type { AcquiredEntity, View } from '../../../../api/types';
 import { TreeSection } from '../TreeSection';
 import { TreeSearchInput } from '../shared/TreeSearchInput';
 import { TreeItemList } from '../shared/TreeItemList';
+import { useCanvasLayoutContext } from '../../../canvas/context/CanvasLayoutContext';
+import { ORIGIN_ENTITY_PREFIXES } from '../../../canvas/utils/nodeFactory';
 
 interface AcquiredEntitiesSectionProps {
   acquiredEntities: AcquiredEntity[];
   currentView: View | null;
-  originRelationships: OriginRelationship[];
   selectedEntityId: string | null;
   isExpanded: boolean;
   onToggle: () => void;
@@ -36,23 +37,9 @@ function filterEntities(entities: AcquiredEntity[], search: string): AcquiredEnt
   );
 }
 
-function buildEntityIdsInView(
-  relationships: OriginRelationship[],
-  componentIdsInView: Set<string>
-): Set<string> {
-  const inView = new Set<string>();
-  for (const rel of relationships) {
-    if (rel.relationshipType === 'AcquiredVia' && componentIdsInView.has(rel.componentId)) {
-      inView.add(rel.originEntityId);
-    }
-  }
-  return inView;
-}
-
 export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = ({
   acquiredEntities,
   currentView,
-  originRelationships,
   selectedEntityId,
   isExpanded,
   onToggle,
@@ -61,16 +48,18 @@ export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = (
   onEntityContextMenu,
 }) => {
   const [search, setSearch] = useState('');
+  const { positions: layoutPositions } = useCanvasLayoutContext();
 
-  const componentIdsInView = useMemo(() => {
-    if (!currentView) return new Set<string>();
-    return new Set(currentView.components.map(vc => vc.componentId));
-  }, [currentView]);
-
-  const entityIdsInView = useMemo(
-    () => buildEntityIdsInView(originRelationships, componentIdsInView),
-    [originRelationships, componentIdsInView]
-  );
+  const entityIdsOnCanvas = useMemo(() => {
+    const onCanvas = new Set<string>();
+    for (const entity of acquiredEntities) {
+      const nodeId = `${ORIGIN_ENTITY_PREFIXES.acquired}${entity.id}`;
+      if (layoutPositions[nodeId] !== undefined) {
+        onCanvas.add(entity.id);
+      }
+    }
+    return onCanvas;
+  }, [acquiredEntities, layoutPositions]);
 
   const filteredEntities = useMemo(
     () => filterEntities(acquiredEntities, search),
@@ -102,9 +91,9 @@ export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = (
           icon="🏢"
           dragDataKey="acquiredEntityId"
           isSelected={(entity) => selectedEntityId === entity.id}
-          isInView={(entity) => !currentView || entityIdsInView.has(entity.id)}
+          isInView={(entity) => !currentView || entityIdsOnCanvas.has(entity.id)}
           getTitle={(entity, isInView) =>
-            isInView ? entity.name : `${entity.name} (not linked to components in current view)`
+            isInView ? entity.name : `${entity.name} (not on canvas)`
           }
           renderLabel={(entity) => (
             <>

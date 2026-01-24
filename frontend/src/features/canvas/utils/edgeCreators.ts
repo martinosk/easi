@@ -201,7 +201,7 @@ export function createOriginRelationshipEdges(
       return originEntityNodeIds.has(originNodeId) && componentIdsOnCanvas.has(rel.componentId);
     })
     .map((rel) => {
-      const edgeId = `origin-${rel.id}`;
+      const edgeId = `origin-${rel.relationshipType}-${rel.componentId}`;
       const isSelected = ctx.selectedEdgeId === edgeId;
       const edgeColor = ctx.isClassicScheme ? '#000000' : ORIGIN_RELATIONSHIP_COLORS[rel.relationshipType];
       const label = ORIGIN_RELATIONSHIP_LABELS[rel.relationshipType];

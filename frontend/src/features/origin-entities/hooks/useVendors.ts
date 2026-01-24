@@ -9,7 +9,6 @@ import type {
   VendorId,
   CreateVendorRequest,
   UpdateVendorRequest,
-  OriginRelationshipId,
   ComponentId,
 } from '../../../api/types';
 import toast from 'react-hot-toast';
@@ -136,14 +135,14 @@ export function useLinkComponentToVendor() {
     mutationFn: ({
       componentId,
       vendorId,
-      replaceExisting = false,
+      notes,
     }: {
       componentId: ComponentId;
       vendorId: VendorId;
-      replaceExisting?: boolean;
-    }) => originEntitiesApi.vendors.linkComponent(componentId, vendorId, replaceExisting),
-    onSuccess: (_, { vendorId }) => {
-      invalidateFor(queryClient, mutationEffects.vendors.linkComponent(vendorId));
+      notes?: string;
+    }) => originEntitiesApi.vendors.linkComponent(componentId, vendorId, notes),
+    onSuccess: (_, { vendorId, componentId }) => {
+      invalidateFor(queryClient, mutationEffects.vendors.linkComponent(vendorId, componentId));
       toast.success('Component linked to vendor');
     },
     onError: () => {
@@ -156,10 +155,10 @@ export function useUnlinkComponentFromVendor() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ relationshipId }: { vendorId: VendorId; relationshipId: OriginRelationshipId }) =>
-      originEntitiesApi.vendors.unlinkComponent(relationshipId),
-    onSuccess: (_, { vendorId }) => {
-      invalidateFor(queryClient, mutationEffects.vendors.unlinkComponent(vendorId));
+    mutationFn: ({ componentId }: { vendorId: VendorId; componentId: ComponentId }) =>
+      originEntitiesApi.vendors.unlinkComponent(componentId),
+    onSuccess: (_, { vendorId, componentId }) => {
+      invalidateFor(queryClient, mutationEffects.vendors.unlinkComponent(vendorId, componentId));
       toast.success('Component unlinked');
     },
     onError: () => {

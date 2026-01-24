@@ -181,6 +181,11 @@ export const mutationEffects = {
       ...(context.newParentId ? [queryKeys.capabilities.children(context.newParentId)] : []),
       queryKeys.capabilities.lists(),
       queryKeys.audit.history(context.id),
+      queryKeys.capabilities.realizations(context.id),
+      ...(context.oldParentId ? [queryKeys.capabilities.realizations(context.oldParentId)] : []),
+      ...(context.newParentId ? [queryKeys.capabilities.realizations(context.newParentId)] : []),
+      queryKeys.capabilities.realizationsByComponents(),
+      queryKeys.businessDomains.details(),
     ],
 
     /**
@@ -496,21 +501,29 @@ export const mutationEffects = {
       queryKeys.acquiredEntities.lists(),
       queryKeys.acquiredEntities.detail(id),
       queryKeys.components.lists(),
+      queryKeys.components.details(),
       queryKeys.originRelationships.lists(),
+      queryKeys.layouts.all,
     ],
 
-    linkComponent: (id: string) => [
-      queryKeys.acquiredEntities.relationships(id),
-      queryKeys.acquiredEntities.detail(id),
+    linkComponent: (entityId: string, componentId: string) => [
+      queryKeys.acquiredEntities.relationships(entityId),
+      queryKeys.acquiredEntities.detail(entityId),
       queryKeys.acquiredEntities.lists(),
       queryKeys.originRelationships.lists(),
+      queryKeys.components.detail(componentId),
+      queryKeys.components.origins(componentId),
+      queryKeys.components.lists(),
     ],
 
-    unlinkComponent: (id: string) => [
-      queryKeys.acquiredEntities.relationships(id),
-      queryKeys.acquiredEntities.detail(id),
+    unlinkComponent: (entityId: string, componentId: string) => [
+      queryKeys.acquiredEntities.relationships(entityId),
+      queryKeys.acquiredEntities.detail(entityId),
       queryKeys.acquiredEntities.lists(),
       queryKeys.originRelationships.lists(),
+      queryKeys.components.detail(componentId),
+      queryKeys.components.origins(componentId),
+      queryKeys.components.lists(),
     ],
   },
 
@@ -529,21 +542,29 @@ export const mutationEffects = {
       queryKeys.vendors.lists(),
       queryKeys.vendors.detail(id),
       queryKeys.components.lists(),
+      queryKeys.components.details(),
       queryKeys.originRelationships.lists(),
+      queryKeys.layouts.all,
     ],
 
-    linkComponent: (id: string) => [
-      queryKeys.vendors.relationships(id),
-      queryKeys.vendors.detail(id),
+    linkComponent: (vendorId: string, componentId: string) => [
+      queryKeys.vendors.relationships(vendorId),
+      queryKeys.vendors.detail(vendorId),
       queryKeys.vendors.lists(),
       queryKeys.originRelationships.lists(),
+      queryKeys.components.detail(componentId),
+      queryKeys.components.origins(componentId),
+      queryKeys.components.lists(),
     ],
 
-    unlinkComponent: (id: string) => [
-      queryKeys.vendors.relationships(id),
-      queryKeys.vendors.detail(id),
+    unlinkComponent: (vendorId: string, componentId: string) => [
+      queryKeys.vendors.relationships(vendorId),
+      queryKeys.vendors.detail(vendorId),
       queryKeys.vendors.lists(),
       queryKeys.originRelationships.lists(),
+      queryKeys.components.detail(componentId),
+      queryKeys.components.origins(componentId),
+      queryKeys.components.lists(),
     ],
   },
 
@@ -562,21 +583,29 @@ export const mutationEffects = {
       queryKeys.internalTeams.lists(),
       queryKeys.internalTeams.detail(id),
       queryKeys.components.lists(),
+      queryKeys.components.details(),
       queryKeys.originRelationships.lists(),
+      queryKeys.layouts.all,
     ],
 
-    linkComponent: (id: string) => [
-      queryKeys.internalTeams.relationships(id),
-      queryKeys.internalTeams.detail(id),
+    linkComponent: (teamId: string, componentId: string) => [
+      queryKeys.internalTeams.relationships(teamId),
+      queryKeys.internalTeams.detail(teamId),
       queryKeys.internalTeams.lists(),
       queryKeys.originRelationships.lists(),
+      queryKeys.components.detail(componentId),
+      queryKeys.components.origins(componentId),
+      queryKeys.components.lists(),
     ],
 
-    unlinkComponent: (id: string) => [
-      queryKeys.internalTeams.relationships(id),
-      queryKeys.internalTeams.detail(id),
+    unlinkComponent: (teamId: string, componentId: string) => [
+      queryKeys.internalTeams.relationships(teamId),
+      queryKeys.internalTeams.detail(teamId),
       queryKeys.internalTeams.lists(),
       queryKeys.originRelationships.lists(),
+      queryKeys.components.detail(componentId),
+      queryKeys.components.origins(componentId),
+      queryKeys.components.lists(),
     ],
   },
 } as const;

@@ -15,9 +15,7 @@ func init() {
 	registry.RegisterNotFound(repositories.ErrAcquiredEntityNotFound, "Acquired entity not found")
 	registry.RegisterNotFound(repositories.ErrVendorNotFound, "Vendor not found")
 	registry.RegisterNotFound(repositories.ErrInternalTeamNotFound, "Internal team not found")
-	registry.RegisterNotFound(repositories.ErrAcquiredViaRelationshipNotFound, "Acquired-via relationship not found")
-	registry.RegisterNotFound(repositories.ErrPurchasedFromRelationshipNotFound, "Purchased-from relationship not found")
-	registry.RegisterNotFound(repositories.ErrBuiltByRelationshipNotFound, "Built-by relationship not found")
+	registry.RegisterNotFound(repositories.ErrComponentOriginsNotFound, "Component origins not found")
 
 	registry.RegisterConflict(aggregates.ErrSelfReference, "Component cannot have a relation to itself")
 

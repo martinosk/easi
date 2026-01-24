@@ -58,12 +58,12 @@ func (h *DeleteInternalTeamHandler) Handle(ctx context.Context, cmd cqrs.Command
 	}
 
 	for _, relation := range relations {
-		deleteCmd := &commands.DeleteBuiltByRelationship{ID: relation.ID}
-		if _, err := h.commandBus.Dispatch(ctx, deleteCmd); err != nil {
-			log.Printf("Error cascading delete for relationship %s: %v", relation.ID, err)
+		clearCmd := &commands.ClearBuiltBy{ComponentID: relation.ComponentID}
+		if _, err := h.commandBus.Dispatch(ctx, clearCmd); err != nil {
+			log.Printf("Error cascading clear for relationship on component %s: %v", relation.ComponentID, err)
 			continue
 		}
-		log.Printf("Cascaded delete for built by relationship %s", relation.ID)
+		log.Printf("Cascaded clear for built by relationship on component %s", relation.ComponentID)
 	}
 
 	return cqrs.EmptyResult(), nil

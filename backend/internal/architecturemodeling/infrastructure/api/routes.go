@@ -32,14 +32,12 @@ type RouteConfig struct {
 }
 
 type repositorySet struct {
-	component     *repositories.ApplicationComponentRepository
-	relation      *repositories.ComponentRelationRepository
-	acquiredEntity *repositories.AcquiredEntityRepository
-	vendor        *repositories.VendorRepository
-	internalTeam  *repositories.InternalTeamRepository
-	acquiredVia   *repositories.AcquiredViaRelationshipRepository
-	purchasedFrom *repositories.PurchasedFromRelationshipRepository
-	builtBy       *repositories.BuiltByRelationshipRepository
+	component        *repositories.ApplicationComponentRepository
+	relation         *repositories.ComponentRelationRepository
+	acquiredEntity   *repositories.AcquiredEntityRepository
+	vendor           *repositories.VendorRepository
+	internalTeam     *repositories.InternalTeamRepository
+	componentOrigins *repositories.ComponentOriginsRepository
 }
 
 type readModelSet struct {
@@ -65,14 +63,12 @@ type httpHandlerSet struct {
 
 func newRepositorySet(eventStore eventstore.EventStore) *repositorySet {
 	return &repositorySet{
-		component:     repositories.NewApplicationComponentRepository(eventStore),
-		relation:      repositories.NewComponentRelationRepository(eventStore),
-		acquiredEntity: repositories.NewAcquiredEntityRepository(eventStore),
-		vendor:        repositories.NewVendorRepository(eventStore),
-		internalTeam:  repositories.NewInternalTeamRepository(eventStore),
-		acquiredVia:   repositories.NewAcquiredViaRelationshipRepository(eventStore),
-		purchasedFrom: repositories.NewPurchasedFromRelationshipRepository(eventStore),
-		builtBy:       repositories.NewBuiltByRelationshipRepository(eventStore),
+		component:        repositories.NewApplicationComponentRepository(eventStore),
+		relation:         repositories.NewComponentRelationRepository(eventStore),
+		acquiredEntity:   repositories.NewAcquiredEntityRepository(eventStore),
+		vendor:           repositories.NewVendorRepository(eventStore),
+		internalTeam:     repositories.NewInternalTeamRepository(eventStore),
+		componentOrigins: repositories.NewComponentOriginsRepository(eventStore),
 	}
 }
 
@@ -126,12 +122,20 @@ func subscribeOriginEntityProjectors(eventBus events.EventBus, acquired, vendor,
 }
 
 func subscribeOriginRelationshipProjectors(eventBus events.EventBus, projector events.EventHandler) {
-	eventBus.Subscribe("AcquiredViaRelationshipCreated", projector)
-	eventBus.Subscribe("AcquiredViaRelationshipDeleted", projector)
-	eventBus.Subscribe("PurchasedFromRelationshipCreated", projector)
-	eventBus.Subscribe("PurchasedFromRelationshipDeleted", projector)
-	eventBus.Subscribe("BuiltByRelationshipCreated", projector)
-	eventBus.Subscribe("BuiltByRelationshipDeleted", projector)
+	eventBus.Subscribe("ComponentOriginsCreated", projector)
+	eventBus.Subscribe("AcquiredViaRelationshipSet", projector)
+	eventBus.Subscribe("AcquiredViaRelationshipReplaced", projector)
+	eventBus.Subscribe("AcquiredViaNotesUpdated", projector)
+	eventBus.Subscribe("AcquiredViaRelationshipCleared", projector)
+	eventBus.Subscribe("PurchasedFromRelationshipSet", projector)
+	eventBus.Subscribe("PurchasedFromRelationshipReplaced", projector)
+	eventBus.Subscribe("PurchasedFromNotesUpdated", projector)
+	eventBus.Subscribe("PurchasedFromRelationshipCleared", projector)
+	eventBus.Subscribe("BuiltByRelationshipSet", projector)
+	eventBus.Subscribe("BuiltByRelationshipReplaced", projector)
+	eventBus.Subscribe("BuiltByNotesUpdated", projector)
+	eventBus.Subscribe("BuiltByRelationshipCleared", projector)
+	eventBus.Subscribe("ComponentOriginsDeleted", projector)
 }
 
 func registerCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *repositorySet, rm *readModelSet) {
@@ -164,12 +168,12 @@ func registerOriginEntityCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *re
 }
 
 func registerOriginRelationshipCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *repositorySet, rm *readModelSet) {
-	bus.Register("CreateAcquiredViaRelationship", handlers.NewCreateAcquiredViaRelationshipHandler(repos.acquiredVia, rm.acquiredVia))
-	bus.Register("DeleteAcquiredViaRelationship", handlers.NewDeleteAcquiredViaRelationshipHandler(repos.acquiredVia))
-	bus.Register("CreatePurchasedFromRelationship", handlers.NewCreatePurchasedFromRelationshipHandler(repos.purchasedFrom, rm.purchasedFrom))
-	bus.Register("DeletePurchasedFromRelationship", handlers.NewDeletePurchasedFromRelationshipHandler(repos.purchasedFrom))
-	bus.Register("CreateBuiltByRelationship", handlers.NewCreateBuiltByRelationshipHandler(repos.builtBy, rm.builtBy))
-	bus.Register("DeleteBuiltByRelationship", handlers.NewDeleteBuiltByRelationshipHandler(repos.builtBy))
+	bus.Register("SetAcquiredVia", handlers.NewSetAcquiredViaHandler(repos.componentOrigins))
+	bus.Register("ClearAcquiredVia", handlers.NewClearAcquiredViaHandler(repos.componentOrigins))
+	bus.Register("SetPurchasedFrom", handlers.NewSetPurchasedFromHandler(repos.componentOrigins))
+	bus.Register("ClearPurchasedFrom", handlers.NewClearPurchasedFromHandler(repos.componentOrigins))
+	bus.Register("SetBuiltBy", handlers.NewSetBuiltByHandler(repos.componentOrigins))
+	bus.Register("ClearBuiltBy", handlers.NewClearBuiltByHandler(repos.componentOrigins))
 }
 
 func newHTTPHandlerSet(bus *cqrs.InMemoryCommandBus, rm *readModelSet, hateoas *sharedAPI.HATEOASLinks) *httpHandlerSet {
@@ -208,14 +212,17 @@ func registerComponentRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddlewar
 			r.Post("/", h.component.CreateApplicationComponent)
 			r.Put("/{id}", h.component.UpdateApplicationComponent)
 			r.Post("/{id}/experts", h.expert.AddComponentExpert)
-			r.Post("/{componentId}/origin/acquired-via", h.originRelationship.CreateAcquiredViaRelationship)
-			r.Post("/{componentId}/origin/purchased-from", h.originRelationship.CreatePurchasedFromRelationship)
-			r.Post("/{componentId}/origin/built-by", h.originRelationship.CreateBuiltByRelationship)
+			r.Put("/{componentId}/origin/acquired-via", h.originRelationship.CreateAcquiredViaRelationship)
+			r.Put("/{componentId}/origin/purchased-from", h.originRelationship.CreatePurchasedFromRelationship)
+			r.Put("/{componentId}/origin/built-by", h.originRelationship.CreateBuiltByRelationship)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(auth.RequirePermission(authValueObjects.PermComponentsDelete))
 			r.Delete("/{id}", h.component.DeleteApplicationComponent)
 			r.Delete("/{id}/experts", h.expert.RemoveComponentExpert)
+			r.Delete("/{componentId}/origin/acquired-via", h.originRelationship.DeleteAcquiredViaRelationship)
+			r.Delete("/{componentId}/origin/purchased-from", h.originRelationship.DeletePurchasedFromRelationship)
+			r.Delete("/{componentId}/origin/built-by", h.originRelationship.DeleteBuiltByRelationship)
 		})
 	})
 }
@@ -299,12 +306,6 @@ func registerOriginRelationshipRoutes(r chi.Router, h *httpHandlerSet, auth Auth
 		r.Group(func(r chi.Router) {
 			r.Use(auth.RequirePermission(authValueObjects.PermComponentsRead))
 			r.Get("/", h.originRelationship.GetAllOriginRelationships)
-		})
-		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsDelete))
-			r.Delete("/acquired-via/{id}", h.originRelationship.DeleteAcquiredViaRelationship)
-			r.Delete("/purchased-from/{id}", h.originRelationship.DeletePurchasedFromRelationship)
-			r.Delete("/built-by/{id}", h.originRelationship.DeleteBuiltByRelationship)
 		})
 	})
 }

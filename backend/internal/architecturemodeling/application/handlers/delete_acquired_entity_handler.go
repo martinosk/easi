@@ -58,12 +58,12 @@ func (h *DeleteAcquiredEntityHandler) Handle(ctx context.Context, cmd cqrs.Comma
 	}
 
 	for _, relation := range relations {
-		deleteCmd := &commands.DeleteAcquiredViaRelationship{ID: relation.ID}
-		if _, err := h.commandBus.Dispatch(ctx, deleteCmd); err != nil {
-			log.Printf("Error cascading delete for relationship %s: %v", relation.ID, err)
+		clearCmd := &commands.ClearAcquiredVia{ComponentID: relation.ComponentID}
+		if _, err := h.commandBus.Dispatch(ctx, clearCmd); err != nil {
+			log.Printf("Error cascading clear for relationship on component %s: %v", relation.ComponentID, err)
 			continue
 		}
-		log.Printf("Cascaded delete for acquired via relationship %s", relation.ID)
+		log.Printf("Cascaded clear for acquired via relationship on component %s", relation.ComponentID)
 	}
 
 	return cqrs.EmptyResult(), nil

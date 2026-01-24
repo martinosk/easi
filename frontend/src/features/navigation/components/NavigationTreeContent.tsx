@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Component, Capability, View, AcquiredEntity, Vendor, InternalTeam, OriginRelationship } from '../../../api/types';
+import type { Component, Capability, View, AcquiredEntity, Vendor, InternalTeam } from '../../../api/types';
 import { ApplicationsSection } from './sections/ApplicationsSection';
 import { ViewsSection } from './sections/ViewsSection';
 import { CapabilitiesSection } from './sections/CapabilitiesSection';
@@ -23,7 +23,6 @@ interface NavigationTreeContentProps {
   acquiredEntities: AcquiredEntity[];
   vendors: Vendor[];
   internalTeams: InternalTeam[];
-  originRelationships: OriginRelationship[];
   selectedCapabilityId: string | null;
   setSelectedCapabilityId: (id: string | null) => void;
   selectedEntityIds: SelectedEntityIds;
@@ -78,7 +77,6 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
   acquiredEntities,
   vendors,
   internalTeams,
-  originRelationships,
   selectedCapabilityId,
   setSelectedCapabilityId,
   selectedEntityIds,
@@ -154,7 +152,6 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
     <AcquiredEntitiesSection
       acquiredEntities={acquiredEntities}
       currentView={currentView}
-      originRelationships={originRelationships}
       selectedEntityId={selectedEntityIds.acquiredEntityId}
       isExpanded={treeState.isAcquiredEntitiesExpanded}
       onToggle={() => treeState.setIsAcquiredEntitiesExpanded(!treeState.isAcquiredEntitiesExpanded)}
@@ -166,7 +163,6 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
     <VendorsSection
       vendors={vendors}
       currentView={currentView}
-      originRelationships={originRelationships}
       selectedVendorId={selectedEntityIds.vendorId}
       isExpanded={treeState.isVendorsExpanded}
       onToggle={() => treeState.setIsVendorsExpanded(!treeState.isVendorsExpanded)}
@@ -178,7 +174,6 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
     <InternalTeamsSection
       internalTeams={internalTeams}
       currentView={currentView}
-      originRelationships={originRelationships}
       selectedTeamId={selectedEntityIds.teamId}
       isExpanded={treeState.isInternalTeamsExpanded}
       onToggle={() => treeState.setIsInternalTeamsExpanded(!treeState.isInternalTeamsExpanded)}

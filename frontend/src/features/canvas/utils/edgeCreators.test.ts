@@ -66,6 +66,34 @@ describe('createOriginRelationshipEdges', () => {
       expect(edges).toHaveLength(0);
     });
 
+    /**
+     * Edge case: relationship exists but origin entity node is not on canvas
+     *
+     * This can happen if:
+     * - Origin entity was removed from canvas but relationship still exists
+     * - Edge creator correctly filters these out
+     *
+     * Note: This was previously a bug where origin entities wouldn't show on canvas
+     * after creating a relationship because they had no saved layout position.
+     * Fixed in useCanvasNodes.ts by also including origin entities that have
+     * relationships to components on the canvas (with fallback positioning).
+     */
+    it('should not create edge when origin entity node is not on canvas', () => {
+      const relationship = createMockOriginRelationship({
+        relationshipType: 'AcquiredVia',
+        originEntityId: 'ae-new-entity',
+        componentId: 'comp-456',
+      });
+      const nodes = [createMockNode('comp-456')];
+      const originEntityNodeIds = new Set<string>();
+      const componentIds = new Set(['comp-456']);
+      const ctx = createEdgeContext(nodes);
+
+      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
+
+      expect(edges).toHaveLength(0);
+    });
+
     it('should exclude edges when component is not on canvas', () => {
       const relationship = createMockOriginRelationship({
         relationshipType: 'AcquiredVia',
@@ -243,7 +271,7 @@ describe('createOriginRelationshipEdges', () => {
 
       const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
 
-      expect(edges[0].id).toBe('origin-rel-999');
+      expect(edges[0].id).toBe('origin-AcquiredVia-comp-456');
     });
 
     it('should set source to component ID', () => {
@@ -289,7 +317,7 @@ describe('createOriginRelationshipEdges', () => {
       const nodes = [createMockNode('acq-ae-789'), createMockNode('comp-456')];
       const originEntityNodeIds = new Set(['acq-ae-789']);
       const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes, { selectedEdgeId: 'origin-rel-selected' });
+      const ctx = createEdgeContext(nodes, { selectedEdgeId: 'origin-AcquiredVia-comp-456' });
 
       const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
 
@@ -313,7 +341,7 @@ describe('createOriginRelationshipEdges', () => {
       const nodes = [createMockNode('acq-ae-789'), createMockNode('comp-456')];
       const originEntityNodeIds = new Set(['acq-ae-789']);
       const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes, { selectedEdgeId: 'origin-rel-selected' });
+      const ctx = createEdgeContext(nodes, { selectedEdgeId: 'origin-AcquiredVia-comp-456' });
 
       const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
 
@@ -396,7 +424,7 @@ describe('createOriginRelationshipEdges', () => {
       const edges = createOriginRelationshipEdges(relationships, originEntityNodeIds, componentIds, ctx);
 
       expect(edges).toHaveLength(1);
-      expect(edges[0].id).toBe('origin-rel-1');
+      expect(edges[0].id).toBe('origin-AcquiredVia-comp-1');
     });
   });
 });

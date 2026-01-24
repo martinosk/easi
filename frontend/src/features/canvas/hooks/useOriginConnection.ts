@@ -9,15 +9,9 @@ import {
   toAcquiredEntityId,
   toVendorId,
   toInternalTeamId,
-  ApiError,
-  type RelationshipConflictError,
 } from '../../../api/types';
 import { isOriginEntityNode, getOriginEntityTypeFromNodeId, extractOriginEntityId } from '../utils/nodeFactory';
 import toast from 'react-hot-toast';
-
-const isRelationshipConflict = (error: unknown): error is ApiError & { response: RelationshipConflictError } => {
-  return error instanceof ApiError && error.statusCode === 409 && error.response !== undefined;
-};
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
@@ -32,26 +26,26 @@ export const useOriginConnection = () => {
       originEntityType: 'acquired' | 'vendor' | 'team',
       componentId: ReturnType<typeof toComponentId>,
       entityId: string,
-      replaceExisting: boolean
+      notes?: string
     ) => {
       const mutations = {
         acquired: () =>
           linkComponentToAcquiredEntityMutation.mutateAsync({
             componentId,
             entityId: toAcquiredEntityId(entityId),
-            replaceExisting,
+            notes,
           }),
         vendor: () =>
           linkComponentToVendorMutation.mutateAsync({
             componentId,
             vendorId: toVendorId(entityId),
-            replaceExisting,
+            notes,
           }),
         team: () =>
           linkComponentToInternalTeamMutation.mutateAsync({
             componentId,
             teamId: toInternalTeamId(entityId),
-            replaceExisting,
+            notes,
           }),
       };
       await mutations[originEntityType]();
@@ -60,7 +54,7 @@ export const useOriginConnection = () => {
   );
 
   const handleOriginComponentConnection = useCallback(
-    async (source: string, target: string, replaceExisting: boolean = false): Promise<void> => {
+    async (source: string, target: string, notes?: string): Promise<void> => {
       const sourceIsOriginEntity = isOriginEntityNode(source);
       const originNodeId = sourceIsOriginEntity ? source : target;
       const componentNodeId = sourceIsOriginEntity ? target : source;
@@ -75,19 +69,8 @@ export const useOriginConnection = () => {
       }
 
       try {
-        await linkOriginEntity(originEntityType, componentId, entityId, replaceExisting);
+        await linkOriginEntity(originEntityType, componentId, entityId, notes);
       } catch (error) {
-        if (isRelationshipConflict(error)) {
-          const conflict = error.response;
-          const confirmed = window.confirm(
-            `This component is already linked to "${conflict.originEntityName}". ` +
-              `Do you want to replace it with the new connection?`
-          );
-          if (confirmed) {
-            await handleOriginComponentConnection(source, target, true);
-          }
-          return;
-        }
         const errorMessage = getErrorMessage(error, 'Failed to create origin relationship');
         toast.error(errorMessage);
       }

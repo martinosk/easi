@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import type { Vendor, View, OriginRelationship } from '../../../../api/types';
+import type { Vendor, View } from '../../../../api/types';
 import { TreeSection } from '../TreeSection';
 import { TreeSearchInput } from '../shared/TreeSearchInput';
 import { TreeItemList } from '../shared/TreeItemList';
+import { useCanvasLayoutContext } from '../../../canvas/context/CanvasLayoutContext';
+import { ORIGIN_ENTITY_PREFIXES } from '../../../canvas/utils/nodeFactory';
 
 interface VendorsSectionProps {
   vendors: Vendor[];
   currentView: View | null;
-  originRelationships: OriginRelationship[];
   selectedVendorId: string | null;
   isExpanded: boolean;
   onToggle: () => void;
@@ -27,23 +28,9 @@ function filterVendors(vendors: Vendor[], search: string): Vendor[] {
   );
 }
 
-function buildVendorIdsInView(
-  relationships: OriginRelationship[],
-  componentIdsInView: Set<string>
-): Set<string> {
-  const inView = new Set<string>();
-  for (const rel of relationships) {
-    if (rel.relationshipType === 'PurchasedFrom' && componentIdsInView.has(rel.componentId)) {
-      inView.add(rel.originEntityId);
-    }
-  }
-  return inView;
-}
-
 export const VendorsSection: React.FC<VendorsSectionProps> = ({
   vendors,
   currentView,
-  originRelationships,
   selectedVendorId,
   isExpanded,
   onToggle,
@@ -52,16 +39,18 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
   onVendorContextMenu,
 }) => {
   const [search, setSearch] = useState('');
+  const { positions: layoutPositions } = useCanvasLayoutContext();
 
-  const componentIdsInView = useMemo(() => {
-    if (!currentView) return new Set<string>();
-    return new Set(currentView.components.map(vc => vc.componentId));
-  }, [currentView]);
-
-  const vendorIdsInView = useMemo(
-    () => buildVendorIdsInView(originRelationships, componentIdsInView),
-    [originRelationships, componentIdsInView]
-  );
+  const vendorIdsOnCanvas = useMemo(() => {
+    const onCanvas = new Set<string>();
+    for (const vendor of vendors) {
+      const nodeId = `${ORIGIN_ENTITY_PREFIXES.vendor}${vendor.id}`;
+      if (layoutPositions[nodeId] !== undefined) {
+        onCanvas.add(vendor.id);
+      }
+    }
+    return onCanvas;
+  }, [vendors, layoutPositions]);
 
   const filteredVendors = useMemo(
     () => filterVendors(vendors, search),
@@ -93,9 +82,9 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
           icon="🏪"
           dragDataKey="vendorId"
           isSelected={(vendor) => selectedVendorId === vendor.id}
-          isInView={(vendor) => !currentView || vendorIdsInView.has(vendor.id)}
+          isInView={(vendor) => !currentView || vendorIdsOnCanvas.has(vendor.id)}
           getTitle={(vendor, isInView) =>
-            isInView ? vendor.name : `${vendor.name} (not linked to components in current view)`
+            isInView ? vendor.name : `${vendor.name} (not on canvas)`
           }
           renderLabel={(vendor) => vendor.name}
           onSelect={(vendor) => onVendorSelect?.(vendor.id)}
