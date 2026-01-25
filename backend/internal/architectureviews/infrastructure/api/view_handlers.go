@@ -139,16 +139,81 @@ func (h *ViewHandlers) handleViewUpdate(w http.ResponseWriter, r *http.Request, 
 	h.dispatchCommand(w, r, createCmd())
 }
 
-func (h *ViewHandlers) handleCapabilityLayoutOp(w http.ResponseWriter, r *http.Request, operation func(ctx context.Context, viewID, capabilityID string) error, errorMsg string) {
+type layoutOpParams struct {
+	elementIDParam string
+	operation      func(ctx context.Context, viewID, elementID string) error
+	errorMsg       string
+}
+
+func (h *ViewHandlers) handleLayoutOp(w http.ResponseWriter, r *http.Request, p layoutOpParams) {
 	viewID := sharedAPI.GetPathParam(r, "id")
-	capabilityID := sharedAPI.GetPathParam(r, "capabilityId")
+	elementID := sharedAPI.GetPathParam(r, p.elementIDParam)
 
 	if !h.checkViewEditPermission(w, r, viewID) {
 		return
 	}
 
-	if err := operation(r.Context(), viewID, capabilityID); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, errorMsg)
+	if err := p.operation(r.Context(), viewID, elementID); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, p.errorMsg)
+		return
+	}
+
+	sharedAPI.RespondNoContent(w)
+}
+
+type addEntityParams struct {
+	entityIDField   string
+	subResourcePath string
+	addFn           func(ctx context.Context, viewID, entityID string, x, y float64) error
+	errorMsg        string
+}
+
+func (h *ViewHandlers) handleAddEntity(w http.ResponseWriter, r *http.Request, decodeAndExtract func() (entityID string, x, y float64, ok bool), p addEntityParams) {
+	viewID := sharedAPI.GetPathParam(r, "id")
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
+
+	entityID, x, y, ok := decodeAndExtract()
+	if !ok {
+		return
+	}
+
+	if entityID == "" {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, p.entityIDField+" is required")
+		return
+	}
+
+	if err := p.addFn(r.Context(), viewID, entityID, x, y); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, p.errorMsg)
+		return
+	}
+
+	location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/views"), sharedAPI.ResourceID(viewID), sharedAPI.ResourcePath(p.subResourcePath))
+	sharedAPI.RespondCreatedNoBody(w, location)
+}
+
+type updatePositionParams struct {
+	elementIDParam string
+	updateFn       func(ctx context.Context, viewID, elementID string, x, y float64) error
+	errorMsg       string
+}
+
+func (h *ViewHandlers) handleUpdatePosition(w http.ResponseWriter, r *http.Request, p updatePositionParams) {
+	viewID := sharedAPI.GetPathParam(r, "id")
+	elementID := sharedAPI.GetPathParam(r, p.elementIDParam)
+
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
+
+	req, ok := sharedAPI.DecodeRequestOrFail[UpdatePositionRequest](w, r)
+	if !ok {
+		return
+	}
+
+	if err := p.updateFn(r.Context(), viewID, elementID, req.X, req.Y); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, p.errorMsg)
 		return
 	}
 
@@ -609,10 +674,6 @@ type AddCapabilityRequest struct {
 	Y            float64 `json:"y"`
 }
 
-type UpdateCapabilityPositionRequest struct {
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
-}
 
 // AddCapabilityToView godoc
 // @Summary Add a capability to a view
@@ -628,29 +689,20 @@ type UpdateCapabilityPositionRequest struct {
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/capabilities [post]
 func (h *ViewHandlers) AddCapabilityToView(w http.ResponseWriter, r *http.Request) {
-	viewID := sharedAPI.GetPathParam(r, "id")
-
-	if !h.checkViewEditPermission(w, r, viewID) {
-		return
-	}
-
-	req, ok := sharedAPI.DecodeRequestOrFail[AddCapabilityRequest](w, r)
-	if !ok {
-		return
-	}
-
-	if req.CapabilityID == "" {
-		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "capabilityId is required")
-		return
-	}
-
-	if err := h.layoutRepo.AddCapabilityToView(r.Context(), viewID, req.CapabilityID, req.X, req.Y); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to add capability to view")
-		return
-	}
-
-	location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/views"), sharedAPI.ResourceID(viewID), sharedAPI.ResourcePath("/capabilities"))
-	sharedAPI.RespondCreatedNoBody(w, location)
+	h.handleAddEntity(w, r,
+		func() (string, float64, float64, bool) {
+			req, ok := sharedAPI.DecodeRequestOrFail[AddCapabilityRequest](w, r)
+			if !ok {
+				return "", 0, 0, false
+			}
+			return req.CapabilityID, req.X, req.Y, true
+		},
+		addEntityParams{
+			entityIDField:   "capabilityId",
+			subResourcePath: "/capabilities",
+			addFn:           h.layoutRepo.AddCapabilityToView,
+			errorMsg:        "Failed to add capability to view",
+		})
 }
 
 // UpdateCapabilityPosition godoc
@@ -661,31 +713,18 @@ func (h *ViewHandlers) AddCapabilityToView(w http.ResponseWriter, r *http.Reques
 // @Produce json
 // @Param id path string true "View ID"
 // @Param capabilityId path string true "Capability ID"
-// @Param position body UpdateCapabilityPositionRequest true "New position"
+// @Param position body UpdatePositionRequest true "New position"
 // @Success 204
 // @Failure 400 {object} sharedAPI.ErrorResponse
 // @Failure 403 {object} sharedAPI.ErrorResponse
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/capabilities/{capabilityId}/position [patch]
 func (h *ViewHandlers) UpdateCapabilityPosition(w http.ResponseWriter, r *http.Request) {
-	viewID := sharedAPI.GetPathParam(r, "id")
-	capabilityID := sharedAPI.GetPathParam(r, "capabilityId")
-
-	if !h.checkViewEditPermission(w, r, viewID) {
-		return
-	}
-
-	req, ok := sharedAPI.DecodeRequestOrFail[UpdateCapabilityPositionRequest](w, r)
-	if !ok {
-		return
-	}
-
-	if err := h.layoutRepo.UpdateCapabilityPosition(r.Context(), viewID, capabilityID, req.X, req.Y); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update capability position")
-		return
-	}
-
-	sharedAPI.RespondNoContent(w)
+	h.handleUpdatePosition(w, r, updatePositionParams{
+		elementIDParam: "capabilityId",
+		updateFn:       h.layoutRepo.UpdateCapabilityPosition,
+		errorMsg:       "Failed to update capability position",
+	})
 }
 
 // RemoveCapabilityFromView godoc
@@ -700,12 +739,11 @@ func (h *ViewHandlers) UpdateCapabilityPosition(w http.ResponseWriter, r *http.R
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/capabilities/{capabilityId} [delete]
 func (h *ViewHandlers) RemoveCapabilityFromView(w http.ResponseWriter, r *http.Request) {
-	h.handleCapabilityLayoutOp(w, r,
-		func(ctx context.Context, viewID, capabilityID string) error {
-			return h.layoutRepo.RemoveCapabilityFromView(ctx, viewID, capabilityID)
-		},
-		"Failed to remove capability from view",
-	)
+	h.handleLayoutOp(w, r, layoutOpParams{
+		elementIDParam: "capabilityId",
+		operation:      h.layoutRepo.RemoveCapabilityFromView,
+		errorMsg:       "Failed to remove capability from view",
+	})
 }
 
 type AddOriginEntityRequest struct {
@@ -728,29 +766,20 @@ type AddOriginEntityRequest struct {
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/origin-entities [post]
 func (h *ViewHandlers) AddOriginEntityToView(w http.ResponseWriter, r *http.Request) {
-	viewID := sharedAPI.GetPathParam(r, "id")
-
-	if !h.checkViewEditPermission(w, r, viewID) {
-		return
-	}
-
-	req, ok := sharedAPI.DecodeRequestOrFail[AddOriginEntityRequest](w, r)
-	if !ok {
-		return
-	}
-
-	if req.OriginEntityID == "" {
-		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "originEntityId is required")
-		return
-	}
-
-	if err := h.layoutRepo.AddOriginEntityToView(r.Context(), viewID, req.OriginEntityID, req.X, req.Y); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to add origin entity to view")
-		return
-	}
-
-	location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/views"), sharedAPI.ResourceID(viewID), sharedAPI.ResourcePath("/origin-entities"))
-	sharedAPI.RespondCreatedNoBody(w, location)
+	h.handleAddEntity(w, r,
+		func() (string, float64, float64, bool) {
+			req, ok := sharedAPI.DecodeRequestOrFail[AddOriginEntityRequest](w, r)
+			if !ok {
+				return "", 0, 0, false
+			}
+			return req.OriginEntityID, req.X, req.Y, true
+		},
+		addEntityParams{
+			entityIDField:   "originEntityId",
+			subResourcePath: "/origin-entities",
+			addFn:           h.layoutRepo.AddOriginEntityToView,
+			errorMsg:        "Failed to add origin entity to view",
+		})
 }
 
 // UpdateOriginEntityPosition godoc
@@ -768,24 +797,11 @@ func (h *ViewHandlers) AddOriginEntityToView(w http.ResponseWriter, r *http.Requ
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/origin-entities/{originEntityId}/position [patch]
 func (h *ViewHandlers) UpdateOriginEntityPosition(w http.ResponseWriter, r *http.Request) {
-	viewID := sharedAPI.GetPathParam(r, "id")
-	originEntityID := sharedAPI.GetPathParam(r, "originEntityId")
-
-	if !h.checkViewEditPermission(w, r, viewID) {
-		return
-	}
-
-	req, ok := sharedAPI.DecodeRequestOrFail[UpdatePositionRequest](w, r)
-	if !ok {
-		return
-	}
-
-	if err := h.layoutRepo.UpdateOriginEntityPosition(r.Context(), viewID, originEntityID, req.X, req.Y); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update origin entity position")
-		return
-	}
-
-	sharedAPI.RespondNoContent(w)
+	h.handleUpdatePosition(w, r, updatePositionParams{
+		elementIDParam: "originEntityId",
+		updateFn:       h.layoutRepo.UpdateOriginEntityPosition,
+		errorMsg:       "Failed to update origin entity position",
+	})
 }
 
 // RemoveOriginEntityFromView godoc
@@ -800,19 +816,11 @@ func (h *ViewHandlers) UpdateOriginEntityPosition(w http.ResponseWriter, r *http
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/origin-entities/{originEntityId} [delete]
 func (h *ViewHandlers) RemoveOriginEntityFromView(w http.ResponseWriter, r *http.Request) {
-	viewID := sharedAPI.GetPathParam(r, "id")
-	originEntityID := sharedAPI.GetPathParam(r, "originEntityId")
-
-	if !h.checkViewEditPermission(w, r, viewID) {
-		return
-	}
-
-	if err := h.layoutRepo.RemoveOriginEntityFromView(r.Context(), viewID, originEntityID); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to remove origin entity from view")
-		return
-	}
-
-	sharedAPI.RespondNoContent(w)
+	h.handleLayoutOp(w, r, layoutOpParams{
+		elementIDParam: "originEntityId",
+		operation:      h.layoutRepo.RemoveOriginEntityFromView,
+		errorMsg:       "Failed to remove origin entity from view",
+	})
 }
 
 // UpdateColorScheme godoc
