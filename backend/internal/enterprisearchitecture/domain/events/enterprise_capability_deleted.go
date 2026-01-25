@@ -8,8 +8,15 @@ import (
 
 type EnterpriseCapabilityDeleted struct {
 	domain.BaseEvent
-	ID        string
-	DeletedAt time.Time
+	ID        string    `json:"id"`
+	DeletedAt time.Time `json:"deletedAt"`
+}
+
+func (e EnterpriseCapabilityDeleted) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewEnterpriseCapabilityDeleted(id string) EnterpriseCapabilityDeleted {

@@ -8,10 +8,17 @@ import (
 
 type EnterpriseCapabilityUnlinked struct {
 	domain.BaseEvent
-	ID                     string
-	EnterpriseCapabilityID string
-	DomainCapabilityID     string
-	UnlinkedAt             time.Time
+	ID                     string    `json:"id"`
+	EnterpriseCapabilityID string    `json:"enterpriseCapabilityId"`
+	DomainCapabilityID     string    `json:"domainCapabilityId"`
+	UnlinkedAt             time.Time `json:"unlinkedAt"`
+}
+
+func (e EnterpriseCapabilityUnlinked) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewEnterpriseCapabilityUnlinked(id, enterpriseCapabilityID, domainCapabilityID string) EnterpriseCapabilityUnlinked {

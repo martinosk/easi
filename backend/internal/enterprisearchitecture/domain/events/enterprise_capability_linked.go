@@ -8,11 +8,18 @@ import (
 
 type EnterpriseCapabilityLinked struct {
 	domain.BaseEvent
-	ID                     string
-	EnterpriseCapabilityID string
-	DomainCapabilityID     string
-	LinkedBy               string
-	LinkedAt               time.Time
+	ID                     string    `json:"id"`
+	EnterpriseCapabilityID string    `json:"enterpriseCapabilityId"`
+	DomainCapabilityID     string    `json:"domainCapabilityId"`
+	LinkedBy               string    `json:"linkedBy"`
+	LinkedAt               time.Time `json:"linkedAt"`
+}
+
+func (e EnterpriseCapabilityLinked) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewEnterpriseCapabilityLinked(id, enterpriseCapabilityID, domainCapabilityID, linkedBy string) EnterpriseCapabilityLinked {

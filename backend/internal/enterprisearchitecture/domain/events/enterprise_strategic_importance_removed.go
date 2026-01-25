@@ -8,10 +8,17 @@ import (
 
 type EnterpriseStrategicImportanceRemoved struct {
 	domain.BaseEvent
-	ID                     string
-	EnterpriseCapabilityID string
-	PillarID               string
-	RemovedAt              time.Time
+	ID                     string    `json:"id"`
+	EnterpriseCapabilityID string    `json:"enterpriseCapabilityId"`
+	PillarID               string    `json:"pillarId"`
+	RemovedAt              time.Time `json:"removedAt"`
+}
+
+func (e EnterpriseStrategicImportanceRemoved) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewEnterpriseStrategicImportanceRemoved(id, enterpriseCapabilityID, pillarID string) EnterpriseStrategicImportanceRemoved {

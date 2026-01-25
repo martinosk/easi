@@ -8,11 +8,18 @@ import (
 
 type EnterpriseCapabilityUpdated struct {
 	domain.BaseEvent
-	ID          string
-	Name        string
-	Description string
-	Category    string
-	UpdatedAt   time.Time
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Category    string    `json:"category"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+func (e EnterpriseCapabilityUpdated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewEnterpriseCapabilityUpdated(id, name, description, category string) EnterpriseCapabilityUpdated {

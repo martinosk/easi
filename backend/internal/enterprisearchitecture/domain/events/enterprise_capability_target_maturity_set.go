@@ -8,9 +8,16 @@ import (
 
 type EnterpriseCapabilityTargetMaturitySet struct {
 	domain.BaseEvent
-	ID             string
-	TargetMaturity int
-	SetAt          time.Time
+	ID             string    `json:"id"`
+	TargetMaturity int       `json:"targetMaturity"`
+	SetAt          time.Time `json:"setAt"`
+}
+
+func (e EnterpriseCapabilityTargetMaturitySet) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewEnterpriseCapabilityTargetMaturitySet(id string, targetMaturity int) EnterpriseCapabilityTargetMaturitySet {

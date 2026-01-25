@@ -6,7 +6,6 @@ import (
 	"easi/backend/internal/enterprisearchitecture/domain/aggregates"
 	"easi/backend/internal/enterprisearchitecture/domain/events"
 	"easi/backend/internal/infrastructure/eventstore"
-	domain "easi/backend/internal/shared/eventsourcing"
 	"easi/backend/internal/shared/infrastructure/repository"
 )
 
@@ -29,47 +28,7 @@ func NewEnterpriseCapabilityLinkRepository(eventStore eventstore.EventStore) *En
 
 var enterpriseCapabilityLinkEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"EnterpriseCapabilityLinked": func(data map[string]interface{}) (domain.DomainEvent, error) {
-			id, err := repository.GetRequiredString(data, "id")
-			if err != nil {
-				return nil, err
-			}
-			enterpriseCapabilityID, err := repository.GetRequiredString(data, "enterpriseCapabilityId")
-			if err != nil {
-				return nil, err
-			}
-			domainCapabilityID, err := repository.GetRequiredString(data, "domainCapabilityId")
-			if err != nil {
-				return nil, err
-			}
-			linkedBy, err := repository.GetRequiredString(data, "linkedBy")
-			if err != nil {
-				return nil, err
-			}
-			linkedAt, err := repository.GetRequiredTime(data, "linkedAt")
-			if err != nil {
-				return nil, err
-			}
-
-			evt := events.NewEnterpriseCapabilityLinked(id, enterpriseCapabilityID, domainCapabilityID, linkedBy)
-			evt.LinkedAt = linkedAt
-			return evt, nil
-		},
-		"EnterpriseCapabilityUnlinked": func(data map[string]interface{}) (domain.DomainEvent, error) {
-			id, err := repository.GetRequiredString(data, "id")
-			if err != nil {
-				return nil, err
-			}
-			enterpriseCapabilityID, err := repository.GetRequiredString(data, "enterpriseCapabilityId")
-			if err != nil {
-				return nil, err
-			}
-			domainCapabilityID, err := repository.GetRequiredString(data, "domainCapabilityId")
-			if err != nil {
-				return nil, err
-			}
-
-			return events.NewEnterpriseCapabilityUnlinked(id, enterpriseCapabilityID, domainCapabilityID), nil
-		},
+		"EnterpriseCapabilityLinked":   repository.JSONDeserializer[events.EnterpriseCapabilityLinked],
+		"EnterpriseCapabilityUnlinked": repository.JSONDeserializer[events.EnterpriseCapabilityUnlinked],
 	},
 )

@@ -16,12 +16,19 @@ type EnterpriseStrategicImportanceUpdatedParams struct {
 
 type EnterpriseStrategicImportanceUpdated struct {
 	domain.BaseEvent
-	ID            string
-	Importance    int
-	Rationale     string
-	OldImportance int
-	OldRationale  string
-	UpdatedAt     time.Time
+	ID            string    `json:"id"`
+	Importance    int       `json:"importance"`
+	Rationale     string    `json:"rationale"`
+	OldImportance int       `json:"oldImportance"`
+	OldRationale  string    `json:"oldRationale"`
+	UpdatedAt     time.Time `json:"updatedAt"`
+}
+
+func (e EnterpriseStrategicImportanceUpdated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewEnterpriseStrategicImportanceUpdated(params EnterpriseStrategicImportanceUpdatedParams) EnterpriseStrategicImportanceUpdated {
