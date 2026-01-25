@@ -15,6 +15,13 @@ type StrategyPillarRemoved struct {
 	ModifiedBy string    `json:"modifiedBy"`
 }
 
+func (e StrategyPillarRemoved) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
+}
+
 func NewStrategyPillarRemoved(params PillarEventParams) StrategyPillarRemoved {
 	return StrategyPillarRemoved{
 		BaseEvent:  domain.NewBaseEvent(params.ConfigID),

@@ -8,13 +8,20 @@ import (
 
 type ImportCompleted struct {
 	domain.BaseEvent
-	ID                  string
-	CapabilitiesCreated int
-	ComponentsCreated   int
-	RealizationsCreated int
-	DomainAssignments   int
-	Errors              []map[string]interface{}
-	CompletedAt         time.Time
+	ID                  string                   `json:"id"`
+	CapabilitiesCreated int                      `json:"capabilitiesCreated"`
+	ComponentsCreated   int                      `json:"componentsCreated"`
+	RealizationsCreated int                      `json:"realizationsCreated"`
+	DomainAssignments   int                      `json:"domainAssignments"`
+	Errors              []map[string]interface{} `json:"errors"`
+	CompletedAt         time.Time                `json:"completedAt"`
+}
+
+func (e ImportCompleted) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewImportCompleted(id string, capabilitiesCreated, componentsCreated, realizationsCreated, domainAssignments int, errors []map[string]interface{}) ImportCompleted {

@@ -17,6 +17,13 @@ type PillarFitConfigurationUpdated struct {
 	ModifiedBy        string    `json:"modifiedBy"`
 }
 
+func (e PillarFitConfigurationUpdated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
+}
+
 func NewPillarFitConfigurationUpdated(params UpdatePillarFitConfigParams) PillarFitConfigurationUpdated {
 	return PillarFitConfigurationUpdated{
 		BaseEvent:         domain.NewBaseEvent(params.ConfigID),

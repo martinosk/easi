@@ -7,8 +7,15 @@ import (
 
 type ImportSessionCancelled struct {
 	domain.BaseEvent
-	ID          string
-	CancelledAt time.Time
+	ID          string    `json:"id"`
+	CancelledAt time.Time `json:"cancelledAt"`
+}
+
+func (e ImportSessionCancelled) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewImportSessionCancelled(id string) ImportSessionCancelled {

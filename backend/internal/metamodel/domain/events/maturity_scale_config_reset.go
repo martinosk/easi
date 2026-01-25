@@ -16,6 +16,13 @@ type MaturityScaleConfigReset struct {
 	ModifiedBy string                `json:"modifiedBy"`
 }
 
+func (e MaturityScaleConfigReset) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
+}
+
 func NewMaturityScaleConfigReset(id, tenantID string, version int, sections []MaturitySectionData, modifiedBy string) MaturityScaleConfigReset {
 	return MaturityScaleConfigReset{
 		BaseEvent:  domain.NewBaseEvent(id),

@@ -7,9 +7,16 @@ import (
 
 type ImportStarted struct {
 	domain.BaseEvent
-	ID         string
-	TotalItems int
-	StartedAt  time.Time
+	ID         string    `json:"id"`
+	TotalItems int       `json:"totalItems"`
+	StartedAt  time.Time `json:"startedAt"`
+}
+
+func (e ImportStarted) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewImportStarted(id string, totalItems int) ImportStarted {

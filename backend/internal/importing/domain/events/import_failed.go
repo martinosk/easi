@@ -7,9 +7,16 @@ import (
 
 type ImportFailed struct {
 	domain.BaseEvent
-	ID       string
-	Reason   string
-	FailedAt time.Time
+	ID       string    `json:"id"`
+	Reason   string    `json:"reason"`
+	FailedAt time.Time `json:"failedAt"`
+}
+
+func (e ImportFailed) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewImportFailed(id, reason string) ImportFailed {

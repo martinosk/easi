@@ -22,6 +22,13 @@ type MetaModelConfigurationCreated struct {
 	CreatedBy string                `json:"createdBy"`
 }
 
+func (e MetaModelConfigurationCreated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
+}
+
 type CreateConfigParams struct {
 	ID        string
 	TenantID  string

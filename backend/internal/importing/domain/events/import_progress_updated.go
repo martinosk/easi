@@ -7,11 +7,18 @@ import (
 
 type ImportProgressUpdated struct {
 	domain.BaseEvent
-	ID             string
-	Phase          string
-	TotalItems     int
-	CompletedItems int
-	UpdatedAt      time.Time
+	ID             string    `json:"id"`
+	Phase          string    `json:"phase"`
+	TotalItems     int       `json:"totalItems"`
+	CompletedItems int       `json:"completedItems"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+}
+
+func (e ImportProgressUpdated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewImportProgressUpdated(id, phase string, totalItems, completedItems int) ImportProgressUpdated {
