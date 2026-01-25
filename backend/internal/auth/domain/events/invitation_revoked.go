@@ -7,8 +7,15 @@ import (
 
 type InvitationRevoked struct {
 	domain.BaseEvent
-	ID        string
-	RevokedAt time.Time
+	ID        string    `json:"id"`
+	RevokedAt time.Time `json:"revokedAt"`
+}
+
+func (e InvitationRevoked) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewInvitationRevoked(id string) InvitationRevoked {

@@ -8,9 +8,16 @@ import (
 
 type InvitationAccepted struct {
 	domain.BaseEvent
-	ID         string
-	Email      string
-	AcceptedAt time.Time
+	ID         string    `json:"id"`
+	Email      string    `json:"email"`
+	AcceptedAt time.Time `json:"acceptedAt"`
+}
+
+func (e InvitationAccepted) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewInvitationAccepted(id string, email string) InvitationAccepted {

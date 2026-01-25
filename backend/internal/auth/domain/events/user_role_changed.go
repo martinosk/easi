@@ -7,11 +7,18 @@ import (
 
 type UserRoleChanged struct {
 	domain.BaseEvent
-	ID          string
-	OldRole     string
-	NewRole     string
-	ChangedByID string
-	ChangedAt   time.Time
+	ID          string    `json:"id"`
+	OldRole     string    `json:"oldRole"`
+	NewRole     string    `json:"newRole"`
+	ChangedByID string    `json:"changedById"`
+	ChangedAt   time.Time `json:"changedAt"`
+}
+
+func (e UserRoleChanged) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewUserRoleChanged(

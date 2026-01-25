@@ -7,8 +7,15 @@ import (
 
 type InvitationExpired struct {
 	domain.BaseEvent
-	ID        string
-	ExpiredAt time.Time
+	ID        string    `json:"id"`
+	ExpiredAt time.Time `json:"expiredAt"`
+}
+
+func (e InvitationExpired) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewInvitationExpired(id string) InvitationExpired {

@@ -7,14 +7,21 @@ import (
 
 type UserCreated struct {
 	domain.BaseEvent
-	ID           string
-	Email        string
-	Name         string
-	Role         string
-	Status       string
-	ExternalID   string
-	InvitationID string
-	CreatedAt    time.Time
+	ID           string    `json:"id"`
+	Email        string    `json:"email"`
+	Name         string    `json:"name"`
+	Role         string    `json:"role"`
+	Status       string    `json:"status"`
+	ExternalID   string    `json:"externalId"`
+	InvitationID string    `json:"invitationId"`
+	CreatedAt    time.Time `json:"createdAt"`
+}
+
+func (e UserCreated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewUserCreated(

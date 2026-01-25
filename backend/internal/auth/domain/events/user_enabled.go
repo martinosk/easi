@@ -7,9 +7,16 @@ import (
 
 type UserEnabled struct {
 	domain.BaseEvent
-	ID        string
-	EnabledBy string
-	EnabledAt time.Time
+	ID        string    `json:"id"`
+	EnabledBy string    `json:"enabledBy"`
+	EnabledAt time.Time `json:"enabledAt"`
+}
+
+func (e UserEnabled) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewUserEnabled(id string, enabledBy string) UserEnabled {
