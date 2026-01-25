@@ -13,7 +13,6 @@ export interface UseCanvasLayoutResult {
   error: Error | null;
   updateComponentPosition: (componentId: ComponentId, x: number, y: number) => Promise<void>;
   updateCapabilityPosition: (capabilityId: CapabilityId, x: number, y: number) => Promise<void>;
-  updateOriginEntityPosition: (nodeId: string, x: number, y: number) => Promise<void>;
   batchUpdatePositions: (updates: BatchUpdateItem[]) => Promise<void>;
   getPositionForElement: (elementId: string) => Position | null;
   refetch: () => Promise<void>;
@@ -43,13 +42,6 @@ export function useCanvasLayout(viewId: ViewId | null): UseCanvasLayoutResult {
     [updateElementPosition]
   );
 
-  const updateOriginEntityPosition = useCallback(
-    async (nodeId: string, x: number, y: number) => {
-      await updateElementPosition(nodeId, x, y);
-    },
-    [updateElementPosition]
-  );
-
   const getPositionForElement = useCallback(
     (elementId: string): Position | null => {
       return positions[elementId] || null;
@@ -64,7 +56,6 @@ export function useCanvasLayout(viewId: ViewId | null): UseCanvasLayoutResult {
       error,
       updateComponentPosition,
       updateCapabilityPosition,
-      updateOriginEntityPosition,
       batchUpdatePositions,
       getPositionForElement,
       refetch,
@@ -75,7 +66,6 @@ export function useCanvasLayout(viewId: ViewId | null): UseCanvasLayoutResult {
       error,
       updateComponentPosition,
       updateCapabilityPosition,
-      updateOriginEntityPosition,
       batchUpdatePositions,
       getPositionForElement,
       refetch,

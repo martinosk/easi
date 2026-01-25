@@ -53,7 +53,8 @@ function findOriginEntity(
 function resolveOriginEntityNode(
   node: Node,
   lookups: OriginEntityLookups,
-  position: MenuPosition
+  position: MenuPosition,
+  viewElementLinks?: HATEOASLinks
 ): NodeContextMenu | null {
   const result = findOriginEntity(node.id, lookups);
   if (!result) return null;
@@ -65,6 +66,7 @@ function resolveOriginEntityNode(
     nodeType: 'originEntity',
     originEntityType: result.originEntityType,
     modelLinks: result.entity._links,
+    viewElementLinks,
   };
 }
 
@@ -113,6 +115,7 @@ interface NodeContextMenuDependencies {
   originEntityLookups: OriginEntityLookups;
   currentViewComponents: { componentId: string; _links?: HATEOASLinks }[];
   currentViewCapabilities: { capabilityId: string; _links?: HATEOASLinks }[];
+  currentViewOriginEntities: { originEntityId: string; _links?: HATEOASLinks }[];
 }
 
 function resolveNodeMenu(
@@ -127,7 +130,8 @@ function resolveNodeMenu(
   }
 
   if (node.type === 'originEntity') {
-    return resolveOriginEntityNode(node, deps.originEntityLookups, position);
+    const viewElement = deps.currentViewOriginEntities.find((vo) => vo.originEntityId === node.id);
+    return resolveOriginEntityNode(node, deps.originEntityLookups, position, viewElement?._links);
   }
 
   const viewElement = deps.currentViewComponents.find((vc) => vc.componentId === node.id);
@@ -150,7 +154,8 @@ export const useNodeContextMenu = () => {
     originEntityLookups: { acquiredEntities, vendors, internalTeams },
     currentViewComponents: currentView?.components ?? [],
     currentViewCapabilities: currentView?.capabilities ?? [],
-  }), [components, capabilities, acquiredEntities, vendors, internalTeams, currentView?.components, currentView?.capabilities]);
+    currentViewOriginEntities: currentView?.originEntities ?? [],
+  }), [components, capabilities, acquiredEntities, vendors, internalTeams, currentView?.components, currentView?.capabilities, currentView?.originEntities]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {

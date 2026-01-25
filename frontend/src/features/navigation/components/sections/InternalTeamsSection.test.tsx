@@ -1,23 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { InternalTeamsSection } from './InternalTeamsSection';
 import type { InternalTeam, InternalTeamId, HATEOASLinks, ViewId, ComponentId } from '../../../../api/types';
-
-vi.mock('../../../canvas/context/CanvasLayoutContext', () => ({
-  useCanvasLayoutContext: vi.fn(() => ({
-    positions: {},
-    isLoading: false,
-    error: null,
-    updateComponentPosition: vi.fn(),
-    updateCapabilityPosition: vi.fn(),
-    updateOriginEntityPosition: vi.fn(),
-    batchUpdatePositions: vi.fn(),
-    getPositionForElement: vi.fn(),
-    refetch: vi.fn(),
-  })),
-}));
-
-import { useCanvasLayoutContext } from '../../../canvas/context/CanvasLayoutContext';
 
 describe('InternalTeamsSection', () => {
   const mockLinks: HATEOASLinks = { self: { href: '/test', method: 'GET' } };
@@ -45,19 +29,6 @@ describe('InternalTeamsSection', () => {
     onTeamContextMenu: vi.fn(),
   };
 
-  beforeEach(() => {
-    vi.mocked(useCanvasLayoutContext).mockReturnValue({
-      positions: {},
-      isLoading: false,
-      error: null,
-      updateComponentPosition: vi.fn(),
-      updateCapabilityPosition: vi.fn(),
-      updateOriginEntityPosition: vi.fn(),
-      batchUpdatePositions: vi.fn(),
-      getPositionForElement: vi.fn(),
-      refetch: vi.fn(),
-    });
-  });
 
   describe('rendering', () => {
     it('should display section label with count', () => {
@@ -301,32 +272,21 @@ describe('InternalTeamsSection', () => {
   });
 
   describe('on-canvas status', () => {
-    const createMockView = (id: string, componentIds: string[]) => ({
+    const createMockView = (id: string, componentIds: string[], originEntityIds: string[] = []) => ({
       id: id as ViewId,
       name: 'Test View',
       isDefault: false,
       isPrivate: false,
       components: componentIds.map(cid => ({ componentId: cid as ComponentId, x: 0, y: 0 })),
       capabilities: [],
+      originEntities: originEntityIds.map(oeId => ({ originEntityId: oeId, x: 0, y: 0 })),
       createdAt: '2021-01-01T00:00:00Z',
       _links: mockLinks,
     });
 
-    it('should show team as on-canvas when it has a layout position', () => {
-      vi.mocked(useCanvasLayoutContext).mockReturnValue({
-        positions: { 'team-it-123': { x: 100, y: 200 } },
-        isLoading: false,
-        error: null,
-        updateComponentPosition: vi.fn(),
-        updateCapabilityPosition: vi.fn(),
-        updateOriginEntityPosition: vi.fn(),
-        batchUpdatePositions: vi.fn(),
-        getPositionForElement: vi.fn(),
-        refetch: vi.fn(),
-      });
-
+    it('should show team as on-canvas when it is in the view', () => {
       const team = createMockTeam({ id: 'it-123' as InternalTeamId, name: 'Platform Engineering' });
-      const currentView = createMockView('view-1', ['comp-456']);
+      const currentView = createMockView('view-1', ['comp-456'], ['team-it-123']);
 
       render(
         <InternalTeamsSection
@@ -340,21 +300,9 @@ describe('InternalTeamsSection', () => {
       expect(teamButton).not.toHaveClass('not-in-view');
     });
 
-    it('should show team as not-on-canvas when it has no layout position', () => {
-      vi.mocked(useCanvasLayoutContext).mockReturnValue({
-        positions: {},
-        isLoading: false,
-        error: null,
-        updateComponentPosition: vi.fn(),
-        updateCapabilityPosition: vi.fn(),
-        updateOriginEntityPosition: vi.fn(),
-        batchUpdatePositions: vi.fn(),
-        getPositionForElement: vi.fn(),
-        refetch: vi.fn(),
-      });
-
+    it('should show team as not-on-canvas when it is not in the view', () => {
       const team = createMockTeam({ id: 'it-123' as InternalTeamId, name: 'Platform Engineering' });
-      const currentView = createMockView('view-1', ['comp-456']);
+      const currentView = createMockView('view-1', ['comp-456'], []);
 
       render(
         <InternalTeamsSection
@@ -369,18 +317,6 @@ describe('InternalTeamsSection', () => {
     });
 
     it('should show all teams as on-canvas when no current view is selected', () => {
-      vi.mocked(useCanvasLayoutContext).mockReturnValue({
-        positions: {},
-        isLoading: false,
-        error: null,
-        updateComponentPosition: vi.fn(),
-        updateCapabilityPosition: vi.fn(),
-        updateOriginEntityPosition: vi.fn(),
-        batchUpdatePositions: vi.fn(),
-        getPositionForElement: vi.fn(),
-        refetch: vi.fn(),
-      });
-
       const team = createMockTeam({ id: 'it-123' as InternalTeamId, name: 'Platform Engineering' });
 
       render(

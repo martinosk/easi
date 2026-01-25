@@ -3,7 +3,6 @@ import type { Vendor, View } from '../../../../api/types';
 import { TreeSection } from '../TreeSection';
 import { TreeSearchInput } from '../shared/TreeSearchInput';
 import { TreeItemList } from '../shared/TreeItemList';
-import { useCanvasLayoutContext } from '../../../canvas/context/CanvasLayoutContext';
 import { ORIGIN_ENTITY_PREFIXES } from '../../../canvas/utils/nodeFactory';
 
 interface VendorsSectionProps {
@@ -39,18 +38,20 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
   onVendorContextMenu,
 }) => {
   const [search, setSearch] = useState('');
-  const { positions: layoutPositions } = useCanvasLayoutContext();
 
   const vendorIdsOnCanvas = useMemo(() => {
+    const viewOriginEntityIds = new Set(
+      (currentView?.originEntities ?? []).map((oe) => oe.originEntityId)
+    );
     const onCanvas = new Set<string>();
     for (const vendor of vendors) {
       const nodeId = `${ORIGIN_ENTITY_PREFIXES.vendor}${vendor.id}`;
-      if (layoutPositions[nodeId] !== undefined) {
+      if (viewOriginEntityIds.has(nodeId)) {
         onCanvas.add(vendor.id);
       }
     }
     return onCanvas;
-  }, [vendors, layoutPositions]);
+  }, [vendors, currentView?.originEntities]);
 
   const filteredVendors = useMemo(
     () => filterVendors(vendors, search),

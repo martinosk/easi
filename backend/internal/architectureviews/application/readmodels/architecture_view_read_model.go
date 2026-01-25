@@ -17,8 +17,9 @@ type CapabilityID string
 type ElementType string
 
 const (
-	ElementTypeComponent  ElementType = "component"
-	ElementTypeCapability ElementType = "capability"
+	ElementTypeComponent    ElementType = "component"
+	ElementTypeCapability   ElementType = "capability"
+	ElementTypeOriginEntity ElementType = "origin_entity"
 )
 
 type Position struct {
@@ -80,6 +81,13 @@ type CapabilityPositionDTO struct {
 	Links        types.Links `json:"_links,omitempty"`
 }
 
+type OriginEntityPositionDTO struct {
+	OriginEntityID string      `json:"originEntityId"`
+	X              float64     `json:"x"`
+	Y              float64     `json:"y"`
+	Links          types.Links `json:"_links,omitempty"`
+}
+
 func NewComponentPosition(componentID ComponentID, pos Position) ComponentPositionDTO {
 	return ComponentPositionDTO{
 		ComponentID: string(componentID),
@@ -90,20 +98,21 @@ func NewComponentPosition(componentID ComponentID, pos Position) ComponentPositi
 
 // ArchitectureViewDTO represents the read model for architecture views
 type ArchitectureViewDTO struct {
-	ID              string                  `json:"id"`
-	Name            string                  `json:"name"`
-	Description     string                  `json:"description,omitempty"`
-	IsDefault       bool                    `json:"isDefault"`
-	IsPrivate       bool                    `json:"isPrivate"`
-	OwnerUserID     *string                 `json:"ownerUserId,omitempty"`
-	OwnerEmail      *string                 `json:"ownerEmail,omitempty"`
-	Components      []ComponentPositionDTO  `json:"components"`
-	Capabilities    []CapabilityPositionDTO `json:"capabilities"`
-	CreatedAt       time.Time               `json:"createdAt"`
-	EdgeType        string                  `json:"edgeType,omitempty"`
-	LayoutDirection string                  `json:"layoutDirection,omitempty"`
-	ColorScheme     string                  `json:"colorScheme,omitempty"`
-	Links           types.Links             `json:"_links,omitempty"`
+	ID              string                    `json:"id"`
+	Name            string                    `json:"name"`
+	Description     string                    `json:"description,omitempty"`
+	IsDefault       bool                      `json:"isDefault"`
+	IsPrivate       bool                      `json:"isPrivate"`
+	OwnerUserID     *string                   `json:"ownerUserId,omitempty"`
+	OwnerEmail      *string                   `json:"ownerEmail,omitempty"`
+	Components      []ComponentPositionDTO    `json:"components"`
+	Capabilities    []CapabilityPositionDTO   `json:"capabilities"`
+	OriginEntities  []OriginEntityPositionDTO `json:"originEntities"`
+	CreatedAt       time.Time                 `json:"createdAt"`
+	EdgeType        string                    `json:"edgeType,omitempty"`
+	LayoutDirection string                    `json:"layoutDirection,omitempty"`
+	ColorScheme     string                    `json:"colorScheme,omitempty"`
+	Links           types.Links               `json:"_links,omitempty"`
 }
 
 // ArchitectureViewReadModel handles queries for architecture views
@@ -304,6 +313,11 @@ func (rm *ArchitectureViewReadModel) getViewByQuery(ctx context.Context, query s
 		}
 
 		dto.Capabilities, err = rm.getCapabilitiesForViewTx(ctx, tx, tenantID, dto.ID)
+		if err != nil {
+			return err
+		}
+
+		dto.OriginEntities, err = rm.getOriginEntitiesForViewTx(ctx, tx, tenantID, dto.ID)
 		return err
 	})
 
@@ -430,6 +444,12 @@ func (rm *ArchitectureViewReadModel) populateViewComponents(ctx context.Context,
 			return err
 		}
 		views[i].Capabilities = capabilities
+
+		originEntities, err := rm.getOriginEntitiesForViewTx(ctx, tx, tenantID, views[i].ID)
+		if err != nil {
+			return err
+		}
+		views[i].OriginEntities = originEntities
 	}
 	return nil
 }
@@ -454,6 +474,15 @@ func (rm *ArchitectureViewReadModel) getCapabilitiesForViewTx(ctx context.Contex
 		if customColor.Valid {
 			dto.CustomColor = &customColor.String
 		}
+		return dto, err
+	})
+}
+
+func (rm *ArchitectureViewReadModel) getOriginEntitiesForViewTx(ctx context.Context, tx *sql.Tx, tenantID, viewID string) ([]OriginEntityPositionDTO, error) {
+	return getElementsForViewTx(ctx, tx, tenantID, viewID, ElementTypeOriginEntity, func(rows *sql.Rows) (OriginEntityPositionDTO, error) {
+		var dto OriginEntityPositionDTO
+		var customColor sql.NullString
+		err := rows.Scan(&dto.OriginEntityID, &dto.X, &dto.Y, &customColor)
 		return dto, err
 	})
 }

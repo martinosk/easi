@@ -23,8 +23,9 @@ type ComponentPositionData struct {
 type ElementType string
 
 const (
-	ElementTypeComponent  ElementType = "component"
-	ElementTypeCapability ElementType = "capability"
+	ElementTypeComponent    ElementType = "component"
+	ElementTypeCapability   ElementType = "capability"
+	ElementTypeOriginEntity ElementType = "origin_entity"
 )
 
 type ViewLayoutRepository struct {
@@ -249,4 +250,22 @@ func (r *ViewLayoutRepository) UpdateCapabilityPosition(ctx context.Context, vie
 
 func (r *ViewLayoutRepository) RemoveCapabilityFromView(ctx context.Context, viewID, capabilityID string) error {
 	return r.deleteElementPosition(ctx, viewID, capabilityID, ElementTypeCapability)
+}
+
+type OriginEntityPositionData struct {
+	OriginEntityID string
+	X              float64
+	Y              float64
+}
+
+func (r *ViewLayoutRepository) AddOriginEntityToView(ctx context.Context, viewID, originEntityID string, x, y float64) error {
+	return r.upsertElementPosition(ctx, viewID, originEntityID, ElementTypeOriginEntity, Position{X: x, Y: y})
+}
+
+func (r *ViewLayoutRepository) UpdateOriginEntityPosition(ctx context.Context, viewID, originEntityID string, x, y float64) error {
+	return r.upsertElementPosition(ctx, viewID, originEntityID, ElementTypeOriginEntity, Position{X: x, Y: y})
+}
+
+func (r *ViewLayoutRepository) RemoveOriginEntityFromView(ctx context.Context, viewID, originEntityID string) error {
+	return r.deleteElementPosition(ctx, viewID, originEntityID, ElementTypeOriginEntity)
 }

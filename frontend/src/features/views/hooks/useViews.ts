@@ -9,6 +9,7 @@ import type {
   CreateViewRequest,
   AddComponentToViewRequest,
   AddCapabilityToViewRequest,
+  AddOriginEntityToViewRequest,
   UpdatePositionRequest,
   UpdateMultiplePositionsRequest,
   RenameViewRequest,
@@ -232,6 +233,31 @@ export function useClearCapabilityColor() {
   return useViewMutation<{ viewId: ViewId; capabilityId: CapabilityId }>(queryClient, {
     mutationFn: ({ viewId, capabilityId }) => viewsApi.clearCapabilityColor(viewId, capabilityId),
     errorMessage: 'Failed to clear capability color',
+  });
+}
+
+export function useAddOriginEntityToView() {
+  const queryClient = useQueryClient();
+  return useViewMutation<{ viewId: ViewId; request: AddOriginEntityToViewRequest }>(queryClient, {
+    mutationFn: ({ viewId, request }) => viewsApi.addOriginEntity(viewId, request),
+    errorMessage: 'Failed to add origin entity to view',
+  });
+}
+
+export function useRemoveOriginEntityFromView() {
+  const queryClient = useQueryClient();
+  return useViewMutation<{ viewId: ViewId; originEntityId: string }>(queryClient, {
+    mutationFn: ({ viewId, originEntityId }) => viewsApi.removeOriginEntity(viewId, originEntityId),
+    errorMessage: 'Failed to remove origin entity from view',
+  });
+}
+
+export function useUpdateOriginEntityPosition() {
+  const queryClient = useQueryClient();
+  return useViewMutation<{ viewId: ViewId; originEntityId: string; position: Position }>(queryClient, {
+    mutationFn: ({ viewId, originEntityId, position }) => viewsApi.updateOriginEntityPosition(viewId, originEntityId, position),
+    errorMessage: 'Failed to update position',
+    showErrorToast: false,
   });
 }
 

@@ -8515,6 +8515,170 @@ const docTemplate = `{
                 }
             }
         },
+        "/views/{id}/origin-entities": {
+            "post": {
+                "description": "Adds an origin entity node to an architecture view at the specified position",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Add an origin entity to a view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Origin entity to add with position",
+                        "name": "originEntity",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.AddOriginEntityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/views/{id}/origin-entities/{originEntityId}": {
+            "delete": {
+                "description": "Removes an origin entity node from an architecture view",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Remove an origin entity from a view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Origin Entity ID",
+                        "name": "originEntityId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/views/{id}/origin-entities/{originEntityId}/position": {
+            "patch": {
+                "description": "Updates the position of an origin entity node in an architecture view",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "views"
+                ],
+                "summary": "Update origin entity position in a view",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "View ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Origin Entity ID",
+                        "name": "originEntityId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New position",
+                        "name": "position",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.UpdatePositionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/views/{id}/positions": {
             "patch": {
                 "description": "Updates positions for multiple components in a view in a single operation",
@@ -8676,6 +8840,9 @@ const docTemplate = `{
                 "createdAt": {
                     "type": "string"
                 },
+                "id": {
+                    "type": "string"
+                },
                 "notes": {
                     "type": "string"
                 }
@@ -8720,6 +8887,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "createdAt": {
+                    "type": "string"
+                },
+                "id": {
                     "type": "string"
                 },
                 "internalTeamId": {
@@ -8826,6 +8996,9 @@ const docTemplate = `{
                 "createdAt": {
                     "type": "string"
                 },
+                "id": {
+                    "type": "string"
+                },
                 "notes": {
                     "type": "string"
                 },
@@ -8908,6 +9081,12 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "originEntities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_architectureviews_application_readmodels.OriginEntityPositionDTO"
+                    }
+                },
                 "ownerEmail": {
                     "type": "string"
                 },
@@ -8946,6 +9125,23 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "customColor": {
+                    "type": "string"
+                },
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
+        "easi_backend_internal_architectureviews_application_readmodels.OriginEntityPositionDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "originEntityId": {
                     "type": "string"
                 },
                 "x": {
@@ -10123,6 +10319,20 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "componentId": {
+                    "type": "string"
+                },
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
+        "internal_architectureviews_infrastructure_api.AddOriginEntityRequest": {
+            "type": "object",
+            "properties": {
+                "originEntityId": {
                     "type": "string"
                 },
                 "x": {

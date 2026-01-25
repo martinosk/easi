@@ -26,6 +26,9 @@ type LayoutRepository interface {
 	AddCapabilityToView(ctx context.Context, viewID, capabilityID string, x, y float64) error
 	UpdateCapabilityPosition(ctx context.Context, viewID, capabilityID string, x, y float64) error
 	RemoveCapabilityFromView(ctx context.Context, viewID, capabilityID string) error
+	AddOriginEntityToView(ctx context.Context, viewID, originEntityID string, x, y float64) error
+	UpdateOriginEntityPosition(ctx context.Context, viewID, originEntityID string, x, y float64) error
+	RemoveOriginEntityFromView(ctx context.Context, viewID, originEntityID string) error
 }
 
 func NewViewHandlers(
@@ -705,6 +708,113 @@ func (h *ViewHandlers) RemoveCapabilityFromView(w http.ResponseWriter, r *http.R
 	)
 }
 
+type AddOriginEntityRequest struct {
+	OriginEntityID string  `json:"originEntityId"`
+	X              float64 `json:"x"`
+	Y              float64 `json:"y"`
+}
+
+// AddOriginEntityToView godoc
+// @Summary Add an origin entity to a view
+// @Description Adds an origin entity node to an architecture view at the specified position
+// @Tags views
+// @Accept json
+// @Produce json
+// @Param id path string true "View ID"
+// @Param originEntity body AddOriginEntityRequest true "Origin entity to add with position"
+// @Success 201
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/origin-entities [post]
+func (h *ViewHandlers) AddOriginEntityToView(w http.ResponseWriter, r *http.Request) {
+	viewID := sharedAPI.GetPathParam(r, "id")
+
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
+
+	req, ok := sharedAPI.DecodeRequestOrFail[AddOriginEntityRequest](w, r)
+	if !ok {
+		return
+	}
+
+	if req.OriginEntityID == "" {
+		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "originEntityId is required")
+		return
+	}
+
+	if err := h.layoutRepo.AddOriginEntityToView(r.Context(), viewID, req.OriginEntityID, req.X, req.Y); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to add origin entity to view")
+		return
+	}
+
+	location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/views"), sharedAPI.ResourceID(viewID), sharedAPI.ResourcePath("/origin-entities"))
+	sharedAPI.RespondCreatedNoBody(w, location)
+}
+
+// UpdateOriginEntityPosition godoc
+// @Summary Update origin entity position in a view
+// @Description Updates the position of an origin entity node in an architecture view
+// @Tags views
+// @Accept json
+// @Produce json
+// @Param id path string true "View ID"
+// @Param originEntityId path string true "Origin Entity ID"
+// @Param position body UpdatePositionRequest true "New position"
+// @Success 204
+// @Failure 400 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/origin-entities/{originEntityId}/position [patch]
+func (h *ViewHandlers) UpdateOriginEntityPosition(w http.ResponseWriter, r *http.Request) {
+	viewID := sharedAPI.GetPathParam(r, "id")
+	originEntityID := sharedAPI.GetPathParam(r, "originEntityId")
+
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
+
+	req, ok := sharedAPI.DecodeRequestOrFail[UpdatePositionRequest](w, r)
+	if !ok {
+		return
+	}
+
+	if err := h.layoutRepo.UpdateOriginEntityPosition(r.Context(), viewID, originEntityID, req.X, req.Y); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to update origin entity position")
+		return
+	}
+
+	sharedAPI.RespondNoContent(w)
+}
+
+// RemoveOriginEntityFromView godoc
+// @Summary Remove an origin entity from a view
+// @Description Removes an origin entity node from an architecture view
+// @Tags views
+// @Produce json
+// @Param id path string true "View ID"
+// @Param originEntityId path string true "Origin Entity ID"
+// @Success 204
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /views/{id}/origin-entities/{originEntityId} [delete]
+func (h *ViewHandlers) RemoveOriginEntityFromView(w http.ResponseWriter, r *http.Request) {
+	viewID := sharedAPI.GetPathParam(r, "id")
+	originEntityID := sharedAPI.GetPathParam(r, "originEntityId")
+
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
+
+	if err := h.layoutRepo.RemoveOriginEntityFromView(r.Context(), viewID, originEntityID); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to remove origin entity from view")
+		return
+	}
+
+	sharedAPI.RespondNoContent(w)
+}
+
 // UpdateColorScheme godoc
 // @Summary Update color scheme for a view
 // @Description Updates the color scheme for an architecture view. Valid schemes: maturity, classic, custom
@@ -908,4 +1018,19 @@ func (h *ViewHandlers) addElementLinks(view *readmodels.ArchitectureViewDTO, can
 	for i := range view.Capabilities {
 		view.Capabilities[i].Links = h.buildElementLinks(view.ID, "capabilities", view.Capabilities[i].CapabilityID, canEdit)
 	}
+
+	for i := range view.OriginEntities {
+		view.OriginEntities[i].Links = h.buildOriginEntityLinks(view.ID, view.OriginEntities[i].OriginEntityID, canEdit)
+	}
+}
+
+func (h *ViewHandlers) buildOriginEntityLinks(viewID, originEntityID string, canEdit bool) sharedAPI.Links {
+	links := sharedAPI.Links{}
+	if !canEdit {
+		return links
+	}
+	basePath := fmt.Sprintf("/api/v1/views/%s/origin-entities/%s", viewID, originEntityID)
+	links["x-update-position"] = sharedAPI.NewLink(basePath+"/position", "PATCH")
+	links["x-remove"] = sharedAPI.NewLink(basePath, "DELETE")
+	return links
 }

@@ -39,9 +39,14 @@ vi.mock('../../../store/appStore', () => ({
   useAppStore: () => null,
 }));
 
-const mockCurrentView = {
+const mockCurrentView: {
+  components: { componentId: ComponentId }[];
+  capabilities: unknown[];
+  originEntities: { originEntityId: string; x: number; y: number }[];
+} = {
   components: [{ componentId: 'comp-1' as ComponentId }, { componentId: 'comp-2' as ComponentId }],
   capabilities: [],
+  originEntities: [],
 };
 
 vi.mock('../../views/hooks/useCurrentView', () => ({
@@ -71,128 +76,83 @@ vi.mock('../../origin-entities/hooks/useOriginRelationships', () => ({
   useOriginRelationshipsQuery: () => ({ data: mockOriginRelationships }),
 }));
 
+function createMockRelationship(
+  componentId: string,
+  originEntityId: string,
+  originEntityName: string
+): OriginRelationship {
+  return {
+    id: `rel-${originEntityId}` as any,
+    componentId: componentId as ComponentId,
+    componentName: `Component ${componentId}`,
+    relationshipType: 'AcquiredVia',
+    originEntityId,
+    originEntityName,
+    createdAt: '2024-01-01T00:00:00Z',
+    _links: { self: { href: '/test', method: 'GET' } },
+  };
+}
+
+function addOriginEntityToView(originEntityId: string, x = 100, y = 100) {
+  mockCurrentView.originEntities.push({ originEntityId, x, y });
+}
+
+function renderAndGetAcquiredEntityNodes() {
+  const { result } = renderHook(() => useCanvasNodes(), { wrapper: createWrapper() });
+  return result.current.filter((n) => n.id.startsWith('acq-'));
+}
+
 describe('useCanvasNodes', () => {
   beforeEach(() => {
     Object.keys(mockLayoutPositions).forEach((key) => delete mockLayoutPositions[key]);
     mockOriginRelationships = [];
+    mockCurrentView.originEntities = [];
   });
 
   describe('origin entity nodes with relationships', () => {
-    it('should include origin entity when it has a saved layout position', () => {
-      mockLayoutPositions['acq-ae-1'] = { x: 100, y: 100 };
-      mockOriginRelationships = [];
+    it('should include origin entity when it is explicitly added to the view', () => {
+      addOriginEntityToView('acq-ae-1');
 
-      const { result } = renderHook(() => useCanvasNodes(), {
-        wrapper: createWrapper(),
-      });
+      const nodes = renderAndGetAcquiredEntityNodes();
 
-      const acquiredEntityNodes = result.current.filter((n) => n.id.startsWith('acq-'));
-      expect(acquiredEntityNodes).toHaveLength(1);
-      expect(acquiredEntityNodes[0].id).toBe('acq-ae-1');
+      expect(nodes).toHaveLength(1);
+      expect(nodes[0].id).toBe('acq-ae-1');
     });
 
-    it('should include origin entity when it has a relationship to a component on canvas (even without layout position)', () => {
-      mockOriginRelationships = [
-        {
-          id: 'rel-1' as any,
-          componentId: 'comp-1' as ComponentId,
-          componentName: 'Component 1',
-          relationshipType: 'AcquiredVia',
-          originEntityId: 'ae-2',
-          originEntityName: 'Acquired Entity 2',
-          createdAt: '2024-01-01T00:00:00Z',
-          _links: { self: { href: '/test', method: 'GET' } },
-        },
-      ];
+    it('should NOT include origin entity when it only has a relationship (not explicitly added to view)', () => {
+      mockOriginRelationships = [createMockRelationship('comp-1', 'ae-2', 'Acquired Entity 2')];
 
-      const { result } = renderHook(() => useCanvasNodes(), {
-        wrapper: createWrapper(),
-      });
-
-      const acquiredEntityNodes = result.current.filter((n) => n.id.startsWith('acq-'));
-      expect(acquiredEntityNodes).toHaveLength(1);
-      expect(acquiredEntityNodes[0].id).toBe('acq-ae-2');
+      expect(renderAndGetAcquiredEntityNodes()).toHaveLength(0);
     });
 
     it('should NOT include origin entity when it has no layout position AND no relationship to canvas components', () => {
-      mockOriginRelationships = [];
-
-      const { result } = renderHook(() => useCanvasNodes(), {
-        wrapper: createWrapper(),
-      });
-
-      const acquiredEntityNodes = result.current.filter((n) => n.id.startsWith('acq-'));
-      expect(acquiredEntityNodes).toHaveLength(0);
+      expect(renderAndGetAcquiredEntityNodes()).toHaveLength(0);
     });
 
     it('should NOT include origin entity when relationship is to a component NOT on canvas', () => {
-      mockOriginRelationships = [
-        {
-          id: 'rel-1' as any,
-          componentId: 'comp-not-on-canvas' as ComponentId,
-          componentName: 'Not On Canvas',
-          relationshipType: 'AcquiredVia',
-          originEntityId: 'ae-1',
-          originEntityName: 'Acquired Entity 1',
-          createdAt: '2024-01-01T00:00:00Z',
-          _links: { self: { href: '/test', method: 'GET' } },
-        },
-      ];
+      mockOriginRelationships = [createMockRelationship('comp-not-on-canvas', 'ae-1', 'Acquired Entity 1')];
 
-      const { result } = renderHook(() => useCanvasNodes(), {
-        wrapper: createWrapper(),
-      });
-
-      const acquiredEntityNodes = result.current.filter((n) => n.id.startsWith('acq-'));
-      expect(acquiredEntityNodes).toHaveLength(0);
+      expect(renderAndGetAcquiredEntityNodes()).toHaveLength(0);
     });
 
-    it('should include origin entity from both layout position AND relationship (no duplicates)', () => {
-      mockLayoutPositions['acq-ae-1'] = { x: 100, y: 100 };
-      mockOriginRelationships = [
-        {
-          id: 'rel-1' as any,
-          componentId: 'comp-1' as ComponentId,
-          componentName: 'Component 1',
-          relationshipType: 'AcquiredVia',
-          originEntityId: 'ae-1',
-          originEntityName: 'Acquired Entity 1',
-          createdAt: '2024-01-01T00:00:00Z',
-          _links: { self: { href: '/test', method: 'GET' } },
-        },
-      ];
+    it('should include origin entity from view membership even with relationship (no duplicates)', () => {
+      addOriginEntityToView('acq-ae-1');
+      mockOriginRelationships = [createMockRelationship('comp-1', 'ae-1', 'Acquired Entity 1')];
 
-      const { result } = renderHook(() => useCanvasNodes(), {
-        wrapper: createWrapper(),
-      });
+      const nodes = renderAndGetAcquiredEntityNodes();
 
-      const acquiredEntityNodes = result.current.filter((n) => n.id.startsWith('acq-'));
-      expect(acquiredEntityNodes).toHaveLength(1);
-      expect(acquiredEntityNodes[0].id).toBe('acq-ae-1');
+      expect(nodes).toHaveLength(1);
+      expect(nodes[0].id).toBe('acq-ae-1');
     });
 
-    it('should include multiple origin entities from mixed sources', () => {
-      mockLayoutPositions['acq-ae-1'] = { x: 100, y: 100 };
-      mockOriginRelationships = [
-        {
-          id: 'rel-1' as any,
-          componentId: 'comp-2' as ComponentId,
-          componentName: 'Component 2',
-          relationshipType: 'AcquiredVia',
-          originEntityId: 'ae-2',
-          originEntityName: 'Acquired Entity 2',
-          createdAt: '2024-01-01T00:00:00Z',
-          _links: { self: { href: '/test', method: 'GET' } },
-        },
-      ];
+    it('should only include origin entity explicitly in view, ignoring relationship-only entities', () => {
+      addOriginEntityToView('acq-ae-1');
+      mockOriginRelationships = [createMockRelationship('comp-2', 'ae-2', 'Acquired Entity 2')];
 
-      const { result } = renderHook(() => useCanvasNodes(), {
-        wrapper: createWrapper(),
-      });
+      const nodes = renderAndGetAcquiredEntityNodes();
 
-      const acquiredEntityNodes = result.current.filter((n) => n.id.startsWith('acq-'));
-      expect(acquiredEntityNodes).toHaveLength(2);
-      expect(acquiredEntityNodes.map((n) => n.id).sort()).toEqual(['acq-ae-1', 'acq-ae-2']);
+      expect(nodes).toHaveLength(1);
+      expect(nodes[0].id).toBe('acq-ae-1');
     });
   });
 

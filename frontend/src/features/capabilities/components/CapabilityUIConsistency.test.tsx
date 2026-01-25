@@ -16,7 +16,6 @@ vi.mock('../../canvas/context/CanvasLayoutContext', () => ({
     error: null,
     updateComponentPosition: vi.fn(),
     updateCapabilityPosition: vi.fn(),
-    updateOriginEntityPosition: vi.fn(),
     batchUpdatePositions: vi.fn(),
     getPositionForElement: vi.fn(),
     refetch: vi.fn(),
@@ -85,6 +84,7 @@ const mockCurrentView: View = {
   isPrivate: false,
   components: [{ componentId: 'comp-1' as ComponentId, x: 100, y: 100 }],
   capabilities: [{ capabilityId: 'cap-1' as CapabilityId, x: 200, y: 200 }],
+  originEntities: [],
   createdAt: '2024-01-01T00:00:00Z',
   _links: { self: { href: '/api/v1/views/view-1', method: 'GET' } },
 };

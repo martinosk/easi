@@ -3,7 +3,6 @@ import type { InternalTeam, View } from '../../../../api/types';
 import { TreeSection } from '../TreeSection';
 import { TreeSearchInput } from '../shared/TreeSearchInput';
 import { TreeItemList } from '../shared/TreeItemList';
-import { useCanvasLayoutContext } from '../../../canvas/context/CanvasLayoutContext';
 import { ORIGIN_ENTITY_PREFIXES } from '../../../canvas/utils/nodeFactory';
 
 interface InternalTeamsSectionProps {
@@ -40,18 +39,20 @@ export const InternalTeamsSection: React.FC<InternalTeamsSectionProps> = ({
   onTeamContextMenu,
 }) => {
   const [search, setSearch] = useState('');
-  const { positions: layoutPositions } = useCanvasLayoutContext();
 
   const teamIdsOnCanvas = useMemo(() => {
+    const viewOriginEntityIds = new Set(
+      (currentView?.originEntities ?? []).map((oe) => oe.originEntityId)
+    );
     const onCanvas = new Set<string>();
     for (const team of internalTeams) {
       const nodeId = `${ORIGIN_ENTITY_PREFIXES.team}${team.id}`;
-      if (layoutPositions[nodeId] !== undefined) {
+      if (viewOriginEntityIds.has(nodeId)) {
         onCanvas.add(team.id);
       }
     }
     return onCanvas;
-  }, [internalTeams, layoutPositions]);
+  }, [internalTeams, currentView?.originEntities]);
 
   const filteredTeams = useMemo(
     () => filterTeams(internalTeams, search),

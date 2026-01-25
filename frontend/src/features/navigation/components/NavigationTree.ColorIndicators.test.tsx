@@ -19,7 +19,6 @@ vi.mock('../../canvas/context/CanvasLayoutContext', () => ({
     error: null,
     updateComponentPosition: vi.fn(),
     updateCapabilityPosition: vi.fn(),
-    updateOriginEntityPosition: vi.fn(),
     batchUpdatePositions: vi.fn(),
     getPositionForElement: vi.fn(),
     refetch: vi.fn(),
@@ -101,6 +100,7 @@ const createViewWithColorScheme = (
     y: 250,
     customColor: c.customColor,
   })),
+  originEntities: [],
   createdAt: '2024-01-01',
   _links: { self: { href: '/api/v1/views/view-1', method: 'GET' as const } },
 });

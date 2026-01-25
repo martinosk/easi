@@ -25,6 +25,7 @@ const createMockView = (colorScheme: string, componentsWithColors?: Array<{ comp
     customColor: comp.customColor,
   })) || [],
   capabilities: [],
+  originEntities: [],
   colorScheme,
   createdAt: '2024-01-01T00:00:00Z',
   _links: { self: { href: '/api/v1/views/view-1', method: 'GET' } },

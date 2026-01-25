@@ -3,7 +3,6 @@ import type { AcquiredEntity, View } from '../../../../api/types';
 import { TreeSection } from '../TreeSection';
 import { TreeSearchInput } from '../shared/TreeSearchInput';
 import { TreeItemList } from '../shared/TreeItemList';
-import { useCanvasLayoutContext } from '../../../canvas/context/CanvasLayoutContext';
 import { ORIGIN_ENTITY_PREFIXES } from '../../../canvas/utils/nodeFactory';
 
 interface AcquiredEntitiesSectionProps {
@@ -48,18 +47,20 @@ export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = (
   onEntityContextMenu,
 }) => {
   const [search, setSearch] = useState('');
-  const { positions: layoutPositions } = useCanvasLayoutContext();
 
   const entityIdsOnCanvas = useMemo(() => {
+    const viewOriginEntityIds = new Set(
+      (currentView?.originEntities ?? []).map((oe) => oe.originEntityId)
+    );
     const onCanvas = new Set<string>();
     for (const entity of acquiredEntities) {
       const nodeId = `${ORIGIN_ENTITY_PREFIXES.acquired}${entity.id}`;
-      if (layoutPositions[nodeId] !== undefined) {
+      if (viewOriginEntityIds.has(nodeId)) {
         onCanvas.add(entity.id);
       }
     }
     return onCanvas;
-  }, [acquiredEntities, layoutPositions]);
+  }, [acquiredEntities, currentView?.originEntities]);
 
   const filteredEntities = useMemo(
     () => filterEntities(acquiredEntities, search),

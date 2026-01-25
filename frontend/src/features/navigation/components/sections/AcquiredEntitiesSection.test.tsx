@@ -1,23 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AcquiredEntitiesSection } from './AcquiredEntitiesSection';
 import type { AcquiredEntity, AcquiredEntityId, IntegrationStatus, HATEOASLinks, ViewId, ComponentId } from '../../../../api/types';
-
-vi.mock('../../../canvas/context/CanvasLayoutContext', () => ({
-  useCanvasLayoutContext: vi.fn(() => ({
-    positions: {},
-    isLoading: false,
-    error: null,
-    updateComponentPosition: vi.fn(),
-    updateCapabilityPosition: vi.fn(),
-    updateOriginEntityPosition: vi.fn(),
-    batchUpdatePositions: vi.fn(),
-    getPositionForElement: vi.fn(),
-    refetch: vi.fn(),
-  })),
-}));
-
-import { useCanvasLayoutContext } from '../../../canvas/context/CanvasLayoutContext';
 
 describe('AcquiredEntitiesSection', () => {
   const mockLinks: HATEOASLinks = { self: { href: '/test', method: 'GET' } };
@@ -45,19 +29,6 @@ describe('AcquiredEntitiesSection', () => {
     onEntityContextMenu: vi.fn(),
   };
 
-  beforeEach(() => {
-    vi.mocked(useCanvasLayoutContext).mockReturnValue({
-      positions: {},
-      isLoading: false,
-      error: null,
-      updateComponentPosition: vi.fn(),
-      updateCapabilityPosition: vi.fn(),
-      updateOriginEntityPosition: vi.fn(),
-      batchUpdatePositions: vi.fn(),
-      getPositionForElement: vi.fn(),
-      refetch: vi.fn(),
-    });
-  });
 
   describe('rendering', () => {
     it('should display section label with count', () => {
@@ -321,32 +292,21 @@ describe('AcquiredEntitiesSection', () => {
   });
 
   describe('on-canvas status', () => {
-    const createMockView = (id: string, componentIds: string[]) => ({
+    const createMockView = (id: string, componentIds: string[], originEntityIds: string[] = []) => ({
       id: id as ViewId,
       name: 'Test View',
       isDefault: false,
       isPrivate: false,
       components: componentIds.map(cid => ({ componentId: cid as ComponentId, x: 0, y: 0 })),
       capabilities: [],
+      originEntities: originEntityIds.map(oeId => ({ originEntityId: oeId, x: 0, y: 0 })),
       createdAt: '2021-01-01T00:00:00Z',
       _links: mockLinks,
     });
 
-    it('should show entity as on-canvas when it has a layout position', () => {
-      vi.mocked(useCanvasLayoutContext).mockReturnValue({
-        positions: { 'acq-ae-123': { x: 100, y: 200 } },
-        isLoading: false,
-        error: null,
-        updateComponentPosition: vi.fn(),
-        updateCapabilityPosition: vi.fn(),
-        updateOriginEntityPosition: vi.fn(),
-        batchUpdatePositions: vi.fn(),
-        getPositionForElement: vi.fn(),
-        refetch: vi.fn(),
-      });
-
+    it('should show entity as on-canvas when it is in the view', () => {
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, name: 'TechCorp' });
-      const currentView = createMockView('view-1', ['comp-456']);
+      const currentView = createMockView('view-1', ['comp-456'], ['acq-ae-123']);
 
       render(
         <AcquiredEntitiesSection
@@ -360,21 +320,9 @@ describe('AcquiredEntitiesSection', () => {
       expect(entityButton).not.toHaveClass('not-in-view');
     });
 
-    it('should show entity as not-on-canvas when it has no layout position', () => {
-      vi.mocked(useCanvasLayoutContext).mockReturnValue({
-        positions: {},
-        isLoading: false,
-        error: null,
-        updateComponentPosition: vi.fn(),
-        updateCapabilityPosition: vi.fn(),
-        updateOriginEntityPosition: vi.fn(),
-        batchUpdatePositions: vi.fn(),
-        getPositionForElement: vi.fn(),
-        refetch: vi.fn(),
-      });
-
+    it('should show entity as not-on-canvas when it is not in the view', () => {
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, name: 'TechCorp' });
-      const currentView = createMockView('view-1', ['comp-456']);
+      const currentView = createMockView('view-1', ['comp-456'], []);
 
       render(
         <AcquiredEntitiesSection
@@ -389,18 +337,6 @@ describe('AcquiredEntitiesSection', () => {
     });
 
     it('should show all entities as on-canvas when no current view is selected', () => {
-      vi.mocked(useCanvasLayoutContext).mockReturnValue({
-        positions: {},
-        isLoading: false,
-        error: null,
-        updateComponentPosition: vi.fn(),
-        updateCapabilityPosition: vi.fn(),
-        updateOriginEntityPosition: vi.fn(),
-        batchUpdatePositions: vi.fn(),
-        getPositionForElement: vi.fn(),
-        refetch: vi.fn(),
-      });
-
       const entity = createMockEntity({ id: 'ae-123' as AcquiredEntityId, name: 'TechCorp' });
 
       render(

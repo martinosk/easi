@@ -37,6 +37,7 @@ const createMockView = (colorScheme: string, customColor?: string): View => ({
   capabilities: [
     { capabilityId: 'cap-1' as CapabilityId, x: 100, y: 200, customColor },
   ],
+  originEntities: [],
   colorScheme,
   createdAt: '2024-01-01T00:00:00Z',
   _links: { self: { href: '/api/v1/views/view-1', method: 'GET' as const } },
@@ -267,6 +268,7 @@ describe('CapabilityDetails - ColorPicker Integration', () => {
         isPrivate: false,
         components: [],
         capabilities: [],
+        originEntities: [],
         colorScheme: 'custom',
         createdAt: '2024-01-01T00:00:00Z',
         _links: { self: { href: '/api/v1/views/view-1', method: 'GET' as const } },

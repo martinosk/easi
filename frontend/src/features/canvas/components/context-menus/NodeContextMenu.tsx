@@ -1,6 +1,6 @@
 import { ContextMenu, type ContextMenuItem } from '../../../../components/shared/ContextMenu';
 import { useCurrentView } from '../../../views/hooks/useCurrentView';
-import { useRemoveComponentFromView, useRemoveCapabilityFromView } from '../../../views/hooks/useViews';
+import { useRemoveComponentFromView, useRemoveCapabilityFromView, useRemoveOriginEntityFromView } from '../../../views/hooks/useViews';
 import type { NodeContextMenu as NodeContextMenuType } from '../../hooks/useContextMenu';
 import type { OriginEntityType } from '../../../../components/canvas';
 import type { ViewId } from '../../../../api/types';
@@ -30,26 +30,18 @@ interface MenuItemBuilderContext {
   removeFromView: (id: string) => void;
 }
 
-function buildOriginEntityItems(ctx: MenuItemBuilderContext): ContextMenuItem[] {
-  if (!ctx.canDeleteFromModel) return [];
-
-  return [{
-    label: 'Delete from Model',
-    onClick: () => {
-      ctx.onRequestDelete({
-        type: 'origin-entity-from-model',
-        id: ctx.menu.nodeId,
-        name: ctx.menu.nodeName,
-        originEntityType: ctx.menu.originEntityType,
-      });
-      ctx.onClose();
-    },
-    isDanger: true,
-    ariaLabel: 'Delete origin entity from entire model',
-  }];
+interface ViewElementConfig {
+  deleteTargetType: NodeDeleteTarget['type'];
+  entityLabel: string;
 }
 
-function buildCapabilityItems(ctx: MenuItemBuilderContext): ContextMenuItem[] {
+const viewElementConfigs: Record<string, ViewElementConfig> = {
+  component: { deleteTargetType: 'component-from-model', entityLabel: 'component' },
+  capability: { deleteTargetType: 'capability-from-model', entityLabel: 'capability' },
+  originEntity: { deleteTargetType: 'origin-entity-from-model', entityLabel: 'origin entity' },
+};
+
+function buildViewElementItems(ctx: MenuItemBuilderContext, config: ViewElementConfig): ContextMenuItem[] {
   const items: ContextMenuItem[] = [];
 
   if (ctx.canRemoveFromView) {
@@ -67,21 +59,21 @@ function buildCapabilityItems(ctx: MenuItemBuilderContext): ContextMenuItem[] {
       label: 'Delete from Model',
       onClick: () => {
         ctx.onRequestDelete({
-          type: 'capability-from-model',
+          type: config.deleteTargetType,
           id: ctx.menu.nodeId,
           name: ctx.menu.nodeName,
         });
         ctx.onClose();
       },
       isDanger: true,
-      ariaLabel: 'Delete capability from entire model',
+      ariaLabel: `Delete ${config.entityLabel} from entire model`,
     });
   }
 
   return items;
 }
 
-function buildComponentItems(ctx: MenuItemBuilderContext): ContextMenuItem[] {
+function buildOriginEntityItems(ctx: MenuItemBuilderContext, config: ViewElementConfig): ContextMenuItem[] {
   const items: ContextMenuItem[] = [];
 
   if (ctx.canRemoveFromView) {
@@ -99,14 +91,15 @@ function buildComponentItems(ctx: MenuItemBuilderContext): ContextMenuItem[] {
       label: 'Delete from Model',
       onClick: () => {
         ctx.onRequestDelete({
-          type: 'component-from-model',
+          type: config.deleteTargetType,
           id: ctx.menu.nodeId,
           name: ctx.menu.nodeName,
+          originEntityType: ctx.menu.originEntityType,
         });
         ctx.onClose();
       },
       isDanger: true,
-      ariaLabel: 'Delete component from entire model',
+      ariaLabel: `Delete ${config.entityLabel} from entire model`,
     });
   }
 
@@ -117,6 +110,7 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete }: NodeContextM
   const { currentViewId } = useCurrentView();
   const removeComponentFromViewMutation = useRemoveComponentFromView();
   const removeCapabilityFromViewMutation = useRemoveCapabilityFromView();
+  const removeOriginEntityFromViewMutation = useRemoveOriginEntityFromView();
 
   if (!menu) return null;
 
@@ -132,7 +126,10 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete }: NodeContextM
       viewId: currentViewId,
       componentId: toComponentId(id),
     }),
-    originEntity: () => {},
+    originEntity: (originEntityId) => currentViewId && removeOriginEntityFromViewMutation.mutate({
+      viewId: currentViewId,
+      originEntityId,
+    }),
   };
 
   const ctx: MenuItemBuilderContext = {
@@ -145,13 +142,10 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete }: NodeContextM
     removeFromView: removeFromViewHandlers[menu.nodeType],
   };
 
-  const itemBuilders: Record<NodeContextMenuType['nodeType'], (ctx: MenuItemBuilderContext) => ContextMenuItem[]> = {
-    originEntity: buildOriginEntityItems,
-    capability: buildCapabilityItems,
-    component: buildComponentItems,
-  };
-
-  const items = itemBuilders[menu.nodeType](ctx);
+  const viewElementConfig = viewElementConfigs[menu.nodeType];
+  const items = menu.nodeType === 'originEntity'
+    ? buildOriginEntityItems(ctx, viewElementConfig)
+    : buildViewElementItems(ctx, viewElementConfig);
   if (items.length === 0) return null;
 
   return (

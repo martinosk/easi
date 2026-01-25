@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { ReactFlowInstance } from '@xyflow/react';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { useAddCapabilityToView } from '../../views/hooks/useViews';
+import { useAddCapabilityToView, useAddOriginEntityToView } from '../../views/hooks/useViews';
 import { toCapabilityId, toComponentId } from '../../../api/types';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 import { canEdit } from '../../../utils/hateoas';
@@ -13,7 +13,8 @@ export const useCanvasDragDrop = (
 ) => {
   const { currentViewId, currentView } = useCurrentView();
   const addCapabilityToViewMutation = useAddCapabilityToView();
-  const { updateComponentPosition, updateCapabilityPosition, updateOriginEntityPosition } = useCanvasLayoutContext();
+  const addOriginEntityToViewMutation = useAddOriginEntityToView();
+  const { updateComponentPosition, updateCapabilityPosition } = useCanvasLayoutContext();
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -52,17 +53,26 @@ export const useCanvasDragDrop = (
         });
         await updateCapabilityPosition(capId, position.x, position.y);
       } else if (acquiredEntityId) {
-        const nodeId = `${ORIGIN_ENTITY_PREFIXES.acquired}${acquiredEntityId}`;
-        await updateOriginEntityPosition(nodeId, position.x, position.y);
+        const originEntityId = `${ORIGIN_ENTITY_PREFIXES.acquired}${acquiredEntityId}`;
+        await addOriginEntityToViewMutation.mutateAsync({
+          viewId: currentViewId,
+          request: { originEntityId, x: position.x, y: position.y }
+        });
       } else if (vendorId) {
-        const nodeId = `${ORIGIN_ENTITY_PREFIXES.vendor}${vendorId}`;
-        await updateOriginEntityPosition(nodeId, position.x, position.y);
+        const originEntityId = `${ORIGIN_ENTITY_PREFIXES.vendor}${vendorId}`;
+        await addOriginEntityToViewMutation.mutateAsync({
+          viewId: currentViewId,
+          request: { originEntityId, x: position.x, y: position.y }
+        });
       } else if (internalTeamId) {
-        const nodeId = `${ORIGIN_ENTITY_PREFIXES.team}${internalTeamId}`;
-        await updateOriginEntityPosition(nodeId, position.x, position.y);
+        const originEntityId = `${ORIGIN_ENTITY_PREFIXES.team}${internalTeamId}`;
+        await addOriginEntityToViewMutation.mutateAsync({
+          viewId: currentViewId,
+          request: { originEntityId, x: position.x, y: position.y }
+        });
       }
     },
-    [onComponentDrop, reactFlowInstance, currentViewId, currentView, addCapabilityToViewMutation, updateComponentPosition, updateCapabilityPosition, updateOriginEntityPosition]
+    [onComponentDrop, reactFlowInstance, currentViewId, currentView, addCapabilityToViewMutation, addOriginEntityToViewMutation, updateComponentPosition, updateCapabilityPosition]
   );
 
   return { onDragOver, onDrop };

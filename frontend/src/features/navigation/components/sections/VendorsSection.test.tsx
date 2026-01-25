@@ -1,23 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { VendorsSection } from './VendorsSection';
 import type { Vendor, VendorId, HATEOASLinks } from '../../../../api/types';
-
-vi.mock('../../../canvas/context/CanvasLayoutContext', () => ({
-  useCanvasLayoutContext: vi.fn(() => ({
-    positions: {},
-    isLoading: false,
-    error: null,
-    updateComponentPosition: vi.fn(),
-    updateCapabilityPosition: vi.fn(),
-    updateOriginEntityPosition: vi.fn(),
-    batchUpdatePositions: vi.fn(),
-    getPositionForElement: vi.fn(),
-    refetch: vi.fn(),
-  })),
-}));
-
-import { useCanvasLayoutContext } from '../../../canvas/context/CanvasLayoutContext';
 
 describe('VendorsSection', () => {
   const mockLinks: HATEOASLinks = { self: { href: '/test', method: 'GET' } };
@@ -43,20 +27,6 @@ describe('VendorsSection', () => {
     onVendorSelect: vi.fn(),
     onVendorContextMenu: vi.fn(),
   };
-
-  beforeEach(() => {
-    vi.mocked(useCanvasLayoutContext).mockReturnValue({
-      positions: {},
-      isLoading: false,
-      error: null,
-      updateComponentPosition: vi.fn(),
-      updateCapabilityPosition: vi.fn(),
-      updateOriginEntityPosition: vi.fn(),
-      batchUpdatePositions: vi.fn(),
-      getPositionForElement: vi.fn(),
-      refetch: vi.fn(),
-    });
-  });
 
   describe('rendering', () => {
     it('should display section label with count', () => {

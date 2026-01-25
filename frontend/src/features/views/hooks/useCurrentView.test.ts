@@ -33,6 +33,7 @@ const createMockView = (overrides: Partial<View> = {}): View => ({
   isPrivate: false,
   components: [],
   capabilities: [],
+  originEntities: [],
   edgeType: 'default',
   colorScheme: 'maturity',
   createdAt: '2024-01-01T00:00:00Z',

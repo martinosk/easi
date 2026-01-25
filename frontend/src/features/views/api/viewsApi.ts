@@ -7,6 +7,7 @@ import type {
   CreateViewRequest,
   AddComponentToViewRequest,
   AddCapabilityToViewRequest,
+  AddOriginEntityToViewRequest,
   UpdatePositionRequest,
   UpdateMultiplePositionsRequest,
   RenameViewRequest,
@@ -111,6 +112,18 @@ export const viewsApi = {
 
   async clearCapabilityColor(viewId: ViewId, capabilityId: CapabilityId): Promise<void> {
     await httpClient.delete(`/api/v1/views/${viewId}/capabilities/${capabilityId}/color`);
+  },
+
+  async addOriginEntity(viewId: ViewId, request: AddOriginEntityToViewRequest): Promise<void> {
+    await httpClient.post(`/api/v1/views/${viewId}/origin-entities`, request);
+  },
+
+  async removeOriginEntity(viewId: ViewId, originEntityId: string): Promise<void> {
+    await httpClient.delete(`/api/v1/views/${viewId}/origin-entities/${originEntityId}`);
+  },
+
+  async updateOriginEntityPosition(viewId: ViewId, originEntityId: string, position: Position): Promise<void> {
+    await httpClient.patch(`/api/v1/views/${viewId}/origin-entities/${originEntityId}/position`, position);
   },
 
   async changeVisibility(viewId: ViewId, isPrivate: boolean): Promise<void> {

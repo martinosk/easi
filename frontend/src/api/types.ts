@@ -133,6 +133,13 @@ export interface ViewCapability {
   _links?: HATEOASLinks;
 }
 
+export interface ViewOriginEntity {
+  originEntityId: string;
+  x: number;
+  y: number;
+  _links?: HATEOASLinks;
+}
+
 export interface View {
   id: ViewId;
   name: string;
@@ -143,6 +150,7 @@ export interface View {
   ownerEmail?: string;
   components: ViewComponent[];
   capabilities: ViewCapability[];
+  originEntities: ViewOriginEntity[];
   edgeType?: string;
   colorScheme?: string;
   createdAt: string;
@@ -151,6 +159,12 @@ export interface View {
 
 export interface AddCapabilityToViewRequest {
   capabilityId: CapabilityId;
+  x: number;
+  y: number;
+}
+
+export interface AddOriginEntityToViewRequest {
+  originEntityId: string;
   x: number;
   y: number;
 }

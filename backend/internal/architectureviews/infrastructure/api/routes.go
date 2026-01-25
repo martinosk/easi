@@ -104,6 +104,8 @@ func SetupArchitectureViewsRoutes(
 			r.Post("/{id}/capabilities", viewHandlers.AddCapabilityToView)
 			r.Patch("/{id}/capabilities/{capabilityId}/position", viewHandlers.UpdateCapabilityPosition)
 			r.Patch("/{id}/capabilities/{capabilityId}/color", viewHandlers.UpdateCapabilityColor)
+			r.Post("/{id}/origin-entities", viewHandlers.AddOriginEntityToView)
+			r.Patch("/{id}/origin-entities/{originEntityId}/position", viewHandlers.UpdateOriginEntityPosition)
 			r.Patch("/{id}/visibility", viewHandlers.ChangeVisibility)
 		})
 		r.Group(func(r chi.Router) {
@@ -113,6 +115,7 @@ func SetupArchitectureViewsRoutes(
 			r.Delete("/{id}/components/{componentId}/color", viewHandlers.ClearComponentColor)
 			r.Delete("/{id}/capabilities/{capabilityId}", viewHandlers.RemoveCapabilityFromView)
 			r.Delete("/{id}/capabilities/{capabilityId}/color", viewHandlers.ClearCapabilityColor)
+			r.Delete("/{id}/origin-entities/{originEntityId}", viewHandlers.RemoveOriginEntityFromView)
 		})
 	})
 
