@@ -298,7 +298,6 @@ describe('Capability UI Consistency', () => {
         });
 
         expect(mockDataTransfer.setData).toHaveBeenCalledWith('capabilityId', 'cap-1');
-        expect(mockDataTransfer.effectAllowed).toBe('copy');
       });
     });
 

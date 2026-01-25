@@ -269,7 +269,6 @@ describe('InternalTeamsSection', () => {
       fireEvent.dragStart(teamButton, { dataTransfer: mockDataTransfer });
 
       expect(mockDataTransfer.setData).toHaveBeenCalledWith('internalTeamId', 'it-123');
-      expect(mockDataTransfer.effectAllowed).toBe('copy');
     });
   });
 

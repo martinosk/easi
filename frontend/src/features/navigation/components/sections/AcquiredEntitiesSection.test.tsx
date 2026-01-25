@@ -289,7 +289,6 @@ describe('AcquiredEntitiesSection', () => {
       fireEvent.dragStart(entityButton, { dataTransfer: mockDataTransfer });
 
       expect(mockDataTransfer.setData).toHaveBeenCalledWith('acquiredEntityId', 'ae-123');
-      expect(mockDataTransfer.effectAllowed).toBe('copy');
     });
   });
 

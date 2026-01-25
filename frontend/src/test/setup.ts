@@ -61,6 +61,10 @@ beforeAll(() => {
     unobserve() {}
     disconnect() {}
   };
+
+  if (typeof window.confirm === 'undefined') {
+    window.confirm = () => true;
+  }
 });
 
 beforeEach(() => {

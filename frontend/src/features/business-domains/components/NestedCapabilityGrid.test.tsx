@@ -6,6 +6,21 @@ import { MantineTestWrapper } from '../../../test/helpers/mantineTestWrapper';
 
 const renderWithMantine = (ui: React.ReactElement) => render(<MantineTestWrapper>{ui}</MantineTestWrapper>);
 
+const hexToRgb = (hex: string): string => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return hex;
+  const r = parseInt(result[1], 16);
+  const g = parseInt(result[2], 16);
+  const b = parseInt(result[3], 16);
+  return `rgb(${r}, ${g}, ${b})`;
+};
+
+const hasBackgroundColor = (element: HTMLElement, hex: string): boolean => {
+  const style = element.style.backgroundColor || window.getComputedStyle(element).backgroundColor;
+  const rgbValue = hexToRgb(hex);
+  return style === rgbValue || style.toLowerCase() === hex.toLowerCase();
+};
+
 describe('NestedCapabilityGrid', () => {
   const createCapability = (
     id: string,
@@ -120,10 +135,10 @@ describe('NestedCapabilityGrid', () => {
       const l3Element = screen.getByTestId('capability-l3-1');
       const l4Element = screen.getByTestId('capability-l4-1');
 
-      expect(l1Element).toHaveStyle({ backgroundColor: 'rgb(59, 130, 246)' });
-      expect(l2Element).toHaveStyle({ backgroundColor: 'rgb(139, 92, 246)' });
-      expect(l3Element).toHaveStyle({ backgroundColor: 'rgb(236, 72, 153)' });
-      expect(l4Element).toHaveStyle({ backgroundColor: 'rgb(249, 115, 22)' });
+      expect(hasBackgroundColor(l1Element, '#3b82f6')).toBe(true);
+      expect(hasBackgroundColor(l2Element, '#8b5cf6')).toBe(true);
+      expect(hasBackgroundColor(l3Element, '#ec4899')).toBe(true);
+      expect(hasBackgroundColor(l4Element, '#f97316')).toBe(true);
     });
   });
 

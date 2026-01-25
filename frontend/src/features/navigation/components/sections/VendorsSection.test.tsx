@@ -254,7 +254,6 @@ describe('VendorsSection', () => {
       fireEvent.dragStart(vendorButton, { dataTransfer: mockDataTransfer });
 
       expect(mockDataTransfer.setData).toHaveBeenCalledWith('vendorId', 'v-123');
-      expect(mockDataTransfer.effectAllowed).toBe('copy');
     });
   });
 

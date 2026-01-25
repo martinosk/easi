@@ -210,10 +210,10 @@ describe('useReleaseNotes', () => {
     });
 
     it('should handle localStorage not being available', async () => {
-      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
         throw new Error('localStorage not available');
       });
-      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
         throw new Error('localStorage not available');
       });
 
@@ -234,8 +234,8 @@ describe('useReleaseNotes', () => {
 
       expect(result.current.showOverlay).toBe(false);
 
-      vi.mocked(localStorage.getItem).mockRestore();
-      vi.mocked(localStorage.setItem).mockRestore();
+      getItemSpy.mockRestore();
+      setItemSpy.mockRestore();
     });
   });
 
