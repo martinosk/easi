@@ -7,10 +7,10 @@ import (
 
 type CapabilityUnassignedFromDomain struct {
 	domain.BaseEvent
-	ID               string
-	BusinessDomainID string
-	CapabilityID     string
-	UnassignedAt     time.Time
+	ID               string    `json:"id"`
+	BusinessDomainID string    `json:"businessDomainId"`
+	CapabilityID     string    `json:"capabilityId"`
+	UnassignedAt     time.Time `json:"unassignedAt"`
 }
 
 func NewCapabilityUnassignedFromDomain(id, businessDomainID, capabilityID string) CapabilityUnassignedFromDomain {
@@ -34,4 +34,11 @@ func (e CapabilityUnassignedFromDomain) EventData() map[string]interface{} {
 		"capabilityId":     e.CapabilityID,
 		"unassignedAt":     e.UnassignedAt,
 	}
+}
+
+func (e CapabilityUnassignedFromDomain) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }

@@ -4,9 +4,9 @@ import domain "easi/backend/internal/shared/eventsourcing"
 
 type SystemRealizationUpdated struct {
 	domain.BaseEvent
-	ID               string
-	RealizationLevel string
-	Notes            string
+	ID               string `json:"id"`
+	RealizationLevel string `json:"realizationLevel"`
+	Notes            string `json:"notes"`
 }
 
 func NewSystemRealizationUpdated(id, realizationLevel, notes string) SystemRealizationUpdated {
@@ -28,4 +28,11 @@ func (e SystemRealizationUpdated) EventData() map[string]interface{} {
 		"realizationLevel": e.RealizationLevel,
 		"notes":            e.Notes,
 	}
+}
+
+func (e SystemRealizationUpdated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }

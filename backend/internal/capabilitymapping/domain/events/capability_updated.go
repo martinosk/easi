@@ -4,9 +4,9 @@ import domain "easi/backend/internal/shared/eventsourcing"
 
 type CapabilityUpdated struct {
 	domain.BaseEvent
-	ID          string
-	Name        string
-	Description string
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 func NewCapabilityUpdated(id, name, description string) CapabilityUpdated {
@@ -28,4 +28,11 @@ func (e CapabilityUpdated) EventData() map[string]interface{} {
 		"name":        e.Name,
 		"description": e.Description,
 	}
+}
+
+func (e CapabilityUpdated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }

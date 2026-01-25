@@ -7,12 +7,12 @@ import (
 
 type CapabilityParentChanged struct {
 	domain.BaseEvent
-	CapabilityID string
-	OldParentID  string
-	NewParentID  string
-	OldLevel     string
-	NewLevel     string
-	Timestamp    time.Time
+	CapabilityID string    `json:"capabilityId"`
+	OldParentID  string    `json:"oldParentId"`
+	NewParentID  string    `json:"newParentId"`
+	OldLevel     string    `json:"oldLevel"`
+	NewLevel     string    `json:"newLevel"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 func NewCapabilityParentChanged(capabilityID, oldParentID, newParentID, oldLevel, newLevel string) CapabilityParentChanged {
@@ -40,4 +40,11 @@ func (e CapabilityParentChanged) EventData() map[string]interface{} {
 		"newLevel":     e.NewLevel,
 		"timestamp":    e.Timestamp,
 	}
+}
+
+func (e CapabilityParentChanged) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.CapabilityID
 }

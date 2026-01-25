@@ -8,14 +8,14 @@ import (
 
 type StrategyImportanceSet struct {
 	domain.BaseEvent
-	ID               string
-	BusinessDomainID string
-	CapabilityID     string
-	PillarID         string
-	PillarName       string
-	Importance       int
-	Rationale        string
-	SetAt            time.Time
+	ID               string    `json:"id"`
+	BusinessDomainID string    `json:"businessDomainId"`
+	CapabilityID     string    `json:"capabilityId"`
+	PillarID         string    `json:"pillarId"`
+	PillarName       string    `json:"pillarName"`
+	Importance       int       `json:"importance"`
+	Rationale        string    `json:"rationale"`
+	SetAt            time.Time `json:"setAt"`
 }
 
 type StrategyImportanceSetParams struct {
@@ -57,4 +57,11 @@ func (e StrategyImportanceSet) EventData() map[string]interface{} {
 		"rationale":        e.Rationale,
 		"setAt":            e.SetAt,
 	}
+}
+
+func (e StrategyImportanceSet) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }

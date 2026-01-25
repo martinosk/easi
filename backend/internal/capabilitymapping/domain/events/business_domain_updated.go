@@ -7,11 +7,11 @@ import (
 
 type BusinessDomainUpdated struct {
 	domain.BaseEvent
-	ID                string
-	Name              string
-	Description       string
-	DomainArchitectID string
-	UpdatedAt         time.Time
+	ID                string    `json:"id"`
+	Name              string    `json:"name"`
+	Description       string    `json:"description"`
+	DomainArchitectID string    `json:"domainArchitectId"`
+	UpdatedAt         time.Time `json:"updatedAt"`
 }
 
 func NewBusinessDomainUpdated(id, name, description, domainArchitectID string) BusinessDomainUpdated {
@@ -37,4 +37,11 @@ func (e BusinessDomainUpdated) EventData() map[string]interface{} {
 		"domainArchitectId": e.DomainArchitectID,
 		"updatedAt":         e.UpdatedAt,
 	}
+}
+
+func (e BusinessDomainUpdated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }

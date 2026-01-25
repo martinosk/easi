@@ -7,12 +7,12 @@ import (
 
 type CapabilityDependencyCreated struct {
 	domain.BaseEvent
-	ID                 string
-	SourceCapabilityID string
-	TargetCapabilityID string
-	DependencyType     string
-	Description        string
-	CreatedAt          time.Time
+	ID                 string    `json:"id"`
+	SourceCapabilityID string    `json:"sourceCapabilityId"`
+	TargetCapabilityID string    `json:"targetCapabilityId"`
+	DependencyType     string    `json:"dependencyType"`
+	Description        string    `json:"description"`
+	CreatedAt          time.Time `json:"createdAt"`
 }
 
 func NewCapabilityDependencyCreated(id, sourceCapabilityID, targetCapabilityID, dependencyType, description string) CapabilityDependencyCreated {
@@ -40,4 +40,11 @@ func (e CapabilityDependencyCreated) EventData() map[string]interface{} {
 		"description":        e.Description,
 		"createdAt":          e.CreatedAt,
 	}
+}
+
+func (e CapabilityDependencyCreated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }

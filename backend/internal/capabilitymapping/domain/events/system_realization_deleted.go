@@ -7,8 +7,8 @@ import (
 
 type SystemRealizationDeleted struct {
 	domain.BaseEvent
-	ID        string
-	DeletedAt time.Time
+	ID        string    `json:"id"`
+	DeletedAt time.Time `json:"deletedAt"`
 }
 
 func NewSystemRealizationDeleted(id string) SystemRealizationDeleted {
@@ -28,4 +28,11 @@ func (e SystemRealizationDeleted) EventData() map[string]interface{} {
 		"id":        e.ID,
 		"deletedAt": e.DeletedAt,
 	}
+}
+
+func (e SystemRealizationDeleted) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }

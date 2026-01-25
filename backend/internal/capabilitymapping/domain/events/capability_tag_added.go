@@ -7,9 +7,9 @@ import (
 
 type CapabilityTagAdded struct {
 	domain.BaseEvent
-	CapabilityID string
-	Tag          string
-	AddedAt      time.Time
+	CapabilityID string    `json:"capabilityId"`
+	Tag          string    `json:"tag"`
+	AddedAt      time.Time `json:"addedAt"`
 }
 
 func NewCapabilityTagAdded(capabilityID, tag string) CapabilityTagAdded {
@@ -31,4 +31,11 @@ func (e CapabilityTagAdded) EventData() map[string]interface{} {
 		"tag":          e.Tag,
 		"addedAt":      e.AddedAt,
 	}
+}
+
+func (e CapabilityTagAdded) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.CapabilityID
 }

@@ -8,14 +8,14 @@ import (
 
 type ApplicationFitScoreSet struct {
 	domain.BaseEvent
-	ID          string
-	ComponentID string
-	PillarID    string
-	PillarName  string
-	Score       int
-	Rationale   string
-	ScoredAt    time.Time
-	ScoredBy    string
+	ID          string    `json:"id"`
+	ComponentID string    `json:"componentId"`
+	PillarID    string    `json:"pillarId"`
+	PillarName  string    `json:"pillarName"`
+	Score       int       `json:"score"`
+	Rationale   string    `json:"rationale"`
+	ScoredAt    time.Time `json:"scoredAt"`
+	ScoredBy    string    `json:"scoredBy"`
 }
 
 type ApplicationFitScoreSetParams struct {
@@ -57,4 +57,11 @@ func (e ApplicationFitScoreSet) EventData() map[string]interface{} {
 		"scoredAt":    e.ScoredAt,
 		"scoredBy":    e.ScoredBy,
 	}
+}
+
+func (e ApplicationFitScoreSet) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }

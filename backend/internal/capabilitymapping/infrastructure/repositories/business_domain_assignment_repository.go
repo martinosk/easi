@@ -6,7 +6,6 @@ import (
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/events"
 	"easi/backend/internal/infrastructure/eventstore"
-	domain "easi/backend/internal/shared/eventsourcing"
 	"easi/backend/internal/shared/infrastructure/repository"
 )
 
@@ -29,43 +28,7 @@ func NewBusinessDomainAssignmentRepository(eventStore eventstore.EventStore) *Bu
 
 var assignmentEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"CapabilityAssignedToDomain": func(data map[string]interface{}) (domain.DomainEvent, error) {
-			id, err := repository.GetRequiredString(data, "id")
-			if err != nil {
-				return nil, err
-			}
-			businessDomainID, err := repository.GetRequiredString(data, "businessDomainId")
-			if err != nil {
-				return nil, err
-			}
-			capabilityID, err := repository.GetRequiredString(data, "capabilityId")
-			if err != nil {
-				return nil, err
-			}
-			assignedAt, err := repository.GetRequiredTime(data, "assignedAt")
-			if err != nil {
-				return nil, err
-			}
-
-			evt := events.NewCapabilityAssignedToDomain(id, businessDomainID, capabilityID)
-			evt.AssignedAt = assignedAt
-			return evt, nil
-		},
-		"CapabilityUnassignedFromDomain": func(data map[string]interface{}) (domain.DomainEvent, error) {
-			id, err := repository.GetRequiredString(data, "id")
-			if err != nil {
-				return nil, err
-			}
-			businessDomainID, err := repository.GetRequiredString(data, "businessDomainId")
-			if err != nil {
-				return nil, err
-			}
-			capabilityID, err := repository.GetRequiredString(data, "capabilityId")
-			if err != nil {
-				return nil, err
-			}
-
-			return events.NewCapabilityUnassignedFromDomain(id, businessDomainID, capabilityID), nil
-		},
+		"CapabilityAssignedToDomain":     repository.JSONDeserializer[events.CapabilityAssignedToDomain],
+		"CapabilityUnassignedFromDomain": repository.JSONDeserializer[events.CapabilityUnassignedFromDomain],
 	},
 )

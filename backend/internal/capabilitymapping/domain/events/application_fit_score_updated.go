@@ -8,13 +8,13 @@ import (
 
 type ApplicationFitScoreUpdated struct {
 	domain.BaseEvent
-	ID           string
-	Score        int
-	Rationale    string
-	OldScore     int
-	OldRationale string
-	UpdatedAt    time.Time
-	UpdatedBy    string
+	ID           string    `json:"id"`
+	Score        int       `json:"score"`
+	Rationale    string    `json:"rationale"`
+	OldScore     int       `json:"oldScore"`
+	OldRationale string    `json:"oldRationale"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+	UpdatedBy    string    `json:"updatedBy"`
 }
 
 type ApplicationFitScoreUpdatedParams struct {
@@ -53,4 +53,11 @@ func (e ApplicationFitScoreUpdated) EventData() map[string]interface{} {
 		"updatedAt":    e.UpdatedAt,
 		"updatedBy":    e.UpdatedBy,
 	}
+}
+
+func (e ApplicationFitScoreUpdated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }

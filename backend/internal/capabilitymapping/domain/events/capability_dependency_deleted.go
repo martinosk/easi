@@ -7,8 +7,8 @@ import (
 
 type CapabilityDependencyDeleted struct {
 	domain.BaseEvent
-	ID        string
-	DeletedAt time.Time
+	ID        string    `json:"id"`
+	DeletedAt time.Time `json:"deletedAt"`
 }
 
 func NewCapabilityDependencyDeleted(id string) CapabilityDependencyDeleted {
@@ -28,4 +28,11 @@ func (e CapabilityDependencyDeleted) EventData() map[string]interface{} {
 		"id":        e.ID,
 		"deletedAt": e.DeletedAt,
 	}
+}
+
+func (e CapabilityDependencyDeleted) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }

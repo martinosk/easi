@@ -8,12 +8,12 @@ import (
 
 type StrategyImportanceUpdated struct {
 	domain.BaseEvent
-	ID            string
-	Importance    int
-	Rationale     string
-	OldImportance int
-	OldRationale  string
-	UpdatedAt     time.Time
+	ID            string    `json:"id"`
+	Importance    int       `json:"importance"`
+	Rationale     string    `json:"rationale"`
+	OldImportance int       `json:"oldImportance"`
+	OldRationale  string    `json:"oldRationale"`
+	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
 type StrategyImportanceUpdatedParams struct {
@@ -49,4 +49,11 @@ func (e StrategyImportanceUpdated) EventData() map[string]interface{} {
 		"oldRationale":  e.OldRationale,
 		"updatedAt":     e.UpdatedAt,
 	}
+}
+
+func (e StrategyImportanceUpdated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }

@@ -4,14 +4,14 @@ import domain "easi/backend/internal/shared/eventsourcing"
 
 type CapabilityMetadataUpdated struct {
 	domain.BaseEvent
-	ID             string
-	StrategyPillar string
-	PillarWeight   int
-	MaturityValue  int
-	OwnershipModel string
-	PrimaryOwner   string
-	EAOwner        string
-	Status         string
+	ID             string `json:"id"`
+	StrategyPillar string `json:"strategyPillar"`
+	PillarWeight   int    `json:"pillarWeight"`
+	MaturityValue  int    `json:"maturityValue"`
+	OwnershipModel string `json:"ownershipModel"`
+	PrimaryOwner   string `json:"primaryOwner"`
+	EAOwner        string `json:"eaOwner"`
+	Status         string `json:"status"`
 }
 
 func NewCapabilityMetadataUpdated(
@@ -48,4 +48,11 @@ func (e CapabilityMetadataUpdated) EventData() map[string]interface{} {
 		"eaOwner":        e.EAOwner,
 		"status":         e.Status,
 	}
+}
+
+func (e CapabilityMetadataUpdated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }

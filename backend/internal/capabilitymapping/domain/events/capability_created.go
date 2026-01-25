@@ -7,12 +7,12 @@ import (
 
 type CapabilityCreated struct {
 	domain.BaseEvent
-	ID          string
-	Name        string
-	Description string
-	ParentID    string
-	Level       string
-	CreatedAt   time.Time
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	ParentID    string    `json:"parentId"`
+	Level       string    `json:"level"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 func NewCapabilityCreated(id, name, description, parentID, level string) CapabilityCreated {
@@ -40,4 +40,11 @@ func (e CapabilityCreated) EventData() map[string]interface{} {
 		"level":       e.Level,
 		"createdAt":   e.CreatedAt,
 	}
+}
+
+func (e CapabilityCreated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }

@@ -7,11 +7,11 @@ import (
 
 type CapabilityExpertAdded struct {
 	domain.BaseEvent
-	CapabilityID string
-	ExpertName   string
-	ExpertRole   string
-	ContactInfo  string
-	AddedAt      time.Time
+	CapabilityID string    `json:"capabilityId"`
+	ExpertName   string    `json:"expertName"`
+	ExpertRole   string    `json:"expertRole"`
+	ContactInfo  string    `json:"contactInfo"`
+	AddedAt      time.Time `json:"addedAt"`
 }
 
 func NewCapabilityExpertAdded(capabilityID, expertName, expertRole, contactInfo string) CapabilityExpertAdded {
@@ -37,4 +37,11 @@ func (e CapabilityExpertAdded) EventData() map[string]interface{} {
 		"contactInfo":  e.ContactInfo,
 		"addedAt":      e.AddedAt,
 	}
+}
+
+func (e CapabilityExpertAdded) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.CapabilityID
 }

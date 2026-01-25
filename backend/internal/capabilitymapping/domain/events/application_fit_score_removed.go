@@ -8,11 +8,11 @@ import (
 
 type ApplicationFitScoreRemoved struct {
 	domain.BaseEvent
-	ID          string
-	ComponentID string
-	PillarID    string
-	RemovedAt   time.Time
-	RemovedBy   string
+	ID          string    `json:"id"`
+	ComponentID string    `json:"componentId"`
+	PillarID    string    `json:"pillarId"`
+	RemovedAt   time.Time `json:"removedAt"`
+	RemovedBy   string    `json:"removedBy"`
 }
 
 func NewApplicationFitScoreRemoved(id, componentID, pillarID, removedBy string) ApplicationFitScoreRemoved {
@@ -38,4 +38,11 @@ func (e ApplicationFitScoreRemoved) EventData() map[string]interface{} {
 		"removedAt":   e.RemovedAt,
 		"removedBy":   e.RemovedBy,
 	}
+}
+
+func (e ApplicationFitScoreRemoved) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }

@@ -7,13 +7,13 @@ import (
 
 type SystemLinkedToCapability struct {
 	domain.BaseEvent
-	ID               string
-	CapabilityID     string
-	ComponentID      string
-	ComponentName    string
-	RealizationLevel string
-	Notes            string
-	LinkedAt         time.Time
+	ID               string    `json:"id"`
+	CapabilityID     string    `json:"capabilityId"`
+	ComponentID      string    `json:"componentId"`
+	ComponentName    string    `json:"componentName"`
+	RealizationLevel string    `json:"realizationLevel"`
+	Notes            string    `json:"notes"`
+	LinkedAt         time.Time `json:"linkedAt"`
 }
 
 func NewSystemLinkedToCapability(id, capabilityID, componentID, componentName, realizationLevel, notes string) SystemLinkedToCapability {
@@ -43,4 +43,11 @@ func (e SystemLinkedToCapability) EventData() map[string]interface{} {
 		"notes":            e.Notes,
 		"linkedAt":         e.LinkedAt,
 	}
+}
+
+func (e SystemLinkedToCapability) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }

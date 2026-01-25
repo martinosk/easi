@@ -7,8 +7,8 @@ import (
 
 type BusinessDomainDeleted struct {
 	domain.BaseEvent
-	ID        string
-	DeletedAt time.Time
+	ID        string    `json:"id"`
+	DeletedAt time.Time `json:"deletedAt"`
 }
 
 func NewBusinessDomainDeleted(id string) BusinessDomainDeleted {
@@ -28,4 +28,11 @@ func (e BusinessDomainDeleted) EventData() map[string]interface{} {
 		"id":        e.ID,
 		"deletedAt": e.DeletedAt,
 	}
+}
+
+func (e BusinessDomainDeleted) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
