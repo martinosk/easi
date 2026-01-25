@@ -335,39 +335,29 @@ func (h *TenantHandlers) CreateTenantInvitation(w http.ResponseWriter, r *http.R
 	})
 }
 
+var tenantErrorStatusMap = map[error]int{
+	repositories.ErrTenantAlreadyExists:            http.StatusConflict,
+	repositories.ErrDomainAlreadyExists:            http.StatusConflict,
+	aggregates.ErrFirstAdminEmailRequired:          http.StatusBadRequest,
+	aggregates.ErrFirstAdminEmailDomainMismatch:    http.StatusBadRequest,
+	sharedvo.ErrInvalidTenantIDFormat:              http.StatusBadRequest,
+	sharedvo.ErrReservedTenantID:                   http.StatusBadRequest,
+	valueobjects.ErrTenantNameEmpty:                http.StatusBadRequest,
+	valueobjects.ErrEmailDomainListEmpty:           http.StatusBadRequest,
+	valueobjects.ErrInvalidEmailDomain:             http.StatusBadRequest,
+	valueobjects.ErrDuplicateEmailDomain:           http.StatusBadRequest,
+	valueobjects.ErrOIDCDiscoveryURLEmpty:          http.StatusBadRequest,
+	valueobjects.ErrOIDCDiscoveryURLInvalid:        http.StatusBadRequest,
+	valueobjects.ErrOIDCDiscoveryURLNotHTTPS:       http.StatusBadRequest,
+	valueobjects.ErrOIDCClientIDEmpty:              http.StatusBadRequest,
+	valueobjects.ErrOIDCAuthMethodInvalid:          http.StatusBadRequest,
+}
+
 func mapTenantErrorToStatusCode(err error) int {
-	switch {
-	case errors.Is(err, repositories.ErrTenantAlreadyExists):
-		return http.StatusConflict
-	case errors.Is(err, repositories.ErrDomainAlreadyExists):
-		return http.StatusConflict
-	case errors.Is(err, aggregates.ErrFirstAdminEmailRequired):
-		return http.StatusBadRequest
-	case errors.Is(err, aggregates.ErrFirstAdminEmailDomainMismatch):
-		return http.StatusBadRequest
-	case errors.Is(err, sharedvo.ErrInvalidTenantIDFormat):
-		return http.StatusBadRequest
-	case errors.Is(err, sharedvo.ErrReservedTenantID):
-		return http.StatusBadRequest
-	case errors.Is(err, valueobjects.ErrTenantNameEmpty):
-		return http.StatusBadRequest
-	case errors.Is(err, valueobjects.ErrEmailDomainListEmpty):
-		return http.StatusBadRequest
-	case errors.Is(err, valueobjects.ErrInvalidEmailDomain):
-		return http.StatusBadRequest
-	case errors.Is(err, valueobjects.ErrDuplicateEmailDomain):
-		return http.StatusBadRequest
-	case errors.Is(err, valueobjects.ErrOIDCDiscoveryURLEmpty):
-		return http.StatusBadRequest
-	case errors.Is(err, valueobjects.ErrOIDCDiscoveryURLInvalid):
-		return http.StatusBadRequest
-	case errors.Is(err, valueobjects.ErrOIDCDiscoveryURLNotHTTPS):
-		return http.StatusBadRequest
-	case errors.Is(err, valueobjects.ErrOIDCClientIDEmpty):
-		return http.StatusBadRequest
-	case errors.Is(err, valueobjects.ErrOIDCAuthMethodInvalid):
-		return http.StatusBadRequest
-	default:
-		return http.StatusInternalServerError
+	for knownErr, status := range tenantErrorStatusMap {
+		if errors.Is(err, knownErr) {
+			return status
+		}
 	}
+	return http.StatusInternalServerError
 }

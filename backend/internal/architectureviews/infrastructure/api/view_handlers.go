@@ -116,6 +116,42 @@ func (h *ViewHandlers) decodeValidateAndDispatch(w http.ResponseWriter, r *http.
 	h.dispatchCommand(w, r, createCmd())
 }
 
+func (h *ViewHandlers) handleViewUpdate(w http.ResponseWriter, r *http.Request, decode func() error, validate func() error, createCmd func() cqrs.Command) {
+	viewID := sharedAPI.GetPathParam(r, "id")
+
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
+
+	if err := decode(); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid request body")
+		return
+	}
+
+	if err := validate(); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
+		return
+	}
+
+	h.dispatchCommand(w, r, createCmd())
+}
+
+func (h *ViewHandlers) handleCapabilityLayoutOp(w http.ResponseWriter, r *http.Request, operation func(ctx context.Context, viewID, capabilityID string) error, errorMsg string) {
+	viewID := sharedAPI.GetPathParam(r, "id")
+	capabilityID := sharedAPI.GetPathParam(r, "capabilityId")
+
+	if !h.checkViewEditPermission(w, r, viewID) {
+		return
+	}
+
+	if err := operation(r.Context(), viewID, capabilityID); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, errorMsg)
+		return
+	}
+
+	sharedAPI.RespondNoContent(w)
+}
+
 type CreateViewRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
@@ -408,23 +444,14 @@ func (h *ViewHandlers) UpdateMultiplePositions(w http.ResponseWriter, r *http.Re
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/name [patch]
 func (h *ViewHandlers) RenameView(w http.ResponseWriter, r *http.Request) {
+	var req RenameViewRequest
 	viewID := sharedAPI.GetPathParam(r, "id")
 
-	if !h.checkViewEditPermission(w, r, viewID) {
-		return
-	}
-
-	req, ok := sharedAPI.DecodeRequestOrFail[RenameViewRequest](w, r)
-	if !ok {
-		return
-	}
-
-	if _, err := valueobjects.NewViewName(req.Name); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
-	}
-
-	h.dispatchCommand(w, r, &commands.RenameView{ViewID: viewID, NewName: req.Name})
+	h.handleViewUpdate(w, r,
+		func() error { return sharedAPI.DecodeRequestInto(r, &req) },
+		func() error { _, err := valueobjects.NewViewName(req.Name); return err },
+		func() cqrs.Command { return &commands.RenameView{ViewID: viewID, NewName: req.Name} },
+	)
 }
 
 // DeleteView godoc
@@ -537,27 +564,15 @@ func (h *ViewHandlers) SetDefaultView(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/edge-type [patch]
 func (h *ViewHandlers) UpdateEdgeType(w http.ResponseWriter, r *http.Request) {
+	var req UpdateEdgeTypeRequest
+	var edgeType valueobjects.EdgeType
 	viewID := sharedAPI.GetPathParam(r, "id")
 
-	if !h.checkViewEditPermission(w, r, viewID) {
-		return
-	}
-
-	req, ok := sharedAPI.DecodeRequestOrFail[UpdateEdgeTypeRequest](w, r)
-	if !ok {
-		return
-	}
-
-	edgeType, err := valueobjects.NewEdgeType(req.EdgeType)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
-	}
-
-	h.dispatchCommand(w, r, &commands.UpdateViewEdgeType{
-		ViewID:   viewID,
-		EdgeType: edgeType.String(),
-	})
+	h.handleViewUpdate(w, r,
+		func() error { return sharedAPI.DecodeRequestInto(r, &req) },
+		func() error { var err error; edgeType, err = valueobjects.NewEdgeType(req.EdgeType); return err },
+		func() cqrs.Command { return &commands.UpdateViewEdgeType{ViewID: viewID, EdgeType: edgeType.String()} },
+	)
 }
 
 // UpdateLayoutDirection godoc
@@ -574,27 +589,15 @@ func (h *ViewHandlers) UpdateEdgeType(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/layout-direction [patch]
 func (h *ViewHandlers) UpdateLayoutDirection(w http.ResponseWriter, r *http.Request) {
+	var req UpdateLayoutDirectionRequest
+	var layoutDir valueobjects.LayoutDirection
 	viewID := sharedAPI.GetPathParam(r, "id")
 
-	if !h.checkViewEditPermission(w, r, viewID) {
-		return
-	}
-
-	req, ok := sharedAPI.DecodeRequestOrFail[UpdateLayoutDirectionRequest](w, r)
-	if !ok {
-		return
-	}
-
-	layoutDir, err := valueobjects.NewLayoutDirection(req.LayoutDirection)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-		return
-	}
-
-	h.dispatchCommand(w, r, &commands.UpdateViewLayoutDirection{
-		ViewID:          viewID,
-		LayoutDirection: layoutDir.String(),
-	})
+	h.handleViewUpdate(w, r,
+		func() error { return sharedAPI.DecodeRequestInto(r, &req) },
+		func() error { var err error; layoutDir, err = valueobjects.NewLayoutDirection(req.LayoutDirection); return err },
+		func() cqrs.Command { return &commands.UpdateViewLayoutDirection{ViewID: viewID, LayoutDirection: layoutDir.String()} },
+	)
 }
 
 type AddCapabilityRequest struct {
@@ -694,19 +697,12 @@ func (h *ViewHandlers) UpdateCapabilityPosition(w http.ResponseWriter, r *http.R
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/capabilities/{capabilityId} [delete]
 func (h *ViewHandlers) RemoveCapabilityFromView(w http.ResponseWriter, r *http.Request) {
-	viewID := sharedAPI.GetPathParam(r, "id")
-	capabilityID := sharedAPI.GetPathParam(r, "capabilityId")
-
-	if !h.checkViewEditPermission(w, r, viewID) {
-		return
-	}
-
-	if err := h.layoutRepo.RemoveCapabilityFromView(r.Context(), viewID, capabilityID); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to remove capability from view")
-		return
-	}
-
-	sharedAPI.RespondNoContent(w)
+	h.handleCapabilityLayoutOp(w, r,
+		func(ctx context.Context, viewID, capabilityID string) error {
+			return h.layoutRepo.RemoveCapabilityFromView(ctx, viewID, capabilityID)
+		},
+		"Failed to remove capability from view",
+	)
 }
 
 // UpdateColorScheme godoc
