@@ -1,10 +1,23 @@
 package repository
 
 import (
+	"encoding/json"
 	"log/slog"
 
 	domain "easi/backend/internal/shared/eventsourcing"
 )
+
+func JSONDeserializer[T domain.DomainEvent](data map[string]interface{}) (domain.DomainEvent, error) {
+	var event T
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(jsonBytes, &event); err != nil {
+		return nil, err
+	}
+	return event, nil
+}
 
 type EventDeserializerFunc func(data map[string]interface{}) (domain.DomainEvent, error)
 

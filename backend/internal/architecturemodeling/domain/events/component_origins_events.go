@@ -9,8 +9,16 @@ import (
 
 type ComponentOriginsCreated struct {
 	domain.BaseEvent
-	ComponentID string
-	CreatedAt   time.Time
+	AggregateIDValue string    `json:"aggregateId"`
+	ComponentID      string    `json:"componentId"`
+	CreatedAt        time.Time `json:"createdAt"`
+}
+
+func (e ComponentOriginsCreated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.AggregateIDValue
 }
 
 func NewComponentOriginsCreatedEvent(aggregateID string, componentID valueobjects.ComponentID, createdAt time.Time) ComponentOriginsCreated {
@@ -35,10 +43,17 @@ func (e ComponentOriginsCreated) EventData() map[string]interface{} {
 
 type AcquiredViaRelationshipSet struct {
 	domain.BaseEvent
-	ComponentID string
-	EntityID    string
-	Notes       string
-	LinkedAt    time.Time
+	ComponentID string    `json:"componentId"`
+	EntityID    string    `json:"entityId"`
+	Notes       string    `json:"notes"`
+	LinkedAt    time.Time `json:"linkedAt"`
+}
+
+func (e AcquiredViaRelationshipSet) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ComponentID
 }
 
 func NewAcquiredViaRelationshipSetEvent(aggregateID string, componentID valueobjects.ComponentID, entityID valueobjects.AcquiredEntityID, notes valueobjects.Notes, linkedAt time.Time) AcquiredViaRelationshipSet {
@@ -66,21 +81,28 @@ func (e AcquiredViaRelationshipSet) EventData() map[string]interface{} {
 
 type AcquiredViaRelationshipReplaced struct {
 	domain.BaseEvent
-	ComponentID   string
-	OldEntityID   string
-	NewEntityID   string
-	Notes         string
-	LinkedAt      time.Time
+	ComponentID string    `json:"componentId"`
+	OldEntityID string    `json:"oldEntityId"`
+	NewEntityID string    `json:"newEntityId"`
+	Notes       string    `json:"notes"`
+	LinkedAt    time.Time `json:"linkedAt"`
+}
+
+func (e AcquiredViaRelationshipReplaced) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ComponentID
 }
 
 func NewAcquiredViaRelationshipReplacedEvent(aggregateID string, componentID valueobjects.ComponentID, oldEntityID, newEntityID valueobjects.AcquiredEntityID, notes valueobjects.Notes, linkedAt time.Time) AcquiredViaRelationshipReplaced {
 	return AcquiredViaRelationshipReplaced{
-		BaseEvent:     domain.NewBaseEvent(aggregateID),
-		ComponentID:   componentID.String(),
-		OldEntityID:   oldEntityID.String(),
-		NewEntityID:   newEntityID.String(),
-		Notes:         notes.String(),
-		LinkedAt:      linkedAt,
+		BaseEvent:   domain.NewBaseEvent(aggregateID),
+		ComponentID: componentID.String(),
+		OldEntityID: oldEntityID.String(),
+		NewEntityID: newEntityID.String(),
+		Notes:       notes.String(),
+		LinkedAt:    linkedAt,
 	}
 }
 
@@ -100,10 +122,17 @@ func (e AcquiredViaRelationshipReplaced) EventData() map[string]interface{} {
 
 type AcquiredViaNotesUpdated struct {
 	domain.BaseEvent
-	ComponentID string
-	EntityID    string
-	OldNotes    string
-	NewNotes    string
+	ComponentID string `json:"componentId"`
+	EntityID    string `json:"entityId"`
+	OldNotes    string `json:"oldNotes"`
+	NewNotes    string `json:"newNotes"`
+}
+
+func (e AcquiredViaNotesUpdated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ComponentID
 }
 
 func NewAcquiredViaNotesUpdatedEvent(aggregateID string, componentID valueobjects.ComponentID, entityID valueobjects.AcquiredEntityID, oldNotes, newNotes valueobjects.Notes) AcquiredViaNotesUpdated {
@@ -131,8 +160,15 @@ func (e AcquiredViaNotesUpdated) EventData() map[string]interface{} {
 
 type AcquiredViaRelationshipCleared struct {
 	domain.BaseEvent
-	ComponentID string
-	EntityID    string
+	ComponentID string `json:"componentId"`
+	EntityID    string `json:"entityId"`
+}
+
+func (e AcquiredViaRelationshipCleared) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ComponentID
 }
 
 func NewAcquiredViaRelationshipClearedEvent(aggregateID string, componentID valueobjects.ComponentID, entityID valueobjects.AcquiredEntityID) AcquiredViaRelationshipCleared {
@@ -156,10 +192,17 @@ func (e AcquiredViaRelationshipCleared) EventData() map[string]interface{} {
 
 type PurchasedFromRelationshipSet struct {
 	domain.BaseEvent
-	ComponentID string
-	VendorID    string
-	Notes       string
-	LinkedAt    time.Time
+	ComponentID string    `json:"componentId"`
+	VendorID    string    `json:"vendorId"`
+	Notes       string    `json:"notes"`
+	LinkedAt    time.Time `json:"linkedAt"`
+}
+
+func (e PurchasedFromRelationshipSet) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ComponentID
 }
 
 func NewPurchasedFromRelationshipSetEvent(aggregateID string, componentID valueobjects.ComponentID, vendorID valueobjects.VendorID, notes valueobjects.Notes, linkedAt time.Time) PurchasedFromRelationshipSet {
@@ -187,11 +230,18 @@ func (e PurchasedFromRelationshipSet) EventData() map[string]interface{} {
 
 type PurchasedFromRelationshipReplaced struct {
 	domain.BaseEvent
-	ComponentID string
-	OldVendorID string
-	NewVendorID string
-	Notes       string
-	LinkedAt    time.Time
+	ComponentID string    `json:"componentId"`
+	OldVendorID string    `json:"oldVendorId"`
+	NewVendorID string    `json:"newVendorId"`
+	Notes       string    `json:"notes"`
+	LinkedAt    time.Time `json:"linkedAt"`
+}
+
+func (e PurchasedFromRelationshipReplaced) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ComponentID
 }
 
 func NewPurchasedFromRelationshipReplacedEvent(aggregateID string, componentID valueobjects.ComponentID, oldVendorID, newVendorID valueobjects.VendorID, notes valueobjects.Notes, linkedAt time.Time) PurchasedFromRelationshipReplaced {
@@ -221,10 +271,17 @@ func (e PurchasedFromRelationshipReplaced) EventData() map[string]interface{} {
 
 type PurchasedFromNotesUpdated struct {
 	domain.BaseEvent
-	ComponentID string
-	VendorID    string
-	OldNotes    string
-	NewNotes    string
+	ComponentID string `json:"componentId"`
+	VendorID    string `json:"vendorId"`
+	OldNotes    string `json:"oldNotes"`
+	NewNotes    string `json:"newNotes"`
+}
+
+func (e PurchasedFromNotesUpdated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ComponentID
 }
 
 func NewPurchasedFromNotesUpdatedEvent(aggregateID string, componentID valueobjects.ComponentID, vendorID valueobjects.VendorID, oldNotes, newNotes valueobjects.Notes) PurchasedFromNotesUpdated {
@@ -252,8 +309,15 @@ func (e PurchasedFromNotesUpdated) EventData() map[string]interface{} {
 
 type PurchasedFromRelationshipCleared struct {
 	domain.BaseEvent
-	ComponentID string
-	VendorID    string
+	ComponentID string `json:"componentId"`
+	VendorID    string `json:"vendorId"`
+}
+
+func (e PurchasedFromRelationshipCleared) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ComponentID
 }
 
 func NewPurchasedFromRelationshipClearedEvent(aggregateID string, componentID valueobjects.ComponentID, vendorID valueobjects.VendorID) PurchasedFromRelationshipCleared {
@@ -277,10 +341,17 @@ func (e PurchasedFromRelationshipCleared) EventData() map[string]interface{} {
 
 type BuiltByRelationshipSet struct {
 	domain.BaseEvent
-	ComponentID string
-	TeamID      string
-	Notes       string
-	LinkedAt    time.Time
+	ComponentID string    `json:"componentId"`
+	TeamID      string    `json:"teamId"`
+	Notes       string    `json:"notes"`
+	LinkedAt    time.Time `json:"linkedAt"`
+}
+
+func (e BuiltByRelationshipSet) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ComponentID
 }
 
 func NewBuiltByRelationshipSetEvent(aggregateID string, componentID valueobjects.ComponentID, teamID valueobjects.InternalTeamID, notes valueobjects.Notes, linkedAt time.Time) BuiltByRelationshipSet {
@@ -308,11 +379,18 @@ func (e BuiltByRelationshipSet) EventData() map[string]interface{} {
 
 type BuiltByRelationshipReplaced struct {
 	domain.BaseEvent
-	ComponentID string
-	OldTeamID   string
-	NewTeamID   string
-	Notes       string
-	LinkedAt    time.Time
+	ComponentID string    `json:"componentId"`
+	OldTeamID   string    `json:"oldTeamId"`
+	NewTeamID   string    `json:"newTeamId"`
+	Notes       string    `json:"notes"`
+	LinkedAt    time.Time `json:"linkedAt"`
+}
+
+func (e BuiltByRelationshipReplaced) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ComponentID
 }
 
 func NewBuiltByRelationshipReplacedEvent(aggregateID string, componentID valueobjects.ComponentID, oldTeamID, newTeamID valueobjects.InternalTeamID, notes valueobjects.Notes, linkedAt time.Time) BuiltByRelationshipReplaced {
@@ -342,10 +420,17 @@ func (e BuiltByRelationshipReplaced) EventData() map[string]interface{} {
 
 type BuiltByNotesUpdated struct {
 	domain.BaseEvent
-	ComponentID string
-	TeamID      string
-	OldNotes    string
-	NewNotes    string
+	ComponentID string `json:"componentId"`
+	TeamID      string `json:"teamId"`
+	OldNotes    string `json:"oldNotes"`
+	NewNotes    string `json:"newNotes"`
+}
+
+func (e BuiltByNotesUpdated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ComponentID
 }
 
 func NewBuiltByNotesUpdatedEvent(aggregateID string, componentID valueobjects.ComponentID, teamID valueobjects.InternalTeamID, oldNotes, newNotes valueobjects.Notes) BuiltByNotesUpdated {
@@ -373,8 +458,15 @@ func (e BuiltByNotesUpdated) EventData() map[string]interface{} {
 
 type BuiltByRelationshipCleared struct {
 	domain.BaseEvent
-	ComponentID string
-	TeamID      string
+	ComponentID string `json:"componentId"`
+	TeamID      string `json:"teamId"`
+}
+
+func (e BuiltByRelationshipCleared) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ComponentID
 }
 
 func NewBuiltByRelationshipClearedEvent(aggregateID string, componentID valueobjects.ComponentID, teamID valueobjects.InternalTeamID) BuiltByRelationshipCleared {
@@ -398,8 +490,15 @@ func (e BuiltByRelationshipCleared) EventData() map[string]interface{} {
 
 type ComponentOriginsDeleted struct {
 	domain.BaseEvent
-	ComponentID string
-	DeletedAt   time.Time
+	ComponentID string    `json:"componentId"`
+	DeletedAt   time.Time `json:"deletedAt"`
+}
+
+func (e ComponentOriginsDeleted) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ComponentID
 }
 
 func NewComponentOriginsDeletedEvent(aggregateID string, componentID valueobjects.ComponentID, deletedAt time.Time) ComponentOriginsDeleted {

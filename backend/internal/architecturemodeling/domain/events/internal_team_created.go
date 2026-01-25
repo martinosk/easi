@@ -8,12 +8,19 @@ import (
 
 type InternalTeamCreated struct {
 	domain.BaseEvent
-	ID            string
-	Name          string
-	Department    string
-	ContactPerson string
-	Notes         string
-	CreatedAt     time.Time
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Department    string    `json:"department"`
+	ContactPerson string    `json:"contactPerson"`
+	Notes         string    `json:"notes"`
+	CreatedAt     time.Time `json:"createdAt"`
+}
+
+func (e InternalTeamCreated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewInternalTeamCreated(id, name, department, contactPerson, notes string) InternalTeamCreated {

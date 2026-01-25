@@ -1,20 +1,26 @@
 package events
 
 import (
-	domain "easi/backend/internal/shared/eventsourcing"
 	"time"
+
+	domain "easi/backend/internal/shared/eventsourcing"
 )
 
-// ComponentRelationUpdated is raised when a component relation is updated
 type ComponentRelationUpdated struct {
 	domain.BaseEvent
-	ID          string
-	Name        string
-	Description string
-	UpdatedAt   time.Time
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
-// NewComponentRelationUpdated creates a new ComponentRelationUpdated event
+func (e ComponentRelationUpdated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
+}
+
 func NewComponentRelationUpdated(id, name, description string) ComponentRelationUpdated {
 	return ComponentRelationUpdated{
 		BaseEvent:   domain.NewBaseEvent(id),
@@ -25,12 +31,10 @@ func NewComponentRelationUpdated(id, name, description string) ComponentRelation
 	}
 }
 
-// EventType returns the event type name
 func (e ComponentRelationUpdated) EventType() string {
 	return "ComponentRelationUpdated"
 }
 
-// EventData returns the event data as a map for serialization
 func (e ComponentRelationUpdated) EventData() map[string]interface{} {
 	return map[string]interface{}{
 		"id":          e.ID,

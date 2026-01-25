@@ -8,12 +8,19 @@ import (
 
 type AcquiredEntityUpdated struct {
 	domain.BaseEvent
-	ID                string
-	Name              string
-	AcquisitionDate   *time.Time
-	IntegrationStatus string
-	Notes             string
-	UpdatedAt         time.Time
+	ID                string     `json:"id"`
+	Name              string     `json:"name"`
+	AcquisitionDate   *time.Time `json:"acquisitionDate,omitempty"`
+	IntegrationStatus string     `json:"integrationStatus"`
+	Notes             string     `json:"notes"`
+	UpdatedAt         time.Time  `json:"updatedAt"`
+}
+
+func (e AcquiredEntityUpdated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewAcquiredEntityUpdated(id, name string, acquisitionDate *time.Time, integrationStatus, notes string) AcquiredEntityUpdated {

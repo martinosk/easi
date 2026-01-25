@@ -8,11 +8,18 @@ import (
 
 type ApplicationComponentExpertRemoved struct {
 	domain.BaseEvent
-	ComponentID string
-	ExpertName  string
-	ExpertRole  string
-	ContactInfo string
-	RemovedAt   time.Time
+	ComponentID string    `json:"componentId"`
+	ExpertName  string    `json:"expertName"`
+	ExpertRole  string    `json:"expertRole"`
+	ContactInfo string    `json:"contactInfo"`
+	RemovedAt   time.Time `json:"removedAt"`
+}
+
+func (e ApplicationComponentExpertRemoved) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ComponentID
 }
 
 func NewApplicationComponentExpertRemoved(componentID, expertName, expertRole, contactInfo string) ApplicationComponentExpertRemoved {

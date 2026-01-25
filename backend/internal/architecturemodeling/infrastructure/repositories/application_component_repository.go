@@ -6,7 +6,6 @@ import (
 	"easi/backend/internal/architecturemodeling/domain/aggregates"
 	"easi/backend/internal/architecturemodeling/domain/events"
 	"easi/backend/internal/infrastructure/eventstore"
-	domain "easi/backend/internal/shared/eventsourcing"
 	"easi/backend/internal/shared/infrastructure/repository"
 )
 
@@ -29,95 +28,10 @@ func NewApplicationComponentRepository(eventStore eventstore.EventStore) *Applic
 
 var componentEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"ApplicationComponentCreated": func(data map[string]interface{}) (domain.DomainEvent, error) {
-			id, err := repository.GetRequiredString(data, "id")
-			if err != nil {
-				return nil, err
-			}
-			name, err := repository.GetRequiredString(data, "name")
-			if err != nil {
-				return nil, err
-			}
-			description, err := repository.GetRequiredString(data, "description")
-			if err != nil {
-				return nil, err
-			}
-			createdAt, err := repository.GetRequiredTime(data, "createdAt")
-			if err != nil {
-				return nil, err
-			}
-
-			evt := events.NewApplicationComponentCreated(id, name, description)
-			evt.CreatedAt = createdAt
-			return evt, nil
-		},
-		"ApplicationComponentUpdated": func(data map[string]interface{}) (domain.DomainEvent, error) {
-			id, err := repository.GetRequiredString(data, "id")
-			if err != nil {
-				return nil, err
-			}
-			name, err := repository.GetRequiredString(data, "name")
-			if err != nil {
-				return nil, err
-			}
-			description, err := repository.GetRequiredString(data, "description")
-			if err != nil {
-				return nil, err
-			}
-
-			return events.NewApplicationComponentUpdated(id, name, description), nil
-		},
-		"ApplicationComponentDeleted": func(data map[string]interface{}) (domain.DomainEvent, error) {
-			id, err := repository.GetRequiredString(data, "id")
-			if err != nil {
-				return nil, err
-			}
-			name, err := repository.GetRequiredString(data, "name")
-			if err != nil {
-				return nil, err
-			}
-
-			return events.NewApplicationComponentDeleted(id, name), nil
-		},
-		"ApplicationComponentExpertAdded": func(data map[string]interface{}) (domain.DomainEvent, error) {
-			componentID, err := repository.GetRequiredString(data, "componentId")
-			if err != nil {
-				return nil, err
-			}
-			expertName, err := repository.GetRequiredString(data, "expertName")
-			if err != nil {
-				return nil, err
-			}
-			expertRole, err := repository.GetRequiredString(data, "expertRole")
-			if err != nil {
-				return nil, err
-			}
-			contactInfo, err := repository.GetRequiredString(data, "contactInfo")
-			if err != nil {
-				return nil, err
-			}
-
-			return events.NewApplicationComponentExpertAdded(componentID, expertName, expertRole, contactInfo), nil
-		},
-		"ApplicationComponentExpertRemoved": func(data map[string]interface{}) (domain.DomainEvent, error) {
-			componentID, err := repository.GetRequiredString(data, "componentId")
-			if err != nil {
-				return nil, err
-			}
-			expertName, err := repository.GetRequiredString(data, "expertName")
-			if err != nil {
-				return nil, err
-			}
-			expertRole, err := repository.GetRequiredString(data, "expertRole")
-			if err != nil {
-				return nil, err
-			}
-			contactInfo, err := repository.GetRequiredString(data, "contactInfo")
-			if err != nil {
-				return nil, err
-			}
-
-			return events.NewApplicationComponentExpertRemoved(componentID, expertName, expertRole, contactInfo), nil
-		},
+		"ApplicationComponentCreated":       repository.JSONDeserializer[events.ApplicationComponentCreated],
+		"ApplicationComponentUpdated":       repository.JSONDeserializer[events.ApplicationComponentUpdated],
+		"ApplicationComponentDeleted":       repository.JSONDeserializer[events.ApplicationComponentDeleted],
+		"ApplicationComponentExpertAdded":   repository.JSONDeserializer[events.ApplicationComponentExpertAdded],
+		"ApplicationComponentExpertRemoved": repository.JSONDeserializer[events.ApplicationComponentExpertRemoved],
 	},
 )

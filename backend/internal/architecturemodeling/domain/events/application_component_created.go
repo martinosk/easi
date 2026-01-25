@@ -6,16 +6,21 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
-// ApplicationComponentCreated is raised when a new application component is created
 type ApplicationComponentCreated struct {
 	domain.BaseEvent
-	ID          string
-	Name        string
-	Description string
-	CreatedAt   time.Time
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
-// NewApplicationComponentCreated creates a new ApplicationComponentCreated event
+func (e ApplicationComponentCreated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
+}
+
 func NewApplicationComponentCreated(id, name, description string) ApplicationComponentCreated {
 	return ApplicationComponentCreated{
 		BaseEvent:   domain.NewBaseEvent(id),
@@ -26,12 +31,10 @@ func NewApplicationComponentCreated(id, name, description string) ApplicationCom
 	}
 }
 
-// EventType returns the event type name
 func (e ApplicationComponentCreated) EventType() string {
 	return "ApplicationComponentCreated"
 }
 
-// EventData returns the event data as a map for serialization
 func (e ApplicationComponentCreated) EventData() map[string]interface{} {
 	return map[string]interface{}{
 		"id":          e.ID,

@@ -8,9 +8,16 @@ import (
 
 type VendorDeleted struct {
 	domain.BaseEvent
-	ID        string
-	Name      string
-	DeletedAt time.Time
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	DeletedAt time.Time `json:"deletedAt"`
+}
+
+func (e VendorDeleted) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewVendorDeleted(id, name string) VendorDeleted {

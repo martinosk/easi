@@ -8,9 +8,16 @@ import (
 
 type InternalTeamDeleted struct {
 	domain.BaseEvent
-	ID        string
-	Name      string
-	DeletedAt time.Time
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	DeletedAt time.Time `json:"deletedAt"`
+}
+
+func (e InternalTeamDeleted) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewInternalTeamDeleted(id, name string) InternalTeamDeleted {

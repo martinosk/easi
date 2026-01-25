@@ -8,11 +8,18 @@ import (
 
 type VendorUpdated struct {
 	domain.BaseEvent
-	ID                    string
-	Name                  string
-	ImplementationPartner string
-	Notes                 string
-	UpdatedAt             time.Time
+	ID                    string    `json:"id"`
+	Name                  string    `json:"name"`
+	ImplementationPartner string    `json:"implementationPartner"`
+	Notes                 string    `json:"notes"`
+	UpdatedAt             time.Time `json:"updatedAt"`
+}
+
+func (e VendorUpdated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 func NewVendorUpdated(id, name, implementationPartner, notes string) VendorUpdated {
