@@ -9,11 +9,18 @@ import (
 // ComponentAddedToView is raised when a component is added to a view
 type ComponentAddedToView struct {
 	domain.BaseEvent
-	ViewID      string
-	ComponentID string
-	X           float64
-	Y           float64
-	AddedAt     time.Time
+	ViewID      string    `json:"viewId"`
+	ComponentID string    `json:"componentId"`
+	X           float64   `json:"x"`
+	Y           float64   `json:"y"`
+	AddedAt     time.Time `json:"addedAt"`
+}
+
+func (e ComponentAddedToView) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ViewID
 }
 
 // NewComponentAddedToView creates a new ComponentAddedToView event

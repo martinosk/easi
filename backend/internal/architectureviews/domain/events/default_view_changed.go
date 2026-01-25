@@ -8,9 +8,16 @@ import (
 // DefaultViewChanged is raised when the default view is changed
 type DefaultViewChanged struct {
 	domain.BaseEvent
-	ViewID    string
-	IsDefault bool
-	ChangedAt time.Time
+	ViewID    string    `json:"viewId"`
+	IsDefault bool      `json:"isDefault"`
+	ChangedAt time.Time `json:"changedAt"`
+}
+
+func (e DefaultViewChanged) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ViewID
 }
 
 // NewDefaultViewChanged creates a new DefaultViewChanged event

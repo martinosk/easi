@@ -8,8 +8,15 @@ import (
 // ViewDeleted is raised when an architecture view is deleted
 type ViewDeleted struct {
 	domain.BaseEvent
-	ViewID    string
-	DeletedAt time.Time
+	ViewID    string    `json:"viewId"`
+	DeletedAt time.Time `json:"deletedAt"`
+}
+
+func (e ViewDeleted) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ViewID
 }
 
 // NewViewDeleted creates a new ViewDeleted event

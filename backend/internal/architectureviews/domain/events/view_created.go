@@ -8,13 +8,20 @@ import (
 // ViewCreated is raised when a new architecture view is created
 type ViewCreated struct {
 	domain.BaseEvent
-	ID          string
-	Name        string
-	Description string
-	IsPrivate   bool
-	OwnerUserID string
-	OwnerEmail  string
-	CreatedAt   time.Time
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	IsPrivate   bool      `json:"isPrivate"`
+	OwnerUserID string    `json:"ownerUserId"`
+	OwnerEmail  string    `json:"ownerEmail"`
+	CreatedAt   time.Time `json:"createdAt"`
+}
+
+func (e ViewCreated) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ID
 }
 
 // NewViewCreated creates a new ViewCreated event

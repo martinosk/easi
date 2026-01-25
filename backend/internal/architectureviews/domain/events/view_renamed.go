@@ -8,10 +8,17 @@ import (
 // ViewRenamed is raised when an architecture view is renamed
 type ViewRenamed struct {
 	domain.BaseEvent
-	ViewID    string
-	OldName   string
-	NewName   string
-	RenamedAt time.Time
+	ViewID    string    `json:"viewId"`
+	OldName   string    `json:"oldName"`
+	NewName   string    `json:"newName"`
+	RenamedAt time.Time `json:"renamedAt"`
+}
+
+func (e ViewRenamed) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ViewID
 }
 
 // NewViewRenamed creates a new ViewRenamed event

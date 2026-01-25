@@ -8,9 +8,16 @@ import (
 // ComponentRemovedFromView is raised when a component is removed from a view
 type ComponentRemovedFromView struct {
 	domain.BaseEvent
-	ViewID      string
-	ComponentID string
-	RemovedAt   time.Time
+	ViewID      string    `json:"viewId"`
+	ComponentID string    `json:"componentId"`
+	RemovedAt   time.Time `json:"removedAt"`
+}
+
+func (e ComponentRemovedFromView) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ViewID
 }
 
 // NewComponentRemovedFromView creates a new ComponentRemovedFromView event

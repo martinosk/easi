@@ -6,10 +6,17 @@ import (
 
 type ViewVisibilityChanged struct {
 	domain.BaseEvent
-	ViewID      string
-	IsPrivate   bool
-	OwnerUserID string
-	OwnerEmail  string
+	ViewID      string `json:"viewId"`
+	IsPrivate   bool   `json:"isPrivate"`
+	OwnerUserID string `json:"ownerUserId"`
+	OwnerEmail  string `json:"ownerEmail"`
+}
+
+func (e ViewVisibilityChanged) AggregateID() string {
+	if baseID := e.BaseEvent.AggregateID(); baseID != "" {
+		return baseID
+	}
+	return e.ViewID
 }
 
 func NewViewVisibilityChanged(viewID string, isPrivate bool, ownerUserID, ownerEmail string) ViewVisibilityChanged {
