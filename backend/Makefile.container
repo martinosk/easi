@@ -1,0 +1,92 @@
+# Makefile for containerized Go development (no local Go installation required)
+# Usage: make -f Makefile.container <target>
+# Or set an alias: Set-Alias make-container "make -f Makefile.container"
+
+CONTAINER_RUNTIME ?= podman
+GO_IMAGE := golang:1.24-alpine
+BACKEND_DIR := $(shell pwd)
+WORKSPACE_ROOT := $(shell dirname $(BACKEND_DIR))
+
+# Container run command with volume mounts and caching
+define run_go
+	$(CONTAINER_RUNTIME) run --rm -it \
+		-v "$(BACKEND_DIR):/app" \
+		-v "easi-go-cache:/go/pkg/mod" \
+		-v "easi-go-build-cache:/root/.cache/go-build" \
+		-w /app \
+		-e CGO_ENABLED=0 \
+		--network easi_easi-network \
+		$(GO_IMAGE) \
+		go $(1)
+endef
+
+.PHONY: help build test coverage deps clean fmt vet lint shell run integration-test
+
+help: ## Display this help screen
+	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+build: ## Build the application in container
+	$(call run_go,build -o bin/api cmd/api/main.go)
+
+test: ## Run tests in container
+	$(call run_go,test -v ./...)
+
+coverage: ## Run tests with coverage in container
+	$(call run_go,test -v -coverprofile=coverage.out ./...)
+	$(call run_go,tool cover -html=coverage.out -o coverage.html)
+
+deps: ## Download dependencies in container
+	$(call run_go,mod download)
+	$(call run_go,mod tidy)
+
+fmt: ## Format code in container
+	$(call run_go,fmt ./...)
+
+vet: ## Run go vet in container
+	$(call run_go,vet ./...)
+
+clean: ## Clean build artifacts
+	rm -rf bin/
+	rm -f coverage.out coverage.html
+
+shell: ## Start interactive Go development shell
+	$(CONTAINER_RUNTIME) run --rm -it \
+		-v "$(BACKEND_DIR):/app" \
+		-v "easi-go-cache:/go/pkg/mod" \
+		-v "easi-go-build-cache:/root/.cache/go-build" \
+		-w /app \
+		-e CGO_ENABLED=0 \
+		--network easi_easi-network \
+		$(GO_IMAGE) sh
+
+run: ## Run the application in container (requires DB)
+	$(CONTAINER_RUNTIME) run --rm -it \
+		-v "$(BACKEND_DIR):/app" \
+		-v "easi-go-cache:/go/pkg/mod" \
+		-v "easi-go-build-cache:/root/.cache/go-build" \
+		-w /app \
+		-p 8080:8080 \
+		-e DB_CONN_STRING="host=postgres port=5432 user=easi_app password=localdev dbname=easi sslmode=disable" \
+		-e AUTH_MODE=local_oidc \
+		-e PORT=8080 \
+		-e PLATFORM_ADMIN_API_KEY=localdev \
+		--network easi_easi-network \
+		$(GO_IMAGE) go run cmd/api/main.go
+
+integration-test: ## Run integration tests with database
+	@echo "Starting integration tests with database..."
+	@./test_integration.sh
+
+docker-up: ## Start PostgreSQL via docker-compose
+	cd .. && $(CONTAINER_RUNTIME)-compose up -d postgres
+
+docker-down: ## Stop docker-compose services
+	cd .. && $(CONTAINER_RUNTIME)-compose down
+
+# Development workflow shortcuts
+dev-setup: docker-up deps ## Setup development environment
+	@echo "Development environment ready!"
+
+dev-test: build test ## Build and test
+	@echo "Build and tests complete!"
+
