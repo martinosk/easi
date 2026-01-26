@@ -20,7 +20,8 @@ bash ./test_integration.sh  # Requires bash/WSL/Git Bash
 **Frontend:**
 ```bash
 cd frontend
-npm run dev      # Dev server
+cp .env.example .env  # First time only
+npm run dev           # Dev server
 npm test -- --run
 ```
 

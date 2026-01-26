@@ -26,6 +26,9 @@ Starting server on :8080
 # Terminal 2 - From the easi directory
 cd frontend
 
+# Create .env file (first time only)
+cp .env.example .env
+
 # Start the dev server
 npm run dev
 ```
