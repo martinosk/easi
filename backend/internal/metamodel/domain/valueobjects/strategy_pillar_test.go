@@ -71,3 +71,56 @@ func TestStrategyPillar_Deactivate(t *testing.T) {
 	assert.False(t, deactivated.IsActive())
 	assert.True(t, pillar.IsActive())
 }
+
+func TestStrategyPillar_FitType_DefaultsToEmpty(t *testing.T) {
+	pillar, _ := createTestPillar("Always On", "Core capabilities")
+
+	assert.True(t, pillar.FitType().IsEmpty())
+}
+
+func TestStrategyPillar_WithFitType(t *testing.T) {
+	pillar, _ := createTestPillar("Transformation", "Digital transformation")
+	technicalFit, _ := NewFitType("TECHNICAL")
+
+	updated := pillar.WithFitType(technicalFit)
+
+	assert.Equal(t, "TECHNICAL", updated.FitType().Value())
+	assert.True(t, pillar.FitType().IsEmpty())
+}
+
+func TestStrategyPillar_WithFitConfiguration_IncludesFitType(t *testing.T) {
+	pillar, _ := createTestPillar("Grow", "Business growth")
+	criteria, _ := NewFitCriteria("Scalability, market reach")
+	functionalFit, _ := NewFitType("FUNCTIONAL")
+
+	updated := pillar.WithFitConfiguration(true, criteria, functionalFit)
+
+	assert.True(t, updated.FitScoringEnabled())
+	assert.Equal(t, "Scalability, market reach", updated.FitCriteria().Value())
+	assert.Equal(t, "FUNCTIONAL", updated.FitType().Value())
+}
+
+func TestStrategyPillar_WithFitConfiguration_PreservesOtherFields(t *testing.T) {
+	pillar, _ := createTestPillar("Always On", "Core capabilities")
+	criteria, _ := NewFitCriteria("Reliability criteria")
+	technicalFit, _ := NewFitType("TECHNICAL")
+
+	updated := pillar.WithFitConfiguration(true, criteria, technicalFit)
+
+	assert.Equal(t, pillar.ID().Value(), updated.ID().Value())
+	assert.Equal(t, pillar.Name().Value(), updated.Name().Value())
+	assert.Equal(t, pillar.Description().Value(), updated.Description().Value())
+	assert.Equal(t, pillar.IsActive(), updated.IsActive())
+}
+
+func TestStrategyPillar_Equals_IncludesFitType(t *testing.T) {
+	pillar1, _ := createTestPillar("Always On", "Core capabilities")
+	technicalFit, _ := NewFitType("TECHNICAL")
+	functionalFit, _ := NewFitType("FUNCTIONAL")
+
+	pillar1WithTech := pillar1.WithFitType(technicalFit)
+	pillar1WithFunc := pillar1.WithFitType(functionalFit)
+
+	assert.False(t, pillar1WithTech.Equals(pillar1WithFunc))
+	assert.True(t, pillar1WithTech.Equals(pillar1WithTech))
+}

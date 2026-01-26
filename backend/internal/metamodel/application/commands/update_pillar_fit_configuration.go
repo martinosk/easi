@@ -5,6 +5,7 @@ type UpdatePillarFitConfiguration struct {
 	PillarID          string
 	FitScoringEnabled bool
 	FitCriteria       string
+	FitType           string
 	ModifiedBy        string
 	ExpectedVersion   *int
 }

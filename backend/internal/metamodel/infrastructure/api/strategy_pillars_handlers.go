@@ -56,12 +56,14 @@ type StrategyPillarResponse struct {
 	Active            bool        `json:"active"`
 	FitScoringEnabled bool        `json:"fitScoringEnabled"`
 	FitCriteria       string      `json:"fitCriteria"`
+	FitType           string      `json:"fitType"`
 	Links             types.Links `json:"_links"`
 }
 
 type UpdatePillarFitConfigurationRequest struct {
 	FitScoringEnabled bool   `json:"fitScoringEnabled"`
 	FitCriteria       string `json:"fitCriteria"`
+	FitType           string `json:"fitType"`
 }
 
 // GetStrategyPillars godoc
@@ -333,6 +335,7 @@ type PillarChangeRequest struct {
 	Description       string `json:"description,omitempty"`
 	FitScoringEnabled *bool  `json:"fitScoringEnabled,omitempty"`
 	FitCriteria       string `json:"fitCriteria,omitempty"`
+	FitType           string `json:"fitType,omitempty"`
 }
 
 type BatchUpdateStrategyPillarsRequest struct {
@@ -386,27 +389,32 @@ func (h *StrategyPillarsHandlers) BatchUpdateStrategyPillars(w http.ResponseWrit
 		return
 	}
 
-	if err := h.dispatchBatchUpdate(r.Context(), w, req, result, expectedVersion, authSession.UserEmail()); err != nil {
+	if err := h.dispatchBatchUpdate(r.Context(), w, batchUpdateInput{
+		req:             req,
+		result:          result,
+		expectedVersion: expectedVersion,
+		userEmail:       authSession.UserEmail(),
+	}); err != nil {
 		return
 	}
 
 	h.respondWithUpdatedPillars(w, r)
 }
 
-func (h *StrategyPillarsHandlers) dispatchBatchUpdate(ctx context.Context, w http.ResponseWriter, req BatchUpdateStrategyPillarsRequest, result *ensureConfigResult, expectedVersion int, userEmail string) error {
-	changes, err := mapPillarChanges(req.Changes)
+func (h *StrategyPillarsHandlers) dispatchBatchUpdate(ctx context.Context, w http.ResponseWriter, input batchUpdateInput) error {
+	changes, err := mapPillarChanges(input.req.Changes)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusBadRequest, nil, err.Error())
 		return err
 	}
 
 	cmd := &commands.BatchUpdateStrategyPillars{
-		ConfigID:   result.config.ID,
+		ConfigID:   input.result.config.ID,
 		Changes:    changes,
-		ModifiedBy: userEmail,
+		ModifiedBy: input.userEmail,
 	}
-	if !result.wasCreated {
-		cmd.ExpectedVersion = &expectedVersion
+	if !input.result.wasCreated {
+		cmd.ExpectedVersion = &input.expectedVersion
 	}
 
 	if _, err := h.commandBus.Dispatch(ctx, cmd); err != nil {
@@ -462,6 +470,7 @@ func mapPillarChanges(requests []PillarChangeRequest) ([]commands.PillarChange, 
 			Description:       change.Description,
 			FitScoringEnabled: change.FitScoringEnabled,
 			FitCriteria:       change.FitCriteria,
+			FitType:           change.FitType,
 		}
 	}
 	return changes, nil
@@ -483,6 +492,13 @@ func mapOperation(operation string) (commands.PillarOperation, error) {
 type ensureConfigResult struct {
 	config     *readmodels.MetaModelConfigurationDTO
 	wasCreated bool
+}
+
+type batchUpdateInput struct {
+	req             BatchUpdateStrategyPillarsRequest
+	result          *ensureConfigResult
+	expectedVersion int
+	userEmail       string
 }
 
 func (h *StrategyPillarsHandlers) ensureConfigExists(w http.ResponseWriter, r *http.Request, userEmail string) (*ensureConfigResult, bool) {
@@ -527,6 +543,7 @@ func (h *StrategyPillarsHandlers) buildPillarResponse(pillar readmodels.Strategy
 		Active:            pillar.Active,
 		FitScoringEnabled: pillar.FitScoringEnabled,
 		FitCriteria:       pillar.FitCriteria,
+		FitType:           pillar.FitType,
 		Links:             h.hateoas.StrategyPillarLinks(pillar.ID, pillar.Active),
 	}
 }
@@ -582,6 +599,7 @@ func (h *StrategyPillarsHandlers) UpdatePillarFitConfiguration(w http.ResponseWr
 		PillarID:          pillarID,
 		FitScoringEnabled: req.FitScoringEnabled,
 		FitCriteria:       req.FitCriteria,
+		FitType:           req.FitType,
 		ModifiedBy:        authSession.UserEmail(),
 		ExpectedVersion:   &expectedVersion,
 	}

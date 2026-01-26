@@ -565,6 +565,8 @@ export interface CapabilityRealizationsGroup {
   realizations: CapabilityRealization[];
 }
 
+export type FitType = 'TECHNICAL' | 'FUNCTIONAL' | '';
+
 export interface StrategyPillar {
   id: string;
   name: string;
@@ -572,6 +574,7 @@ export interface StrategyPillar {
   active: boolean;
   fitScoringEnabled: boolean;
   fitCriteria: string;
+  fitType: FitType;
   _links: HATEOASLinks;
 }
 

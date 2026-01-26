@@ -183,7 +183,7 @@ func (s StrategyPillarsConfig) WithRemovedPillar(id StrategyPillarID) (StrategyP
 	return StrategyPillarsConfig{pillars: newPillars}, nil
 }
 
-func (s StrategyPillarsConfig) WithUpdatedPillarFitConfiguration(id StrategyPillarID, enabled bool, criteria FitCriteria) (StrategyPillarsConfig, error) {
+func (s StrategyPillarsConfig) WithUpdatedPillarFitConfiguration(id StrategyPillarID, enabled bool, criteria FitCriteria, fitType FitType) (StrategyPillarsConfig, error) {
 	found := false
 	var idx int
 	for i, p := range s.pillars {
@@ -198,7 +198,7 @@ func (s StrategyPillarsConfig) WithUpdatedPillarFitConfiguration(id StrategyPill
 	}
 	newPillars := make([]StrategyPillar, len(s.pillars))
 	copy(newPillars, s.pillars)
-	newPillars[idx] = newPillars[idx].WithFitConfiguration(enabled, criteria)
+	newPillars[idx] = newPillars[idx].WithFitConfiguration(enabled, criteria, fitType)
 	return StrategyPillarsConfig{pillars: newPillars}, nil
 }
 

@@ -135,6 +135,11 @@ export const queryKeys = {
     byPillar: (pillarId: string) =>
       [...queryKeys.strategicFitAnalysis.all, 'byPillar', pillarId] as const,
   },
+  timeSuggestions: {
+    all: ['timeSuggestions'] as const,
+    list: (filters?: { capabilityId?: string; componentId?: string }) =>
+      [...queryKeys.timeSuggestions.all, 'list', filters] as const,
+  },
   audit: {
     all: ['audit'] as const,
     history: (aggregateId: string) =>

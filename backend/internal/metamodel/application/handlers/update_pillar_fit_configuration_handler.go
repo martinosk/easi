@@ -63,5 +63,11 @@ func (h *UpdatePillarFitConfigurationHandler) executeUpdate(config *aggregates.M
 		return err
 	}
 
-	return config.UpdatePillarFitConfiguration(pillarID, command.FitScoringEnabled, criteria, modifiedBy)
+	fitType, err := valueobjects.NewFitType(command.FitType)
+	if err != nil {
+		return err
+	}
+
+	fitConfig := valueobjects.NewFitConfigurationParams(command.FitScoringEnabled, criteria, fitType)
+	return config.UpdatePillarFitConfiguration(pillarID, fitConfig, modifiedBy)
 }

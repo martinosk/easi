@@ -541,6 +541,10 @@ func (h *HATEOASLinks) MaturityGapDetailLinks(ecID string) Links {
 	}
 }
 
+func (h *HATEOASLinks) TimeSuggestionsCollectionLinks() Links {
+	return Links{"self": h.get("/time-suggestions")}
+}
+
 func (h *HATEOASLinks) UnlinkedCapabilitiesLinks() Links {
 	return Links{"self": h.get("/domain-capabilities/unlinked")}
 }

@@ -13,6 +13,7 @@ type PillarFitConfigurationUpdated struct {
 	PillarID          string    `json:"pillarId"`
 	FitScoringEnabled bool      `json:"fitScoringEnabled"`
 	FitCriteria       string    `json:"fitCriteria"`
+	FitType           string    `json:"fitType"`
 	ModifiedAt        time.Time `json:"modifiedAt"`
 	ModifiedBy        string    `json:"modifiedBy"`
 }
@@ -33,6 +34,7 @@ func NewPillarFitConfigurationUpdated(params UpdatePillarFitConfigParams) Pillar
 		PillarID:          params.PillarID,
 		FitScoringEnabled: params.FitScoringEnabled,
 		FitCriteria:       params.FitCriteria,
+		FitType:           params.FitType,
 		ModifiedAt:        time.Now().UTC(),
 		ModifiedBy:        params.ModifiedBy,
 	}
@@ -50,6 +52,7 @@ func (e PillarFitConfigurationUpdated) EventData() map[string]interface{} {
 		"pillarId":          e.PillarID,
 		"fitScoringEnabled": e.FitScoringEnabled,
 		"fitCriteria":       e.FitCriteria,
+		"fitType":           e.FitType,
 		"modifiedAt":        e.ModifiedAt,
 		"modifiedBy":        e.ModifiedBy,
 	}

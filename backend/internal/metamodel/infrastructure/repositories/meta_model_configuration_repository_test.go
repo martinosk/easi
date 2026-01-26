@@ -122,7 +122,9 @@ func TestMetaModelConfigurationDeserializers_AllEventsCanBeDeserialized(t *testi
 		_ = config.UpdateStrategyPillar(addedPillarID, newName, newDesc, userEmail)
 
 		fitCriteria, _ := valueobjects.NewFitCriteria("Test criteria")
-		_ = config.UpdatePillarFitConfiguration(addedPillarID, true, fitCriteria, userEmail)
+		fitType, _ := valueobjects.NewFitType("TECHNICAL")
+		fitConfig := valueobjects.NewFitConfigurationParams(true, fitCriteria, fitType)
+		_ = config.UpdatePillarFitConfiguration(addedPillarID, fitConfig, userEmail)
 
 		_ = config.RemoveStrategyPillar(addedPillarID, userEmail)
 	}
@@ -190,7 +192,9 @@ func TestMetaModelConfigurationDeserializers_PillarFitConfigurationUpdated(t *te
 	require.NotEmpty(t, addedPillarID.Value(), "Should find added pillar")
 
 	fitCriteria, _ := valueobjects.NewFitCriteria("Containerization, Kubernetes, CI/CD")
-	err = config.UpdatePillarFitConfiguration(addedPillarID, true, fitCriteria, userEmail)
+	fitType, _ := valueobjects.NewFitType("TECHNICAL")
+	fitConfig := valueobjects.NewFitConfigurationParams(true, fitCriteria, fitType)
+	err = config.UpdatePillarFitConfiguration(addedPillarID, fitConfig, userEmail)
 	require.NoError(t, err)
 
 	events := config.GetUncommittedChanges()

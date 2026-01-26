@@ -25,6 +25,7 @@ type StrategyPillarDTO struct {
 	Active            bool   `json:"active"`
 	FitScoringEnabled bool   `json:"fitScoringEnabled"`
 	FitCriteria       string `json:"fitCriteria"`
+	FitType           string `json:"fitType"`
 }
 
 type MetaModelConfigurationDTO struct {

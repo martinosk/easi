@@ -2,9 +2,11 @@ package api
 
 import (
 	"net/http"
+	"os"
 
 	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/auth/infrastructure/session"
+	metamodelGateway "easi/backend/internal/capabilitymapping/infrastructure/metamodel"
 	"easi/backend/internal/enterprisearchitecture/application/handlers"
 	"easi/backend/internal/enterprisearchitecture/application/projectors"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
@@ -40,6 +42,12 @@ type routeReadModels struct {
 	importance       *readmodels.EnterpriseStrategicImportanceReadModel
 	metadata         *readmodels.DomainCapabilityMetadataReadModel
 	maturityAnalysis *readmodels.MaturityAnalysisReadModel
+	timeSuggestion   *readmodels.TimeSuggestionReadModel
+}
+
+type routeHTTPHandlers struct {
+	enterpriseCapability *EnterpriseCapabilityHandlers
+	timeSuggestions      *TimeSuggestionsHandlers
 }
 
 type EnterpriseArchRoutesDeps struct {
@@ -66,6 +74,13 @@ func SetupEnterpriseArchitectureRoutes(deps EnterpriseArchRoutesDeps) error {
 	return nil
 }
 
+func getMetaModelBaseURL() string {
+	if baseURL := os.Getenv("METAMODEL_SERVICE_URL"); baseURL != "" {
+		return baseURL
+	}
+	return "http://localhost:8080/api/v1"
+}
+
 func initializeRepositories(eventStore eventstore.EventStore) *routeRepositories {
 	return &routeRepositories{
 		capability: repositories.NewEnterpriseCapabilityRepository(eventStore),
@@ -75,12 +90,14 @@ func initializeRepositories(eventStore eventstore.EventStore) *routeRepositories
 }
 
 func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
+	pillarsGateway := metamodelGateway.NewStrategyPillarsGateway(getMetaModelBaseURL())
 	return &routeReadModels{
 		capability:       readmodels.NewEnterpriseCapabilityReadModel(db),
 		link:             readmodels.NewEnterpriseCapabilityLinkReadModel(db),
 		importance:       readmodels.NewEnterpriseStrategicImportanceReadModel(db),
 		metadata:         readmodels.NewDomainCapabilityMetadataReadModel(db),
 		maturityAnalysis: readmodels.NewMaturityAnalysisReadModel(db),
+		timeSuggestion:   readmodels.NewTimeSuggestionReadModel(db, pillarsGateway),
 	}
 }
 
@@ -160,17 +177,26 @@ func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepos
 	commandBus.Register("RemoveEnterpriseStrategicImportance", handlers.NewRemoveEnterpriseStrategicImportanceHandler(repos.importance))
 }
 
-func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels, sessionManager *session.SessionManager) *EnterpriseCapabilityHandlers {
+func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels, sessionManager *session.SessionManager) *routeHTTPHandlers {
 	readModels := &EnterpriseCapabilityReadModels{
 		Capability:       rm.capability,
 		Link:             rm.link,
 		Importance:       rm.importance,
 		MaturityAnalysis: rm.maturityAnalysis,
 	}
-	return NewEnterpriseCapabilityHandlers(commandBus, readModels, sessionManager)
+	hateoas := sharedAPI.NewHATEOASLinks("")
+	return &routeHTTPHandlers{
+		enterpriseCapability: NewEnterpriseCapabilityHandlers(commandBus, readModels, sessionManager),
+		timeSuggestions:      NewTimeSuggestionsHandlers(rm.timeSuggestion, hateoas),
+	}
 }
 
-func registerRoutes(r chi.Router, h *EnterpriseCapabilityHandlers, authMiddleware AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
+func registerRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
+	registerEnterpriseCapabilityRoutes(r, h.enterpriseCapability, authMiddleware, rateLimiter)
+	registerTimeSuggestionsRoutes(r, h.timeSuggestions, authMiddleware)
+}
+
+func registerEnterpriseCapabilityRoutes(r chi.Router, h *EnterpriseCapabilityHandlers, authMiddleware AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
 	r.Route("/enterprise-capabilities", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authValueObjects.PermEnterpriseArchRead))
@@ -207,5 +233,12 @@ func registerRoutes(r chi.Router, h *EnterpriseCapabilityHandlers, authMiddlewar
 		r.Get("/domain-capabilities/{domainCapabilityId}/enterprise-capability", h.GetEnterpriseCapabilityForDomainCapability)
 		r.Get("/domain-capabilities/{domainCapabilityId}/enterprise-link-status", h.GetCapabilityLinkStatus)
 		r.Get("/domain-capabilities/enterprise-link-status", h.GetBatchCapabilityLinkStatus)
+	})
+}
+
+func registerTimeSuggestionsRoutes(r chi.Router, h *TimeSuggestionsHandlers, authMiddleware AuthMiddleware) {
+	r.Group(func(r chi.Router) {
+		r.Use(authMiddleware.RequirePermission(authValueObjects.PermEnterpriseArchRead))
+		r.Get("/time-suggestions", h.GetTimeSuggestions)
 	})
 }
