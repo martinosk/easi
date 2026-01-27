@@ -15,6 +15,7 @@ type PillarChange struct {
 	Description       string
 	FitScoringEnabled *bool
 	FitCriteria       string
+	FitType           string
 }
 
 type BatchUpdateStrategyPillars struct {

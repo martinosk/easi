@@ -11,6 +11,7 @@ type StrategyPillar struct {
 	active            bool
 	fitScoringEnabled bool
 	fitCriteria       FitCriteria
+	fitType           FitType
 }
 
 func NewStrategyPillar(id StrategyPillarID, name PillarName, description PillarDescription) (StrategyPillar, error) {
@@ -55,37 +56,39 @@ func (s StrategyPillar) FitCriteria() FitCriteria {
 	return s.fitCriteria
 }
 
-func (s StrategyPillar) WithUpdatedDetails(name PillarName, description PillarDescription) (StrategyPillar, error) {
-	return StrategyPillar{
-		id:                s.id,
-		name:              name,
-		description:       description,
-		active:            s.active,
-		fitScoringEnabled: s.fitScoringEnabled,
-		fitCriteria:       s.fitCriteria,
-	}, nil
+func (s StrategyPillar) FitType() FitType {
+	return s.fitType
 }
 
-func (s StrategyPillar) WithFitConfiguration(enabled bool, criteria FitCriteria) StrategyPillar {
+func (s StrategyPillar) clone() StrategyPillar {
 	return StrategyPillar{
-		id:                s.id,
-		name:              s.name,
-		description:       s.description,
-		active:            s.active,
-		fitScoringEnabled: enabled,
-		fitCriteria:       criteria,
+		id: s.id, name: s.name, description: s.description, active: s.active,
+		fitScoringEnabled: s.fitScoringEnabled, fitCriteria: s.fitCriteria, fitType: s.fitType,
 	}
+}
+
+func (s StrategyPillar) WithUpdatedDetails(name PillarName, description PillarDescription) (StrategyPillar, error) {
+	c := s.clone()
+	c.name, c.description = name, description
+	return c, nil
+}
+
+func (s StrategyPillar) WithFitConfiguration(enabled bool, criteria FitCriteria, fitType FitType) StrategyPillar {
+	c := s.clone()
+	c.fitScoringEnabled, c.fitCriteria, c.fitType = enabled, criteria, fitType
+	return c
+}
+
+func (s StrategyPillar) WithFitType(fitType FitType) StrategyPillar {
+	c := s.clone()
+	c.fitType = fitType
+	return c
 }
 
 func (s StrategyPillar) Deactivate() StrategyPillar {
-	return StrategyPillar{
-		id:                s.id,
-		name:              s.name,
-		description:       s.description,
-		active:            false,
-		fitScoringEnabled: s.fitScoringEnabled,
-		fitCriteria:       s.fitCriteria,
-	}
+	c := s.clone()
+	c.active = false
+	return c
 }
 
 func (s StrategyPillar) Equals(other domain.ValueObject) bool {
@@ -95,7 +98,8 @@ func (s StrategyPillar) Equals(other domain.ValueObject) bool {
 			s.description.Equals(otherPillar.description) &&
 			s.active == otherPillar.active &&
 			s.fitScoringEnabled == otherPillar.fitScoringEnabled &&
-			s.fitCriteria.Equals(otherPillar.fitCriteria)
+			s.fitCriteria.Equals(otherPillar.fitCriteria) &&
+			s.fitType.Equals(otherPillar.fitType)
 	}
 	return false
 }

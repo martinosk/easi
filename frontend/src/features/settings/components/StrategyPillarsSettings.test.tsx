@@ -43,9 +43,9 @@ function renderWithProviders(ui: React.ReactElement, queryClient?: QueryClient) 
 
 const mockPillarsConfig: StrategyPillarsConfigurationWithVersion = {
   data: [
-    { id: 'pillar-1', name: 'Always On', description: 'Core capabilities', active: true, fitScoringEnabled: false, fitCriteria: '', _links: {} },
-    { id: 'pillar-2', name: 'Grow', description: 'Growth initiatives', active: true, fitScoringEnabled: false, fitCriteria: '', _links: {} },
-    { id: 'pillar-3', name: 'Transform', description: 'Transformation projects', active: true, fitScoringEnabled: false, fitCriteria: '', _links: {} },
+    { id: 'pillar-1', name: 'Always On', description: 'Core capabilities', active: true, fitScoringEnabled: false, fitCriteria: '', fitType: '', _links: {} },
+    { id: 'pillar-2', name: 'Grow', description: 'Growth initiatives', active: true, fitScoringEnabled: false, fitCriteria: '', fitType: '', _links: {} },
+    { id: 'pillar-3', name: 'Transform', description: 'Transformation projects', active: true, fitScoringEnabled: false, fitCriteria: '', fitType: '', _links: {} },
   ],
   _links: {},
   version: 1,
@@ -225,6 +225,7 @@ describe('StrategyPillarsSettings', () => {
         active: true,
         fitScoringEnabled: false,
         fitCriteria: '',
+        fitType: '' as const,
         _links: {},
       })),
       _links: {},
@@ -261,7 +262,7 @@ describe('StrategyPillarsSettings', () => {
   it('disables delete button when only one active pillar remains', async () => {
     const singlePillarConfig: StrategyPillarsConfigurationWithVersion = {
       data: [
-        { id: 'pillar-1', name: 'Always On', description: '', active: true, fitScoringEnabled: false, fitCriteria: '', _links: {} },
+        { id: 'pillar-1', name: 'Always On', description: '', active: true, fitScoringEnabled: false, fitCriteria: '', fitType: '', _links: {} },
       ],
       _links: {},
       version: 1,
@@ -329,9 +330,9 @@ describe('StrategyPillarsSettings', () => {
   it('filters out inactive pillars in view mode by default', async () => {
     const configWithInactive: StrategyPillarsConfigurationWithVersion = {
       data: [
-        { id: 'pillar-1', name: 'Always On', description: '', active: true, fitScoringEnabled: false, fitCriteria: '', _links: {} },
-        { id: 'pillar-2', name: 'Grow', description: '', active: false, fitScoringEnabled: false, fitCriteria: '', _links: {} },
-        { id: 'pillar-3', name: 'Transform', description: '', active: true, fitScoringEnabled: false, fitCriteria: '', _links: {} },
+        { id: 'pillar-1', name: 'Always On', description: '', active: true, fitScoringEnabled: false, fitCriteria: '', fitType: '', _links: {} },
+        { id: 'pillar-2', name: 'Grow', description: '', active: false, fitScoringEnabled: false, fitCriteria: '', fitType: '', _links: {} },
+        { id: 'pillar-3', name: 'Transform', description: '', active: true, fitScoringEnabled: false, fitCriteria: '', fitType: '', _links: {} },
       ],
       _links: {},
       version: 1,

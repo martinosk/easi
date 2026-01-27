@@ -142,7 +142,8 @@ func (m *MetaModelConfiguration) applyPillarRemoved(e events.StrategyPillarRemov
 func (m *MetaModelConfiguration) applyPillarFitConfigurationUpdated(e events.PillarFitConfigurationUpdated) {
 	pillarID, _ := valueobjects.NewStrategyPillarIDFromString(e.PillarID)
 	criteria, _ := valueobjects.NewFitCriteria(e.FitCriteria)
-	m.strategyPillarsConfig, _ = m.strategyPillarsConfig.WithUpdatedPillarFitConfiguration(pillarID, e.FitScoringEnabled, criteria)
+	fitType, _ := valueobjects.NewFitType(e.FitType)
+	m.strategyPillarsConfig, _ = m.strategyPillarsConfig.WithUpdatedPillarFitConfiguration(pillarID, e.FitScoringEnabled, criteria, fitType)
 	m.modifiedAt, _ = valueobjects.NewTimestamp(e.ModifiedAt)
 	m.modifiedBy, _ = valueobjects.NewUserEmail(e.ModifiedBy)
 }
@@ -233,8 +234,8 @@ func (m *MetaModelConfiguration) RemoveStrategyPillar(id valueobjects.StrategyPi
 	return nil
 }
 
-func (m *MetaModelConfiguration) UpdatePillarFitConfiguration(id valueobjects.StrategyPillarID, enabled bool, criteria valueobjects.FitCriteria, modifiedBy valueobjects.UserEmail) error {
-	if _, err := m.strategyPillarsConfig.WithUpdatedPillarFitConfiguration(id, enabled, criteria); err != nil {
+func (m *MetaModelConfiguration) UpdatePillarFitConfiguration(id valueobjects.StrategyPillarID, fitConfig valueobjects.FitConfigurationParams, modifiedBy valueobjects.UserEmail) error {
+	if _, err := m.strategyPillarsConfig.WithUpdatedPillarFitConfiguration(id, fitConfig.Enabled(), fitConfig.Criteria(), fitConfig.FitType()); err != nil {
 		return err
 	}
 
@@ -246,8 +247,9 @@ func (m *MetaModelConfiguration) UpdatePillarFitConfiguration(id valueobjects.St
 			PillarID:   id.Value(),
 			ModifiedBy: modifiedBy.Value(),
 		},
-		FitScoringEnabled: enabled,
-		FitCriteria:       criteria.Value(),
+		FitScoringEnabled: fitConfig.Enabled(),
+		FitCriteria:       fitConfig.Criteria().Value(),
+		FitType:           fitConfig.FitType().Value(),
 	})
 	m.applyAndRaise(event)
 	return nil
@@ -291,6 +293,7 @@ func strategyPillarsConfigToEventData(config valueobjects.StrategyPillarsConfig)
 			Active:            pillar.IsActive(),
 			FitScoringEnabled: pillar.FitScoringEnabled(),
 			FitCriteria:       pillar.FitCriteria().Value(),
+			FitType:           pillar.FitType().Value(),
 		}
 	}
 	return data
@@ -303,13 +306,14 @@ func eventDataToStrategyPillarsConfig(data []events.StrategyPillarData) valueobj
 		name, _ := valueobjects.NewPillarName(d.Name)
 		desc, _ := valueobjects.NewPillarDescription(d.Description)
 		criteria, _ := valueobjects.NewFitCriteria(d.FitCriteria)
+		fitType, _ := valueobjects.NewFitType(d.FitType)
 		var pillar valueobjects.StrategyPillar
 		if d.Active {
 			pillar, _ = valueobjects.NewStrategyPillar(id, name, desc)
 		} else {
 			pillar, _ = valueobjects.NewInactiveStrategyPillar(id, name, desc)
 		}
-		pillars[i] = pillar.WithFitConfiguration(d.FitScoringEnabled, criteria)
+		pillars[i] = pillar.WithFitConfiguration(d.FitScoringEnabled, criteria, fitType)
 	}
 	config, _ := valueobjects.NewStrategyPillarsConfig(pillars)
 	return config

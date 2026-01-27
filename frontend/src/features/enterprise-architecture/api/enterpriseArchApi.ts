@@ -17,7 +17,13 @@ import type {
   CapabilityLinkStatusResponse,
   MaturityAnalysisResponse,
   MaturityGapDetail,
+  TimeSuggestionsResponse,
 } from '../types';
+
+function strategicImportanceUrl(capabilityId: EnterpriseCapabilityId, importanceId?: EnterpriseStrategicImportanceId): string {
+  const base = `/api/v1/enterprise-capabilities/${capabilityId}/strategic-importance`;
+  return importanceId ? `${base}/${importanceId}` : base;
+}
 
 export const enterpriseArchApi = {
   async getAll(): Promise<EnterpriseCapability[]> {
@@ -64,9 +70,7 @@ export const enterpriseArchApi = {
   },
 
   async getStrategicImportance(enterpriseCapabilityId: EnterpriseCapabilityId): Promise<StrategicImportance[]> {
-    const response = await httpClient.get<{ data: StrategicImportance[] }>(
-      `/api/v1/enterprise-capabilities/${enterpriseCapabilityId}/strategic-importance`
-    );
+    const response = await httpClient.get<{ data: StrategicImportance[] }>(strategicImportanceUrl(enterpriseCapabilityId));
     return response.data.data;
   },
 
@@ -74,10 +78,7 @@ export const enterpriseArchApi = {
     enterpriseCapabilityId: EnterpriseCapabilityId,
     request: SetStrategicImportanceRequest
   ): Promise<StrategicImportance> {
-    const response = await httpClient.post<StrategicImportance>(
-      `/api/v1/enterprise-capabilities/${enterpriseCapabilityId}/strategic-importance`,
-      request
-    );
+    const response = await httpClient.post<StrategicImportance>(strategicImportanceUrl(enterpriseCapabilityId), request);
     return response.data;
   },
 
@@ -86,15 +87,12 @@ export const enterpriseArchApi = {
     importanceId: EnterpriseStrategicImportanceId,
     request: UpdateStrategicImportanceRequest
   ): Promise<StrategicImportance> {
-    const response = await httpClient.put<StrategicImportance>(
-      `/api/v1/enterprise-capabilities/${enterpriseCapabilityId}/strategic-importance/${importanceId}`,
-      request
-    );
+    const response = await httpClient.put<StrategicImportance>(strategicImportanceUrl(enterpriseCapabilityId, importanceId), request);
     return response.data;
   },
 
   async removeStrategicImportance(enterpriseCapabilityId: EnterpriseCapabilityId, importanceId: EnterpriseStrategicImportanceId): Promise<void> {
-    await httpClient.delete(`/api/v1/enterprise-capabilities/${enterpriseCapabilityId}/strategic-importance/${importanceId}`);
+    await httpClient.delete(strategicImportanceUrl(enterpriseCapabilityId, importanceId));
   },
 
   async getDomainCapabilityLinkStatus(domainCapabilityId: CapabilityId): Promise<DomainCapabilityLinkStatus> {
@@ -144,6 +142,23 @@ export const enterpriseArchApi = {
     const response = await httpClient.get<StrategicFitAnalysis>(
       `/api/v1/strategic-fit-analysis/${pillarId}`
     );
+    return response.data;
+  },
+
+  async getTimeSuggestions(filters?: {
+    capabilityId?: string;
+    componentId?: string;
+  }): Promise<TimeSuggestionsResponse> {
+    const params = new URLSearchParams();
+    if (filters?.capabilityId) {
+      params.append('capabilityId', filters.capabilityId);
+    }
+    if (filters?.componentId) {
+      params.append('componentId', filters.componentId);
+    }
+    const queryString = params.toString();
+    const url = queryString ? `/api/v1/time-suggestions?${queryString}` : '/api/v1/time-suggestions';
+    const response = await httpClient.get<TimeSuggestionsResponse>(url);
     return response.data;
   },
 };

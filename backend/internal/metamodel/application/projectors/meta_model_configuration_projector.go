@@ -77,15 +77,9 @@ func (p *MetaModelConfigurationProjector) handleUpdated(ctx context.Context, eve
 		log.Printf("Failed to unmarshal MaturityScaleConfigUpdated event: %v", err)
 		return err
 	}
-	params := readmodels.UpdateParams{
-		ID:         event.ID,
-		Sections:   toSectionDTOs(event.NewSections),
-		Version:    event.Version,
-		IsDefault:  false,
-		ModifiedAt: event.ModifiedAt,
-		ModifiedBy: event.ModifiedBy,
-	}
-	return p.readModel.Update(ctx, params)
+	return p.updateMaturitySections(ctx, maturityUpdateData{
+		ID: event.ID, Sections: toSectionDTOs(event.NewSections), Version: event.Version, IsDefault: false, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy,
+	})
 }
 
 func (p *MetaModelConfigurationProjector) handleReset(ctx context.Context, eventData []byte) error {
@@ -94,15 +88,29 @@ func (p *MetaModelConfigurationProjector) handleReset(ctx context.Context, event
 		log.Printf("Failed to unmarshal MaturityScaleConfigReset event: %v", err)
 		return err
 	}
-	params := readmodels.UpdateParams{
-		ID:         event.ID,
-		Sections:   toSectionDTOs(event.Sections),
-		Version:    event.Version,
-		IsDefault:  true,
-		ModifiedAt: event.ModifiedAt,
-		ModifiedBy: event.ModifiedBy,
-	}
-	return p.readModel.Update(ctx, params)
+	return p.updateMaturitySections(ctx, maturityUpdateData{
+		ID: event.ID, Sections: toSectionDTOs(event.Sections), Version: event.Version, IsDefault: true, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy,
+	})
+}
+
+type maturityUpdateData struct {
+	ID         string
+	Sections   []readmodels.MaturitySectionDTO
+	Version    int
+	IsDefault  bool
+	ModifiedAt time.Time
+	ModifiedBy string
+}
+
+func (p *MetaModelConfigurationProjector) updateMaturitySections(ctx context.Context, data maturityUpdateData) error {
+	return p.readModel.Update(ctx, readmodels.UpdateParams{
+		ID:         data.ID,
+		Sections:   data.Sections,
+		Version:    data.Version,
+		IsDefault:  data.IsDefault,
+		ModifiedAt: data.ModifiedAt,
+		ModifiedBy: data.ModifiedBy,
+	})
 }
 
 type pillarEventData struct {
@@ -118,19 +126,9 @@ func (p *MetaModelConfigurationProjector) handlePillarAdded(ctx context.Context,
 		log.Printf("Failed to unmarshal StrategyPillarAdded event: %v", err)
 		return err
 	}
-
-	return p.updatePillarsWithModification(ctx, pillarEventData{
-		ID:         event.ID,
-		Version:    event.Version,
-		ModifiedAt: event.ModifiedAt,
-		ModifiedBy: event.ModifiedBy,
-	}, func(pillars []readmodels.StrategyPillarDTO) []readmodels.StrategyPillarDTO {
-		return append(pillars, readmodels.StrategyPillarDTO{
-			ID:          event.PillarID,
-			Name:        event.Name,
-			Description: event.Description,
-			Active:      true,
-		})
+	data := pillarEventData{ID: event.ID, Version: event.Version, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy}
+	return p.updatePillarsWithModification(ctx, data, func(pillars []readmodels.StrategyPillarDTO) []readmodels.StrategyPillarDTO {
+		return append(pillars, readmodels.StrategyPillarDTO{ID: event.PillarID, Name: event.Name, Description: event.Description, Active: true})
 	})
 }
 
@@ -140,21 +138,9 @@ func (p *MetaModelConfigurationProjector) handlePillarUpdated(ctx context.Contex
 		log.Printf("Failed to unmarshal StrategyPillarUpdated event: %v", err)
 		return err
 	}
-
-	return p.updatePillarsWithModification(ctx, pillarEventData{
-		ID:         event.ID,
-		Version:    event.Version,
-		ModifiedAt: event.ModifiedAt,
-		ModifiedBy: event.ModifiedBy,
-	}, func(pillars []readmodels.StrategyPillarDTO) []readmodels.StrategyPillarDTO {
-		for i, pillar := range pillars {
-			if pillar.ID == event.PillarID {
-				pillars[i].Name = event.NewName
-				pillars[i].Description = event.NewDescription
-				break
-			}
-		}
-		return pillars
+	data := pillarEventData{ID: event.ID, Version: event.Version, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy}
+	return p.updatePillarByID(ctx, data, event.PillarID, func(pillar *readmodels.StrategyPillarDTO) {
+		pillar.Name, pillar.Description = event.NewName, event.NewDescription
 	})
 }
 
@@ -164,20 +150,9 @@ func (p *MetaModelConfigurationProjector) handlePillarRemoved(ctx context.Contex
 		log.Printf("Failed to unmarshal StrategyPillarRemoved event: %v", err)
 		return err
 	}
-
-	return p.updatePillarsWithModification(ctx, pillarEventData{
-		ID:         event.ID,
-		Version:    event.Version,
-		ModifiedAt: event.ModifiedAt,
-		ModifiedBy: event.ModifiedBy,
-	}, func(pillars []readmodels.StrategyPillarDTO) []readmodels.StrategyPillarDTO {
-		for i, pillar := range pillars {
-			if pillar.ID == event.PillarID {
-				pillars[i].Active = false
-				break
-			}
-		}
-		return pillars
+	data := pillarEventData{ID: event.ID, Version: event.Version, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy}
+	return p.updatePillarByID(ctx, data, event.PillarID, func(pillar *readmodels.StrategyPillarDTO) {
+		pillar.Active = false
 	})
 }
 
@@ -187,17 +162,22 @@ func (p *MetaModelConfigurationProjector) handlePillarFitConfigurationUpdated(ct
 		log.Printf("Failed to unmarshal PillarFitConfigurationUpdated event: %v", err)
 		return err
 	}
+	data := pillarEventData{ID: event.ID, Version: event.Version, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy}
+	return p.updatePillarByID(ctx, data, event.PillarID, func(pillar *readmodels.StrategyPillarDTO) {
+		pillar.FitScoringEnabled, pillar.FitCriteria, pillar.FitType = event.FitScoringEnabled, event.FitCriteria, event.FitType
+	})
+}
 
-	return p.updatePillarsWithModification(ctx, pillarEventData{
-		ID:         event.ID,
-		Version:    event.Version,
-		ModifiedAt: event.ModifiedAt,
-		ModifiedBy: event.ModifiedBy,
-	}, func(pillars []readmodels.StrategyPillarDTO) []readmodels.StrategyPillarDTO {
-		for i, pillar := range pillars {
-			if pillar.ID == event.PillarID {
-				pillars[i].FitScoringEnabled = event.FitScoringEnabled
-				pillars[i].FitCriteria = event.FitCriteria
+func (p *MetaModelConfigurationProjector) updatePillarByID(
+	ctx context.Context,
+	eventData pillarEventData,
+	pillarID string,
+	modify func(*readmodels.StrategyPillarDTO),
+) error {
+	return p.updatePillarsWithModification(ctx, eventData, func(pillars []readmodels.StrategyPillarDTO) []readmodels.StrategyPillarDTO {
+		for i := range pillars {
+			if pillars[i].ID == pillarID {
+				modify(&pillars[i])
 				break
 			}
 		}
@@ -256,6 +236,7 @@ func toPillarDTOs(pillars []events.StrategyPillarData) []readmodels.StrategyPill
 			Active:            p.Active,
 			FitScoringEnabled: p.FitScoringEnabled,
 			FitCriteria:       p.FitCriteria,
+			FitType:           p.FitType,
 		}
 	}
 	return result

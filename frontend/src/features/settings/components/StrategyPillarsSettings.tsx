@@ -6,7 +6,7 @@ import {
   useStrategyPillarsConfig,
   useBatchUpdateStrategyPillars,
 } from '../../../hooks/useStrategyPillarsSettings';
-import { ApiError, type StrategyPillar } from '../../../api/types';
+import { ApiError, type StrategyPillar, type FitType } from '../../../api/types';
 import type { PillarChange } from '../../../api/metadata';
 import './StrategyPillarsSettings.css';
 
@@ -17,6 +17,7 @@ interface EditablePillar {
   active: boolean;
   fitScoringEnabled: boolean;
   fitCriteria: string;
+  fitType: FitType;
   isNew: boolean;
   markedForDeletion: boolean;
 }
@@ -67,7 +68,8 @@ function hasPillarChanged(pillar: EditablePillar, original: StrategyPillar | und
     original.name !== pillar.name.trim() ||
     original.description !== pillar.description.trim() ||
     original.fitScoringEnabled !== pillar.fitScoringEnabled ||
-    original.fitCriteria !== pillar.fitCriteria.trim()
+    original.fitCriteria !== pillar.fitCriteria.trim() ||
+    original.fitType !== pillar.fitType
   );
 }
 
@@ -82,6 +84,7 @@ function buildSinglePillarChange(
       description: pillar.description.trim(),
       fitScoringEnabled: pillar.fitScoringEnabled,
       fitCriteria: pillar.fitCriteria.trim(),
+      fitType: pillar.fitType,
     };
   }
 
@@ -99,6 +102,7 @@ function buildSinglePillarChange(
         description: pillar.description.trim(),
         fitScoringEnabled: pillar.fitScoringEnabled,
         fitCriteria: pillar.fitCriteria.trim(),
+        fitType: pillar.fitType,
       };
     }
   }
@@ -129,6 +133,7 @@ export function StrategyPillarsSettings() {
           ...p,
           fitScoringEnabled: p.fitScoringEnabled ?? false,
           fitCriteria: p.fitCriteria ?? '',
+          fitType: p.fitType ?? '',
           isNew: false,
           markedForDeletion: false,
         }))
@@ -179,6 +184,7 @@ export function StrategyPillarsSettings() {
           ...p,
           fitScoringEnabled: p.fitScoringEnabled ?? false,
           fitCriteria: p.fitCriteria ?? '',
+          fitType: p.fitType ?? '',
           isNew: false,
           markedForDeletion: false,
         }))
@@ -258,6 +264,7 @@ export function StrategyPillarsSettings() {
       active: true,
       fitScoringEnabled: false,
       fitCriteria: '',
+      fitType: '',
       isNew: true,
       markedForDeletion: false,
     };
@@ -278,6 +285,12 @@ export function StrategyPillarsSettings() {
   const handleFitCriteriaChange = (index: number, criteria: string) => {
     const updated = [...editedPillars];
     updated[index] = { ...updated[index], fitCriteria: criteria };
+    setEditedPillars(updated);
+  };
+
+  const handleFitTypeChange = (index: number, fitType: FitType) => {
+    const updated = [...editedPillars];
+    updated[index] = { ...updated[index], fitType };
     setEditedPillars(updated);
   };
 
@@ -438,16 +451,35 @@ export function StrategyPillarsSettings() {
                         />
                       </label>
                       {'fitScoringEnabled' in pillar && pillar.fitScoringEnabled && (
-                        <input
-                          type="text"
-                          className="pillar-fit-criteria-input"
-                          value={'fitCriteria' in pillar ? pillar.fitCriteria : ''}
-                          onChange={(e) => handleFitCriteriaChange(index, e.target.value)}
-                          placeholder="Fit criteria (e.g., Reliability, uptime SLA, disaster recovery)"
-                          data-testid={`pillar-fit-criteria-input-${index}`}
-                          maxLength={500}
-                          disabled={isMarkedForDeletion}
-                        />
+                        <>
+                          <div className="fit-type-selector">
+                            <label>Fit Type</label>
+                            <select
+                              value={'fitType' in pillar ? pillar.fitType : ''}
+                              onChange={(e) => handleFitTypeChange(index, e.target.value as FitType)}
+                              disabled={isMarkedForDeletion}
+                              data-testid={`pillar-fit-type-select-${index}`}
+                            >
+                              <option value="">Select fit type</option>
+                              <option value="TECHNICAL">Technical</option>
+                              <option value="FUNCTIONAL">Functional</option>
+                            </select>
+                            <HelpTooltip
+                              content="Technical fit measures how well the application supports technical aspects of this pillar. Functional fit measures business functionality alignment."
+                              iconOnly
+                            />
+                          </div>
+                          <input
+                            type="text"
+                            className="pillar-fit-criteria-input"
+                            value={'fitCriteria' in pillar ? pillar.fitCriteria : ''}
+                            onChange={(e) => handleFitCriteriaChange(index, e.target.value)}
+                            placeholder="Fit criteria (e.g., Reliability, uptime SLA, disaster recovery)"
+                            data-testid={`pillar-fit-criteria-input-${index}`}
+                            maxLength={500}
+                            disabled={isMarkedForDeletion}
+                          />
+                        </>
                       )}
                     </div>
                   </>
@@ -460,6 +492,11 @@ export function StrategyPillarsSettings() {
                     {pillar.fitScoringEnabled && (
                       <div className="pillar-fit-info">
                         <span className="fit-scoring-badge">Fit Scoring Enabled</span>
+                        {pillar.fitType && (
+                          <span className="fit-type-badge">
+                            {pillar.fitType === 'TECHNICAL' ? 'Technical' : 'Functional'}
+                          </span>
+                        )}
                         {pillar.fitCriteria && (
                           <span className="fit-criteria-view">{pillar.fitCriteria}</span>
                         )}
