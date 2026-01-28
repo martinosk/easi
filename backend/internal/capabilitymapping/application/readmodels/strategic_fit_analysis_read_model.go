@@ -22,6 +22,7 @@ type RealizationFitDTO struct {
 	ImportanceSourceCapabilityID   string `json:"importanceSourceCapabilityId,omitempty"`
 	ImportanceSourceCapabilityName string `json:"importanceSourceCapabilityName,omitempty"`
 	IsImportanceInherited          bool   `json:"isImportanceInherited"`
+	ImportanceRationale            string `json:"importanceRationale,omitempty"`
 	FitScore                       int    `json:"fitScore"`
 	FitScoreLabel                  string `json:"fitScoreLabel"`
 	Gap                            int    `json:"gap"`
@@ -78,6 +79,7 @@ func (rm *StrategicFitAnalysisReadModel) GetStrategicFitAnalysis(ctx context.Con
 				COALESCE(eci.source_capability_id, '') as source_capability_id,
 				COALESCE(eci.source_capability_name, '') as source_capability_name,
 				COALESCE(eci.is_inherited, false) as is_inherited,
+				COALESCE(si.rationale, '') as importance_rationale,
 				COALESCE(afs.score, 0) as fit_score,
 				COALESCE(afs.score_label, '') as fit_score_label,
 				COALESCE(afs.rationale, '') as fit_rationale
@@ -88,6 +90,10 @@ func (rm *StrategicFitAnalysisReadModel) GetStrategicFitAnalysis(ctx context.Con
 				AND r.capability_id = eci.capability_id
 				AND dcm.business_domain_id = eci.business_domain_id
 				AND eci.pillar_id = $2
+			LEFT JOIN strategy_importance si ON r.tenant_id = si.tenant_id
+				AND r.capability_id = si.capability_id
+				AND dcm.business_domain_id = si.business_domain_id
+				AND si.pillar_id = $2
 			LEFT JOIN application_fit_scores afs ON r.tenant_id = afs.tenant_id
 				AND r.component_id = afs.component_id
 				AND afs.pillar_id = $2
@@ -123,6 +129,7 @@ func (rm *StrategicFitAnalysisReadModel) GetStrategicFitAnalysis(ctx context.Con
 				&dto.ImportanceSourceCapabilityID,
 				&dto.ImportanceSourceCapabilityName,
 				&dto.IsImportanceInherited,
+				&dto.ImportanceRationale,
 				&dto.FitScore,
 				&dto.FitScoreLabel,
 				&dto.FitRationale,

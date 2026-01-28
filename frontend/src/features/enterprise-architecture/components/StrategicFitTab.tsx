@@ -129,6 +129,9 @@ function RealizationFitCard({ realization }: RealizationFitCardProps) {
           </span>
         </div>
       </div>
+      {realization.importanceRationale && (
+        <div className="fit-rationale">Strategic importance: "{realization.importanceRationale}"</div>
+      )}
       {realization.fitRationale && (
         <div className="fit-rationale">"{realization.fitRationale}"</div>
       )}

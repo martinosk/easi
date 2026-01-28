@@ -33,7 +33,6 @@ const mockSuggestions: TimeSuggestion[] = [
     suggestedTime: 'Tolerate',
     technicalGap: -5,
     functionalGap: 2,
-    confidence: 'High',
   },
   {
     capabilityId: 'cap-1',
@@ -43,7 +42,6 @@ const mockSuggestions: TimeSuggestion[] = [
     suggestedTime: 'Eliminate',
     technicalGap: 25,
     functionalGap: 30,
-    confidence: 'High',
   },
   {
     capabilityId: 'cap-2',
@@ -53,7 +51,6 @@ const mockSuggestions: TimeSuggestion[] = [
     suggestedTime: 'Invest',
     technicalGap: 15,
     functionalGap: -3,
-    confidence: 'Medium',
   },
   {
     capabilityId: 'cap-3',
@@ -63,7 +60,6 @@ const mockSuggestions: TimeSuggestion[] = [
     suggestedTime: null,
     technicalGap: null,
     functionalGap: 10,
-    confidence: 'Insufficient',
   },
 ];
 
@@ -145,21 +141,6 @@ describe('TimeSuggestionsTab', () => {
     expect(screen.getByText('N/A')).toBeInTheDocument();
   });
 
-  it('displays confidence badges correctly', () => {
-    mockUseTimeSuggestions.mockReturnValue({
-      suggestions: mockSuggestions,
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    render(<TimeSuggestionsTab />, { wrapper: createWrapper() });
-
-    expect(screen.getAllByText('High')).toHaveLength(2);
-    expect(screen.getByText('Medium')).toBeInTheDocument();
-    expect(screen.getByText('Insufficient')).toBeInTheDocument();
-  });
-
   it('displays summary statistics correctly', () => {
     mockUseTimeSuggestions.mockReturnValue({
       suggestions: mockSuggestions,
@@ -185,9 +166,9 @@ describe('TimeSuggestionsTab', () => {
     render(<TimeSuggestionsTab />, { wrapper: createWrapper() });
 
     expect(screen.getByText('TIME Classifications')).toBeInTheDocument();
-    expect(screen.getByText('- Keep as-is, good fit')).toBeInTheDocument();
-    expect(screen.getByText('- Enhance technical quality')).toBeInTheDocument();
-    expect(screen.getByText('- Replace functional implementation')).toBeInTheDocument();
-    expect(screen.getByText('- Phase out entirely')).toBeInTheDocument();
+    expect(screen.getByText('Tolerate')).toBeInTheDocument();
+    expect(screen.getByText('Invest')).toBeInTheDocument();
+    expect(screen.getByText('Migrate')).toBeInTheDocument();
+    expect(screen.getByText('Eliminate')).toBeInTheDocument();
   });
 });

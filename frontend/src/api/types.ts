@@ -674,6 +674,7 @@ export interface RealizationFit {
   importanceSourceCapabilityId?: CapabilityId;
   importanceSourceCapabilityName?: string;
   isImportanceInherited: boolean;
+  importanceRationale?: string;
   fitScore: number;
   fitScoreLabel: string;
   gap: number;

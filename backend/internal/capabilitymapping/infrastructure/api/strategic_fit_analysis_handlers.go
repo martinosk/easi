@@ -43,6 +43,7 @@ type RealizationFitResponse struct {
 	ImportanceSourceCapabilityID   string `json:"importanceSourceCapabilityId,omitempty"`
 	ImportanceSourceCapabilityName string `json:"importanceSourceCapabilityName,omitempty"`
 	IsImportanceInherited          bool   `json:"isImportanceInherited"`
+	ImportanceRationale            string `json:"importanceRationale,omitempty"`
 	FitScore                       int    `json:"fitScore"`
 	FitScoreLabel                  string `json:"fitScoreLabel"`
 	Gap                            int    `json:"gap"`
@@ -161,6 +162,7 @@ func (h *StrategicFitAnalysisHandlers) buildRealizationFitResponses(dtos []readm
 			ImportanceSourceCapabilityID:   dto.ImportanceSourceCapabilityID,
 			ImportanceSourceCapabilityName: dto.ImportanceSourceCapabilityName,
 			IsImportanceInherited:          dto.IsImportanceInherited,
+			ImportanceRationale:            dto.ImportanceRationale,
 			FitScore:                       dto.FitScore,
 			FitScoreLabel:                  dto.FitScoreLabel,
 			Gap:                            dto.Gap,
