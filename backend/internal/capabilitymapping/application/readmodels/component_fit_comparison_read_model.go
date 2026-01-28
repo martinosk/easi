@@ -49,14 +49,14 @@ func (rm *ComponentFitComparisonReadModel) GetByComponentAndCapability(
 				afs.pillar_name,
 				afs.score as fit_score,
 				afs.score_label as fit_score_label,
-				COALESCE(si.importance, 0) as importance,
-				COALESCE(si.importance_label, '') as importance_label,
+				COALESCE(eci.effective_importance, 0) as importance,
+				COALESCE(eci.importance_label, '') as importance_label,
 				COALESCE(afs.rationale, '') as fit_rationale
 			FROM application_fit_scores afs
-			LEFT JOIN strategy_importance si ON afs.tenant_id = si.tenant_id
-				AND afs.pillar_id = si.pillar_id
-				AND si.capability_id = $3
-				AND si.business_domain_id = $4
+			LEFT JOIN effective_capability_importance eci ON afs.tenant_id = eci.tenant_id
+				AND afs.pillar_id = eci.pillar_id
+				AND eci.capability_id = $3
+				AND eci.business_domain_id = $4
 			WHERE afs.tenant_id = $1
 				AND afs.component_id = $2
 			ORDER BY afs.pillar_name

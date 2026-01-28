@@ -36,6 +36,7 @@ func (m *mockRatingLookup) addRating(capabilityID valueobjects.CapabilityID, pil
 		Importance:     imp,
 		CapabilityID:   capabilityID,
 		CapabilityName: capabilityName,
+		Rationale:      "",
 	}
 }
 

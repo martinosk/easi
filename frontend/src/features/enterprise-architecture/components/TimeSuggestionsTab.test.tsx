@@ -166,9 +166,9 @@ describe('TimeSuggestionsTab', () => {
     render(<TimeSuggestionsTab />, { wrapper: createWrapper() });
 
     expect(screen.getByText('TIME Classifications')).toBeInTheDocument();
-    expect(screen.getByText('Tolerate')).toBeInTheDocument();
-    expect(screen.getByText('Invest')).toBeInTheDocument();
-    expect(screen.getByText('Migrate')).toBeInTheDocument();
-    expect(screen.getByText('Eliminate')).toBeInTheDocument();
+    expect(screen.getAllByText('Tolerate').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Invest').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Migrate').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Eliminate').length).toBeGreaterThanOrEqual(1);
   });
 });

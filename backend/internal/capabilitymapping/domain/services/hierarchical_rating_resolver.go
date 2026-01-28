@@ -10,6 +10,7 @@ type RatingInfo struct {
 	Importance     valueobjects.Importance
 	CapabilityID   valueobjects.CapabilityID
 	CapabilityName string
+	Rationale      string
 }
 
 type RatingLookup interface {
@@ -19,6 +20,7 @@ type RatingLookup interface {
 type ResolvedRating struct {
 	EffectiveImportance    valueobjects.EffectiveImportance
 	SourceCapabilityName   string
+	Rationale              string
 }
 
 type HierarchicalRatingResolver interface {
@@ -78,6 +80,7 @@ func (r *hierarchicalRatingResolver) ResolveEffectiveImportance(
 			return &ResolvedRating{
 				EffectiveImportance:  effectiveImportance,
 				SourceCapabilityName: rating.CapabilityName,
+				Rationale:            rating.Rationale,
 			}, nil
 		}
 

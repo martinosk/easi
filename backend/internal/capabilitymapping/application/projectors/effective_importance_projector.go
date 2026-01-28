@@ -366,6 +366,7 @@ func (p *EffectiveImportanceProjector) recomputeSingleCapability(ctx context.Con
 		SourceCapabilityID:   resolved.EffectiveImportance.SourceCapabilityID().Value(),
 		SourceCapabilityName: resolved.SourceCapabilityName,
 		IsInherited:          resolved.EffectiveImportance.IsInherited(),
+		Rationale:            resolved.Rationale,
 		ComputedAt:           time.Now().UTC(),
 	}
 

@@ -38,6 +38,7 @@ func (a *RatingLookupAdapter) GetRating(ctx context.Context, capabilityID valueo
 				Importance:     importance,
 				CapabilityID:   capID,
 				CapabilityName: rating.CapabilityName,
+				Rationale:      rating.Rationale,
 			}, nil
 		}
 	}

@@ -48,8 +48,7 @@ func SetupCapabilityMappingRoutes(
 	sessionManager *session.SessionManager,
 	authMiddleware AuthMiddleware,
 ) error {
-	pillarsGateway := metamodel.NewDirectStrategyPillarsGateway(db)
-	return SetupCapabilityMappingRoutesWithGateways(r, commandBus, eventStore, eventBus, db, hateoas, nil, pillarsGateway, sessionManager, authMiddleware)
+	return SetupCapabilityMappingRoutesWithGateways(r, commandBus, eventStore, eventBus, db, hateoas, nil, nil, sessionManager, authMiddleware)
 }
 
 func SetupCapabilityMappingRoutesWithGateway(
@@ -82,6 +81,10 @@ func SetupCapabilityMappingRoutesWithGateways(
 
 	repos := initializeRepositories(config.eventStore)
 	readModels := initializeReadModels(config.db)
+
+	if config.strategyPillarsGateway == nil {
+		config.strategyPillarsGateway = metamodel.NewLocalStrategyPillarsGateway(readModels.strategyPillarCache)
+	}
 
 	setupEventSubscriptions(config.eventBus, readModels, config.strategyPillarsGateway)
 	setupCascadingDeleteHandlers(config.eventBus, config.commandBus, readModels)
@@ -127,6 +130,7 @@ type routeReadModels struct {
 	componentFitComparison        *readmodels.ComponentFitComparisonReadModel
 	componentCache                *readmodels.ComponentCacheReadModel
 	effectiveCapabilityImportance *readmodels.EffectiveCapabilityImportanceReadModel
+	strategyPillarCache           *readmodels.StrategyPillarCacheReadModel
 }
 
 type routeHTTPHandlers struct {
@@ -165,6 +169,7 @@ func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 		componentFitComparison:        readmodels.NewComponentFitComparisonReadModel(db),
 		componentCache:                readmodels.NewComponentCacheReadModel(db),
 		effectiveCapabilityImportance: readmodels.NewEffectiveCapabilityImportanceReadModel(db),
+		strategyPillarCache:           readmodels.NewStrategyPillarCacheReadModel(db),
 	}
 }
 
@@ -177,6 +182,7 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pill
 	strategyImportanceProjector := projectors.NewStrategyImportanceProjector(rm.strategyImportance, rm.businessDomain, rm.capability, pillarsGateway)
 	applicationFitScoreProjector := projectors.NewApplicationFitScoreProjector(rm.applicationFitScore, rm.componentCache, pillarsGateway)
 	componentCacheProjector := projectors.NewComponentCacheProjector(rm.componentCache)
+	pillarCacheProjector := projectors.NewStrategyPillarCacheProjector(rm.strategyPillarCache)
 
 	capabilityLookupAdapter := adapters.NewCapabilityLookupAdapter(rm.capability)
 	ratingLookupAdapter := adapters.NewRatingLookupAdapter(rm.strategyImportance)
@@ -201,6 +207,7 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pill
 	subscribeApplicationFitScoreEvents(eventBus, applicationFitScoreProjector)
 	subscribeComponentCacheEvents(eventBus, componentCacheProjector)
 	subscribeEffectiveImportanceEvents(eventBus, effectiveImportanceProjector)
+	subscribeMetaModelEvents(eventBus, pillarCacheProjector)
 }
 
 func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.CapabilityProjector) {
@@ -270,6 +277,18 @@ func subscribeEffectiveImportanceEvents(eventBus events.EventBus, projector *pro
 		"CapabilityDeleted",
 		"CapabilityAssignedToDomain",
 		"CapabilityUnassignedFromDomain",
+	}
+	for _, event := range events {
+		eventBus.Subscribe(event, projector)
+	}
+}
+
+func subscribeMetaModelEvents(eventBus events.EventBus, projector *projectors.StrategyPillarCacheProjector) {
+	events := []string{
+		"StrategyPillarAdded",
+		"StrategyPillarUpdated",
+		"StrategyPillarRemoved",
+		"PillarFitConfigurationUpdated",
 	}
 	for _, event := range events {
 		eventBus.Subscribe(event, projector)

@@ -5,10 +5,10 @@ import (
 
 	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/auth/infrastructure/session"
-	metamodelGateway "easi/backend/internal/capabilitymapping/infrastructure/metamodel"
 	"easi/backend/internal/enterprisearchitecture/application/handlers"
 	"easi/backend/internal/enterprisearchitecture/application/projectors"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
+	"easi/backend/internal/enterprisearchitecture/infrastructure/metamodel"
 	"easi/backend/internal/enterprisearchitecture/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -42,6 +42,7 @@ type routeReadModels struct {
 	metadata         *readmodels.DomainCapabilityMetadataReadModel
 	maturityAnalysis *readmodels.MaturityAnalysisReadModel
 	timeSuggestion   *readmodels.TimeSuggestionReadModel
+	pillarCache      *readmodels.StrategyPillarCacheReadModel
 }
 
 type routeHTTPHandlers struct {
@@ -82,7 +83,8 @@ func initializeRepositories(eventStore eventstore.EventStore) *routeRepositories
 }
 
 func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
-	pillarsGateway := metamodelGateway.NewDirectStrategyPillarsGateway(db)
+	pillarCache := readmodels.NewStrategyPillarCacheReadModel(db)
+	pillarsGateway := metamodel.NewLocalStrategyPillarsGateway(pillarCache)
 	return &routeReadModels{
 		capability:       readmodels.NewEnterpriseCapabilityReadModel(db),
 		link:             readmodels.NewEnterpriseCapabilityLinkReadModel(db),
@@ -90,6 +92,7 @@ func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 		metadata:         readmodels.NewDomainCapabilityMetadataReadModel(db),
 		maturityAnalysis: readmodels.NewMaturityAnalysisReadModel(db),
 		timeSuggestion:   readmodels.NewTimeSuggestionReadModel(db, pillarsGateway),
+		pillarCache:      pillarCache,
 	}
 }
 
@@ -98,11 +101,13 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels) {
 	linkProjector := projectors.NewEnterpriseCapabilityLinkProjector(rm.link)
 	importanceProjector := projectors.NewEnterpriseStrategicImportanceProjector(rm.importance)
 	metadataProjector := projectors.NewDomainCapabilityMetadataProjector(rm.metadata, rm.capability, rm.link)
+	pillarCacheProjector := projectors.NewStrategyPillarCacheProjector(rm.pillarCache)
 
 	subscribeCapabilityEvents(eventBus, capabilityProjector)
 	subscribeLinkEvents(eventBus, linkProjector)
 	subscribeImportanceEvents(eventBus, importanceProjector)
 	subscribeCapabilityMappingEvents(eventBus, metadataProjector)
+	subscribePillarCacheEvents(eventBus, pillarCacheProjector)
 }
 
 func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.EnterpriseCapabilityProjector) {
@@ -149,6 +154,17 @@ func subscribeCapabilityMappingEvents(eventBus events.EventBus, projector *proje
 		"CapabilityParentChanged",
 		"CapabilityAssignedToDomain",
 		"CapabilityUnassignedFromDomain",
+	}
+	for _, eventType := range eventTypes {
+		eventBus.Subscribe(eventType, projector)
+	}
+}
+
+func subscribePillarCacheEvents(eventBus events.EventBus, projector *projectors.StrategyPillarCacheProjector) {
+	eventTypes := []string{
+		"StrategyPillarAdded",
+		"StrategyPillarUpdated",
+		"StrategyPillarRemoved",
 	}
 	for _, eventType := range eventTypes {
 		eventBus.Subscribe(eventType, projector)
