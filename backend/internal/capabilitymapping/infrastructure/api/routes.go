@@ -48,36 +48,7 @@ func SetupCapabilityMappingRoutes(
 	sessionManager *session.SessionManager,
 	authMiddleware AuthMiddleware,
 ) error {
-	return SetupCapabilityMappingRoutesWithGateways(r, commandBus, eventStore, eventBus, db, hateoas, nil, nil, sessionManager, authMiddleware)
-}
-
-func SetupCapabilityMappingRoutesWithGateway(
-	r chi.Router,
-	commandBus *cqrs.InMemoryCommandBus,
-	eventStore eventstore.EventStore,
-	eventBus events.EventBus,
-	db *database.TenantAwareDB,
-	hateoas *sharedAPI.HATEOASLinks,
-	gateway metamodel.MaturityScaleGateway,
-	sessionManager *session.SessionManager,
-	authMiddleware AuthMiddleware,
-) error {
-	return SetupCapabilityMappingRoutesWithGateways(r, commandBus, eventStore, eventBus, db, hateoas, gateway, nil, sessionManager, authMiddleware)
-}
-
-func SetupCapabilityMappingRoutesWithGateways(
-	r chi.Router,
-	commandBus *cqrs.InMemoryCommandBus,
-	eventStore eventstore.EventStore,
-	eventBus events.EventBus,
-	db *database.TenantAwareDB,
-	hateoas *sharedAPI.HATEOASLinks,
-	maturityGateway metamodel.MaturityScaleGateway,
-	pillarsGateway metamodel.StrategyPillarsGateway,
-	sessionManager *session.SessionManager,
-	authMiddleware AuthMiddleware,
-) error {
-	config := &routeConfig{commandBus, eventStore, eventBus, db, hateoas, maturityGateway, pillarsGateway, sessionManager, authMiddleware}
+	config := &routeConfig{commandBus, eventStore, eventBus, db, hateoas, nil, nil, sessionManager, authMiddleware}
 
 	repos := initializeRepositories(config.eventStore)
 	readModels := initializeReadModels(config.db)
