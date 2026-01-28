@@ -1,4 +1,4 @@
-// Test to reproduce the bug where child capabilities don't inherit business domain from parent
+//go:build integration
 
 package readmodels
 
