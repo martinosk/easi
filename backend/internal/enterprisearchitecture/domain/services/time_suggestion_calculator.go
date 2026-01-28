@@ -6,7 +6,6 @@ type TimeSuggestionResult struct {
 	SuggestedTime  string
 	TechnicalGap   float64
 	FunctionalGap  float64
-	Confidence     string
 }
 
 type TimeSuggestionCalculator struct {
@@ -30,8 +29,6 @@ func (c *TimeSuggestionCalculator) Calculate(technicalGaps, functionalGaps []flo
 		result.FunctionalGap = averageGaps(functionalGaps)
 	}
 
-	result.Confidence = c.calculateConfidence(technicalGaps, functionalGaps)
-
 	if !hasTechnicalData || !hasFunctionalData {
 		return result
 	}
@@ -39,21 +36,6 @@ func (c *TimeSuggestionCalculator) Calculate(technicalGaps, functionalGaps []flo
 	result.SuggestedTime = c.determineTimeClassification(result.TechnicalGap, result.FunctionalGap)
 
 	return result
-}
-
-func (c *TimeSuggestionCalculator) calculateConfidence(technicalGaps, functionalGaps []float64) string {
-	techCount := len(technicalGaps)
-	funcCount := len(functionalGaps)
-
-	if techCount == 0 || funcCount == 0 {
-		return "LOW"
-	}
-
-	if techCount >= 2 && funcCount >= 2 {
-		return "HIGH"
-	}
-
-	return "MEDIUM"
 }
 
 func (c *TimeSuggestionCalculator) determineTimeClassification(technicalGap, functionalGap float64) string {

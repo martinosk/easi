@@ -18,7 +18,6 @@ type TimeSuggestionDTO struct {
 	SuggestedTime  *string  `json:"suggestedTime"`
 	TechnicalGap   *float64 `json:"technicalGap"`
 	FunctionalGap  *float64 `json:"functionalGap"`
-	Confidence     string   `json:"confidence"`
 }
 
 type TimeSuggestionReadModel struct {
@@ -234,7 +233,6 @@ func (rm *TimeSuggestionReadModel) buildSuggestionDTO(key realizationKey, calcRe
 		CapabilityName: key.capabilityName,
 		ComponentID:    key.componentID,
 		ComponentName:  key.componentName,
-		Confidence:     calcResult.Confidence,
 	}
 	if calcResult.SuggestedTime != "" {
 		dto.SuggestedTime = &calcResult.SuggestedTime

@@ -209,10 +209,10 @@ func (p *DomainCapabilityMetadataProjector) handleCapabilityAssignedToDomain(ctx
 		return err
 	}
 
-	businessDomainName := p.lookupBusinessDomainName(ctx, event.BusinessDomainID)
-
-	if err := p.metadataReadModel.UpdateBusinessDomainForL1Subtree(ctx, event.CapabilityID, event.BusinessDomainID, businessDomainName); err != nil {
-		log.Printf("Failed to update business domain for L1 subtree %s: %v", event.CapabilityID, err)
+	// Recalculate L1 ancestry for the entire subtree to fix any children that were created
+	// before the parent metadata existed (which would have wrong l1_capability_id)
+	if err := p.metadataReadModel.RecalculateL1ForSubtree(ctx, event.CapabilityID); err != nil {
+		log.Printf("Failed to recalculate L1 for subtree %s: %v", event.CapabilityID, err)
 		return err
 	}
 
@@ -239,8 +239,9 @@ func (p *DomainCapabilityMetadataProjector) handleCapabilityUnassignedFromDomain
 		return err
 	}
 
-	if err := p.metadataReadModel.UpdateBusinessDomainForL1Subtree(ctx, event.CapabilityID, "", ""); err != nil {
-		log.Printf("Failed to clear business domain for L1 subtree %s: %v", event.CapabilityID, err)
+	// Recalculate L1 ancestry to clear business domain for the subtree
+	if err := p.metadataReadModel.RecalculateL1ForSubtree(ctx, event.CapabilityID); err != nil {
+		log.Printf("Failed to recalculate L1 for subtree %s: %v", event.CapabilityID, err)
 		return err
 	}
 

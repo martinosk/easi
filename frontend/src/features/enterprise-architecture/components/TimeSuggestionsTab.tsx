@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useTimeSuggestions } from '../hooks/useTimeSuggestions';
 import { HelpTooltip } from '../../../components/shared/HelpTooltip';
-import type { TimeSuggestion, TimeClassification, TimeSuggestionConfidence } from '../types';
+import type { TimeSuggestion, TimeClassification } from '../types';
 import './TimeSuggestionsTab.css';
 
 const TIME_CLASSIFICATIONS: {
@@ -9,28 +9,24 @@ const TIME_CLASSIFICATIONS: {
   color: string;
   description: string;
 }[] = [
-  { value: 'Tolerate', color: 'var(--green-500)', description: 'Keep as-is, good fit' },
-  { value: 'Invest', color: 'var(--blue-500)', description: 'Enhance technical quality' },
-  { value: 'Migrate', color: 'var(--yellow-500)', description: 'Replace functional implementation' },
-  { value: 'Eliminate', color: 'var(--red-500)', description: 'Phase out entirely' },
+  { value: 'Tolerate', color: 'var(--green-500)', description: 'Low Value, High Technical Quality - Keep but limit investment' },
+  { value: 'Invest', color: 'var(--blue-500)', description: 'High Value, High Technical Quality - Prioritize for funding' },
+  { value: 'Migrate', color: 'var(--yellow-500)', description: 'High Value, Low Technical Quality - Upgrade or move to new platform' },
+  { value: 'Eliminate', color: 'var(--red-500)', description: 'Low Value, Low Technical Quality - Retire or remove' },
 ];
 
 function TimeLegend() {
   return (
     <div className="time-legend">
-      <span className="time-legend-title">
-        TIME Classifications
-        <HelpTooltip
-          content="Gartner TIME model: Tolerate (good fit), Invest (improve technical), Migrate (replace functional), Eliminate (phase out)"
-          iconOnly
-        />
-      </span>
+      <span className="time-legend-title">TIME Classifications</span>
       <div className="time-legend-items">
         {TIME_CLASSIFICATIONS.map(item => (
           <div key={item.value} className="time-legend-item">
             <span className="time-legend-dot" style={{ backgroundColor: item.color }} />
-            <span className="time-legend-name">{item.value}</span>
-            <span className="time-legend-description">- {item.description}</span>
+            <span className="time-legend-name">
+              {item.value}
+              <HelpTooltip content={item.description} iconOnly />
+            </span>
           </div>
         ))}
       </div>
@@ -43,10 +39,6 @@ function TimeBadge({ time }: { time: TimeClassification | null }) {
     return <span className="time-badge unknown">N/A</span>;
   }
   return <span className={`time-badge ${time.toLowerCase()}`}>{time}</span>;
-}
-
-function ConfidenceBadge({ confidence }: { confidence: TimeSuggestionConfidence }) {
-  return <span className={`confidence-badge ${confidence.toLowerCase()}`}>{confidence}</span>;
 }
 
 function GapCell({ gap, label }: { gap: number | null; label: string }) {
@@ -70,7 +62,6 @@ function SuggestionRow({ suggestion }: { suggestion: TimeSuggestion }) {
       <GapCell gap={suggestion.technicalGap} label="Technical Gap" />
       <GapCell gap={suggestion.functionalGap} label="Functional Gap" />
       <td className="gap-cell"><TimeBadge time={suggestion.suggestedTime} /></td>
-      <td className="gap-cell"><ConfidenceBadge confidence={suggestion.confidence} /></td>
     </tr>
   );
 }
@@ -78,20 +69,17 @@ function SuggestionRow({ suggestion }: { suggestion: TimeSuggestion }) {
 interface SummaryStats {
   total: number;
   byClassification: Record<TimeClassification | 'Unknown', number>;
-  highConfidence: number;
 }
 
 function calculateSummary(suggestions: TimeSuggestion[]): SummaryStats {
   const byClassification: Record<TimeClassification | 'Unknown', number> = {
     Tolerate: 0, Invest: 0, Migrate: 0, Eliminate: 0, Unknown: 0,
   };
-  let highConfidence = 0;
   for (const s of suggestions) {
     if (s.suggestedTime) byClassification[s.suggestedTime]++;
     else byClassification.Unknown++;
-    if (s.confidence === 'High') highConfidence++;
   }
-  return { total: suggestions.length, byClassification, highConfidence };
+  return { total: suggestions.length, byClassification };
 }
 
 type GroupBy = 'none' | 'capability' | 'component';
@@ -111,13 +99,6 @@ function TimeSuggestionsHeader({ summary, groupBy, onGroupByChange }: HeaderProp
           <span className="time-summary-label">
             Total Realizations
             <HelpTooltip content="Component-capability combinations with both strategic importance and fit scores" iconOnly />
-          </span>
-        </div>
-        <div className="time-summary-stat">
-          <span className="time-summary-value">{summary.highConfidence}</span>
-          <span className="time-summary-label">
-            High Confidence
-            <HelpTooltip content="Suggestions with both technical and functional gaps available" iconOnly />
           </span>
         </div>
         <div className="time-summary-stat">
@@ -176,10 +157,6 @@ function SuggestionsTable({ suggestions }: { suggestions: TimeSuggestion[] }) {
             <th className="text-center">
               Suggested TIME
               <HelpTooltip content="Recommended action based on technical and functional gap analysis" iconOnly />
-            </th>
-            <th className="text-center">
-              Confidence
-              <HelpTooltip content="High: both gaps available, Medium: one gap available, Low/Insufficient: limited data" iconOnly />
             </th>
           </tr>
         </thead>

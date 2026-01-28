@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"os"
 
 	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/auth/infrastructure/session"
@@ -74,13 +73,6 @@ func SetupEnterpriseArchitectureRoutes(deps EnterpriseArchRoutesDeps) error {
 	return nil
 }
 
-func getMetaModelBaseURL() string {
-	if baseURL := os.Getenv("METAMODEL_SERVICE_URL"); baseURL != "" {
-		return baseURL
-	}
-	return "http://localhost:8080/api/v1"
-}
-
 func initializeRepositories(eventStore eventstore.EventStore) *routeRepositories {
 	return &routeRepositories{
 		capability: repositories.NewEnterpriseCapabilityRepository(eventStore),
@@ -90,7 +82,7 @@ func initializeRepositories(eventStore eventstore.EventStore) *routeRepositories
 }
 
 func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
-	pillarsGateway := metamodelGateway.NewStrategyPillarsGateway(getMetaModelBaseURL())
+	pillarsGateway := metamodelGateway.NewDirectStrategyPillarsGateway(db)
 	return &routeReadModels{
 		capability:       readmodels.NewEnterpriseCapabilityReadModel(db),
 		link:             readmodels.NewEnterpriseCapabilityLinkReadModel(db),

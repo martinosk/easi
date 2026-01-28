@@ -191,7 +191,6 @@ export interface MaturityGapDetail {
 }
 
 export type TimeClassification = 'Tolerate' | 'Invest' | 'Migrate' | 'Eliminate';
-export type TimeSuggestionConfidence = 'High' | 'Medium' | 'Low' | 'Insufficient';
 
 export interface TimeSuggestion {
   capabilityId: string;
@@ -201,7 +200,6 @@ export interface TimeSuggestion {
   suggestedTime: TimeClassification | null;
   technicalGap: number | null;
   functionalGap: number | null;
-  confidence: TimeSuggestionConfidence;
 }
 
 export interface TimeSuggestionsResponse {
