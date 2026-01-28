@@ -18,6 +18,7 @@ type EffectiveImportanceDTO struct {
 	SourceCapabilityID     string    `json:"sourceCapabilityId"`
 	SourceCapabilityName   string    `json:"sourceCapabilityName"`
 	IsInherited            bool      `json:"isInherited"`
+	Rationale              string    `json:"rationale"`
 	ComputedAt             time.Time `json:"computedAt"`
 }
 
@@ -38,8 +39,8 @@ func (rm *EffectiveCapabilityImportanceReadModel) Upsert(ctx context.Context, dt
 	_, err = rm.db.ExecContext(ctx,
 		`INSERT INTO effective_capability_importance
 		(tenant_id, capability_id, pillar_id, business_domain_id, effective_importance, importance_label,
-		source_capability_id, source_capability_name, is_inherited, computed_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		source_capability_id, source_capability_name, is_inherited, rationale, computed_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		ON CONFLICT (tenant_id, capability_id, pillar_id, business_domain_id)
 		DO UPDATE SET
 			effective_importance = EXCLUDED.effective_importance,
@@ -47,10 +48,11 @@ func (rm *EffectiveCapabilityImportanceReadModel) Upsert(ctx context.Context, dt
 			source_capability_id = EXCLUDED.source_capability_id,
 			source_capability_name = EXCLUDED.source_capability_name,
 			is_inherited = EXCLUDED.is_inherited,
+			rationale = EXCLUDED.rationale,
 			computed_at = EXCLUDED.computed_at`,
 		tenantID.Value(), dto.CapabilityID, dto.PillarID, dto.BusinessDomainID,
 		dto.EffectiveImportance, dto.ImportanceLabel, dto.SourceCapabilityID,
-		dto.SourceCapabilityName, dto.IsInherited, dto.ComputedAt,
+		dto.SourceCapabilityName, dto.IsInherited, dto.Rationale, dto.ComputedAt,
 	)
 	return err
 }
@@ -139,7 +141,7 @@ func (rm *EffectiveCapabilityImportanceReadModel) GetByCapabilityPillarDomain(ct
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		row := tx.QueryRowContext(ctx,
 			`SELECT capability_id, pillar_id, business_domain_id, effective_importance, importance_label,
-			source_capability_id, source_capability_name, is_inherited, computed_at
+			source_capability_id, source_capability_name, is_inherited, rationale, computed_at
 			FROM effective_capability_importance
 			WHERE tenant_id = $1 AND capability_id = $2 AND pillar_id = $3 AND business_domain_id = $4`,
 			tenantID.Value(), capabilityID, pillarID, businessDomainID,
@@ -147,7 +149,7 @@ func (rm *EffectiveCapabilityImportanceReadModel) GetByCapabilityPillarDomain(ct
 
 		scanErr := row.Scan(&dto.CapabilityID, &dto.PillarID, &dto.BusinessDomainID,
 			&dto.EffectiveImportance, &dto.ImportanceLabel, &dto.SourceCapabilityID,
-			&dto.SourceCapabilityName, &dto.IsInherited, &dto.ComputedAt)
+			&dto.SourceCapabilityName, &dto.IsInherited, &dto.Rationale, &dto.ComputedAt)
 		if scanErr == sql.ErrNoRows {
 			notFound = true
 			return nil
@@ -175,7 +177,7 @@ func (rm *EffectiveCapabilityImportanceReadModel) GetByCapability(ctx context.Co
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			`SELECT capability_id, pillar_id, business_domain_id, effective_importance, importance_label,
-			source_capability_id, source_capability_name, is_inherited, computed_at
+			source_capability_id, source_capability_name, is_inherited, rationale, computed_at
 			FROM effective_capability_importance
 			WHERE tenant_id = $1 AND capability_id = $2
 			ORDER BY pillar_id, business_domain_id`,
@@ -190,7 +192,7 @@ func (rm *EffectiveCapabilityImportanceReadModel) GetByCapability(ctx context.Co
 			var dto EffectiveImportanceDTO
 			if err := rows.Scan(&dto.CapabilityID, &dto.PillarID, &dto.BusinessDomainID,
 				&dto.EffectiveImportance, &dto.ImportanceLabel, &dto.SourceCapabilityID,
-				&dto.SourceCapabilityName, &dto.IsInherited, &dto.ComputedAt); err != nil {
+				&dto.SourceCapabilityName, &dto.IsInherited, &dto.Rationale, &dto.ComputedAt); err != nil {
 				return err
 			}
 			results = append(results, dto)
@@ -211,7 +213,7 @@ func (rm *EffectiveCapabilityImportanceReadModel) GetBySourceCapabilityAndPillar
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			`SELECT capability_id, pillar_id, business_domain_id, effective_importance, importance_label,
-			source_capability_id, source_capability_name, is_inherited, computed_at
+			source_capability_id, source_capability_name, is_inherited, rationale, computed_at
 			FROM effective_capability_importance
 			WHERE tenant_id = $1 AND source_capability_id = $2 AND pillar_id = $3 AND business_domain_id = $4
 			ORDER BY capability_id`,
@@ -226,7 +228,7 @@ func (rm *EffectiveCapabilityImportanceReadModel) GetBySourceCapabilityAndPillar
 			var dto EffectiveImportanceDTO
 			if err := rows.Scan(&dto.CapabilityID, &dto.PillarID, &dto.BusinessDomainID,
 				&dto.EffectiveImportance, &dto.ImportanceLabel, &dto.SourceCapabilityID,
-				&dto.SourceCapabilityName, &dto.IsInherited, &dto.ComputedAt); err != nil {
+				&dto.SourceCapabilityName, &dto.IsInherited, &dto.Rationale, &dto.ComputedAt); err != nil {
 				return err
 			}
 			results = append(results, dto)
