@@ -1,7 +1,7 @@
-# Bounded Context Canvas: Architecture Reviews
+# Bounded Context Canvas: Architecture Views
 
 ## Name
-**Architecture Reviews**
+**Architecture Views**
 
 ## Purpose
 Enable enterprise architects to create, manage, and customize visual representations of the architecture. Provides multiple perspectives on the same underlying architecture model through different views, each with custom layouts, styling, and visualization preferences.
@@ -76,11 +76,8 @@ Enable enterprise architects to create, manage, and customize visual representat
 - `ViewRenamed` - View name changed
 - `ComponentAddedToView` - Component included in view
 - `ComponentRemovedFromView` - Component excluded from view
-- `ComponentPositionUpdated` - Component position changed
-- `ViewEdgeTypeUpdated` - Relationship visualization changed
-- `ViewLayoutDirectionUpdated` - Layout orientation changed
 - `DefaultViewChanged` - User's default view changed
-- Color management events
+- `ViewVisibilityChanged` - View visibility updated
 
 **Queries** (to other contexts):
 - To **Architecture Modeling**: Read `ApplicationComponentReadModel` to get component details for display in views
@@ -90,7 +87,7 @@ Enable enterprise architects to create, manage, and customize visual representat
 - **Architecture Modeling Context**: Queries for component details to enrich view data
 
 ### Integration Pattern
-- **Event-driven integration** for view changes (publish to event bus)
+- **Event-driven integration** for view lifecycle and membership changes (publish to event bus)
 - **Query-based integration** for component details (read from Architecture Modeling read models)
 - **Event subscription** for upstream component changes (maintain consistency)
 
@@ -205,11 +202,11 @@ Enable enterprise architects to create, manage, and customize visual representat
 
 ### With Architecture Modeling Context
 ```
-Architecture Modeling → Architecture Reviews
+Architecture Modeling → Architecture Views
 - Event: ApplicationComponentDeleted
 - Action: Remove component from all views
 
-Architecture Modeling (read models) ← Architecture Reviews
+Architecture Modeling (read models) ← Architecture Views
 - Query: Get component details for view rendering
 - Pattern: Eventually consistent read
 ```

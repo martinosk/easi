@@ -46,12 +46,12 @@ Enable enterprise architects to model and manage the IT application landscape by
 - `DeleteComponentRelation` - User removes dependency
 
 **Queries** (from other contexts):
-- From **Architecture Reviews**: Read `ApplicationComponentReadModel` to get component details for views
+- From **Architecture Views**: Read `ApplicationComponentReadModel` to get component details for views
 - From **Capability Mapping**: Read `ApplicationComponentReadModel` to link systems to capabilities
 
 ### Collaborators
 - **Frontend UI**: Primary source of commands (user-initiated actions)
-- **Architecture Reviews Context**: Consumer of component data
+- **Architecture Views Context**: Consumer of component data
 - **Capability Mapping Context**: Consumer of component data for capability realization
 
 ### Relationship Types
@@ -71,7 +71,7 @@ Enable enterprise architects to model and manage the IT application landscape by
 - `ComponentRelationDeleted` - Dependency removed
 
 ### Collaborators
-- **Architecture Reviews Context**: Subscribes to component/relation events to maintain view consistency
+- **Architecture Views Context**: Subscribes to component/relation events to maintain view consistency
 - **Capability Mapping Context**: Subscribes to `ApplicationComponentDeleted` to cascade capability realization cleanup
 
 ### Integration Pattern

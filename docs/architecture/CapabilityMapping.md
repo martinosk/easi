@@ -250,7 +250,8 @@ Enable enterprise architects to model business capabilities and map them to IT s
 - Domain-scoped queries for performance (business-domains/{id}/capability-realizations)
 
 ### Cross-Context Integration
-- **Downstream of Architecture Modeling**: Listens to `ApplicationComponentDeleted` events
+- **Downstream of Architecture Modeling**: Listens to `ApplicationComponentCreated`, `ApplicationComponentUpdated`, `ApplicationComponentDeleted` events
+- **Downstream of MetaModel**: Listens to `StrategyPillarAdded`, `StrategyPillarUpdated`, `StrategyPillarRemoved`, `PillarFitConfigurationUpdated`, `MaturityScaleConfigUpdated`, `MaturityScaleConfigReset`
 - **Upstream to Enterprise Strategy** (future): Publishes capability events for strategic analysis
 - **Read-only access** to Architecture Modeling read models
 

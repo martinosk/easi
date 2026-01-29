@@ -172,11 +172,11 @@ EASI is built using Strategic Domain-Driven Design principles with clear bounded
 
 | Upstream Context | Downstream Context | Relationship Type | Integration Pattern |
 |------------------|-------------------|-------------------|---------------------|
-| Architecture Modeling | Architecture Views | Customer-Supplier | Event-driven (component deletions) |
-| Architecture Modeling | Capability Mapping | Customer-Supplier | Event-driven (component deletions) + Query (read models) |
+| Architecture Modeling | Architecture Views | Customer-Supplier | Event-driven (component/relation deletions) |
+| Architecture Modeling | Capability Mapping | Customer-Supplier | Event-driven (component changes) + Query (read models) |
 | MetaModel | Capability Mapping | Published Language | Event-driven (pillar/maturity config) + Query (configuration) |
 | MetaModel | Enterprise Architecture | Published Language | Event-driven (pillar definitions) + Query (configuration) |
-| Capability Mapping | Enterprise Architecture | Customer-Supplier | Query (capability data) + Event-driven (capability deletions) |
+| Capability Mapping | Enterprise Architecture | Customer-Supplier | Query (capability data) + Event-driven (capability changes) |
 | Enterprise Architecture | Enterprise Strategy | Customer-Supplier | Query (analysis data for consolidation proposals) |
 | Capability Mapping | Enterprise Strategy | Partnership | Command-driven (strategic ops) + Event-driven (tracking) |
 
@@ -187,12 +187,12 @@ EASI is built using Strategic Domain-Driven Design principles with clear bounded
 - Purpose: Keep views consistent when components are removed
 
 **Architecture Modeling → Capability Mapping**
-- Events: `ApplicationComponentDeleted`
+- Events: `ApplicationComponentCreated`, `ApplicationComponentUpdated`, `ApplicationComponentDeleted`
 - Queries: Read `ApplicationComponentReadModel` for system realization
 - Purpose: Link capabilities to systems, cleanup when systems deleted
 
 **MetaModel → Capability Mapping**
-- Events: `StrategyPillarAdded`, `StrategyPillarUpdated`, `StrategyPillarRemoved`
+- Events: `StrategyPillarAdded`, `StrategyPillarUpdated`, `StrategyPillarRemoved`, `PillarFitConfigurationUpdated`, `MaturityScaleConfigUpdated`, `MaturityScaleConfigReset`
 - Queries: Read maturity scale configuration for display
 - Purpose: Provide configurable vocabulary (pillars, maturity sections) to capability modeling
 
@@ -202,7 +202,7 @@ EASI is built using Strategic Domain-Driven Design principles with clear bounded
 
 **Capability Mapping → Enterprise Architecture**
 - Queries: Read capability details, maturity levels, business domains
-- Events: `CapabilityDeleted` (to remove links)
+- Events: `CapabilityCreated`, `CapabilityUpdated`, `CapabilityDeleted`, `CapabilityParentChanged`, `CapabilityAssignedToDomain`, `CapabilityUnassignedFromDomain`
 - Purpose: Enterprise Architecture analyzes cross-domain capability data
 
 **Enterprise Architecture → Enterprise Strategy** (Future)
@@ -213,6 +213,29 @@ EASI is built using Strategic Domain-Driven Design principles with clear bounded
 - Commands: `CreateBusinessDomain`, `AssignCapabilityToDomain`, etc.
 - Events: `CapabilityAssignedToDomain`, `BusinessDomainDeleted`
 - Purpose: Strategic domain operations coordinated via saga pattern
+
+### Event Flows Diagram
+
+```mermaid
+flowchart LR
+    AM[Architecture Modeling]
+    AV[Architecture Views]
+    CM[Capability Mapping]
+    MM[MetaModel]
+    EA[Enterprise Architecture]
+    VL[View Layouts]
+
+    AM -->|`ApplicationComponentDeleted`, `ComponentRelationDeleted`| AV
+    AM -->|`ApplicationComponentCreated`, `ApplicationComponentUpdated`, `ApplicationComponentDeleted`| CM
+
+    MM -->|`StrategyPillarAdded`, `StrategyPillarUpdated`, `StrategyPillarRemoved`, `PillarFitConfigurationUpdated`, `MaturityScaleConfigUpdated`, `MaturityScaleConfigReset`| CM
+    MM -->|`StrategyPillarAdded`, `StrategyPillarUpdated`, `StrategyPillarRemoved`| EA
+
+    CM -->|`CapabilityCreated`, `CapabilityUpdated`, `CapabilityDeleted`, `CapabilityParentChanged`, `CapabilityAssignedToDomain`, `CapabilityUnassignedFromDomain`| EA
+
+    AV -->|`ViewDeleted`| VL
+    CM -->|`CapabilityDeleted`, `BusinessDomainDeleted`| VL
+```
 
 ## Domain Classification
 
