@@ -16,14 +16,6 @@ describe('DomainForm', () => {
     { id: 'user-3', name: null, email: 'carol@example.com', role: 'architect' },
   ];
 
-  beforeEach(() => {
-    vi.mocked(useUsersModule.useEAOwnerCandidates).mockReturnValue({
-      data: mockUsers,
-      isLoading: false,
-      error: null,
-    } as any);
-  });
-
   const mockDomain: BusinessDomain = {
     id: 'domain-1' as BusinessDomainId,
     name: 'Customer Experience',
@@ -35,12 +27,55 @@ describe('DomainForm', () => {
     },
   };
 
+  let onSubmit: ReturnType<typeof vi.fn>;
+  let onCancel: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    onSubmit = vi.fn();
+    onCancel = vi.fn();
+    vi.mocked(useUsersModule.useEAOwnerCandidates).mockReturnValue({
+      data: mockUsers,
+      isLoading: false,
+      error: null,
+    } as any);
+  });
+
+  function renderCreateForm(submitOverride?: ReturnType<typeof vi.fn>) {
+    renderWithProviders(
+      <DomainForm mode="create" onSubmit={submitOverride ?? onSubmit} onCancel={onCancel} />,
+    );
+  }
+
+  function renderEditForm(domain: BusinessDomain, submitOverride?: ReturnType<typeof vi.fn>) {
+    renderWithProviders(
+      <DomainForm mode="edit" domain={domain} onSubmit={submitOverride ?? onSubmit} onCancel={onCancel} />,
+    );
+  }
+
+  function fillAndSubmit(fields: { name?: string; description?: string; architect?: string }) {
+    if (fields.name !== undefined) {
+      fireEvent.change(screen.getByTestId('domain-name-input'), { target: { value: fields.name } });
+    }
+    if (fields.description !== undefined) {
+      fireEvent.change(screen.getByTestId('domain-description-input'), { target: { value: fields.description } });
+    }
+    if (fields.architect !== undefined) {
+      fireEvent.change(screen.getByTestId('domain-architect-select'), { target: { value: fields.architect } });
+    }
+    fireEvent.click(screen.getByTestId('domain-form-submit'));
+  }
+
+  function mockLoadingUsers() {
+    vi.mocked(useUsersModule.useEAOwnerCandidates).mockReturnValue({
+      data: [],
+      isLoading: true,
+      error: null,
+    } as any);
+  }
+
   describe('Create mode', () => {
     it('renders empty form in create mode', () => {
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+      renderCreateForm();
 
       const nameInput = screen.getByTestId('domain-name-input') as HTMLInputElement;
       const descriptionInput = screen.getByTestId('domain-description-input') as HTMLTextAreaElement;
@@ -51,13 +86,9 @@ describe('DomainForm', () => {
     });
 
     it('validates required name field', async () => {
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
+      renderCreateForm();
 
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
-
-      const form = screen.getByTestId('domain-form');
-      fireEvent.submit(form);
+      fireEvent.submit(screen.getByTestId('domain-form'));
 
       await waitFor(() => {
         expect(screen.getByTestId('domain-name-error')).toHaveTextContent('Name is required');
@@ -67,16 +98,8 @@ describe('DomainForm', () => {
     });
 
     it('validates name length', async () => {
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
-
-      const nameInput = screen.getByTestId('domain-name-input');
-      fireEvent.change(nameInput, { target: { value: 'a'.repeat(101) } });
-
-      const submitButton = screen.getByTestId('domain-form-submit');
-      fireEvent.click(submitButton);
+      renderCreateForm();
+      fillAndSubmit({ name: 'a'.repeat(101) });
 
       await waitFor(() => {
         expect(screen.getByTestId('domain-name-error')).toHaveTextContent('Name must be 100 characters or less');
@@ -86,19 +109,8 @@ describe('DomainForm', () => {
     });
 
     it('validates description length', async () => {
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
-
-      const nameInput = screen.getByTestId('domain-name-input');
-      const descriptionInput = screen.getByTestId('domain-description-input');
-
-      fireEvent.change(nameInput, { target: { value: 'Valid Name' } });
-      fireEvent.change(descriptionInput, { target: { value: 'a'.repeat(501) } });
-
-      const submitButton = screen.getByTestId('domain-form-submit');
-      fireEvent.click(submitButton);
+      renderCreateForm();
+      fillAndSubmit({ name: 'Valid Name', description: 'a'.repeat(501) });
 
       await waitFor(() => {
         expect(screen.getByTestId('domain-description-error')).toHaveTextContent('Description must be 500 characters or less');
@@ -108,19 +120,9 @@ describe('DomainForm', () => {
     });
 
     it('submits valid form data', async () => {
-      const onSubmit = vi.fn().mockResolvedValue(undefined);
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
-
-      const nameInput = screen.getByTestId('domain-name-input');
-      const descriptionInput = screen.getByTestId('domain-description-input');
-
-      fireEvent.change(nameInput, { target: { value: 'Customer Experience' } });
-      fireEvent.change(descriptionInput, { target: { value: 'All customer-facing capabilities' } });
-
-      const submitButton = screen.getByTestId('domain-form-submit');
-      fireEvent.click(submitButton);
+      onSubmit.mockResolvedValue(undefined);
+      renderCreateForm();
+      fillAndSubmit({ name: 'Customer Experience', description: 'All customer-facing capabilities' });
 
       await waitFor(() => {
         expect(onSubmit).toHaveBeenCalledWith('Customer Experience', 'All customer-facing capabilities', undefined);
@@ -128,19 +130,9 @@ describe('DomainForm', () => {
     });
 
     it('trims whitespace from inputs', async () => {
-      const onSubmit = vi.fn().mockResolvedValue(undefined);
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
-
-      const nameInput = screen.getByTestId('domain-name-input');
-      const descriptionInput = screen.getByTestId('domain-description-input');
-
-      fireEvent.change(nameInput, { target: { value: '  Customer Experience  ' } });
-      fireEvent.change(descriptionInput, { target: { value: '  Description  ' } });
-
-      const submitButton = screen.getByTestId('domain-form-submit');
-      fireEvent.click(submitButton);
+      onSubmit.mockResolvedValue(undefined);
+      renderCreateForm();
+      fillAndSubmit({ name: '  Customer Experience  ', description: '  Description  ' });
 
       await waitFor(() => {
         expect(onSubmit).toHaveBeenCalledWith('Customer Experience', 'Description', undefined);
@@ -150,10 +142,7 @@ describe('DomainForm', () => {
 
   describe('Edit mode', () => {
     it('renders form with domain data in edit mode', () => {
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="edit" domain={mockDomain} onSubmit={onSubmit} onCancel={onCancel} />);
+      renderEditForm(mockDomain);
 
       const nameInput = screen.getByTestId('domain-name-input') as HTMLInputElement;
       const descriptionInput = screen.getByTestId('domain-description-input') as HTMLTextAreaElement;
@@ -164,11 +153,7 @@ describe('DomainForm', () => {
     });
 
     it('handles empty description in edit mode', () => {
-      const domain: BusinessDomain = { ...mockDomain, description: '' };
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="edit" domain={domain} onSubmit={onSubmit} onCancel={onCancel} />);
+      renderEditForm({ ...mockDomain, description: '' });
 
       const descriptionInput = screen.getByTestId('domain-description-input') as HTMLTextAreaElement;
       expect(descriptionInput.value).toBe('');
@@ -177,52 +162,34 @@ describe('DomainForm', () => {
 
   describe('Common behavior', () => {
     it('calls onCancel when cancel button is clicked', () => {
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
+      renderCreateForm();
 
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
-
-      const cancelButton = screen.getByTestId('domain-form-cancel');
-      fireEvent.click(cancelButton);
+      fireEvent.click(screen.getByTestId('domain-form-cancel'));
 
       expect(onCancel).toHaveBeenCalled();
       expect(onSubmit).not.toHaveBeenCalled();
     });
 
     it('disables submit button when name is empty', () => {
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+      renderCreateForm();
 
       const submitButton = screen.getByTestId('domain-form-submit') as HTMLButtonElement;
       expect(submitButton.disabled).toBe(true);
     });
 
     it('enables submit button when name is provided', () => {
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
+      renderCreateForm();
 
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
-
-      const nameInput = screen.getByTestId('domain-name-input');
-      fireEvent.change(nameInput, { target: { value: 'Customer Experience' } });
+      fireEvent.change(screen.getByTestId('domain-name-input'), { target: { value: 'Customer Experience' } });
 
       const submitButton = screen.getByTestId('domain-form-submit') as HTMLButtonElement;
       expect(submitButton.disabled).toBe(false);
     });
 
     it('displays backend error message', async () => {
-      const onSubmit = vi.fn().mockRejectedValue(new Error('Domain name already exists'));
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
-
-      const nameInput = screen.getByTestId('domain-name-input');
-      fireEvent.change(nameInput, { target: { value: 'Customer Experience' } });
-
-      const submitButton = screen.getByTestId('domain-form-submit');
-      fireEvent.click(submitButton);
+      onSubmit.mockRejectedValue(new Error('Domain name already exists'));
+      renderCreateForm();
+      fillAndSubmit({ name: 'Customer Experience' });
 
       await waitFor(() => {
         expect(screen.getByTestId('domain-form-error')).toHaveTextContent('Domain name already exists');
@@ -230,20 +197,15 @@ describe('DomainForm', () => {
     });
 
     it('clears field error when user types', async () => {
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
+      renderCreateForm();
 
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
-
-      const form = screen.getByTestId('domain-form');
-      fireEvent.submit(form);
+      fireEvent.submit(screen.getByTestId('domain-form'));
 
       await waitFor(() => {
         expect(screen.getByTestId('domain-name-error')).toBeInTheDocument();
       });
 
-      const nameInput = screen.getByTestId('domain-name-input');
-      fireEvent.change(nameInput, { target: { value: 'Valid Name' } });
+      fireEvent.change(screen.getByTestId('domain-name-input'), { target: { value: 'Valid Name' } });
 
       expect(screen.queryByTestId('domain-name-error')).not.toBeInTheDocument();
     });
@@ -251,20 +213,14 @@ describe('DomainForm', () => {
 
   describe('Domain Architect', () => {
     it('should render domain architect select field', () => {
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+      renderCreateForm();
 
       expect(screen.getByTestId('domain-architect-select')).toBeInTheDocument();
       expect(screen.getByText('Domain Architect')).toBeInTheDocument();
     });
 
     it('should populate dropdown with eligible users (Architect and Admin roles)', () => {
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+      renderCreateForm();
 
       expect(screen.getByTestId('domain-architect-select')).toBeInTheDocument();
       expect(screen.getByText('Alice Smith (architect)')).toBeInTheDocument();
@@ -272,19 +228,13 @@ describe('DomainForm', () => {
     });
 
     it('should display email when user name is null', () => {
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+      renderCreateForm();
 
       expect(screen.getByText('carol@example.com (architect)')).toBeInTheDocument();
     });
 
     it('should have empty selection option as default', () => {
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+      renderCreateForm();
 
       const select = screen.getByTestId('domain-architect-select') as HTMLSelectElement;
       expect(select.value).toBe('');
@@ -292,19 +242,9 @@ describe('DomainForm', () => {
     });
 
     it('should submit with selected domain architect ID', async () => {
-      const onSubmit = vi.fn().mockResolvedValue(undefined);
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
-
-      const nameInput = screen.getByTestId('domain-name-input');
-      const architectSelect = screen.getByTestId('domain-architect-select');
-
-      fireEvent.change(nameInput, { target: { value: 'Finance' } });
-      fireEvent.change(architectSelect, { target: { value: 'user-1' } });
-
-      const submitButton = screen.getByTestId('domain-form-submit');
-      fireEvent.click(submitButton);
+      onSubmit.mockResolvedValue(undefined);
+      renderCreateForm();
+      fillAndSubmit({ name: 'Finance', architect: 'user-1' });
 
       await waitFor(() => {
         expect(onSubmit).toHaveBeenCalledWith('Finance', '', 'user-1');
@@ -312,17 +252,9 @@ describe('DomainForm', () => {
     });
 
     it('should submit without domain architect when none selected', async () => {
-      const onSubmit = vi.fn().mockResolvedValue(undefined);
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
-
-      const nameInput = screen.getByTestId('domain-name-input');
-
-      fireEvent.change(nameInput, { target: { value: 'Finance' } });
-
-      const submitButton = screen.getByTestId('domain-form-submit');
-      fireEvent.click(submitButton);
+      onSubmit.mockResolvedValue(undefined);
+      renderCreateForm();
+      fillAndSubmit({ name: 'Finance' });
 
       await waitFor(() => {
         expect(onSubmit).toHaveBeenCalledWith('Finance', '', undefined);
@@ -330,65 +262,33 @@ describe('DomainForm', () => {
     });
 
     it('should show loading state while fetching users', () => {
-      vi.mocked(useUsersModule.useEAOwnerCandidates).mockReturnValue({
-        data: [],
-        isLoading: true,
-        error: null,
-      } as any);
-
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+      mockLoadingUsers();
+      renderCreateForm();
 
       expect(screen.getByText('Loading eligible users...')).toBeInTheDocument();
     });
 
     it('should disable select while loading users', () => {
-      vi.mocked(useUsersModule.useEAOwnerCandidates).mockReturnValue({
-        data: [],
-        isLoading: true,
-        error: null,
-      } as any);
-
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="create" onSubmit={onSubmit} onCancel={onCancel} />);
+      mockLoadingUsers();
+      renderCreateForm();
 
       const select = screen.getByTestId('domain-architect-select') as HTMLSelectElement;
       expect(select.disabled).toBe(true);
     });
 
     it('should pre-select domain architect in edit mode', () => {
-      const domainWithArchitect: BusinessDomain = {
-        ...mockDomain,
-        domainArchitectId: 'user-2',
-      };
-      const onSubmit = vi.fn();
-      const onCancel = vi.fn();
-
-      renderWithProviders(<DomainForm mode="edit" domain={domainWithArchitect} onSubmit={onSubmit} onCancel={onCancel} />);
+      renderEditForm({ ...mockDomain, domainArchitectId: 'user-2' });
 
       const select = screen.getByTestId('domain-architect-select') as HTMLSelectElement;
       expect(select.value).toBe('user-2');
     });
 
     it('should allow clearing domain architect selection', async () => {
-      const domainWithArchitect: BusinessDomain = {
-        ...mockDomain,
-        domainArchitectId: 'user-2',
-      };
-      const onSubmit = vi.fn().mockResolvedValue(undefined);
-      const onCancel = vi.fn();
+      onSubmit.mockResolvedValue(undefined);
+      renderEditForm({ ...mockDomain, domainArchitectId: 'user-2' });
 
-      renderWithProviders(<DomainForm mode="edit" domain={domainWithArchitect} onSubmit={onSubmit} onCancel={onCancel} />);
-
-      const architectSelect = screen.getByTestId('domain-architect-select');
-      fireEvent.change(architectSelect, { target: { value: '' } });
-
-      const submitButton = screen.getByTestId('domain-form-submit');
-      fireEvent.click(submitButton);
+      fireEvent.change(screen.getByTestId('domain-architect-select'), { target: { value: '' } });
+      fireEvent.click(screen.getByTestId('domain-form-submit'));
 
       await waitFor(() => {
         expect(onSubmit).toHaveBeenCalledWith('Customer Experience', 'All customer-facing capabilities', undefined);
