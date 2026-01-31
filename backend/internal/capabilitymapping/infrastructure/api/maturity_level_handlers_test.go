@@ -162,93 +162,94 @@ func TestGetMaturityLevels_UsesGatewayConfig(t *testing.T) {
 	assert.Equal(t, "Legacy", response.Data[3].Value)
 }
 
-func TestGetMaturityLevels_FallsBackToDefaultsOnError(t *testing.T) {
-	gateway := &mockMaturityScaleGateway{err: assert.AnError}
-	handlers := NewMaturityLevelHandlers(gateway)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/capabilities/metadata/maturity-levels", nil)
-	w := httptest.NewRecorder()
-
-	handlers.GetMaturityLevels(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var response struct {
-		Data []MaturityLevelDTO `json:"data"`
+func TestGetMaturityLevels_FallsBackToDefaults(t *testing.T) {
+	tests := []struct {
+		name    string
+		gateway *mockMaturityScaleGateway
+	}{
+		{"on gateway error", &mockMaturityScaleGateway{err: assert.AnError}},
+		{"on nil config", &mockMaturityScaleGateway{config: nil}},
 	}
-	err := json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
 
-	assert.Equal(t, 4, len(response.Data))
-	assert.Equal(t, "Genesis", response.Data[0].Value)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handlers := NewMaturityLevelHandlers(tt.gateway)
+
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/capabilities/metadata/maturity-levels", nil)
+			w := httptest.NewRecorder()
+
+			handlers.GetMaturityLevels(w, req)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+
+			var response struct {
+				Data []MaturityLevelDTO `json:"data"`
+			}
+			err := json.NewDecoder(w.Body).Decode(&response)
+			require.NoError(t, err)
+
+			assert.Equal(t, 4, len(response.Data))
+			assert.Equal(t, "Genesis", response.Data[0].Value)
+		})
+	}
 }
 
-func TestGetMaturityLevels_FallsBackToDefaultsOnNilConfig(t *testing.T) {
-	gateway := &mockMaturityScaleGateway{config: nil}
-	handlers := NewMaturityLevelHandlers(gateway)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/capabilities/metadata/maturity-levels", nil)
+func executeMetadataRequest(t *testing.T, handlerFn http.HandlerFunc, path string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, path, nil)
 	w := httptest.NewRecorder()
+	handlerFn(w, req)
+	return w
+}
 
-	handlers.GetMaturityLevels(w, req)
+type metadataCollectionItem struct {
+	Value       string `json:"value"`
+	DisplayName string `json:"displayName"`
+}
 
-	assert.Equal(t, http.StatusOK, w.Code)
+type metadataCollectionResponse struct {
+	Data  []metadataCollectionItem `json:"data"`
+	Links types.Links              `json:"_links"`
+}
 
-	var response struct {
-		Data []MaturityLevelDTO `json:"data"`
+func assertMetadataCollection(t *testing.T, body []byte, expectedSelfLink string, expectedValues []metadataCollectionItem) {
+	t.Helper()
+
+	var response metadataCollectionResponse
+	require.NoError(t, json.Unmarshal(body, &response))
+
+	assert.Equal(t, len(expectedValues), len(response.Data))
+	for i, expected := range expectedValues {
+		assert.Equal(t, expected.Value, response.Data[i].Value, "Value mismatch at index %d", i)
+		assert.Equal(t, expected.DisplayName, response.Data[i].DisplayName, "DisplayName mismatch at index %d", i)
 	}
-	err := json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
-
-	assert.Equal(t, 4, len(response.Data))
-	assert.Equal(t, "Genesis", response.Data[0].Value)
+	assert.Equal(t, expectedSelfLink, response.Links["self"].Href)
 }
 
 func TestGetStatuses_ReturnsAllStatuses(t *testing.T) {
 	handlers := NewMaturityLevelHandlers(nil)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/capabilities/metadata/statuses", nil)
-	w := httptest.NewRecorder()
-
-	handlers.GetStatuses(w, req)
-
+	w := executeMetadataRequest(t, handlers.GetStatuses, "/api/v1/capabilities/metadata/statuses")
 	assert.Equal(t, http.StatusOK, w.Code)
 
+	body := w.Body.Bytes()
+	assertMetadataCollection(t, body, "/api/v1/capabilities/metadata/statuses", []metadataCollectionItem{
+		{"Active", "Active"},
+		{"Planned", "Planned"},
+		{"Deprecated", "Deprecated"},
+	})
+
 	var response struct {
-		Data  []StatusDTO       `json:"data"`
-		Links types.Links `json:"_links"`
+		Data []StatusDTO `json:"data"`
 	}
-	err := json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
-
-	assert.Equal(t, 3, len(response.Data))
-
-	expectedStatuses := []struct {
-		value       string
-		displayName string
-		sortOrder   int
-	}{
-		{"Active", "Active", 1},
-		{"Planned", "Planned", 2},
-		{"Deprecated", "Deprecated", 3},
+	require.NoError(t, json.Unmarshal(body, &response))
+	for i, expected := range []int{1, 2, 3} {
+		assert.Equal(t, expected, response.Data[i].SortOrder, "SortOrder mismatch at index %d", i)
 	}
-
-	for i, expected := range expectedStatuses {
-		assert.Equal(t, expected.value, response.Data[i].Value)
-		assert.Equal(t, expected.displayName, response.Data[i].DisplayName)
-		assert.Equal(t, expected.sortOrder, response.Data[i].SortOrder)
-	}
-
-	assert.Equal(t, "/api/v1/capabilities/metadata/statuses", response.Links["self"].Href)
 }
 
 func TestGetStatuses_IncludesCacheHeaders(t *testing.T) {
 	handlers := NewMaturityLevelHandlers(nil)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/capabilities/metadata/statuses", nil)
-	w := httptest.NewRecorder()
-
-	handlers.GetStatuses(w, req)
+	w := executeMetadataRequest(t, handlers.GetStatuses, "/api/v1/capabilities/metadata/statuses")
 
 	assert.Contains(t, w.Header().Get("Cache-Control"), "public")
 	assert.NotEmpty(t, w.Header().Get("ETag"))
@@ -256,39 +257,15 @@ func TestGetStatuses_IncludesCacheHeaders(t *testing.T) {
 
 func TestGetOwnershipModels_ReturnsAllModels(t *testing.T) {
 	handlers := NewMaturityLevelHandlers(nil)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/capabilities/metadata/ownership-models", nil)
-	w := httptest.NewRecorder()
-
-	handlers.GetOwnershipModels(w, req)
-
+	w := executeMetadataRequest(t, handlers.GetOwnershipModels, "/api/v1/capabilities/metadata/ownership-models")
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response struct {
-		Data  []OwnershipModelDTO `json:"data"`
-		Links types.Links   `json:"_links"`
-	}
-	err := json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
-
-	assert.Equal(t, 4, len(response.Data))
-
-	expectedModels := []struct {
-		value       string
-		displayName string
-	}{
+	assertMetadataCollection(t, w.Body.Bytes(), "/api/v1/capabilities/metadata/ownership-models", []metadataCollectionItem{
 		{"TribeOwned", "Tribe Owned"},
 		{"TeamOwned", "Team Owned"},
 		{"Shared", "Shared"},
 		{"EnterpriseService", "Enterprise Service"},
-	}
-
-	for i, expected := range expectedModels {
-		assert.Equal(t, expected.value, response.Data[i].Value)
-		assert.Equal(t, expected.displayName, response.Data[i].DisplayName)
-	}
-
-	assert.Equal(t, "/api/v1/capabilities/metadata/ownership-models", response.Links["self"].Href)
+	})
 }
 
 func TestGetMetadataIndex_ReturnsAllLinks(t *testing.T) {
