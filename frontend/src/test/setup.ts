@@ -15,15 +15,8 @@ console.error = (...args: unknown[]) => {
   originalConsoleError.apply(console, args);
 };
 
-process.on('uncaughtException', (error: Error) => {
-  if (error.message?.includes('EINVAL') || (error as NodeJS.ErrnoException).code === 'EINVAL') {
-    return;
-  }
-  throw error;
-});
-
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'bypass' });
+  server.listen({ onUnhandledRequest: 'error' });
   if (!HTMLDialogElement.prototype.showModal) {
     HTMLDialogElement.prototype.showModal = function() {
       this.open = true;
