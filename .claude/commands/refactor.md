@@ -32,7 +32,11 @@ Refactor a file using CodeScene MCP to achieve a code health score of 10.0.
    - If the score is **10.0**: report success and stop.
    - If the score is **still below 10.0**: get a new review with `mcp__codescene__code_health_review`, apply further refactorings, and re-check. Repeat up to 3 iterations total.
 
-6. **Final report**
+6. **Verify build and tests**
+   If backend files has been modified: Verify that backend build and all tests are passing.
+   If fronted files has been modified: Verify that frontend build and all tests are passing.
+
+7. **Final report**
    Display a summary:
    ```
    Refactoring complete: <file-path>

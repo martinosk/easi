@@ -7,6 +7,89 @@ interface EnterpriseCapabilityDetailPanelProps {
   onClose: () => void;
 }
 
+interface DomainGroupProps {
+  domainName: string;
+  links: EnterpriseCapabilityLink[];
+  onUnlink: (link: EnterpriseCapabilityLink) => void;
+  isUnlinking: boolean;
+}
+
+interface GroupedDomain {
+  domainName: string;
+  links: EnterpriseCapabilityLink[];
+}
+
+function groupLinksByDomain(links: EnterpriseCapabilityLink[]): GroupedDomain[] {
+  const grouped = new Map<string, EnterpriseCapabilityLink[]>();
+
+  for (const link of links) {
+    const domainName = link.businessDomainName || 'Unassigned';
+    if (!grouped.has(domainName)) {
+      grouped.set(domainName, []);
+    }
+    grouped.get(domainName)!.push(link);
+  }
+
+  return Array.from(grouped.entries())
+    .map(([domainName, domainLinks]) => ({ domainName, links: domainLinks }))
+    .sort((a, b) => {
+      if (a.domainName === 'Unassigned') return 1;
+      if (b.domainName === 'Unassigned') return -1;
+      return a.domainName.localeCompare(b.domainName);
+    });
+}
+
+function DomainGroup({ domainName, links, onUnlink, isUnlinking }: DomainGroupProps) {
+  return (
+    <div className="domain-group">
+      <h4 className="domain-group-header">{domainName}</h4>
+      <ul className="link-list">
+        {links.map((link) => (
+          <li key={link.id} className="link-item">
+            <span className="link-name">
+              {link.domainCapabilityName || link.domainCapabilityId}
+            </span>
+            {link._links?.delete && (
+              <button
+                type="button"
+                className="btn btn-sm btn-ghost btn-danger"
+                onClick={() => onUnlink(link)}
+                disabled={isUnlinking}
+                title="Unlink capability"
+              >
+                Unlink
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function LinkedCapabilitiesSection({ groups, onUnlink, isUnlinking }: {
+  groups: GroupedDomain[];
+  onUnlink: (link: EnterpriseCapabilityLink) => void;
+  isUnlinking: boolean;
+}) {
+  if (groups.length === 0) {
+    return <p className="empty-state">No capabilities linked yet. Use the Manage Links page to link domain capabilities.</p>;
+  }
+
+  return (
+    <div className="linked-capabilities-list">
+      {groups.map((group) => (
+        <DomainGroup
+          key={group.domainName}
+          domainName={group.domainName}
+          links={group.links}
+          onUnlink={onUnlink}
+          isUnlinking={isUnlinking}
+        />
+      ))}
+    </div>
+  );
+}
 
 export function EnterpriseCapabilityDetailPanel({
   capability,
@@ -17,24 +100,7 @@ export function EnterpriseCapabilityDetailPanel({
 
   const groupedLinks = useMemo(() => {
     if (!links) return [];
-
-    const grouped = new Map<string, EnterpriseCapabilityLink[]>();
-
-    for (const link of links) {
-      const domainName = link.businessDomainName || 'Unassigned';
-      if (!grouped.has(domainName)) {
-        grouped.set(domainName, []);
-      }
-      grouped.get(domainName)!.push(link);
-    }
-
-    return Array.from(grouped.entries())
-      .map(([domainName, domainLinks]) => ({ domainName, links: domainLinks }))
-      .sort((a, b) => {
-        if (a.domainName === 'Unassigned') return 1;
-        if (b.domainName === 'Unassigned') return -1;
-        return a.domainName.localeCompare(b.domainName);
-      });
+    return groupLinksByDomain(links);
   }, [links]);
 
   const handleUnlink = async (link: EnterpriseCapabilityLink) => {
@@ -85,36 +151,12 @@ export function EnterpriseCapabilityDetailPanel({
 
         {isLoading ? (
           <div className="loading-state">Loading linked capabilities...</div>
-        ) : groupedLinks.length === 0 ? (
-          <p className="empty-state">No capabilities linked yet. Use the Manage Links page to link domain capabilities.</p>
         ) : (
-          <div className="linked-capabilities-list">
-            {groupedLinks.map((group) => (
-              <div key={group.domainName} className="domain-group">
-                <h4 className="domain-group-header">{group.domainName}</h4>
-                <ul className="link-list">
-                  {group.links.map((link) => (
-                    <li key={link.id} className="link-item">
-                      <span className="link-name">
-                        {link.domainCapabilityName || link.domainCapabilityId}
-                      </span>
-                      {link._links?.delete && (
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-ghost btn-danger"
-                          onClick={() => handleUnlink(link)}
-                          disabled={unlinkMutation.isPending}
-                          title="Unlink capability"
-                        >
-                          Unlink
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+          <LinkedCapabilitiesSection
+            groups={groupedLinks}
+            onUnlink={handleUnlink}
+            isUnlinking={unlinkMutation.isPending}
+          />
         )}
       </div>
     </div>
