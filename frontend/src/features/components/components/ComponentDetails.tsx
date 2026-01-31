@@ -12,7 +12,7 @@ import { useComponents } from '../hooks/useComponents';
 import { useUpdateComponentColor, useClearComponentColor } from '../../views/hooks/useViews';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { hasLink } from '../../../utils/hateoas';
-import type { CapabilityRealization, Capability, ViewComponent, Component, View } from '../../../api/types';
+import type { CapabilityRealization, Capability, ViewComponent, Component, View, ViewId, ComponentId } from '../../../api/types';
 import toast from 'react-hot-toast';
 
 interface ComponentDetailsProps {
@@ -75,7 +75,7 @@ interface OptionalFieldProps<T> {
 }
 
 function OptionalField<T>({ value, label, render }: OptionalFieldProps<T>): React.ReactElement | null {
-  if (value === undefined || value === null) return null;
+  if (value == null) return null;
   if (Array.isArray(value) && value.length === 0) return null;
   return <DetailField label={label}>{render(value)}</DetailField>;
 }
@@ -340,14 +340,38 @@ export const ComponentDetailsContent: React.FC<ComponentDetailsContentProps> = (
   );
 };
 
+const useComponentColorHandlers = (viewId: ViewId | undefined, componentId: ComponentId | null) => {
+  const updateMutation = useUpdateComponentColor();
+  const clearMutation = useClearComponentColor();
+
+  const handleColorChange = async (color: string) => {
+    if (!viewId || !componentId) return;
+    try {
+      await updateMutation.mutateAsync({ viewId, componentId, color });
+    } catch {
+      toast.error('Failed to update color');
+    }
+  };
+
+  const handleClearColor = async () => {
+    if (!viewId || !componentId) return;
+    try {
+      await clearMutation.mutateAsync({ viewId, componentId });
+    } catch {
+      toast.error('Failed to clear color');
+    }
+  };
+
+  return { handleColorChange, handleClearColor };
+};
+
 export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRemoveFromView }) => {
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const { data: components = [] } = useComponents();
   const { currentView } = useCurrentView();
   const { data: capabilities = [] } = useCapabilities();
   const { data: componentRealizations = [] } = useCapabilitiesByComponent(selectedNodeId ?? undefined);
-  const updateComponentColorMutation = useUpdateComponentColor();
-  const clearComponentColorMutation = useClearComponentColor();
+  const { handleColorChange, handleClearColor } = useComponentColorHandlers(currentView?.id, selectedNodeId);
   const [isAddExpertOpen, setIsAddExpertOpen] = useState(false);
 
   const component = useMemo(() =>
@@ -357,32 +381,6 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
   if (!selectedNodeId || !component) return null;
 
   const componentInView = currentView?.components.find((vc) => vc.componentId === selectedNodeId);
-  const isInCurrentView = currentView?.components.some((vc) => vc.componentId === selectedNodeId) || false;
-
-  const handleColorChange = async (color: string) => {
-    if (!currentView) return;
-    try {
-      await updateComponentColorMutation.mutateAsync({
-        viewId: currentView.id,
-        componentId: selectedNodeId,
-        color
-      });
-    } catch {
-      toast.error('Failed to update color');
-    }
-  };
-
-  const handleClearColor = async () => {
-    if (!currentView) return;
-    try {
-      await clearComponentColorMutation.mutateAsync({
-        viewId: currentView.id,
-        componentId: selectedNodeId
-      });
-    } catch {
-      toast.error('Failed to clear color');
-    }
-  };
 
   return (
     <ComponentDetailsContent
@@ -392,7 +390,7 @@ export const ComponentDetails: React.FC<ComponentDetailsProps> = ({ onEdit, onRe
       onEdit={onEdit}
       componentInView={componentInView}
       currentView={currentView}
-      isInCurrentView={isInCurrentView}
+      isInCurrentView={componentInView !== undefined}
       onRemoveFromView={onRemoveFromView}
       onColorChange={handleColorChange}
       onClearColor={handleClearColor}
