@@ -27,12 +27,12 @@ describe('DomainForm', () => {
     },
   };
 
-  let onSubmit: ReturnType<typeof vi.fn>;
-  let onCancel: ReturnType<typeof vi.fn>;
+  let onSubmit: ReturnType<typeof vi.fn<(name: string, description: string, domainArchitectId?: string) => Promise<void>>>;
+  let onCancel: ReturnType<typeof vi.fn<() => void>>;
 
   beforeEach(() => {
-    onSubmit = vi.fn();
-    onCancel = vi.fn();
+    onSubmit = vi.fn<(name: string, description: string, domainArchitectId?: string) => Promise<void>>();
+    onCancel = vi.fn<() => void>();
     vi.mocked(useUsersModule.useEAOwnerCandidates).mockReturnValue({
       data: mockUsers,
       isLoading: false,
@@ -40,13 +40,13 @@ describe('DomainForm', () => {
     } as any);
   });
 
-  function renderCreateForm(submitOverride?: ReturnType<typeof vi.fn>) {
+  function renderCreateForm(submitOverride?: typeof onSubmit) {
     renderWithProviders(
       <DomainForm mode="create" onSubmit={submitOverride ?? onSubmit} onCancel={onCancel} />,
     );
   }
 
-  function renderEditForm(domain: BusinessDomain, submitOverride?: ReturnType<typeof vi.fn>) {
+  function renderEditForm(domain: BusinessDomain, submitOverride?: typeof onSubmit) {
     renderWithProviders(
       <DomainForm mode="edit" domain={domain} onSubmit={submitOverride ?? onSubmit} onCancel={onCancel} />,
     );
