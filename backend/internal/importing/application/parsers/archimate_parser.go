@@ -128,7 +128,19 @@ func (p *ArchiMateParser) Parse(reader io.Reader) (*ParseResult, error) {
 		UnsupportedRelationships: make(map[string]int),
 	}
 
-	for _, elem := range model.Elements.Element {
+	classifyElements(model.Elements.Element, result)
+
+	capabilityIDs := collectIDs(result.Capabilities)
+	componentIDs := collectIDs(result.Components)
+	validator := newRelationshipValidator(capabilityIDs, componentIDs)
+
+	classifyRelationships(model.Relationships.Relationship, validator, result)
+
+	return result, nil
+}
+
+func classifyElements(elements []archiMateElement, result *ParseResult) {
+	for _, elem := range elements {
 		if !supportedElementTypes[elem.Type] {
 			result.UnsupportedElements[elem.Type]++
 			continue
@@ -146,51 +158,52 @@ func (p *ArchiMateParser) Parse(reader io.Reader) (*ParseResult, error) {
 			result.Components = append(result.Components, parsed)
 		}
 	}
+}
 
-	capabilityIDs := make(map[string]bool)
-	for _, cap := range result.Capabilities {
-		capabilityIDs[cap.SourceID] = true
+func collectIDs(elements []ParsedElement) map[string]bool {
+	ids := make(map[string]bool, len(elements))
+	for _, e := range elements {
+		ids[e.SourceID] = true
 	}
+	return ids
+}
 
-	componentIDs := make(map[string]bool)
-	for _, comp := range result.Components {
-		componentIDs[comp.SourceID] = true
+type relationshipValidator struct {
+	capabilityIDs map[string]bool
+	componentIDs  map[string]bool
+}
+
+func newRelationshipValidator(capabilityIDs, componentIDs map[string]bool) relationshipValidator {
+	return relationshipValidator{capabilityIDs: capabilityIDs, componentIDs: componentIDs}
+}
+
+func (v relationshipValidator) hasValidEndpoints(rel archiMateRelationship) bool {
+	switch rel.Type {
+	case "Aggregation", "Composition":
+		return v.capabilityIDs[rel.Source] && v.capabilityIDs[rel.Target]
+	case "Realization":
+		return v.componentIDs[rel.Source] && v.capabilityIDs[rel.Target]
+	case "Triggering", "Serving":
+		return v.componentIDs[rel.Source] && v.componentIDs[rel.Target]
+	default:
+		return true
 	}
+}
 
-	for _, rel := range model.Relationships.Relationship {
-		if !supportedRelationshipTypes[rel.Type] {
+func classifyRelationships(relationships []archiMateRelationship, validator relationshipValidator, result *ParseResult) {
+	for _, rel := range relationships {
+		if !supportedRelationshipTypes[rel.Type] || !validator.hasValidEndpoints(rel) {
 			result.UnsupportedRelationships[rel.Type]++
 			continue
 		}
 
-		if (rel.Type == "Aggregation" || rel.Type == "Composition") &&
-			(!capabilityIDs[rel.Source] || !capabilityIDs[rel.Target]) {
-			result.UnsupportedRelationships[rel.Type]++
-			continue
-		}
-
-		if rel.Type == "Realization" &&
-			(!componentIDs[rel.Source] || !capabilityIDs[rel.Target]) {
-			result.UnsupportedRelationships[rel.Type]++
-			continue
-		}
-
-		if (rel.Type == "Triggering" || rel.Type == "Serving") &&
-			(!componentIDs[rel.Source] || !componentIDs[rel.Target]) {
-			result.UnsupportedRelationships[rel.Type]++
-			continue
-		}
-
-		parsed := ParsedRelationship{
+		result.Relationships = append(result.Relationships, ParsedRelationship{
 			SourceID:      rel.Identifier,
 			Type:          rel.Type,
 			SourceRef:     rel.Source,
 			TargetRef:     rel.Target,
 			Name:          rel.Name,
 			Documentation: rel.Documentation,
-		}
-		result.Relationships = append(result.Relationships, parsed)
+		})
 	}
-
-	return result, nil
 }
