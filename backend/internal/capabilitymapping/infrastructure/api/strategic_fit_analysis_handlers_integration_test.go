@@ -210,69 +210,58 @@ func newTestDataBuilder(ctx *strategicFitTestContext, t *testing.T) *testDataBui
 	return &testDataBuilder{ctx: ctx, t: t}
 }
 
-func (b *testDataBuilder) withCapability(id, name, level string) *testDataBuilder {
-	b.capabilities = append(b.capabilities, capabilityData{id: id, name: name, level: level})
+func (b *testDataBuilder) withCapability(c capabilityData) *testDataBuilder {
+	b.capabilities = append(b.capabilities, c)
 	return b
 }
 
-func (b *testDataBuilder) withCapabilityParent(id, name, level, parentID string) *testDataBuilder {
-	b.capabilities = append(b.capabilities, capabilityData{id: id, name: name, level: level, parentID: parentID})
+func (b *testDataBuilder) withDomain(d domainData) *testDataBuilder {
+	b.domains = append(b.domains, d)
 	return b
 }
 
-func (b *testDataBuilder) withDomain(id, name string) *testDataBuilder {
-	b.domains = append(b.domains, domainData{id: id, name: name})
+func (b *testDataBuilder) withComponent(c componentData) *testDataBuilder {
+	b.components = append(b.components, c)
 	return b
 }
 
-func (b *testDataBuilder) withComponent(id, name string) *testDataBuilder {
-	b.components = append(b.components, componentData{id: id, name: name})
+func (b *testDataBuilder) withRealization(r realizationData) *testDataBuilder {
+	b.realizations = append(b.realizations, r)
 	return b
 }
 
-func (b *testDataBuilder) withRealization(id, capabilityID, componentID string) *testDataBuilder {
-	b.realizations = append(b.realizations, realizationData{id: id, capabilityID: capabilityID, componentID: componentID})
+func (b *testDataBuilder) withDomainAssignment(da domainAssignmentData) *testDataBuilder {
+	b.domainAssignments = append(b.domainAssignments, da)
 	return b
 }
 
-func (b *testDataBuilder) withDomainAssignment(id, domainID, domainName, capabilityID, capabilityName string) *testDataBuilder {
-	b.domainAssignments = append(b.domainAssignments, domainAssignmentData{
-		id: id, domainID: domainID, domainName: domainName, capabilityID: capabilityID, capabilityName: capabilityName,
-	})
+func (b *testDataBuilder) withStrategyImportance(si strategyImportanceData) *testDataBuilder {
+	b.strategyImportances = append(b.strategyImportances, si)
 	return b
 }
 
-func (b *testDataBuilder) withStrategyImportance(id, domainID, domainName, capabilityID, capabilityName, pillarID, pillarName string, importance int) *testDataBuilder {
-	b.strategyImportances = append(b.strategyImportances, strategyImportanceData{
-		id: id, domainID: domainID, domainName: domainName, capabilityID: capabilityID, capabilityName: capabilityName,
-		pillarID: pillarID, pillarName: pillarName, importance: importance,
-	})
+func (b *testDataBuilder) withApplicationFitScore(afs applicationFitScoreData) *testDataBuilder {
+	b.applicationFitScores = append(b.applicationFitScores, afs)
 	return b
 }
 
-func (b *testDataBuilder) withApplicationFitScore(id, componentID, componentName, pillarID, pillarName string, score int) *testDataBuilder {
-	b.applicationFitScores = append(b.applicationFitScores, applicationFitScoreData{
-		id: id, componentID: componentID, componentName: componentName, pillarID: pillarID, pillarName: pillarName, score: score,
-	})
+func (b *testDataBuilder) withDomainCapabilityMetadata(dcm domainCapabilityMetadataData) *testDataBuilder {
+	b.domainCapabilityMetadatas = append(b.domainCapabilityMetadatas, dcm)
 	return b
 }
 
-func (b *testDataBuilder) withDomainCapabilityMetadata(capabilityID, capabilityName, level, l1CapabilityID, domainID, domainName string) *testDataBuilder {
-	b.domainCapabilityMetadatas = append(b.domainCapabilityMetadatas, domainCapabilityMetadataData{
-		capabilityID: capabilityID, capabilityName: capabilityName, level: level, l1CapabilityID: l1CapabilityID, domainID: domainID, domainName: domainName,
-	})
-	return b
-}
-
-func (b *testDataBuilder) withEffectiveImportance(capabilityID, pillarID, domainID string, importance int, sourceCapabilityID, sourceCapabilityName string, isInherited bool) *testDataBuilder {
-	b.effectiveImportances = append(b.effectiveImportances, effectiveImportanceData{
-		capabilityID: capabilityID, pillarID: pillarID, domainID: domainID, importance: importance,
-		sourceCapabilityID: sourceCapabilityID, sourceCapabilityName: sourceCapabilityName, isInherited: isInherited,
-	})
+func (b *testDataBuilder) withEffectiveImportance(ei effectiveImportanceData) *testDataBuilder {
+	b.effectiveImportances = append(b.effectiveImportances, ei)
 	return b
 }
 
 func (b *testDataBuilder) build() {
+	b.buildEntities()
+	b.buildRelationships()
+	b.buildStrategyData()
+}
+
+func (b *testDataBuilder) buildEntities() {
 	for _, c := range b.capabilities {
 		b.createCapability(c)
 	}
@@ -282,20 +271,26 @@ func (b *testDataBuilder) build() {
 	for _, c := range b.components {
 		b.createComponent(c)
 	}
+}
+
+func (b *testDataBuilder) buildRelationships() {
 	for _, r := range b.realizations {
 		b.createRealization(r)
 	}
 	for _, da := range b.domainAssignments {
 		b.createDomainAssignment(da)
 	}
+	for _, dcm := range b.domainCapabilityMetadatas {
+		b.createDomainCapabilityMetadata(dcm)
+	}
+}
+
+func (b *testDataBuilder) buildStrategyData() {
 	for _, si := range b.strategyImportances {
 		b.createStrategyImportance(si)
 	}
 	for _, afs := range b.applicationFitScores {
 		b.createApplicationFitScore(afs)
-	}
-	for _, dcm := range b.domainCapabilityMetadatas {
-		b.createDomainCapabilityMetadata(dcm)
 	}
 	for _, ei := range b.effectiveImportances {
 		b.createEffectiveImportance(ei)
@@ -531,15 +526,15 @@ func TestGetStrategicFitAnalysis_WithDirectRating_Integration(t *testing.T) {
 	domainID := uuid.New().String()
 
 	newTestDataBuilder(h.testCtx, t).
-		withCapability(capabilityID, "Customer Onboarding", "L1").
-		withDomain(domainID, "Customer Management").
-		withComponent(componentID, "CRM System").
-		withRealization(uuid.New().String(), capabilityID, componentID).
-		withDomainAssignment(uuid.New().String(), domainID, "Customer Management", capabilityID, "Customer Onboarding").
-		withDomainCapabilityMetadata(capabilityID, "Customer Onboarding", "L1", capabilityID, domainID, "Customer Management").
-		withStrategyImportance(uuid.New().String(), domainID, "Customer Management", capabilityID, "Customer Onboarding", pillarID, pillarName, 5).
-		withEffectiveImportance(capabilityID, pillarID, domainID, 5, capabilityID, "Customer Onboarding", false).
-		withApplicationFitScore(uuid.New().String(), componentID, "CRM System", pillarID, pillarName, 2).
+		withCapability(capabilityData{id: capabilityID, name: "Customer Onboarding", level: "L1"}).
+		withDomain(domainData{id: domainID, name: "Customer Management"}).
+		withComponent(componentData{id: componentID, name: "CRM System"}).
+		withRealization(realizationData{id: uuid.New().String(), capabilityID: capabilityID, componentID: componentID}).
+		withDomainAssignment(domainAssignmentData{id: uuid.New().String(), domainID: domainID, domainName: "Customer Management", capabilityID: capabilityID, capabilityName: "Customer Onboarding"}).
+		withDomainCapabilityMetadata(domainCapabilityMetadataData{capabilityID: capabilityID, capabilityName: "Customer Onboarding", level: "L1", l1CapabilityID: capabilityID, domainID: domainID, domainName: "Customer Management"}).
+		withStrategyImportance(strategyImportanceData{id: uuid.New().String(), domainID: domainID, domainName: "Customer Management", capabilityID: capabilityID, capabilityName: "Customer Onboarding", pillarID: pillarID, pillarName: pillarName, importance: 5}).
+		withEffectiveImportance(effectiveImportanceData{capabilityID: capabilityID, pillarID: pillarID, domainID: domainID, importance: 5, sourceCapabilityID: capabilityID, sourceCapabilityName: "Customer Onboarding", isInherited: false}).
+		withApplicationFitScore(applicationFitScoreData{id: uuid.New().String(), componentID: componentID, componentName: "CRM System", pillarID: pillarID, pillarName: pillarName, score: 2}).
 		build()
 
 	w, response := h.executeRequest(t, pillarID)
@@ -577,16 +572,16 @@ func TestGetStrategicFitAnalysis_InheritedFromParent_Integration(t *testing.T) {
 	domainID := uuid.New().String()
 
 	newTestDataBuilder(h.testCtx, t).
-		withCapability(l1CapabilityID, "Payment Processing", "L1").
-		withCapabilityParent(l2CapabilityID, "Card Payments", "L2", l1CapabilityID).
-		withDomain(domainID, "Finance").
-		withComponent(componentID, "Payment Gateway").
-		withRealization(uuid.New().String(), l2CapabilityID, componentID).
-		withDomainAssignment(uuid.New().String(), domainID, "Finance", l1CapabilityID, "Payment Processing").
-		withDomainCapabilityMetadata(l2CapabilityID, "Card Payments", "L2", l1CapabilityID, domainID, "Finance").
-		withStrategyImportance(uuid.New().String(), domainID, "Finance", l1CapabilityID, "Payment Processing", pillarID, pillarName, 4).
-		withEffectiveImportance(l2CapabilityID, pillarID, domainID, 4, l1CapabilityID, "Payment Processing", true).
-		withApplicationFitScore(uuid.New().String(), componentID, "Payment Gateway", pillarID, pillarName, 2).
+		withCapability(capabilityData{id: l1CapabilityID, name: "Payment Processing", level: "L1"}).
+		withCapability(capabilityData{id: l2CapabilityID, name: "Card Payments", level: "L2", parentID: l1CapabilityID}).
+		withDomain(domainData{id: domainID, name: "Finance"}).
+		withComponent(componentData{id: componentID, name: "Payment Gateway"}).
+		withRealization(realizationData{id: uuid.New().String(), capabilityID: l2CapabilityID, componentID: componentID}).
+		withDomainAssignment(domainAssignmentData{id: uuid.New().String(), domainID: domainID, domainName: "Finance", capabilityID: l1CapabilityID, capabilityName: "Payment Processing"}).
+		withDomainCapabilityMetadata(domainCapabilityMetadataData{capabilityID: l2CapabilityID, capabilityName: "Card Payments", level: "L2", l1CapabilityID: l1CapabilityID, domainID: domainID, domainName: "Finance"}).
+		withStrategyImportance(strategyImportanceData{id: uuid.New().String(), domainID: domainID, domainName: "Finance", capabilityID: l1CapabilityID, capabilityName: "Payment Processing", pillarID: pillarID, pillarName: pillarName, importance: 4}).
+		withEffectiveImportance(effectiveImportanceData{capabilityID: l2CapabilityID, pillarID: pillarID, domainID: domainID, importance: 4, sourceCapabilityID: l1CapabilityID, sourceCapabilityName: "Payment Processing", isInherited: true}).
+		withApplicationFitScore(applicationFitScoreData{id: uuid.New().String(), componentID: componentID, componentName: "Payment Gateway", pillarID: pillarID, pillarName: pillarName, score: 2}).
 		build()
 
 	w, response := h.executeRequest(t, pillarID)
@@ -620,20 +615,20 @@ func TestGetStrategicFitAnalysis_MultipleCapabilitiesInSameChain_Integration(t *
 	domainID := uuid.New().String()
 
 	newTestDataBuilder(h.testCtx, t).
-		withCapability(l1CapabilityID, "Payment Processing", "L1").
-		withCapabilityParent(l2CapabilityID, "Card Payments", "L2", l1CapabilityID).
-		withDomain(domainID, "Finance").
-		withComponent(componentID, "Payment Gateway").
-		withRealization(uuid.New().String(), l1CapabilityID, componentID).
-		withRealization(uuid.New().String(), l2CapabilityID, componentID).
-		withDomainAssignment(uuid.New().String(), domainID, "Finance", l1CapabilityID, "Payment Processing").
-		withDomainCapabilityMetadata(l1CapabilityID, "Payment Processing", "L1", l1CapabilityID, domainID, "Finance").
-		withDomainCapabilityMetadata(l2CapabilityID, "Card Payments", "L2", l1CapabilityID, domainID, "Finance").
-		withStrategyImportance(uuid.New().String(), domainID, "Finance", l1CapabilityID, "Payment Processing", pillarID, pillarName, 4).
-		withStrategyImportance(uuid.New().String(), domainID, "Finance", l2CapabilityID, "Card Payments", pillarID, pillarName, 5).
-		withEffectiveImportance(l1CapabilityID, pillarID, domainID, 4, l1CapabilityID, "Payment Processing", false).
-		withEffectiveImportance(l2CapabilityID, pillarID, domainID, 5, l2CapabilityID, "Card Payments", false).
-		withApplicationFitScore(uuid.New().String(), componentID, "Payment Gateway", pillarID, pillarName, 2).
+		withCapability(capabilityData{id: l1CapabilityID, name: "Payment Processing", level: "L1"}).
+		withCapability(capabilityData{id: l2CapabilityID, name: "Card Payments", level: "L2", parentID: l1CapabilityID}).
+		withDomain(domainData{id: domainID, name: "Finance"}).
+		withComponent(componentData{id: componentID, name: "Payment Gateway"}).
+		withRealization(realizationData{id: uuid.New().String(), capabilityID: l1CapabilityID, componentID: componentID}).
+		withRealization(realizationData{id: uuid.New().String(), capabilityID: l2CapabilityID, componentID: componentID}).
+		withDomainAssignment(domainAssignmentData{id: uuid.New().String(), domainID: domainID, domainName: "Finance", capabilityID: l1CapabilityID, capabilityName: "Payment Processing"}).
+		withDomainCapabilityMetadata(domainCapabilityMetadataData{capabilityID: l1CapabilityID, capabilityName: "Payment Processing", level: "L1", l1CapabilityID: l1CapabilityID, domainID: domainID, domainName: "Finance"}).
+		withDomainCapabilityMetadata(domainCapabilityMetadataData{capabilityID: l2CapabilityID, capabilityName: "Card Payments", level: "L2", l1CapabilityID: l1CapabilityID, domainID: domainID, domainName: "Finance"}).
+		withStrategyImportance(strategyImportanceData{id: uuid.New().String(), domainID: domainID, domainName: "Finance", capabilityID: l1CapabilityID, capabilityName: "Payment Processing", pillarID: pillarID, pillarName: pillarName, importance: 4}).
+		withStrategyImportance(strategyImportanceData{id: uuid.New().String(), domainID: domainID, domainName: "Finance", capabilityID: l2CapabilityID, capabilityName: "Card Payments", pillarID: pillarID, pillarName: pillarName, importance: 5}).
+		withEffectiveImportance(effectiveImportanceData{capabilityID: l1CapabilityID, pillarID: pillarID, domainID: domainID, importance: 4, sourceCapabilityID: l1CapabilityID, sourceCapabilityName: "Payment Processing", isInherited: false}).
+		withEffectiveImportance(effectiveImportanceData{capabilityID: l2CapabilityID, pillarID: pillarID, domainID: domainID, importance: 5, sourceCapabilityID: l2CapabilityID, sourceCapabilityName: "Card Payments", isInherited: false}).
+		withApplicationFitScore(applicationFitScoreData{id: uuid.New().String(), componentID: componentID, componentName: "Payment Gateway", pillarID: pillarID, pillarName: pillarName, score: 2}).
 		build()
 
 	w, response := h.executeRequest(t, pillarID)
@@ -674,14 +669,14 @@ func TestGetStrategicFitAnalysis_NoRatingInHierarchy_NoGapEntry_Integration(t *t
 	domainID := uuid.New().String()
 
 	newTestDataBuilder(h.testCtx, t).
-		withCapability(l1CapabilityID, "Support Operations", "L1").
-		withCapabilityParent(l2CapabilityID, "Ticket Management", "L2", l1CapabilityID).
-		withDomain(domainID, "Operations").
-		withComponent(componentID, "Helpdesk System").
-		withRealization(uuid.New().String(), l2CapabilityID, componentID).
-		withDomainAssignment(uuid.New().String(), domainID, "Operations", l1CapabilityID, "Support Operations").
-		withDomainCapabilityMetadata(l2CapabilityID, "Ticket Management", "L2", l1CapabilityID, domainID, "Operations").
-		withApplicationFitScore(uuid.New().String(), componentID, "Helpdesk System", pillarID, pillarName, 4).
+		withCapability(capabilityData{id: l1CapabilityID, name: "Support Operations", level: "L1"}).
+		withCapability(capabilityData{id: l2CapabilityID, name: "Ticket Management", level: "L2", parentID: l1CapabilityID}).
+		withDomain(domainData{id: domainID, name: "Operations"}).
+		withComponent(componentData{id: componentID, name: "Helpdesk System"}).
+		withRealization(realizationData{id: uuid.New().String(), capabilityID: l2CapabilityID, componentID: componentID}).
+		withDomainAssignment(domainAssignmentData{id: uuid.New().String(), domainID: domainID, domainName: "Operations", capabilityID: l1CapabilityID, capabilityName: "Support Operations"}).
+		withDomainCapabilityMetadata(domainCapabilityMetadataData{capabilityID: l2CapabilityID, capabilityName: "Ticket Management", level: "L2", l1CapabilityID: l1CapabilityID, domainID: domainID, domainName: "Operations"}).
+		withApplicationFitScore(applicationFitScoreData{id: uuid.New().String(), componentID: componentID, componentName: "Helpdesk System", pillarID: pillarID, pillarName: pillarName, score: 4}).
 		build()
 
 	w, response := h.executeRequest(t, pillarID)
