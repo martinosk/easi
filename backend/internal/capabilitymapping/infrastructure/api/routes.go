@@ -159,15 +159,10 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pill
 	ratingLookupAdapter := adapters.NewRatingLookupAdapter(rm.strategyImportance)
 	hierarchyService := services.NewCapabilityHierarchyService(capabilityLookupAdapter)
 	ratingResolver := services.NewHierarchicalRatingResolver(hierarchyService, ratingLookupAdapter, capabilityLookupAdapter)
-	effectiveImportanceProjector := projectors.NewEffectiveImportanceProjector(
-		rm.effectiveCapabilityImportance,
-		rm.strategyImportance,
-		rm.capability,
-		rm.domainAssignment,
-		ratingResolver,
-		hierarchyService,
-		pillarsGateway,
-	)
+	recomputer := projectors.NewEffectiveImportanceRecomputer(rm.effectiveCapabilityImportance, ratingResolver, hierarchyService)
+	importanceChangeProjector := projectors.NewImportanceChangeEffectiveProjector(recomputer, rm.strategyImportance)
+	hierarchyChangeProjector := projectors.NewHierarchyChangeEffectiveProjector(recomputer, rm.effectiveCapabilityImportance)
+	domainAssignmentEffectiveProjector := projectors.NewDomainAssignmentEffectiveProjector(recomputer, rm.effectiveCapabilityImportance, hierarchyService, rm.domainAssignment, pillarsGateway)
 
 	subscribeCapabilityEvents(eventBus, capabilityProjector)
 	subscribeDependencyEvents(eventBus, dependencyProjector)
@@ -177,7 +172,9 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pill
 	subscribeStrategyImportanceEvents(eventBus, strategyImportanceProjector)
 	subscribeApplicationFitScoreEvents(eventBus, applicationFitScoreProjector)
 	subscribeComponentCacheEvents(eventBus, componentCacheProjector)
-	subscribeEffectiveImportanceEvents(eventBus, effectiveImportanceProjector)
+	subscribeImportanceChangeEffectiveEvents(eventBus, importanceChangeProjector)
+	subscribeHierarchyChangeEffectiveEvents(eventBus, hierarchyChangeProjector)
+	subscribeDomainAssignmentEffectiveEvents(eventBus, domainAssignmentEffectiveProjector)
 	subscribeMetaModelEvents(eventBus, pillarCacheProjector)
 }
 
@@ -239,17 +236,20 @@ func subscribeComponentCacheEvents(eventBus events.EventBus, projector *projecto
 	}
 }
 
-func subscribeEffectiveImportanceEvents(eventBus events.EventBus, projector *projectors.EffectiveImportanceProjector) {
-	events := []string{
-		"StrategyImportanceSet",
-		"StrategyImportanceUpdated",
-		"StrategyImportanceRemoved",
-		"CapabilityParentChanged",
-		"CapabilityDeleted",
-		"CapabilityAssignedToDomain",
-		"CapabilityUnassignedFromDomain",
+func subscribeImportanceChangeEffectiveEvents(eventBus events.EventBus, projector *projectors.ImportanceChangeEffectiveProjector) {
+	for _, event := range []string{"StrategyImportanceSet", "StrategyImportanceUpdated", "StrategyImportanceRemoved"} {
+		eventBus.Subscribe(event, projector)
 	}
-	for _, event := range events {
+}
+
+func subscribeHierarchyChangeEffectiveEvents(eventBus events.EventBus, projector *projectors.HierarchyChangeEffectiveProjector) {
+	for _, event := range []string{"CapabilityParentChanged", "CapabilityDeleted"} {
+		eventBus.Subscribe(event, projector)
+	}
+}
+
+func subscribeDomainAssignmentEffectiveEvents(eventBus events.EventBus, projector *projectors.DomainAssignmentEffectiveProjector) {
+	for _, event := range []string{"CapabilityAssignedToDomain", "CapabilityUnassignedFromDomain"} {
 		eventBus.Subscribe(event, projector)
 	}
 }

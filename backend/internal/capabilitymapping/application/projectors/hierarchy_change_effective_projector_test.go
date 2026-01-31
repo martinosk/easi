@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEffectiveImportanceProjector_CapabilityParentChanged_ChecksNewParentImportances(t *testing.T) {
-	projector := &EffectiveImportanceProjector{}
+func TestHierarchyChangeEffectiveProjector_CapabilityParentChanged_ChecksNewParentImportances(t *testing.T) {
+	projector := &HierarchyChangeEffectiveProjector{}
 
 	capabilityParentChangedEvent := map[string]interface{}{
 		"capabilityId": "child-cap-id",
@@ -27,8 +27,8 @@ func TestEffectiveImportanceProjector_CapabilityParentChanged_ChecksNewParentImp
 	assert.Error(t, err, "CapabilityParentChanged should check both child's AND new parent's effective importances")
 }
 
-func TestEffectiveImportanceProjector_CapabilityParentChanged_NoNewParent_OnlyChecksChild(t *testing.T) {
-	projector := &EffectiveImportanceProjector{}
+func TestHierarchyChangeEffectiveProjector_CapabilityParentChanged_NoNewParent_OnlyChecksChild(t *testing.T) {
+	projector := &HierarchyChangeEffectiveProjector{}
 
 	capabilityParentChangedEvent := map[string]interface{}{
 		"capabilityId": "child-cap-id",
