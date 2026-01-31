@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     -o /app/api cmd/api/main.go
 
 # Run stage
-FROM alpine:latest
+FROM alpine:3.23
 
 WORKDIR /app
 
