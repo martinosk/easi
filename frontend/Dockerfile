@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ ENV VITE_BASE_PATH=${VITE_BASE_PATH}
 RUN npm run build
 
 # Run stage
-FROM nginx:alpine
+FROM nginx:1.28-alpine
 
 # Copy custom nginx config (replaces default nginx.conf)
 COPY nginx.conf /etc/nginx/nginx.conf
