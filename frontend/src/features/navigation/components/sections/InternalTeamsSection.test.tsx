@@ -18,6 +18,14 @@ describe('InternalTeamsSection', () => {
     ...overrides,
   });
 
+  const mockMultiSelect = {
+    isMultiSelected: () => false,
+    handleItemClick: () => 'single' as const,
+    handleContextMenu: () => false,
+    handleDragStart: () => false,
+    selectedItems: [],
+  };
+
   const defaultProps = {
     internalTeams: [],
     currentView: null,
@@ -27,6 +35,7 @@ describe('InternalTeamsSection', () => {
     onAddTeam: vi.fn(),
     onTeamSelect: vi.fn(),
     onTeamContextMenu: vi.fn(),
+    multiSelect: mockMultiSelect,
   };
 
 

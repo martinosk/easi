@@ -20,24 +20,6 @@ export interface BulkOperationResult {
   failed: { name: string; error: string }[];
 }
 
-function collectSettledResults(
-  results: PromiseSettledResult<void>[],
-  nodes: NodeContextMenu[]
-): BulkOperationResult {
-  const succeeded: string[] = [];
-  const failed: BulkOperationResult['failed'] = [];
-
-  results.forEach((r, i) => {
-    if (r.status === 'fulfilled') {
-      succeeded.push(nodes[i].nodeName);
-    } else {
-      failed.push({ name: nodes[i].nodeName, error: r.reason?.message ?? 'Unknown error' });
-    }
-  });
-
-  return { succeeded, failed };
-}
-
 async function executeSequentially(
   nodes: NodeContextMenu[],
   action: (node: NodeContextMenu) => Promise<void>
@@ -186,10 +168,10 @@ export const useBulkOperations = () => {
       if (!currentViewId) return;
       setIsExecuting(true);
       setResult(null);
-      const results = await Promise.allSettled(
-        nodes.map((node) => removeNodeFromView(node, currentViewId, removeMutations))
+      const operationResult = await executeSequentially(nodes, (node) =>
+        removeNodeFromView(node, currentViewId, removeMutations)
       );
-      finishExecution(collectSettledResults(results, nodes));
+      finishExecution(operationResult);
     },
     [currentViewId, removeMutations, finishExecution]
   );

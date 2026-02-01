@@ -4,6 +4,7 @@ import { TreeSection } from '../TreeSection';
 import { TreeSearchInput } from '../shared/TreeSearchInput';
 import { TreeItemList } from '../shared/TreeItemList';
 import { ORIGIN_ENTITY_PREFIXES } from '../../../canvas/utils/nodeFactory';
+import type { TreeMultiSelectProps } from '../../types';
 
 interface VendorsSectionProps {
   vendors: Vendor[];
@@ -14,6 +15,7 @@ interface VendorsSectionProps {
   onAddVendor?: () => void;
   onVendorSelect?: (vendorId: string) => void;
   onVendorContextMenu: (e: React.MouseEvent, vendor: Vendor) => void;
+  multiSelect: TreeMultiSelectProps;
 }
 
 function filterVendors(vendors: Vendor[], search: string): Vendor[] {
@@ -27,6 +29,19 @@ function filterVendors(vendors: Vendor[], search: string): Vendor[] {
   );
 }
 
+function buildVendorIdsOnCanvas(vendors: Vendor[], currentView: View | null): Set<string> {
+  const viewOriginEntityIds = new Set(
+    (currentView?.originEntities ?? []).map((oe) => oe.originEntityId)
+  );
+  const onCanvas = new Set<string>();
+  for (const vendor of vendors) {
+    if (viewOriginEntityIds.has(`${ORIGIN_ENTITY_PREFIXES.vendor}${vendor.id}`)) {
+      onCanvas.add(vendor.id);
+    }
+  }
+  return onCanvas;
+}
+
 export const VendorsSection: React.FC<VendorsSectionProps> = ({
   vendors,
   currentView,
@@ -36,30 +51,56 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
   onAddVendor,
   onVendorSelect,
   onVendorContextMenu,
+  multiSelect,
 }) => {
   const [search, setSearch] = useState('');
 
-  const vendorIdsOnCanvas = useMemo(() => {
-    const viewOriginEntityIds = new Set(
-      (currentView?.originEntities ?? []).map((oe) => oe.originEntityId)
-    );
-    const onCanvas = new Set<string>();
-    for (const vendor of vendors) {
-      const nodeId = `${ORIGIN_ENTITY_PREFIXES.vendor}${vendor.id}`;
-      if (viewOriginEntityIds.has(nodeId)) {
-        onCanvas.add(vendor.id);
-      }
-    }
-    return onCanvas;
-  }, [vendors, currentView?.originEntities]);
+  const vendorIdsOnCanvas = useMemo(
+    () => buildVendorIdsOnCanvas(vendors, currentView),
+    [vendors, currentView]
+  );
 
   const filteredVendors = useMemo(
     () => filterVendors(vendors, search),
     [vendors, search]
   );
 
+  const visibleItems = useMemo(
+    () => filteredVendors.map((v) => ({
+      id: v.id, name: v.name, type: 'vendor' as const, links: v._links,
+    })),
+    [filteredVendors]
+  );
+
   const hasNoVendors = vendors.length === 0;
   const emptyMessage = hasNoVendors ? 'No vendors' : 'No matches';
+
+  const handleSelect = (vendor: Vendor, event: React.MouseEvent) => {
+    const result = multiSelect.handleItemClick(
+      { id: vendor.id, name: vendor.name, type: 'vendor', links: vendor._links },
+      'vendors',
+      visibleItems,
+      event
+    );
+    if (result === 'single') {
+      onVendorSelect?.(vendor.id);
+    }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, vendor: Vendor) => {
+    const handled = multiSelect.handleContextMenu(e, vendor.id, multiSelect.selectedItems);
+    if (!handled) {
+      onVendorContextMenu(e, vendor);
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, vendor: Vendor) => {
+    const handled = multiSelect.handleDragStart(e, vendor.id);
+    if (!handled) {
+      e.dataTransfer.setData('vendorId', vendor.id);
+      e.dataTransfer.effectAllowed = 'copy';
+    }
+  };
 
   return (
     <TreeSection
@@ -82,14 +123,15 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
           emptyMessage={emptyMessage}
           icon="🏪"
           dragDataKey="vendorId"
-          isSelected={(vendor) => selectedVendorId === vendor.id}
+          isSelected={(vendor) => selectedVendorId === vendor.id || multiSelect.isMultiSelected(vendor.id)}
           isInView={(vendor) => !currentView || vendorIdsOnCanvas.has(vendor.id)}
           getTitle={(vendor, isInView) =>
             isInView ? vendor.name : `${vendor.name} (not on canvas)`
           }
           renderLabel={(vendor) => vendor.name}
-          onSelect={(vendor) => onVendorSelect?.(vendor.id)}
-          onContextMenu={onVendorContextMenu}
+          onSelect={handleSelect}
+          onContextMenu={handleContextMenu}
+          onDragStart={handleDragStart}
         />
       </div>
     </TreeSection>

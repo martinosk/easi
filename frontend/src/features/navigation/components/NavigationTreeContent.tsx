@@ -6,7 +6,7 @@ import { CapabilitiesSection } from './sections/CapabilitiesSection';
 import { AcquiredEntitiesSection } from './sections/AcquiredEntitiesSection';
 import { VendorsSection } from './sections/VendorsSection';
 import { InternalTeamsSection } from './sections/InternalTeamsSection';
-import type { EditingState } from '../types';
+import type { EditingState, TreeMultiSelectProps } from '../types';
 
 interface SelectedEntityIds {
   acquiredEntityId: string | null;
@@ -56,6 +56,8 @@ interface NavigationTreeContentProps {
     editInputRef: React.RefObject<HTMLInputElement | null>;
     setShowCreateDialog: (v: boolean) => void;
   };
+  multiSelect: TreeMultiSelectProps;
+  selectionCount: number;
   onComponentSelect?: (componentId: string) => void;
   onViewSelect?: (viewId: string) => void;
   onAddComponent?: () => void;
@@ -67,6 +69,15 @@ interface NavigationTreeContentProps {
   onAddVendor?: () => void;
   onAddTeam?: () => void;
 }
+
+const TreeHeader: React.FC<{ onClose: () => void }> = ({ onClose }) => (
+  <div className="navigation-tree-header">
+    <h3>Explorer</h3>
+    <button className="tree-toggle-btn" onClick={onClose} aria-label="Close navigation">
+      ‹
+    </button>
+  </div>
+);
 
 export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
   components,
@@ -82,6 +93,8 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
   selectedEntityIds,
   treeState,
   contextMenus,
+  multiSelect,
+  selectionCount,
   onComponentSelect,
   onViewSelect,
   onAddComponent,
@@ -94,16 +107,7 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
   onAddTeam,
 }) => (
   <div className="navigation-tree-content">
-    <div className="navigation-tree-header">
-      <h3>Explorer</h3>
-      <button
-        className="tree-toggle-btn"
-        onClick={() => treeState.setIsOpen(false)}
-        aria-label="Close navigation"
-      >
-        ‹
-      </button>
-    </div>
+    <TreeHeader onClose={() => treeState.setIsOpen(false)} />
 
     <ApplicationsSection
       components={components}
@@ -118,6 +122,7 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
       setEditingState={contextMenus.setEditingState}
       onRenameSubmit={contextMenus.handleRenameSubmit}
       editInputRef={contextMenus.editInputRef}
+      multiSelect={multiSelect}
     />
 
     <ViewsSection
@@ -147,6 +152,7 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
       toggleCapabilityExpanded={treeState.toggleCapabilityExpanded}
       selectedCapabilityId={selectedCapabilityId}
       setSelectedCapabilityId={setSelectedCapabilityId}
+      multiSelect={multiSelect}
     />
 
     <AcquiredEntitiesSection
@@ -158,6 +164,7 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
       onAddEntity={onAddAcquiredEntity}
       onEntitySelect={(entityId) => onOriginEntitySelect?.(`acq-${entityId}`)}
       onEntityContextMenu={contextMenus.handleAcquiredEntityContextMenu}
+      multiSelect={multiSelect}
     />
 
     <VendorsSection
@@ -169,6 +176,7 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
       onAddVendor={onAddVendor}
       onVendorSelect={(vendorId) => onOriginEntitySelect?.(`vendor-${vendorId}`)}
       onVendorContextMenu={contextMenus.handleVendorContextMenu}
+      multiSelect={multiSelect}
     />
 
     <InternalTeamsSection
@@ -180,6 +188,13 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
       onAddTeam={onAddTeam}
       onTeamSelect={(teamId) => onOriginEntitySelect?.(`team-${teamId}`)}
       onTeamContextMenu={contextMenus.handleInternalTeamContextMenu}
+      multiSelect={multiSelect}
     />
+
+    {selectionCount >= 2 && (
+      <div className="tree-selection-count">
+        {selectionCount} items selected
+      </div>
+    )}
   </div>
 );

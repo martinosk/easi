@@ -4,7 +4,8 @@ import { TreeSection } from '../TreeSection';
 import { buildCapabilityTree, getLevelNumber, hasCustomColor } from '../../utils/treeUtils';
 import { deriveMaturityValue } from '../../../../constants/maturityColors';
 import { useMaturityColorScale } from '../../../../hooks/useMaturityColorScale';
-import type { CapabilityTreeNode } from '../../types';
+import type { CapabilityTreeNode, TreeMultiSelectProps } from '../../types';
+import type { TreeSelectedItem } from '../../hooks/useTreeMultiSelect';
 
 interface ColorIndicatorProps {
   customColor: string | undefined;
@@ -42,6 +43,28 @@ const ExpandButton: React.FC<ExpandButtonProps> = ({ hasChildren, isExpanded, on
   );
 };
 
+function flattenVisibleCapabilities(
+  tree: CapabilityTreeNode[],
+  expandedSet: Set<string>
+): TreeSelectedItem[] {
+  const result: TreeSelectedItem[] = [];
+  const walk = (nodes: CapabilityTreeNode[]) => {
+    for (const node of nodes) {
+      result.push({
+        id: node.capability.id,
+        name: node.capability.name,
+        type: 'capability',
+        links: node.capability._links,
+      });
+      if (node.children.length > 0 && expandedSet.has(node.capability.id)) {
+        walk(node.children);
+      }
+    }
+  };
+  walk(tree);
+  return result;
+}
+
 interface CapabilitiesSectionProps {
   capabilities: Capability[];
   currentView: View | null;
@@ -54,6 +77,7 @@ interface CapabilitiesSectionProps {
   toggleCapabilityExpanded: (capabilityId: string) => void;
   selectedCapabilityId: string | null;
   setSelectedCapabilityId: (id: string | null) => void;
+  multiSelect: TreeMultiSelectProps;
 }
 
 export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
@@ -68,14 +92,43 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
   toggleCapabilityExpanded,
   selectedCapabilityId,
   setSelectedCapabilityId,
+  multiSelect,
 }) => {
   const { getColorForValue, getSectionNameForValue } = useMaturityColorScale();
   const capabilityTree = useMemo(() => buildCapabilityTree(capabilities), [capabilities]);
 
-  const handleCapabilityClick = (capabilityId: string) => {
-    setSelectedCapabilityId(capabilityId);
-    if (onCapabilitySelect) {
-      onCapabilitySelect(capabilityId);
+  const visibleItems = useMemo(
+    () => flattenVisibleCapabilities(capabilityTree, expandedCapabilities),
+    [capabilityTree, expandedCapabilities]
+  );
+
+  const handleCapabilityClick = (capability: Capability, event: React.MouseEvent) => {
+    const result = multiSelect.handleItemClick(
+      { id: capability.id, name: capability.name, type: 'capability', links: capability._links },
+      'capabilities',
+      visibleItems,
+      event
+    );
+    if (result === 'single') {
+      setSelectedCapabilityId(capability.id);
+      if (onCapabilitySelect) {
+        onCapabilitySelect(capability.id);
+      }
+    }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, capability: Capability) => {
+    const handled = multiSelect.handleContextMenu(e, capability.id, multiSelect.selectedItems);
+    if (!handled) {
+      onCapabilityContextMenu(e, capability);
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, capability: Capability) => {
+    const handled = multiSelect.handleDragStart(e, capability.id);
+    if (!handled) {
+      e.dataTransfer.setData('capabilityId', capability.id);
+      e.dataTransfer.effectAllowed = 'copy';
     }
   };
 
@@ -90,7 +143,7 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
       hasChildNodes: node.children.length > 0,
       isExpanded: expandedCapabilities.has(capability.id),
       levelNum: getLevelNumber(capability.level),
-      isSelected: selectedCapabilityId === capability.id,
+      isSelected: selectedCapabilityId === capability.id || multiSelect.isMultiSelected(capability.id),
       isOnCanvas,
       showColorIndicator: hasCustomColor(currentView?.colorScheme, customColor),
       title: isOnCanvas ? (capability.description || capability.name) : `${capability.description || capability.name} (not in view)`,
@@ -122,19 +175,14 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
       toggleCapabilityExpanded(capability.id);
     };
 
-    const handleDragStart = (e: React.DragEvent) => {
-      e.dataTransfer.setData('capabilityId', capability.id);
-      e.dataTransfer.effectAllowed = 'copy';
-    };
-
     return (
       <div key={capability.id}>
         <div
           className={buildCapabilityItemClassName(nodeData.levelNum, nodeData.isSelected, nodeData.isOnCanvas)}
           draggable
-          onDragStart={handleDragStart}
-          onClick={() => handleCapabilityClick(capability.id)}
-          onContextMenu={(e) => onCapabilityContextMenu(e, capability)}
+          onDragStart={(e) => handleDragStart(e, capability)}
+          onClick={(e) => handleCapabilityClick(capability, e)}
+          onContextMenu={(e) => handleContextMenu(e, capability)}
           title={nodeData.title}
         >
           <ExpandButton
