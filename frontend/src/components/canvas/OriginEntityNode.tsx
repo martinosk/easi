@@ -55,11 +55,12 @@ const getBackgroundGradient = (baseColor: HexColor): string => {
   return `linear-gradient(135deg, ${baseColor} 0%, ${baseColor}dd 100%)`;
 };
 
-export const OriginEntityNode: React.FC<{ data: OriginEntityNodeData; id: string }> = ({ data, id }) => {
+export const OriginEntityNode: React.FC<{ data: OriginEntityNodeData; id: string; selected?: boolean }> = ({ data, id, selected }) => {
   const baseColor = ENTITY_COLORS[data.entityType];
-  const borderColor = data.isSelected ? SELECTED_BORDER_COLOR : baseColor;
+  const isSelected = data.isSelected || !!selected;
+  const borderColor = isSelected ? SELECTED_BORDER_COLOR : baseColor;
 
-  const nodeClassName = `origin-entity-node origin-entity-node-${data.entityType} ${data.isSelected ? 'origin-entity-node-selected' : ''}`;
+  const nodeClassName = `origin-entity-node origin-entity-node-${data.entityType} ${isSelected ? 'origin-entity-node-selected' : ''}`;
 
   return (
     <div
@@ -67,7 +68,7 @@ export const OriginEntityNode: React.FC<{ data: OriginEntityNodeData; id: string
       style={{
         background: getBackgroundGradient(baseColor),
         borderColor: borderColor,
-        borderWidth: data.isSelected ? 3 : 2,
+        borderWidth: isSelected ? 3 : 2,
         borderStyle: 'solid',
         borderRadius: '8px',
         padding: '12px 16px',

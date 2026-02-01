@@ -58,10 +58,11 @@ const resolveBorderColor = (isSelected: boolean, baseColor: HexColor): HexColor 
   return isSelected ? SELECTED_BORDER_COLOR : baseColor;
 };
 
-export const CapabilityNode: React.FC<{ data: CapabilityNodeData; id: string }> = ({ data, id }) => {
+export const CapabilityNode: React.FC<{ data: CapabilityNodeData; id: string; selected?: boolean }> = ({ data, id, selected }) => {
   const { currentView } = useCurrentView();
   const colorScheme = (currentView?.colorScheme || 'maturity') as ColorScheme;
   const { getColorForValue, getSectionNameForValue } = useMaturityColorScale();
+  const isSelected = data.isSelected || !!selected;
 
   const effectiveMaturityValue = data.maturityValue ?? deriveMaturityValue(data.maturityLevel);
   const sectionName = getSectionNameForValue(effectiveMaturityValue);
@@ -73,9 +74,9 @@ export const CapabilityNode: React.FC<{ data: CapabilityNodeData; id: string }> 
     maturityValue: data.maturityValue,
     getColorForValue,
   });
-  const borderColor = resolveBorderColor(data.isSelected, baseColor);
+  const borderColor = resolveBorderColor(isSelected, baseColor);
 
-  const nodeClassName = `capability-node ${data.isSelected ? 'capability-node-selected' : ''} ${colorScheme === 'classic' ? 'classic-text' : ''}`;
+  const nodeClassName = `capability-node ${isSelected ? 'capability-node-selected' : ''} ${colorScheme === 'classic' ? 'classic-text' : ''}`;
 
   return (
     <div

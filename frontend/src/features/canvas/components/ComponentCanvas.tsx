@@ -69,7 +69,11 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     const nodesKey = nodes.map(n => `${n.id}:${n.position.x}:${n.position.y}:${n.data?.isSelected}:${n.data?.label}:${n.data?.customColor}:${n.data?.maturityValue}`).join('|');
     if (prevNodesRef.current !== nodesKey) {
       prevNodesRef.current = nodesKey;
-      setInternalNodes(nodes);
+      setInternalNodes(prev => {
+        const selectedIds = new Set(prev.filter(n => n.selected).map(n => n.id));
+        if (selectedIds.size === 0) return nodes;
+        return nodes.map(n => selectedIds.has(n.id) ? { ...n, selected: true } : n);
+      });
     }
   }, [nodes]);
 
