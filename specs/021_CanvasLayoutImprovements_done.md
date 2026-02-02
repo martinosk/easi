@@ -28,6 +28,7 @@ Users should be able to choose between different edge routing styles for the ent
 - Default edge type is Bezier (matches current behavior)
 
 ### Automatic Layout with Dagre
+Superseded by spec 124.
 
 Users should be able to automatically arrange components using the Dagre hierarchical layout algorithm:
 

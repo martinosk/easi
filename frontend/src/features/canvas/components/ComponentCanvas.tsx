@@ -26,6 +26,7 @@ import { useCanvasConnection } from '../hooks/useCanvasConnection';
 import { useContextMenu } from '../hooks/useContextMenu';
 import { useDeleteConfirmation } from '../hooks/useDeleteConfirmation';
 import { useBulkOperations } from '../hooks/useBulkOperations';
+import { AutoLayoutButton } from './AutoLayoutButton';
 import { NodeContextMenu } from './context-menus/NodeContextMenu';
 import { EdgeContextMenu } from './context-menus/EdgeContextMenu';
 import { MultiSelectContextMenu } from './context-menus/MultiSelectContextMenu';
@@ -170,6 +171,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
           maskColor="rgba(0, 0, 0, 0.1)"
         />
       </ReactFlow>
+
+      <AutoLayoutButton />
 
       <NodeContextMenu
         menu={nodeContextMenu}

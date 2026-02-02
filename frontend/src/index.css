@@ -239,6 +239,37 @@ body {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
+.canvas-auto-layout {
+  position: absolute;
+  top: var(--spacing-md);
+  right: var(--spacing-md);
+  z-index: 6;
+}
+
+.auto-layout-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-gray-300);
+  background: white;
+  color: var(--color-gray-700);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.auto-layout-button:hover {
+  border-color: var(--color-gray-400);
+}
+
+.auto-layout-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .spinner-small {
   display: inline-block;
   width: 12px;
