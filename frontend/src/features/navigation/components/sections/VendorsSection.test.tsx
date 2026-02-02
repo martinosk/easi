@@ -17,6 +17,14 @@ describe('VendorsSection', () => {
     ...overrides,
   });
 
+  const mockMultiSelect = {
+    isMultiSelected: () => false,
+    handleItemClick: () => 'single' as const,
+    handleContextMenu: () => false,
+    handleDragStart: () => false,
+    selectedItems: [],
+  };
+
   const defaultProps = {
     vendors: [],
     currentView: null,
@@ -26,6 +34,7 @@ describe('VendorsSection', () => {
     onAddVendor: vi.fn(),
     onVendorSelect: vi.fn(),
     onVendorContextMenu: vi.fn(),
+    multiSelect: mockMultiSelect,
   };
 
   describe('rendering', () => {

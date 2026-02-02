@@ -18,6 +18,18 @@ vi.mock('../../views/hooks/useCurrentView', () => ({
   useCurrentView: vi.fn(),
 }));
 
+vi.mock('./ComponentFitScores', () => ({
+  ComponentFitScores: () => null,
+}));
+
+vi.mock('./ComponentOriginsSection', () => ({
+  ComponentOriginsSection: () => null,
+}));
+
+vi.mock('../../audit', () => ({
+  AuditHistorySection: () => null,
+}));
+
 const mockComponent = {
   id: toComponentId('comp-1'),
   name: 'Test Component',

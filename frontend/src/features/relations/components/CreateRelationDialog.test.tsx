@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { CreateRelationDialog } from './CreateRelationDialog';
@@ -242,7 +242,7 @@ describe('CreateRelationDialog', () => {
     const relationTypeSelect = screen.getByTestId('relation-type-select');
     await user.click(relationTypeSelect);
 
-    const servesOption = await screen.findByRole('option', { name: 'Serves' });
+    const servesOption = await screen.findByRole('option', { name: 'Serves', hidden: true });
     await user.click(servesOption);
 
     const submitButton = screen.getByTestId('create-relation-submit');
@@ -326,12 +326,16 @@ describe('CreateRelationDialog', () => {
 
     const sourceSelect = await screen.findByTestId('relation-source-select');
     await user.click(sourceSelect);
-    const componentA = await screen.findByRole('option', { name: 'Component A' }, { timeout: 3000 });
+    const sourceListboxId = sourceSelect.getAttribute('aria-controls')!;
+    const sourceListbox = document.getElementById(sourceListboxId)!;
+    const componentA = await within(sourceListbox).findByRole('option', { name: 'Component A', hidden: true });
     await user.click(componentA);
 
     const targetSelect = screen.getByTestId('relation-target-select');
     await user.click(targetSelect);
-    const componentB = await screen.findByRole('option', { name: 'Component B' }, { timeout: 3000 });
+    const targetListboxId = targetSelect.getAttribute('aria-controls')!;
+    const targetListbox = document.getElementById(targetListboxId)!;
+    const componentB = await within(targetListbox).findByRole('option', { name: 'Component B', hidden: true });
     await user.click(componentB);
 
     const submitButton = screen.getByTestId('create-relation-submit') as HTMLButtonElement;

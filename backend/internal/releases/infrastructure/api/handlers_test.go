@@ -98,21 +98,62 @@ func TestGetLatest_ReturnsLatestRelease(t *testing.T) {
 	}
 }
 
-func TestGetLatest_Returns404WhenNoReleasesExist(t *testing.T) {
-	repo := &mockReleaseRepository{
-		findLatestFn: func(ctx context.Context) (*aggregates.Release, error) {
-			return nil, errors.New("no releases found")
+func executeHandlerRequest(t *testing.T, handler http.HandlerFunc, method, path string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(method, path, nil)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+	return rec
+}
+
+func assertHandlerReturnsStatus(t *testing.T, repo *mockReleaseRepository, handlerFn func(*ReleaseHandler) http.HandlerFunc, method, path string, expectedStatus int) {
+	t.Helper()
+	handler := NewReleaseHandler(repo)
+	rec := executeHandlerRequest(t, handlerFn(handler), method, path)
+	if rec.Code != expectedStatus {
+		t.Errorf("handler %s %s: status = %d, want %d", method, path, rec.Code, expectedStatus)
+	}
+}
+
+func TestHandlerErrorResponses(t *testing.T) {
+	tests := []struct {
+		name       string
+		repo       *mockReleaseRepository
+		handlerFn  func(*ReleaseHandler) http.HandlerFunc
+		method     string
+		path       string
+		wantStatus int
+	}{
+		{
+			name: "GetLatest returns 404 when no releases exist",
+			repo: &mockReleaseRepository{
+				findLatestFn: func(ctx context.Context) (*aggregates.Release, error) {
+					return nil, errors.New("no releases found")
+				},
+			},
+			handlerFn:  func(h *ReleaseHandler) http.HandlerFunc { return h.GetLatest },
+			method:     http.MethodGet,
+			path:       "/api/v1/releases/latest",
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name: "GetAll returns 500 on repository error",
+			repo: &mockReleaseRepository{
+				findAllFn: func(ctx context.Context) ([]*aggregates.Release, error) {
+					return nil, errors.New("database error")
+				},
+			},
+			handlerFn:  func(h *ReleaseHandler) http.HandlerFunc { return h.GetAll },
+			method:     http.MethodGet,
+			path:       "/api/v1/releases",
+			wantStatus: http.StatusInternalServerError,
 		},
 	}
 
-	handler := NewReleaseHandler(repo)
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/releases/latest", nil)
-	rec := httptest.NewRecorder()
-
-	handler.GetLatest(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Errorf("GetLatest() status = %d, want %d", rec.Code, http.StatusNotFound)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertHandlerReturnsStatus(t, tt.repo, tt.handlerFn, tt.method, tt.path, tt.wantStatus)
+		})
 	}
 }
 
@@ -261,23 +302,6 @@ func TestGetAll_ReturnsEmptyArrayWhenNoReleases(t *testing.T) {
 	}
 }
 
-func TestGetAll_Returns500OnRepositoryError(t *testing.T) {
-	repo := &mockReleaseRepository{
-		findAllFn: func(ctx context.Context) ([]*aggregates.Release, error) {
-			return nil, errors.New("database error")
-		},
-	}
-
-	handler := NewReleaseHandler(repo)
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/releases", nil)
-	rec := httptest.NewRecorder()
-
-	handler.GetAll(rec, req)
-
-	if rec.Code != http.StatusInternalServerError {
-		t.Errorf("GetAll() status = %d, want %d", rec.Code, http.StatusInternalServerError)
-	}
-}
 
 func TestReleaseResponse_FormatsDateAsRFC3339(t *testing.T) {
 	releaseDate := time.Date(2024, 6, 15, 14, 30, 0, 0, time.UTC)

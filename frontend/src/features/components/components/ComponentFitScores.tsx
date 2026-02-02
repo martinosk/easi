@@ -39,6 +39,144 @@ interface FitScoreRowProps {
   canAddScore: boolean;
 }
 
+interface FitScoreEditFormProps {
+  editScore: number | null;
+  editRationale: string;
+  onScoreChange: (score: number) => void;
+  onRationaleChange: (rationale: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  isSaving: boolean;
+}
+
+const FitScoreEditForm: React.FC<FitScoreEditFormProps> = ({
+  editScore,
+  editRationale,
+  onScoreChange,
+  onRationaleChange,
+  onSave,
+  onCancel,
+  isSaving,
+}) => (
+  <div className="fit-score-edit">
+    <div className="fit-score-selector">
+      {SCORE_RANGE.map((s) => (
+        <button
+          key={s}
+          type="button"
+          className={`fit-score-btn ${editScore === s ? 'selected' : ''}`}
+          onClick={() => onScoreChange(s)}
+          disabled={isSaving}
+          data-testid={`fit-score-btn-${s}`}
+        >
+          {s}
+        </button>
+      ))}
+    </div>
+    <span className="fit-score-label">{editScore ? SCORE_LABELS[editScore] : 'Select score'}</span>
+    <textarea
+      className="fit-score-rationale-input"
+      placeholder="Rationale (optional)"
+      value={editRationale}
+      onChange={(e) => onRationaleChange(e.target.value)}
+      maxLength={500}
+      disabled={isSaving}
+      data-testid="fit-score-rationale-input"
+    />
+    <div className="fit-score-edit-actions">
+      <button
+        type="button"
+        className="btn btn-secondary btn-small"
+        onClick={onCancel}
+        disabled={isSaving}
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        className="btn btn-primary btn-small"
+        onClick={onSave}
+        disabled={!editScore || isSaving}
+      >
+        {isSaving ? 'Saving...' : 'Save'}
+      </button>
+    </div>
+  </div>
+);
+
+interface FitScoreDisplayProps {
+  score: ApplicationFitScore | undefined;
+  onEdit: () => void;
+  onDelete: () => void;
+  canEditScore: boolean;
+  canDeleteScore: boolean;
+  canAddScore: boolean;
+  pillarName: string;
+}
+
+const FitScoreDisplay: React.FC<FitScoreDisplayProps> = ({
+  score,
+  onEdit,
+  onDelete,
+  canEditScore,
+  canDeleteScore,
+  canAddScore,
+  pillarName,
+}) => (
+  <div className="fit-score-display">
+    {score ? (
+      <>
+        <div className="fit-score-value">
+          <span className="fit-score-dots">
+            {SCORE_RANGE.map((s) => (
+              <span
+                key={s}
+                className={`fit-score-dot ${s <= score.score ? 'filled' : ''}`}
+              />
+            ))}
+          </span>
+          <span className="fit-score-number">{score.score}/5</span>
+          <span className="fit-score-label">{score.scoreLabel}</span>
+        </div>
+        {score.rationale && (
+          <span className="fit-score-rationale">"{score.rationale}"</span>
+        )}
+        {(canEditScore || canDeleteScore) && (
+          <div className="fit-score-actions">
+            {canEditScore && (
+              <button
+                type="button"
+                className="btn btn-link btn-small"
+                onClick={onEdit}
+              >
+                Edit
+              </button>
+            )}
+            {canDeleteScore && (
+              <button
+                type="button"
+                className="btn btn-link btn-small btn-danger"
+                onClick={onDelete}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        )}
+      </>
+    ) : canAddScore ? (
+      <button
+        type="button"
+        className="btn btn-link btn-small"
+        onClick={onEdit}
+        aria-label={`Add fit score for ${pillarName}`}
+      >
+        + Add Score
+      </button>
+    ) : null}
+  </div>
+);
+
 const FitScoreRow: React.FC<FitScoreRowProps> = ({
   pillar,
   score,
@@ -55,117 +193,37 @@ const FitScoreRow: React.FC<FitScoreRowProps> = ({
   canEditScore,
   canDeleteScore,
   canAddScore,
-}) => {
-  return (
-    <div className="fit-score-row" data-testid={`fit-score-row-${pillar.id}`}>
-      <div className="fit-score-pillar">
-        <span className="fit-score-pillar-name">{pillar.name}</span>
-        {pillar.fitCriteria && (
-          <span className="fit-score-criteria">{pillar.fitCriteria}</span>
-        )}
-      </div>
-      {isEditing ? (
-        <div className="fit-score-edit">
-          <div className="fit-score-selector">
-            {SCORE_RANGE.map((s) => (
-              <button
-                key={s}
-                type="button"
-                className={`fit-score-btn ${editScore === s ? 'selected' : ''}`}
-                onClick={() => onScoreChange(s)}
-                disabled={isSaving}
-                data-testid={`fit-score-btn-${s}`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-          <span className="fit-score-label">{editScore ? SCORE_LABELS[editScore] : 'Select score'}</span>
-          <textarea
-            className="fit-score-rationale-input"
-            placeholder="Rationale (optional)"
-            value={editRationale}
-            onChange={(e) => onRationaleChange(e.target.value)}
-            maxLength={500}
-            disabled={isSaving}
-            data-testid="fit-score-rationale-input"
-          />
-          <div className="fit-score-edit-actions">
-            <button
-              type="button"
-              className="btn btn-secondary btn-small"
-              onClick={onCancel}
-              disabled={isSaving}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary btn-small"
-              onClick={onSave}
-              disabled={!editScore || isSaving}
-            >
-              {isSaving ? 'Saving...' : 'Save'}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="fit-score-display">
-          {score ? (
-            <>
-              <div className="fit-score-value">
-                <span className="fit-score-dots">
-                  {SCORE_RANGE.map((s) => (
-                    <span
-                      key={s}
-                      className={`fit-score-dot ${s <= score.score ? 'filled' : ''}`}
-                    />
-                  ))}
-                </span>
-                <span className="fit-score-number">{score.score}/5</span>
-                <span className="fit-score-label">{score.scoreLabel}</span>
-              </div>
-              {score.rationale && (
-                <span className="fit-score-rationale">"{score.rationale}"</span>
-              )}
-              {(canEditScore || canDeleteScore) && (
-                <div className="fit-score-actions">
-                  {canEditScore && (
-                    <button
-                      type="button"
-                      className="btn btn-link btn-small"
-                      onClick={onEdit}
-                    >
-                      Edit
-                    </button>
-                  )}
-                  {canDeleteScore && (
-                    <button
-                      type="button"
-                      className="btn btn-link btn-small btn-danger"
-                      onClick={onDelete}
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              )}
-            </>
-          ) : canAddScore ? (
-            <button
-              type="button"
-              className="btn btn-link btn-small"
-              onClick={onEdit}
-              aria-label={`Add fit score for ${pillar.name}`}
-            >
-              + Add Score
-            </button>
-          ) : null}
-        </div>
+}) => (
+  <div className="fit-score-row" data-testid={`fit-score-row-${pillar.id}`}>
+    <div className="fit-score-pillar">
+      <span className="fit-score-pillar-name">{pillar.name}</span>
+      {pillar.fitCriteria && (
+        <span className="fit-score-criteria">{pillar.fitCriteria}</span>
       )}
     </div>
-  );
-};
+    {isEditing ? (
+      <FitScoreEditForm
+        editScore={editScore}
+        editRationale={editRationale}
+        onScoreChange={onScoreChange}
+        onRationaleChange={onRationaleChange}
+        onSave={onSave}
+        onCancel={onCancel}
+        isSaving={isSaving}
+      />
+    ) : (
+      <FitScoreDisplay
+        score={score}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        canEditScore={canEditScore}
+        canDeleteScore={canDeleteScore}
+        canAddScore={canAddScore}
+        pillarName={pillar.name}
+      />
+    )}
+  </div>
+);
 
 export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({ componentId }) => {
   const { data: pillarsConfig } = useStrategyPillarsConfig();

@@ -398,7 +398,7 @@ body {
   border-radius: var(--radius-lg);
   padding: var(--spacing-md);
   box-shadow: var(--shadow-md);
-  border: 2px solid transparent;
+  border: 3px solid transparent;
   transition: all 0.2s ease;
 }
 
@@ -1357,6 +1357,16 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tree-selection-count {
+  padding: 6px var(--spacing-lg);
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-gray-600);
+  background: var(--color-gray-100);
+  border-top: 1px solid var(--color-gray-200);
   flex-shrink: 0;
 }
 

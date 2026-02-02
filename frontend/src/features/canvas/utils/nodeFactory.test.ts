@@ -136,54 +136,63 @@ describe('createOriginEntityNode', () => {
   const emptyLayoutPositions = {};
   const layoutWithPosition = { 'acq-123': { x: 100, y: 200 } };
 
+  const makeParams = (overrides = {}) => ({
+    entityId: '123',
+    entityType: 'acquired' as const,
+    name: 'TechCorp',
+    layoutPositions: emptyLayoutPositions,
+    selectedOriginEntityId: null as string | null,
+    ...overrides,
+  });
+
   it('should create node with correct ID format for acquired entity', () => {
-    const node = createOriginEntityNode('123', 'acquired', 'TechCorp', emptyLayoutPositions, null);
+    const node = createOriginEntityNode(makeParams());
     expect(node.id).toBe('acq-123');
     expect(node.type).toBe('originEntity');
     expect(node.data.entityType).toBe('acquired');
   });
 
   it('should create node with correct ID format for vendor', () => {
-    const node = createOriginEntityNode('456', 'vendor', 'SAP', emptyLayoutPositions, null);
+    const node = createOriginEntityNode(makeParams({ entityId: '456', entityType: 'vendor', name: 'SAP' }));
     expect(node.id).toBe('vendor-456');
     expect(node.type).toBe('originEntity');
     expect(node.data.entityType).toBe('vendor');
   });
 
   it('should create node with correct ID format for team', () => {
-    const node = createOriginEntityNode('789', 'team', 'Platform Eng', emptyLayoutPositions, null);
+    const node = createOriginEntityNode(makeParams({ entityId: '789', entityType: 'team', name: 'Platform Eng' }));
     expect(node.id).toBe('team-789');
     expect(node.type).toBe('originEntity');
     expect(node.data.entityType).toBe('team');
   });
 
   it('should use layout position when available', () => {
-    const node = createOriginEntityNode('123', 'acquired', 'TechCorp', layoutWithPosition, null);
+    const node = createOriginEntityNode(makeParams({ layoutPositions: layoutWithPosition }));
     expect(node.position).toEqual({ x: 100, y: 200 });
   });
 
   it('should use default position when not in layout', () => {
-    const node = createOriginEntityNode('999', 'acquired', 'TechCorp', emptyLayoutPositions, null);
+    const node = createOriginEntityNode(makeParams({ entityId: '999' }));
     expect(node.position).toEqual({ x: 400, y: 300 });
   });
 
-  it('should set isSelected when entity ID matches selectedOriginEntityId', () => {
-    const node = createOriginEntityNode('123', 'acquired', 'TechCorp', emptyLayoutPositions, '123');
+  it('should set isSelected when node ID matches selectedOriginEntityId', () => {
+    const node = createOriginEntityNode(makeParams({ selectedOriginEntityId: 'acq-123' }));
     expect(node.data.isSelected).toBe(true);
   });
 
-  it('should not set isSelected when entity ID does not match', () => {
-    const node = createOriginEntityNode('123', 'acquired', 'TechCorp', emptyLayoutPositions, '456');
+  it('should not set isSelected when node ID does not match', () => {
+    const node = createOriginEntityNode(makeParams({ selectedOriginEntityId: '456' }));
     expect(node.data.isSelected).toBe(false);
   });
 
   it('should include subtitle when provided', () => {
-    const node = createOriginEntityNode('123', 'acquired', 'TechCorp', emptyLayoutPositions, null, '2021');
+    const node = createOriginEntityNode(makeParams({ subtitle: '2021' }));
     expect(node.data.subtitle).toBe('2021');
   });
 
   it('should not include subtitle when not provided', () => {
-    const node = createOriginEntityNode('123', 'acquired', 'TechCorp', emptyLayoutPositions, null);
+    const node = createOriginEntityNode(makeParams());
     expect(node.data.subtitle).toBeUndefined();
   });
 });

@@ -35,6 +35,58 @@ vi.mock('../../../api/client', () => ({
   },
 }));
 
+function setupMockStore(overrides: Record<string, unknown> = {}) {
+  const mockStore = createMockStore(overrides);
+  vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
+    selector(mockStore as unknown as AppStore)
+  );
+  return mockStore;
+}
+
+async function setupApiClientMocks() {
+  const { apiClient } = await import('../../../api/client');
+  vi.mocked(apiClient.getMaturityLevels).mockResolvedValue(['Genesis', 'Custom Build', 'Product', 'Commodity']);
+  vi.mocked(apiClient.getStatuses).mockResolvedValue([
+    { value: 'Active', displayName: 'Active', sortOrder: 1 },
+  ]);
+  vi.mocked(apiClient.getOwnershipModels).mockResolvedValue([]);
+}
+
+async function renderNavigationTree(props: Record<string, unknown> = {}) {
+  const { Wrapper } = createMantineTestWrapper();
+  const { NavigationTree } = await import('../../navigation/components/NavigationTree');
+  return render(<NavigationTree {...props} />, { wrapper: Wrapper });
+}
+
+async function renderEditCapabilityDialog(props: { isOpen: boolean; onClose: () => void; capability: Capability | null }) {
+  const { Wrapper } = createMantineTestWrapper();
+  const { EditCapabilityDialog } = await import('./EditCapabilityDialog');
+  return { result: render(<EditCapabilityDialog {...props} />, { wrapper: Wrapper }), Wrapper, EditCapabilityDialog };
+}
+
+async function openContextMenuOn(text: string, selector: string) {
+  await waitFor(() => {
+    expect(screen.getByText(text)).toBeInTheDocument();
+  });
+  const element = screen.getByText(text).closest(selector);
+  fireEvent.contextMenu(element!);
+  await waitFor(() => {
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
+}
+
+function createComponentsWithB() {
+  return [
+    ...mockComponents,
+    {
+      id: 'comp-2' as ComponentId,
+      name: 'Component B',
+      createdAt: '2024-01-01T00:00:00Z',
+      _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
+    },
+  ];
+}
+
 const mockCapabilities: Capability[] = [
   {
     id: 'cap-1' as CapabilityId,
@@ -125,23 +177,9 @@ describe('Capability UI Consistency', () => {
   describe('Dialog Management', () => {
     describe('EditCapabilityDialog should be managed via DialogManager pattern', () => {
       it('should render dialog as a modal overlay when opened', async () => {
-        const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-          selector(mockStore as unknown as AppStore)
-        );
-        const { Wrapper } = createMantineTestWrapper();
-
-        const { apiClient } = await import('../../../api/client');
-        vi.mocked(apiClient.getMaturityLevels).mockResolvedValue(['Genesis', 'Custom Build', 'Product', 'Commodity']);
-        vi.mocked(apiClient.getStatuses).mockResolvedValue([
-          { value: 'Active', displayName: 'Active', sortOrder: 1 },
-        ]);
-        vi.mocked(apiClient.getOwnershipModels).mockResolvedValue([]);
-
-        const { EditCapabilityDialog } = await import('./EditCapabilityDialog');
-        const capability = mockCapabilities[0];
-
-        render(<EditCapabilityDialog isOpen={true} onClose={vi.fn()} capability={capability} />, { wrapper: Wrapper });
+        setupMockStore();
+        await setupApiClientMocks();
+        await renderEditCapabilityDialog({ isOpen: true, onClose: vi.fn(), capability: mockCapabilities[0] });
 
         await waitFor(() => {
           expect(screen.getByText('Edit Capability')).toBeInTheDocument();
@@ -149,38 +187,17 @@ describe('Capability UI Consistency', () => {
       });
 
       it('should not show modal when isOpen is false', async () => {
-        const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-          selector(mockStore as unknown as AppStore)
-        );
-        const { Wrapper } = createMantineTestWrapper();
-
-        const { EditCapabilityDialog } = await import('./EditCapabilityDialog');
-
-        render(<EditCapabilityDialog isOpen={false} onClose={vi.fn()} capability={null} />, { wrapper: Wrapper });
+        setupMockStore();
+        await renderEditCapabilityDialog({ isOpen: false, onClose: vi.fn(), capability: null });
 
         expect(screen.queryByText('Edit Capability')).not.toBeInTheDocument();
       });
 
       it('should call onClose when cancel button is clicked', async () => {
-        const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-          selector(mockStore as unknown as AppStore)
-        );
-        const { Wrapper } = createMantineTestWrapper();
-
-        const { apiClient } = await import('../../../api/client');
-        vi.mocked(apiClient.getMaturityLevels).mockResolvedValue(['Genesis', 'Custom Build', 'Product', 'Commodity']);
-        vi.mocked(apiClient.getStatuses).mockResolvedValue([
-          { value: 'Active', displayName: 'Active', sortOrder: 1 },
-        ]);
-        vi.mocked(apiClient.getOwnershipModels).mockResolvedValue([]);
-
-        const { EditCapabilityDialog } = await import('./EditCapabilityDialog');
+        setupMockStore();
+        await setupApiClientMocks();
         const mockOnClose = vi.fn();
-        const capability = mockCapabilities[0];
-
-        render(<EditCapabilityDialog isOpen={true} onClose={mockOnClose} capability={capability} />, { wrapper: Wrapper });
+        await renderEditCapabilityDialog({ isOpen: true, onClose: mockOnClose, capability: mockCapabilities[0] });
 
         await waitFor(() => {
           expect(screen.getByTestId('edit-capability-cancel')).toBeInTheDocument();
@@ -192,26 +209,15 @@ describe('Capability UI Consistency', () => {
       });
 
       it('should follow same pattern as EditComponentDialog for dialog opening', async () => {
-        const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-          selector(mockStore as unknown as AppStore)
-        );
+        setupMockStore();
+        await setupApiClientMocks();
         const { Wrapper } = createMantineTestWrapper();
-
-        const { apiClient } = await import('../../../api/client');
-        vi.mocked(apiClient.getMaturityLevels).mockResolvedValue(['Genesis', 'Custom Build', 'Product', 'Commodity']);
-        vi.mocked(apiClient.getStatuses).mockResolvedValue([
-          { value: 'Active', displayName: 'Active', sortOrder: 1 },
-        ]);
-        vi.mocked(apiClient.getOwnershipModels).mockResolvedValue([]);
 
         const { EditComponentDialog } = await import('../../components/components/EditComponentDialog');
         const { EditCapabilityDialog } = await import('./EditCapabilityDialog');
-        const component = mockComponents[0];
-        const capability = mockCapabilities[0];
 
         const { rerender } = render(
-          <EditComponentDialog isOpen={true} onClose={vi.fn()} component={component} />,
+          <EditComponentDialog isOpen={true} onClose={vi.fn()} component={mockComponents[0]} />,
           { wrapper: Wrapper }
         );
 
@@ -220,7 +226,7 @@ describe('Capability UI Consistency', () => {
         });
 
         rerender(
-          <EditCapabilityDialog isOpen={true} onClose={vi.fn()} capability={capability} />
+          <EditCapabilityDialog isOpen={true} onClose={vi.fn()} capability={mockCapabilities[0]} />
         );
 
         await waitFor(() => {
@@ -234,16 +240,8 @@ describe('Capability UI Consistency', () => {
   describe('Treeview Visibility', () => {
     describe('Capabilities should show visual distinction when not in view', () => {
       it('should render all capabilities in tree regardless of view presence', async () => {
-        const mockStore = createMockStore({
-          canvasCapabilities: [{ capabilityId: 'cap-1', x: 200, y: 200 }],
-        });
-        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-          selector(mockStore as unknown as AppStore)
-        );
-        const { Wrapper } = createMantineTestWrapper();
-
-        const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-        render(<NavigationTree />, { wrapper: Wrapper });
+        setupMockStore({ canvasCapabilities: [{ capabilityId: 'cap-1', x: 200, y: 200 }] });
+        await renderNavigationTree();
 
         await waitFor(() => {
           expect(screen.getByText('Customer Management')).toBeInTheDocument();
@@ -252,16 +250,8 @@ describe('Capability UI Consistency', () => {
       });
 
       it('should allow capabilities not in view to remain draggable', async () => {
-        const mockStore = createMockStore({
-          canvasCapabilities: [{ capabilityId: 'cap-1', x: 200, y: 200 }],
-        });
-        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-          selector(mockStore as unknown as AppStore)
-        );
-        const { Wrapper } = createMantineTestWrapper();
-
-        const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-        render(<NavigationTree />, { wrapper: Wrapper });
+        setupMockStore({ canvasCapabilities: [{ capabilityId: 'cap-1', x: 200, y: 200 }] });
+        await renderNavigationTree();
 
         await waitFor(() => {
           const capabilityItem = screen.getByText('Inventory Control').closest('.capability-tree-item');
@@ -270,16 +260,8 @@ describe('Capability UI Consistency', () => {
       });
 
       it('should set correct data transfer on drag start for capabilities', async () => {
-        const mockStore = createMockStore({
-          canvasCapabilities: [],
-        });
-        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-          selector(mockStore as unknown as AppStore)
-        );
-        const { Wrapper } = createMantineTestWrapper();
-
-        const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-        render(<NavigationTree />, { wrapper: Wrapper });
+        setupMockStore({ canvasCapabilities: [] });
+        await renderNavigationTree();
 
         await waitFor(() => {
           expect(screen.getByText('Customer Management')).toBeInTheDocument();
@@ -302,31 +284,21 @@ describe('Capability UI Consistency', () => {
     });
 
     describe('Components visual distinction pattern (for reference)', () => {
-      it('should apply not-in-view class to components not in current view', async () => {
-        const componentsWithB = [
-          ...mockComponents,
-          {
-            id: 'comp-2' as ComponentId,
-            name: 'Component B',
-            createdAt: '2024-01-01T00:00:00Z',
-            _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
-          },
-        ];
-        const mockStoreWithComponentOutOfView = createMockStore({
+      function setupComponentOutOfViewStore() {
+        const componentsWithB = createComponentsWithB();
+        setupMockStore({
           components: componentsWithB,
           currentView: {
             ...mockCurrentView,
             components: [{ componentId: 'comp-1', x: 100, y: 100 }],
           },
         });
-        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-          selector(mockStoreWithComponentOutOfView as unknown as AppStore)
-        );
         seedDb({ components: componentsWithB, capabilities: mockCapabilities });
-        const { Wrapper } = createMantineTestWrapper();
+      }
 
-        const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-        render(<NavigationTree />, { wrapper: Wrapper });
+      it('should apply not-in-view class to components not in current view', async () => {
+        setupComponentOutOfViewStore();
+        await renderNavigationTree();
 
         await waitFor(() => {
           const compBButton = screen.getByText('Component B').closest('button');
@@ -335,30 +307,8 @@ describe('Capability UI Consistency', () => {
       });
 
       it('should show tooltip suffix for components not in current view', async () => {
-        const componentsWithB = [
-          ...mockComponents,
-          {
-            id: 'comp-2' as ComponentId,
-            name: 'Component B',
-            createdAt: '2024-01-01T00:00:00Z',
-            _links: { self: { href: '/api/v1/components/comp-2', method: 'GET' as const } },
-          },
-        ];
-        const mockStoreWithComponentOutOfView = createMockStore({
-          components: componentsWithB,
-          currentView: {
-            ...mockCurrentView,
-            components: [{ componentId: 'comp-1', x: 100, y: 100 }],
-          },
-        });
-        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-          selector(mockStoreWithComponentOutOfView as unknown as AppStore)
-        );
-        seedDb({ components: componentsWithB, capabilities: mockCapabilities });
-        const { Wrapper } = createMantineTestWrapper();
-
-        const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-        render(<NavigationTree />, { wrapper: Wrapper });
+        setupComponentOutOfViewStore();
+        await renderNavigationTree();
 
         await waitFor(() => {
           const compBButton = screen.getByText('Component B').closest('button');
@@ -371,14 +321,8 @@ describe('Capability UI Consistency', () => {
   describe('View Focus on Selection', () => {
     it('should call onCapabilitySelect when capability is clicked in tree', async () => {
       const mockOnCapabilitySelect = vi.fn();
-      const mockStore = createMockStore();
-      vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-        selector(mockStore as unknown as AppStore)
-      );
-      const { Wrapper } = createMantineTestWrapper();
-
-      const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-      render(<NavigationTree onCapabilitySelect={mockOnCapabilitySelect} />, { wrapper: Wrapper });
+      setupMockStore();
+      await renderNavigationTree({ onCapabilitySelect: mockOnCapabilitySelect });
 
       await waitFor(() => {
         expect(screen.getByText('Customer Management')).toBeInTheDocument();
@@ -392,14 +336,8 @@ describe('Capability UI Consistency', () => {
 
     it('should call onComponentSelect when component is clicked in tree', async () => {
       const mockOnComponentSelect = vi.fn();
-      const mockStore = createMockStore();
-      vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-        selector(mockStore as unknown as AppStore)
-      );
-      const { Wrapper } = createMantineTestWrapper();
-
-      const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-      render(<NavigationTree onComponentSelect={mockOnComponentSelect} />, { wrapper: Wrapper });
+      setupMockStore();
+      await renderNavigationTree({ onComponentSelect: mockOnComponentSelect });
 
       await waitFor(() => {
         expect(screen.getByText('Component A')).toBeInTheDocument();
@@ -415,102 +353,43 @@ describe('Capability UI Consistency', () => {
   describe('Context Menu Consistency', () => {
     describe('Tree Context Menu for Capabilities', () => {
       it('should show Edit option in capability tree context menu', async () => {
-        const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-          selector(mockStore as unknown as AppStore)
-        );
-        const { Wrapper } = createMantineTestWrapper();
+        setupMockStore();
+        await renderNavigationTree({ onEditCapability: vi.fn() });
+        await openContextMenuOn('Customer Management', '.capability-tree-item');
 
-        const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-        render(<NavigationTree onEditCapability={vi.fn()} />, { wrapper: Wrapper });
-
-        await waitFor(() => {
-          expect(screen.getByText('Customer Management')).toBeInTheDocument();
-        });
-
-        const capabilityItem = screen.getByText('Customer Management').closest('.capability-tree-item');
-        fireEvent.contextMenu(capabilityItem!);
-
-        await waitFor(() => {
-          expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument();
-        });
+        expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument();
       });
 
       it('should show Delete from Model option in capability tree context menu', async () => {
-        const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-          selector(mockStore as unknown as AppStore)
-        );
-        const { Wrapper } = createMantineTestWrapper();
+        setupMockStore();
+        await renderNavigationTree();
+        await openContextMenuOn('Customer Management', '.capability-tree-item');
 
-        const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-        render(<NavigationTree />, { wrapper: Wrapper });
-
-        await waitFor(() => {
-          expect(screen.getByText('Customer Management')).toBeInTheDocument();
-        });
-
-        const capabilityItem = screen.getByText('Customer Management').closest('.capability-tree-item');
-        fireEvent.contextMenu(capabilityItem!);
-
-        await waitFor(() => {
-          expect(screen.getByRole('menuitem', { name: /Delete capability from model/i })).toBeInTheDocument();
-        });
+        expect(screen.getByRole('menuitem', { name: /Delete capability from model/i })).toBeInTheDocument();
       });
     });
 
     describe('Tree Context Menu for Components', () => {
       it('should show Edit option in component tree context menu', async () => {
-        const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-          selector(mockStore as unknown as AppStore)
-        );
-        const { Wrapper } = createMantineTestWrapper();
+        setupMockStore();
+        await renderNavigationTree({ onEditComponent: vi.fn() });
+        await openContextMenuOn('Component A', 'button');
 
-        const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-        render(<NavigationTree onEditComponent={vi.fn()} />, { wrapper: Wrapper });
-
-        await waitFor(() => {
-          expect(screen.getByText('Component A')).toBeInTheDocument();
-        });
-
-        const componentButton = screen.getByText('Component A').closest('button');
-        fireEvent.contextMenu(componentButton!);
-
-        await waitFor(() => {
-          expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument();
-        });
+        expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument();
       });
 
       it('should show Delete from Model option in component tree context menu', async () => {
-        const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-          selector(mockStore as unknown as AppStore)
-        );
-        const { Wrapper } = createMantineTestWrapper();
+        setupMockStore();
+        await renderNavigationTree();
+        await openContextMenuOn('Component A', 'button');
 
-        const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-        render(<NavigationTree />, { wrapper: Wrapper });
-
-        await waitFor(() => {
-          expect(screen.getByText('Component A')).toBeInTheDocument();
-        });
-
-        const componentButton = screen.getByText('Component A').closest('button');
-        fireEvent.contextMenu(componentButton!);
-
-        await waitFor(() => {
-          expect(screen.getByRole('menuitem', { name: /Delete application from model/i })).toBeInTheDocument();
-        });
+        expect(screen.getByRole('menuitem', { name: /Delete application from model/i })).toBeInTheDocument();
       });
     });
 
     describe('Context Menu item structure comparison', () => {
       it('should have matching menu structure for capability and component tree items', async () => {
-        const mockStore = createMockStore();
-        vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-          selector(mockStore as unknown as AppStore)
-        );
+        setupMockStore();
         const { Wrapper } = createMantineTestWrapper();
 
         const { NavigationTree } = await import('../../navigation/components/NavigationTree');
@@ -567,16 +446,8 @@ describe('Capability Tree Item Selection', () => {
   });
 
   it('should apply selected class when capability is clicked', async () => {
-    const mockStore = createMockStore({
-      selectedCapabilityId: null,
-    });
-    vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-      selector(mockStore as unknown as AppStore)
-    );
-    const { Wrapper } = createMantineTestWrapper();
-
-    const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-    render(<NavigationTree />, { wrapper: Wrapper });
+    setupMockStore({ selectedCapabilityId: null });
+    await renderNavigationTree();
 
     await waitFor(() => {
       const capabilityItem = screen.getByText('Customer Management').closest('.capability-tree-item');
@@ -595,14 +466,8 @@ describe('Capability Expand/Collapse in Tree', () => {
   });
 
   it('should show expand button for capabilities with children', async () => {
-    const mockStore = createMockStore();
-    vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-      selector(mockStore as unknown as AppStore)
-    );
-    const { Wrapper } = createMantineTestWrapper();
-
-    const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-    render(<NavigationTree />, { wrapper: Wrapper });
+    setupMockStore();
+    await renderNavigationTree();
 
     await waitFor(() => {
       const customerManagementItem = screen.getByText('Customer Management').closest('.capability-tree-item');
@@ -611,14 +476,8 @@ describe('Capability Expand/Collapse in Tree', () => {
   });
 
   it('should not show expand button for capabilities without children', async () => {
-    const mockStore = createMockStore();
-    vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-      selector(mockStore as unknown as AppStore)
-    );
-    const { Wrapper } = createMantineTestWrapper();
-
-    const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-    render(<NavigationTree />, { wrapper: Wrapper });
+    setupMockStore();
+    await renderNavigationTree();
 
     await waitFor(() => {
       const inventoryControlItem = screen.getByText('Inventory Control').closest('.capability-tree-item');
@@ -627,14 +486,8 @@ describe('Capability Expand/Collapse in Tree', () => {
   });
 
   it('should toggle children visibility when expand button is clicked', async () => {
-    const mockStore = createMockStore();
-    vi.mocked(useAppStore).mockImplementation((selector: (state: AppStore) => unknown) =>
-      selector(mockStore as unknown as AppStore)
-    );
-    const { Wrapper } = createMantineTestWrapper();
-
-    const { NavigationTree } = await import('../../navigation/components/NavigationTree');
-    render(<NavigationTree />, { wrapper: Wrapper });
+    setupMockStore();
+    await renderNavigationTree();
 
     await waitFor(() => {
       expect(screen.getByText('Customer Management')).toBeInTheDocument();

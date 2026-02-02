@@ -27,46 +27,144 @@ func TestNewComponentOrigins(t *testing.T) {
 	assert.False(t, origins.IsDeleted())
 }
 
-func TestComponentOrigins_SetAcquiredVia_FirstTime(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	origins, _ := NewComponentOrigins(componentID)
-
-	entityID := valueobjects.NewAcquiredEntityID()
-	notes, _ := valueobjects.NewNotes("Acquired in 2021 merger")
-
-	err := origins.SetAcquiredVia(entityID, notes)
-
-	require.NoError(t, err)
-	assert.False(t, origins.AcquiredVia().IsEmpty())
-	assert.Equal(t, entityID.String(), origins.AcquiredVia().EntityID())
-	assert.Equal(t, notes, origins.AcquiredVia().Notes())
-
-	events := origins.GetUncommittedChanges()
-	assert.Len(t, events, 2)
-	assert.Equal(t, "ComponentOriginsCreated", events[0].EventType())
-	assert.Equal(t, "AcquiredViaRelationshipSet", events[1].EventType())
+type originTypeTestCase struct {
+	name     string
+	newID    func() string
+	set      func(*ComponentOrigins, string, valueobjects.Notes) error
+	clear    func(*ComponentOrigins) error
+	getLink  func(*ComponentOrigins) valueobjects.OriginLink
+	events   [4]string
+	clearErr error
 }
 
-func TestComponentOrigins_SetAcquiredVia_Replace(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	origins, _ := NewComponentOrigins(componentID)
+func (tc originTypeTestCase) setEvent() string     { return tc.events[0] }
+func (tc originTypeTestCase) replaceEvent() string  { return tc.events[1] }
+func (tc originTypeTestCase) notesEvent() string    { return tc.events[2] }
+func (tc originTypeTestCase) clearEvent() string    { return tc.events[3] }
 
-	entityID1 := valueobjects.NewAcquiredEntityID()
-	notes1, _ := valueobjects.NewNotes("Original entity")
-	origins.SetAcquiredVia(entityID1, notes1)
+func allOriginTypeCases() []originTypeTestCase {
+	return []originTypeTestCase{
+		{
+			name:    "AcquiredVia",
+			newID:   func() string { return valueobjects.NewAcquiredEntityID().String() },
+			set: func(o *ComponentOrigins, id string, n valueobjects.Notes) error {
+				eid, _ := valueobjects.NewAcquiredEntityIDFromString(id)
+				return o.SetAcquiredVia(eid, n)
+			},
+			clear:    func(o *ComponentOrigins) error { return o.ClearAcquiredVia() },
+			getLink:  func(o *ComponentOrigins) valueobjects.OriginLink { return o.AcquiredVia() },
+			events:   [4]string{"AcquiredViaRelationshipSet", "AcquiredViaRelationshipReplaced", "AcquiredViaNotesUpdated", "AcquiredViaRelationshipCleared"},
+			clearErr: ErrNoAcquiredViaRelationship,
+		},
+		{
+			name:    "PurchasedFrom",
+			newID:   func() string { return valueobjects.NewVendorID().String() },
+			set: func(o *ComponentOrigins, id string, n valueobjects.Notes) error {
+				vid, _ := valueobjects.NewVendorIDFromString(id)
+				return o.SetPurchasedFrom(vid, n)
+			},
+			clear:    func(o *ComponentOrigins) error { return o.ClearPurchasedFrom() },
+			getLink:  func(o *ComponentOrigins) valueobjects.OriginLink { return o.PurchasedFrom() },
+			events:   [4]string{"PurchasedFromRelationshipSet", "PurchasedFromRelationshipReplaced", "PurchasedFromNotesUpdated", "PurchasedFromRelationshipCleared"},
+			clearErr: ErrNoPurchasedFromRelationship,
+		},
+		{
+			name:    "BuiltBy",
+			newID:   func() string { return valueobjects.NewInternalTeamID().String() },
+			set: func(o *ComponentOrigins, id string, n valueobjects.Notes) error {
+				tid, _ := valueobjects.NewInternalTeamIDFromString(id)
+				return o.SetBuiltBy(tid, n)
+			},
+			clear:    func(o *ComponentOrigins) error { return o.ClearBuiltBy() },
+			getLink:  func(o *ComponentOrigins) valueobjects.OriginLink { return o.BuiltBy() },
+			events:   [4]string{"BuiltByRelationshipSet", "BuiltByRelationshipReplaced", "BuiltByNotesUpdated", "BuiltByRelationshipCleared"},
+			clearErr: ErrNoBuiltByRelationship,
+		},
+	}
+}
+
+func newOriginsWithRelationship(tc originTypeTestCase) (*ComponentOrigins, string) {
+	origins, _ := NewComponentOrigins(valueobjects.NewComponentID())
+	entityID := tc.newID()
+	notes, _ := valueobjects.NewNotes("Initial")
+	tc.set(origins, entityID, notes)
 	origins.MarkChangesAsCommitted()
+	return origins, entityID
+}
 
-	entityID2 := valueobjects.NewAcquiredEntityID()
-	notes2, _ := valueobjects.NewNotes("Corrected origin")
-	err := origins.SetAcquiredVia(entityID2, notes2)
+func TestComponentOrigins_SetFirstTime(t *testing.T) {
+	for _, tc := range allOriginTypeCases() {
+		t.Run(tc.name, func(t *testing.T) {
+			origins, _ := NewComponentOrigins(valueobjects.NewComponentID())
+			entityID := tc.newID()
+			notes, _ := valueobjects.NewNotes("First time notes")
 
-	require.NoError(t, err)
-	assert.Equal(t, entityID2.String(), origins.AcquiredVia().EntityID())
-	assert.Equal(t, notes2, origins.AcquiredVia().Notes())
+			err := tc.set(origins, entityID, notes)
 
-	events := origins.GetUncommittedChanges()
-	assert.Len(t, events, 1)
-	assert.Equal(t, "AcquiredViaRelationshipReplaced", events[0].EventType())
+			require.NoError(t, err)
+			link := tc.getLink(origins)
+			assert.False(t, link.IsEmpty())
+			assert.Equal(t, entityID, link.EntityID())
+			assert.Equal(t, notes, link.Notes())
+
+			evts := origins.GetUncommittedChanges()
+			assert.Len(t, evts, 2)
+			assert.Equal(t, "ComponentOriginsCreated", evts[0].EventType())
+			assert.Equal(t, tc.setEvent(), evts[1].EventType())
+		})
+	}
+}
+
+func TestComponentOrigins_ExistingRelationshipOperations(t *testing.T) {
+	for _, tc := range allOriginTypeCases() {
+		t.Run(tc.name+"/Replace", func(t *testing.T) {
+			origins, _ := newOriginsWithRelationship(tc)
+			newID := tc.newID()
+			notes, _ := valueobjects.NewNotes("Replacement")
+
+			err := tc.set(origins, newID, notes)
+
+			require.NoError(t, err)
+			assert.Equal(t, newID, tc.getLink(origins).EntityID())
+			evts := origins.GetUncommittedChanges()
+			assert.Len(t, evts, 1)
+			assert.Equal(t, tc.replaceEvent(), evts[0].EventType())
+		})
+
+		t.Run(tc.name+"/UpdateNotesOnly", func(t *testing.T) {
+			origins, entityID := newOriginsWithRelationship(tc)
+			notes2, _ := valueobjects.NewNotes("Updated notes")
+
+			err := tc.set(origins, entityID, notes2)
+
+			require.NoError(t, err)
+			assert.Equal(t, notes2, tc.getLink(origins).Notes())
+			evts := origins.GetUncommittedChanges()
+			assert.Len(t, evts, 1)
+			assert.Equal(t, tc.notesEvent(), evts[0].EventType())
+		})
+
+		t.Run(tc.name+"/Clear", func(t *testing.T) {
+			origins, _ := newOriginsWithRelationship(tc)
+
+			err := tc.clear(origins)
+
+			require.NoError(t, err)
+			assert.True(t, tc.getLink(origins).IsEmpty())
+			evts := origins.GetUncommittedChanges()
+			assert.Len(t, evts, 1)
+			assert.Equal(t, tc.clearEvent(), evts[0].EventType())
+		})
+
+		t.Run(tc.name+"/ClearWhenNotExists", func(t *testing.T) {
+			origins, _ := NewComponentOrigins(valueobjects.NewComponentID())
+
+			err := tc.clear(origins)
+
+			assert.Error(t, err)
+			assert.Equal(t, tc.clearErr, err)
+		})
+	}
 }
 
 func TestComponentOrigins_SetAcquiredVia_Idempotent(t *testing.T) {
@@ -83,235 +181,6 @@ func TestComponentOrigins_SetAcquiredVia_Idempotent(t *testing.T) {
 	require.NoError(t, err)
 	events := origins.GetUncommittedChanges()
 	assert.Len(t, events, 0)
-}
-
-func TestComponentOrigins_SetAcquiredVia_UpdateNotesOnly(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	origins, _ := NewComponentOrigins(componentID)
-
-	entityID := valueobjects.NewAcquiredEntityID()
-	notes1, _ := valueobjects.NewNotes("Acquired 2021")
-	origins.SetAcquiredVia(entityID, notes1)
-	origins.MarkChangesAsCommitted()
-
-	notes2, _ := valueobjects.NewNotes("Acquired in Q1 2021 merger")
-	err := origins.SetAcquiredVia(entityID, notes2)
-
-	require.NoError(t, err)
-	assert.Equal(t, notes2, origins.AcquiredVia().Notes())
-
-	events := origins.GetUncommittedChanges()
-	assert.Len(t, events, 1)
-	assert.Equal(t, "AcquiredViaNotesUpdated", events[0].EventType())
-}
-
-func TestComponentOrigins_ClearAcquiredVia(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	origins, _ := NewComponentOrigins(componentID)
-
-	entityID := valueobjects.NewAcquiredEntityID()
-	notes, _ := valueobjects.NewNotes("Test notes")
-	origins.SetAcquiredVia(entityID, notes)
-	origins.MarkChangesAsCommitted()
-
-	err := origins.ClearAcquiredVia()
-
-	require.NoError(t, err)
-	assert.True(t, origins.AcquiredVia().IsEmpty())
-
-	events := origins.GetUncommittedChanges()
-	assert.Len(t, events, 1)
-	assert.Equal(t, "AcquiredViaRelationshipCleared", events[0].EventType())
-}
-
-func TestComponentOrigins_ClearAcquiredVia_WhenNotExists(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	origins, _ := NewComponentOrigins(componentID)
-
-	err := origins.ClearAcquiredVia()
-
-	assert.Error(t, err)
-	assert.Equal(t, ErrNoAcquiredViaRelationship, err)
-}
-
-func TestComponentOrigins_SetPurchasedFrom_FirstTime(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	origins, _ := NewComponentOrigins(componentID)
-
-	vendorID := valueobjects.NewVendorID()
-	notes, _ := valueobjects.NewNotes("Purchased in 2022")
-
-	err := origins.SetPurchasedFrom(vendorID, notes)
-
-	require.NoError(t, err)
-	assert.False(t, origins.PurchasedFrom().IsEmpty())
-	assert.Equal(t, vendorID.String(), origins.PurchasedFrom().EntityID())
-	assert.Equal(t, notes, origins.PurchasedFrom().Notes())
-
-	events := origins.GetUncommittedChanges()
-	assert.Len(t, events, 2)
-	assert.Equal(t, "ComponentOriginsCreated", events[0].EventType())
-	assert.Equal(t, "PurchasedFromRelationshipSet", events[1].EventType())
-}
-
-func TestComponentOrigins_SetPurchasedFrom_Replace(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	origins, _ := NewComponentOrigins(componentID)
-
-	vendorID1 := valueobjects.NewVendorID()
-	notes1, _ := valueobjects.NewNotes("Original vendor")
-	origins.SetPurchasedFrom(vendorID1, notes1)
-	origins.MarkChangesAsCommitted()
-
-	vendorID2 := valueobjects.NewVendorID()
-	notes2, _ := valueobjects.NewNotes("Corrected vendor")
-	err := origins.SetPurchasedFrom(vendorID2, notes2)
-
-	require.NoError(t, err)
-	assert.Equal(t, vendorID2.String(), origins.PurchasedFrom().EntityID())
-
-	events := origins.GetUncommittedChanges()
-	assert.Len(t, events, 1)
-	assert.Equal(t, "PurchasedFromRelationshipReplaced", events[0].EventType())
-}
-
-func TestComponentOrigins_SetPurchasedFrom_UpdateNotesOnly(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	origins, _ := NewComponentOrigins(componentID)
-
-	vendorID := valueobjects.NewVendorID()
-	notes1, _ := valueobjects.NewNotes("Original notes")
-	origins.SetPurchasedFrom(vendorID, notes1)
-	origins.MarkChangesAsCommitted()
-
-	notes2, _ := valueobjects.NewNotes("Updated notes")
-	err := origins.SetPurchasedFrom(vendorID, notes2)
-
-	require.NoError(t, err)
-	assert.Equal(t, notes2, origins.PurchasedFrom().Notes())
-
-	events := origins.GetUncommittedChanges()
-	assert.Len(t, events, 1)
-	assert.Equal(t, "PurchasedFromNotesUpdated", events[0].EventType())
-}
-
-func TestComponentOrigins_ClearPurchasedFrom(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	origins, _ := NewComponentOrigins(componentID)
-
-	vendorID := valueobjects.NewVendorID()
-	notes, _ := valueobjects.NewNotes("Test notes")
-	origins.SetPurchasedFrom(vendorID, notes)
-	origins.MarkChangesAsCommitted()
-
-	err := origins.ClearPurchasedFrom()
-
-	require.NoError(t, err)
-	assert.True(t, origins.PurchasedFrom().IsEmpty())
-
-	events := origins.GetUncommittedChanges()
-	assert.Len(t, events, 1)
-	assert.Equal(t, "PurchasedFromRelationshipCleared", events[0].EventType())
-}
-
-func TestComponentOrigins_ClearPurchasedFrom_WhenNotExists(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	origins, _ := NewComponentOrigins(componentID)
-
-	err := origins.ClearPurchasedFrom()
-
-	assert.Error(t, err)
-	assert.Equal(t, ErrNoPurchasedFromRelationship, err)
-}
-
-func TestComponentOrigins_SetBuiltBy_FirstTime(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	origins, _ := NewComponentOrigins(componentID)
-
-	teamID := valueobjects.NewInternalTeamID()
-	notes, _ := valueobjects.NewNotes("Built by Platform Team")
-
-	err := origins.SetBuiltBy(teamID, notes)
-
-	require.NoError(t, err)
-	assert.False(t, origins.BuiltBy().IsEmpty())
-	assert.Equal(t, teamID.String(), origins.BuiltBy().EntityID())
-	assert.Equal(t, notes, origins.BuiltBy().Notes())
-
-	events := origins.GetUncommittedChanges()
-	assert.Len(t, events, 2)
-	assert.Equal(t, "ComponentOriginsCreated", events[0].EventType())
-	assert.Equal(t, "BuiltByRelationshipSet", events[1].EventType())
-}
-
-func TestComponentOrigins_SetBuiltBy_Replace(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	origins, _ := NewComponentOrigins(componentID)
-
-	teamID1 := valueobjects.NewInternalTeamID()
-	notes1, _ := valueobjects.NewNotes("Original team")
-	origins.SetBuiltBy(teamID1, notes1)
-	origins.MarkChangesAsCommitted()
-
-	teamID2 := valueobjects.NewInternalTeamID()
-	notes2, _ := valueobjects.NewNotes("Corrected team")
-	err := origins.SetBuiltBy(teamID2, notes2)
-
-	require.NoError(t, err)
-	assert.Equal(t, teamID2.String(), origins.BuiltBy().EntityID())
-
-	events := origins.GetUncommittedChanges()
-	assert.Len(t, events, 1)
-	assert.Equal(t, "BuiltByRelationshipReplaced", events[0].EventType())
-}
-
-func TestComponentOrigins_SetBuiltBy_UpdateNotesOnly(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	origins, _ := NewComponentOrigins(componentID)
-
-	teamID := valueobjects.NewInternalTeamID()
-	notes1, _ := valueobjects.NewNotes("Original notes")
-	origins.SetBuiltBy(teamID, notes1)
-	origins.MarkChangesAsCommitted()
-
-	notes2, _ := valueobjects.NewNotes("Updated notes")
-	err := origins.SetBuiltBy(teamID, notes2)
-
-	require.NoError(t, err)
-	assert.Equal(t, notes2, origins.BuiltBy().Notes())
-
-	events := origins.GetUncommittedChanges()
-	assert.Len(t, events, 1)
-	assert.Equal(t, "BuiltByNotesUpdated", events[0].EventType())
-}
-
-func TestComponentOrigins_ClearBuiltBy(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	origins, _ := NewComponentOrigins(componentID)
-
-	teamID := valueobjects.NewInternalTeamID()
-	notes, _ := valueobjects.NewNotes("Test notes")
-	origins.SetBuiltBy(teamID, notes)
-	origins.MarkChangesAsCommitted()
-
-	err := origins.ClearBuiltBy()
-
-	require.NoError(t, err)
-	assert.True(t, origins.BuiltBy().IsEmpty())
-
-	events := origins.GetUncommittedChanges()
-	assert.Len(t, events, 1)
-	assert.Equal(t, "BuiltByRelationshipCleared", events[0].EventType())
-}
-
-func TestComponentOrigins_ClearBuiltBy_WhenNotExists(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	origins, _ := NewComponentOrigins(componentID)
-
-	err := origins.ClearBuiltBy()
-
-	assert.Error(t, err)
-	assert.Equal(t, ErrNoBuiltByRelationship, err)
 }
 
 func TestComponentOrigins_MultipleOriginTypes(t *testing.T) {
@@ -492,69 +361,58 @@ func TestComponentOrigins_NamespaceAppliedToAllEventTypes(t *testing.T) {
 	}
 }
 
-func TestComponentOrigins_ClearOperationsUseNamespacedID(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	expectedAggregateID := "component-origins:" + componentID.String()
+func TestComponentOrigins_MutationOperationsUseNamespacedID(t *testing.T) {
+	tc := allOriginTypeCases()[0]
 
-	// Setup
-	origins, _ := NewComponentOrigins(componentID)
-	entityID := valueobjects.NewAcquiredEntityID()
-	notes, _ := valueobjects.NewNotes("Test")
-	origins.SetAcquiredVia(entityID, notes)
-	origins.MarkChangesAsCommitted()
+	tests := []struct {
+		name          string
+		expectedEvent string
+		act           func(*ComponentOrigins, string)
+	}{
+		{
+			name:          "Clear",
+			expectedEvent: tc.clearEvent(),
+			act: func(o *ComponentOrigins, _ string) {
+				tc.clear(o)
+			},
+		},
+		{
+			name:          "Replace",
+			expectedEvent: tc.replaceEvent(),
+			act: func(o *ComponentOrigins, _ string) {
+				notes2, _ := valueobjects.NewNotes("Second")
+				tc.set(o, tc.newID(), notes2)
+			},
+		},
+		{
+			name:          "NotesUpdate",
+			expectedEvent: tc.notesEvent(),
+			act: func(o *ComponentOrigins, entityID string) {
+				notes2, _ := valueobjects.NewNotes("Updated notes")
+				tc.set(o, entityID, notes2)
+			},
+		},
+	}
 
-	// Act
-	origins.ClearAcquiredVia()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			componentID := valueobjects.NewComponentID()
+			expectedAggregateID := "component-origins:" + componentID.String()
 
-	// Assert
-	events := origins.GetUncommittedChanges()
-	require.Len(t, events, 1)
-	assert.Equal(t, expectedAggregateID, events[0].AggregateID())
-}
+			origins, _ := NewComponentOrigins(componentID)
+			entityID := tc.newID()
+			notes, _ := valueobjects.NewNotes("Original")
+			tc.set(origins, entityID, notes)
+			origins.MarkChangesAsCommitted()
 
-func TestComponentOrigins_ReplaceOperationsUseNamespacedID(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	expectedAggregateID := "component-origins:" + componentID.String()
+			tt.act(origins, entityID)
 
-	// Setup
-	origins, _ := NewComponentOrigins(componentID)
-	entityID1 := valueobjects.NewAcquiredEntityID()
-	notes1, _ := valueobjects.NewNotes("First")
-	origins.SetAcquiredVia(entityID1, notes1)
-	origins.MarkChangesAsCommitted()
-
-	// Act - replace with different entity
-	entityID2 := valueobjects.NewAcquiredEntityID()
-	notes2, _ := valueobjects.NewNotes("Second")
-	origins.SetAcquiredVia(entityID2, notes2)
-
-	// Assert
-	events := origins.GetUncommittedChanges()
-	require.Len(t, events, 1)
-	assert.Equal(t, "AcquiredViaRelationshipReplaced", events[0].EventType())
-	assert.Equal(t, expectedAggregateID, events[0].AggregateID())
-}
-
-func TestComponentOrigins_NotesUpdateOperationsUseNamespacedID(t *testing.T) {
-	componentID := valueobjects.NewComponentID()
-	expectedAggregateID := "component-origins:" + componentID.String()
-
-	// Setup
-	origins, _ := NewComponentOrigins(componentID)
-	entityID := valueobjects.NewAcquiredEntityID()
-	notes1, _ := valueobjects.NewNotes("Original notes")
-	origins.SetAcquiredVia(entityID, notes1)
-	origins.MarkChangesAsCommitted()
-
-	// Act - update notes only
-	notes2, _ := valueobjects.NewNotes("Updated notes")
-	origins.SetAcquiredVia(entityID, notes2)
-
-	// Assert
-	events := origins.GetUncommittedChanges()
-	require.Len(t, events, 1)
-	assert.Equal(t, "AcquiredViaNotesUpdated", events[0].EventType())
-	assert.Equal(t, expectedAggregateID, events[0].AggregateID())
+			evts := origins.GetUncommittedChanges()
+			require.Len(t, evts, 1)
+			assert.Equal(t, tt.expectedEvent, evts[0].EventType())
+			assert.Equal(t, expectedAggregateID, evts[0].AggregateID())
+		})
+	}
 }
 
 func TestComponentOrigins_DeleteOperationUsesNamespacedID(t *testing.T) {

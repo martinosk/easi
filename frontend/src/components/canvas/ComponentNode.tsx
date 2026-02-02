@@ -49,14 +49,15 @@ const resolveBorderColor = (isSelected: boolean, baseColor: HexColor): HexColor 
   return isSelected ? SELECTED_BORDER_COLOR : baseColor;
 };
 
-export const ComponentNode: React.FC<{ data: ComponentNodeData; id: string }> = ({ data, id }) => {
+export const ComponentNode: React.FC<{ data: ComponentNodeData; id: string; selected?: boolean }> = ({ data, id, selected }) => {
   const { currentView } = useCurrentView();
   const colorScheme = (currentView?.colorScheme || 'maturity') as ColorScheme;
+  const isSelected = data.isSelected || !!selected;
 
   const baseColor = resolveBaseColor({ colorScheme, customColor: data.customColor });
-  const borderColor = resolveBorderColor(data.isSelected, baseColor);
+  const borderColor = resolveBorderColor(isSelected, baseColor);
 
-  const nodeClassName = `component-node ${data.isSelected ? 'component-node-selected' : ''} ${colorScheme === 'classic' ? 'classic-text' : ''}`;
+  const nodeClassName = `component-node ${isSelected ? 'component-node-selected' : ''} ${colorScheme === 'classic' ? 'classic-text' : ''}`;
 
   return (
     <div

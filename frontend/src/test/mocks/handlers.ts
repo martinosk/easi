@@ -224,4 +224,91 @@ export const handlers = [
       _links: { self: '/api/v1/capability-dependencies' },
     });
   }),
+
+  http.get(`${BASE_URL}/api/v1/capabilities/:id/importance`, () => {
+    return HttpResponse.json({
+      data: [],
+      _links: { self: '/api/v1/capabilities' },
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/v1/capabilities/metadata/statuses`, () => {
+    return HttpResponse.json({
+      data: [
+        { value: 'Active', displayName: 'Active', sortOrder: 1 },
+        { value: 'Inactive', displayName: 'Inactive', sortOrder: 2 },
+      ],
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/v1/capabilities/metadata/ownership-models`, () => {
+    return HttpResponse.json({ data: [] });
+  }),
+
+  http.get(`${BASE_URL}/api/v1/meta-model/maturity-scale`, () => {
+    return HttpResponse.json({
+      sections: [
+        { name: 'Genesis', order: 1, minValue: 0, maxValue: 25 },
+        { name: 'Custom Build', order: 2, minValue: 25, maxValue: 50 },
+        { name: 'Product', order: 3, minValue: 50, maxValue: 75 },
+        { name: 'Commodity', order: 4, minValue: 75, maxValue: 100 },
+      ],
+      version: 1,
+      isDefault: true,
+      _links: { self: { href: '/api/v1/meta-model/maturity-scale', method: 'GET' } },
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/v1/meta-model/strategy-pillars`, () => {
+    return HttpResponse.json({
+      data: [],
+      _links: { self: '/api/v1/meta-model/strategy-pillars' },
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/v1/audit/:id`, () => {
+    return HttpResponse.json({
+      entries: [],
+      _links: { self: '/api/v1/audit' },
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/v1/users`, () => {
+    return HttpResponse.json([]);
+  }),
+
+  http.get(`${BASE_URL}/api/v1/components/:id/fit-scores`, () => {
+    return HttpResponse.json({
+      data: [],
+      _links: { self: '/api/v1/components' },
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/v1/components/:id/origins`, () => {
+    return HttpResponse.json({
+      data: [],
+      _links: { self: '/api/v1/components' },
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/v1/acquired-entities`, () => {
+    return HttpResponse.json({
+      data: [],
+      _links: { self: '/api/v1/acquired-entities' },
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/v1/internal-teams`, () => {
+    return HttpResponse.json({
+      data: [],
+      _links: { self: '/api/v1/internal-teams' },
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/v1/vendors`, () => {
+    return HttpResponse.json({
+      data: [],
+      _links: { self: '/api/v1/vendors' },
+    });
+  }),
 ];

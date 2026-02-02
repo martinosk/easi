@@ -4,6 +4,7 @@ interface ConfirmationDialogProps {
   title: string;
   message: string;
   itemName?: string;
+  itemNames?: string[];
   confirmText?: string;
   cancelText?: string;
   onConfirm: () => void;
@@ -12,10 +13,31 @@ interface ConfirmationDialogProps {
   error?: string | null;
 }
 
+function useDialogKeyboard(onCancel: () => void, onConfirm: () => void, isLoading: boolean) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Enter' && !isLoading) onConfirm();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel, onConfirm, isLoading]);
+}
+
+const ItemNamesList: React.FC<{ names: string[] }> = ({ names }) => (
+  <ul className="dialog-item-list" style={{ maxHeight: '150px', overflowY: 'auto', margin: '8px 0', paddingLeft: '20px' }}>
+    {names.map((name, index) => (
+      <li key={index}>{name}</li>
+    ))}
+  </ul>
+);
+
 export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   title,
   message,
   itemName,
+  itemNames,
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   onConfirm,
@@ -23,27 +45,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   isLoading = false,
   error = null,
 }) => {
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onCancel();
-      }
-    };
-
-    const handleEnter = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' && !isLoading) {
-        onConfirm();
-      }
-    };
-
-    document.addEventListener('keydown', handleEscape);
-    document.addEventListener('keydown', handleEnter);
-
-    return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.removeEventListener('keydown', handleEnter);
-    };
-  }, [onCancel, onConfirm, isLoading]);
+  useDialogKeyboard(onCancel, onConfirm, isLoading);
 
   return (
     <div className="dialog-overlay" onClick={onCancel}>
@@ -51,6 +53,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
         <h3 id="dialog-title">{title}</h3>
         <p id="dialog-description">{message}</p>
         {itemName && <p className="dialog-item-name">"{itemName}"</p>}
+        {itemNames && itemNames.length > 0 && <ItemNamesList names={itemNames} />}
         {error && <p className="dialog-error">{error}</p>}
         {!error && <p className="dialog-warning">This action cannot be undone.</p>}
         <div className="dialog-actions">

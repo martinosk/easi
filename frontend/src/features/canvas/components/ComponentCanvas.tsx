@@ -25,9 +25,12 @@ import { useCanvasDragDrop } from '../hooks/useCanvasDragDrop';
 import { useCanvasConnection } from '../hooks/useCanvasConnection';
 import { useContextMenu } from '../hooks/useContextMenu';
 import { useDeleteConfirmation } from '../hooks/useDeleteConfirmation';
+import { useBulkOperations } from '../hooks/useBulkOperations';
 import { NodeContextMenu } from './context-menus/NodeContextMenu';
 import { EdgeContextMenu } from './context-menus/EdgeContextMenu';
+import { MultiSelectContextMenu } from './context-menus/MultiSelectContextMenu';
 import { DeleteConfirmationWrapper } from './dialogs/DeleteConfirmationWrapper';
+import { BulkConfirmationDialog } from './dialogs/BulkConfirmationDialog';
 
 interface ComponentCanvasProps {
   onConnect: (source: string, target: string) => void;
@@ -44,6 +47,8 @@ const nodeTypes: NodeTypes = {
   originEntity: OriginEntityNode,
 };
 
+const multiSelectionKeys = ['Meta', 'Control', 'Shift'];
+
 const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps>(
   ({ onConnect, onComponentDrop }, ref) => {
   const reactFlowInstance = useReactFlow();
@@ -56,20 +61,6 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
   const { onDragOver, onDrop } = useCanvasDragDrop(reactFlowInstance, onComponentDrop);
   const { onConnectHandler } = useCanvasConnection(onConnect);
   const { onMoveEnd } = useCanvasViewport(reactFlowInstance, nodes);
-  const {
-    nodeContextMenu,
-    edgeContextMenu,
-    onNodeContextMenu,
-    onEdgeContextMenu,
-    closeMenus,
-  } = useContextMenu();
-  const {
-    deleteTarget,
-    isDeleting,
-    setDeleteTarget,
-    handleDeleteConfirm,
-    handleDeleteCancel,
-  } = useDeleteConfirmation();
 
   const [internalNodes, setInternalNodes] = React.useState(nodes);
 
@@ -78,9 +69,38 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     const nodesKey = nodes.map(n => `${n.id}:${n.position.x}:${n.position.y}:${n.data?.isSelected}:${n.data?.label}:${n.data?.customColor}:${n.data?.maturityValue}`).join('|');
     if (prevNodesRef.current !== nodesKey) {
       prevNodesRef.current = nodesKey;
-      setInternalNodes(nodes);
+      setInternalNodes(prev => {
+        const selectedIds = new Set(prev.filter(n => n.selected).map(n => n.id));
+        if (selectedIds.size === 0) return nodes;
+        return nodes.map(n => selectedIds.has(n.id) ? { ...n, selected: true } : n);
+      });
     }
   }, [nodes]);
+
+  const {
+    nodeContextMenu,
+    edgeContextMenu,
+    multiSelectMenu,
+    onNodeContextMenu,
+    onSelectionContextMenu,
+    onEdgeContextMenu,
+    closeMenus,
+  } = useContextMenu(internalNodes);
+  const {
+    deleteTarget,
+    isDeleting,
+    setDeleteTarget,
+    handleDeleteConfirm,
+    handleDeleteCancel,
+  } = useDeleteConfirmation();
+  const {
+    bulkOperation,
+    isExecuting,
+    result: bulkResult,
+    setBulkOperation,
+    handleBulkConfirm,
+    handleBulkCancel,
+  } = useBulkOperations();
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -123,11 +143,13 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         onPaneClick={handlePaneClick}
         onNodeDragStop={onNodeDragStop}
         onNodeContextMenu={onNodeContextMenu}
+        onSelectionContextMenu={onSelectionContextMenu}
         onEdgeContextMenu={onEdgeContextMenu}
         onConnect={onConnectHandler}
         onMoveEnd={onMoveEnd}
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
+        multiSelectionKeyCode={multiSelectionKeys}
         minZoom={0.1}
         maxZoom={2}
         defaultEdgeOptions={{
@@ -161,11 +183,25 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         onRequestDelete={setDeleteTarget}
       />
 
+      <MultiSelectContextMenu
+        menu={multiSelectMenu}
+        onClose={closeMenus}
+        onRequestBulkOperation={setBulkOperation}
+      />
+
       <DeleteConfirmationWrapper
         deleteTarget={deleteTarget}
         isDeleting={isDeleting}
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
+      />
+
+      <BulkConfirmationDialog
+        bulkOperation={bulkOperation}
+        isExecuting={isExecuting}
+        result={bulkResult}
+        onConfirm={handleBulkConfirm}
+        onCancel={handleBulkCancel}
       />
     </div>
   );

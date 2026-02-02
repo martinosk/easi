@@ -7,12 +7,23 @@ import { CreateInternalTeamDialog } from '../../origin-entities/components/Creat
 import { TreeContextMenus } from './TreeContextMenus';
 import { CreateViewDialog } from './CreateViewDialog';
 import { DeleteConfirmation } from './DeleteConfirmation';
+import { TreeMultiSelectContextMenu } from './TreeMultiSelectContextMenu';
+import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import type { DeleteTarget } from './DeleteConfirmation';
 import type { ViewContextMenuState, ComponentContextMenuState, CapabilityContextMenuState } from '../types';
 import type { OriginEntityContextMenuState } from '../hooks/useTreeContextMenus';
 import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
+import type { TreeMultiSelectMenuState } from '../hooks/useTreeMultiSelectMenu';
+import type { TreeBulkOperationRequest } from './TreeMultiSelectContextMenu';
+import type { TreeBulkOperationResult } from '../hooks/useTreeBulkDelete';
+import type { TreeSelectedItem } from '../hooks/useTreeMultiSelect';
 
 type OriginEntityDialogType = 'acquired' | 'vendor' | 'team' | null;
+
+function buildBulkDeleteError(result: TreeBulkOperationResult): string {
+  const failedNames = result.failed.map((f) => f.name).join(', ');
+  return `${result.succeeded.length} item(s) succeeded, ${result.failed.length} failed: ${failedNames}`;
+}
 
 interface NavigationTreeDialogsProps {
   contextMenus: {
@@ -42,12 +53,28 @@ interface NavigationTreeDialogsProps {
   };
   openOriginDialog: OriginEntityDialogType;
   onCloseOriginDialog: () => void;
+  multiSelectMenu: TreeMultiSelectMenuState | null;
+  onCloseMultiSelectMenu: () => void;
+  onRequestBulkOperation: (request: TreeBulkOperationRequest) => void;
+  bulkDelete: {
+    bulkItems: TreeSelectedItem[] | null;
+    isExecuting: boolean;
+    result: TreeBulkOperationResult | null;
+    itemNames: string[];
+    handleCancel: () => void;
+  };
+  onBulkDeleteConfirm: () => void;
 }
 
 export const NavigationTreeDialogs: React.FC<NavigationTreeDialogsProps> = ({
   contextMenus,
   openOriginDialog,
   onCloseOriginDialog,
+  multiSelectMenu,
+  onCloseMultiSelectMenu,
+  onRequestBulkOperation,
+  bulkDelete,
+  onBulkDeleteConfirm,
 }) => (
   <>
     <TreeContextMenus
@@ -63,6 +90,12 @@ export const NavigationTreeDialogs: React.FC<NavigationTreeDialogsProps> = ({
       setComponentContextMenu={contextMenus.setComponentContextMenu}
       setCapabilityContextMenu={contextMenus.setCapabilityContextMenu}
       setOriginEntityContextMenu={contextMenus.setOriginEntityContextMenu}
+    />
+
+    <TreeMultiSelectContextMenu
+      menu={multiSelectMenu}
+      onClose={onCloseMultiSelectMenu}
+      onRequestBulkOperation={onRequestBulkOperation}
     />
 
     <CreateViewDialog
@@ -85,6 +118,20 @@ export const NavigationTreeDialogs: React.FC<NavigationTreeDialogsProps> = ({
       onClose={() => contextMenus.setDeleteCapability(null)}
       capability={contextMenus.deleteCapability}
     />
+
+    {bulkDelete.bulkItems && (
+      <ConfirmationDialog
+        title={`Delete ${bulkDelete.bulkItems.length} items from Model`}
+        message={`This will permanently delete ${bulkDelete.bulkItems.length} items from the entire model. They will be removed from ALL views and all associated relations will be deleted. This cannot be undone.`}
+        itemNames={bulkDelete.itemNames}
+        confirmText={`Delete ${bulkDelete.bulkItems.length} items`}
+        cancelText="Cancel"
+        onConfirm={onBulkDeleteConfirm}
+        onCancel={bulkDelete.handleCancel}
+        isLoading={bulkDelete.isExecuting}
+        error={bulkDelete.result ? buildBulkDeleteError(bulkDelete.result) : null}
+      />
+    )}
 
     <CreateAcquiredEntityDialog
       isOpen={openOriginDialog === 'acquired'}

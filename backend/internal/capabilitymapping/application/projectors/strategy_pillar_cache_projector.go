@@ -69,18 +69,46 @@ func (p *StrategyPillarCacheProjector) handlePillarAdded(ctx context.Context, ev
 	return p.readModel.Insert(ctx, dto)
 }
 
-type pillarUpdatedEvent struct {
-	ID             string `json:"id"`
-	TenantID       string `json:"tenantId"`
-	PillarID       string `json:"pillarId"`
-	NewName        string `json:"newName"`
-	NewDescription string `json:"newDescription"`
+type pillarEvent struct {
+	ID                string `json:"id"`
+	TenantID          string `json:"tenantId"`
+	PillarID          string `json:"pillarId"`
+	NewName           string `json:"newName"`
+	NewDescription    string `json:"newDescription"`
+	FitScoringEnabled bool   `json:"fitScoringEnabled"`
+	FitCriteria       string `json:"fitCriteria"`
+	FitType           string `json:"fitType"`
 }
 
 func (p *StrategyPillarCacheProjector) handlePillarUpdated(ctx context.Context, eventData []byte) error {
-	var event pillarUpdatedEvent
+	return p.unmarshalAndUpdate(ctx, eventData, func(event pillarEvent, existing *readmodels.StrategyPillarCacheDTO) {
+		existing.Name = event.NewName
+		existing.Description = event.NewDescription
+	})
+}
+
+func (p *StrategyPillarCacheProjector) handlePillarRemoved(ctx context.Context, eventData []byte) error {
+	var event pillarEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal StrategyPillarUpdated event: %v", err)
+		log.Printf("Failed to unmarshal StrategyPillarRemoved event: %v", err)
+		return err
+	}
+
+	return p.readModel.Delete(ctx, event.PillarID)
+}
+
+func (p *StrategyPillarCacheProjector) handleFitConfigurationUpdated(ctx context.Context, eventData []byte) error {
+	return p.unmarshalAndUpdate(ctx, eventData, func(event pillarEvent, existing *readmodels.StrategyPillarCacheDTO) {
+		existing.FitScoringEnabled = event.FitScoringEnabled
+		existing.FitCriteria = event.FitCriteria
+		existing.FitType = event.FitType
+	})
+}
+
+func (p *StrategyPillarCacheProjector) unmarshalAndUpdate(ctx context.Context, eventData []byte, mutate func(pillarEvent, *readmodels.StrategyPillarCacheDTO)) error {
+	var event pillarEvent
+	if err := json.Unmarshal(eventData, &event); err != nil {
+		log.Printf("Failed to unmarshal pillar event: %v", err)
 		return err
 	}
 
@@ -95,58 +123,7 @@ func (p *StrategyPillarCacheProjector) handlePillarUpdated(ctx context.Context, 
 		return nil
 	}
 
-	existing.Name = event.NewName
-	existing.Description = event.NewDescription
-
-	return p.readModel.Insert(ctx, *existing)
-}
-
-type pillarRemovedEvent struct {
-	ID       string `json:"id"`
-	TenantID string `json:"tenantId"`
-	PillarID string `json:"pillarId"`
-}
-
-func (p *StrategyPillarCacheProjector) handlePillarRemoved(ctx context.Context, eventData []byte) error {
-	var event pillarRemovedEvent
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal StrategyPillarRemoved event: %v", err)
-		return err
-	}
-
-	return p.readModel.Delete(ctx, event.PillarID)
-}
-
-type fitConfigurationUpdatedEvent struct {
-	ID                string `json:"id"`
-	TenantID          string `json:"tenantId"`
-	PillarID          string `json:"pillarId"`
-	FitScoringEnabled bool   `json:"fitScoringEnabled"`
-	FitCriteria       string `json:"fitCriteria"`
-	FitType           string `json:"fitType"`
-}
-
-func (p *StrategyPillarCacheProjector) handleFitConfigurationUpdated(ctx context.Context, eventData []byte) error {
-	var event fitConfigurationUpdatedEvent
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal PillarFitConfigurationUpdated event: %v", err)
-		return err
-	}
-
-	existing, err := p.readModel.GetActivePillar(ctx, event.PillarID)
-	if err != nil {
-		log.Printf("Failed to get existing pillar %s: %v", event.PillarID, err)
-		return err
-	}
-
-	if existing == nil {
-		log.Printf("Pillar %s not found in cache, skipping fit config update", event.PillarID)
-		return nil
-	}
-
-	existing.FitScoringEnabled = event.FitScoringEnabled
-	existing.FitCriteria = event.FitCriteria
-	existing.FitType = event.FitType
+	mutate(event, existing)
 
 	return p.readModel.Insert(ctx, *existing)
 }

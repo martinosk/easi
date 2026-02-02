@@ -31,13 +31,16 @@ export const createComponentNode = (
   };
 };
 
-export const createCapabilityNode = (
-  capabilityId: string,
-  capability: Capability,
-  layoutPositions: CanvasPositionMap,
-  viewCapability: ViewCapability | undefined,
-  selectedCapabilityId: string | null
-): Node => {
+interface CapabilityNodeParams {
+  capabilityId: string;
+  capability: Capability;
+  layoutPositions: CanvasPositionMap;
+  viewCapability: ViewCapability | undefined;
+  selectedCapabilityId: string | null;
+}
+
+export const createCapabilityNode = (params: CapabilityNodeParams): Node => {
+  const { capabilityId, capability, layoutPositions, viewCapability, selectedCapabilityId } = params;
   const layoutPosition = layoutPositions[capabilityId];
   const position = layoutPosition ?? DEFAULT_POSITION;
 
@@ -66,14 +69,17 @@ export const ORIGIN_ENTITY_PREFIXES = {
   team: NODE_PREFIXES.team,
 } as const;
 
-export const createOriginEntityNode = (
-  entityId: string,
-  entityType: OriginEntityType,
-  name: string,
-  layoutPositions: CanvasPositionMap,
-  selectedOriginEntityId: string | null,
-  subtitle?: string
-): Node => {
+interface OriginEntityNodeParams {
+  entityId: string;
+  entityType: OriginEntityType;
+  name: string;
+  layoutPositions: CanvasPositionMap;
+  selectedOriginEntityId: string | null;
+  subtitle?: string;
+}
+
+export const createOriginEntityNode = (params: OriginEntityNodeParams): Node => {
+  const { entityId, entityType, name, layoutPositions, selectedOriginEntityId, subtitle } = params;
   const prefix = ORIGIN_ENTITY_PREFIXES[entityType];
   const nodeId = `${prefix}${entityId}`;
   const layoutPosition = layoutPositions[nodeId];
@@ -86,7 +92,7 @@ export const createOriginEntityNode = (
     data: {
       label: name,
       entityType,
-      isSelected: selectedOriginEntityId === entityId,
+      isSelected: selectedOriginEntityId === nodeId,
       subtitle,
     },
   };
@@ -100,45 +106,22 @@ export const createAcquiredEntityNode = (
   const subtitle = entity.acquisitionDate
     ? new Date(entity.acquisitionDate).getFullYear().toString()
     : undefined;
-  return createOriginEntityNode(
-    entity.id,
-    'acquired',
-    entity.name,
-    layoutPositions,
-    selectedOriginEntityId,
-    subtitle
-  );
+  return createOriginEntityNode({ entityId: entity.id, entityType: 'acquired', name: entity.name, layoutPositions, selectedOriginEntityId, subtitle });
 };
 
 export const createVendorNode = (
   vendor: Vendor,
   layoutPositions: CanvasPositionMap,
   selectedOriginEntityId: string | null
-): Node => {
-  return createOriginEntityNode(
-    vendor.id,
-    'vendor',
-    vendor.name,
-    layoutPositions,
-    selectedOriginEntityId,
-    vendor.implementationPartner
-  );
-};
+): Node =>
+  createOriginEntityNode({ entityId: vendor.id, entityType: 'vendor', name: vendor.name, layoutPositions, selectedOriginEntityId, subtitle: vendor.implementationPartner });
 
 export const createInternalTeamNode = (
   team: InternalTeam,
   layoutPositions: CanvasPositionMap,
   selectedOriginEntityId: string | null
-): Node => {
-  return createOriginEntityNode(
-    team.id,
-    'team',
-    team.name,
-    layoutPositions,
-    selectedOriginEntityId,
-    team.department
-  );
-};
+): Node =>
+  createOriginEntityNode({ entityId: team.id, entityType: 'team', name: team.name, layoutPositions, selectedOriginEntityId, subtitle: team.department });
 
 export const isOriginEntityNode = (nodeId: string): boolean => {
   return nodeId.startsWith(ORIGIN_ENTITY_PREFIXES.acquired) ||

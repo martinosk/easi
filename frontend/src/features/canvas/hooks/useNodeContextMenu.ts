@@ -21,12 +21,12 @@ export interface NodeContextMenu {
   viewElementLinks?: HATEOASLinks;
 }
 
-interface MenuPosition {
+export interface MenuPosition {
   x: number;
   y: number;
 }
 
-interface OriginEntityLookups {
+export interface OriginEntityLookups {
   acquiredEntities: { id: string; name: string; _links?: HATEOASLinks }[];
   vendors: { id: string; name: string; _links?: HATEOASLinks }[];
   internalTeams: { id: string; name: string; _links?: HATEOASLinks }[];
@@ -109,7 +109,7 @@ function resolveComponentNode(
   };
 }
 
-interface NodeContextMenuDependencies {
+export interface NodeContextMenuDependencies {
   components: Component[];
   capabilities: Capability[];
   originEntityLookups: OriginEntityLookups;
@@ -118,7 +118,7 @@ interface NodeContextMenuDependencies {
   currentViewOriginEntities: { originEntityId: string; _links?: HATEOASLinks }[];
 }
 
-function resolveNodeMenu(
+export function resolveNodeMenu(
   node: Node,
   position: MenuPosition,
   deps: NodeContextMenuDependencies

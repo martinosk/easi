@@ -45,455 +45,208 @@ func (r testResult) hasMismatchedErrorContent() bool {
 	return false
 }
 
+type valueTestCase[T any] struct {
+	name        string
+	data        map[string]interface{}
+	key         string
+	want        T
+	wantErr     bool
+	errContains string
+}
+
+func runValueTests[T any](t *testing.T, funcName string, tests []valueTestCase[T], extract func(map[string]interface{}, string) (T, error), equal func(T, T) bool) {
+	t.Helper()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := extract(tt.data, tt.key)
+			r := testResult{t, funcName, err, tt.wantErr, tt.errContains}
+			if r.checkError() && !equal(got, tt.want) {
+				t.Errorf("%s() = %v, want %v", funcName, got, tt.want)
+			}
+		})
+	}
+}
+
+func eq[T comparable](a, b T) bool { return a == b }
+
+func deepEqual[T any](a, b T) bool { return reflect.DeepEqual(a, b) }
+
+func withDefault[T any](fn func(map[string]interface{}, string, T) (T, error), def T) func(map[string]interface{}, string) (T, error) {
+	return func(data map[string]interface{}, key string) (T, error) {
+		return fn(data, key, def)
+	}
+}
+
 func TestGetRequiredString(t *testing.T) {
-	tests := []struct {
-		name        string
-		data        map[string]interface{}
-		key         string
-		want        string
-		wantErr     bool
-		errContains string
-	}{
+	runValueTests(t, "GetRequiredString", []valueTestCase[string]{
 		{"valid string", map[string]interface{}{"name": "test"}, "name", "test", false, ""},
 		{"empty string is valid", map[string]interface{}{"name": ""}, "name", "", false, ""},
 		{"missing field", map[string]interface{}{}, "name", "", true, "required field is missing"},
 		{"null value", map[string]interface{}{"name": nil}, "name", "", true, "required field is missing"},
 		{"wrong type", map[string]interface{}{"name": 123}, "name", "", true, "expected type string"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetRequiredString(tt.data, tt.key)
-			r := testResult{t, "GetRequiredString", err, tt.wantErr, tt.errContains}
-			if r.checkError() && got != tt.want {
-				t.Errorf("GetRequiredString() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	}, GetRequiredString, eq)
 }
 
 func TestGetOptionalString(t *testing.T) {
-	tests := []struct {
-		name        string
-		data        map[string]interface{}
-		key         string
-		defaultVal  string
-		want        string
-		wantErr     bool
-		errContains string
-	}{
-		{"valid string", map[string]interface{}{"name": "test"}, "name", "default", "test", false, ""},
-		{"missing field returns default", map[string]interface{}{}, "name", "default", "default", false, ""},
-		{"null value returns default", map[string]interface{}{"name": nil}, "name", "default", "default", false, ""},
-		{"wrong type returns error", map[string]interface{}{"name": 123}, "name", "default", "", true, "expected type string"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetOptionalString(tt.data, tt.key, tt.defaultVal)
-			r := testResult{t, "GetOptionalString", err, tt.wantErr, tt.errContains}
-			if r.checkError() && got != tt.want {
-				t.Errorf("GetOptionalString() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	runValueTests(t, "GetOptionalString", []valueTestCase[string]{
+		{"valid string", map[string]interface{}{"name": "test"}, "name", "test", false, ""},
+		{"missing field returns default", map[string]interface{}{}, "name", "default", false, ""},
+		{"null value returns default", map[string]interface{}{"name": nil}, "name", "default", false, ""},
+		{"wrong type returns error", map[string]interface{}{"name": 123}, "name", "", true, "expected type string"},
+	}, withDefault(GetOptionalString, "default"), eq)
 }
 
 func TestGetRequiredInt(t *testing.T) {
-	tests := []struct {
-		name        string
-		data        map[string]interface{}
-		key         string
-		want        int
-		wantErr     bool
-		errContains string
-	}{
+	runValueTests(t, "GetRequiredInt", []valueTestCase[int]{
 		{"valid int", map[string]interface{}{"count": 42}, "count", 42, false, ""},
 		{"float64 converted to int", map[string]interface{}{"count": float64(42)}, "count", 42, false, ""},
 		{"int64 converted to int", map[string]interface{}{"count": int64(42)}, "count", 42, false, ""},
 		{"negative int", map[string]interface{}{"count": -100}, "count", -100, false, ""},
 		{"missing field", map[string]interface{}{}, "count", 0, true, "required field is missing"},
 		{"wrong type", map[string]interface{}{"count": "not a number"}, "count", 0, true, "expected type int"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetRequiredInt(tt.data, tt.key)
-			r := testResult{t, "GetRequiredInt", err, tt.wantErr, tt.errContains}
-			if r.checkError() && got != tt.want {
-				t.Errorf("GetRequiredInt() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	}, GetRequiredInt, eq)
 }
 
 func TestGetOptionalInt(t *testing.T) {
-	tests := []struct {
-		name        string
-		data        map[string]interface{}
-		key         string
-		defaultVal  int
-		want        int
-		wantErr     bool
-		errContains string
-	}{
-		{"valid int", map[string]interface{}{"count": 42}, "count", 0, 42, false, ""},
-		{"missing field returns default", map[string]interface{}{}, "count", 10, 10, false, ""},
-		{"null value returns default", map[string]interface{}{"count": nil}, "count", 10, 10, false, ""},
-		{"wrong type returns error", map[string]interface{}{"count": "not a number"}, "count", 10, 0, true, "expected type int"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetOptionalInt(tt.data, tt.key, tt.defaultVal)
-			r := testResult{t, "GetOptionalInt", err, tt.wantErr, tt.errContains}
-			if r.checkError() && got != tt.want {
-				t.Errorf("GetOptionalInt() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	runValueTests(t, "GetOptionalInt", []valueTestCase[int]{
+		{"valid int", map[string]interface{}{"count": 42}, "count", 42, false, ""},
+		{"missing field returns default", map[string]interface{}{}, "count", 10, false, ""},
+		{"null value returns default", map[string]interface{}{"count": nil}, "count", 10, false, ""},
+		{"wrong type returns error", map[string]interface{}{"count": "not a number"}, "count", 0, true, "expected type int"},
+	}, withDefault(GetOptionalInt, 10), eq)
 }
 
 func TestGetRequiredFloat64(t *testing.T) {
-	tests := []struct {
-		name        string
-		data        map[string]interface{}
-		key         string
-		want        float64
-		wantErr     bool
-		errContains string
-	}{
+	runValueTests(t, "GetRequiredFloat64", []valueTestCase[float64]{
 		{"valid float64", map[string]interface{}{"price": 42.5}, "price", 42.5, false, ""},
 		{"int converted to float64", map[string]interface{}{"price": 42}, "price", 42.0, false, ""},
 		{"missing field", map[string]interface{}{}, "price", 0, true, "required field is missing"},
 		{"wrong type", map[string]interface{}{"price": "not a number"}, "price", 0, true, "expected type float64"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetRequiredFloat64(tt.data, tt.key)
-			r := testResult{t, "GetRequiredFloat64", err, tt.wantErr, tt.errContains}
-			if r.checkError() && got != tt.want {
-				t.Errorf("GetRequiredFloat64() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	}, GetRequiredFloat64, eq)
 }
 
 func TestGetOptionalFloat64(t *testing.T) {
-	tests := []struct {
-		name        string
-		data        map[string]interface{}
-		key         string
-		defaultVal  float64
-		want        float64
-		wantErr     bool
-		errContains string
-	}{
-		{"valid float64", map[string]interface{}{"price": 42.5}, "price", 0.0, 42.5, false, ""},
-		{"missing field returns default", map[string]interface{}{}, "price", 10.5, 10.5, false, ""},
-		{"null value returns default", map[string]interface{}{"price": nil}, "price", 10.5, 10.5, false, ""},
-		{"wrong type returns error", map[string]interface{}{"price": "not a number"}, "price", 10.5, 0, true, "expected type float64"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetOptionalFloat64(tt.data, tt.key, tt.defaultVal)
-			r := testResult{t, "GetOptionalFloat64", err, tt.wantErr, tt.errContains}
-			if r.checkError() && got != tt.want {
-				t.Errorf("GetOptionalFloat64() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	runValueTests(t, "GetOptionalFloat64", []valueTestCase[float64]{
+		{"valid float64", map[string]interface{}{"price": 42.5}, "price", 42.5, false, ""},
+		{"missing field returns default", map[string]interface{}{}, "price", 10.5, false, ""},
+		{"null value returns default", map[string]interface{}{"price": nil}, "price", 10.5, false, ""},
+		{"wrong type returns error", map[string]interface{}{"price": "not a number"}, "price", 0, true, "expected type float64"},
+	}, withDefault(GetOptionalFloat64, 10.5), eq)
 }
 
 func TestGetRequiredBool(t *testing.T) {
-	tests := []struct {
-		name        string
-		data        map[string]interface{}
-		key         string
-		want        bool
-		wantErr     bool
-		errContains string
-	}{
+	runValueTests(t, "GetRequiredBool", []valueTestCase[bool]{
 		{"valid true", map[string]interface{}{"active": true}, "active", true, false, ""},
 		{"valid false", map[string]interface{}{"active": false}, "active", false, false, ""},
 		{"missing field", map[string]interface{}{}, "active", false, true, "required field is missing"},
 		{"wrong type", map[string]interface{}{"active": "true"}, "active", false, true, "expected type bool"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetRequiredBool(tt.data, tt.key)
-			r := testResult{t, "GetRequiredBool", err, tt.wantErr, tt.errContains}
-			if r.checkError() && got != tt.want {
-				t.Errorf("GetRequiredBool() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	}, GetRequiredBool, eq)
 }
 
 func TestGetOptionalBool(t *testing.T) {
-	tests := []struct {
-		name        string
-		data        map[string]interface{}
-		key         string
-		defaultVal  bool
-		want        bool
-		wantErr     bool
-		errContains string
-	}{
-		{"valid bool", map[string]interface{}{"active": true}, "active", false, true, false, ""},
-		{"missing field returns default", map[string]interface{}{}, "active", true, true, false, ""},
-		{"null value returns default", map[string]interface{}{"active": nil}, "active", true, true, false, ""},
-		{"wrong type returns error", map[string]interface{}{"active": "true"}, "active", false, false, true, "expected type bool"},
-		{"int instead of bool returns error", map[string]interface{}{"active": 1}, "active", false, false, true, "expected type bool"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetOptionalBool(tt.data, tt.key, tt.defaultVal)
-			r := testResult{t, "GetOptionalBool", err, tt.wantErr, tt.errContains}
-			if r.checkError() && got != tt.want {
-				t.Errorf("GetOptionalBool() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	runValueTests(t, "GetOptionalBool", []valueTestCase[bool]{
+		{"valid bool", map[string]interface{}{"active": true}, "active", true, false, ""},
+		{"missing field returns default", map[string]interface{}{}, "active", true, false, ""},
+		{"null value returns default", map[string]interface{}{"active": nil}, "active", true, false, ""},
+		{"wrong type returns error", map[string]interface{}{"active": "true"}, "active", false, true, "expected type bool"},
+		{"int instead of bool returns error", map[string]interface{}{"active": 1}, "active", false, true, "expected type bool"},
+	}, withDefault(GetOptionalBool, true), eq)
 }
 
 func TestGetRequiredTime(t *testing.T) {
 	validTime := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
 	validTimeNano := time.Date(2024, 1, 15, 10, 30, 0, 123456789, time.UTC)
-	tests := []struct {
-		name        string
-		data        map[string]interface{}
-		key         string
-		want        time.Time
-		wantErr     bool
-		errContains string
-	}{
+	runValueTests(t, "GetRequiredTime", []valueTestCase[time.Time]{
 		{"valid RFC3339 time", map[string]interface{}{"createdAt": "2024-01-15T10:30:00Z"}, "createdAt", validTime, false, ""},
 		{"valid RFC3339Nano time", map[string]interface{}{"createdAt": "2024-01-15T10:30:00.123456789Z"}, "createdAt", validTimeNano, false, ""},
 		{"missing field", map[string]interface{}{}, "createdAt", time.Time{}, true, "required field is missing"},
 		{"wrong type", map[string]interface{}{"createdAt": 12345}, "createdAt", time.Time{}, true, "expected type string"},
 		{"invalid time format", map[string]interface{}{"createdAt": "not-a-time"}, "createdAt", time.Time{}, true, "invalid time format"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetRequiredTime(tt.data, tt.key)
-			r := testResult{t, "GetRequiredTime", err, tt.wantErr, tt.errContains}
-			if r.checkError() && !got.Equal(tt.want) {
-				t.Errorf("GetRequiredTime() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	}, GetRequiredTime, func(a, b time.Time) bool { return a.Equal(b) })
 }
 
 func TestGetOptionalTime(t *testing.T) {
 	defaultTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	validTime := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
-	tests := []struct {
-		name        string
-		data        map[string]interface{}
-		key         string
-		defaultVal  time.Time
-		want        time.Time
-		wantErr     bool
-		errContains string
-	}{
-		{"valid time", map[string]interface{}{"createdAt": "2024-01-15T10:30:00Z"}, "createdAt", defaultTime, validTime, false, ""},
-		{"missing field returns default", map[string]interface{}{}, "createdAt", defaultTime, defaultTime, false, ""},
-		{"null value returns default", map[string]interface{}{"createdAt": nil}, "createdAt", defaultTime, defaultTime, false, ""},
-		{"wrong type returns error", map[string]interface{}{"createdAt": 12345}, "createdAt", defaultTime, time.Time{}, true, "expected type string"},
-		{"invalid format returns error", map[string]interface{}{"createdAt": "not-a-time"}, "createdAt", defaultTime, time.Time{}, true, "invalid time format"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetOptionalTime(tt.data, tt.key, tt.defaultVal)
-			r := testResult{t, "GetOptionalTime", err, tt.wantErr, tt.errContains}
-			if r.checkError() && !got.Equal(tt.want) {
-				t.Errorf("GetOptionalTime() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	runValueTests(t, "GetOptionalTime", []valueTestCase[time.Time]{
+		{"valid time", map[string]interface{}{"createdAt": "2024-01-15T10:30:00Z"}, "createdAt", validTime, false, ""},
+		{"missing field returns default", map[string]interface{}{}, "createdAt", defaultTime, false, ""},
+		{"null value returns default", map[string]interface{}{"createdAt": nil}, "createdAt", defaultTime, false, ""},
+		{"wrong type returns error", map[string]interface{}{"createdAt": 12345}, "createdAt", time.Time{}, true, "expected type string"},
+		{"invalid format returns error", map[string]interface{}{"createdAt": "not-a-time"}, "createdAt", time.Time{}, true, "invalid time format"},
+	}, withDefault(GetOptionalTime, defaultTime), func(a, b time.Time) bool { return a.Equal(b) })
 }
 
 func TestGetRequiredMap(t *testing.T) {
-	tests := []struct {
-		name        string
-		data        map[string]interface{}
-		key         string
-		wantNil     bool
-		wantErr     bool
-		errContains string
-	}{
-		{"valid map", map[string]interface{}{"metadata": map[string]interface{}{"key": "value"}}, "metadata", false, false, ""},
-		{"missing field", map[string]interface{}{}, "metadata", true, true, "required field is missing"},
-		{"wrong type", map[string]interface{}{"metadata": "not a map"}, "metadata", true, true, "expected type map"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetRequiredMap(tt.data, tt.key)
-			r := testResult{t, "GetRequiredMap", err, tt.wantErr, tt.errContains}
-			if r.checkError() && got == nil {
-				t.Errorf("GetRequiredMap() returned nil for valid input")
-			}
-		})
-	}
+	runValueTests(t, "GetRequiredMap", []valueTestCase[map[string]interface{}]{
+		{"valid map", map[string]interface{}{"metadata": map[string]interface{}{"key": "value"}}, "metadata", map[string]interface{}{"key": "value"}, false, ""},
+		{"missing field", map[string]interface{}{}, "metadata", nil, true, "required field is missing"},
+		{"wrong type", map[string]interface{}{"metadata": "not a map"}, "metadata", nil, true, "expected type map"},
+	}, GetRequiredMap, deepEqual[map[string]interface{}])
 }
 
 func TestGetOptionalMap(t *testing.T) {
-	tests := []struct {
-		name        string
-		data        map[string]interface{}
-		key         string
-		wantNil     bool
-		wantErr     bool
-		errContains string
-	}{
-		{"valid map", map[string]interface{}{"metadata": map[string]interface{}{"key": "value"}}, "metadata", false, false, ""},
-		{"missing field returns nil", map[string]interface{}{}, "metadata", true, false, ""},
-		{"null value returns nil", map[string]interface{}{"metadata": nil}, "metadata", true, false, ""},
-		{"wrong type returns error", map[string]interface{}{"metadata": "not a map"}, "metadata", true, true, "expected type map"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetOptionalMap(tt.data, tt.key)
-			r := testResult{t, "GetOptionalMap", err, tt.wantErr, tt.errContains}
-			if !r.checkError() {
-				return
-			}
-			if tt.wantNil && got != nil {
-				t.Errorf("GetOptionalMap() = %v, want nil", got)
-			}
-			if !tt.wantNil && got == nil {
-				t.Errorf("GetOptionalMap() = nil, want non-nil")
-			}
-		})
-	}
+	runValueTests(t, "GetOptionalMap", []valueTestCase[map[string]interface{}]{
+		{"valid map", map[string]interface{}{"metadata": map[string]interface{}{"key": "value"}}, "metadata", map[string]interface{}{"key": "value"}, false, ""},
+		{"missing field returns nil", map[string]interface{}{}, "metadata", nil, false, ""},
+		{"null value returns nil", map[string]interface{}{"metadata": nil}, "metadata", nil, false, ""},
+		{"wrong type returns error", map[string]interface{}{"metadata": "not a map"}, "metadata", nil, true, "expected type map"},
+	}, GetOptionalMap, deepEqual[map[string]interface{}])
 }
 
 func TestGetRequiredMapSlice(t *testing.T) {
-	tests := []struct {
-		name        string
-		data        map[string]interface{}
-		key         string
-		wantLen     int
-		wantErr     bool
-		errContains string
-	}{
+	twoItems := []map[string]interface{}{{"id": "1"}, {"id": "2"}}
+	runValueTests(t, "GetRequiredMapSlice", []valueTestCase[[]map[string]interface{}]{
 		{
 			"valid map slice",
 			map[string]interface{}{"items": []interface{}{map[string]interface{}{"id": "1"}, map[string]interface{}{"id": "2"}}},
-			"items", 2, false, "",
+			"items", twoItems, false, "",
 		},
-		{"missing field", map[string]interface{}{}, "items", 0, true, "required field is missing"},
-		{"wrong type - not a slice", map[string]interface{}{"items": "not a slice"}, "items", 0, true, "expected type"},
+		{"missing field", map[string]interface{}{}, "items", nil, true, "required field is missing"},
+		{"wrong type - not a slice", map[string]interface{}{"items": "not a slice"}, "items", nil, true, "expected type"},
 		{
 			"slice with non-map items",
 			map[string]interface{}{"items": []interface{}{"string item"}},
-			"items", 0, true, "expected type",
+			"items", nil, true, "expected type",
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetRequiredMapSlice(tt.data, tt.key)
-			r := testResult{t, "GetRequiredMapSlice", err, tt.wantErr, tt.errContains}
-			if r.checkError() && len(got) != tt.wantLen {
-				t.Errorf("GetRequiredMapSlice() returned %d items, want %d", len(got), tt.wantLen)
-			}
-		})
-	}
+	}, GetRequiredMapSlice, deepEqual[[]map[string]interface{}])
 }
 
 func TestGetOptionalMapSlice(t *testing.T) {
-	tests := []struct {
-		name        string
-		data        map[string]interface{}
-		key         string
-		wantLen     int
-		wantNil     bool
-		wantErr     bool
-		errContains string
-	}{
+	twoItems := []map[string]interface{}{{"id": "1"}, {"id": "2"}}
+	runValueTests(t, "GetOptionalMapSlice", []valueTestCase[[]map[string]interface{}]{
 		{
 			"valid map slice",
 			map[string]interface{}{"items": []interface{}{map[string]interface{}{"id": "1"}, map[string]interface{}{"id": "2"}}},
-			"items", 2, false, false, "",
+			"items", twoItems, false, "",
 		},
-		{"missing field returns nil", map[string]interface{}{}, "items", 0, true, false, ""},
-		{"null value returns nil", map[string]interface{}{"items": nil}, "items", 0, true, false, ""},
-		{"wrong type returns error", map[string]interface{}{"items": "not a slice"}, "items", 0, true, true, "expected type"},
+		{"missing field returns nil", map[string]interface{}{}, "items", nil, false, ""},
+		{"null value returns nil", map[string]interface{}{"items": nil}, "items", nil, false, ""},
+		{"wrong type returns error", map[string]interface{}{"items": "not a slice"}, "items", nil, true, "expected type"},
 		{
 			"slice with non-map items returns error",
 			map[string]interface{}{"items": []interface{}{"string item"}},
-			"items", 0, true, true, "expected type",
+			"items", nil, true, "expected type",
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetOptionalMapSlice(tt.data, tt.key)
-			r := testResult{t, "GetOptionalMapSlice", err, tt.wantErr, tt.errContains}
-			if !r.checkError() {
-				return
-			}
-			if tt.wantNil && got != nil {
-				t.Errorf("GetOptionalMapSlice() = %v, want nil", got)
-			}
-			if !tt.wantNil && len(got) != tt.wantLen {
-				t.Errorf("GetOptionalMapSlice() returned %d items, want %d", len(got), tt.wantLen)
-			}
-		})
-	}
+	}, GetOptionalMapSlice, deepEqual[[]map[string]interface{}])
 }
 
 func TestGetRequiredStringSlice(t *testing.T) {
-	tests := []struct {
-		name        string
-		data        map[string]interface{}
-		key         string
-		want        []string
-		wantErr     bool
-		errContains string
-	}{
+	runValueTests(t, "GetRequiredStringSlice", []valueTestCase[[]string]{
 		{"valid string slice", map[string]interface{}{"tags": []interface{}{"a", "b", "c"}}, "tags", []string{"a", "b", "c"}, false, ""},
 		{"missing field", map[string]interface{}{}, "tags", nil, true, "required field is missing"},
 		{"slice with non-string items", map[string]interface{}{"tags": []interface{}{1, 2, 3}}, "tags", nil, true, "expected type"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetRequiredStringSlice(tt.data, tt.key)
-			r := testResult{t, "GetRequiredStringSlice", err, tt.wantErr, tt.errContains}
-			if r.checkError() && !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetRequiredStringSlice() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	}, GetRequiredStringSlice, deepEqual[[]string])
 }
 
 func TestGetOptionalStringSlice(t *testing.T) {
-	tests := []struct {
-		name        string
-		data        map[string]interface{}
-		key         string
-		want        []string
-		wantNil     bool
-		wantErr     bool
-		errContains string
-	}{
-		{"valid string slice", map[string]interface{}{"tags": []interface{}{"a", "b", "c"}}, "tags", []string{"a", "b", "c"}, false, false, ""},
-		{"missing field returns nil", map[string]interface{}{}, "tags", nil, true, false, ""},
-		{"null value returns nil", map[string]interface{}{"tags": nil}, "tags", nil, true, false, ""},
-		{"wrong type returns error", map[string]interface{}{"tags": "not a slice"}, "tags", nil, true, true, "expected type"},
-		{"slice with non-string items returns error", map[string]interface{}{"tags": []interface{}{1, 2, 3}}, "tags", nil, true, true, "expected type"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetOptionalStringSlice(tt.data, tt.key)
-			r := testResult{t, "GetOptionalStringSlice", err, tt.wantErr, tt.errContains}
-			if !r.checkError() {
-				return
-			}
-			if tt.wantNil && got != nil {
-				t.Errorf("GetOptionalStringSlice() = %v, want nil", got)
-			}
-			if !tt.wantNil && !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetOptionalStringSlice() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	runValueTests(t, "GetOptionalStringSlice", []valueTestCase[[]string]{
+		{"valid string slice", map[string]interface{}{"tags": []interface{}{"a", "b", "c"}}, "tags", []string{"a", "b", "c"}, false, ""},
+		{"missing field returns nil", map[string]interface{}{}, "tags", nil, false, ""},
+		{"null value returns nil", map[string]interface{}{"tags": nil}, "tags", nil, false, ""},
+		{"wrong type returns error", map[string]interface{}{"tags": "not a slice"}, "tags", nil, true, "expected type"},
+		{"slice with non-string items returns error", map[string]interface{}{"tags": []interface{}{1, 2, 3}}, "tags", nil, true, "expected type"},
+	}, GetOptionalStringSlice, deepEqual[[]string])
 }
 
 func TestDeserializationError(t *testing.T) {

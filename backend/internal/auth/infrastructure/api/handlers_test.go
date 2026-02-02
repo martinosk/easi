@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -68,47 +69,15 @@ func setupTestHandler(t *testing.T, idpServer *httptest.Server) (*AuthHandlers, 
 }
 
 func createMockIdP(t *testing.T) (*httptest.Server, *rsa.PrivateKey) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	require.NoError(t, err)
-
-	jwks := jose.JSONWebKeySet{
-		Keys: []jose.JSONWebKey{
-			{
-				Key:       &privateKey.PublicKey,
-				KeyID:     "test-key-1",
-				Algorithm: string(jose.RS256),
-				Use:       "sig",
-			},
-		},
-	}
-
-	mux := http.NewServeMux()
-	server := httptest.NewServer(mux)
-
-	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
-		config := map[string]interface{}{
-			"issuer":                 server.URL,
-			"authorization_endpoint": server.URL + "/authorize",
-			"token_endpoint":         server.URL + "/token",
-			"jwks_uri":               server.URL + "/jwks",
-		}
-		json.NewEncoder(w).Encode(config)
-	})
-
-	mux.HandleFunc("/jwks", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(jwks)
-	})
-
-	return server, privateKey
+	t.Helper()
+	idp := createMockIdPWithTokenEndpoint(t)
+	return idp.server, idp.privateKey
 }
 
-func TestPostSessions_ValidEmail(t *testing.T) {
-	idpServer, _ := createMockIdP(t)
-	defer idpServer.Close()
+func postSessionsWithEmail(t *testing.T, handlers *AuthHandlers, scsManager *scs.SessionManager, email string) (*httptest.ResponseRecorder, map[string]interface{}) {
+	t.Helper()
 
-	handlers, scsManager := setupTestHandler(t, idpServer)
-
-	body := map[string]string{"email": "user@acme.com"}
+	body := map[string]string{"email": email}
 	jsonBody, _ := json.Marshal(body)
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/sessions", bytes.NewReader(jsonBody))
@@ -120,10 +89,20 @@ func TestPostSessions_ValidEmail(t *testing.T) {
 	router.Post("/auth/sessions", handlers.PostSessions)
 	router.ServeHTTP(rec, req)
 
-	assert.Equal(t, http.StatusOK, rec.Code)
-
 	var response map[string]interface{}
 	json.NewDecoder(rec.Body).Decode(&response)
+	return rec, response
+}
+
+func TestPostSessions_ValidEmail(t *testing.T) {
+	idpServer, _ := createMockIdP(t)
+	defer idpServer.Close()
+
+	handlers, scsManager := setupTestHandler(t, idpServer)
+	rec, response := postSessionsWithEmail(t, handlers, scsManager, "user@acme.com")
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
 	assert.Contains(t, response, "_links")
 	links := response["_links"].(map[string]interface{})
 	assert.Contains(t, links, "self")
@@ -191,21 +170,8 @@ func TestPostSessions_AuthURLContainsPKCE(t *testing.T) {
 	defer idpServer.Close()
 
 	handlers, scsManager := setupTestHandler(t, idpServer)
+	_, response := postSessionsWithEmail(t, handlers, scsManager, "user@acme.com")
 
-	body := map[string]string{"email": "user@acme.com"}
-	jsonBody, _ := json.Marshal(body)
-
-	req := httptest.NewRequest(http.MethodPost, "/auth/sessions", bytes.NewReader(jsonBody))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	router := chi.NewRouter()
-	router.Use(scsManager.LoadAndSave)
-	router.Post("/auth/sessions", handlers.PostSessions)
-	router.ServeHTTP(rec, req)
-
-	var response map[string]interface{}
-	json.NewDecoder(rec.Body).Decode(&response)
 	links := response["_links"].(map[string]interface{})
 	authURL := links["authorize"].(string)
 
@@ -263,7 +229,15 @@ func TestGetCallback_MissingCode(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
-func TestGetCallback_SuccessfulExchange(t *testing.T) {
+type idpWithTokenEndpoint struct {
+	server     *httptest.Server
+	privateKey *rsa.PrivateKey
+	nonce      *string
+}
+
+func createMockIdPWithTokenEndpoint(t *testing.T) *idpWithTokenEndpoint {
+	t.Helper()
+
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 
@@ -278,18 +252,19 @@ func TestGetCallback_SuccessfulExchange(t *testing.T) {
 		},
 	}
 
-	var storedState, storedNonce string
+	var storedNonce string
+	idp := &idpWithTokenEndpoint{privateKey: privateKey, nonce: &storedNonce}
 
 	mux := http.NewServeMux()
-	idpServer := httptest.NewServer(mux)
-	defer idpServer.Close()
+	server := httptest.NewServer(mux)
+	idp.server = server
 
 	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
 		config := map[string]interface{}{
-			"issuer":                 idpServer.URL,
-			"authorization_endpoint": idpServer.URL + "/authorize",
-			"token_endpoint":         idpServer.URL + "/token",
-			"jwks_uri":               idpServer.URL + "/jwks",
+			"issuer":                 server.URL,
+			"authorization_endpoint": server.URL + "/authorize",
+			"token_endpoint":         server.URL + "/token",
+			"jwks_uri":               server.URL + "/jwks",
 		}
 		json.NewEncoder(w).Encode(config)
 	})
@@ -299,80 +274,64 @@ func TestGetCallback_SuccessfulExchange(t *testing.T) {
 	})
 
 	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
-		signer, _ := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: privateKey}, &jose.SignerOptions{
-			ExtraHeaders: map[jose.HeaderKey]interface{}{
-				"kid": "test-key-1",
-			},
-		})
-
-		claims := jwt.Claims{
-			Issuer:   idpServer.URL,
-			Subject:  "user-123",
-			Audience: jwt.Audience{"test-client-id"},
-			Expiry:   jwt.NewNumericDate(time.Now().Add(time.Hour)),
-			IssuedAt: jwt.NewNumericDate(time.Now()),
-		}
-		customClaims := map[string]interface{}{
-			"nonce": storedNonce,
-			"email": "user@acme.com",
-			"name":  "Test User",
-		}
-
-		idToken, _ := jwt.Signed(signer).Claims(claims).Claims(customClaims).Serialize()
-
-		response := map[string]interface{}{
-			"access_token":  "test-access-token",
-			"token_type":    "Bearer",
-			"refresh_token": "test-refresh-token",
-			"expires_in":    3600,
-			"id_token":      idToken,
-		}
-		json.NewEncoder(w).Encode(response)
+		idp.handleTokenRequest(w)
 	})
 
-	scsManager := scs.New()
-	scsManager.Store = memstore.New()
-	scsManager.Lifetime = time.Hour
-	sessionManager := session.NewSessionManager(scsManager)
+	return idp
+}
 
-	mockRepo := &mockTenantOIDCRepository{
-		config: &repositories.TenantOIDCConfig{
-			TenantID:     "acme",
-			DiscoveryURL: idpServer.URL,
-			ClientID:     "test-client-id",
-			AuthMethod:   "client_secret",
-			Scopes:       "openid email profile offline_access",
+func (idp *idpWithTokenEndpoint) handleTokenRequest(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+
+	signer, _ := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: idp.privateKey}, &jose.SignerOptions{
+		ExtraHeaders: map[jose.HeaderKey]interface{}{
+			"kid": "test-key-1",
 		},
+	})
+
+	claims := jwt.Claims{
+		Issuer:   idp.server.URL,
+		Subject:  "user-123",
+		Audience: jwt.Audience{"test-client-id"},
+		Expiry:   jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		IssuedAt: jwt.NewNumericDate(time.Now()),
+	}
+	customClaims := map[string]interface{}{
+		"nonce": *idp.nonce,
+		"email": "user@acme.com",
+		"name":  "Test User",
 	}
 
-	handlers := NewAuthHandlers(sessionManager, mockRepo, AuthHandlersConfig{
-		ClientSecret:   "test-secret",
-		RedirectURL:    idpServer.URL + "/callback",
-		AllowedOrigins: []string{"http://localhost:3000", "http://localhost:5173"},
-	})
+	idToken, _ := jwt.Signed(signer).Claims(claims).Claims(customClaims).Serialize()
+
+	response := map[string]interface{}{
+		"access_token":  "test-access-token",
+		"token_type":    "Bearer",
+		"refresh_token": "test-refresh-token",
+		"expires_in":    3600,
+		"id_token":      idToken,
+	}
+	json.NewEncoder(w).Encode(response)
+}
+
+func TestGetCallback_SuccessfulExchange(t *testing.T) {
+	idp := createMockIdPWithTokenEndpoint(t)
+	defer idp.server.Close()
+
+	handlers, scsManager := setupTestHandler(t, idp.server)
 
 	router := chi.NewRouter()
 	router.Use(scsManager.LoadAndSave)
 	router.Post("/auth/sessions", handlers.PostSessions)
 	router.Get("/auth/callback", handlers.GetCallback)
 
-	body := map[string]string{"email": "user@acme.com"}
-	jsonBody, _ := json.Marshal(body)
-	req1 := httptest.NewRequest(http.MethodPost, "/auth/sessions", bytes.NewReader(jsonBody))
-	req1.Header.Set("Content-Type", "application/json")
-	rec1 := httptest.NewRecorder()
-	router.ServeHTTP(rec1, req1)
+	rec1, initResponse := postSessionsWithEmail(t, handlers, scsManager, "user@acme.com")
 	require.Equal(t, http.StatusOK, rec1.Code)
 
-	var initResponse map[string]interface{}
-	json.NewDecoder(rec1.Body).Decode(&initResponse)
 	links := initResponse["_links"].(map[string]interface{})
 	authURL := links["authorize"].(string)
-
-	storedState = extractQueryParam(authURL, "state")
-	storedNonce = extractQueryParam(authURL, "nonce")
+	*idp.nonce = extractQueryParam(authURL, "nonce")
+	storedState := extractQueryParam(authURL, "state")
 
 	cookies := rec1.Result().Cookies()
 
@@ -387,42 +346,18 @@ func TestGetCallback_SuccessfulExchange(t *testing.T) {
 	assert.Equal(t, "/easi/", rec2.Header().Get("Location"))
 }
 
-func extractQueryParam(url, param string) string {
-	parts := make(map[string]string)
-	if idx := len(url) - 1; idx > 0 {
-		queryStart := 0
-		for i, c := range url {
-			if c == '?' {
-				queryStart = i + 1
-				break
-			}
-		}
-		if queryStart > 0 {
-			query := url[queryStart:]
-			for _, pair := range splitString(query, '&') {
-				kv := splitString(pair, '=')
-				if len(kv) == 2 {
-					parts[kv[0]] = kv[1]
-				}
-			}
-		}
+func extractQueryParam(rawURL, param string) string {
+	queryStart := strings.IndexByte(rawURL, '?')
+	if queryStart < 0 {
+		return ""
 	}
-	return parts[param]
-}
 
-func splitString(s string, sep rune) []string {
-	var result []string
-	current := ""
-	for _, c := range s {
-		if c == sep {
-			result = append(result, current)
-			current = ""
-		} else {
-			current += string(c)
+	query := rawURL[queryStart+1:]
+	for _, pair := range strings.Split(query, "&") {
+		key, value, ok := strings.Cut(pair, "=")
+		if ok && key == param {
+			return value
 		}
 	}
-	if current != "" {
-		result = append(result, current)
-	}
-	return result
+	return ""
 }

@@ -55,7 +55,7 @@ export const useCanvasNodes = (): Node[] => {
     const capabilityNodes = (currentView.capabilities || [])
       .map((vc: ViewCapability) => {
         const capability = capabilities.find((c) => c.id === vc.capabilityId);
-        return capability ? createCapabilityNode(vc.capabilityId, capability, layoutPositions, vc, selectedCapabilityId) : null;
+        return capability ? createCapabilityNode({ capabilityId: vc.capabilityId, capability, layoutPositions, viewCapability: vc, selectedCapabilityId }) : null;
       })
       .filter((n): n is Node => n !== null);
 

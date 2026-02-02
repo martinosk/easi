@@ -33,36 +33,75 @@ describe('createOriginRelationshipEdges', () => {
     ...overrides,
   });
 
+  const callWithDefaults = (ctxOverrides = {}) => {
+    const relationship = createMockOriginRelationship();
+    const nodes = [createMockNode('acq-ae-789'), createMockNode('comp-456')];
+    const originEntityNodeIds = new Set(['acq-ae-789']);
+    const componentIds = new Set(['comp-456']);
+    const ctx = createEdgeContext(nodes, ctxOverrides);
+    return createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
+  };
+
+  const relationshipTypeConfig = [
+    { type: 'AcquiredVia', prefix: 'acq', entityId: 'ae-123', label: 'Acquired via', color: '#8b5cf6' },
+    { type: 'PurchasedFrom', prefix: 'vendor', entityId: 'v-456', label: 'Purchased from', color: '#ec4899' },
+    { type: 'BuiltBy', prefix: 'team', entityId: 'it-789', label: 'Built by', color: '#14b8a6' },
+  ] as const;
+
+  const callWithRelType = (config: typeof relationshipTypeConfig[number], ctxOverrides = {}) => {
+    const relationship = createMockOriginRelationship({
+      relationshipType: config.type,
+      originEntityId: config.entityId,
+      componentId: 'comp-456',
+    });
+    const nodeId = `${config.prefix}-${config.entityId}`;
+    const nodes = [createMockNode(nodeId), createMockNode('comp-456')];
+    const originEntityNodeIds = new Set([nodeId]);
+    const componentIds = new Set(['comp-456']);
+    const ctx = createEdgeContext(nodes, ctxOverrides);
+    return createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
+  };
+
   describe('relationship filtering', () => {
-    it('should include edges when both origin entity and component are on canvas', () => {
+    interface FilteringScenario {
+      nodeIds: string[];
+      originEntityNodeIds: string[];
+      componentIds: string[];
+      relOverrides?: Record<string, unknown>;
+    }
+
+    const callForFiltering = (scenario: FilteringScenario) => {
       const relationship = createMockOriginRelationship({
         relationshipType: 'AcquiredVia',
         originEntityId: 'ae-123',
         componentId: 'comp-456',
+        ...scenario.relOverrides,
       });
-      const nodes = [createMockNode('acq-ae-123'), createMockNode('comp-456')];
-      const originEntityNodeIds = new Set(['acq-ae-123']);
-      const componentIds = new Set(['comp-456']);
+      const nodes = scenario.nodeIds.map(id => createMockNode(id));
       const ctx = createEdgeContext(nodes);
+      return createOriginRelationshipEdges(
+        [relationship],
+        new Set(scenario.originEntityNodeIds),
+        new Set(scenario.componentIds),
+        ctx,
+      );
+    };
 
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
+    it('should include edges when both origin entity and component are on canvas', () => {
+      const edges = callForFiltering({
+        nodeIds: ['acq-ae-123', 'comp-456'],
+        originEntityNodeIds: ['acq-ae-123'],
+        componentIds: ['comp-456'],
+      });
       expect(edges).toHaveLength(1);
     });
 
     it('should exclude edges when origin entity is not on canvas', () => {
-      const relationship = createMockOriginRelationship({
-        relationshipType: 'AcquiredVia',
-        originEntityId: 'ae-123',
-        componentId: 'comp-456',
+      const edges = callForFiltering({
+        nodeIds: ['comp-456'],
+        originEntityNodeIds: [],
+        componentIds: ['comp-456'],
       });
-      const nodes = [createMockNode('comp-456')];
-      const originEntityNodeIds = new Set<string>();
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes);
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
       expect(edges).toHaveLength(0);
     });
 
@@ -79,198 +118,63 @@ describe('createOriginRelationshipEdges', () => {
      * relationships to components on the canvas (with fallback positioning).
      */
     it('should not create edge when origin entity node is not on canvas', () => {
-      const relationship = createMockOriginRelationship({
-        relationshipType: 'AcquiredVia',
-        originEntityId: 'ae-new-entity',
-        componentId: 'comp-456',
+      const edges = callForFiltering({
+        nodeIds: ['comp-456'],
+        originEntityNodeIds: [],
+        componentIds: ['comp-456'],
+        relOverrides: { originEntityId: 'ae-new-entity' },
       });
-      const nodes = [createMockNode('comp-456')];
-      const originEntityNodeIds = new Set<string>();
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes);
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
       expect(edges).toHaveLength(0);
     });
 
     it('should exclude edges when component is not on canvas', () => {
-      const relationship = createMockOriginRelationship({
-        relationshipType: 'AcquiredVia',
-        originEntityId: 'ae-123',
-        componentId: 'comp-456',
+      const edges = callForFiltering({
+        nodeIds: ['acq-ae-123'],
+        originEntityNodeIds: ['acq-ae-123'],
+        componentIds: [],
       });
-      const nodes = [createMockNode('acq-ae-123')];
-      const originEntityNodeIds = new Set(['acq-ae-123']);
-      const componentIds = new Set<string>();
-      const ctx = createEdgeContext(nodes);
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
       expect(edges).toHaveLength(0);
     });
   });
 
   describe('relationship type to node ID mapping', () => {
-    it('should map AcquiredVia to acq- prefix', () => {
-      const relationship = createMockOriginRelationship({
-        relationshipType: 'AcquiredVia',
-        originEntityId: 'ae-123',
-        componentId: 'comp-456',
-      });
-      const nodes = [createMockNode('acq-ae-123'), createMockNode('comp-456')];
-      const originEntityNodeIds = new Set(['acq-ae-123']);
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes);
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
-      expect(edges[0].target).toBe('acq-ae-123');
-    });
-
-    it('should map PurchasedFrom to vendor- prefix', () => {
-      const relationship = createMockOriginRelationship({
-        relationshipType: 'PurchasedFrom',
-        originEntityId: 'v-456',
-        componentId: 'comp-789',
-      });
-      const nodes = [createMockNode('vendor-v-456'), createMockNode('comp-789')];
-      const originEntityNodeIds = new Set(['vendor-v-456']);
-      const componentIds = new Set(['comp-789']);
-      const ctx = createEdgeContext(nodes);
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
-      expect(edges[0].target).toBe('vendor-v-456');
-    });
-
-    it('should map BuiltBy to team- prefix', () => {
-      const relationship = createMockOriginRelationship({
-        relationshipType: 'BuiltBy',
-        originEntityId: 'it-789',
-        componentId: 'comp-123',
-      });
-      const nodes = [createMockNode('team-it-789'), createMockNode('comp-123')];
-      const originEntityNodeIds = new Set(['team-it-789']);
-      const componentIds = new Set(['comp-123']);
-      const ctx = createEdgeContext(nodes);
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
-      expect(edges[0].target).toBe('team-it-789');
-    });
+    it.each(relationshipTypeConfig)(
+      'should map $type to $prefix- prefix',
+      (config) => {
+        const edges = callWithRelType(config);
+        expect(edges[0].target).toBe(`${config.prefix}-${config.entityId}`);
+      }
+    );
   });
 
   describe('edge labels', () => {
-    it('should use "Acquired via" label for AcquiredVia relationships', () => {
-      const relationship = createMockOriginRelationship({ relationshipType: 'AcquiredVia' });
-      const nodes = [createMockNode('acq-ae-789'), createMockNode('comp-456')];
-      const originEntityNodeIds = new Set(['acq-ae-789']);
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes);
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
-      expect(edges[0].label).toBe('Acquired via');
-    });
-
-    it('should use "Purchased from" label for PurchasedFrom relationships', () => {
-      const relationship = createMockOriginRelationship({
-        relationshipType: 'PurchasedFrom',
-        originEntityId: 'v-123',
-      });
-      const nodes = [createMockNode('vendor-v-123'), createMockNode('comp-456')];
-      const originEntityNodeIds = new Set(['vendor-v-123']);
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes);
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
-      expect(edges[0].label).toBe('Purchased from');
-    });
-
-    it('should use "Built by" label for BuiltBy relationships', () => {
-      const relationship = createMockOriginRelationship({
-        relationshipType: 'BuiltBy',
-        originEntityId: 'it-123',
-      });
-      const nodes = [createMockNode('team-it-123'), createMockNode('comp-456')];
-      const originEntityNodeIds = new Set(['team-it-123']);
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes);
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
-      expect(edges[0].label).toBe('Built by');
-    });
+    it.each(relationshipTypeConfig)(
+      'should use "$label" label for $type relationships',
+      (config) => {
+        const edges = callWithRelType(config);
+        expect(edges[0].label).toBe(config.label);
+      }
+    );
   });
 
   describe('edge colors', () => {
-    it('should use purple color for AcquiredVia relationships', () => {
-      const relationship = createMockOriginRelationship({ relationshipType: 'AcquiredVia' });
-      const nodes = [createMockNode('acq-ae-789'), createMockNode('comp-456')];
-      const originEntityNodeIds = new Set(['acq-ae-789']);
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes);
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
-      expect(edges[0].style?.stroke).toBe('#8b5cf6');
-    });
-
-    it('should use pink color for PurchasedFrom relationships', () => {
-      const relationship = createMockOriginRelationship({
-        relationshipType: 'PurchasedFrom',
-        originEntityId: 'v-123',
-      });
-      const nodes = [createMockNode('vendor-v-123'), createMockNode('comp-456')];
-      const originEntityNodeIds = new Set(['vendor-v-123']);
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes);
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
-      expect(edges[0].style?.stroke).toBe('#ec4899');
-    });
-
-    it('should use teal color for BuiltBy relationships', () => {
-      const relationship = createMockOriginRelationship({
-        relationshipType: 'BuiltBy',
-        originEntityId: 'it-123',
-      });
-      const nodes = [createMockNode('team-it-123'), createMockNode('comp-456')];
-      const originEntityNodeIds = new Set(['team-it-123']);
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes);
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
-      expect(edges[0].style?.stroke).toBe('#14b8a6');
-    });
+    it.each(relationshipTypeConfig)(
+      'should use correct color for $type relationships',
+      (config) => {
+        const edges = callWithRelType(config);
+        expect(edges[0].style?.stroke).toBe(config.color);
+      }
+    );
 
     it('should use black color in classic scheme', () => {
-      const relationship = createMockOriginRelationship({ relationshipType: 'AcquiredVia' });
-      const nodes = [createMockNode('acq-ae-789'), createMockNode('comp-456')];
-      const originEntityNodeIds = new Set(['acq-ae-789']);
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes, { isClassicScheme: true });
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
+      const edges = callWithDefaults({ isClassicScheme: true });
       expect(edges[0].style?.stroke).toBe('#000000');
     });
   });
 
   describe('edge properties', () => {
     it('should create edge with correct ID format', () => {
-      const relationship = createMockOriginRelationship({ id: 'rel-999' as OriginRelationshipId });
-      const nodes = [createMockNode('acq-ae-789'), createMockNode('comp-456')];
-      const originEntityNodeIds = new Set(['acq-ae-789']);
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes);
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
+      const edges = callWithDefaults();
       expect(edges[0].id).toBe('origin-AcquiredVia-comp-456');
     });
 
@@ -287,76 +191,34 @@ describe('createOriginRelationshipEdges', () => {
     });
 
     it('should include arrow marker at end', () => {
-      const relationship = createMockOriginRelationship();
-      const nodes = [createMockNode('acq-ae-789'), createMockNode('comp-456')];
-      const originEntityNodeIds = new Set(['acq-ae-789']);
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes);
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
+      const edges = callWithDefaults();
       expect(edges[0].markerEnd).toEqual({ type: MarkerType.ArrowClosed, color: '#8b5cf6' });
     });
 
     it('should use specified edge type', () => {
-      const relationship = createMockOriginRelationship();
-      const nodes = [createMockNode('acq-ae-789'), createMockNode('comp-456')];
-      const originEntityNodeIds = new Set(['acq-ae-789']);
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes, { edgeType: 'smoothstep' });
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
+      const edges = callWithDefaults({ edgeType: 'smoothstep' });
       expect(edges[0].type).toBe('smoothstep');
     });
   });
 
   describe('edge selection', () => {
     it('should animate edge when selected', () => {
-      const relationship = createMockOriginRelationship({ id: 'rel-selected' as OriginRelationshipId });
-      const nodes = [createMockNode('acq-ae-789'), createMockNode('comp-456')];
-      const originEntityNodeIds = new Set(['acq-ae-789']);
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes, { selectedEdgeId: 'origin-AcquiredVia-comp-456' });
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
+      const edges = callWithDefaults({ selectedEdgeId: 'origin-AcquiredVia-comp-456' });
       expect(edges[0].animated).toBe(true);
     });
 
     it('should not animate edge when not selected', () => {
-      const relationship = createMockOriginRelationship({ id: 'rel-not-selected' as OriginRelationshipId });
-      const nodes = [createMockNode('acq-ae-789'), createMockNode('comp-456')];
-      const originEntityNodeIds = new Set(['acq-ae-789']);
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes, { selectedEdgeId: 'some-other-edge' });
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
+      const edges = callWithDefaults({ selectedEdgeId: 'some-other-edge' });
       expect(edges[0].animated).toBe(false);
     });
 
     it('should use thicker stroke when selected', () => {
-      const relationship = createMockOriginRelationship({ id: 'rel-selected' as OriginRelationshipId });
-      const nodes = [createMockNode('acq-ae-789'), createMockNode('comp-456')];
-      const originEntityNodeIds = new Set(['acq-ae-789']);
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes, { selectedEdgeId: 'origin-AcquiredVia-comp-456' });
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
+      const edges = callWithDefaults({ selectedEdgeId: 'origin-AcquiredVia-comp-456' });
       expect(edges[0].style?.strokeWidth).toBe(3);
     });
 
     it('should use normal stroke when not selected', () => {
-      const relationship = createMockOriginRelationship();
-      const nodes = [createMockNode('acq-ae-789'), createMockNode('comp-456')];
-      const originEntityNodeIds = new Set(['acq-ae-789']);
-      const componentIds = new Set(['comp-456']);
-      const ctx = createEdgeContext(nodes, { selectedEdgeId: null });
-
-      const edges = createOriginRelationshipEdges([relationship], originEntityNodeIds, componentIds, ctx);
-
+      const edges = callWithDefaults({ selectedEdgeId: null });
       expect(edges[0].style?.strokeWidth).toBe(2);
     });
   });

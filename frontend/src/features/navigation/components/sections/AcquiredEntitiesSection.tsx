@@ -4,6 +4,7 @@ import { TreeSection } from '../TreeSection';
 import { TreeSearchInput } from '../shared/TreeSearchInput';
 import { TreeItemList } from '../shared/TreeItemList';
 import { ORIGIN_ENTITY_PREFIXES } from '../../../canvas/utils/nodeFactory';
+import type { TreeMultiSelectProps } from '../../types';
 
 interface AcquiredEntitiesSectionProps {
   acquiredEntities: AcquiredEntity[];
@@ -14,6 +15,7 @@ interface AcquiredEntitiesSectionProps {
   onAddEntity?: () => void;
   onEntitySelect?: (entityId: string) => void;
   onEntityContextMenu: (e: React.MouseEvent, entity: AcquiredEntity) => void;
+  multiSelect: TreeMultiSelectProps;
 }
 
 function formatAcquisitionYear(acquisitionDate: string | undefined): string {
@@ -36,6 +38,19 @@ function filterEntities(entities: AcquiredEntity[], search: string): AcquiredEnt
   );
 }
 
+function buildEntityIdsOnCanvas(entities: AcquiredEntity[], currentView: View | null): Set<string> {
+  const viewOriginEntityIds = new Set(
+    (currentView?.originEntities ?? []).map((oe) => oe.originEntityId)
+  );
+  const onCanvas = new Set<string>();
+  for (const entity of entities) {
+    if (viewOriginEntityIds.has(`${ORIGIN_ENTITY_PREFIXES.acquired}${entity.id}`)) {
+      onCanvas.add(entity.id);
+    }
+  }
+  return onCanvas;
+}
+
 export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = ({
   acquiredEntities,
   currentView,
@@ -45,30 +60,55 @@ export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = (
   onAddEntity,
   onEntitySelect,
   onEntityContextMenu,
+  multiSelect,
 }) => {
   const [search, setSearch] = useState('');
 
-  const entityIdsOnCanvas = useMemo(() => {
-    const viewOriginEntityIds = new Set(
-      (currentView?.originEntities ?? []).map((oe) => oe.originEntityId)
-    );
-    const onCanvas = new Set<string>();
-    for (const entity of acquiredEntities) {
-      const nodeId = `${ORIGIN_ENTITY_PREFIXES.acquired}${entity.id}`;
-      if (viewOriginEntityIds.has(nodeId)) {
-        onCanvas.add(entity.id);
-      }
-    }
-    return onCanvas;
-  }, [acquiredEntities, currentView?.originEntities]);
+  const entityIdsOnCanvas = useMemo(
+    () => buildEntityIdsOnCanvas(acquiredEntities, currentView),
+    [acquiredEntities, currentView]
+  );
 
   const filteredEntities = useMemo(
     () => filterEntities(acquiredEntities, search),
     [acquiredEntities, search]
   );
 
-  const hasNoEntities = acquiredEntities.length === 0;
-  const emptyMessage = hasNoEntities ? 'No acquired entities' : 'No matches';
+  const visibleItems = useMemo(
+    () => filteredEntities.map((e) => ({
+      id: e.id, name: e.name, type: 'acquired' as const, links: e._links,
+    })),
+    [filteredEntities]
+  );
+
+  const emptyMessage = acquiredEntities.length === 0 ? 'No acquired entities' : 'No matches';
+
+  const handleSelect = (entity: AcquiredEntity, event: React.MouseEvent) => {
+    const result = multiSelect.handleItemClick(
+      { id: entity.id, name: entity.name, type: 'acquired', links: entity._links },
+      'acquired',
+      visibleItems,
+      event
+    );
+    if (result === 'single') {
+      onEntitySelect?.(entity.id);
+    }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, entity: AcquiredEntity) => {
+    const handled = multiSelect.handleContextMenu(e, entity.id, multiSelect.selectedItems);
+    if (!handled) {
+      onEntityContextMenu(e, entity);
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, entity: AcquiredEntity) => {
+    const handled = multiSelect.handleDragStart(e, entity.id);
+    if (!handled) {
+      e.dataTransfer.setData('acquiredEntityId', entity.id);
+      e.dataTransfer.effectAllowed = 'copy';
+    }
+  };
 
   return (
     <TreeSection
@@ -91,7 +131,7 @@ export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = (
           emptyMessage={emptyMessage}
           icon="🏢"
           dragDataKey="acquiredEntityId"
-          isSelected={(entity) => selectedEntityId === entity.id}
+          isSelected={(entity) => selectedEntityId === entity.id || multiSelect.isMultiSelected(entity.id)}
           isInView={(entity) => !currentView || entityIdsOnCanvas.has(entity.id)}
           getTitle={(entity, isInView) =>
             isInView ? entity.name : `${entity.name} (not on canvas)`
@@ -102,8 +142,9 @@ export const AcquiredEntitiesSection: React.FC<AcquiredEntitiesSectionProps> = (
               {formatAcquisitionYear(entity.acquisitionDate)}
             </>
           )}
-          onSelect={(entity) => onEntitySelect?.(entity.id)}
-          onContextMenu={onEntityContextMenu}
+          onSelect={handleSelect}
+          onContextMenu={handleContextMenu}
+          onDragStart={handleDragStart}
         />
       </div>
     </TreeSection>

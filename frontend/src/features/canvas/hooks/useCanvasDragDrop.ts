@@ -6,6 +6,109 @@ import { toCapabilityId, toComponentId } from '../../../api/types';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 import { canEdit } from '../../../utils/hateoas';
 import { ORIGIN_ENTITY_PREFIXES } from '../utils/nodeFactory';
+import type { MultiDragPayload, TreeItemType } from '../../navigation/hooks/useTreeMultiSelect';
+
+const MULTI_DROP_OFFSET_Y = 100;
+
+interface ViewPresenceCheck {
+  componentIds: Set<string>;
+  capabilityIds: Set<string>;
+  originEntityIds: Set<string>;
+}
+
+function buildViewPresence(currentView: { components: { componentId: string }[]; capabilities: { capabilityId: string }[]; originEntities: { originEntityId: string }[] } | null): ViewPresenceCheck {
+  return {
+    componentIds: new Set((currentView?.components ?? []).map((c) => c.componentId)),
+    capabilityIds: new Set((currentView?.capabilities ?? []).map((c) => c.capabilityId)),
+    originEntityIds: new Set((currentView?.originEntities ?? []).map((oe) => oe.originEntityId)),
+  };
+}
+
+function isItemInView(item: { type: TreeItemType; id: string }, presence: ViewPresenceCheck): boolean {
+  switch (item.type) {
+    case 'component':
+      return presence.componentIds.has(item.id);
+    case 'capability':
+      return presence.capabilityIds.has(item.id);
+    case 'acquired':
+      return presence.originEntityIds.has(`${ORIGIN_ENTITY_PREFIXES.acquired}${item.id}`);
+    case 'vendor':
+      return presence.originEntityIds.has(`${ORIGIN_ENTITY_PREFIXES.vendor}${item.id}`);
+    case 'team':
+      return presence.originEntityIds.has(`${ORIGIN_ENTITY_PREFIXES.team}${item.id}`);
+  }
+}
+
+const SINGLE_DRAG_KEYS: { key: string; type: TreeItemType }[] = [
+  { key: 'componentId', type: 'component' },
+  { key: 'capabilityId', type: 'capability' },
+  { key: 'acquiredEntityId', type: 'acquired' },
+  { key: 'vendorId', type: 'vendor' },
+  { key: 'internalTeamId', type: 'team' },
+];
+
+function parseSingleDragItem(dataTransfer: DataTransfer): { type: TreeItemType; id: string } | null {
+  for (const { key, type } of SINGLE_DRAG_KEYS) {
+    const id = dataTransfer.getData(key);
+    if (id) return { type, id };
+  }
+  return null;
+}
+
+function parseMultiDragPayload(dataTransfer: DataTransfer): MultiDragPayload | null {
+  const raw = dataTransfer.getData('multiDragItems');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as MultiDragPayload;
+  } catch {
+    return null;
+  }
+}
+
+const ORIGIN_PREFIX_MAP: Record<string, string> = {
+  acquired: ORIGIN_ENTITY_PREFIXES.acquired,
+  vendor: ORIGIN_ENTITY_PREFIXES.vendor,
+  team: ORIGIN_ENTITY_PREFIXES.team,
+};
+
+interface DropHandlers {
+  onComponentDrop?: (componentId: string, x: number, y: number) => void;
+  updateComponentPosition: (componentId: ReturnType<typeof toComponentId>, x: number, y: number) => Promise<void>;
+  addCapability: (viewId: string, capId: ReturnType<typeof toCapabilityId>, x: number, y: number) => Promise<void>;
+  updateCapabilityPosition: (capId: ReturnType<typeof toCapabilityId>, x: number, y: number) => Promise<void>;
+  addOriginEntity: (viewId: string, originEntityId: string, x: number, y: number) => Promise<void>;
+  currentViewId: string;
+}
+
+async function addItemToView(item: { type: TreeItemType; id: string }, x: number, y: number, handlers: DropHandlers): Promise<void> {
+  switch (item.type) {
+    case 'component':
+      if (handlers.onComponentDrop) {
+        await handlers.onComponentDrop(item.id, x, y);
+        await handlers.updateComponentPosition(toComponentId(item.id), x, y);
+      }
+      break;
+    case 'capability': {
+      const capId = toCapabilityId(item.id);
+      await handlers.addCapability(handlers.currentViewId, capId, x, y);
+      await handlers.updateCapabilityPosition(capId, x, y);
+      break;
+    }
+    case 'acquired':
+    case 'vendor':
+    case 'team':
+      await handlers.addOriginEntity(handlers.currentViewId, `${ORIGIN_PREFIX_MAP[item.type]}${item.id}`, x, y);
+      break;
+  }
+}
+
+function canDropOnView(
+  reactFlowInstance: ReactFlowInstance | null,
+  currentViewId: string | null,
+  currentView: Parameters<typeof canEdit>[0]
+): boolean {
+  return !!reactFlowInstance && !!currentViewId && canEdit(currentView);
+}
 
 export const useCanvasDragDrop = (
   reactFlowInstance: ReactFlowInstance | null,
@@ -21,58 +124,51 @@ export const useCanvasDragDrop = (
     event.dataTransfer.dropEffect = 'copy';
   }, []);
 
+  const getHandlers = useCallback(
+    (): DropHandlers => ({
+      onComponentDrop,
+      updateComponentPosition,
+      addCapability: async (viewId, capId, x, y) => {
+        await addCapabilityToViewMutation.mutateAsync({ viewId: viewId as any, request: { capabilityId: capId, x, y } });
+      },
+      updateCapabilityPosition,
+      addOriginEntity: async (viewId, originEntityId, x, y) => {
+        await addOriginEntityToViewMutation.mutateAsync({ viewId: viewId as any, request: { originEntityId, x, y } });
+      },
+      currentViewId: currentViewId!,
+    }),
+    [onComponentDrop, currentViewId, addCapabilityToViewMutation, addOriginEntityToViewMutation, updateComponentPosition, updateCapabilityPosition]
+  );
+
   const onDrop = useCallback(
     async (event: React.DragEvent) => {
       event.preventDefault();
 
-      const componentId = event.dataTransfer.getData('componentId');
-      const capabilityId = event.dataTransfer.getData('capabilityId');
-      const acquiredEntityId = event.dataTransfer.getData('acquiredEntityId');
-      const vendorId = event.dataTransfer.getData('vendorId');
-      const internalTeamId = event.dataTransfer.getData('internalTeamId');
+      if (!canDropOnView(reactFlowInstance, currentViewId, currentView)) return;
 
-      if (!reactFlowInstance || !currentViewId || !canEdit(currentView)) return;
-
-      const position = reactFlowInstance.screenToFlowPosition({
+      const position = reactFlowInstance!.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
       });
 
-      if (componentId && onComponentDrop) {
-        await onComponentDrop(componentId, position.x, position.y);
-        await updateComponentPosition(toComponentId(componentId), position.x, position.y);
-      } else if (capabilityId) {
-        const capId = toCapabilityId(capabilityId);
-        await addCapabilityToViewMutation.mutateAsync({
-          viewId: currentViewId,
-          request: {
-            capabilityId: capId,
-            x: position.x,
-            y: position.y
-          }
-        });
-        await updateCapabilityPosition(capId, position.x, position.y);
-      } else if (acquiredEntityId) {
-        const originEntityId = `${ORIGIN_ENTITY_PREFIXES.acquired}${acquiredEntityId}`;
-        await addOriginEntityToViewMutation.mutateAsync({
-          viewId: currentViewId,
-          request: { originEntityId, x: position.x, y: position.y }
-        });
-      } else if (vendorId) {
-        const originEntityId = `${ORIGIN_ENTITY_PREFIXES.vendor}${vendorId}`;
-        await addOriginEntityToViewMutation.mutateAsync({
-          viewId: currentViewId,
-          request: { originEntityId, x: position.x, y: position.y }
-        });
-      } else if (internalTeamId) {
-        const originEntityId = `${ORIGIN_ENTITY_PREFIXES.team}${internalTeamId}`;
-        await addOriginEntityToViewMutation.mutateAsync({
-          viewId: currentViewId,
-          request: { originEntityId, x: position.x, y: position.y }
-        });
+      const handlers = getHandlers();
+
+      const multiPayload = parseMultiDragPayload(event.dataTransfer);
+      if (multiPayload) {
+        const presence = buildViewPresence(currentView);
+        const itemsToAdd = multiPayload.items.filter((item) => !isItemInView(item, presence));
+        for (let i = 0; i < itemsToAdd.length; i++) {
+          await addItemToView(itemsToAdd[i], position.x, position.y + i * MULTI_DROP_OFFSET_Y, handlers);
+        }
+        return;
+      }
+
+      const singleItem = parseSingleDragItem(event.dataTransfer);
+      if (singleItem) {
+        await addItemToView(singleItem, position.x, position.y, handlers);
       }
     },
-    [onComponentDrop, reactFlowInstance, currentViewId, currentView, addCapabilityToViewMutation, addOriginEntityToViewMutation, updateComponentPosition, updateCapabilityPosition]
+    [reactFlowInstance, currentViewId, currentView, getHandlers]
   );
 
   return { onDragOver, onDrop };

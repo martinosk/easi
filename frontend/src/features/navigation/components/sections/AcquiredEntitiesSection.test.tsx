@@ -18,6 +18,14 @@ describe('AcquiredEntitiesSection', () => {
     ...overrides,
   });
 
+  const mockMultiSelect = {
+    isMultiSelected: () => false,
+    handleItemClick: () => 'single' as const,
+    handleContextMenu: () => false,
+    handleDragStart: () => false,
+    selectedItems: [],
+  };
+
   const defaultProps = {
     acquiredEntities: [],
     currentView: null,
@@ -27,6 +35,7 @@ describe('AcquiredEntitiesSection', () => {
     onAddEntity: vi.fn(),
     onEntitySelect: vi.fn(),
     onEntityContextMenu: vi.fn(),
+    multiSelect: mockMultiSelect,
   };
 
 

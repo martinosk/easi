@@ -212,60 +212,67 @@ func newTestHandlers() *testEnterpriseCapabilityHandlers {
 	}
 }
 
-func TestCreateEnterpriseCapability_InvalidName_Returns400(t *testing.T) {
-	th := newTestHandlers()
-
-	th.commandBus.dispatchErr = valueobjects.ErrEnterpriseCapabilityNameEmpty
-
-	req := CreateEnterpriseCapabilityRequest{
-		Name:        "",
-		Description: "Test",
-		Category:    "",
+func TestCreateEnterpriseCapability_ErrorResponses(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		reqName    string
+		wantStatus int
+	}{
+		{"invalid name returns 400", valueobjects.ErrEnterpriseCapabilityNameEmpty, "", http.StatusBadRequest},
+		{"duplicate name returns 409", handlers.ErrEnterpriseCapabilityNameExists, "Payroll", http.StatusConflict},
 	}
-	body, _ := json.Marshal(req)
 
-	r := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities", bytes.NewReader(body))
-	r.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			th := newTestHandlers()
+			th.commandBus.dispatchErr = tt.err
 
-	th.handlers.handleCreate(w, r)
+			req := CreateEnterpriseCapabilityRequest{
+				Name:        tt.reqName,
+				Description: "Test",
+			}
+			body, _ := json.Marshal(req)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+			r := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities", bytes.NewReader(body))
+			r.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			th.handlers.handleCreate(w, r)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
 }
 
-func TestCreateEnterpriseCapability_DuplicateName_Returns409(t *testing.T) {
-	th := newTestHandlers()
-
-	th.commandBus.dispatchErr = handlers.ErrEnterpriseCapabilityNameExists
-
-	req := CreateEnterpriseCapabilityRequest{
-		Name:        "Payroll",
-		Description: "Test",
-		Category:    "",
-	}
-	body, _ := json.Marshal(req)
-
-	r := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities", bytes.NewReader(body))
-	r.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	th.handlers.handleCreate(w, r)
-
-	assert.Equal(t, http.StatusConflict, w.Code)
-}
-
-func TestGetEnterpriseCapabilityByID_NonExistent_Returns404(t *testing.T) {
-	th := newTestHandlers()
-
-	r := httptest.NewRequest(http.MethodGet, "/enterprise-capabilities/non-existent-id", nil)
+func requestWithIDParam(method, path, id string) *http.Request {
+	r := httptest.NewRequest(method, path, nil)
 	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", "non-existent-id")
-	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
-	w := httptest.NewRecorder()
+	rctx.URLParams.Add("id", id)
+	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+}
 
-	th.handlers.handleGetByID(w, r)
+func TestNonExistentCapability_Returns404(t *testing.T) {
+	tests := []struct {
+		name      string
+		method    string
+		handlerFn func(*testableEnterpriseCapabilityHandlers) http.HandlerFunc
+	}{
+		{"GET by ID", http.MethodGet, func(h *testableEnterpriseCapabilityHandlers) http.HandlerFunc { return h.handleGetByID }},
+		{"DELETE", http.MethodDelete, func(h *testableEnterpriseCapabilityHandlers) http.HandlerFunc { return h.handleDelete }},
+	}
 
-	assert.Equal(t, http.StatusNotFound, w.Code)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			th := newTestHandlers()
+			r := requestWithIDParam(tt.method, "/enterprise-capabilities/non-existent-id", "non-existent-id")
+			w := httptest.NewRecorder()
+
+			tt.handlerFn(th.handlers)(w, r)
+
+			assert.Equal(t, http.StatusNotFound, w.Code)
+		})
+	}
 }
 
 func TestGetEnterpriseCapabilityByID_Exists_ReturnsWithHATEOASLinks(t *testing.T) {
@@ -321,19 +328,6 @@ func TestDeleteEnterpriseCapability_Success_Returns204(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, w.Code)
 }
 
-func TestDeleteEnterpriseCapability_NonExistent_Returns404(t *testing.T) {
-	th := newTestHandlers()
-
-	r := httptest.NewRequest(http.MethodDelete, "/enterprise-capabilities/non-existent-id", nil)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", "non-existent-id")
-	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
-	w := httptest.NewRecorder()
-
-	th.handlers.handleDelete(w, r)
-
-	assert.Equal(t, http.StatusNotFound, w.Code)
-}
 
 func TestSetStrategicImportance_InvalidValue_Returns400(t *testing.T) {
 	th := newTestHandlers()
@@ -477,91 +471,45 @@ func (h *testableEnterpriseCapabilityHandlers) handleLinkCapability(w http.Respo
 	json.NewEncoder(w).Encode(link)
 }
 
-func TestLinkCapability_DomainCapabilityAlreadyLinked_Returns409(t *testing.T) {
-	th := newTestHandlers()
-
-	th.commandBus.dispatchErr = handlers.ErrDomainCapabilityAlreadyLinked
-
-	capID := uuid.New().String()
-	th.capabilityRM.capabilities[capID] = &readmodels.EnterpriseCapabilityDTO{
-		ID:     capID,
-		Name:   "Test Capability",
-		Active: true,
+func TestLinkCapability_ConflictErrors_Return409(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+	}{
+		{"domain capability already linked", handlers.ErrDomainCapabilityAlreadyLinked},
+		{"ancestor linked to different", handlers.ErrAncestorLinkedToDifferent},
+		{"descendant linked to different", handlers.ErrDescendantLinkedToDifferent},
 	}
 
-	req := LinkCapabilityRequest{
-		DomainCapabilityID: uuid.New().String(),
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			th := newTestHandlers()
+			th.commandBus.dispatchErr = tt.err
+
+			capID := uuid.New().String()
+			th.capabilityRM.capabilities[capID] = &readmodels.EnterpriseCapabilityDTO{
+				ID:     capID,
+				Name:   "Test Capability",
+				Active: true,
+			}
+
+			req := LinkCapabilityRequest{
+				DomainCapabilityID: uuid.New().String(),
+			}
+			body, _ := json.Marshal(req)
+
+			r := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities/"+capID+"/links", bytes.NewReader(body))
+			r.Header.Set("Content-Type", "application/json")
+			rctx := chi.NewRouteContext()
+			rctx.URLParams.Add("id", capID)
+			r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+			w := httptest.NewRecorder()
+
+			th.handlers.handleLinkCapability(w, r)
+
+			assert.Equal(t, http.StatusConflict, w.Code)
+		})
 	}
-	body, _ := json.Marshal(req)
-
-	r := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities/"+capID+"/links", bytes.NewReader(body))
-	r.Header.Set("Content-Type", "application/json")
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", capID)
-	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
-	w := httptest.NewRecorder()
-
-	th.handlers.handleLinkCapability(w, r)
-
-	assert.Equal(t, http.StatusConflict, w.Code)
-}
-
-func TestLinkCapability_AncestorLinkedToDifferent_Returns409(t *testing.T) {
-	th := newTestHandlers()
-
-	th.commandBus.dispatchErr = handlers.ErrAncestorLinkedToDifferent
-
-	capID := uuid.New().String()
-	th.capabilityRM.capabilities[capID] = &readmodels.EnterpriseCapabilityDTO{
-		ID:     capID,
-		Name:   "Test Capability",
-		Active: true,
-	}
-
-	req := LinkCapabilityRequest{
-		DomainCapabilityID: uuid.New().String(),
-	}
-	body, _ := json.Marshal(req)
-
-	r := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities/"+capID+"/links", bytes.NewReader(body))
-	r.Header.Set("Content-Type", "application/json")
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", capID)
-	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
-	w := httptest.NewRecorder()
-
-	th.handlers.handleLinkCapability(w, r)
-
-	assert.Equal(t, http.StatusConflict, w.Code)
-}
-
-func TestLinkCapability_DescendantLinkedToDifferent_Returns409(t *testing.T) {
-	th := newTestHandlers()
-
-	th.commandBus.dispatchErr = handlers.ErrDescendantLinkedToDifferent
-
-	capID := uuid.New().String()
-	th.capabilityRM.capabilities[capID] = &readmodels.EnterpriseCapabilityDTO{
-		ID:     capID,
-		Name:   "Test Capability",
-		Active: true,
-	}
-
-	req := LinkCapabilityRequest{
-		DomainCapabilityID: uuid.New().String(),
-	}
-	body, _ := json.Marshal(req)
-
-	r := httptest.NewRequest(http.MethodPost, "/enterprise-capabilities/"+capID+"/links", bytes.NewReader(body))
-	r.Header.Set("Content-Type", "application/json")
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", capID)
-	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
-	w := httptest.NewRecorder()
-
-	th.handlers.handleLinkCapability(w, r)
-
-	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
 func TestLinkCapability_Success_Returns201WithLocation(t *testing.T) {

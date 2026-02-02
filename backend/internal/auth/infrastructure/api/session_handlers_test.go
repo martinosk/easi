@@ -54,7 +54,12 @@ func setupSessionTestHandler(t *testing.T, userRepo UserRepository, tenantRepo T
 	return handlers, scsManager, sessionManager
 }
 
-func createAuthenticatedSession(t *testing.T, sessionManager *session.SessionManager, scsManager *scs.SessionManager, tenantID string, email string) []*http.Cookie {
+type sessionTestContext struct {
+	sessionManager *session.SessionManager
+	scsManager     *scs.SessionManager
+}
+
+func createAuthenticatedSession(t *testing.T, ctx sessionTestContext, tenantID string, email string) []*http.Cookie {
 	tenantIDVO, _ := sharedvo.NewTenantID(tenantID)
 	preAuth := session.NewPreAuthSession(tenantIDVO, "acme.com", "http://localhost:3000")
 
@@ -70,9 +75,9 @@ func createAuthenticatedSession(t *testing.T, sessionManager *session.SessionMan
 	authSession := preAuth.UpgradeToAuthenticated(userInfo, tokenInfo)
 
 	router := chi.NewRouter()
-	router.Use(scsManager.LoadAndSave)
+	router.Use(ctx.scsManager.LoadAndSave)
 	router.Get("/setup-session", func(w http.ResponseWriter, r *http.Request) {
-		err := sessionManager.StoreAuthenticatedSession(r.Context(), authSession)
+		err := ctx.sessionManager.StoreAuthenticatedSession(r.Context(), authSession)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -107,7 +112,7 @@ func TestGetCurrentSession_Authenticated(t *testing.T) {
 		&mockTenantRepository{tenant: mockTenant},
 	)
 
-	cookies := createAuthenticatedSession(t, sessionManager, scsManager, "acme", "john@acme.com")
+	cookies := createAuthenticatedSession(t, sessionTestContext{sessionManager, scsManager}, "acme", "john@acme.com")
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/sessions/current", nil)
 	for _, c := range cookies {
@@ -140,21 +145,52 @@ func TestGetCurrentSession_Authenticated(t *testing.T) {
 	assert.Contains(t, response.Links, "logout")
 }
 
-func TestGetCurrentSession_NoSession(t *testing.T) {
+type unauthenticatedRequest struct {
+	scsManager *scs.SessionManager
+	method     string
+	path       string
+	handlerFn  http.HandlerFunc
+}
+
+func (ur unauthenticatedRequest) execute(t *testing.T) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(ur.method, ur.path, nil)
+	rec := httptest.NewRecorder()
+
+	router := chi.NewRouter()
+	router.Use(ur.scsManager.LoadAndSave)
+	router.MethodFunc(ur.method, ur.path, ur.handlerFn)
+	router.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestNoSession_ReturnsExpectedStatus(t *testing.T) {
 	handlers, scsManager, _ := setupSessionTestHandler(t,
 		&mockUserRepository{},
 		&mockTenantRepository{},
 	)
 
-	req := httptest.NewRequest(http.MethodGet, "/auth/sessions/current", nil)
-	rec := httptest.NewRecorder()
+	tests := []struct {
+		name       string
+		method     string
+		handlerFn  http.HandlerFunc
+		wantStatus int
+	}{
+		{"GET returns 401", http.MethodGet, handlers.GetCurrentSession, http.StatusUnauthorized},
+		{"DELETE returns 204", http.MethodDelete, handlers.DeleteCurrentSession, http.StatusNoContent},
+	}
 
-	router := chi.NewRouter()
-	router.Use(scsManager.LoadAndSave)
-	router.Get("/auth/sessions/current", handlers.GetCurrentSession)
-	router.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := unauthenticatedRequest{
+				scsManager: scsManager,
+				method:     tt.method,
+				path:       "/auth/sessions/current",
+				handlerFn:  tt.handlerFn,
+			}.execute(t)
+			assert.Equal(t, tt.wantStatus, rec.Code)
+		})
+	}
 }
 
 func TestGetCurrentSession_AdminPermissions(t *testing.T) {
@@ -176,7 +212,7 @@ func TestGetCurrentSession_AdminPermissions(t *testing.T) {
 		&mockTenantRepository{tenant: mockTenant},
 	)
 
-	cookies := createAuthenticatedSession(t, sessionManager, scsManager, "acme", "admin@acme.com")
+	cookies := createAuthenticatedSession(t, sessionTestContext{sessionManager, scsManager}, "acme", "admin@acme.com")
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/sessions/current", nil)
 	for _, c := range cookies {
@@ -205,7 +241,7 @@ func TestDeleteCurrentSession_Success(t *testing.T) {
 		&mockTenantRepository{},
 	)
 
-	cookies := createAuthenticatedSession(t, sessionManager, scsManager, "acme", "john@acme.com")
+	cookies := createAuthenticatedSession(t, sessionTestContext{sessionManager, scsManager}, "acme", "john@acme.com")
 
 	req := httptest.NewRequest(http.MethodDelete, "/auth/sessions/current", nil)
 	for _, c := range cookies {
@@ -221,19 +257,3 @@ func TestDeleteCurrentSession_Success(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, rec.Code)
 }
 
-func TestDeleteCurrentSession_NoSession(t *testing.T) {
-	handlers, scsManager, _ := setupSessionTestHandler(t,
-		&mockUserRepository{},
-		&mockTenantRepository{},
-	)
-
-	req := httptest.NewRequest(http.MethodDelete, "/auth/sessions/current", nil)
-	rec := httptest.NewRecorder()
-
-	router := chi.NewRouter()
-	router.Use(scsManager.LoadAndSave)
-	router.Delete("/auth/sessions/current", handlers.DeleteCurrentSession)
-	router.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusNoContent, rec.Code)
-}
