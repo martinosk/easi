@@ -9,6 +9,7 @@ interface PanelVisibility {
 interface DockviewToolbarProps {
   panelVisibility: PanelVisibility;
   onTogglePanel: (panelId: 'domains' | 'explorer' | 'details') => void;
+  showExplorer: boolean;
 }
 
 const toolbarStyle: React.CSSProperties = {
@@ -32,16 +33,18 @@ const buttonStyle: React.CSSProperties = {
   fontSize: '13px',
 };
 
-export const DockviewToolbar: React.FC<DockviewToolbarProps> = ({ panelVisibility, onTogglePanel }) => {
+export const DockviewToolbar: React.FC<DockviewToolbarProps> = ({ panelVisibility, onTogglePanel, showExplorer }) => {
   return (
     <div style={toolbarStyle}>
       <span style={{ color: 'var(--color-gray-600)', fontWeight: 500 }}>View:</span>
       <button onClick={() => onTogglePanel('domains')} style={buttonStyle}>
         {panelVisibility.domains ? '☑' : '☐'} Business Domains
       </button>
-      <button onClick={() => onTogglePanel('explorer')} style={buttonStyle}>
-        {panelVisibility.explorer ? '☑' : '☐'} Capability Explorer
-      </button>
+      {showExplorer && (
+        <button onClick={() => onTogglePanel('explorer')} style={buttonStyle}>
+          {panelVisibility.explorer ? '☑' : '☐'} Capability Explorer
+        </button>
+      )}
       <button onClick={() => onTogglePanel('details')} style={buttonStyle}>
         {panelVisibility.details ? '☑' : '☐'} Details
       </button>

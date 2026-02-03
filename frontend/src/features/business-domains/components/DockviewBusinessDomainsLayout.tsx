@@ -125,11 +125,11 @@ interface DockviewBusinessDomainsLayoutProps {
 }
 
 export function DockviewBusinessDomainsLayout({ hookData }: DockviewBusinessDomainsLayoutProps) {
-  const { onReady, panelVisibility, togglePanel } = useDockviewLayout(hookData);
+  const { onReady, panelVisibility, togglePanel, showExplorer } = useDockviewLayout(hookData);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }} data-testid="business-domains-page">
-      <DockviewToolbar panelVisibility={panelVisibility} onTogglePanel={togglePanel} />
+      <DockviewToolbar panelVisibility={panelVisibility} onTogglePanel={togglePanel} showExplorer={showExplorer} />
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
           <DockviewReact
