@@ -9,6 +9,8 @@ import type {
   StrategyImportanceId,
   SetStrategyImportanceRequest,
   UpdateStrategyImportanceRequest,
+  CollectionResponse,
+  StrategyImportance,
 } from '../../../api/types';
 import toast from 'react-hot-toast';
 
@@ -16,7 +18,7 @@ export function useStrategyImportanceByDomainAndCapability(
   domainId: BusinessDomainId | undefined,
   capabilityId: CapabilityId | undefined
 ) {
-  return useQuery({
+  return useQuery<CollectionResponse<StrategyImportance>>({
     queryKey: queryKeys.strategyImportance.byDomainAndCapability(domainId!, capabilityId!),
     queryFn: () => strategyImportanceApi.getByDomainAndCapability(domainId!, capabilityId!),
     enabled: !!domainId && !!capabilityId,

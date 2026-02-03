@@ -13,11 +13,11 @@ export const strategyImportanceApi = {
   async getByDomainAndCapability(
     domainId: BusinessDomainId,
     capabilityId: CapabilityId
-  ): Promise<StrategyImportance[]> {
+  ): Promise<CollectionResponse<StrategyImportance>> {
     const response = await httpClient.get<CollectionResponse<StrategyImportance>>(
       `/api/v1/business-domains/${domainId}/capabilities/${capabilityId}/importance`
     );
-    return response.data.data || [];
+    return response.data;
   },
 
   async getByDomain(domainId: BusinessDomainId): Promise<StrategyImportance[]> {

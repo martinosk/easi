@@ -7,6 +7,7 @@ import {
   useRemoveStrategyImportance,
 } from '../hooks/useStrategyImportance';
 import { useStrategyPillarsConfig } from '../../../hooks/useStrategyPillarsSettings';
+import { canCreate } from '../../../utils/hateoas';
 import '../../../features/components/components/ComponentFitScores.css';
 
 interface StrategicImportanceSectionProps {
@@ -34,6 +35,7 @@ interface StrategyPillar {
 interface ImportanceRowProps {
   pillar: StrategyPillar;
   importance: StrategyImportance | undefined;
+  canAddImportance: boolean;
   isEditing: boolean;
   editScore: number | null;
   editRationale: string;
@@ -49,6 +51,7 @@ interface ImportanceRowProps {
 const ImportanceRow: React.FC<ImportanceRowProps> = ({
   pillar,
   importance,
+  canAddImportance,
   isEditing,
   editScore,
   editRationale,
@@ -154,7 +157,7 @@ const ImportanceRow: React.FC<ImportanceRowProps> = ({
                 )}
               </div>
             </>
-          ) : (
+          ) : canAddImportance ? (
             <button
               type="button"
               className="btn btn-link btn-small"
@@ -164,7 +167,7 @@ const ImportanceRow: React.FC<ImportanceRowProps> = ({
             >
               + Add Importance
             </button>
-          )}
+          ) : null}
         </div>
       )}
     </div>
@@ -172,7 +175,7 @@ const ImportanceRow: React.FC<ImportanceRowProps> = ({
 };
 
 export function StrategicImportanceSection({ domain, capabilityId }: StrategicImportanceSectionProps) {
-  const { data: importanceRatings = [], isLoading } = useStrategyImportanceByDomainAndCapability(
+  const { data: importanceResponse, isLoading } = useStrategyImportanceByDomainAndCapability(
     domain.id,
     capabilityId
   );
@@ -189,6 +192,12 @@ export function StrategicImportanceSection({ domain, capabilityId }: StrategicIm
     if (!pillarsConfig?.data) return [];
     return pillarsConfig.data.filter((p) => p.active);
   }, [pillarsConfig]);
+
+  const importanceRatings = useMemo(() => importanceResponse?.data ?? [], [importanceResponse?.data]);
+  const canAddImportance = useMemo(
+    () => canCreate({ _links: importanceResponse?._links }),
+    [importanceResponse?._links]
+  );
 
   const importanceByPillar = useMemo(() => {
     return new Map(importanceRatings.map((r) => [r.pillarId, r]));
@@ -278,6 +287,7 @@ export function StrategicImportanceSection({ domain, capabilityId }: StrategicIm
               key={pillar.id}
               pillar={pillar}
               importance={getImportanceForPillar(pillar.id)}
+              canAddImportance={canAddImportance}
               isEditing={editingPillarId === pillar.id}
               editScore={editScore}
               editRationale={editRationale}
