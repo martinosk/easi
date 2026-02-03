@@ -12,6 +12,7 @@ type BusinessDomainsHookReturn = ReturnType<typeof useBusinessDomainsPage>;
 
 type DomainsSidebarPanelProps = IDockviewPanelProps<{
   domains: BusinessDomainsHookReturn['domains'];
+  canCreateDomain: BusinessDomainsHookReturn['canCreateDomain'];
   selectedDomainId: BusinessDomainsHookReturn['visualizedDomain'] extends infer T ? T extends null ? undefined : T extends { id: infer U } ? U : undefined : undefined;
   onCreateClick: BusinessDomainsHookReturn['dialogManager']['handleCreateClick'];
   onVisualize: BusinessDomainsHookReturn['handleVisualizeClick'];
@@ -58,6 +59,7 @@ const DomainsSidebarPanel = (props: DomainsSidebarPanelProps) => (
   <div style={panelContainerStyle}>
     <DomainsSidebar
       domains={props.params.domains}
+      canCreateDomain={props.params.canCreateDomain}
       selectedDomainId={props.params.selectedDomainId}
       onCreateClick={props.params.onCreateClick}
       onVisualize={props.params.onVisualize}

@@ -5,6 +5,7 @@ type BusinessDomainsHookReturn = ReturnType<typeof useBusinessDomainsPage>;
 export function buildDomainsParams(hookData: BusinessDomainsHookReturn) {
   return {
     domains: hookData.domains,
+    canCreateDomain: hookData.canCreateDomain,
     selectedDomainId: hookData.visualizedDomain?.id,
     onCreateClick: hookData.dialogManager.handleCreateClick,
     onVisualize: hookData.handleVisualizeClick,

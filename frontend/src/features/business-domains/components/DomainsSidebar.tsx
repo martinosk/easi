@@ -3,6 +3,7 @@ import { DomainList } from './DomainList';
 
 interface DomainsSidebarProps {
   domains: BusinessDomain[];
+  canCreateDomain: boolean;
   selectedDomainId: BusinessDomainId | undefined;
   onCreateClick: () => void;
   onVisualize: (domain: BusinessDomain) => void;
@@ -11,6 +12,7 @@ interface DomainsSidebarProps {
 
 export function DomainsSidebar({
   domains,
+  canCreateDomain,
   selectedDomainId,
   onCreateClick,
   onVisualize,
@@ -18,16 +20,18 @@ export function DomainsSidebar({
 }: DomainsSidebarProps) {
   return (
     <div className="sidebar-content">
-      <div style={{ marginBottom: '1rem' }}>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={onCreateClick}
-          data-testid="create-domain-button"
-        >
-          Create Domain
-        </button>
-      </div>
+      {canCreateDomain && (
+        <div style={{ marginBottom: '1rem' }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={onCreateClick}
+            data-testid="create-domain-button"
+          >
+            Create Domain
+          </button>
+        </div>
+      )}
       <div className="sidebar-scrollable">
         <DomainList
           domains={domains}

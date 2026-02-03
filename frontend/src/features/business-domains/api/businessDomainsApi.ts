@@ -13,9 +13,9 @@ import type {
 } from '../../../api/types';
 
 export const businessDomainsApi = {
-  async getAll(): Promise<BusinessDomain[]> {
+  async getAll(): Promise<BusinessDomainsResponse> {
     const response = await httpClient.get<BusinessDomainsResponse>('/api/v1/business-domains');
-    return response.data.data || [];
+    return response.data;
   },
 
   async getById(id: BusinessDomainId): Promise<BusinessDomain> {

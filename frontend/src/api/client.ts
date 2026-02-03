@@ -293,7 +293,8 @@ class ApiClient {
   }
 
   async getBusinessDomains(): Promise<BusinessDomain[]> {
-    return businessDomainsApi.getAll();
+    const response = await businessDomainsApi.getAll();
+    return response.data ?? [];
   }
 
   async getBusinessDomainById(id: BusinessDomainId): Promise<BusinessDomain> {

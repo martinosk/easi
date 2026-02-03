@@ -9,11 +9,14 @@ import type {
   BusinessDomainId,
   CreateBusinessDomainRequest,
   UpdateBusinessDomainRequest,
+  BusinessDomainsResponse,
+  HATEOASLinks,
 } from '../../../api/types';
 import toast from 'react-hot-toast';
 
 export interface UseBusinessDomainsResult {
   domains: BusinessDomain[];
+  collectionLinks: HATEOASLinks | undefined;
   isLoading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
@@ -54,7 +57,8 @@ export function useBusinessDomains(): UseBusinessDomainsResult {
   }, [query]);
 
   return {
-    domains: query.data ?? [],
+    domains: query.data?.data ?? [],
+    collectionLinks: query.data?._links,
     isLoading: query.isLoading,
     error: query.error,
     refetch,
@@ -65,7 +69,7 @@ export function useBusinessDomains(): UseBusinessDomainsResult {
 }
 
 export function useBusinessDomainsQuery() {
-  return useQuery({
+  return useQuery<BusinessDomainsResponse>({
     queryKey: queryKeys.businessDomains.lists(),
     queryFn: () => businessDomainsApi.getAll(),
   });

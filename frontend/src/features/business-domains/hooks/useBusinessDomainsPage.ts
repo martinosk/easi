@@ -16,6 +16,7 @@ import { useCapabilitySelection } from './useCapabilitySelection';
 import { useCapabilityContextMenu } from './useCapabilityContextMenu';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { getParamValue, clearParams, deepLinkParams } from '../../../lib/deepLinks';
+import { canCreate } from '../../../utils/hateoas';
 import type { BusinessDomain, Capability, ComponentId } from '../../../api/types';
 
 export function useBusinessDomainsPage() {
@@ -28,7 +29,7 @@ export function useBusinessDomainsPage() {
     setShowApplications,
   } = useApplicationSettings();
 
-  const { domains, isLoading, error, createDomain, updateDomain, deleteDomain } = useBusinessDomains();
+  const { domains, collectionLinks, isLoading, error, createDomain, updateDomain, deleteDomain } = useBusinessDomains();
   const { tree, isLoading: treeLoading } = useCapabilityTree();
   const deepLinkProcessedRef = useRef(false);
 
@@ -145,6 +146,7 @@ export function useBusinessDomainsPage() {
 
   return {
     domains,
+    canCreateDomain: canCreate({ _links: collectionLinks }),
     isLoading,
     error,
     tree,
