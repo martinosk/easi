@@ -1,7 +1,15 @@
 import { useCallback } from 'react';
 import type { Node, Edge } from '@xyflow/react';
+import { useReactFlow } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
-import { toComponentId, toCapabilityId, toRelationId } from '../../../api/types';
+import {
+  toComponentId,
+  toCapabilityId,
+  toRelationId,
+  type BatchUpdateItem,
+  type CapabilityId,
+  type ComponentId,
+} from '../../../api/types';
 import type { ViewId } from '../../../api/types';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
@@ -27,14 +35,54 @@ function persistOriginEntityPosition(
   });
 }
 
+function getNodesToPersist(node: Node, selectedNodes: Node[]): Node[] {
+  return selectedNodes.length > 0 ? selectedNodes : [node];
+}
+
+function updateSingleNode(
+  node: Node,
+  currentViewId: ViewId,
+  updateCapabilityPosition: (id: CapabilityId, x: number, y: number) => Promise<void>,
+  updateComponentPosition: (id: ComponentId, x: number, y: number) => Promise<void>,
+  updateOriginEntity: (node: Node, viewId: ViewId) => void
+): void {
+  if (node.type === 'capability') {
+    const capId = toCapabilityId(node.id.replace('cap-', ''));
+    updateCapabilityPosition(capId, node.position.x, node.position.y);
+    return;
+  }
+  if (node.type === 'originEntity') {
+    updateOriginEntity(node, currentViewId);
+    return;
+  }
+  updateComponentPosition(toComponentId(node.id), node.position.x, node.position.y);
+}
+
+function buildBatchUpdates(nodes: Node[], updateOriginEntity: (node: Node) => void): BatchUpdateItem[] {
+  const updates: BatchUpdateItem[] = [];
+  for (const target of nodes) {
+    if (target.type === 'originEntity') {
+      updateOriginEntity(target);
+      continue;
+    }
+    if (target.type === 'capability') {
+      updates.push({ elementId: target.id.replace('cap-', ''), x: target.position.x, y: target.position.y });
+      continue;
+    }
+    updates.push({ elementId: target.id, x: target.position.x, y: target.position.y });
+  }
+  return updates;
+}
+
 export const useCanvasSelection = () => {
   const selectNode = useAppStore((state) => state.selectNode);
   const selectEdge = useAppStore((state) => state.selectEdge);
   const clearSelection = useAppStore((state) => state.clearSelection);
   const selectCapability = useAppStore((state) => state.selectCapability);
-  const { updateComponentPosition, updateCapabilityPosition } = useCanvasLayoutContext();
+  const { updateComponentPosition, updateCapabilityPosition, batchUpdatePositions } = useCanvasLayoutContext();
   const { currentView, currentViewId } = useCurrentView();
   const updateOriginEntityPositionMutation = useUpdateOriginEntityPosition();
+  const reactFlowInstance = useReactFlow();
 
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -66,16 +114,34 @@ export const useCanvasSelection = () => {
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       if (!canEdit(currentView) || !currentViewId) return;
-      if (node.type === 'capability') {
-        const capId = toCapabilityId(node.id.replace('cap-', ''));
-        updateCapabilityPosition(capId, node.position.x, node.position.y);
-      } else if (node.type === 'originEntity') {
-        persistOriginEntityPosition(node, currentViewId, updateOriginEntityPositionMutation.mutate);
-      } else {
-        updateComponentPosition(toComponentId(node.id), node.position.x, node.position.y);
+      const selectedNodes = reactFlowInstance.getNodes().filter((n) => n.selected);
+      const nodesToPersist = getNodesToPersist(node, selectedNodes);
+      const updateOriginEntity = (target: Node) =>
+        persistOriginEntityPosition(target, currentViewId, updateOriginEntityPositionMutation.mutate);
+
+      if (nodesToPersist.length === 1) {
+        updateSingleNode(
+          nodesToPersist[0],
+          currentViewId,
+          updateCapabilityPosition,
+          updateComponentPosition,
+          updateOriginEntity
+        );
+        return;
       }
+
+      const updates = buildBatchUpdates(nodesToPersist, updateOriginEntity);
+      if (updates.length > 0) batchUpdatePositions(updates);
     },
-    [updateComponentPosition, updateCapabilityPosition, updateOriginEntityPositionMutation, currentView, currentViewId]
+    [
+      updateComponentPosition,
+      updateCapabilityPosition,
+      updateOriginEntityPositionMutation,
+      currentView,
+      currentViewId,
+      reactFlowInstance,
+      batchUpdatePositions,
+    ]
   );
 
   return {
