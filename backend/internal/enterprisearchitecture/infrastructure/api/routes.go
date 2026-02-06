@@ -162,9 +162,11 @@ func subscribeCapabilityMappingEvents(eventBus events.EventBus, projector *proje
 
 func subscribePillarCacheEvents(eventBus events.EventBus, projector *projectors.StrategyPillarCacheProjector) {
 	eventTypes := []string{
+		"MetaModelConfigurationCreated",
 		"StrategyPillarAdded",
 		"StrategyPillarUpdated",
 		"StrategyPillarRemoved",
+		"PillarFitConfigurationUpdated",
 	}
 	for _, eventType := range eventTypes {
 		eventBus.Subscribe(eventType, projector)

@@ -26,45 +26,53 @@ type AuthMiddleware interface {
 	RequirePermission(permission authValueObjects.Permission) func(http.Handler) http.Handler
 }
 
-type routeConfig struct {
-	commandBus             *cqrs.InMemoryCommandBus
-	eventStore             eventstore.EventStore
-	eventBus               events.EventBus
-	db                     *database.TenantAwareDB
-	hateoas                *sharedAPI.HATEOASLinks
-	maturityScaleGateway   metamodel.MaturityScaleGateway
-	strategyPillarsGateway metamodel.StrategyPillarsGateway
-	sessionManager         *session.SessionManager
-	authMiddleware         AuthMiddleware
+type RouteConfig struct {
+	Router                 chi.Router
+	CommandBus             *cqrs.InMemoryCommandBus
+	EventStore             eventstore.EventStore
+	EventBus               events.EventBus
+	DB                     *database.TenantAwareDB
+	HATEOAS                *sharedAPI.HATEOASLinks
+	MaturityScaleGateway   metamodel.MaturityScaleGateway
+	StrategyPillarsGateway metamodel.StrategyPillarsGateway
+	SessionManager         *session.SessionManager
+	AuthMiddleware         AuthMiddleware
 }
 
-func SetupCapabilityMappingRoutes(
-	r chi.Router,
-	commandBus *cqrs.InMemoryCommandBus,
-	eventStore eventstore.EventStore,
-	eventBus events.EventBus,
-	db *database.TenantAwareDB,
-	hateoas *sharedAPI.HATEOASLinks,
-	sessionManager *session.SessionManager,
-	authMiddleware AuthMiddleware,
-) error {
-	config := &routeConfig{commandBus, eventStore, eventBus, db, hateoas, nil, nil, sessionManager, authMiddleware}
+func SetupCapabilityMappingRoutes(config *RouteConfig) error {
+	repos := initializeRepositories(config.EventStore)
+	rm := initializeReadModels(config.DB)
 
-	repos := initializeRepositories(config.eventStore)
-	readModels := initializeReadModels(config.db)
-
-	if config.strategyPillarsGateway == nil {
-		config.strategyPillarsGateway = metamodel.NewLocalStrategyPillarsGateway(readModels.strategyPillarCache)
+	if config.StrategyPillarsGateway == nil {
+		config.StrategyPillarsGateway = metamodel.NewLocalStrategyPillarsGateway(rm.strategyPillarCache)
 	}
 
-	setupEventSubscriptions(config.eventBus, readModels, config.strategyPillarsGateway)
-	setupCascadingDeleteHandlers(config.eventBus, config.commandBus, readModels)
-	setupCommandHandlers(config.commandBus, repos, readModels, config.strategyPillarsGateway)
-	setupMetaModelEventHandlers(config.eventBus, config.maturityScaleGateway)
+	setupEventSubscriptions(config.EventBus, rm, config.StrategyPillarsGateway)
+	setupCascadingDeleteHandlers(config.EventBus, config.CommandBus, rm)
+	setupCommandHandlers(config.CommandBus, repos, rm, config.StrategyPillarsGateway)
+	setupMetaModelEventHandlers(config.EventBus, config.MaturityScaleGateway)
+
+	businessDomainReadModels := &BusinessDomainReadModels{
+		Domain:      rm.businessDomain,
+		Assignment:  rm.domainAssignment,
+		Capability:  rm.capability,
+		Realization: rm.realization,
+	}
+
+	httpHandlers := &routeHTTPHandlers{
+		capability:           NewCapabilityHandlers(config.CommandBus, rm.capability, config.HATEOAS),
+		dependency:           NewDependencyHandlers(config.CommandBus, rm.dependency, config.HATEOAS),
+		realization:          NewRealizationHandlers(config.CommandBus, rm.realization, config.HATEOAS),
+		maturityLevel:        NewMaturityLevelHandlers(config.MaturityScaleGateway),
+		businessDomain:       NewBusinessDomainHandlers(config.CommandBus, businessDomainReadModels, config.HATEOAS),
+		strategyImportance:   NewStrategyImportanceHandlers(config.CommandBus, rm.strategyImportance, config.HATEOAS),
+		applicationFitScore:  NewApplicationFitScoreHandlers(config.CommandBus, rm.applicationFitScore, config.HATEOAS, config.SessionManager),
+		fitComparison:        NewFitComparisonHandlers(rm.componentFitComparison),
+		strategicFitAnalysis: NewStrategicFitAnalysisHandlers(rm.strategicFitAnalysis, config.StrategyPillarsGateway, config.SessionManager),
+	}
 
 	rateLimiter := platformAPI.NewRateLimiter(100, 60)
-	httpHandlers := initializeHTTPHandlers(config.commandBus, readModels, config.hateoas, config.maturityScaleGateway, config.strategyPillarsGateway, config.sessionManager)
-	registerRoutes(r, httpHandlers, config.authMiddleware, rateLimiter)
+	registerRoutes(config.Router, httpHandlers, config.AuthMiddleware, rateLimiter)
 
 	return nil
 }
@@ -257,6 +265,7 @@ func subscribeDomainAssignmentEffectiveEvents(eventBus events.EventBus, projecto
 
 func subscribeMetaModelEvents(eventBus events.EventBus, projector *projectors.StrategyPillarCacheProjector) {
 	events := []string{
+		"MetaModelConfigurationCreated",
 		"StrategyPillarAdded",
 		"StrategyPillarUpdated",
 		"StrategyPillarRemoved",
@@ -286,7 +295,8 @@ func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepos
 	registerDependencyCommands(commandBus, repos.dependency, repos.capability)
 	registerRealizationCommands(commandBus, repos.realization, repos.capability, rm.componentCache)
 	registerBusinessDomainCommands(commandBus, repos.businessDomain, rm.businessDomain, rm.domainAssignment)
-	registerDomainAssignmentCommands(commandBus, repos.domainAssignment, repos.capability, rm.businessDomain, rm.domainAssignment)
+	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(repos.domainAssignment, repos.capability, rm.businessDomain, rm.domainAssignment))
+	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(repos.domainAssignment))
 	registerStrategyImportanceCommands(commandBus, handlers.StrategyImportanceDeps{
 		ImportanceRepo:   repos.strategyImportance,
 		DomainReader:     rm.businessDomain,
@@ -335,11 +345,6 @@ func registerBusinessDomainCommands(commandBus *cqrs.InMemoryCommandBus, domainR
 	commandBus.Register("DeleteBusinessDomain", handlers.NewDeleteBusinessDomainHandler(domainRepo, deletionService))
 }
 
-func registerDomainAssignmentCommands(commandBus *cqrs.InMemoryCommandBus, assignRepo *repositories.BusinessDomainAssignmentRepository, capRepo *repositories.CapabilityRepository, domainRM *readmodels.BusinessDomainReadModel, assignmentRM *readmodels.DomainCapabilityAssignmentReadModel) {
-	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(assignRepo, capRepo, domainRM, assignmentRM))
-	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(assignRepo))
-}
-
 func registerStrategyImportanceCommands(commandBus *cqrs.InMemoryCommandBus, deps handlers.StrategyImportanceDeps) {
 	commandBus.Register("SetStrategyImportance", handlers.NewSetStrategyImportanceHandler(deps))
 	commandBus.Register("UpdateStrategyImportance", handlers.NewUpdateStrategyImportanceHandler(deps.ImportanceRepo))
@@ -350,27 +355,6 @@ func registerApplicationFitScoreCommands(commandBus *cqrs.InMemoryCommandBus, de
 	commandBus.Register("SetApplicationFitScore", handlers.NewSetApplicationFitScoreHandler(deps))
 	commandBus.Register("UpdateApplicationFitScore", handlers.NewUpdateApplicationFitScoreHandler(deps.FitScoreRepo))
 	commandBus.Register("RemoveApplicationFitScore", handlers.NewRemoveApplicationFitScoreHandler(deps.FitScoreRepo))
-}
-
-func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels, hateoas *sharedAPI.HATEOASLinks, maturityGateway metamodel.MaturityScaleGateway, pillarsGateway metamodel.StrategyPillarsGateway, sessionManager *session.SessionManager) *routeHTTPHandlers {
-	businessDomainReadModels := &BusinessDomainReadModels{
-		Domain:      rm.businessDomain,
-		Assignment:  rm.domainAssignment,
-		Capability:  rm.capability,
-		Realization: rm.realization,
-	}
-
-	return &routeHTTPHandlers{
-		capability:           NewCapabilityHandlers(commandBus, rm.capability, hateoas),
-		dependency:           NewDependencyHandlers(commandBus, rm.dependency, hateoas),
-		realization:          NewRealizationHandlers(commandBus, rm.realization, hateoas),
-		maturityLevel:        NewMaturityLevelHandlers(maturityGateway),
-		businessDomain:       NewBusinessDomainHandlers(commandBus, businessDomainReadModels, hateoas),
-		strategyImportance:   NewStrategyImportanceHandlers(commandBus, rm.strategyImportance, hateoas),
-		applicationFitScore:  NewApplicationFitScoreHandlers(commandBus, rm.applicationFitScore, hateoas, sessionManager),
-		fitComparison:        NewFitComparisonHandlers(rm.componentFitComparison),
-		strategicFitAnalysis: NewStrategicFitAnalysisHandlers(rm.strategicFitAnalysis, pillarsGateway, sessionManager),
-	}
 }
 
 func registerRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {

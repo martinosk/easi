@@ -56,9 +56,9 @@ Refactor a file using CodeScene MCP to achieve a code health score of 10.0.
 - Respect the project's code style (no added comments, no over-engineering).
 - If a recommendation conflicts with project conventions (e.g., suggests adding comments), skip it and note why.
 
-# Refactoring hints
+## Refactoring hints
 
-## Fixing "Excess Number of Function Arguments"
+### Fixing "Excess Number of Function Arguments"
 
 Do NOT fix it by simply bundling arguments into a struct to reduce the count. Instead, investigate the root cause:
 
