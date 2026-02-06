@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useMaturityGapDetailHook, useSetTargetMaturity } from '../hooks/useMaturityAnalysis';
 import { useMaturityColorScale } from '../../../hooks/useMaturityColorScale';
 import { HelpTooltip } from '../../../components/shared/HelpTooltip';
-import type { EnterpriseCapabilityId, ImplementationDetail } from '../types';
+import type { EnterpriseCapabilityId, ImplementationDetail, MaturityGapDetail } from '../types';
 import './MaturityGapDetailPanel.css';
 
 function getPriorityColor(priority: string): string {
@@ -176,6 +176,86 @@ function SetTargetMaturityModal({ isOpen, currentValue, onClose, onSave, isSavin
   );
 }
 
+function LoadingPanel() {
+  return (
+    <div className="maturity-gap-detail-panel">
+      <div className="loading-state">
+        <div className="loading-spinner" />
+        <span>Loading details...</span>
+      </div>
+    </div>
+  );
+}
+
+interface ErrorPanelProps {
+  onBack: () => void;
+  error: Error | null;
+}
+
+function ErrorPanel({ onBack, error }: ErrorPanelProps) {
+  return (
+    <div className="maturity-gap-detail-panel">
+      <button type="button" className="back-button" onClick={onBack}>
+        ← Back to Analysis
+      </button>
+      <div className="error-message">
+        {error ? `Failed to load details: ${error.message}` : 'Capability not found'}
+      </div>
+    </div>
+  );
+}
+
+interface TargetMaturityDisplayProps {
+  detail: MaturityGapDetail;
+  targetMaturity: number;
+  getColorForValue: (value: number) => string;
+  getSectionNameForValue: (value: number) => string;
+  onOpenModal: () => void;
+}
+
+function TargetMaturityDisplay({ detail, targetMaturity, getColorForValue, getSectionNameForValue, onOpenModal }: TargetMaturityDisplayProps) {
+  const targetSection = detail.targetMaturity !== null
+    ? getSectionNameForValue(detail.targetMaturity)
+    : null;
+
+  return (
+    <div className="target-maturity-section">
+      <div className="target-info">
+        <span className="target-label">Target Maturity:</span>
+        {detail.targetMaturity !== null && targetSection ? (
+          <span className="target-value">
+            {detail.targetMaturity}
+            <span
+              className="target-section"
+              style={{ color: getColorForValue(detail.targetMaturity) }}
+            >
+              ({targetSection})
+            </span>
+          </span>
+        ) : (
+          <span className="target-not-set">Not set (using max: {targetMaturity})</span>
+        )}
+      </div>
+      {detail._links?.['x-set-target-maturity'] && (
+        <button
+          type="button"
+          className="btn btn-sm btn-secondary"
+          onClick={onOpenModal}
+        >
+          {detail.targetMaturity !== null ? 'Edit Target' : 'Set Target'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+const PRIORITY_SECTIONS = [
+  { title: 'High Priority (Gap > 40)', priority: 'High', key: 'high' as const, tooltip: 'Implementations that need significant work to reach the target' },
+  { title: 'Medium Priority (Gap 15-40)', priority: 'Medium', key: 'medium' as const, tooltip: 'Implementations that need moderate work to reach the target' },
+  { title: 'Low Priority (Gap 1-14)', priority: 'Low', key: 'low' as const, tooltip: 'Implementations that need minor work to reach the target' },
+  { title: 'On Target', priority: 'None', key: 'onTarget' as const, tooltip: 'Implementations that meet or exceed the target maturity level' },
+] as const;
+
 interface MaturityGapDetailPanelProps {
   enterpriseCapabilityId: EnterpriseCapabilityId;
   onBack: () => void;
@@ -203,34 +283,10 @@ export function MaturityGapDetailPanel({ enterpriseCapabilityId, onBack }: Matur
     setIsModalOpen(false);
   }, [enterpriseCapabilityId, setTargetMaturityMutation]);
 
-  if (isLoading) {
-    return (
-      <div className="maturity-gap-detail-panel">
-        <div className="loading-state">
-          <div className="loading-spinner" />
-          <span>Loading details...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !detail) {
-    return (
-      <div className="maturity-gap-detail-panel">
-        <button type="button" className="back-button" onClick={onBack}>
-          ← Back to Analysis
-        </button>
-        <div className="error-message">
-          {error ? `Failed to load details: ${error.message}` : 'Capability not found'}
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingPanel />;
+  if (error || !detail) return <ErrorPanel onBack={onBack} error={error} />;
 
   const targetMaturity = detail.targetMaturity ?? Math.max(...detail.implementations.map(i => i.maturityValue));
-  const targetSection = detail.targetMaturity !== null
-    ? getSectionNameForValue(detail.targetMaturity)
-    : null;
 
   return (
     <div className="maturity-gap-detail-panel">
@@ -245,33 +301,13 @@ export function MaturityGapDetailPanel({ enterpriseCapabilityId, onBack }: Matur
         </div>
       </div>
 
-      <div className="target-maturity-section">
-        <div className="target-info">
-          <span className="target-label">Target Maturity:</span>
-          {detail.targetMaturity !== null && targetSection ? (
-            <span className="target-value">
-              {detail.targetMaturity}
-              <span
-                className="target-section"
-                style={{ color: getColorForValue(detail.targetMaturity) }}
-              >
-                ({targetSection})
-              </span>
-            </span>
-          ) : (
-            <span className="target-not-set">Not set (using max: {targetMaturity})</span>
-          )}
-        </div>
-        {detail._links?.['x-set-target-maturity'] && (
-          <button
-            type="button"
-            className="btn btn-sm btn-secondary"
-            onClick={handleOpenModal}
-          >
-            {detail.targetMaturity !== null ? 'Edit Target' : 'Set Target'}
-          </button>
-        )}
-      </div>
+      <TargetMaturityDisplay
+        detail={detail}
+        targetMaturity={targetMaturity}
+        getColorForValue={getColorForValue}
+        getSectionNameForValue={getSectionNameForValue}
+        onOpenModal={handleOpenModal}
+      />
 
       <div className="implementations-section">
         <h3 className="section-title">
@@ -282,41 +318,17 @@ export function MaturityGapDetailPanel({ enterpriseCapabilityId, onBack }: Matur
           />
         </h3>
 
-        <PrioritySection
-          title="High Priority (Gap > 40)"
-          priority="High"
-          implementations={detail.investmentPriorities.high}
-          targetMaturity={targetMaturity}
-          tooltip="Implementations that need significant work to reach the target"
-          getColorForValue={getColorForValue}
-        />
-
-        <PrioritySection
-          title="Medium Priority (Gap 15-40)"
-          priority="Medium"
-          implementations={detail.investmentPriorities.medium}
-          targetMaturity={targetMaturity}
-          tooltip="Implementations that need moderate work to reach the target"
-          getColorForValue={getColorForValue}
-        />
-
-        <PrioritySection
-          title="Low Priority (Gap 1-14)"
-          priority="Low"
-          implementations={detail.investmentPriorities.low}
-          targetMaturity={targetMaturity}
-          tooltip="Implementations that need minor work to reach the target"
-          getColorForValue={getColorForValue}
-        />
-
-        <PrioritySection
-          title="On Target"
-          priority="None"
-          implementations={detail.investmentPriorities.onTarget}
-          targetMaturity={targetMaturity}
-          tooltip="Implementations that meet or exceed the target maturity level"
-          getColorForValue={getColorForValue}
-        />
+        {PRIORITY_SECTIONS.map(({ title, priority, key, tooltip }) => (
+          <PrioritySection
+            key={key}
+            title={title}
+            priority={priority}
+            implementations={detail.investmentPriorities[key]}
+            targetMaturity={targetMaturity}
+            tooltip={tooltip}
+            getColorForValue={getColorForValue}
+          />
+        ))}
       </div>
 
       <SetTargetMaturityModal

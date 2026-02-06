@@ -32,6 +32,137 @@ interface StrategyPillar {
   active: boolean;
 }
 
+interface ImportanceEditFormProps {
+  editScore: number | null;
+  editRationale: string;
+  onScoreChange: (score: number) => void;
+  onRationaleChange: (rationale: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+  isSaving: boolean;
+}
+
+function ImportanceEditForm({ editScore, editRationale, onScoreChange, onRationaleChange, onCancel, onSave, isSaving }: ImportanceEditFormProps) {
+  return (
+    <div className="fit-score-edit">
+      <div className="fit-score-selector">
+        {SCORE_RANGE.map((s) => (
+          <button
+            key={s}
+            type="button"
+            className={`fit-score-btn ${editScore === s ? 'selected' : ''}`}
+            onClick={() => onScoreChange(s)}
+            disabled={isSaving}
+            data-testid={`importance-btn-${s}`}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+      <span className="fit-score-label">{editScore ? IMPORTANCE_LABELS[editScore] : 'Select importance'}</span>
+      <textarea
+        className="fit-score-rationale-input"
+        placeholder="Rationale (optional)"
+        value={editRationale}
+        onChange={(e) => onRationaleChange(e.target.value)}
+        maxLength={500}
+        disabled={isSaving}
+        data-testid="importance-rationale-input"
+      />
+      <div className="fit-score-edit-actions">
+        <button
+          type="button"
+          className="btn btn-secondary btn-small"
+          onClick={onCancel}
+          disabled={isSaving}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary btn-small"
+          onClick={onSave}
+          disabled={!editScore || isSaving}
+        >
+          {isSaving ? 'Saving...' : 'Save'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface ImportanceDisplayProps {
+  pillarId: string;
+  pillarName: string;
+  importance: StrategyImportance | undefined;
+  canAddImportance: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+function ImportanceDisplay({ pillarId, pillarName, importance, canAddImportance, onEdit, onDelete }: ImportanceDisplayProps) {
+  if (importance) {
+    return (
+      <div className="fit-score-display">
+        <div className="fit-score-value">
+          <span className="fit-score-dots">
+            {SCORE_RANGE.map((s) => (
+              <span
+                key={s}
+                className={`fit-score-dot ${s <= importance.importance ? 'filled' : ''}`}
+              />
+            ))}
+          </span>
+          <span className="fit-score-number">{importance.importance}/5</span>
+          <span className="fit-score-label">{importance.importanceLabel}</span>
+        </div>
+        {importance.rationale && (
+          <span className="fit-score-rationale">"{importance.rationale}"</span>
+        )}
+        <div className="fit-score-actions">
+          {importance._links?.edit && (
+            <button
+              type="button"
+              className="btn btn-link btn-small"
+              onClick={onEdit}
+              data-testid={`edit-importance-${pillarId}`}
+            >
+              Edit
+            </button>
+          )}
+          {importance._links?.delete && (
+            <button
+              type="button"
+              className="btn btn-link btn-small btn-danger"
+              onClick={onDelete}
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (canAddImportance) {
+    return (
+      <div className="fit-score-display">
+        <button
+          type="button"
+          className="btn btn-link btn-small"
+          onClick={onEdit}
+          aria-label={`Add importance for ${pillarName}`}
+          data-testid="add-importance-btn"
+        >
+          + Add Importance
+        </button>
+      </div>
+    );
+  }
+
+  return <div className="fit-score-display" />;
+}
+
 interface ImportanceRowProps {
   pillar: StrategyPillar;
   importance: StrategyImportance | undefined;
@@ -72,103 +203,24 @@ const ImportanceRow: React.FC<ImportanceRowProps> = ({
         )}
       </div>
       {isEditing ? (
-        <div className="fit-score-edit">
-          <div className="fit-score-selector">
-            {SCORE_RANGE.map((s) => (
-              <button
-                key={s}
-                type="button"
-                className={`fit-score-btn ${editScore === s ? 'selected' : ''}`}
-                onClick={() => onScoreChange(s)}
-                disabled={isSaving}
-                data-testid={`importance-btn-${s}`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-          <span className="fit-score-label">{editScore ? IMPORTANCE_LABELS[editScore] : 'Select importance'}</span>
-          <textarea
-            className="fit-score-rationale-input"
-            placeholder="Rationale (optional)"
-            value={editRationale}
-            onChange={(e) => onRationaleChange(e.target.value)}
-            maxLength={500}
-            disabled={isSaving}
-            data-testid="importance-rationale-input"
-          />
-          <div className="fit-score-edit-actions">
-            <button
-              type="button"
-              className="btn btn-secondary btn-small"
-              onClick={onCancel}
-              disabled={isSaving}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary btn-small"
-              onClick={onSave}
-              disabled={!editScore || isSaving}
-            >
-              {isSaving ? 'Saving...' : 'Save'}
-            </button>
-          </div>
-        </div>
+        <ImportanceEditForm
+          editScore={editScore}
+          editRationale={editRationale}
+          onScoreChange={onScoreChange}
+          onRationaleChange={onRationaleChange}
+          onCancel={onCancel}
+          onSave={onSave}
+          isSaving={isSaving}
+        />
       ) : (
-        <div className="fit-score-display">
-          {importance ? (
-            <>
-              <div className="fit-score-value">
-                <span className="fit-score-dots">
-                  {SCORE_RANGE.map((s) => (
-                    <span
-                      key={s}
-                      className={`fit-score-dot ${s <= importance.importance ? 'filled' : ''}`}
-                    />
-                  ))}
-                </span>
-                <span className="fit-score-number">{importance.importance}/5</span>
-                <span className="fit-score-label">{importance.importanceLabel}</span>
-              </div>
-              {importance.rationale && (
-                <span className="fit-score-rationale">"{importance.rationale}"</span>
-              )}
-              <div className="fit-score-actions">
-                {importance._links?.edit && (
-                  <button
-                    type="button"
-                    className="btn btn-link btn-small"
-                    onClick={onEdit}
-                    data-testid={`edit-importance-${pillar.id}`}
-                  >
-                    Edit
-                  </button>
-                )}
-                {importance._links?.delete && (
-                  <button
-                    type="button"
-                    className="btn btn-link btn-small btn-danger"
-                    onClick={onDelete}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            </>
-          ) : canAddImportance ? (
-            <button
-              type="button"
-              className="btn btn-link btn-small"
-              onClick={onEdit}
-              aria-label={`Add importance for ${pillar.name}`}
-              data-testid="add-importance-btn"
-            >
-              + Add Importance
-            </button>
-          ) : null}
-        </div>
+        <ImportanceDisplay
+          pillarId={pillar.id}
+          pillarName={pillar.name}
+          importance={importance}
+          canAddImportance={canAddImportance}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       )}
     </div>
   );
