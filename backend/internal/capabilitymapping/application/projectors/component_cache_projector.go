@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"log"
 
-	archEvents "easi/backend/internal/architecturemodeling/domain/events"
+	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
@@ -33,18 +33,32 @@ func (p *ComponentCacheProjector) Handle(ctx context.Context, event domain.Domai
 
 func (p *ComponentCacheProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	switch eventType {
-	case "ApplicationComponentCreated":
+	case archPL.ApplicationComponentCreated:
 		return p.handleComponentCreated(ctx, eventData)
-	case "ApplicationComponentUpdated":
+	case archPL.ApplicationComponentUpdated:
 		return p.handleComponentUpdated(ctx, eventData)
-	case "ApplicationComponentDeleted":
+	case archPL.ApplicationComponentDeleted:
 		return p.handleComponentDeleted(ctx, eventData)
 	}
 	return nil
 }
 
+type componentCreatedEvent struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type componentUpdatedEvent struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type componentDeletedEvent struct {
+	ID string `json:"id"`
+}
+
 func (p *ComponentCacheProjector) handleComponentCreated(ctx context.Context, eventData []byte) error {
-	var event archEvents.ApplicationComponentCreated
+	var event componentCreatedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
 		log.Printf("Failed to unmarshal ApplicationComponentCreated event: %v", err)
 		return err
@@ -53,7 +67,7 @@ func (p *ComponentCacheProjector) handleComponentCreated(ctx context.Context, ev
 }
 
 func (p *ComponentCacheProjector) handleComponentUpdated(ctx context.Context, eventData []byte) error {
-	var event archEvents.ApplicationComponentUpdated
+	var event componentUpdatedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
 		log.Printf("Failed to unmarshal ApplicationComponentUpdated event: %v", err)
 		return err
@@ -62,7 +76,7 @@ func (p *ComponentCacheProjector) handleComponentUpdated(ctx context.Context, ev
 }
 
 func (p *ComponentCacheProjector) handleComponentDeleted(ctx context.Context, eventData []byte) error {
-	var event archEvents.ApplicationComponentDeleted
+	var event componentDeletedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
 		log.Printf("Failed to unmarshal ApplicationComponentDeleted event: %v", err)
 		return err

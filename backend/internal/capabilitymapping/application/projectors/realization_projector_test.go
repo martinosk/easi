@@ -155,12 +155,6 @@ func (p *testableRealizationProjector) ProjectEvent(ctx context.Context, eventTy
 	return nil
 }
 
-type applicationComponentDeletedEvent struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	DeletedAt time.Time `json:"deletedAt"`
-}
-
 func (p *testableRealizationProjector) handleApplicationComponentDeleted(ctx context.Context, eventData []byte) error {
 	var event applicationComponentDeletedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
@@ -248,29 +242,7 @@ func (p *testableRealizationProjector) handleCapabilityParentChanged(ctx context
 	}
 
 	for _, realization := range realizations {
-		sourceID := realization.ID
-		sourceCapabilityID := event.CapabilityID
-		sourceCapabilityName := ""
-		if capability != nil {
-			sourceCapabilityName = capability.Name
-		}
-
-		if realization.Origin == "Inherited" && realization.SourceRealizationID != "" {
-			sourceID = realization.SourceRealizationID
-			sourceCapabilityID = realization.SourceCapabilityID
-			sourceCapabilityName = realization.SourceCapabilityName
-		}
-
-		source := readmodels.RealizationDTO{
-			ID:                   sourceID,
-			CapabilityID:         event.NewParentID,
-			ComponentID:          realization.ComponentID,
-			ComponentName:        realization.ComponentName,
-			SourceCapabilityID:   sourceCapabilityID,
-			SourceCapabilityName: sourceCapabilityName,
-			LinkedAt:             realization.LinkedAt,
-		}
-
+		source := buildPropagationSource(realization, capability, event.CapabilityID, event.NewParentID)
 		if err := p.propagateInheritedRealizations(ctx, source); err != nil {
 			return err
 		}
@@ -638,102 +610,76 @@ func TestRealizationProjector_InheritedRealizationsAlwaysUseFull(t *testing.T) {
 }
 
 func TestRealizationProjector_HandleCapabilityParentChanged_PropagatesInheritedRealizations(t *testing.T) {
-	mockRealRM := &mockRealizationReadModel{
-		realizationsByCapability: map[string][]readmodels.RealizationDTO{
-			"cap-A": {
-				{
-					ID:                  "inherited-to-A",
-					CapabilityID:        "cap-A",
-					ComponentID:         "comp-X",
-					RealizationLevel:    "Full",
-					Origin:              "Inherited",
-					SourceRealizationID: "real-direct-B",
-					LinkedAt:            time.Now(),
-				},
+	testCases := []struct {
+		name                    string
+		capabilities            map[string]*readmodels.CapabilityDTO
+		newLevel                string
+		expectedInheritedCapIDs []string
+	}{
+		{
+			name: "propagates to immediate parent",
+			capabilities: map[string]*readmodels.CapabilityDTO{
+				"cap-C": {ID: "cap-C", Name: "C", Level: "L1", ParentID: ""},
+				"cap-A": {ID: "cap-A", Name: "A", Level: "L2", ParentID: "cap-C"},
+				"cap-B": {ID: "cap-B", Name: "B", Level: "L3", ParentID: "cap-A"},
 			},
+			newLevel:                "L2",
+			expectedInheritedCapIDs: []string{"cap-C"},
 		},
-	}
-	mockCapRM := &mockCapabilityReadModelForProjector{
-		capabilities: map[string]*readmodels.CapabilityDTO{
-			"cap-C": {ID: "cap-C", Name: "C", Level: "L1", ParentID: ""},
-			"cap-A": {ID: "cap-A", Name: "A", Level: "L2", ParentID: "cap-C"},
-			"cap-B": {ID: "cap-B", Name: "B", Level: "L3", ParentID: "cap-A"},
-		},
-	}
-
-	projector := newTestableRealizationProjector(mockRealRM, mockCapRM)
-
-	event := events.CapabilityParentChanged{
-		CapabilityID: "cap-A",
-		OldParentID:  "",
-		NewParentID:  "cap-C",
-		OldLevel:     "L1",
-		NewLevel:     "L2",
-	}
-
-	eventData, err := json.Marshal(event)
-	require.NoError(t, err)
-
-	err = projector.ProjectEvent(context.Background(), "CapabilityParentChanged", eventData)
-	require.NoError(t, err)
-
-	require.Len(t, mockRealRM.insertedInheritedRealizations, 1, "Should create inherited realization to new parent C")
-	assert.Equal(t, "cap-C", mockRealRM.insertedInheritedRealizations[0].CapabilityID)
-	assert.Equal(t, "comp-X", mockRealRM.insertedInheritedRealizations[0].ComponentID)
-	assert.Equal(t, "Inherited", mockRealRM.insertedInheritedRealizations[0].Origin)
-	assert.Equal(t, "real-direct-B", mockRealRM.insertedInheritedRealizations[0].SourceRealizationID,
-		"Should reference the original direct realization")
-}
-
-func TestRealizationProjector_HandleCapabilityParentChanged_PropagatesUpEntireNewAncestry(t *testing.T) {
-	mockRealRM := &mockRealizationReadModel{
-		realizationsByCapability: map[string][]readmodels.RealizationDTO{
-			"cap-A": {
-				{
-					ID:                  "inherited-to-A",
-					CapabilityID:        "cap-A",
-					ComponentID:         "comp-X",
-					RealizationLevel:    "Full",
-					Origin:              "Inherited",
-					SourceRealizationID: "real-direct-B",
-					LinkedAt:            time.Now(),
-				},
+		{
+			name: "propagates up entire new ancestry",
+			capabilities: map[string]*readmodels.CapabilityDTO{
+				"cap-D": {ID: "cap-D", Name: "D", Level: "L1", ParentID: ""},
+				"cap-C": {ID: "cap-C", Name: "C", Level: "L2", ParentID: "cap-D"},
+				"cap-A": {ID: "cap-A", Name: "A", Level: "L3", ParentID: "cap-C"},
+				"cap-B": {ID: "cap-B", Name: "B", Level: "L4", ParentID: "cap-A"},
 			},
-		},
-	}
-	mockCapRM := &mockCapabilityReadModelForProjector{
-		capabilities: map[string]*readmodels.CapabilityDTO{
-			"cap-D": {ID: "cap-D", Name: "D", Level: "L1", ParentID: ""},
-			"cap-C": {ID: "cap-C", Name: "C", Level: "L2", ParentID: "cap-D"},
-			"cap-A": {ID: "cap-A", Name: "A", Level: "L3", ParentID: "cap-C"},
-			"cap-B": {ID: "cap-B", Name: "B", Level: "L4", ParentID: "cap-A"},
+			newLevel:                "L3",
+			expectedInheritedCapIDs: []string{"cap-C", "cap-D"},
 		},
 	}
 
-	projector := newTestableRealizationProjector(mockRealRM, mockCapRM)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockRealRM := &mockRealizationReadModel{
+				realizationsByCapability: map[string][]readmodels.RealizationDTO{
+					"cap-A": {
+						{
+							ID:                  "inherited-to-A",
+							CapabilityID:        "cap-A",
+							ComponentID:         "comp-X",
+							RealizationLevel:    "Full",
+							Origin:              "Inherited",
+							SourceRealizationID: "real-direct-B",
+							LinkedAt:            time.Now(),
+						},
+					},
+				},
+			}
+			mockCapRM := &mockCapabilityReadModelForProjector{capabilities: tc.capabilities}
+			projector := newTestableRealizationProjector(mockRealRM, mockCapRM)
 
-	event := events.CapabilityParentChanged{
-		CapabilityID: "cap-A",
-		OldParentID:  "",
-		NewParentID:  "cap-C",
-		OldLevel:     "L1",
-		NewLevel:     "L3",
-	}
+			event := events.CapabilityParentChanged{
+				CapabilityID: "cap-A",
+				OldParentID:  "",
+				NewParentID:  "cap-C",
+				OldLevel:     "L1",
+				NewLevel:     tc.newLevel,
+			}
 
-	eventData, err := json.Marshal(event)
-	require.NoError(t, err)
+			eventData, err := json.Marshal(event)
+			require.NoError(t, err)
 
-	err = projector.ProjectEvent(context.Background(), "CapabilityParentChanged", eventData)
-	require.NoError(t, err)
+			err = projector.ProjectEvent(context.Background(), "CapabilityParentChanged", eventData)
+			require.NoError(t, err)
 
-	require.Len(t, mockRealRM.insertedInheritedRealizations, 2, "Should create inherited realizations to C and D")
-
-	assert.Equal(t, "cap-C", mockRealRM.insertedInheritedRealizations[0].CapabilityID)
-	assert.Equal(t, "cap-D", mockRealRM.insertedInheritedRealizations[1].CapabilityID)
-
-	for _, inherited := range mockRealRM.insertedInheritedRealizations {
-		assert.Equal(t, "comp-X", inherited.ComponentID)
-		assert.Equal(t, "real-direct-B", inherited.SourceRealizationID)
+			require.Len(t, mockRealRM.insertedInheritedRealizations, len(tc.expectedInheritedCapIDs))
+			for i, expectedCapID := range tc.expectedInheritedCapIDs {
+				assert.Equal(t, expectedCapID, mockRealRM.insertedInheritedRealizations[i].CapabilityID)
+				assert.Equal(t, "comp-X", mockRealRM.insertedInheritedRealizations[i].ComponentID)
+				assert.Equal(t, "real-direct-B", mockRealRM.insertedInheritedRealizations[i].SourceRealizationID)
+			}
+		})
 	}
 }
 
@@ -809,47 +755,30 @@ func TestRealizationProjector_HandleCapabilityParentChanged_HandlesDirectRealiza
 		"Should set SourceCapabilityName")
 }
 
-func TestRealizationProjector_HandleApplicationComponentDeleted_DeletesAllRealizationsForComponent(t *testing.T) {
-	mockRealRM := &mockRealizationReadModel{}
-	mockCapRM := &mockCapabilityReadModelForProjector{}
-
-	projector := newTestableRealizationProjector(mockRealRM, mockCapRM)
-
-	event := applicationComponentDeletedEvent{
-		ID:        "comp-1",
-		Name:      "Test Component",
-		DeletedAt: time.Now(),
+func TestRealizationProjector_HandleApplicationComponentDeleted(t *testing.T) {
+	testCases := []struct {
+		name        string
+		componentID string
+	}{
+		{"deletes all realizations for component", "comp-1"},
+		{"cleans up domain view realizations", "deleted-component"},
 	}
 
-	eventData, err := json.Marshal(event)
-	require.NoError(t, err)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockRealRM := &mockRealizationReadModel{}
+			mockCapRM := &mockCapabilityReadModelForProjector{}
+			projector := newTestableRealizationProjector(mockRealRM, mockCapRM)
 
-	err = projector.ProjectEvent(context.Background(), "ApplicationComponentDeleted", eventData)
-	require.NoError(t, err)
+			event := applicationComponentDeletedEvent{ID: tc.componentID}
+			eventData, err := json.Marshal(event)
+			require.NoError(t, err)
 
-	require.Len(t, mockRealRM.deletedByComponentIDs, 1, "Should delete realizations by component ID")
-	assert.Equal(t, "comp-1", mockRealRM.deletedByComponentIDs[0])
-}
+			err = projector.ProjectEvent(context.Background(), "ApplicationComponentDeleted", eventData)
+			require.NoError(t, err)
 
-func TestRealizationProjector_HandleApplicationComponentDeleted_CleansUpDomainViewRealizations(t *testing.T) {
-	mockRealRM := &mockRealizationReadModel{}
-	mockCapRM := &mockCapabilityReadModelForProjector{}
-
-	projector := newTestableRealizationProjector(mockRealRM, mockCapRM)
-
-	event := applicationComponentDeletedEvent{
-		ID:        "deleted-component",
-		Name:      "Deleted Component",
-		DeletedAt: time.Now(),
+			require.Len(t, mockRealRM.deletedByComponentIDs, 1, "Should delete realizations by component ID")
+			assert.Equal(t, tc.componentID, mockRealRM.deletedByComponentIDs[0])
+		})
 	}
-
-	eventData, err := json.Marshal(event)
-	require.NoError(t, err)
-
-	err = projector.ProjectEvent(context.Background(), "ApplicationComponentDeleted", eventData)
-	require.NoError(t, err)
-
-	require.Len(t, mockRealRM.deletedByComponentIDs, 1)
-	assert.Equal(t, "deleted-component", mockRealRM.deletedByComponentIDs[0],
-		"Should delete all realizations for the deleted component so they no longer appear in business domain views")
 }

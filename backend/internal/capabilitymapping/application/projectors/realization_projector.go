@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"log"
 
-	archEvents "easi/backend/internal/architecturemodeling/domain/events"
+	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/events"
 	"easi/backend/internal/capabilitymapping/infrastructure/architecturemodeling"
@@ -51,9 +51,9 @@ func (p *RealizationProjector) ProjectEvent(ctx context.Context, eventType strin
 		return p.handleCapabilityParentChanged(ctx, eventData)
 	case "CapabilityUpdated":
 		return p.handleCapabilityUpdated(ctx, eventData)
-	case "ApplicationComponentUpdated":
+	case archPL.ApplicationComponentUpdated:
 		return p.handleApplicationComponentUpdated(ctx, eventData)
-	case "ApplicationComponentDeleted":
+	case archPL.ApplicationComponentDeleted:
 		return p.handleApplicationComponentDeleted(ctx, eventData)
 	}
 	return nil
@@ -160,35 +160,38 @@ func (p *RealizationProjector) handleCapabilityParentChanged(ctx context.Context
 	}
 
 	for _, realization := range realizations {
-		sourceID := realization.ID
-		sourceCapabilityID := event.CapabilityID
-		sourceCapabilityName := ""
-		if capability != nil {
-			sourceCapabilityName = capability.Name
-		}
-
-		if realization.Origin == "Inherited" && realization.SourceRealizationID != "" {
-			sourceID = realization.SourceRealizationID
-			sourceCapabilityID = realization.SourceCapabilityID
-			sourceCapabilityName = realization.SourceCapabilityName
-		}
-
-		source := readmodels.RealizationDTO{
-			ID:                   sourceID,
-			CapabilityID:         event.NewParentID,
-			ComponentID:          realization.ComponentID,
-			ComponentName:        realization.ComponentName,
-			SourceCapabilityID:   sourceCapabilityID,
-			SourceCapabilityName: sourceCapabilityName,
-			LinkedAt:             realization.LinkedAt,
-		}
-
+		source := buildPropagationSource(realization, capability, event.CapabilityID, event.NewParentID)
 		if err := p.propagateInheritedRealizations(ctx, source); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func buildPropagationSource(realization readmodels.RealizationDTO, capability *readmodels.CapabilityDTO, capabilityID, newParentID string) readmodels.RealizationDTO {
+	sourceID := realization.ID
+	sourceCapabilityID := capabilityID
+	sourceCapabilityName := ""
+	if capability != nil {
+		sourceCapabilityName = capability.Name
+	}
+
+	if realization.Origin == "Inherited" && realization.SourceRealizationID != "" {
+		sourceID = realization.SourceRealizationID
+		sourceCapabilityID = realization.SourceCapabilityID
+		sourceCapabilityName = realization.SourceCapabilityName
+	}
+
+	return readmodels.RealizationDTO{
+		ID:                   sourceID,
+		CapabilityID:         newParentID,
+		ComponentID:          realization.ComponentID,
+		ComponentName:        realization.ComponentName,
+		SourceCapabilityID:   sourceCapabilityID,
+		SourceCapabilityName: sourceCapabilityName,
+		LinkedAt:             realization.LinkedAt,
+	}
 }
 
 func (p *RealizationProjector) propagateInheritedRealizations(ctx context.Context, source readmodels.RealizationDTO) error {
@@ -233,8 +236,17 @@ func (p *RealizationProjector) handleCapabilityUpdated(ctx context.Context, even
 	return p.readModel.UpdateSourceCapabilityName(ctx, event.ID, event.Name)
 }
 
+type applicationComponentUpdatedEvent struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type applicationComponentDeletedEvent struct {
+	ID string `json:"id"`
+}
+
 func (p *RealizationProjector) handleApplicationComponentUpdated(ctx context.Context, eventData []byte) error {
-	var event archEvents.ApplicationComponentUpdated
+	var event applicationComponentUpdatedEvent
 	if err := unmarshalEvent(eventData, &event, "ApplicationComponentUpdated"); err != nil {
 		return err
 	}
@@ -242,7 +254,7 @@ func (p *RealizationProjector) handleApplicationComponentUpdated(ctx context.Con
 }
 
 func (p *RealizationProjector) handleApplicationComponentDeleted(ctx context.Context, eventData []byte) error {
-	var event archEvents.ApplicationComponentDeleted
+	var event applicationComponentDeletedEvent
 	if err := unmarshalEvent(eventData, &event, "ApplicationComponentDeleted"); err != nil {
 		return err
 	}

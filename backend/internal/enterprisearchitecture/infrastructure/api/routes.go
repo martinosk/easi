@@ -5,6 +5,7 @@ import (
 
 	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/auth/infrastructure/session"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/enterprisearchitecture/application/handlers"
 	"easi/backend/internal/enterprisearchitecture/application/projectors"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
@@ -12,6 +13,7 @@ import (
 	"easi/backend/internal/enterprisearchitecture/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	platformAPI "easi/backend/internal/platform/infrastructure/api"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
@@ -128,7 +130,7 @@ func subscribeLinkEvents(eventBus events.EventBus, projector *projectors.Enterpr
 	eventTypes := []string{
 		"EnterpriseCapabilityLinked",
 		"EnterpriseCapabilityUnlinked",
-		"CapabilityParentChanged",
+		cmPL.CapabilityParentChanged,
 	}
 	for _, eventType := range eventTypes {
 		eventBus.Subscribe(eventType, projector)
@@ -148,12 +150,12 @@ func subscribeImportanceEvents(eventBus events.EventBus, projector *projectors.E
 
 func subscribeCapabilityMappingEvents(eventBus events.EventBus, projector *projectors.DomainCapabilityMetadataProjector) {
 	eventTypes := []string{
-		"CapabilityCreated",
-		"CapabilityUpdated",
-		"CapabilityDeleted",
-		"CapabilityParentChanged",
-		"CapabilityAssignedToDomain",
-		"CapabilityUnassignedFromDomain",
+		cmPL.CapabilityCreated,
+		cmPL.CapabilityUpdated,
+		cmPL.CapabilityDeleted,
+		cmPL.CapabilityParentChanged,
+		cmPL.CapabilityAssignedToDomain,
+		cmPL.CapabilityUnassignedFromDomain,
 	}
 	for _, eventType := range eventTypes {
 		eventBus.Subscribe(eventType, projector)
@@ -162,11 +164,11 @@ func subscribeCapabilityMappingEvents(eventBus events.EventBus, projector *proje
 
 func subscribePillarCacheEvents(eventBus events.EventBus, projector *projectors.StrategyPillarCacheProjector) {
 	eventTypes := []string{
-		"MetaModelConfigurationCreated",
-		"StrategyPillarAdded",
-		"StrategyPillarUpdated",
-		"StrategyPillarRemoved",
-		"PillarFitConfigurationUpdated",
+		mmPL.MetaModelConfigurationCreated,
+		mmPL.StrategyPillarAdded,
+		mmPL.StrategyPillarUpdated,
+		mmPL.StrategyPillarRemoved,
+		mmPL.PillarFitConfigurationUpdated,
 	}
 	for _, eventType := range eventTypes {
 		eventBus.Subscribe(eventType, projector)

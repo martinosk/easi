@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
 	"easi/backend/internal/enterprisearchitecture/domain/events"
 	domain "easi/backend/internal/shared/eventsourcing"
@@ -33,7 +34,7 @@ func (p *EnterpriseCapabilityLinkProjector) ProjectEvent(ctx context.Context, ev
 	handlers := map[string]func(context.Context, []byte) error{
 		"EnterpriseCapabilityLinked":   p.handleLinked,
 		"EnterpriseCapabilityUnlinked": p.handleUnlinked,
-		"CapabilityParentChanged":      p.handleCapabilityParentChanged,
+		cmPL.CapabilityParentChanged:   p.handleCapabilityParentChanged,
 	}
 
 	if handler, exists := handlers[eventType]; exists {
@@ -84,16 +85,19 @@ func (p *EnterpriseCapabilityLinkProjector) handleCapabilityParentChanged(ctx co
 		log.Printf("Failed to unmarshal CapabilityParentChanged event: %v", err)
 		return err
 	}
+	return p.recomputeBlockingForSubtree(ctx, event.CapabilityID)
+}
 
-	subtreeIDs, err := p.readModel.GetSubtreeCapabilityIDs(ctx, event.CapabilityID)
+func (p *EnterpriseCapabilityLinkProjector) recomputeBlockingForSubtree(ctx context.Context, capabilityID string) error {
+	subtreeIDs, err := p.readModel.GetSubtreeCapabilityIDs(ctx, capabilityID)
 	if err != nil {
-		log.Printf("Failed to get subtree for capability %s: %v", event.CapabilityID, err)
+		log.Printf("Failed to get subtree for capability %s: %v", capabilityID, err)
 		return err
 	}
 
 	links, err := p.readModel.GetLinksForCapabilities(ctx, subtreeIDs)
 	if err != nil {
-		log.Printf("Failed to get links for subtree of capability %s: %v", event.CapabilityID, err)
+		log.Printf("Failed to get links for subtree of capability %s: %v", capabilityID, err)
 		return err
 	}
 
@@ -119,63 +123,73 @@ func (p *EnterpriseCapabilityLinkProjector) handleCapabilityParentChanged(ctx co
 	return nil
 }
 
-func (p *EnterpriseCapabilityLinkProjector) computeBlocking(ctx context.Context, domainCapabilityID, enterpriseCapabilityID string) error {
-	capabilityName := p.getCapabilityNameOrDefault(ctx, domainCapabilityID)
-	enterpriseName := p.getEnterpriseNameOrDefault(ctx, enterpriseCapabilityID)
+type blockingContext struct {
+	domainCapabilityID   string
+	enterpriseCapabilityID string
+	capabilityName       string
+	enterpriseName       string
+}
 
-	p.insertBlockingForRelatives(ctx, domainCapabilityID, enterpriseCapabilityID, capabilityName, enterpriseName, false)
-	p.insertBlockingForRelatives(ctx, domainCapabilityID, enterpriseCapabilityID, capabilityName, enterpriseName, true)
+func (p *EnterpriseCapabilityLinkProjector) computeBlocking(ctx context.Context, domainCapabilityID, enterpriseCapabilityID string) error {
+	bc := p.buildBlockingContext(ctx, domainCapabilityID, enterpriseCapabilityID)
+
+	p.insertBlockingForAncestors(ctx, bc)
+	p.insertBlockingForDescendants(ctx, bc)
 
 	return nil
 }
 
-func (p *EnterpriseCapabilityLinkProjector) getCapabilityNameOrDefault(ctx context.Context, capabilityID string) string {
-	name, err := p.readModel.GetCapabilityName(ctx, capabilityID)
+func (p *EnterpriseCapabilityLinkProjector) buildBlockingContext(ctx context.Context, domainCapabilityID, enterpriseCapabilityID string) blockingContext {
+	capabilityName, err := p.readModel.GetCapabilityName(ctx, domainCapabilityID)
 	if err != nil {
-		log.Printf("Failed to get capability name for %s: %v", capabilityID, err)
-		return capabilityID
+		log.Printf("Failed to get capability name for %s: %v", domainCapabilityID, err)
+		capabilityName = domainCapabilityID
 	}
-	return name
-}
 
-func (p *EnterpriseCapabilityLinkProjector) getEnterpriseNameOrDefault(ctx context.Context, enterpriseCapabilityID string) string {
-	name, err := p.readModel.GetEnterpriseCapabilityName(ctx, enterpriseCapabilityID)
+	enterpriseName, err := p.readModel.GetEnterpriseCapabilityName(ctx, enterpriseCapabilityID)
 	if err != nil {
 		log.Printf("Failed to get enterprise capability name for %s: %v", enterpriseCapabilityID, err)
-		return enterpriseCapabilityID
+		enterpriseName = enterpriseCapabilityID
 	}
-	return name
+
+	return blockingContext{
+		domainCapabilityID:     domainCapabilityID,
+		enterpriseCapabilityID: enterpriseCapabilityID,
+		capabilityName:         capabilityName,
+		enterpriseName:         enterpriseName,
+	}
 }
 
-func (p *EnterpriseCapabilityLinkProjector) insertBlockingForRelatives(ctx context.Context, domainCapabilityID, enterpriseCapabilityID, capabilityName, enterpriseName string, isDescendants bool) {
-	var relativeIDs []string
-	var err error
-	var relationType string
-
-	if isDescendants {
-		relativeIDs, err = p.readModel.GetDescendantIDs(ctx, domainCapabilityID)
-		relationType = "descendants"
-	} else {
-		relativeIDs, err = p.readModel.GetAncestorIDs(ctx, domainCapabilityID)
-		relationType = "ancestors"
-	}
-
+func (p *EnterpriseCapabilityLinkProjector) insertBlockingForAncestors(ctx context.Context, bc blockingContext) {
+	ancestorIDs, err := p.readModel.GetAncestorIDs(ctx, bc.domainCapabilityID)
 	if err != nil {
-		log.Printf("Failed to get %s for capability %s: %v", relationType, domainCapabilityID, err)
+		log.Printf("Failed to get ancestors for capability %s: %v", bc.domainCapabilityID, err)
 		return
 	}
+	p.insertBlockingRecords(ctx, bc, ancestorIDs, false)
+}
 
+func (p *EnterpriseCapabilityLinkProjector) insertBlockingForDescendants(ctx context.Context, bc blockingContext) {
+	descendantIDs, err := p.readModel.GetDescendantIDs(ctx, bc.domainCapabilityID)
+	if err != nil {
+		log.Printf("Failed to get descendants for capability %s: %v", bc.domainCapabilityID, err)
+		return
+	}
+	p.insertBlockingRecords(ctx, bc, descendantIDs, true)
+}
+
+func (p *EnterpriseCapabilityLinkProjector) insertBlockingRecords(ctx context.Context, bc blockingContext, relativeIDs []string, isAncestor bool) {
 	for _, relativeID := range relativeIDs {
 		blocking := readmodels.BlockingDTO{
 			DomainCapabilityID:      relativeID,
-			BlockedByCapabilityID:   domainCapabilityID,
-			BlockedByEnterpriseID:   enterpriseCapabilityID,
-			BlockedByCapabilityName: capabilityName,
-			BlockedByEnterpriseName: enterpriseName,
-			IsAncestor:              isDescendants,
+			BlockedByCapabilityID:   bc.domainCapabilityID,
+			BlockedByEnterpriseID:   bc.enterpriseCapabilityID,
+			BlockedByCapabilityName: bc.capabilityName,
+			BlockedByEnterpriseName: bc.enterpriseName,
+			IsAncestor:              isAncestor,
 		}
 		if err := p.readModel.InsertBlocking(ctx, blocking); err != nil {
-			log.Printf("Failed to insert blocking for %s %s: %v", relationType, relativeID, err)
+			log.Printf("Failed to insert blocking for %s: %v", relativeID, err)
 		}
 	}
 }

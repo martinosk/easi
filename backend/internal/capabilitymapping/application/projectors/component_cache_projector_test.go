@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	archEvents "easi/backend/internal/architecturemodeling/domain/events"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,11 +28,10 @@ func TestComponentCacheProjector_HandlesApplicationComponentCreated(t *testing.T
 	mock := &mockComponentCacheWriter{}
 	projector := NewComponentCacheProjector(mock)
 
-	event := archEvents.ApplicationComponentCreated{
-		ID:   "comp-123",
-		Name: "Test Component",
-	}
-	eventData, err := json.Marshal(event)
+	eventData, err := json.Marshal(struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}{"comp-123", "Test Component"})
 	require.NoError(t, err)
 
 	err = projector.ProjectEvent(context.Background(), "ApplicationComponentCreated", eventData)
@@ -49,11 +46,10 @@ func TestComponentCacheProjector_HandlesApplicationComponentUpdated(t *testing.T
 	mock := &mockComponentCacheWriter{}
 	projector := NewComponentCacheProjector(mock)
 
-	event := archEvents.ApplicationComponentUpdated{
-		ID:   "comp-123",
-		Name: "Updated Component Name",
-	}
-	eventData, err := json.Marshal(event)
+	eventData, err := json.Marshal(struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}{"comp-123", "Updated Component Name"})
 	require.NoError(t, err)
 
 	err = projector.ProjectEvent(context.Background(), "ApplicationComponentUpdated", eventData)
@@ -68,11 +64,9 @@ func TestComponentCacheProjector_HandlesApplicationComponentDeleted(t *testing.T
 	mock := &mockComponentCacheWriter{}
 	projector := NewComponentCacheProjector(mock)
 
-	event := archEvents.ApplicationComponentDeleted{
-		ID:   "comp-123",
-		Name: "Test Component",
-	}
-	eventData, err := json.Marshal(event)
+	eventData, err := json.Marshal(struct {
+		ID string `json:"id"`
+	}{"comp-123"})
 	require.NoError(t, err)
 
 	err = projector.ProjectEvent(context.Background(), "ApplicationComponentDeleted", eventData)

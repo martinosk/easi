@@ -8,6 +8,7 @@ Quick reference for navigating EASI documentation.
 |---------------|-----------|
 | Backend API endpoint | [docs/backend/api-standards.md](backend/api-standards.md) |
 | Backend event handling | [docs/backend/standard-patterns.md](backend/standard-patterns.md) |
+| Cross-context events | [docs/backend/cross-context-events.md](backend/cross-context-events.md) |
 | Backend anti-patterns | [docs/backend/antipatterns.md](backend/antipatterns.md) |
 | Backend tests | [docs/backend/testing.md](backend/testing.md) |
 | Database migration | [docs/backend/database.md](backend/database.md) |

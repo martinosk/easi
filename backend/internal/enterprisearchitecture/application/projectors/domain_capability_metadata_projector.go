@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
@@ -39,12 +40,12 @@ func (p *DomainCapabilityMetadataProjector) Handle(ctx context.Context, event do
 
 func (p *DomainCapabilityMetadataProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	handlers := map[string]func(context.Context, []byte) error{
-		"CapabilityCreated":             p.handleCapabilityCreated,
-		"CapabilityUpdated":             p.handleCapabilityUpdated,
-		"CapabilityDeleted":             p.handleCapabilityDeleted,
-		"CapabilityParentChanged":       p.handleCapabilityParentChanged,
-		"CapabilityAssignedToDomain":    p.handleCapabilityAssignedToDomain,
-		"CapabilityUnassignedFromDomain": p.handleCapabilityUnassignedFromDomain,
+		cmPL.CapabilityCreated:              p.handleCapabilityCreated,
+		cmPL.CapabilityUpdated:              p.handleCapabilityUpdated,
+		cmPL.CapabilityDeleted:              p.handleCapabilityDeleted,
+		cmPL.CapabilityParentChanged:        p.handleCapabilityParentChanged,
+		cmPL.CapabilityAssignedToDomain:     p.handleCapabilityAssignedToDomain,
+		cmPL.CapabilityUnassignedFromDomain: p.handleCapabilityUnassignedFromDomain,
 	}
 
 	if handler, exists := handlers[eventType]; exists {
@@ -134,25 +135,33 @@ func (p *DomainCapabilityMetadataProjector) handleCapabilityDeleted(ctx context.
 		return err
 	}
 
-	link, err := p.linkReadModel.GetByDomainCapabilityID(ctx, event.ID)
-	if err != nil {
-		log.Printf("Failed to check link for deleted capability %s: %v", event.ID, err)
-	} else if link != nil {
-		if err := p.linkReadModel.Delete(ctx, link.ID); err != nil {
-			log.Printf("Failed to delete link for capability %s: %v", event.ID, err)
-		}
-		if err := p.linkReadModel.DeleteBlockingByBlocker(ctx, event.ID); err != nil {
-			log.Printf("Failed to delete blocking records for capability %s: %v", event.ID, err)
-		}
-		if err := p.capabilityReadModel.DecrementLinkCount(ctx, link.EnterpriseCapabilityID); err != nil {
-			log.Printf("Failed to decrement link count: %v", err)
-		}
-		if err := p.capabilityReadModel.RecalculateDomainCount(ctx, link.EnterpriseCapabilityID); err != nil {
-			log.Printf("Failed to recalculate domain count: %v", err)
-		}
-	}
+	p.cleanupLinksForDeletedCapability(ctx, event.ID)
 
 	return p.metadataReadModel.Delete(ctx, event.ID)
+}
+
+func (p *DomainCapabilityMetadataProjector) cleanupLinksForDeletedCapability(ctx context.Context, capabilityID string) {
+	link, err := p.linkReadModel.GetByDomainCapabilityID(ctx, capabilityID)
+	if err != nil {
+		log.Printf("Failed to check link for deleted capability %s: %v", capabilityID, err)
+		return
+	}
+	if link == nil {
+		return
+	}
+
+	if err := p.linkReadModel.Delete(ctx, link.ID); err != nil {
+		log.Printf("Failed to delete link for capability %s: %v", capabilityID, err)
+	}
+	if err := p.linkReadModel.DeleteBlockingByBlocker(ctx, capabilityID); err != nil {
+		log.Printf("Failed to delete blocking records for capability %s: %v", capabilityID, err)
+	}
+	if err := p.capabilityReadModel.DecrementLinkCount(ctx, link.EnterpriseCapabilityID); err != nil {
+		log.Printf("Failed to decrement link count: %v", err)
+	}
+	if err := p.capabilityReadModel.RecalculateDomainCount(ctx, link.EnterpriseCapabilityID); err != nil {
+		log.Printf("Failed to recalculate domain count: %v", err)
+	}
 }
 
 type capabilityParentChangedEvent struct {
@@ -181,18 +190,7 @@ func (p *DomainCapabilityMetadataProjector) handleCapabilityParentChanged(ctx co
 		return err
 	}
 
-	if err := p.metadataReadModel.RecalculateL1ForSubtree(ctx, event.CapabilityID); err != nil {
-		log.Printf("Failed to recalculate L1 for subtree of %s: %v", event.CapabilityID, err)
-		return err
-	}
-
-	subtreeIDs, err := p.metadataReadModel.GetSubtreeCapabilityIDs(ctx, event.CapabilityID)
-	if err != nil {
-		log.Printf("Failed to get subtree for %s: %v", event.CapabilityID, err)
-		return err
-	}
-
-	return p.recalculateDomainCountsForLinkedCapabilities(ctx, subtreeIDs)
+	return p.recalculateSubtreeAndDomainCounts(ctx, event.CapabilityID)
 }
 
 type capabilityAssignedToDomainEvent struct {
@@ -208,21 +206,7 @@ func (p *DomainCapabilityMetadataProjector) handleCapabilityAssignedToDomain(ctx
 		log.Printf("Failed to unmarshal CapabilityAssignedToDomain event: %v", err)
 		return err
 	}
-
-	// Recalculate L1 ancestry for the entire subtree to fix any children that were created
-	// before the parent metadata existed (which would have wrong l1_capability_id)
-	if err := p.metadataReadModel.RecalculateL1ForSubtree(ctx, event.CapabilityID); err != nil {
-		log.Printf("Failed to recalculate L1 for subtree %s: %v", event.CapabilityID, err)
-		return err
-	}
-
-	subtreeIDs, err := p.metadataReadModel.GetSubtreeCapabilityIDs(ctx, event.CapabilityID)
-	if err != nil {
-		log.Printf("Failed to get subtree for %s: %v", event.CapabilityID, err)
-		return err
-	}
-
-	return p.recalculateDomainCountsForLinkedCapabilities(ctx, subtreeIDs)
+	return p.recalculateSubtreeAndDomainCounts(ctx, event.CapabilityID)
 }
 
 type capabilityUnassignedFromDomainEvent struct {
@@ -238,16 +222,18 @@ func (p *DomainCapabilityMetadataProjector) handleCapabilityUnassignedFromDomain
 		log.Printf("Failed to unmarshal CapabilityUnassignedFromDomain event: %v", err)
 		return err
 	}
+	return p.recalculateSubtreeAndDomainCounts(ctx, event.CapabilityID)
+}
 
-	// Recalculate L1 ancestry to clear business domain for the subtree
-	if err := p.metadataReadModel.RecalculateL1ForSubtree(ctx, event.CapabilityID); err != nil {
-		log.Printf("Failed to recalculate L1 for subtree %s: %v", event.CapabilityID, err)
+func (p *DomainCapabilityMetadataProjector) recalculateSubtreeAndDomainCounts(ctx context.Context, capabilityID string) error {
+	if err := p.metadataReadModel.RecalculateL1ForSubtree(ctx, capabilityID); err != nil {
+		log.Printf("Failed to recalculate L1 for subtree %s: %v", capabilityID, err)
 		return err
 	}
 
-	subtreeIDs, err := p.metadataReadModel.GetSubtreeCapabilityIDs(ctx, event.CapabilityID)
+	subtreeIDs, err := p.metadataReadModel.GetSubtreeCapabilityIDs(ctx, capabilityID)
 	if err != nil {
-		log.Printf("Failed to get subtree for %s: %v", event.CapabilityID, err)
+		log.Printf("Failed to get subtree for %s: %v", capabilityID, err)
 		return err
 	}
 

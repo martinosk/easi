@@ -8,6 +8,7 @@ Go backend development patterns and standards.
 |------|---------|
 | [api-standards.md](api-standards.md) | REST Level 3, HATEOAS, response formats |
 | [standard-patterns.md](standard-patterns.md) | Event deserialization, field extraction, upcasters |
+| [cross-context-events.md](cross-context-events.md) | Published Language constants, ACL pattern |
 | [antipatterns.md](antipatterns.md) | What to avoid |
 | [testing.md](testing.md) | Test structure and commands |
 | [database.md](database.md) | Migration rules and database conventions |

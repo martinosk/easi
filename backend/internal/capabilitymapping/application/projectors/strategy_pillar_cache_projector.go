@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"easi/backend/internal/capabilitymapping/application/readmodels"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
@@ -28,11 +29,11 @@ func (p *StrategyPillarCacheProjector) Handle(ctx context.Context, event domain.
 
 func (p *StrategyPillarCacheProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	handlers := map[string]func(context.Context, []byte) error{
-		"MetaModelConfigurationCreated": p.handleConfigurationCreated,
-		"StrategyPillarAdded":           p.handlePillarAdded,
-		"StrategyPillarUpdated":         p.handlePillarUpdated,
-		"StrategyPillarRemoved":         p.handlePillarRemoved,
-		"PillarFitConfigurationUpdated": p.handleFitConfigurationUpdated,
+		mmPL.MetaModelConfigurationCreated: p.handleConfigurationCreated,
+		mmPL.StrategyPillarAdded:           p.handlePillarAdded,
+		mmPL.StrategyPillarUpdated:         p.handlePillarUpdated,
+		mmPL.StrategyPillarRemoved:         p.handlePillarRemoved,
+		mmPL.PillarFitConfigurationUpdated: p.handleFitConfigurationUpdated,
 	}
 
 	if handler, exists := handlers[eventType]; exists {

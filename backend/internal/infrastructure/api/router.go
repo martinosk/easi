@@ -147,7 +147,10 @@ func registerAPIRoutes(r chi.Router, deps routerDependencies) {
 				HATEOAS:        deps.hateoas,
 				AuthMiddleware: deps.authDeps.AuthMiddleware,
 			}), "architecture modeling routes")
-			mustSetup(viewsAPI.SetupArchitectureViewsRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db, deps.hateoas, deps.authDeps.AuthMiddleware), "architecture views routes")
+			viewsAPI.SubscribeEvents(deps.eventBus, deps.commandBus, deps.db)
+			viewsAPI.RegisterCommands(deps.commandBus, deps.eventStore, deps.db)
+			viewHandlers := viewsAPI.NewHTTPHandlers(deps.commandBus, deps.db, deps.hateoas)
+			viewsAPI.RegisterRoutes(r, viewHandlers, deps.authDeps.AuthMiddleware)
 			mustSetup(capabilityAPI.SetupCapabilityMappingRoutes(&capabilityAPI.RouteConfig{
 				Router:         r,
 				CommandBus:     deps.commandBus,
@@ -168,7 +171,8 @@ func registerAPIRoutes(r chi.Router, deps routerDependencies) {
 				SessionManager: deps.authDeps.SessionManager,
 			}), "enterprise architecture routes")
 			mustSetup(releasesAPI.SetupReleasesRoutes(r, deps.db.DB()), "releases routes")
-			mustSetup(viewlayoutsAPI.SetupViewLayoutsRoutes(r, deps.eventBus, deps.db, deps.hateoas, deps.authDeps.AuthMiddleware), "view layouts routes")
+			viewlayoutsAPI.SubscribeEvents(deps.eventBus, deps.db)
+			viewlayoutsAPI.RegisterRoutes(r, deps.db, deps.hateoas, deps.authDeps.AuthMiddleware)
 			mustSetup(importingAPI.SetupImportingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db), "importing routes")
 			mustSetup(metamodelAPI.SetupMetaModelRoutes(metamodelAPI.MetaModelRoutesDeps{
 				Router:         r,

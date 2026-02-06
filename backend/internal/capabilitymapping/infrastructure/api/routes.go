@@ -14,6 +14,8 @@ import (
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
+	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	platformAPI "easi/backend/internal/platform/infrastructure/api"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
@@ -83,8 +85,8 @@ func setupMetaModelEventHandlers(eventBus events.EventBus, gateway metamodel.Mat
 	}
 
 	maturityScaleUpdatedHandler := handlers.NewMaturityScaleConfigUpdatedHandler(gateway)
-	eventBus.Subscribe("MaturityScaleConfigUpdated", maturityScaleUpdatedHandler)
-	eventBus.Subscribe("MaturityScaleConfigReset", maturityScaleUpdatedHandler)
+	eventBus.Subscribe(mmPL.MaturityScaleConfigUpdated, maturityScaleUpdatedHandler)
+	eventBus.Subscribe(mmPL.MaturityScaleConfigReset, maturityScaleUpdatedHandler)
 }
 
 type routeRepositories struct {
@@ -201,10 +203,15 @@ func subscribeDependencyEvents(eventBus events.EventBus, projector *projectors.D
 }
 
 func subscribeRealizationEvents(eventBus events.EventBus, projector *projectors.RealizationProjector) {
-	events := []string{"SystemLinkedToCapability", "SystemRealizationUpdated",
-		"SystemRealizationDeleted", "CapabilityParentChanged", "CapabilityUpdated",
-		"ApplicationComponentUpdated", "ApplicationComponentDeleted"}
-	for _, event := range events {
+	for _, event := range []string{
+		"SystemLinkedToCapability",
+		"SystemRealizationUpdated",
+		"SystemRealizationDeleted",
+		"CapabilityParentChanged",
+		"CapabilityUpdated",
+		archPL.ApplicationComponentUpdated,
+		archPL.ApplicationComponentDeleted,
+	} {
 		eventBus.Subscribe(event, projector)
 	}
 }
@@ -239,8 +246,11 @@ func subscribeApplicationFitScoreEvents(eventBus events.EventBus, projector *pro
 }
 
 func subscribeComponentCacheEvents(eventBus events.EventBus, projector *projectors.ComponentCacheProjector) {
-	events := []string{"ApplicationComponentCreated", "ApplicationComponentUpdated", "ApplicationComponentDeleted"}
-	for _, event := range events {
+	for _, event := range []string{
+		archPL.ApplicationComponentCreated,
+		archPL.ApplicationComponentUpdated,
+		archPL.ApplicationComponentDeleted,
+	} {
 		eventBus.Subscribe(event, projector)
 	}
 }
@@ -264,14 +274,13 @@ func subscribeDomainAssignmentEffectiveEvents(eventBus events.EventBus, projecto
 }
 
 func subscribeMetaModelEvents(eventBus events.EventBus, projector *projectors.StrategyPillarCacheProjector) {
-	events := []string{
-		"MetaModelConfigurationCreated",
-		"StrategyPillarAdded",
-		"StrategyPillarUpdated",
-		"StrategyPillarRemoved",
-		"PillarFitConfigurationUpdated",
-	}
-	for _, event := range events {
+	for _, event := range []string{
+		mmPL.MetaModelConfigurationCreated,
+		mmPL.StrategyPillarAdded,
+		mmPL.StrategyPillarUpdated,
+		mmPL.StrategyPillarRemoved,
+		mmPL.PillarFitConfigurationUpdated,
+	} {
 		eventBus.Subscribe(event, projector)
 	}
 }

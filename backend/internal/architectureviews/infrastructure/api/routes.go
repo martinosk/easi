@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	"easi/backend/internal/architectureviews/application/handlers"
 	"easi/backend/internal/architectureviews/application/projectors"
 	"easi/backend/internal/architectureviews/application/readmodels"
@@ -22,18 +23,7 @@ type AuthMiddleware interface {
 	RequirePermission(permission authValueObjects.Permission) func(http.Handler) http.Handler
 }
 
-func SetupArchitectureViewsRoutes(
-	r chi.Router,
-	commandBus *cqrs.InMemoryCommandBus,
-	eventStore eventstore.EventStore,
-	eventBus events.EventBus,
-	db *database.TenantAwareDB,
-	hateoas *sharedAPI.HATEOASLinks,
-	authMiddleware AuthMiddleware,
-) error {
-	userReadModel := authReadModels.NewUserReadModel(db)
-	viewRepo := repositories.NewArchitectureViewRepository(eventStore)
-	layoutRepo := repositories.NewViewLayoutRepository(db)
+func SubscribeEvents(eventBus events.EventBus, commandBus *cqrs.InMemoryCommandBus, db *database.TenantAwareDB) {
 	viewReadModel := readmodels.NewArchitectureViewReadModel(db)
 	viewProjector := projectors.NewArchitectureViewProjector(viewReadModel)
 
@@ -48,79 +38,84 @@ func SetupArchitectureViewsRoutes(
 	componentDeletedHandler := handlers.NewApplicationComponentDeletedHandler(commandBus, viewReadModel)
 	relationDeletedHandler := handlers.NewComponentRelationDeletedHandler()
 
-	eventBus.Subscribe("ApplicationComponentDeleted", componentDeletedHandler)
-	eventBus.Subscribe("ComponentRelationDeleted", relationDeletedHandler)
+	eventBus.Subscribe(archPL.ApplicationComponentDeleted, componentDeletedHandler)
+	eventBus.Subscribe(archPL.ComponentRelationDeleted, relationDeletedHandler)
+}
 
-	createViewHandler := handlers.NewCreateViewHandler(viewRepo, viewReadModel)
-	addComponentHandler := handlers.NewAddComponentToViewHandler(viewRepo, layoutRepo)
-	updatePositionHandler := handlers.NewUpdateComponentPositionHandler(layoutRepo)
-	updateMultiplePositionsHandler := handlers.NewUpdateMultiplePositionsHandler(layoutRepo)
-	renameViewHandler := handlers.NewRenameViewHandler(viewRepo)
-	deleteViewHandler := handlers.NewDeleteViewHandler(viewRepo)
-	removeComponentHandler := handlers.NewRemoveComponentFromViewHandler(viewRepo)
-	setDefaultViewHandler := handlers.NewSetDefaultViewHandler(viewRepo, viewReadModel)
-	updateEdgeTypeHandler := handlers.NewUpdateViewEdgeTypeHandler(layoutRepo)
-	updateLayoutDirectionHandler := handlers.NewUpdateViewLayoutDirectionHandler(layoutRepo)
-	updateColorSchemeHandler := handlers.NewUpdateViewColorSchemeHandler(layoutRepo)
-	updateElementColorHandler := handlers.NewUpdateElementColorHandler(layoutRepo)
-	clearElementColorHandler := handlers.NewClearElementColorHandler(layoutRepo)
-	changeVisibilityHandler := handlers.NewChangeViewVisibilityHandler(viewRepo, userReadModel)
+func RegisterCommands(commandBus *cqrs.InMemoryCommandBus, eventStore eventstore.EventStore, db *database.TenantAwareDB) {
+	viewRepo := repositories.NewArchitectureViewRepository(eventStore)
+	layoutRepo := repositories.NewViewLayoutRepository(db)
+	viewReadModel := readmodels.NewArchitectureViewReadModel(db)
+	userReadModel := authReadModels.NewUserReadModel(db)
 
-	commandBus.Register("CreateView", createViewHandler)
-	commandBus.Register("AddComponentToView", addComponentHandler)
-	commandBus.Register("UpdateComponentPosition", updatePositionHandler)
-	commandBus.Register("UpdateMultiplePositions", updateMultiplePositionsHandler)
-	commandBus.Register("RenameView", renameViewHandler)
-	commandBus.Register("DeleteView", deleteViewHandler)
-	commandBus.Register("RemoveComponentFromView", removeComponentHandler)
-	commandBus.Register("SetDefaultView", setDefaultViewHandler)
-	commandBus.Register("UpdateViewEdgeType", updateEdgeTypeHandler)
-	commandBus.Register("UpdateViewLayoutDirection", updateLayoutDirectionHandler)
-	commandBus.Register("UpdateViewColorScheme", updateColorSchemeHandler)
-	commandBus.Register("UpdateElementColor", updateElementColorHandler)
-	commandBus.Register("ClearElementColor", clearElementColorHandler)
-	commandBus.Register("ChangeViewVisibility", changeVisibilityHandler)
+	commandBus.Register("CreateView", handlers.NewCreateViewHandler(viewRepo, viewReadModel))
+	commandBus.Register("AddComponentToView", handlers.NewAddComponentToViewHandler(viewRepo, layoutRepo))
+	commandBus.Register("UpdateComponentPosition", handlers.NewUpdateComponentPositionHandler(layoutRepo))
+	commandBus.Register("UpdateMultiplePositions", handlers.NewUpdateMultiplePositionsHandler(layoutRepo))
+	commandBus.Register("RenameView", handlers.NewRenameViewHandler(viewRepo))
+	commandBus.Register("DeleteView", handlers.NewDeleteViewHandler(viewRepo))
+	commandBus.Register("RemoveComponentFromView", handlers.NewRemoveComponentFromViewHandler(viewRepo))
+	commandBus.Register("SetDefaultView", handlers.NewSetDefaultViewHandler(viewRepo, viewReadModel))
+	commandBus.Register("UpdateViewEdgeType", handlers.NewUpdateViewEdgeTypeHandler(layoutRepo))
+	commandBus.Register("UpdateViewLayoutDirection", handlers.NewUpdateViewLayoutDirectionHandler(layoutRepo))
+	commandBus.Register("UpdateViewColorScheme", handlers.NewUpdateViewColorSchemeHandler(layoutRepo))
+	commandBus.Register("UpdateElementColor", handlers.NewUpdateElementColorHandler(layoutRepo))
+	commandBus.Register("ClearElementColor", handlers.NewClearElementColorHandler(layoutRepo))
+	commandBus.Register("ChangeViewVisibility", handlers.NewChangeViewVisibilityHandler(viewRepo, userReadModel))
+}
 
-	viewHandlers := NewViewHandlers(commandBus, viewReadModel, hateoas)
-	componentHandlers := NewViewComponentHandlers(commandBus, viewReadModel)
-	elementHandlers := NewViewElementHandlers(layoutRepo, viewReadModel)
-	colorHandlers := NewViewColorHandlers(commandBus, viewReadModel, hateoas)
+type HTTPHandlers struct {
+	view      *ViewHandlers
+	component *ViewComponentHandlers
+	element   *ViewElementHandlers
+	color     *ViewColorHandlers
+}
 
+func NewHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, db *database.TenantAwareDB, hateoas *sharedAPI.HATEOASLinks) *HTTPHandlers {
+	viewReadModel := readmodels.NewArchitectureViewReadModel(db)
+	layoutRepo := repositories.NewViewLayoutRepository(db)
+	return &HTTPHandlers{
+		view:      NewViewHandlers(commandBus, viewReadModel, hateoas),
+		component: NewViewComponentHandlers(commandBus, viewReadModel),
+		element:   NewViewElementHandlers(layoutRepo, viewReadModel),
+		color:     NewViewColorHandlers(commandBus, viewReadModel, hateoas),
+	}
+}
+
+func RegisterRoutes(r chi.Router, h *HTTPHandlers, authMiddleware AuthMiddleware) {
 	r.Route("/views", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authValueObjects.PermViewsRead))
-			r.Get("/", viewHandlers.GetAllViews)
-			r.Get("/{id}", viewHandlers.GetViewByID)
+			r.Get("/", h.view.GetAllViews)
+			r.Get("/{id}", h.view.GetViewByID)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authValueObjects.PermViewsWrite))
-			r.Post("/", viewHandlers.CreateView)
-			r.Patch("/{id}/name", viewHandlers.RenameView)
-			r.Put("/{id}/default", viewHandlers.SetDefaultView)
-			r.Patch("/{id}/edge-type", viewHandlers.UpdateEdgeType)
-			r.Patch("/{id}/layout-direction", viewHandlers.UpdateLayoutDirection)
-			r.Patch("/{id}/color-scheme", colorHandlers.UpdateColorScheme)
-			r.Post("/{id}/components", componentHandlers.AddComponentToView)
-			r.Patch("/{id}/components/{componentId}/position", componentHandlers.UpdateComponentPosition)
-			r.Patch("/{id}/components/{componentId}/color", colorHandlers.UpdateComponentColor)
-			r.Patch("/{id}/layout", componentHandlers.UpdateMultiplePositions)
-			r.Post("/{id}/capabilities", elementHandlers.AddCapabilityToView)
-			r.Patch("/{id}/capabilities/{capabilityId}/position", elementHandlers.UpdateCapabilityPosition)
-			r.Patch("/{id}/capabilities/{capabilityId}/color", colorHandlers.UpdateCapabilityColor)
-			r.Post("/{id}/origin-entities", elementHandlers.AddOriginEntityToView)
-			r.Patch("/{id}/origin-entities/{originEntityId}/position", elementHandlers.UpdateOriginEntityPosition)
-			r.Patch("/{id}/visibility", viewHandlers.ChangeVisibility)
+			r.Post("/", h.view.CreateView)
+			r.Patch("/{id}/name", h.view.RenameView)
+			r.Put("/{id}/default", h.view.SetDefaultView)
+			r.Patch("/{id}/edge-type", h.view.UpdateEdgeType)
+			r.Patch("/{id}/layout-direction", h.view.UpdateLayoutDirection)
+			r.Patch("/{id}/color-scheme", h.color.UpdateColorScheme)
+			r.Post("/{id}/components", h.component.AddComponentToView)
+			r.Patch("/{id}/components/{componentId}/position", h.component.UpdateComponentPosition)
+			r.Patch("/{id}/components/{componentId}/color", h.color.UpdateComponentColor)
+			r.Patch("/{id}/layout", h.component.UpdateMultiplePositions)
+			r.Post("/{id}/capabilities", h.element.AddCapabilityToView)
+			r.Patch("/{id}/capabilities/{capabilityId}/position", h.element.UpdateCapabilityPosition)
+			r.Patch("/{id}/capabilities/{capabilityId}/color", h.color.UpdateCapabilityColor)
+			r.Post("/{id}/origin-entities", h.element.AddOriginEntityToView)
+			r.Patch("/{id}/origin-entities/{originEntityId}/position", h.element.UpdateOriginEntityPosition)
+			r.Patch("/{id}/visibility", h.view.ChangeVisibility)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authValueObjects.PermViewsDelete))
-			r.Delete("/{id}", viewHandlers.DeleteView)
-			r.Delete("/{id}/components/{componentId}", componentHandlers.RemoveComponentFromView)
-			r.Delete("/{id}/components/{componentId}/color", colorHandlers.ClearComponentColor)
-			r.Delete("/{id}/capabilities/{capabilityId}", elementHandlers.RemoveCapabilityFromView)
-			r.Delete("/{id}/capabilities/{capabilityId}/color", colorHandlers.ClearCapabilityColor)
-			r.Delete("/{id}/origin-entities/{originEntityId}", elementHandlers.RemoveOriginEntityFromView)
+			r.Delete("/{id}", h.view.DeleteView)
+			r.Delete("/{id}/components/{componentId}", h.component.RemoveComponentFromView)
+			r.Delete("/{id}/components/{componentId}/color", h.color.ClearComponentColor)
+			r.Delete("/{id}/capabilities/{capabilityId}", h.element.RemoveCapabilityFromView)
+			r.Delete("/{id}/capabilities/{capabilityId}/color", h.color.ClearCapabilityColor)
+			r.Delete("/{id}/origin-entities/{originEntityId}", h.element.RemoveOriginEntityFromView)
 		})
 	})
-
-	return nil
 }
