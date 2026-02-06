@@ -206,7 +206,9 @@ func (p *DomainCapabilityMetadataProjector) handleCapabilityAssignedToDomain(ctx
 		log.Printf("Failed to unmarshal CapabilityAssignedToDomain event: %v", err)
 		return err
 	}
-	return p.recalculateSubtreeAndDomainCounts(ctx, event.CapabilityID)
+
+	domainName := p.lookupBusinessDomainName(ctx, event.BusinessDomainID)
+	return p.updateBusinessDomainAndRecalculate(ctx, event.CapabilityID, event.BusinessDomainID, domainName)
 }
 
 type capabilityUnassignedFromDomainEvent struct {
@@ -222,7 +224,24 @@ func (p *DomainCapabilityMetadataProjector) handleCapabilityUnassignedFromDomain
 		log.Printf("Failed to unmarshal CapabilityUnassignedFromDomain event: %v", err)
 		return err
 	}
-	return p.recalculateSubtreeAndDomainCounts(ctx, event.CapabilityID)
+
+	return p.updateBusinessDomainAndRecalculate(ctx, event.CapabilityID, "", "")
+}
+
+func (p *DomainCapabilityMetadataProjector) updateBusinessDomainAndRecalculate(ctx context.Context, capabilityID, businessDomainID, businessDomainName string) error {
+	meta, err := p.metadataReadModel.GetByID(ctx, capabilityID)
+	if err != nil {
+		log.Printf("Failed to get metadata for %s: %v", capabilityID, err)
+		return err
+	}
+	if meta != nil {
+		if err := p.metadataReadModel.UpdateBusinessDomainForL1Subtree(ctx, meta.L1CapabilityID, businessDomainID, businessDomainName); err != nil {
+			log.Printf("Failed to update business domain for L1 subtree %s: %v", meta.L1CapabilityID, err)
+			return err
+		}
+	}
+
+	return p.recalculateSubtreeAndDomainCounts(ctx, capabilityID)
 }
 
 func (p *DomainCapabilityMetadataProjector) recalculateSubtreeAndDomainCounts(ctx context.Context, capabilityID string) error {
