@@ -116,6 +116,11 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     closeMenus();
   }, [onPaneClick, closeMenus]);
 
+  const handleMiniMapClick = useCallback((_event: React.MouseEvent, position: { x: number; y: number }) => {
+    const { zoom } = reactFlowInstance.getViewport();
+    reactFlowInstance.setCenter(position.x, position.y, { zoom, duration: 300 });
+  }, [reactFlowInstance]);
+
   useImperativeHandle(ref, () => ({
     centerOnNode: (nodeId: string) => {
       const node = internalNodes.find(n => n.id === nodeId);
@@ -161,6 +166,9 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
         <Controls />
         <MiniMap
+          pannable
+          zoomable
+          onClick={handleMiniMapClick}
           nodeColor={(node) => {
             if (node.type === 'capability') {
               const capId = node.id.replace('cap-', '');
