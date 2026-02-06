@@ -61,22 +61,20 @@ func NewStrategicAnalysisFixtures(tc *TestContext) *StrategicAnalysisFixtures {
 	hierarchyService := services.NewCapabilityHierarchyService(capabilityLookupAdapter)
 	ratingResolver := services.NewHierarchicalRatingResolver(hierarchyService, ratingLookupAdapter, capabilityLookupAdapter)
 
-	effectiveImportanceProjector := projectors.NewEffectiveImportanceProjector(
-		effectiveImportanceRM,
-		importanceRM,
-		capabilityRM,
-		domainAssignmentRM,
-		ratingResolver,
-		hierarchyService,
-		pillarsGateway,
-	)
-	tc.EventBus.Subscribe("StrategyImportanceSet", effectiveImportanceProjector)
-	tc.EventBus.Subscribe("StrategyImportanceUpdated", effectiveImportanceProjector)
-	tc.EventBus.Subscribe("StrategyImportanceRemoved", effectiveImportanceProjector)
-	tc.EventBus.Subscribe("CapabilityParentChanged", effectiveImportanceProjector)
-	tc.EventBus.Subscribe("CapabilityDeleted", effectiveImportanceProjector)
-	tc.EventBus.Subscribe("CapabilityAssignedToDomain", effectiveImportanceProjector)
-	tc.EventBus.Subscribe("CapabilityUnassignedFromDomain", effectiveImportanceProjector)
+	recomputer := projectors.NewEffectiveImportanceRecomputer(effectiveImportanceRM, ratingResolver, hierarchyService)
+
+	importanceChangeProjector := projectors.NewImportanceChangeEffectiveProjector(recomputer, importanceRM)
+	tc.EventBus.Subscribe("StrategyImportanceSet", importanceChangeProjector)
+	tc.EventBus.Subscribe("StrategyImportanceUpdated", importanceChangeProjector)
+	tc.EventBus.Subscribe("StrategyImportanceRemoved", importanceChangeProjector)
+
+	hierarchyChangeProjector := projectors.NewHierarchyChangeEffectiveProjector(recomputer, effectiveImportanceRM)
+	tc.EventBus.Subscribe("CapabilityParentChanged", hierarchyChangeProjector)
+	tc.EventBus.Subscribe("CapabilityDeleted", hierarchyChangeProjector)
+
+	domainAssignmentEffectiveProjector := projectors.NewDomainAssignmentEffectiveProjector(recomputer, effectiveImportanceRM, hierarchyService, domainAssignmentRM, pillarsGateway)
+	tc.EventBus.Subscribe("CapabilityAssignedToDomain", domainAssignmentEffectiveProjector)
+	tc.EventBus.Subscribe("CapabilityUnassignedFromDomain", domainAssignmentEffectiveProjector)
 
 	tc.CommandBus.Register("LinkSystemToCapability", capHandlers.NewLinkSystemToCapabilityHandler(realizationRepo, capabilityRepo, componentCacheRM))
 	tc.CommandBus.Register("UpdateSystemRealization", capHandlers.NewUpdateSystemRealizationHandler(realizationRepo))

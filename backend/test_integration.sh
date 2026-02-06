@@ -48,4 +48,28 @@ echo "Running database tenant isolation integration tests..."
 go test -v -tags=integration ./internal/infrastructure/database/... -count=1
 
 echo ""
+
+# Run integration tests for metamodel
+echo "Running metamodel integration tests..."
+go test -v -tags=integration ./internal/metamodel/infrastructure/api/... -count=1
+
+echo ""
+
+# Run integration tests for enterprise architecture
+echo "Running enterprise architecture integration tests..."
+go test -v -tags=integration ./internal/enterprisearchitecture/application/... -count=1
+
+echo ""
+
+# Run integration tests for audit
+echo "Running audit integration tests..."
+go test -v -tags=integration ./internal/shared/audit/... -count=1
+
+echo ""
+
+# Run integration tests for test fixtures
+echo "Running test fixtures integration tests..."
+go test -v -tags=integration ./internal/testing/... -count=1
+
+echo ""
 echo "✓ All integration tests complete!"

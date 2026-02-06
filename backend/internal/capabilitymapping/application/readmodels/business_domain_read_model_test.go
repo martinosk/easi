@@ -19,30 +19,12 @@ import (
 )
 
 func setupTestDB(t *testing.T) (*sql.DB, func()) {
-	dbHost := getEnv("INTEGRATION_TEST_DB_HOST", "localhost")
-	dbPort := getEnv("INTEGRATION_TEST_DB_PORT", "5432")
-	dbUser := getEnv("INTEGRATION_TEST_DB_USER", "easi_app")
-	dbPassword := getEnv("INTEGRATION_TEST_DB_PASSWORD", "localdev")
-	dbName := getEnv("INTEGRATION_TEST_DB_NAME", "easi")
-	dbSSLMode := getEnv("INTEGRATION_TEST_DB_SSLMODE", "disable")
-
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		dbHost, dbPort, dbUser, dbPassword, dbName, dbSSLMode)
+		"localhost", "5432", "easi_app", "localdev", "easi", "disable")
 	db, err := sql.Open("postgres", connStr)
 	require.NoError(t, err)
-
-	err = db.Ping()
-	require.NoError(t, err)
-
-	cleanup := func() {
-		db.Close()
-	}
-
-	return db, cleanup
-}
-
-func getEnv(key, defaultValue string) string {
-	return defaultValue
+	require.NoError(t, db.Ping())
+	return db, func() { db.Close() }
 }
 
 func tenantContext() context.Context {
@@ -54,191 +36,155 @@ func setTenantContext(t *testing.T, db *sql.DB) {
 	require.NoError(t, err)
 }
 
-func TestBusinessDomainReadModel_Insert(t *testing.T) {
+type businessDomainTestFixture struct {
+	db        *sql.DB
+	readModel *BusinessDomainReadModel
+	ctx       context.Context
+	t         *testing.T
+}
+
+func newBusinessDomainTestFixture(t *testing.T) *businessDomainTestFixture {
 	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	t.Cleanup(cleanup)
 
 	tenantDB := database.NewTenantAwareDB(db)
-	readModel := NewBusinessDomainReadModel(tenantDB)
 
-	domainID := fmt.Sprintf("bd-test-%d", time.Now().UnixNano())
+	return &businessDomainTestFixture{
+		db:        db,
+		readModel: NewBusinessDomainReadModel(tenantDB),
+		ctx:       tenantContext(),
+		t:         t,
+	}
+}
+
+func (f *businessDomainTestFixture) uniqueID(prefix string) string {
+	return fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano())
+}
+
+func (f *businessDomainTestFixture) setTenantContext() {
+	_, err := f.db.Exec("SET app.current_tenant = 'default'")
+	require.NoError(f.t, err)
+}
+
+func (f *businessDomainTestFixture) insertDomain(id, name, description string, capabilityCount int) {
+	f.setTenantContext()
+	_, err := f.db.Exec(
+		"INSERT INTO business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+		id, "default", name, description, capabilityCount, time.Now().UTC(),
+	)
+	require.NoError(f.t, err)
+	f.t.Cleanup(func() { f.db.Exec("DELETE FROM business_domains WHERE id = $1", id) })
+}
+
+func (f *businessDomainTestFixture) queryName(id string) string {
+	f.setTenantContext()
+	var name string
+	err := f.db.QueryRow("SELECT name FROM business_domains WHERE id = $1", id).Scan(&name)
+	require.NoError(f.t, err)
+	return name
+}
+
+func (f *businessDomainTestFixture) queryCapabilityCount(id string) int {
+	f.setTenantContext()
+	var count int
+	err := f.db.QueryRow("SELECT capability_count FROM business_domains WHERE id = $1", id).Scan(&count)
+	require.NoError(f.t, err)
+	return count
+}
+
+func (f *businessDomainTestFixture) queryRowCount(id string) int {
+	f.setTenantContext()
+	var count int
+	err := f.db.QueryRow("SELECT COUNT(*) FROM business_domains WHERE id = $1", id).Scan(&count)
+	require.NoError(f.t, err)
+	return count
+}
+
+func TestBusinessDomainReadModel_Insert(t *testing.T) {
+	f := newBusinessDomainTestFixture(t)
+	domainID := f.uniqueID("bd-test")
+	now := time.Now().UTC()
 	dto := BusinessDomainDTO{
 		ID:          domainID,
 		Name:        "Finance",
 		Description: "Financial operations and planning",
-		CreatedAt:   time.Now().UTC(),
+		CreatedAt:   now,
 	}
 
-	ctx := tenantContext()
-	err := readModel.Insert(ctx, dto)
+	err := f.readModel.Insert(f.ctx, dto)
 	require.NoError(t, err)
+	t.Cleanup(func() { f.db.Exec("DELETE FROM business_domains WHERE id = $1", domainID) })
 
-	setTenantContext(t, db)
+	f.setTenantContext()
 	var name, description string
 	var createdAt time.Time
-	err = db.QueryRow(
-		"SELECT name, description, created_at FROM business_domains WHERE id = $1",
-		domainID,
+	err = f.db.QueryRow(
+		"SELECT name, description, created_at FROM business_domains WHERE id = $1", domainID,
 	).Scan(&name, &description, &createdAt)
 	require.NoError(t, err)
 
 	assert.Equal(t, "Finance", name)
 	assert.Equal(t, "Financial operations and planning", description)
-	assert.WithinDuration(t, dto.CreatedAt, createdAt, time.Second)
-
-	_, err = db.Exec("DELETE FROM business_domains WHERE id = $1", domainID)
-	require.NoError(t, err)
+	assert.WithinDuration(t, now, createdAt, time.Second)
 }
 
 func TestBusinessDomainReadModel_Update(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	f := newBusinessDomainTestFixture(t)
+	domainID := f.uniqueID("bd-test")
+	f.insertDomain(domainID, "Original Name", "Original Description", 0)
 
-	tenantDB := database.NewTenantAwareDB(db)
-	readModel := NewBusinessDomainReadModel(tenantDB)
-
-	domainID := fmt.Sprintf("bd-test-%d", time.Now().UnixNano())
-	setTenantContext(t, db)
-	_, err := db.Exec(
-		"INSERT INTO business_domains (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
-		domainID, "default", "Original Name", "Original Description", time.Now().UTC(),
-	)
+	err := f.readModel.Update(f.ctx, domainID, BusinessDomainUpdate{Name: "Updated Name", Description: "Updated Description"})
 	require.NoError(t, err)
 
-	ctx := tenantContext()
-	err = readModel.Update(ctx, domainID, "Updated Name", "Updated Description")
-	require.NoError(t, err)
-
-	setTenantContext(t, db)
+	f.setTenantContext()
 	var name, description string
-	err = db.QueryRow(
-		"SELECT name, description FROM business_domains WHERE id = $1",
-		domainID,
-	).Scan(&name, &description)
+	err = f.db.QueryRow("SELECT name, description FROM business_domains WHERE id = $1", domainID).Scan(&name, &description)
 	require.NoError(t, err)
 
 	assert.Equal(t, "Updated Name", name)
 	assert.Equal(t, "Updated Description", description)
-
-	_, err = db.Exec("DELETE FROM business_domains WHERE id = $1", domainID)
-	require.NoError(t, err)
 }
 
 func TestBusinessDomainReadModel_Delete(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	f := newBusinessDomainTestFixture(t)
+	domainID := f.uniqueID("bd-test")
+	f.insertDomain(domainID, "To Delete", "Will be removed", 0)
 
-	tenantDB := database.NewTenantAwareDB(db)
-	readModel := NewBusinessDomainReadModel(tenantDB)
-
-	domainID := fmt.Sprintf("bd-test-%d", time.Now().UnixNano())
-	setTenantContext(t, db)
-	_, err := db.Exec(
-		"INSERT INTO business_domains (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
-		domainID, "default", "To Delete", "Will be removed", time.Now().UTC(),
-	)
+	err := f.readModel.Delete(f.ctx, domainID)
 	require.NoError(t, err)
 
-	ctx := tenantContext()
-	err = readModel.Delete(ctx, domainID)
-	require.NoError(t, err)
-
-	setTenantContext(t, db)
-	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM business_domains WHERE id = $1", domainID).Scan(&count)
-	require.NoError(t, err)
-	assert.Equal(t, 0, count)
+	assert.Equal(t, 0, f.queryRowCount(domainID))
 }
 
 func TestBusinessDomainReadModel_IncrementCapabilityCount(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	f := newBusinessDomainTestFixture(t)
+	domainID := f.uniqueID("bd-test")
+	f.insertDomain(domainID, "Test Domain", "Description", 0)
 
-	tenantDB := database.NewTenantAwareDB(db)
-	readModel := NewBusinessDomainReadModel(tenantDB)
+	require.NoError(t, f.readModel.IncrementCapabilityCount(f.ctx, domainID))
+	assert.Equal(t, 1, f.queryCapabilityCount(domainID))
 
-	domainID := fmt.Sprintf("bd-test-%d", time.Now().UnixNano())
-	setTenantContext(t, db)
-	_, err := db.Exec(
-		"INSERT INTO business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		domainID, "default", "Test Domain", "Description", 0, time.Now().UTC(),
-	)
-	require.NoError(t, err)
-
-	ctx := tenantContext()
-	err = readModel.IncrementCapabilityCount(ctx, domainID)
-	require.NoError(t, err)
-
-	setTenantContext(t, db)
-	var count int
-	err = db.QueryRow("SELECT capability_count FROM business_domains WHERE id = $1", domainID).Scan(&count)
-	require.NoError(t, err)
-	assert.Equal(t, 1, count)
-
-	err = readModel.IncrementCapabilityCount(ctx, domainID)
-	require.NoError(t, err)
-
-	setTenantContext(t, db)
-	err = db.QueryRow("SELECT capability_count FROM business_domains WHERE id = $1", domainID).Scan(&count)
-	require.NoError(t, err)
-	assert.Equal(t, 2, count)
-
-	_, err = db.Exec("DELETE FROM business_domains WHERE id = $1", domainID)
-	require.NoError(t, err)
+	require.NoError(t, f.readModel.IncrementCapabilityCount(f.ctx, domainID))
+	assert.Equal(t, 2, f.queryCapabilityCount(domainID))
 }
 
 func TestBusinessDomainReadModel_DecrementCapabilityCount(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	f := newBusinessDomainTestFixture(t)
+	domainID := f.uniqueID("bd-test")
+	f.insertDomain(domainID, "Test Domain", "Description", 2)
 
-	tenantDB := database.NewTenantAwareDB(db)
-	readModel := NewBusinessDomainReadModel(tenantDB)
-
-	domainID := fmt.Sprintf("bd-test-%d", time.Now().UnixNano())
-	setTenantContext(t, db)
-	_, err := db.Exec(
-		"INSERT INTO business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		domainID, "default", "Test Domain", "Description", 2, time.Now().UTC(),
-	)
-	require.NoError(t, err)
-
-	ctx := tenantContext()
-	err = readModel.DecrementCapabilityCount(ctx, domainID)
-	require.NoError(t, err)
-
-	setTenantContext(t, db)
-	var count int
-	err = db.QueryRow("SELECT capability_count FROM business_domains WHERE id = $1", domainID).Scan(&count)
-	require.NoError(t, err)
-	assert.Equal(t, 1, count)
-
-	_, err = db.Exec("DELETE FROM business_domains WHERE id = $1", domainID)
-	require.NoError(t, err)
+	require.NoError(t, f.readModel.DecrementCapabilityCount(f.ctx, domainID))
+	assert.Equal(t, 1, f.queryCapabilityCount(domainID))
 }
 
 func TestBusinessDomainReadModel_GetAll(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	f := newBusinessDomainTestFixture(t)
+	domain1ID := f.uniqueID("bd-test-1")
+	domain2ID := f.uniqueID("bd-test-2")
+	f.insertDomain(domain1ID, "Finance", "Finance domain", 3)
+	f.insertDomain(domain2ID, "Operations", "Operations domain", 5)
 
-	tenantDB := database.NewTenantAwareDB(db)
-	readModel := NewBusinessDomainReadModel(tenantDB)
-
-	domain1ID := fmt.Sprintf("bd-test-1-%d", time.Now().UnixNano())
-	domain2ID := fmt.Sprintf("bd-test-2-%d", time.Now().UnixNano())
-	setTenantContext(t, db)
-	_, err := db.Exec(
-		"INSERT INTO business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		domain1ID, "default", "Finance", "Finance domain", 3, time.Now().UTC(),
-	)
-	require.NoError(t, err)
-	_, err = db.Exec(
-		"INSERT INTO business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		domain2ID, "default", "Operations", "Operations domain", 5, time.Now().UTC(),
-	)
-	require.NoError(t, err)
-
-	ctx := tenantContext()
-	domains, err := readModel.GetAll(ctx)
+	domains, err := f.readModel.GetAll(f.ctx)
 	require.NoError(t, err)
 
 	var found1, found2 bool
@@ -256,28 +202,14 @@ func TestBusinessDomainReadModel_GetAll(t *testing.T) {
 	}
 	assert.True(t, found1, "Domain 1 not found in results")
 	assert.True(t, found2, "Domain 2 not found in results")
-
-	_, err = db.Exec("DELETE FROM business_domains WHERE id IN ($1, $2)", domain1ID, domain2ID)
-	require.NoError(t, err)
 }
 
 func TestBusinessDomainReadModel_GetByID(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	f := newBusinessDomainTestFixture(t)
+	domainID := f.uniqueID("bd-test")
+	f.insertDomain(domainID, "Customer Experience", "CX domain", 7)
 
-	tenantDB := database.NewTenantAwareDB(db)
-	readModel := NewBusinessDomainReadModel(tenantDB)
-
-	domainID := fmt.Sprintf("bd-test-%d", time.Now().UnixNano())
-	setTenantContext(t, db)
-	_, err := db.Exec(
-		"INSERT INTO business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		domainID, "default", "Customer Experience", "CX domain", 7, time.Now().UTC(),
-	)
-	require.NoError(t, err)
-
-	ctx := tenantContext()
-	domain, err := readModel.GetByID(ctx, domainID)
+	domain, err := f.readModel.GetByID(f.ctx, domainID)
 	require.NoError(t, err)
 	require.NotNil(t, domain)
 
@@ -285,92 +217,51 @@ func TestBusinessDomainReadModel_GetByID(t *testing.T) {
 	assert.Equal(t, "Customer Experience", domain.Name)
 	assert.Equal(t, "CX domain", domain.Description)
 	assert.Equal(t, 7, domain.CapabilityCount)
-
-	_, err = db.Exec("DELETE FROM business_domains WHERE id = $1", domainID)
-	require.NoError(t, err)
 }
 
 func TestBusinessDomainReadModel_GetByID_NotFound(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	f := newBusinessDomainTestFixture(t)
 
-	tenantDB := database.NewTenantAwareDB(db)
-	readModel := NewBusinessDomainReadModel(tenantDB)
-
-	ctx := tenantContext()
-	domain, err := readModel.GetByID(ctx, "bd-nonexistent")
+	domain, err := f.readModel.GetByID(f.ctx, "bd-nonexistent")
 	require.NoError(t, err)
 	assert.Nil(t, domain)
 }
 
 func TestBusinessDomainReadModel_GetByName(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	f := newBusinessDomainTestFixture(t)
+	domainID := f.uniqueID("bd-test")
+	f.insertDomain(domainID, "Technology", "Tech domain", 4)
 
-	tenantDB := database.NewTenantAwareDB(db)
-	readModel := NewBusinessDomainReadModel(tenantDB)
-
-	domainID := fmt.Sprintf("bd-test-%d", time.Now().UnixNano())
-	setTenantContext(t, db)
-	_, err := db.Exec(
-		"INSERT INTO business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		domainID, "default", "Technology", "Tech domain", 4, time.Now().UTC(),
-	)
-	require.NoError(t, err)
-
-	ctx := tenantContext()
-	domain, err := readModel.GetByName(ctx, "Technology")
+	domain, err := f.readModel.GetByName(f.ctx, "Technology")
 	require.NoError(t, err)
 	require.NotNil(t, domain)
 
 	assert.Equal(t, domainID, domain.ID)
 	assert.Equal(t, "Technology", domain.Name)
-
-	_, err = db.Exec("DELETE FROM business_domains WHERE id = $1", domainID)
-	require.NoError(t, err)
 }
 
 func TestBusinessDomainReadModel_GetByName_NotFound(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	f := newBusinessDomainTestFixture(t)
 
-	tenantDB := database.NewTenantAwareDB(db)
-	readModel := NewBusinessDomainReadModel(tenantDB)
-
-	ctx := tenantContext()
-	domain, err := readModel.GetByName(ctx, "NonExistentDomain")
+	domain, err := f.readModel.GetByName(f.ctx, "NonExistentDomain")
 	require.NoError(t, err)
 	assert.Nil(t, domain)
 }
 
 func TestBusinessDomainReadModel_NameExists(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	f := newBusinessDomainTestFixture(t)
+	domainID := f.uniqueID("bd-test")
+	f.insertDomain(domainID, "Marketing", "Marketing domain", 0)
 
-	tenantDB := database.NewTenantAwareDB(db)
-	readModel := NewBusinessDomainReadModel(tenantDB)
-
-	domainID := fmt.Sprintf("bd-test-%d", time.Now().UnixNano())
-	setTenantContext(t, db)
-	_, err := db.Exec(
-		"INSERT INTO business_domains (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
-		domainID, "default", "Marketing", "Marketing domain", time.Now().UTC(),
-	)
-	require.NoError(t, err)
-
-	ctx := tenantContext()
-	exists, err := readModel.NameExists(ctx, "Marketing", "")
+	exists, err := f.readModel.NameExists(f.ctx, "Marketing", "")
 	require.NoError(t, err)
 	assert.True(t, exists)
 
-	exists, err = readModel.NameExists(ctx, "NonExistent", "")
+	exists, err = f.readModel.NameExists(f.ctx, "NonExistent", "")
 	require.NoError(t, err)
 	assert.False(t, exists)
 
-	exists, err = readModel.NameExists(ctx, "Marketing", domainID)
+	exists, err = f.readModel.NameExists(f.ctx, "Marketing", domainID)
 	require.NoError(t, err)
 	assert.False(t, exists, "Should exclude self when checking name uniqueness")
-
-	_, err = db.Exec("DELETE FROM business_domains WHERE id = $1", domainID)
-	require.NoError(t, err)
 }

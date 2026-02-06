@@ -21,7 +21,6 @@ import (
 
 type timeSuggestionTestFixture struct {
 	db        *sql.DB
-	tenantDB  *database.TenantAwareDB
 	readModel *TimeSuggestionReadModel
 	ctx       context.Context
 	t         *testing.T
@@ -39,6 +38,22 @@ func (m *mockPillarsGateway) GetStrategyPillars(ctx context.Context) (*metamodel
 	return m.pillars, nil
 }
 
+func (m *mockPillarsGateway) GetActivePillar(ctx context.Context, pillarID string) (*metamodel.StrategyPillarDTO, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	if m.pillars != nil {
+		for _, p := range m.pillars.Pillars {
+			if p.ID == pillarID && p.Active {
+				return &p, nil
+			}
+		}
+	}
+	return nil, nil
+}
+
+func (m *mockPillarsGateway) InvalidateCache(tenantID string) {}
+
 func newTimeSuggestionTestFixture(t *testing.T, pillars *metamodel.StrategyPillarsConfigDTO) *timeSuggestionTestFixture {
 	db := setupTimeSuggestionTestDB(t)
 	tenantDB := database.NewTenantAwareDB(db)
@@ -50,7 +65,6 @@ func newTimeSuggestionTestFixture(t *testing.T, pillars *metamodel.StrategyPilla
 
 	return &timeSuggestionTestFixture{
 		db:        db,
-		tenantDB:  tenantDB,
 		readModel: NewTimeSuggestionReadModel(tenantDB, gateway),
 		ctx:       sharedcontext.WithTenant(context.Background(), sharedvo.DefaultTenantID()),
 		t:         t,
@@ -190,63 +204,62 @@ func TestTimeSuggestionReadModel_GetAllSuggestions_WithData(t *testing.T) {
 	assert.Equal(t, "High", suggestion.Confidence)
 }
 
-func TestTimeSuggestionReadModel_GetByCapability_FiltersCorrectly(t *testing.T) {
-	pillars := &metamodel.StrategyPillarsConfigDTO{
+type filterTestData struct {
+	componentID  string
+	capabilityID string
+	domainID     string
+}
+
+func (f *timeSuggestionTestFixture) setupFilterTestData() filterTestData {
+	data := filterTestData{
+		componentID:  f.uniqueID("comp"),
+		capabilityID: f.uniqueID("cap"),
+		domainID:     f.uniqueID("domain"),
+	}
+	f.createComponent(data.componentID, "Test Component")
+	f.createCapability(data.capabilityID, "Test Capability")
+	f.createRealization(data.capabilityID, data.componentID, "Test Component")
+	f.createDomainCapabilityMetadata(data.capabilityID, data.domainID)
+	f.createEffectiveCapabilityImportance(data.capabilityID, data.domainID, "pillar-tech", 80)
+	f.createApplicationFitScore(data.componentID, "pillar-tech", 70)
+	return data
+}
+
+func newTechPillarFixture(t *testing.T) *timeSuggestionTestFixture {
+	return newTimeSuggestionTestFixture(t, &metamodel.StrategyPillarsConfigDTO{
 		Pillars: []metamodel.StrategyPillarDTO{
 			{ID: "pillar-tech", Name: "Technical", FitScoringEnabled: true, FitType: "TECHNICAL"},
 		},
-	}
-	f := newTimeSuggestionTestFixture(t, pillars)
+	})
+}
 
-	componentID := f.uniqueID("comp")
-	capabilityID1 := f.uniqueID("cap1")
-	capabilityID2 := f.uniqueID("cap2")
-	domainID := f.uniqueID("domain")
+func TestTimeSuggestionReadModel_GetByCapability_FiltersCorrectly(t *testing.T) {
+	f := newTechPillarFixture(t)
+	data := f.setupFilterTestData()
+	unlinkedCapID := f.uniqueID("cap-unlinked")
+	f.createCapability(unlinkedCapID, "Unlinked Capability")
 
-	f.createComponent(componentID, "Test Component")
-	f.createCapability(capabilityID1, "Capability 1")
-	f.createCapability(capabilityID2, "Capability 2")
-	f.createRealization(capabilityID1, componentID, "Test Component")
-	f.createDomainCapabilityMetadata(capabilityID1, domainID)
-	f.createEffectiveCapabilityImportance(capabilityID1, domainID, "pillar-tech", 80)
-	f.createApplicationFitScore(componentID, "pillar-tech", 70)
-
-	suggestionsCap1, err := f.readModel.GetByCapability(f.ctx, capabilityID1)
+	suggestionsCap1, err := f.readModel.GetByCapability(f.ctx, data.capabilityID)
 	require.NoError(t, err)
 	assert.Len(t, suggestionsCap1, 1)
 
-	suggestionsCap2, err := f.readModel.GetByCapability(f.ctx, capabilityID2)
+	suggestionsCap2, err := f.readModel.GetByCapability(f.ctx, unlinkedCapID)
 	require.NoError(t, err)
 	assert.Empty(t, suggestionsCap2)
 }
 
 func TestTimeSuggestionReadModel_GetByComponent_FiltersCorrectly(t *testing.T) {
-	pillars := &metamodel.StrategyPillarsConfigDTO{
-		Pillars: []metamodel.StrategyPillarDTO{
-			{ID: "pillar-tech", Name: "Technical", FitScoringEnabled: true, FitType: "TECHNICAL"},
-		},
-	}
-	f := newTimeSuggestionTestFixture(t, pillars)
+	f := newTechPillarFixture(t)
+	data := f.setupFilterTestData()
+	unlinkedCompID := f.uniqueID("comp-unlinked")
+	f.createComponent(unlinkedCompID, "Unlinked Component")
+	f.createApplicationFitScore(unlinkedCompID, "pillar-tech", 60)
 
-	componentID1 := f.uniqueID("comp1")
-	componentID2 := f.uniqueID("comp2")
-	capabilityID := f.uniqueID("cap")
-	domainID := f.uniqueID("domain")
-
-	f.createComponent(componentID1, "Component 1")
-	f.createComponent(componentID2, "Component 2")
-	f.createCapability(capabilityID, "Test Capability")
-	f.createRealization(capabilityID, componentID1, "Component 1")
-	f.createDomainCapabilityMetadata(capabilityID, domainID)
-	f.createEffectiveCapabilityImportance(capabilityID, domainID, "pillar-tech", 80)
-	f.createApplicationFitScore(componentID1, "pillar-tech", 70)
-	f.createApplicationFitScore(componentID2, "pillar-tech", 60)
-
-	suggestionsComp1, err := f.readModel.GetByComponent(f.ctx, componentID1)
+	suggestionsComp1, err := f.readModel.GetByComponent(f.ctx, data.componentID)
 	require.NoError(t, err)
 	assert.Len(t, suggestionsComp1, 1)
 
-	suggestionsComp2, err := f.readModel.GetByComponent(f.ctx, componentID2)
+	suggestionsComp2, err := f.readModel.GetByComponent(f.ctx, unlinkedCompID)
 	require.NoError(t, err)
 	assert.Empty(t, suggestionsComp2)
 }
