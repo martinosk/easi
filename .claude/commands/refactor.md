@@ -55,3 +55,12 @@ Refactor a file using CodeScene MCP to achieve a code health score of 10.0.
 - Preserve all existing behavior — refactoring only, no functional changes.
 - Respect the project's code style (no added comments, no over-engineering).
 - If a recommendation conflicts with project conventions (e.g., suggests adding comments), skip it and note why.
+
+# Refactoring hints
+
+## Fixing "Excess Number of Function Arguments"
+
+Do NOT fix it by simply bundling arguments into a struct to reduce the count. Instead, investigate the root cause:
+
+1. **Low cohesion / too many responsibilities**: The class or function is doing too much. Split responsibilities into separate, cohesive types.
+2. **Missing domain abstraction**: There is a coherent concept hiding behind the arguments that deserves its own type. Only introduce such a type if it genuinely encapsulates something meaningful — e.g., a "result" that bundles an ID + status code + location, or a domain value object. Do NOT create a struct that is just a bag of unrelated arguments passed together for convenience.

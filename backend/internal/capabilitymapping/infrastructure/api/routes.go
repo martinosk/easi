@@ -112,6 +112,7 @@ type routeHTTPHandlers struct {
 	businessDomain       *BusinessDomainHandlers
 	strategyImportance   *StrategyImportanceHandlers
 	applicationFitScore  *ApplicationFitScoreHandlers
+	fitComparison        *FitComparisonHandlers
 	strategicFitAnalysis *StrategicFitAnalysisHandlers
 }
 
@@ -366,7 +367,8 @@ func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadMo
 		maturityLevel:        NewMaturityLevelHandlers(maturityGateway),
 		businessDomain:       NewBusinessDomainHandlers(commandBus, businessDomainReadModels, hateoas),
 		strategyImportance:   NewStrategyImportanceHandlers(commandBus, rm.strategyImportance, hateoas),
-		applicationFitScore:  NewApplicationFitScoreHandlers(commandBus, rm.applicationFitScore, rm.componentFitComparison, hateoas, sessionManager),
+		applicationFitScore:  NewApplicationFitScoreHandlers(commandBus, rm.applicationFitScore, hateoas, sessionManager),
+		fitComparison:        NewFitComparisonHandlers(rm.componentFitComparison),
 		strategicFitAnalysis: NewStrategicFitAnalysisHandlers(rm.strategicFitAnalysis, pillarsGateway, sessionManager),
 	}
 }
@@ -512,7 +514,7 @@ func registerApplicationFitScoreRoutes(r chi.Router, h *routeHTTPHandlers, authM
 	})
 	r.Group(func(r chi.Router) {
 		r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsRead))
-		r.Get("/components/{id}/fit-comparisons", h.applicationFitScore.GetFitComparisons)
+		r.Get("/components/{id}/fit-comparisons", h.fitComparison.GetFitComparisons)
 		r.Get("/strategy-pillars/{pillarId}/fit-scores", h.applicationFitScore.GetFitScoresByPillar)
 	})
 }

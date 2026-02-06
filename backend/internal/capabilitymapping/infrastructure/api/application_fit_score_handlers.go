@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 
 	"easi/backend/internal/auth/infrastructure/session"
@@ -16,26 +17,23 @@ import (
 )
 
 type ApplicationFitScoreHandlers struct {
-	commandBus       cqrs.CommandBus
-	fitScoreRM       *readmodels.ApplicationFitScoreReadModel
-	fitComparisonRM  *readmodels.ComponentFitComparisonReadModel
-	hateoas          *sharedAPI.HATEOASLinks
-	sessionManager   *session.SessionManager
+	commandBus     cqrs.CommandBus
+	fitScoreRM     *readmodels.ApplicationFitScoreReadModel
+	hateoas        *sharedAPI.HATEOASLinks
+	sessionManager *session.SessionManager
 }
 
 func NewApplicationFitScoreHandlers(
 	commandBus cqrs.CommandBus,
 	fitScoreRM *readmodels.ApplicationFitScoreReadModel,
-	fitComparisonRM *readmodels.ComponentFitComparisonReadModel,
 	hateoas *sharedAPI.HATEOASLinks,
 	sessionManager *session.SessionManager,
 ) *ApplicationFitScoreHandlers {
 	return &ApplicationFitScoreHandlers{
-		commandBus:       commandBus,
-		fitScoreRM:       fitScoreRM,
-		fitComparisonRM:  fitComparisonRM,
-		hateoas:          hateoas,
-		sessionManager:   sessionManager,
+		commandBus:     commandBus,
+		fitScoreRM:     fitScoreRM,
+		hateoas:        hateoas,
+		sessionManager: sessionManager,
 	}
 }
 
@@ -71,17 +69,10 @@ type ApplicationFitScoreResponse struct {
 func (h *ApplicationFitScoreHandlers) GetFitScoresByComponent(w http.ResponseWriter, r *http.Request) {
 	componentID := chi.URLParam(r, "id")
 	actor, _ := sharedctx.GetActor(r.Context())
-
-	scores, err := h.fitScoreRM.GetByComponentID(r.Context(), componentID)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve fit scores")
-		return
-	}
-
-	data := h.buildFitScoreResponsesForActor(scores, actor)
 	links := h.hateoas.FitScoresCollectionLinksForActor(componentID, actor)
-
-	sharedAPI.RespondCollection(w, http.StatusOK, data, links)
+	h.fetchAndRespondFitScores(w, r, actor, links, func() ([]readmodels.ApplicationFitScoreDTO, error) {
+		return h.fitScoreRM.GetByComponentID(r.Context(), componentID)
+	})
 }
 
 // SetFitScore godoc
@@ -110,13 +101,7 @@ func (h *ApplicationFitScoreHandlers) SetFitScore(w http.ResponseWriter, r *http
 
 	componentID := chi.URLParam(r, "id")
 	pillarID := chi.URLParam(r, "pillarId")
-
-	if _, err := uuid.Parse(componentID); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid component ID format")
-		return
-	}
-	if _, err := uuid.Parse(pillarID); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid pillar ID format")
+	if !validateUUIDs(w, componentID, pillarID) {
 		return
 	}
 
@@ -131,59 +116,67 @@ func (h *ApplicationFitScoreHandlers) SetFitScore(w http.ResponseWriter, r *http
 		return
 	}
 
-	var result cqrs.CommandResult
-	var statusCode int
-	userEmail := authSession.UserEmail()
-
-	if existing != nil {
-		cmd := &commands.UpdateApplicationFitScore{
-			FitScoreID: existing.ID,
-			Score:      req.Score,
-			Rationale:  req.Rationale,
-			UpdatedBy:  userEmail,
-		}
-		result, err = h.commandBus.Dispatch(r.Context(), cmd)
-		statusCode = http.StatusOK
-	} else {
-		cmd := &commands.SetApplicationFitScore{
-			ComponentID: componentID,
-			PillarID:    pillarID,
-			Score:       req.Score,
-			Rationale:   req.Rationale,
-			ScoredBy:    userEmail,
-		}
-		result, err = h.commandBus.Dispatch(r.Context(), cmd)
-		statusCode = http.StatusCreated
-	}
-
+	dispatchResult, err := h.dispatchFitScoreCommand(r.Context(), fitScoreDispatchParams{
+		existing:    existing,
+		req:         req,
+		componentID: componentID,
+		pillarID:    pillarID,
+		userEmail:   authSession.UserEmail(),
+	})
 	if err != nil {
 		httpStatus := sharedAPI.MapErrorToStatusCode(err, http.StatusBadRequest)
 		sharedAPI.RespondError(w, httpStatus, err, "Failed to set fit score")
 		return
 	}
 
-	var fitScoreID string
-	if existing != nil {
-		fitScoreID = existing.ID
-	} else {
-		fitScoreID = result.CreatedID
-	}
-
-	updated, err := h.fitScoreRM.GetByID(r.Context(), fitScoreID)
+	updated, err := h.fitScoreRM.GetByID(r.Context(), dispatchResult.fitScoreID)
 	if err != nil || updated == nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve fit score")
 		return
 	}
 
-	actor, _ := sharedctx.GetActor(r.Context())
-	response := h.buildFitScoreResponseForActor(*updated, actor)
+	h.respondWithFitScore(w, r, *updated, dispatchResult)
+}
 
-	if statusCode == http.StatusCreated {
-		location := "/api/v1/components/" + componentID + "/fit-scores/" + pillarID
-		w.Header().Set("Location", location)
+type fitScoreDispatchParams struct {
+	existing    *readmodels.ApplicationFitScoreDTO
+	req         SetApplicationFitScoreRequest
+	componentID string
+	pillarID    string
+	userEmail   string
+}
+
+type fitScoreResult struct {
+	fitScoreID string
+	statusCode int
+	location   string
+}
+
+func (h *ApplicationFitScoreHandlers) dispatchFitScoreCommand(ctx context.Context, params fitScoreDispatchParams) (fitScoreResult, error) {
+	if params.existing != nil {
+		cmd := &commands.UpdateApplicationFitScore{
+			FitScoreID: params.existing.ID,
+			Score:      params.req.Score,
+			Rationale:  params.req.Rationale,
+			UpdatedBy:  params.userEmail,
+		}
+		_, err := h.commandBus.Dispatch(ctx, cmd)
+		return fitScoreResult{fitScoreID: params.existing.ID, statusCode: http.StatusOK}, err
 	}
 
-	sharedAPI.RespondJSON(w, statusCode, response)
+	cmd := &commands.SetApplicationFitScore{
+		ComponentID: params.componentID,
+		PillarID:    params.pillarID,
+		Score:       params.req.Score,
+		Rationale:   params.req.Rationale,
+		ScoredBy:    params.userEmail,
+	}
+	result, err := h.commandBus.Dispatch(ctx, cmd)
+	return fitScoreResult{
+		fitScoreID: result.CreatedID,
+		statusCode: http.StatusCreated,
+		location:   "/api/v1/components/" + params.componentID + "/fit-scores/" + params.pillarID,
+	}, err
 }
 
 // RemoveFitScore godoc
@@ -211,13 +204,7 @@ func (h *ApplicationFitScoreHandlers) RemoveFitScore(w http.ResponseWriter, r *h
 
 	componentID := chi.URLParam(r, "id")
 	pillarID := chi.URLParam(r, "pillarId")
-
-	if _, err := uuid.Parse(componentID); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid component ID format")
-		return
-	}
-	if _, err := uuid.Parse(pillarID); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid pillar ID format")
+	if !validateUUIDs(w, componentID, pillarID) {
 		return
 	}
 
@@ -259,19 +246,12 @@ func (h *ApplicationFitScoreHandlers) RemoveFitScore(w http.ResponseWriter, r *h
 func (h *ApplicationFitScoreHandlers) GetFitScoresByPillar(w http.ResponseWriter, r *http.Request) {
 	pillarID := chi.URLParam(r, "pillarId")
 	actor, _ := sharedctx.GetActor(r.Context())
-
-	scores, err := h.fitScoreRM.GetByPillarID(r.Context(), pillarID)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve fit scores")
-		return
-	}
-
-	data := h.buildFitScoreResponsesForActor(scores, actor)
 	links := sharedAPI.Links{
 		"self": sharedAPI.NewLink("/api/v1/strategy-pillars/"+pillarID+"/fit-scores", "GET"),
 	}
-
-	sharedAPI.RespondCollection(w, http.StatusOK, data, links)
+	h.fetchAndRespondFitScores(w, r, actor, links, func() ([]readmodels.ApplicationFitScoreDTO, error) {
+		return h.fitScoreRM.GetByPillarID(r.Context(), pillarID)
+	})
 }
 
 func (h *ApplicationFitScoreHandlers) buildFitScoreResponseForActor(dto readmodels.ApplicationFitScoreDTO, actor sharedctx.Actor) ApplicationFitScoreResponse {
@@ -290,6 +270,17 @@ func (h *ApplicationFitScoreHandlers) buildFitScoreResponseForActor(dto readmode
 	}
 }
 
+func (h *ApplicationFitScoreHandlers) respondWithFitScore(w http.ResponseWriter, r *http.Request, dto readmodels.ApplicationFitScoreDTO, result fitScoreResult) {
+	actor, _ := sharedctx.GetActor(r.Context())
+	response := h.buildFitScoreResponseForActor(dto, actor)
+
+	if result.location != "" {
+		w.Header().Set("Location", result.location)
+	}
+
+	sharedAPI.RespondJSON(w, result.statusCode, response)
+}
+
 func (h *ApplicationFitScoreHandlers) buildFitScoreResponsesForActor(dtos []readmodels.ApplicationFitScoreDTO, actor sharedctx.Actor) []ApplicationFitScoreResponse {
 	responses := make([]ApplicationFitScoreResponse, len(dtos))
 	for i, dto := range dtos {
@@ -298,76 +289,29 @@ func (h *ApplicationFitScoreHandlers) buildFitScoreResponsesForActor(dtos []read
 	return responses
 }
 
-type FitComparisonResponse struct {
-	PillarID        string `json:"pillarId"`
-	PillarName      string `json:"pillarName"`
-	FitScore        int    `json:"fitScore"`
-	FitScoreLabel   string `json:"fitScoreLabel"`
-	Importance      int    `json:"importance"`
-	ImportanceLabel string `json:"importanceLabel"`
-	Gap             int    `json:"gap"`
-	Category        string `json:"category"`
-	FitRationale    string `json:"fitRationale,omitempty"`
-}
-
-// GetFitComparisons godoc
-// @Summary Get fit comparisons for a component in a capability context
-// @Description Returns fit scores compared with importance ratings for a component realizing a capability in a business domain
-// @Tags application-fit-scores
-// @Accept json
-// @Produce json
-// @Param id path string true "Component ID"
-// @Param capabilityId query string true "Capability ID"
-// @Param businessDomainId query string true "Business Domain ID"
-// @Success 200 {object} sharedAPI.CollectionResponse{data=[]FitComparisonResponse}
-// @Failure 400 {object} sharedAPI.ErrorResponse "Missing required query parameters"
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /components/{id}/fit-comparisons [get]
-func (h *ApplicationFitScoreHandlers) GetFitComparisons(w http.ResponseWriter, r *http.Request) {
-	componentID := chi.URLParam(r, "id")
-	capabilityID := r.URL.Query().Get("capabilityId")
-	businessDomainID := r.URL.Query().Get("businessDomainId")
-
-	if _, err := uuid.Parse(componentID); err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid component ID format")
-		return
-	}
-
-	if capabilityID == "" {
-		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "capabilityId query parameter is required")
-		return
-	}
-
-	if businessDomainID == "" {
-		sharedAPI.RespondError(w, http.StatusBadRequest, nil, "businessDomainId query parameter is required")
-		return
-	}
-
-	comparisons, err := h.fitComparisonRM.GetByComponentAndCapability(r.Context(), componentID, capabilityID, businessDomainID)
+func (h *ApplicationFitScoreHandlers) fetchAndRespondFitScores(
+	w http.ResponseWriter, r *http.Request,
+	actor sharedctx.Actor, links sharedAPI.Links,
+	query func() ([]readmodels.ApplicationFitScoreDTO, error),
+) {
+	scores, err := query()
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve fit comparisons")
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve fit scores")
 		return
 	}
-
-	data := make([]FitComparisonResponse, len(comparisons))
-	for i, dto := range comparisons {
-		data[i] = FitComparisonResponse{
-			PillarID:        dto.PillarID,
-			PillarName:      dto.PillarName,
-			FitScore:        dto.FitScore,
-			FitScoreLabel:   dto.FitScoreLabel,
-			Importance:      dto.Importance,
-			ImportanceLabel: dto.ImportanceLabel,
-			Gap:             dto.Gap,
-			Category:        dto.Category,
-			FitRationale:    dto.FitRationale,
-		}
-	}
-
-	links := sharedAPI.Links{
-		"self": sharedAPI.NewLink("/api/v1/components/"+componentID+"/fit-comparisons?capabilityId="+capabilityID+"&businessDomainId="+businessDomainID, "GET"),
-		"up":   sharedAPI.NewLink("/api/v1/components/"+componentID, "GET"),
-	}
-
+	data := h.buildFitScoreResponsesForActor(scores, actor)
 	sharedAPI.RespondCollection(w, http.StatusOK, data, links)
 }
+
+func validateUUIDs(w http.ResponseWriter, componentID, pillarID string) bool {
+	if _, err := uuid.Parse(componentID); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid component ID format")
+		return false
+	}
+	if _, err := uuid.Parse(pillarID); err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid pillar ID format")
+		return false
+	}
+	return true
+}
+
