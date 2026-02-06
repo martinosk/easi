@@ -71,9 +71,14 @@ func (h *StrategyImportanceHandlers) GetImportanceByDomainAndCapability(w http.R
 	domainID := chi.URLParam(r, "id")
 	capabilityID := chi.URLParam(r, "capabilityId")
 
-	h.respondWithImportanceCollection(w, r, func() ([]readmodels.StrategyImportanceDTO, error) {
-		return h.importanceRM.GetByDomainAndCapability(r.Context(), domainID, capabilityID)
-	}, domainID, "/api/v1/business-domains/"+domainID+"/capabilities/"+capabilityID+"/importance")
+	actor, _ := sharedctx.GetActor(r.Context())
+	collectionLinks := h.hateoas.StrategyImportanceCollectionLinksForActor(domainID, capabilityID, actor)
+
+	h.respondWithImportanceCollection(w, r, importanceCollectionQuery{
+		fetcher:  func() ([]readmodels.StrategyImportanceDTO, error) { return h.importanceRM.GetByDomainAndCapability(r.Context(), domainID, capabilityID) },
+		domainID: domainID,
+		links:    collectionLinks,
+	})
 }
 
 // SetImportance godoc
@@ -216,9 +221,11 @@ func (h *StrategyImportanceHandlers) RemoveImportance(w http.ResponseWriter, r *
 func (h *StrategyImportanceHandlers) GetImportanceByDomain(w http.ResponseWriter, r *http.Request) {
 	domainID := chi.URLParam(r, "id")
 
-	h.respondWithImportanceCollection(w, r, func() ([]readmodels.StrategyImportanceDTO, error) {
-		return h.importanceRM.GetByDomain(r.Context(), domainID)
-	}, domainID, "/api/v1/business-domains/"+domainID+"/importance")
+	h.respondWithImportanceCollection(w, r, importanceCollectionQuery{
+		fetcher:  func() ([]readmodels.StrategyImportanceDTO, error) { return h.importanceRM.GetByDomain(r.Context(), domainID) },
+		domainID: domainID,
+		links:    selfOnlyLinks("/api/v1/business-domains/" + domainID + "/importance"),
+	})
 }
 
 // GetImportanceByCapability godoc
@@ -234,25 +241,33 @@ func (h *StrategyImportanceHandlers) GetImportanceByDomain(w http.ResponseWriter
 func (h *StrategyImportanceHandlers) GetImportanceByCapability(w http.ResponseWriter, r *http.Request) {
 	capabilityID := chi.URLParam(r, "id")
 
-	h.respondWithImportanceCollection(w, r, func() ([]readmodels.StrategyImportanceDTO, error) {
-		return h.importanceRM.GetByCapability(r.Context(), capabilityID)
-	}, "", "/api/v1/capabilities/"+capabilityID+"/importance")
+	h.respondWithImportanceCollection(w, r, importanceCollectionQuery{
+		fetcher: func() ([]readmodels.StrategyImportanceDTO, error) { return h.importanceRM.GetByCapability(r.Context(), capabilityID) },
+		links:   selfOnlyLinks("/api/v1/capabilities/" + capabilityID + "/importance"),
+	})
 }
 
-type importanceFetcher func() ([]readmodels.StrategyImportanceDTO, error)
+func selfOnlyLinks(href string) sharedAPI.Links {
+	return sharedAPI.Links{"self": sharedAPI.NewLink(href, "GET")}
+}
 
-func (h *StrategyImportanceHandlers) respondWithImportanceCollection(w http.ResponseWriter, r *http.Request, fetcher importanceFetcher, domainID, selfLink string) {
-	ratings, err := fetcher()
+type importanceCollectionQuery struct {
+	fetcher  func() ([]readmodels.StrategyImportanceDTO, error)
+	domainID string
+	links    sharedAPI.Links
+}
+
+func (h *StrategyImportanceHandlers) respondWithImportanceCollection(w http.ResponseWriter, r *http.Request, q importanceCollectionQuery) {
+	ratings, err := q.fetcher()
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve importance ratings")
 		return
 	}
 
 	actor, _ := sharedctx.GetActor(r.Context())
-	data := h.buildImportanceResponses(ratings, domainID, actor)
-	links := sharedAPI.Links{"self": sharedAPI.NewLink(selfLink, "GET")}
+	data := h.buildImportanceResponses(ratings, q.domainID, actor)
 
-	sharedAPI.RespondCollection(w, http.StatusOK, data, links)
+	sharedAPI.RespondCollection(w, http.StatusOK, data, q.links)
 }
 
 func (h *StrategyImportanceHandlers) buildImportanceResponse(dto readmodels.StrategyImportanceDTO, domainID string, actor sharedctx.Actor) StrategyImportanceResponse {

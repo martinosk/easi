@@ -7189,6 +7189,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/time-suggestions": {
+            "get": {
+                "description": "Retrieves TIME (Tolerate, Invest, Migrate, Eliminate) suggestions based on strategic importance and application fit gaps",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "time-suggestions"
+                ],
+                "summary": "Get TIME suggestions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by capability ID",
+                        "name": "capabilityId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by component ID",
+                        "name": "componentId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/easi_backend_internal_enterprisearchitecture_application_readmodels.TimeSuggestionDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/users": {
             "get": {
                 "description": "Returns a paginated list of all users in the current tenant with optional filtering",
@@ -7958,7 +8013,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.UpdateCapabilityPositionRequest"
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.ElementPositionRequest"
                         }
                     }
                 ],
@@ -8374,7 +8429,12 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.UpdateEdgeTypeRequest"
+                            "type": "object",
+                            "properties": {
+                                "edgeType": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 ],
@@ -8430,7 +8490,12 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.UpdateLayoutDirectionRequest"
+                            "type": "object",
+                            "properties": {
+                                "layoutDirection": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 ],
@@ -8650,7 +8715,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.UpdatePositionRequest"
+                            "$ref": "#/definitions/internal_architectureviews_infrastructure_api.ElementPositionRequest"
                         }
                     }
                 ],
@@ -9709,6 +9774,35 @@ const docTemplate = `{
                 }
             }
         },
+        "easi_backend_internal_enterprisearchitecture_application_readmodels.TimeSuggestionDTO": {
+            "type": "object",
+            "properties": {
+                "capabilityId": {
+                    "type": "string"
+                },
+                "capabilityName": {
+                    "type": "string"
+                },
+                "componentId": {
+                    "type": "string"
+                },
+                "componentName": {
+                    "type": "string"
+                },
+                "confidence": {
+                    "type": "string"
+                },
+                "functionalGap": {
+                    "type": "number"
+                },
+                "suggestedTime": {
+                    "type": "string"
+                },
+                "technicalGap": {
+                    "type": "number"
+                }
+            }
+        },
         "easi_backend_internal_importing_application_readmodels.ImportErrorDTO": {
             "type": "object",
             "properties": {
@@ -9927,6 +10021,9 @@ const docTemplate = `{
                 },
                 "fitScoringEnabled": {
                     "type": "boolean"
+                },
+                "fitType": {
+                    "type": "string"
                 },
                 "id": {
                     "type": "string"
@@ -10362,6 +10459,17 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_architectureviews_infrastructure_api.ElementPositionRequest": {
+            "type": "object",
+            "properties": {
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
         "internal_architectureviews_infrastructure_api.PositionUpdateItem": {
             "type": "object",
             "properties": {
@@ -10384,29 +10492,10 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_architectureviews_infrastructure_api.UpdateCapabilityPositionRequest": {
-            "type": "object",
-            "properties": {
-                "x": {
-                    "type": "number"
-                },
-                "y": {
-                    "type": "number"
-                }
-            }
-        },
         "internal_architectureviews_infrastructure_api.UpdateColorSchemeRequest": {
             "type": "object",
             "properties": {
                 "colorScheme": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_architectureviews_infrastructure_api.UpdateEdgeTypeRequest": {
-            "type": "object",
-            "properties": {
-                "edgeType": {
                     "type": "string"
                 }
             }
@@ -10417,14 +10506,6 @@ const docTemplate = `{
                 "color": {
                     "type": "string",
                     "example": "#FF5733"
-                }
-            }
-        },
-        "internal_architectureviews_infrastructure_api.UpdateLayoutDirectionRequest": {
-            "type": "object",
-            "properties": {
-                "layoutDirection": {
-                    "type": "string"
                 }
             }
         },
@@ -10951,6 +11032,9 @@ const docTemplate = `{
                 "importanceLabel": {
                     "type": "string"
                 },
+                "importanceRationale": {
+                    "type": "string"
+                },
                 "importanceSourceCapabilityId": {
                     "type": "string"
                 },
@@ -11333,6 +11417,9 @@ const docTemplate = `{
                 "fitScoringEnabled": {
                     "type": "boolean"
                 },
+                "fitType": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -11361,6 +11448,9 @@ const docTemplate = `{
                 },
                 "fitScoringEnabled": {
                     "type": "boolean"
+                },
+                "fitType": {
+                    "type": "string"
                 },
                 "id": {
                     "type": "string"
@@ -11392,6 +11482,9 @@ const docTemplate = `{
                 },
                 "fitScoringEnabled": {
                     "type": "boolean"
+                },
+                "fitType": {
+                    "type": "string"
                 }
             }
         },

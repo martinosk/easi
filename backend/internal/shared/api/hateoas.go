@@ -568,6 +568,15 @@ func (h *HATEOASLinks) FitScoreLinksForActor(componentID, pillarID string, actor
 	return links
 }
 
+func (h *HATEOASLinks) StrategyImportanceCollectionLinksForActor(domID, capID string, actor sharedctx.Actor) Links {
+	p := "/business-domains/" + domID + "/capabilities/" + capID + "/importance"
+	links := Links{"self": h.get(p)}
+	if actor.CanWrite("domains") {
+		links["create"] = h.post(p)
+	}
+	return links
+}
+
 func (h *HATEOASLinks) FitScoresCollectionLinksForActor(componentID string, actor sharedctx.Actor) Links {
 	p := "/components/" + componentID + "/fit-scores"
 	links := Links{
