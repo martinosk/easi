@@ -73,197 +73,201 @@ func (co *ComponentOrigins) IsDeleted() bool {
 }
 
 func (co *ComponentOrigins) SetAcquiredVia(entityID valueobjects.AcquiredEntityID, notes valueobjects.Notes) error {
-	linkedAt := time.Now().UTC()
-
-	if co.createdAt.IsZero() {
-		co.createdAt = time.Now().UTC()
-		event := events.NewComponentOriginsCreatedEvent(co.ID(), co.componentID, co.createdAt)
-		co.apply(event)
-		co.RaiseEvent(event)
-	}
-
-	if co.acquiredVia.IsEmpty() {
-		event := events.NewAcquiredViaRelationshipSetEvent(co.ID(), co.componentID, entityID, notes, linkedAt)
-		co.apply(event)
-		co.RaiseEvent(event)
-		return nil
-	}
-
-	if co.acquiredVia.EntityID() == entityID.String() {
-		if co.acquiredVia.Notes().Equals(notes) {
-			return nil
-		}
-		oldNotes := co.acquiredVia.Notes()
-		event := events.NewAcquiredViaNotesUpdatedEvent(co.ID(), co.componentID, entityID, oldNotes, notes)
-		co.apply(event)
-		co.RaiseEvent(event)
-		return nil
-	}
-
-	oldEntityID, _ := valueobjects.NewAcquiredEntityIDFromString(co.acquiredVia.EntityID())
-	event := events.NewAcquiredViaRelationshipReplacedEvent(co.ID(), co.componentID, oldEntityID, entityID, notes, linkedAt)
-	co.apply(event)
-	co.RaiseEvent(event)
-	return nil
+	return co.setOriginRelationship(
+		co.acquiredVia,
+		entityID.String(),
+		notes,
+		func(linkedAt time.Time) domain.DomainEvent {
+			return events.NewAcquiredViaRelationshipSetEvent(co.ID(), co.componentID, entityID, notes, linkedAt)
+		},
+		func(oldNotes valueobjects.Notes) domain.DomainEvent {
+			return events.NewAcquiredViaNotesUpdatedEvent(co.ID(), co.componentID, entityID, oldNotes, notes)
+		},
+		func(linkedAt time.Time) domain.DomainEvent {
+			oldEntityID, _ := valueobjects.NewAcquiredEntityIDFromString(co.acquiredVia.EntityID())
+			return events.NewAcquiredViaRelationshipReplacedEvent(co.ID(), co.componentID, oldEntityID, entityID, notes, linkedAt)
+		},
+	)
 }
 
 func (co *ComponentOrigins) ClearAcquiredVia() error {
-	if co.acquiredVia.IsEmpty() {
-		return ErrNoAcquiredViaRelationship
-	}
-
-	entityID, _ := valueobjects.NewAcquiredEntityIDFromString(co.acquiredVia.EntityID())
-	event := events.NewAcquiredViaRelationshipClearedEvent(co.ID(), co.componentID, entityID)
-	co.apply(event)
-	co.RaiseEvent(event)
-	return nil
+	return co.clearOriginRelationship(
+		co.acquiredVia,
+		ErrNoAcquiredViaRelationship,
+		func() domain.DomainEvent {
+			entityID, _ := valueobjects.NewAcquiredEntityIDFromString(co.acquiredVia.EntityID())
+			return events.NewAcquiredViaRelationshipClearedEvent(co.ID(), co.componentID, entityID)
+		},
+	)
 }
 
 func (co *ComponentOrigins) SetPurchasedFrom(vendorID valueobjects.VendorID, notes valueobjects.Notes) error {
-	linkedAt := time.Now().UTC()
-
-	if co.createdAt.IsZero() {
-		co.createdAt = time.Now().UTC()
-		event := events.NewComponentOriginsCreatedEvent(co.ID(), co.componentID, co.createdAt)
-		co.apply(event)
-		co.RaiseEvent(event)
-	}
-
-	if co.purchasedFrom.IsEmpty() {
-		event := events.NewPurchasedFromRelationshipSetEvent(co.ID(), co.componentID, vendorID, notes, linkedAt)
-		co.apply(event)
-		co.RaiseEvent(event)
-		return nil
-	}
-
-	if co.purchasedFrom.EntityID() == vendorID.String() {
-		if co.purchasedFrom.Notes().Equals(notes) {
-			return nil
-		}
-		oldNotes := co.purchasedFrom.Notes()
-		event := events.NewPurchasedFromNotesUpdatedEvent(co.ID(), co.componentID, vendorID, oldNotes, notes)
-		co.apply(event)
-		co.RaiseEvent(event)
-		return nil
-	}
-
-	oldVendorID, _ := valueobjects.NewVendorIDFromString(co.purchasedFrom.EntityID())
-	event := events.NewPurchasedFromRelationshipReplacedEvent(co.ID(), co.componentID, oldVendorID, vendorID, notes, linkedAt)
-	co.apply(event)
-	co.RaiseEvent(event)
-	return nil
+	return co.setOriginRelationship(
+		co.purchasedFrom,
+		vendorID.String(),
+		notes,
+		func(linkedAt time.Time) domain.DomainEvent {
+			return events.NewPurchasedFromRelationshipSetEvent(co.ID(), co.componentID, vendorID, notes, linkedAt)
+		},
+		func(oldNotes valueobjects.Notes) domain.DomainEvent {
+			return events.NewPurchasedFromNotesUpdatedEvent(co.ID(), co.componentID, vendorID, oldNotes, notes)
+		},
+		func(linkedAt time.Time) domain.DomainEvent {
+			oldVendorID, _ := valueobjects.NewVendorIDFromString(co.purchasedFrom.EntityID())
+			return events.NewPurchasedFromRelationshipReplacedEvent(co.ID(), co.componentID, oldVendorID, vendorID, notes, linkedAt)
+		},
+	)
 }
 
 func (co *ComponentOrigins) ClearPurchasedFrom() error {
-	if co.purchasedFrom.IsEmpty() {
-		return ErrNoPurchasedFromRelationship
-	}
-
-	vendorID, _ := valueobjects.NewVendorIDFromString(co.purchasedFrom.EntityID())
-	event := events.NewPurchasedFromRelationshipClearedEvent(co.ID(), co.componentID, vendorID)
-	co.apply(event)
-	co.RaiseEvent(event)
-	return nil
+	return co.clearOriginRelationship(
+		co.purchasedFrom,
+		ErrNoPurchasedFromRelationship,
+		func() domain.DomainEvent {
+			vendorID, _ := valueobjects.NewVendorIDFromString(co.purchasedFrom.EntityID())
+			return events.NewPurchasedFromRelationshipClearedEvent(co.ID(), co.componentID, vendorID)
+		},
+	)
 }
 
 func (co *ComponentOrigins) SetBuiltBy(teamID valueobjects.InternalTeamID, notes valueobjects.Notes) error {
-	linkedAt := time.Now().UTC()
-
-	if co.createdAt.IsZero() {
-		co.createdAt = time.Now().UTC()
-		event := events.NewComponentOriginsCreatedEvent(co.ID(), co.componentID, co.createdAt)
-		co.apply(event)
-		co.RaiseEvent(event)
-	}
-
-	if co.builtBy.IsEmpty() {
-		event := events.NewBuiltByRelationshipSetEvent(co.ID(), co.componentID, teamID, notes, linkedAt)
-		co.apply(event)
-		co.RaiseEvent(event)
-		return nil
-	}
-
-	if co.builtBy.EntityID() == teamID.String() {
-		if co.builtBy.Notes().Equals(notes) {
-			return nil
-		}
-		oldNotes := co.builtBy.Notes()
-		event := events.NewBuiltByNotesUpdatedEvent(co.ID(), co.componentID, teamID, oldNotes, notes)
-		co.apply(event)
-		co.RaiseEvent(event)
-		return nil
-	}
-
-	oldTeamID, _ := valueobjects.NewInternalTeamIDFromString(co.builtBy.EntityID())
-	event := events.NewBuiltByRelationshipReplacedEvent(co.ID(), co.componentID, oldTeamID, teamID, notes, linkedAt)
-	co.apply(event)
-	co.RaiseEvent(event)
-	return nil
+	return co.setOriginRelationship(
+		co.builtBy,
+		teamID.String(),
+		notes,
+		func(linkedAt time.Time) domain.DomainEvent {
+			return events.NewBuiltByRelationshipSetEvent(co.ID(), co.componentID, teamID, notes, linkedAt)
+		},
+		func(oldNotes valueobjects.Notes) domain.DomainEvent {
+			return events.NewBuiltByNotesUpdatedEvent(co.ID(), co.componentID, teamID, oldNotes, notes)
+		},
+		func(linkedAt time.Time) domain.DomainEvent {
+			oldTeamID, _ := valueobjects.NewInternalTeamIDFromString(co.builtBy.EntityID())
+			return events.NewBuiltByRelationshipReplacedEvent(co.ID(), co.componentID, oldTeamID, teamID, notes, linkedAt)
+		},
+	)
 }
 
 func (co *ComponentOrigins) ClearBuiltBy() error {
-	if co.builtBy.IsEmpty() {
-		return ErrNoBuiltByRelationship
-	}
-
-	teamID, _ := valueobjects.NewInternalTeamIDFromString(co.builtBy.EntityID())
-	event := events.NewBuiltByRelationshipClearedEvent(co.ID(), co.componentID, teamID)
-	co.apply(event)
-	co.RaiseEvent(event)
-	return nil
+	return co.clearOriginRelationship(
+		co.builtBy,
+		ErrNoBuiltByRelationship,
+		func() domain.DomainEvent {
+			teamID, _ := valueobjects.NewInternalTeamIDFromString(co.builtBy.EntityID())
+			return events.NewBuiltByRelationshipClearedEvent(co.ID(), co.componentID, teamID)
+		},
+	)
 }
 
 func (co *ComponentOrigins) Delete() error {
 	deletedAt := time.Now().UTC()
 	event := events.NewComponentOriginsDeletedEvent(co.ID(), co.componentID, deletedAt)
+	co.applyAndRaise(event)
+	return nil
+}
+
+func (co *ComponentOrigins) setOriginRelationship(
+	current valueobjects.OriginLink,
+	entityID string,
+	notes valueobjects.Notes,
+	newSetEvent func(time.Time) domain.DomainEvent,
+	newNotesUpdatedEvent func(valueobjects.Notes) domain.DomainEvent,
+	newReplacedEvent func(time.Time) domain.DomainEvent,
+) error {
+	co.ensureCreated()
+	linkedAt := time.Now().UTC()
+
+	if current.IsEmpty() {
+		co.applyAndRaise(newSetEvent(linkedAt))
+		return nil
+	}
+
+	if current.EntityID() == entityID {
+		if current.Notes().Equals(notes) {
+			return nil
+		}
+		co.applyAndRaise(newNotesUpdatedEvent(current.Notes()))
+		return nil
+	}
+
+	co.applyAndRaise(newReplacedEvent(linkedAt))
+	return nil
+}
+
+func (co *ComponentOrigins) clearOriginRelationship(
+	current valueobjects.OriginLink,
+	emptyErr error,
+	newClearedEvent func() domain.DomainEvent,
+) error {
+	if current.IsEmpty() {
+		return emptyErr
+	}
+
+	co.applyAndRaise(newClearedEvent())
+	return nil
+}
+
+func (co *ComponentOrigins) ensureCreated() {
+	if co.createdAt.IsZero() {
+		co.createdAt = time.Now().UTC()
+		event := events.NewComponentOriginsCreatedEvent(co.ID(), co.componentID, co.createdAt)
+		co.applyAndRaise(event)
+	}
+}
+
+func (co *ComponentOrigins) applyAndRaise(event domain.DomainEvent) {
 	co.apply(event)
 	co.RaiseEvent(event)
-	return nil
 }
 
 func (co *ComponentOrigins) apply(event domain.DomainEvent) {
 	switch e := event.(type) {
 	case events.ComponentOriginsCreated:
-		co.AggregateRoot = domain.NewAggregateRootWithID(e.AggregateID())
-		co.componentID, _ = valueobjects.NewComponentIDFromString(e.ComponentID)
-		co.acquiredVia = valueobjects.EmptyOriginLink()
-		co.purchasedFrom = valueobjects.EmptyOriginLink()
-		co.builtBy = valueobjects.EmptyOriginLink()
-		co.createdAt = e.CreatedAt
+		co.applyCreated(e)
+	case events.ComponentOriginsDeleted:
+		co.isDeleted = true
 	case events.AcquiredViaRelationshipSet:
-		notes, _ := valueobjects.NewNotes(e.Notes)
-		co.acquiredVia = valueobjects.NewOriginLink(e.EntityID, notes, e.LinkedAt)
+		co.acquiredVia = newOriginLink(e.EntityID, e.Notes, e.LinkedAt)
 	case events.AcquiredViaRelationshipReplaced:
-		notes, _ := valueobjects.NewNotes(e.Notes)
-		co.acquiredVia = valueobjects.NewOriginLink(e.NewEntityID, notes, e.LinkedAt)
+		co.acquiredVia = newOriginLink(e.NewEntityID, e.Notes, e.LinkedAt)
 	case events.AcquiredViaNotesUpdated:
-		notes, _ := valueobjects.NewNotes(e.NewNotes)
-		co.acquiredVia = valueobjects.NewOriginLink(co.acquiredVia.EntityID(), notes, co.acquiredVia.LinkedAt())
+		co.acquiredVia = updatedOriginLink(co.acquiredVia, e.NewNotes)
 	case events.AcquiredViaRelationshipCleared:
 		co.acquiredVia = valueobjects.EmptyOriginLink()
 	case events.PurchasedFromRelationshipSet:
-		notes, _ := valueobjects.NewNotes(e.Notes)
-		co.purchasedFrom = valueobjects.NewOriginLink(e.VendorID, notes, e.LinkedAt)
+		co.purchasedFrom = newOriginLink(e.VendorID, e.Notes, e.LinkedAt)
 	case events.PurchasedFromRelationshipReplaced:
-		notes, _ := valueobjects.NewNotes(e.Notes)
-		co.purchasedFrom = valueobjects.NewOriginLink(e.NewVendorID, notes, e.LinkedAt)
+		co.purchasedFrom = newOriginLink(e.NewVendorID, e.Notes, e.LinkedAt)
 	case events.PurchasedFromNotesUpdated:
-		notes, _ := valueobjects.NewNotes(e.NewNotes)
-		co.purchasedFrom = valueobjects.NewOriginLink(co.purchasedFrom.EntityID(), notes, co.purchasedFrom.LinkedAt())
+		co.purchasedFrom = updatedOriginLink(co.purchasedFrom, e.NewNotes)
 	case events.PurchasedFromRelationshipCleared:
 		co.purchasedFrom = valueobjects.EmptyOriginLink()
 	case events.BuiltByRelationshipSet:
-		notes, _ := valueobjects.NewNotes(e.Notes)
-		co.builtBy = valueobjects.NewOriginLink(e.TeamID, notes, e.LinkedAt)
+		co.builtBy = newOriginLink(e.TeamID, e.Notes, e.LinkedAt)
 	case events.BuiltByRelationshipReplaced:
-		notes, _ := valueobjects.NewNotes(e.Notes)
-		co.builtBy = valueobjects.NewOriginLink(e.NewTeamID, notes, e.LinkedAt)
+		co.builtBy = newOriginLink(e.NewTeamID, e.Notes, e.LinkedAt)
 	case events.BuiltByNotesUpdated:
-		notes, _ := valueobjects.NewNotes(e.NewNotes)
-		co.builtBy = valueobjects.NewOriginLink(co.builtBy.EntityID(), notes, co.builtBy.LinkedAt())
+		co.builtBy = updatedOriginLink(co.builtBy, e.NewNotes)
 	case events.BuiltByRelationshipCleared:
 		co.builtBy = valueobjects.EmptyOriginLink()
-	case events.ComponentOriginsDeleted:
-		co.isDeleted = true
 	}
+}
+
+func (co *ComponentOrigins) applyCreated(e events.ComponentOriginsCreated) {
+	co.AggregateRoot = domain.NewAggregateRootWithID(e.AggregateID())
+	co.componentID, _ = valueobjects.NewComponentIDFromString(e.ComponentID)
+	co.acquiredVia = valueobjects.EmptyOriginLink()
+	co.purchasedFrom = valueobjects.EmptyOriginLink()
+	co.builtBy = valueobjects.EmptyOriginLink()
+	co.createdAt = e.CreatedAt
+}
+
+func newOriginLink(entityID string, notesStr string, linkedAt time.Time) valueobjects.OriginLink {
+	notes, _ := valueobjects.NewNotes(notesStr)
+	return valueobjects.NewOriginLink(entityID, notes, linkedAt)
+}
+
+func updatedOriginLink(current valueobjects.OriginLink, notesStr string) valueobjects.OriginLink {
+	notes, _ := valueobjects.NewNotes(notesStr)
+	return valueobjects.NewOriginLink(current.EntityID(), notes, current.LinkedAt())
 }

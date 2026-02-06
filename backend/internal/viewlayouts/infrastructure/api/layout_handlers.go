@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/viewlayouts/domain"
@@ -117,6 +118,82 @@ func (h *LayoutHandlers) getPathParams(r *http.Request) (valueobjects.LayoutCont
 	}
 
 	return contextType, contextRef, nil
+}
+
+func (h *LayoutHandlers) getContainerOrFail(w http.ResponseWriter, r *http.Request, contextType valueobjects.LayoutContextType, contextRef valueobjects.ContextRef) *aggregates.LayoutContainer {
+	container, err := h.repo.GetByContext(r.Context(), contextType, contextRef)
+	if err != nil {
+		if errors.Is(err, repositories.ErrContainerNotFound) {
+			sharedAPI.RespondError(w, http.StatusNotFound, err, "Layout not found")
+			return nil
+		}
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve layout")
+		return nil
+	}
+	return container
+}
+
+func parseCustomColor(colorStr *string) (*valueobjects.HexColor, error) {
+	if colorStr == nil {
+		return nil, nil
+	}
+	color, err := valueobjects.NewHexColor(*colorStr)
+	if err != nil {
+		return nil, err
+	}
+	return &color, nil
+}
+
+func transformAllPositions(updates []BatchUpdateItem) ([]valueobjects.ElementPosition, error) {
+	positions := make([]valueobjects.ElementPosition, 0, len(updates))
+	for _, update := range updates {
+		position, err := transformToPosition(update)
+		if err != nil {
+			return nil, err
+		}
+		positions = append(positions, position)
+	}
+	return positions, nil
+}
+
+func (h *LayoutHandlers) respondVersionConflict(w http.ResponseWriter, container *aggregates.LayoutContainer, contextType valueobjects.LayoutContextType, contextRef valueobjects.ContextRef) {
+	basePath := fmt.Sprintf("/api/v1/layouts/%s/%s", contextType.Value(), contextRef.Value())
+	response := map[string]interface{}{
+		"error":          "Precondition Failed",
+		"message":        "Version conflict: layout was modified",
+		"currentVersion": container.Version(),
+		"_links": map[string]LinkDTO{
+			"current": {Href: basePath},
+		},
+	}
+	sharedAPI.RespondJSON(w, http.StatusPreconditionFailed, response)
+}
+
+func respondCreatedOrOK(w http.ResponseWriter, dto interface{}, location string, isNew bool) {
+	if isNew {
+		w.Header().Set("Location", location)
+		sharedAPI.RespondJSON(w, http.StatusCreated, dto)
+	} else {
+		sharedAPI.RespondJSON(w, http.StatusOK, dto)
+	}
+}
+
+func (h *LayoutHandlers) saveAndRespondLayout(w http.ResponseWriter, r *http.Request, container *aggregates.LayoutContainer, isNew bool) {
+	if err := h.repo.Save(r.Context(), container); err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to save layout")
+		return
+	}
+
+	savedContainer, err := h.repo.GetByContext(r.Context(), container.ContextType(), container.ContextRef())
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve saved layout")
+		return
+	}
+
+	dto := h.buildLayoutDTO(savedContainer)
+	w.Header().Set("ETag", fmt.Sprintf(`"%d"`, savedContainer.Version()))
+	basePath := fmt.Sprintf("/api/v1/layouts/%s/%s", container.ContextType().Value(), container.ContextRef().Value())
+	respondCreatedOrOK(w, dto, basePath, isNew)
 }
 
 func (h *LayoutHandlers) buildLayoutDTO(container *aggregates.LayoutContainer) LayoutContainerDTO {
@@ -278,27 +355,7 @@ func (h *LayoutHandlers) UpsertLayout(w http.ResponseWriter, r *http.Request) {
 		container = h.updateLayout(existing, req.Preferences)
 	}
 
-	if err := h.repo.Save(r.Context(), container); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to save layout")
-		return
-	}
-
-	savedContainer, err := h.repo.GetByContext(r.Context(), contextType, contextRef)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve saved layout")
-		return
-	}
-
-	dto := h.buildLayoutDTO(savedContainer)
-	w.Header().Set("ETag", fmt.Sprintf(`"%d"`, savedContainer.Version()))
-
-	if isNew {
-		basePath := fmt.Sprintf("/api/v1/layouts/%s/%s", contextType.Value(), contextRef.Value())
-		w.Header().Set("Location", basePath)
-		sharedAPI.RespondJSON(w, http.StatusCreated, dto)
-	} else {
-		sharedAPI.RespondJSON(w, http.StatusOK, dto)
-	}
+	h.saveAndRespondLayout(w, r, container, isNew)
 }
 
 // DeleteLayout godoc
@@ -368,27 +425,13 @@ func (h *LayoutHandlers) UpdatePreferences(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	container, err := h.repo.GetByContext(r.Context(), contextType, contextRef)
-	if err != nil {
-		if errors.Is(err, repositories.ErrContainerNotFound) {
-			sharedAPI.RespondError(w, http.StatusNotFound, err, "Layout not found")
-			return
-		}
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve layout")
+	container := h.getContainerOrFail(w, r, contextType, contextRef)
+	if container == nil {
 		return
 	}
 
 	if container.Version() != expectedVersion {
-		basePath := fmt.Sprintf("/api/v1/layouts/%s/%s", contextType.Value(), contextRef.Value())
-		response := map[string]interface{}{
-			"error":          "Precondition Failed",
-			"message":        "Version conflict: layout was modified",
-			"currentVersion": container.Version(),
-			"_links": map[string]LinkDTO{
-				"current": {Href: basePath},
-			},
-		}
-		sharedAPI.RespondJSON(w, http.StatusPreconditionFailed, response)
+		h.respondVersionConflict(w, container, contextType, contextRef)
 		return
 	}
 
@@ -453,27 +496,18 @@ func (h *LayoutHandlers) UpsertElementPosition(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	container, err := h.repo.GetByContext(r.Context(), contextType, contextRef)
-	if err != nil {
-		if errors.Is(err, repositories.ErrContainerNotFound) {
-			sharedAPI.RespondError(w, http.StatusNotFound, err, "Layout not found")
-			return
-		}
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve layout")
+	container := h.getContainerOrFail(w, r, contextType, contextRef)
+	if container == nil {
 		return
 	}
 
 	existingPos := container.GetElement(elementID)
 	isNew := existingPos == nil
 
-	var customColor *valueobjects.HexColor
-	if req.CustomColor != nil {
-		color, err := valueobjects.NewHexColor(*req.CustomColor)
-		if err != nil {
-			sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid custom color")
-			return
-		}
-		customColor = &color
+	customColor, err := parseCustomColor(req.CustomColor)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "Invalid custom color")
+		return
 	}
 
 	position, _ := valueobjects.NewElementPositionWithOptions(
@@ -488,13 +522,7 @@ func (h *LayoutHandlers) UpsertElementPosition(w http.ResponseWriter, r *http.Re
 
 	basePath := fmt.Sprintf("/api/v1/layouts/%s/%s", contextType.Value(), contextRef.Value())
 	dto := h.buildElementDTO(position, basePath)
-
-	if isNew {
-		w.Header().Set("Location", dto.Links["self"].Href)
-		sharedAPI.RespondJSON(w, http.StatusCreated, dto)
-	} else {
-		sharedAPI.RespondJSON(w, http.StatusOK, dto)
-	}
+	respondCreatedOrOK(w, dto, dto.Links["self"].Href, isNew)
 }
 
 // DeleteElementPosition godoc
@@ -523,13 +551,8 @@ func (h *LayoutHandlers) DeleteElementPosition(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	container, err := h.repo.GetByContext(r.Context(), contextType, contextRef)
-	if err != nil {
-		if errors.Is(err, repositories.ErrContainerNotFound) {
-			sharedAPI.RespondError(w, http.StatusNotFound, err, "Layout not found")
-			return
-		}
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve layout")
+	container := h.getContainerOrFail(w, r, contextType, contextRef)
+	if container == nil {
 		return
 	}
 
@@ -611,24 +634,15 @@ func (h *LayoutHandlers) BatchUpdateElements(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	container, err := h.repo.GetByContext(r.Context(), contextType, contextRef)
-	if err != nil {
-		if errors.Is(err, repositories.ErrContainerNotFound) {
-			sharedAPI.RespondError(w, http.StatusNotFound, err, "Layout not found")
-			return
-		}
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve layout")
+	container := h.getContainerOrFail(w, r, contextType, contextRef)
+	if container == nil {
 		return
 	}
 
-	positions := make([]valueobjects.ElementPosition, 0, len(req.Updates))
-	for _, update := range req.Updates {
-		position, err := transformToPosition(update)
-		if err != nil {
-			sharedAPI.RespondError(w, http.StatusBadRequest, err, err.Error())
-			return
-		}
-		positions = append(positions, position)
+	positions, err := transformAllPositions(req.Updates)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, err.Error())
+		return
 	}
 
 	if err := h.repo.BatchUpdatePositions(r.Context(), container.ID(), positions); err != nil {
@@ -641,9 +655,9 @@ func (h *LayoutHandlers) BatchUpdateElements(w http.ResponseWriter, r *http.Requ
 }
 
 func parseETag(etag string) (int, error) {
-	if len(etag) < 3 || etag[0] != '"' || etag[len(etag)-1] != '"' {
+	trimmed := strings.Trim(etag, `"`)
+	if trimmed == etag || trimmed == "" {
 		return 0, errors.New("invalid ETag format")
 	}
-	versionStr := etag[1 : len(etag)-1]
-	return strconv.Atoi(versionStr)
+	return strconv.Atoi(trimmed)
 }

@@ -210,11 +210,7 @@ func (h *EnterpriseCapabilityHandlers) DeleteEnterpriseCapability(w http.Respons
 	if h.getCapabilityOrNotFound(w, r, id) == nil {
 		return
 	}
-
-	result, err := h.commandBus.Dispatch(r.Context(), &commands.DeleteEnterpriseCapability{ID: id})
-	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
-		sharedAPI.RespondDeleted(w)
-	})
+	h.dispatchDelete(w, r, &commands.DeleteEnterpriseCapability{ID: id})
 }
 
 // GetLinkedCapabilities godoc
@@ -284,14 +280,12 @@ func (h *EnterpriseCapabilityHandlers) LinkCapability(w http.ResponseWriter, r *
 
 	result, err := h.commandBus.Dispatch(r.Context(), cmd)
 	sharedAPI.HandleCommandResult(w, result, err, func(createdID string) {
+		location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/links/"+createdID))
 		link, err := h.readModels.Link.GetByID(r.Context(), createdID)
 		if err != nil || link == nil {
-			location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/links/"+createdID))
 			sharedAPI.RespondCreatedNoBody(w, location)
 			return
 		}
-
-		location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/links/"+createdID))
 		link.Links = h.hateoas.EnterpriseCapabilityLinkLinks(enterpriseCapabilityID, link.ID)
 		sharedAPI.RespondCreated(w, location, link)
 	})
@@ -312,11 +306,7 @@ func (h *EnterpriseCapabilityHandlers) UnlinkCapability(w http.ResponseWriter, r
 	if h.getLinkOrNotFound(w, r, linkID) == nil {
 		return
 	}
-
-	result, err := h.commandBus.Dispatch(r.Context(), &commands.UnlinkCapability{LinkID: linkID})
-	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
-		sharedAPI.RespondDeleted(w)
-	})
+	h.dispatchDelete(w, r, &commands.UnlinkCapability{LinkID: linkID})
 }
 
 // GetStrategicImportance godoc
@@ -383,14 +373,12 @@ func (h *EnterpriseCapabilityHandlers) SetStrategicImportance(w http.ResponseWri
 
 	result, err := h.commandBus.Dispatch(r.Context(), cmd)
 	sharedAPI.HandleCommandResult(w, result, err, func(createdID string) {
+		location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/strategic-importance/"+createdID))
 		rating, err := h.readModels.Importance.GetByID(r.Context(), createdID)
 		if err != nil || rating == nil {
-			location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/strategic-importance/"+createdID))
 			sharedAPI.RespondCreatedNoBody(w, location)
 			return
 		}
-
-		location := sharedAPI.BuildSubResourceLink(sharedAPI.ResourcePath("/enterprise-capabilities"), sharedAPI.ResourceID(enterpriseCapabilityID), sharedAPI.ResourcePath("/strategic-importance/"+createdID))
 		actor, _ := sharedctx.GetActor(r.Context())
 		rating.Links = h.hateoas.EnterpriseStrategicImportanceLinksForActor(enterpriseCapabilityID, rating.ID, actor)
 		sharedAPI.RespondCreated(w, location, rating)
@@ -458,11 +446,7 @@ func (h *EnterpriseCapabilityHandlers) RemoveStrategicImportance(w http.Response
 	if h.getImportanceOrNotFound(w, r, importanceID) == nil {
 		return
 	}
-
-	result, err := h.commandBus.Dispatch(r.Context(), &commands.RemoveEnterpriseStrategicImportance{ID: importanceID})
-	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
-		sharedAPI.RespondDeleted(w)
-	})
+	h.dispatchDelete(w, r, &commands.RemoveEnterpriseStrategicImportance{ID: importanceID})
 }
 
 // GetEnterpriseCapabilityForDomainCapability godoc
@@ -567,6 +551,33 @@ func (h *EnterpriseCapabilityHandlers) respondWithCapability(w http.ResponseWrit
 	}
 }
 
+func (h *EnterpriseCapabilityHandlers) dispatchDelete(w http.ResponseWriter, r *http.Request, cmd cqrs.Command) {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
+		sharedAPI.RespondDeleted(w)
+	})
+}
+
+func (h *EnterpriseCapabilityHandlers) addLinkStatusLinks(status *readmodels.CapabilityLinkStatusDTO) {
+	var linkedToID *string
+	if status.LinkedTo != nil {
+		linkedToID = &status.LinkedTo.ID
+	}
+
+	var blockingCapabilityID *string
+	if status.BlockingCapability != nil {
+		blockingCapabilityID = &status.BlockingCapability.ID
+	}
+
+	status.Links = h.hateoas.CapabilityLinkStatusLinks(sharedAPI.LinkStatusParams{
+		CapabilityID:  status.CapabilityID,
+		Status:        string(status.Status),
+		LinkedToID:    linkedToID,
+		BlockingCapID: blockingCapabilityID,
+		BlockingEcID:  status.BlockingEnterpriseCapID,
+	})
+}
+
 func (h *EnterpriseCapabilityHandlers) getCurrentUserEmail(r *http.Request) (string, error) {
 	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
 	if err != nil {
@@ -593,24 +604,7 @@ func (h *EnterpriseCapabilityHandlers) GetCapabilityLinkStatus(w http.ResponseWr
 		return
 	}
 
-	var linkedToID *string
-	if status.LinkedTo != nil {
-		linkedToID = &status.LinkedTo.ID
-	}
-
-	var blockingCapabilityID *string
-	if status.BlockingCapability != nil {
-		blockingCapabilityID = &status.BlockingCapability.ID
-	}
-
-	status.Links = h.hateoas.CapabilityLinkStatusLinks(sharedAPI.LinkStatusParams{
-		CapabilityID:  capabilityID,
-		Status:        string(status.Status),
-		LinkedToID:    linkedToID,
-		BlockingCapID: blockingCapabilityID,
-		BlockingEcID:  status.BlockingEnterpriseCapID,
-	})
-
+	h.addLinkStatusLinks(status)
 	sharedAPI.RespondJSON(w, http.StatusOK, status)
 }
 
@@ -649,23 +643,7 @@ func (h *EnterpriseCapabilityHandlers) GetBatchCapabilityLinkStatus(w http.Respo
 	}
 
 	for i := range statuses {
-		var linkedToID *string
-		if statuses[i].LinkedTo != nil {
-			linkedToID = &statuses[i].LinkedTo.ID
-		}
-
-		var blockingCapabilityID *string
-		if statuses[i].BlockingCapability != nil {
-			blockingCapabilityID = &statuses[i].BlockingCapability.ID
-		}
-
-		statuses[i].Links = h.hateoas.CapabilityLinkStatusLinks(sharedAPI.LinkStatusParams{
-			CapabilityID:  statuses[i].CapabilityID,
-			Status:        string(statuses[i].Status),
-			LinkedToID:    linkedToID,
-			BlockingCapID: blockingCapabilityID,
-			BlockingEcID:  statuses[i].BlockingEnterpriseCapID,
-		})
+		h.addLinkStatusLinks(&statuses[i])
 	}
 
 	sharedAPI.RespondCollection(w, http.StatusOK, statuses, nil)

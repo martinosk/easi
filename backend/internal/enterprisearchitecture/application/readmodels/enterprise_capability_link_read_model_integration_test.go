@@ -19,12 +19,12 @@ import (
 )
 
 type testFixture struct {
-	db                         *sql.DB
-	tenantDB                   *database.TenantAwareDB
-	readModel                  *EnterpriseCapabilityLinkReadModel
-	enterpriseCapabilityRM     *EnterpriseCapabilityReadModel
-	ctx                        context.Context
-	t                          *testing.T
+	db                     *sql.DB
+	tenantDB               *database.TenantAwareDB
+	readModel              *EnterpriseCapabilityLinkReadModel
+	enterpriseCapabilityRM *EnterpriseCapabilityReadModel
+	ctx                    context.Context
+	t                      *testing.T
 }
 
 func newTestFixture(t *testing.T) *testFixture {
@@ -35,12 +35,12 @@ func newTestFixture(t *testing.T) *testFixture {
 	require.NoError(t, err)
 
 	return &testFixture{
-		db:                         db,
-		tenantDB:                   tenantDB,
-		readModel:                  NewEnterpriseCapabilityLinkReadModel(tenantDB),
-		enterpriseCapabilityRM:     NewEnterpriseCapabilityReadModel(tenantDB),
-		ctx:                        sharedcontext.WithTenant(context.Background(), sharedvo.DefaultTenantID()),
-		t:                          t,
+		db:                     db,
+		tenantDB:               tenantDB,
+		readModel:              NewEnterpriseCapabilityLinkReadModel(tenantDB),
+		enterpriseCapabilityRM: NewEnterpriseCapabilityReadModel(tenantDB),
+		ctx:                    sharedcontext.WithTenant(context.Background(), sharedvo.DefaultTenantID()),
+		t:                      t,
 	}
 }
 
@@ -85,66 +85,99 @@ func (f *testFixture) createLink(id, enterpriseCapID, domainCapID string) {
 	f.t.Cleanup(func() { f.db.Exec("DELETE FROM enterprise_capability_links WHERE id = $1", id) })
 }
 
-func (f *testFixture) createBlocking(domainCapID, blockedByCapID, blockedByEnterpriseID, blockedByCapName, blockedByEnterpriseName string, isAncestor bool) {
+type blockingInfo struct {
+	capID          string
+	enterpriseID   string
+	capName        string
+	enterpriseName string
+}
+
+func (f *testFixture) createBlocking(domainCapID string, blockedBy blockingInfo, isAncestor bool) {
 	_, err := f.db.Exec(`INSERT INTO capability_link_blocking (tenant_id, domain_capability_id, blocked_by_capability_id, blocked_by_enterprise_id, blocked_by_capability_name, blocked_by_enterprise_name, is_ancestor)
-		VALUES ('default', $1, $2, $3, $4, $5, $6)`, domainCapID, blockedByCapID, blockedByEnterpriseID, blockedByCapName, blockedByEnterpriseName, isAncestor)
+		VALUES ('default', $1, $2, $3, $4, $5, $6)`, domainCapID, blockedBy.capID, blockedBy.enterpriseID, blockedBy.capName, blockedBy.enterpriseName, isAncestor)
 	require.NoError(f.t, err)
-	f.t.Cleanup(func() { f.db.Exec("DELETE FROM capability_link_blocking WHERE tenant_id = 'default' AND blocked_by_capability_id = $1", blockedByCapID) })
+	f.t.Cleanup(func() {
+		f.db.Exec("DELETE FROM capability_link_blocking WHERE tenant_id = 'default' AND blocked_by_capability_id = $1", blockedBy.capID)
+	})
 }
 
-func TestCheckHierarchyConflict_AncestorLinkedToDifferent(t *testing.T) {
-	f := newTestFixture(t)
-
-	grandparentID := f.uniqueID("cap-gp")
-	parentID := f.uniqueID("cap-p")
-	childID := f.uniqueID("cap-c")
-	enterpriseCapID1 := f.uniqueID("ec-1")
-	enterpriseCapID2 := f.uniqueID("ec-2")
-
-	f.createCapability(grandparentID, "Grandparent", nil)
-	f.createCapability(parentID, "Parent", &grandparentID)
-	f.createCapability(childID, "Child", &parentID)
-	f.createEnterpriseCapability(enterpriseCapID1, "EC1")
-	f.createEnterpriseCapability(enterpriseCapID2, "EC2")
-	f.createLink(f.uniqueID("link"), enterpriseCapID1, parentID)
-	f.createBlocking(grandparentID, parentID, enterpriseCapID1, "Parent", "EC1", false)
-	f.createBlocking(childID, parentID, enterpriseCapID1, "Parent", "EC1", true)
-
-	conflict, err := f.readModel.CheckHierarchyConflict(f.ctx, childID, enterpriseCapID2)
-	require.NoError(t, err)
-	require.NotNil(t, conflict)
-
-	assert.Equal(t, parentID, conflict.ConflictingCapabilityID)
-	assert.Equal(t, "Parent", conflict.ConflictingCapabilityName)
-	assert.Equal(t, enterpriseCapID1, conflict.LinkedToCapabilityID)
-	assert.Equal(t, "EC1", conflict.LinkedToCapabilityName)
-	assert.True(t, conflict.IsAncestor)
+func (f *testFixture) setLinkCount(enterpriseCapID string, count int) {
+	_, err := f.db.Exec("UPDATE enterprise_capabilities SET link_count = $1 WHERE id = $2", count, enterpriseCapID)
+	require.NoError(f.t, err)
 }
 
-func TestCheckHierarchyConflict_DescendantLinkedToDifferent(t *testing.T) {
-	f := newTestFixture(t)
+func TestCheckHierarchyConflict_RelativeLinkedToDifferent(t *testing.T) {
+	tests := []struct {
+		name               string
+		setupHierarchy     func(f *testFixture) (checkCapID, conflictCapID, ecID1, ecID2 string)
+		expectedCapName    string
+		expectedIsAncestor bool
+	}{
+		{
+			name: "ancestor linked to different",
+			setupHierarchy: func(f *testFixture) (string, string, string, string) {
+				grandparentID := f.uniqueID("cap-gp")
+				parentID := f.uniqueID("cap-p")
+				childID := f.uniqueID("cap-c")
+				ecID1 := f.uniqueID("ec-1")
+				ecID2 := f.uniqueID("ec-2")
 
-	parentID := f.uniqueID("cap-p")
-	childID := f.uniqueID("cap-c")
-	enterpriseCapID1 := f.uniqueID("ec-1")
-	enterpriseCapID2 := f.uniqueID("ec-2")
+				f.createCapability(grandparentID, "Grandparent", nil)
+				f.createCapability(parentID, "Parent", &grandparentID)
+				f.createCapability(childID, "Child", &parentID)
+				f.createEnterpriseCapability(ecID1, "EC1")
+				f.createEnterpriseCapability(ecID2, "EC2")
+				f.createLink(f.uniqueID("link"), ecID1, parentID)
 
-	f.createCapability(parentID, "Parent", nil)
-	f.createCapability(childID, "Child", &parentID)
-	f.createEnterpriseCapability(enterpriseCapID1, "EC1")
-	f.createEnterpriseCapability(enterpriseCapID2, "EC2")
-	f.createLink(f.uniqueID("link"), enterpriseCapID1, childID)
-	f.createBlocking(parentID, childID, enterpriseCapID1, "Child", "EC1", false)
+				blocking := blockingInfo{capID: parentID, enterpriseID: ecID1, capName: "Parent", enterpriseName: "EC1"}
+				f.createBlocking(grandparentID, blocking, false)
+				f.createBlocking(childID, blocking, true)
 
-	conflict, err := f.readModel.CheckHierarchyConflict(f.ctx, parentID, enterpriseCapID2)
-	require.NoError(t, err)
-	require.NotNil(t, conflict)
+				return childID, parentID, ecID1, ecID2
+			},
+			expectedCapName:    "Parent",
+			expectedIsAncestor: true,
+		},
+		{
+			name: "descendant linked to different",
+			setupHierarchy: func(f *testFixture) (string, string, string, string) {
+				parentID := f.uniqueID("cap-p")
+				childID := f.uniqueID("cap-c")
+				ecID1 := f.uniqueID("ec-1")
+				ecID2 := f.uniqueID("ec-2")
 
-	assert.Equal(t, childID, conflict.ConflictingCapabilityID)
-	assert.Equal(t, "Child", conflict.ConflictingCapabilityName)
-	assert.Equal(t, enterpriseCapID1, conflict.LinkedToCapabilityID)
-	assert.Equal(t, "EC1", conflict.LinkedToCapabilityName)
-	assert.False(t, conflict.IsAncestor)
+				f.createCapability(parentID, "Parent", nil)
+				f.createCapability(childID, "Child", &parentID)
+				f.createEnterpriseCapability(ecID1, "EC1")
+				f.createEnterpriseCapability(ecID2, "EC2")
+				f.createLink(f.uniqueID("link"), ecID1, childID)
+
+				blocking := blockingInfo{capID: childID, enterpriseID: ecID1, capName: "Child", enterpriseName: "EC1"}
+				f.createBlocking(parentID, blocking, false)
+
+				return parentID, childID, ecID1, ecID2
+			},
+			expectedCapName:    "Child",
+			expectedIsAncestor: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newTestFixture(t)
+			checkCapID, conflictCapID, ecID1, ecID2 := tc.setupHierarchy(f)
+
+			conflict, err := f.readModel.CheckHierarchyConflict(f.ctx, checkCapID, ecID2)
+			require.NoError(t, err)
+			require.NotNil(t, conflict)
+
+			assert.Equal(t, conflictCapID, conflict.ConflictingCapabilityID)
+			assert.Equal(t, tc.expectedCapName, conflict.ConflictingCapabilityName)
+			assert.Equal(t, ecID1, conflict.LinkedToCapabilityID)
+			assert.Equal(t, "EC1", conflict.LinkedToCapabilityName)
+			assert.Equal(t, tc.expectedIsAncestor, conflict.IsAncestor)
+		})
+	}
 }
 
 func TestCheckHierarchyConflict_SameEnterpriseCapability_NoConflict(t *testing.T) {
@@ -158,7 +191,7 @@ func TestCheckHierarchyConflict_SameEnterpriseCapability_NoConflict(t *testing.T
 	f.createCapability(childID, "Child", &parentID)
 	f.createEnterpriseCapability(enterpriseCapID, "EC")
 	f.createLink(f.uniqueID("link"), enterpriseCapID, childID)
-	f.createBlocking(parentID, childID, enterpriseCapID, "Child", "EC", false)
+	f.createBlocking(parentID, blockingInfo{capID: childID, enterpriseID: enterpriseCapID, capName: "Child", enterpriseName: "EC"}, false)
 
 	conflict, err := f.readModel.CheckHierarchyConflict(f.ctx, parentID, enterpriseCapID)
 	require.NoError(t, err)
@@ -187,11 +220,12 @@ func TestCheckHierarchyConflict_DeepHierarchy_HandlesDepthLimit(t *testing.T) {
 
 	f.createLink(f.uniqueID("link"), enterpriseCapID1, capabilityIDs[8])
 
+	blocking := blockingInfo{capID: capabilityIDs[8], enterpriseID: enterpriseCapID1, capName: "Level 8", enterpriseName: "EC1"}
 	for i := 0; i < 8; i++ {
-		f.createBlocking(capabilityIDs[i], capabilityIDs[8], enterpriseCapID1, "Level 8", "EC1", false)
+		f.createBlocking(capabilityIDs[i], blocking, false)
 	}
 	for i := 9; i < 12; i++ {
-		f.createBlocking(capabilityIDs[i], capabilityIDs[8], enterpriseCapID1, "Level 8", "EC1", true)
+		f.createBlocking(capabilityIDs[i], blocking, true)
 	}
 
 	conflict, err := f.readModel.CheckHierarchyConflict(f.ctx, capabilityIDs[11], enterpriseCapID2)
@@ -251,61 +285,63 @@ func (f *testFixture) createCapabilityMetadata(capabilityID, capabilityName stri
 	f.t.Cleanup(func() { f.db.Exec("DELETE FROM domain_capability_metadata WHERE capability_id = $1", capabilityID) })
 }
 
-func TestIncrementLinkCount_IncrementsLinkCount(t *testing.T) {
-	f := newTestFixture(t)
+func TestLinkCount_IncrementAndDecrement(t *testing.T) {
+	tests := []struct {
+		name          string
+		initialCount  int
+		operation     func(*EnterpriseCapabilityReadModel, context.Context, string) error
+		expectedCount int
+	}{
+		{
+			name:         "increment from zero",
+			initialCount: 0,
+			operation: func(rm *EnterpriseCapabilityReadModel, ctx context.Context, id string) error {
+				return rm.IncrementLinkCount(ctx, id)
+			},
+			expectedCount: 1,
+		},
+		{
+			name:         "increment from nonzero",
+			initialCount: 1,
+			operation: func(rm *EnterpriseCapabilityReadModel, ctx context.Context, id string) error {
+				return rm.IncrementLinkCount(ctx, id)
+			},
+			expectedCount: 2,
+		},
+		{
+			name:         "decrement from nonzero",
+			initialCount: 3,
+			operation: func(rm *EnterpriseCapabilityReadModel, ctx context.Context, id string) error {
+				return rm.DecrementLinkCount(ctx, id)
+			},
+			expectedCount: 2,
+		},
+		{
+			name:         "decrement does not go below zero",
+			initialCount: 0,
+			operation: func(rm *EnterpriseCapabilityReadModel, ctx context.Context, id string) error {
+				return rm.DecrementLinkCount(ctx, id)
+			},
+			expectedCount: 0,
+		},
+	}
 
-	enterpriseCapID := f.uniqueID("ec")
-	f.createEnterpriseCapability(enterpriseCapID, "EC")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newTestFixture(t)
 
-	initialCount := f.getLinkCount(enterpriseCapID)
-	assert.Equal(t, 0, initialCount)
+			enterpriseCapID := f.uniqueID("ec")
+			f.createEnterpriseCapability(enterpriseCapID, "EC")
+			f.setLinkCount(enterpriseCapID, tc.initialCount)
 
-	err := f.enterpriseCapabilityRM.IncrementLinkCount(f.ctx, enterpriseCapID)
-	require.NoError(t, err)
+			assert.Equal(t, tc.initialCount, f.getLinkCount(enterpriseCapID))
 
-	afterIncrement := f.getLinkCount(enterpriseCapID)
-	assert.Equal(t, 1, afterIncrement)
+			err := tc.operation(f.enterpriseCapabilityRM, f.ctx, enterpriseCapID)
+			require.NoError(t, err)
 
-	err = f.enterpriseCapabilityRM.IncrementLinkCount(f.ctx, enterpriseCapID)
-	require.NoError(t, err)
-
-	afterSecondIncrement := f.getLinkCount(enterpriseCapID)
-	assert.Equal(t, 2, afterSecondIncrement)
-}
-
-func TestDecrementLinkCount_DecrementsLinkCount(t *testing.T) {
-	f := newTestFixture(t)
-
-	enterpriseCapID := f.uniqueID("ec")
-	f.createEnterpriseCapability(enterpriseCapID, "EC")
-
-	_, err := f.db.Exec("UPDATE enterprise_capabilities SET link_count = 3 WHERE id = $1", enterpriseCapID)
-	require.NoError(t, err)
-
-	initialCount := f.getLinkCount(enterpriseCapID)
-	assert.Equal(t, 3, initialCount)
-
-	err = f.enterpriseCapabilityRM.DecrementLinkCount(f.ctx, enterpriseCapID)
-	require.NoError(t, err)
-
-	afterDecrement := f.getLinkCount(enterpriseCapID)
-	assert.Equal(t, 2, afterDecrement)
-}
-
-func TestDecrementLinkCount_DoesNotGoBelowZero(t *testing.T) {
-	f := newTestFixture(t)
-
-	enterpriseCapID := f.uniqueID("ec")
-	f.createEnterpriseCapability(enterpriseCapID, "EC")
-
-	initialCount := f.getLinkCount(enterpriseCapID)
-	assert.Equal(t, 0, initialCount)
-
-	err := f.enterpriseCapabilityRM.DecrementLinkCount(f.ctx, enterpriseCapID)
-	require.NoError(t, err)
-
-	afterDecrement := f.getLinkCount(enterpriseCapID)
-	assert.Equal(t, 0, afterDecrement)
+			assert.Equal(t, tc.expectedCount, f.getLinkCount(enterpriseCapID))
+		})
+	}
 }
 
 func TestIncrementAndDecrement_CounterConsistency(t *testing.T) {

@@ -168,7 +168,13 @@ func (rm *CapabilityReadModel) GetDistinctExpertRoles(ctx context.Context) ([]st
 	return roles, err
 }
 
-func (rm *CapabilityReadModel) AddTag(ctx context.Context, capabilityID, tag string, addedAt time.Time) error {
+type TagInfo struct {
+	CapabilityID string
+	Tag          string
+	AddedAt      time.Time
+}
+
+func (rm *CapabilityReadModel) AddTag(ctx context.Context, info TagInfo) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -176,12 +182,18 @@ func (rm *CapabilityReadModel) AddTag(ctx context.Context, capabilityID, tag str
 
 	_, err = rm.db.ExecContext(ctx,
 		"INSERT INTO capability_tags (capability_id, tenant_id, tag, added_at) VALUES ($1, $2, $3, $4) ON CONFLICT (tenant_id, capability_id, tag) DO NOTHING",
-		capabilityID, tenantID.Value(), tag, addedAt,
+		info.CapabilityID, tenantID.Value(), info.Tag, info.AddedAt,
 	)
 	return err
 }
 
-func (rm *CapabilityReadModel) Update(ctx context.Context, id, name, description string) error {
+type CapabilityUpdate struct {
+	ID          string
+	Name        string
+	Description string
+}
+
+func (rm *CapabilityReadModel) Update(ctx context.Context, update CapabilityUpdate) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -189,25 +201,31 @@ func (rm *CapabilityReadModel) Update(ctx context.Context, id, name, description
 
 	_, err = rm.db.ExecContext(ctx,
 		"UPDATE capabilities SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
-		name, description, tenantID.Value(), id,
+		update.Name, update.Description, tenantID.Value(), update.ID,
 	)
 	return err
 }
 
-func (rm *CapabilityReadModel) UpdateParent(ctx context.Context, id, parentID, level string) error {
+type ParentUpdate struct {
+	ID       string
+	ParentID string
+	Level    string
+}
+
+func (rm *CapabilityReadModel) UpdateParent(ctx context.Context, update ParentUpdate) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
 	}
 
 	var parentIDValue any = nil
-	if parentID != "" {
-		parentIDValue = parentID
+	if update.ParentID != "" {
+		parentIDValue = update.ParentID
 	}
 
 	_, err = rm.db.ExecContext(ctx,
 		"UPDATE capabilities SET parent_id = $1, level = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
-		parentIDValue, level, tenantID.Value(), id,
+		parentIDValue, update.Level, tenantID.Value(), update.ID,
 	)
 	return err
 }
@@ -377,38 +395,31 @@ func calculateMaturitySection(value int) *MaturitySectionDTO {
 	}
 }
 
-func (rm *CapabilityReadModel) GetAll(ctx context.Context) ([]CapabilityDTO, error) {
+func (rm *CapabilityReadModel) queryForTenant(ctx context.Context, query string, extraArgs ...any) ([]CapabilityDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, err
 	}
+	args := append([]any{tenantID.Value()}, extraArgs...)
+	return rm.queryCapabilityList(ctx, tenantID.Value(), query, args...)
+}
 
-	return rm.queryCapabilityList(ctx,
+func (rm *CapabilityReadModel) GetAll(ctx context.Context) ([]CapabilityDTO, error) {
+	return rm.queryForTenant(ctx,
 		"SELECT id, name, description, parent_id, level, maturity_value, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilities WHERE tenant_id = $1 ORDER BY level, name",
-		tenantID.Value(),
 	)
 }
 
 func (rm *CapabilityReadModel) GetChildren(ctx context.Context, parentID string) ([]CapabilityDTO, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return rm.queryCapabilityList(ctx,
+	return rm.queryForTenant(ctx,
 		"SELECT id, name, description, parent_id, level, maturity_value, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilities WHERE tenant_id = $1 AND parent_id = $2 ORDER BY name",
-		tenantID.Value(), parentID,
+		parentID,
 	)
 }
 
-func (rm *CapabilityReadModel) queryCapabilityList(ctx context.Context, query string, args ...any) ([]CapabilityDTO, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+func (rm *CapabilityReadModel) queryCapabilityList(ctx context.Context, tenantID string, query string, args ...any) ([]CapabilityDTO, error) {
 	var capabilities []CapabilityDTO
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		caps, err := rm.scanCapabilityRows(ctx, tx, query, args...)
 		if err != nil {
 			return err
@@ -420,10 +431,10 @@ func (rm *CapabilityReadModel) queryCapabilityList(ctx context.Context, query st
 		}
 
 		capabilityMap := buildCapabilityMap(capabilities)
-		if err := rm.fetchExpertsBatch(ctx, tx, tenantID.Value(), capabilityMap); err != nil {
+		if err := rm.fetchExpertsBatch(ctx, tx, tenantID, capabilityMap); err != nil {
 			return err
 		}
-		return rm.fetchTagsBatch(ctx, tx, tenantID.Value(), capabilityMap)
+		return rm.fetchTagsBatch(ctx, tx, tenantID, capabilityMap)
 	})
 	return capabilities, err
 }

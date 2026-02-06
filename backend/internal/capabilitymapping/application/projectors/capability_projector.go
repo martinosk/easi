@@ -74,7 +74,11 @@ func (p *CapabilityProjector) handleCapabilityUpdated(ctx context.Context, event
 		return err
 	}
 
-	if err := p.readModel.Update(ctx, event.ID, event.Name, event.Description); err != nil {
+	if err := p.readModel.Update(ctx, readmodels.CapabilityUpdate{
+		ID:          event.ID,
+		Name:        event.Name,
+		Description: event.Description,
+	}); err != nil {
 		return err
 	}
 
@@ -147,7 +151,11 @@ func (p *CapabilityProjector) handleCapabilityTagAdded(ctx context.Context, even
 		log.Printf("Failed to unmarshal CapabilityTagAdded event: %v", err)
 		return err
 	}
-	return p.readModel.AddTag(ctx, event.CapabilityID, event.Tag, event.AddedAt)
+	return p.readModel.AddTag(ctx, readmodels.TagInfo{
+		CapabilityID: event.CapabilityID,
+		Tag:          event.Tag,
+		AddedAt:      event.AddedAt,
+	})
 }
 
 func (p *CapabilityProjector) handleCapabilityParentChanged(ctx context.Context, eventData []byte) error {
@@ -156,7 +164,11 @@ func (p *CapabilityProjector) handleCapabilityParentChanged(ctx context.Context,
 		log.Printf("Failed to unmarshal CapabilityParentChanged event: %v", err)
 		return err
 	}
-	return p.readModel.UpdateParent(ctx, event.CapabilityID, event.NewParentID, event.NewLevel)
+	return p.readModel.UpdateParent(ctx, readmodels.ParentUpdate{
+		ID:       event.CapabilityID,
+		ParentID: event.NewParentID,
+		Level:    event.NewLevel,
+	})
 }
 
 func (p *CapabilityProjector) handleCapabilityDeleted(ctx context.Context, eventData []byte) error {

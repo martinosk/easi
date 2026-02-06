@@ -30,12 +30,12 @@ import (
 )
 
 type originTestContext struct {
-	db                       *sql.DB
-	originHandlers           *OriginRelationshipHandlers
-	acquiredEntityHandlers   interface{ CreateAcquiredEntity(http.ResponseWriter, *http.Request) }
-	internalTeamHandlers     interface{ CreateInternalTeam(http.ResponseWriter, *http.Request) }
-	componentHandlers        *ComponentHandlers
-	createdIDs               []string
+	db                     *sql.DB
+	originHandlers         *OriginRelationshipHandlers
+	acquiredEntityHandlers interface{ CreateAcquiredEntity(http.ResponseWriter, *http.Request) }
+	internalTeamHandlers   interface{ CreateInternalTeam(http.ResponseWriter, *http.Request) }
+	componentHandlers      *ComponentHandlers
+	createdIDs             []string
 }
 
 func setupOriginTestHandlers(db *sql.DB) *originTestContext {
@@ -46,7 +46,6 @@ func setupOriginTestHandlers(db *sql.DB) *originTestContext {
 	eventBus := events.NewInMemoryEventBus()
 	eventStore.SetEventBus(eventBus)
 
-	// Setup component handlers
 	componentReadModel := readmodels.NewApplicationComponentReadModel(tenantDB)
 	componentProjector := projectors.NewApplicationComponentProjector(componentReadModel)
 	eventBus.Subscribe("ApplicationComponentCreated", componentProjector)
@@ -56,7 +55,6 @@ func setupOriginTestHandlers(db *sql.DB) *originTestContext {
 	commandBus.Register("CreateApplicationComponent", createComponentHandler)
 	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, hateoas)
 
-	// Setup origin relationship handlers
 	acquiredViaReadModel := readmodels.NewAcquiredViaRelationshipReadModel(tenantDB)
 	purchasedFromReadModel := readmodels.NewPurchasedFromRelationshipReadModel(tenantDB)
 	builtByReadModel := readmodels.NewBuiltByRelationshipReadModel(tenantDB)
@@ -89,9 +87,6 @@ func setupOriginTestHandlers(db *sql.DB) *originTestContext {
 		builtByReadModel,
 		hateoas,
 	)
-
-	// We also need to setup acquired entity handlers for creating test data
-	// For simplicity, we'll create test data directly in the read models
 
 	return &originTestContext{
 		db:                db,
@@ -128,63 +123,89 @@ func (ctx *originTestContext) setTenantContextNoError() {
 	ctx.db.Exec(fmt.Sprintf("SET app.current_tenant = '%s'", testTenantID()))
 }
 
-func (ctx *originTestContext) createTestComponent(t *testing.T, name string) string {
+func (ctx *originTestContext) insertTestRecord(t *testing.T, query string, args ...interface{}) string {
 	ctx.setTenantContext(t)
 	id := uuid.New().String()
-	_, err := ctx.db.Exec(
-		"INSERT INTO application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
-		id, name, "Test component", testTenantID(),
-	)
+	allArgs := append([]interface{}{id}, args...)
+	allArgs = append(allArgs, testTenantID())
+	_, err := ctx.db.Exec(query, allArgs...)
 	require.NoError(t, err)
 	ctx.trackID(id)
 	return id
+}
+
+func (ctx *originTestContext) createTestComponent(t *testing.T, name string) string {
+	return ctx.insertTestRecord(t,
+		"INSERT INTO application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
+		name, "Test component")
 }
 
 func (ctx *originTestContext) createTestAcquiredEntity(t *testing.T, name string) string {
-	ctx.setTenantContext(t)
-	id := uuid.New().String()
-	_, err := ctx.db.Exec(
+	return ctx.insertTestRecord(t,
 		"INSERT INTO acquired_entities (id, name, tenant_id, created_at) VALUES ($1, $2, $3, NOW())",
-		id, name, testTenantID(),
-	)
-	require.NoError(t, err)
-	ctx.trackID(id)
-	return id
+		name)
 }
 
 func (ctx *originTestContext) createTestInternalTeam(t *testing.T, name string) string {
-	ctx.setTenantContext(t)
-	id := uuid.New().String()
-	_, err := ctx.db.Exec(
+	return ctx.insertTestRecord(t,
 		"INSERT INTO internal_teams (id, name, tenant_id, created_at) VALUES ($1, $2, $3, NOW())",
-		id, name, testTenantID(),
-	)
-	require.NoError(t, err)
-	ctx.trackID(id)
-	return id
+		name)
 }
 
-func (ctx *originTestContext) makeOriginRequest(t *testing.T, method, url string, body string, componentId string) (*httptest.ResponseRecorder, *http.Request) {
+type originRequest struct {
+	componentID string
+	body        string
+}
+
+func (ctx *originTestContext) newComponentRequest(opts originRequest) (*httptest.ResponseRecorder, *http.Request) {
 	var req *http.Request
-	if body != "" {
-		req = httptest.NewRequest(method, url, strings.NewReader(body))
+	path := fmt.Sprintf("/api/v1/components/%s/origin", opts.componentID)
+	if opts.body != "" {
+		req = httptest.NewRequest(http.MethodPut, path, strings.NewReader(opts.body))
 		req.Header.Set("Content-Type", "application/json")
 	} else {
-		req = httptest.NewRequest(method, url, nil)
+		req = httptest.NewRequest(http.MethodGet, path, nil)
 	}
 	req = withTestTenant(req)
 
-	if componentId != "" {
-		rctx := chi.NewRouteContext()
-		rctx.URLParams.Add("componentId", componentId)
-		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	}
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("componentId", opts.componentID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
 	return httptest.NewRecorder(), req
 }
 
-// TestMultipleOriginRelationships reproduces the bug where "acquired via" edge
-// disappears when "built by" is added to the same component.
+func (ctx *originTestContext) getAllOriginRelationships(t *testing.T) AllOriginRelationshipsDTO {
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/origin-relationships", nil)
+	req = withTestTenant(req)
+	w := httptest.NewRecorder()
+	ctx.originHandlers.GetAllOriginRelationships(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var resp AllOriginRelationshipsDTO
+	err := json.NewDecoder(w.Body).Decode(&resp)
+	require.NoError(t, err)
+	return resp
+}
+
+func hasAcquiredViaForComponent(rels []readmodels.AcquiredViaRelationshipDTO, componentID string) bool {
+	for _, rel := range rels {
+		if rel.ComponentID == componentID {
+			return true
+		}
+	}
+	return false
+}
+
+func hasBuiltByForComponent(rels []readmodels.BuiltByRelationshipDTO, componentID string) bool {
+	for _, rel := range rels {
+		if rel.ComponentID == componentID {
+			return true
+		}
+	}
+	return false
+}
+
 func TestMultipleOriginRelationships(t *testing.T) {
 	dbCtx, cleanup := setupTestDB(t)
 	defer cleanup()
@@ -192,126 +213,39 @@ func TestMultipleOriginRelationships(t *testing.T) {
 	ctx := setupOriginTestHandlers(dbCtx.db)
 	defer ctx.cleanup()
 
-	// Step 1: Create test data
-	t.Log("Step 1: Creating test data...")
 	componentID := ctx.createTestComponent(t, "Test Component for Multi-Origin")
 	acquiredEntityID := ctx.createTestAcquiredEntity(t, "Test Acquired Entity")
 	teamID := ctx.createTestInternalTeam(t, "Test Team")
-	t.Logf("  Component ID: %s", componentID)
-	t.Logf("  Acquired Entity ID: %s", acquiredEntityID)
-	t.Logf("  Internal Team ID: %s", teamID)
 
-	// Step 2: Link component to acquired entity (acquired-via)
-	t.Log("Step 2: Linking component to acquired entity (acquired-via)...")
-	linkBody := fmt.Sprintf(`{"acquiredEntityId": "%s", "notes": "Test acquired via"}`, acquiredEntityID)
-	url := fmt.Sprintf("/api/v1/components/%s/origin/acquired-via", componentID)
+	t.Run("set acquired-via relationship", func(t *testing.T) {
+		body := fmt.Sprintf(`{"acquiredEntityId": "%s", "notes": "Test acquired via"}`, acquiredEntityID)
+		w, req := ctx.newComponentRequest(originRequest{componentID: componentID, body: body})
+		ctx.originHandlers.CreateAcquiredViaRelationship(w, req)
+		require.Equal(t, http.StatusOK, w.Code, "Failed to create acquired-via: %s", w.Body.String())
+	})
 
-	req := httptest.NewRequest(http.MethodPut, url, strings.NewReader(linkBody))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("componentId", componentID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-	w := httptest.NewRecorder()
-	ctx.originHandlers.CreateAcquiredViaRelationship(w, req)
-
-	require.Equal(t, http.StatusOK, w.Code, "Failed to create acquired-via: %s", w.Body.String())
-	t.Log("  ✓ Acquired-via relationship created")
-
-	// Wait for projection
 	time.Sleep(100 * time.Millisecond)
 
-	// Step 3: Verify acquired-via exists
-	t.Log("Step 3: Verifying acquired-via relationship exists...")
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/origin-relationships", nil)
-	req = withTestTenant(req)
-	w = httptest.NewRecorder()
-	ctx.originHandlers.GetAllOriginRelationships(w, req)
+	t.Run("acquired-via exists before adding built-by", func(t *testing.T) {
+		resp := ctx.getAllOriginRelationships(t)
+		require.True(t, hasAcquiredViaForComponent(resp.AcquiredVia, componentID),
+			"Acquired-via not found before adding built-by")
+	})
 
-	require.Equal(t, http.StatusOK, w.Code)
-	var resp1 AllOriginRelationshipsDTO
-	err := json.NewDecoder(w.Body).Decode(&resp1)
-	require.NoError(t, err)
+	t.Run("set built-by relationship", func(t *testing.T) {
+		body := fmt.Sprintf(`{"internalTeamId": "%s", "notes": "Test built by"}`, teamID)
+		w, req := ctx.newComponentRequest(originRequest{componentID: componentID, body: body})
+		ctx.originHandlers.CreateBuiltByRelationship(w, req)
+		require.Equal(t, http.StatusOK, w.Code, "Failed to create built-by: %s", w.Body.String())
+	})
 
-	foundAcquiredVia := false
-	for _, rel := range resp1.AcquiredVia {
-		if rel.ComponentID == componentID {
-			foundAcquiredVia = true
-			break
-		}
-	}
-	require.True(t, foundAcquiredVia, "Acquired-via not found before adding built-by")
-	t.Logf("  ✓ Acquired-via found (AcquiredVia count: %d)", len(resp1.AcquiredVia))
-
-	// Step 4: Link component to internal team (built-by)
-	t.Log("Step 4: Linking component to internal team (built-by)...")
-	builtByBody := fmt.Sprintf(`{"internalTeamId": "%s", "notes": "Test built by"}`, teamID)
-	url = fmt.Sprintf("/api/v1/components/%s/origin/built-by", componentID)
-
-	req = httptest.NewRequest(http.MethodPut, url, strings.NewReader(builtByBody))
-	req.Header.Set("Content-Type", "application/json")
-	req = withTestTenant(req)
-	rctx = chi.NewRouteContext()
-	rctx.URLParams.Add("componentId", componentID)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
-	w = httptest.NewRecorder()
-	ctx.originHandlers.CreateBuiltByRelationship(w, req)
-
-	require.Equal(t, http.StatusOK, w.Code, "Failed to create built-by: %s", w.Body.String())
-	t.Log("  ✓ Built-by relationship created")
-
-	// Wait for projection
 	time.Sleep(100 * time.Millisecond)
 
-	// Step 5: Verify BOTH relationships still exist
-	t.Log("Step 5: Verifying BOTH relationships still exist...")
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/origin-relationships", nil)
-	req = withTestTenant(req)
-	w = httptest.NewRecorder()
-	ctx.originHandlers.GetAllOriginRelationships(w, req)
-
-	require.Equal(t, http.StatusOK, w.Code)
-	t.Logf("  Response: %s", w.Body.String())
-
-	var resp2 AllOriginRelationshipsDTO
-	err = json.NewDecoder(strings.NewReader(w.Body.String())).Decode(&resp2)
-	require.NoError(t, err)
-
-	// Check acquired-via still exists
-	foundAcquiredVia = false
-	for _, rel := range resp2.AcquiredVia {
-		if rel.ComponentID == componentID {
-			foundAcquiredVia = true
-			t.Logf("  Found acquired-via: componentId=%s, entityId=%s", rel.ComponentID, rel.AcquiredEntityID)
-			break
-		}
-	}
-
-	// Check built-by exists
-	foundBuiltBy := false
-	for _, rel := range resp2.BuiltBy {
-		if rel.ComponentID == componentID {
-			foundBuiltBy = true
-			t.Logf("  Found built-by: componentId=%s, teamId=%s", rel.ComponentID, rel.InternalTeamID)
-			break
-		}
-	}
-
-	t.Logf("\nResults:")
-	t.Logf("  AcquiredVia count: %d, found for component: %v", len(resp2.AcquiredVia), foundAcquiredVia)
-	t.Logf("  BuiltBy count: %d, found for component: %v", len(resp2.BuiltBy), foundBuiltBy)
-
-	if !foundAcquiredVia {
-		t.Error("BUG REPRODUCED: Acquired-via relationship DISAPPEARED after adding built-by!")
-	}
-	if !foundBuiltBy {
-		t.Error("Built-by relationship not found!")
-	}
-
-	if foundAcquiredVia && foundBuiltBy {
-		t.Log("\n✅ TEST PASSED: Both relationships exist after adding built-by")
-		t.Log("📊 CONCLUSION: Backend correctly maintains both relationships")
-	}
+	t.Run("both relationships exist after adding built-by", func(t *testing.T) {
+		resp := ctx.getAllOriginRelationships(t)
+		require.True(t, hasAcquiredViaForComponent(resp.AcquiredVia, componentID),
+			"Acquired-via relationship disappeared after adding built-by")
+		require.True(t, hasBuiltByForComponent(resp.BuiltBy, componentID),
+			"Built-by relationship not found")
+	})
 }

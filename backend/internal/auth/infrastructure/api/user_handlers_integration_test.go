@@ -87,6 +87,7 @@ type userTestFixture struct {
 	sessionManager *session.SessionManager
 	scsManager     *scs.SessionManager
 	router         chi.Router
+	cookies        []*http.Cookie
 }
 
 func setupUserHandlers(db *sql.DB) *userTestFixture {
@@ -152,6 +153,12 @@ func withTestTenantMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+func (f *userTestFixture) setupAuthenticated(t *testing.T, adminID string) {
+	t.Helper()
+	f.router = f.createRouter(adminID)
+	f.cookies = f.setupSessionAndGetCookies(t, f.router)
+}
+
 func (f *userTestFixture) setupSessionAndGetCookies(t *testing.T, router chi.Router) []*http.Cookie {
 	req := httptest.NewRequest(http.MethodPost, "/setup", nil)
 	rec := httptest.NewRecorder()
@@ -179,8 +186,9 @@ func createTestUserSession(userID string) session.AuthSession {
 	return authSession
 }
 
-func createTestUser(t *testing.T, db *sql.DB, email, role string, testCtx *userTestContext) string {
-	tenantDB := database.NewTenantAwareDB(db)
+func (ctx *userTestContext) createUser(t *testing.T, email, role string) string {
+	t.Helper()
+	tenantDB := database.NewTenantAwareDB(ctx.db)
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	eventBus := events.NewInMemoryEventBus()
 	eventStore.SetEventBus(eventBus)
@@ -203,14 +211,63 @@ func createTestUser(t *testing.T, db *sql.DB, email, role string, testCtx *userT
 	user, err := aggregates.NewUser(emailVO, "Test User", roleVO, "", "")
 	require.NoError(t, err)
 
-	ctx := tenantContext()
-	err = userRepo.Save(ctx, user)
+	tCtx := tenantContext()
+	err = userRepo.Save(tCtx, user)
 	require.NoError(t, err)
 
 	time.Sleep(50 * time.Millisecond)
 
-	testCtx.trackID(user.ID())
+	ctx.trackID(user.ID())
 	return user.ID()
+}
+
+func (f *userTestFixture) authenticatedRequest(t *testing.T, method, url string, body []byte) *httptest.ResponseRecorder {
+	t.Helper()
+	var reader *bytes.Reader
+	if body != nil {
+		reader = bytes.NewReader(body)
+	} else {
+		reader = bytes.NewReader(nil)
+	}
+	req := httptest.NewRequest(method, url, reader)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	for _, c := range f.cookies {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+	f.router.ServeHTTP(rec, req)
+	return rec
+}
+
+func (f *userTestFixture) patchUser(t *testing.T, userID string, body []byte) UserResponse {
+	t.Helper()
+	rec := f.authenticatedRequest(t, http.MethodPatch, fmt.Sprintf("/api/v1/users/%s", userID), body)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var response UserResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
+	return response
+}
+
+func (f *userTestFixture) assertPatchConflict(t *testing.T, userID string, body []byte, expectedMsg string) {
+	t.Helper()
+	rec := f.authenticatedRequest(t, http.MethodPatch, fmt.Sprintf("/api/v1/users/%s", userID), body)
+	assert.Equal(t, http.StatusConflict, rec.Code)
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
+	assert.Contains(t, response["message"], expectedMsg)
+}
+
+func (f *userTestFixture) listUsersData(t *testing.T, query string) []interface{} {
+	t.Helper()
+	rec := f.authenticatedRequest(t, http.MethodGet, "/api/v1/users?"+query, nil)
+	require.Equal(t, http.StatusOK, rec.Code)
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
+	data, ok := response["data"].([]interface{})
+	require.True(t, ok, "response should have data array")
+	return data
 }
 
 func TestGetAllUsers_Integration(t *testing.T) {
@@ -219,31 +276,13 @@ func TestGetAllUsers_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := createTestUser(t, testCtx.db, fmt.Sprintf("admin-list-%s@acme.com", testCtx.testID), "admin", testCtx)
-
+	adminID := testCtx.createUser(t, fmt.Sprintf("admin-list-%s@acme.com", testCtx.testID), "admin")
 	for i := 0; i < 3; i++ {
-		email := fmt.Sprintf("list-user-%d-%s@acme.com", i, testCtx.testID)
-		createTestUser(t, testCtx.db, email, "architect", testCtx)
+		testCtx.createUser(t, fmt.Sprintf("list-user-%d-%s@acme.com", i, testCtx.testID), "architect")
 	}
 
-	router := fixture.createRouter(adminID)
-	cookies := fixture.setupSessionAndGetCookies(t, router)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/users?limit=10", nil)
-	for _, c := range cookies {
-		req.AddCookie(c)
-	}
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code)
-
-	var response map[string]interface{}
-	err := json.Unmarshal(rec.Body.Bytes(), &response)
-	require.NoError(t, err)
-
-	data, ok := response["data"].([]interface{})
-	require.True(t, ok, "response should have data array")
+	fixture.setupAuthenticated(t, adminID)
+	data := fixture.listUsersData(t, "limit=10")
 	assert.GreaterOrEqual(t, len(data), 4)
 }
 
@@ -253,21 +292,12 @@ func TestGetUserByID_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := createTestUser(t, testCtx.db, fmt.Sprintf("admin-getbyid-%s@acme.com", testCtx.testID), "admin", testCtx)
-
+	adminID := testCtx.createUser(t, fmt.Sprintf("admin-getbyid-%s@acme.com", testCtx.testID), "admin")
 	email := fmt.Sprintf("get-user-%s@acme.com", testCtx.testID)
-	userID := createTestUser(t, testCtx.db, email, "stakeholder", testCtx)
+	userID := testCtx.createUser(t, email, "stakeholder")
 
-	router := fixture.createRouter(adminID)
-	cookies := fixture.setupSessionAndGetCookies(t, router)
-
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/%s", userID), nil)
-	for _, c := range cookies {
-		req.AddCookie(c)
-	}
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
+	fixture.setupAuthenticated(t, adminID)
+	rec := fixture.authenticatedRequest(t, http.MethodGet, fmt.Sprintf("/api/v1/users/%s", userID), nil)
 	require.Equal(t, http.StatusOK, rec.Code)
 
 	var response UserResponse
@@ -286,19 +316,10 @@ func TestGetUserByID_NotFound_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := createTestUser(t, testCtx.db, fmt.Sprintf("admin-notfound-%s@acme.com", testCtx.testID), "admin", testCtx)
+	adminID := testCtx.createUser(t, fmt.Sprintf("admin-notfound-%s@acme.com", testCtx.testID), "admin")
 
-	router := fixture.createRouter(adminID)
-	cookies := fixture.setupSessionAndGetCookies(t, router)
-
-	nonExistentID := uuid.New().String()
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/%s", nonExistentID), nil)
-	for _, c := range cookies {
-		req.AddCookie(c)
-	}
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
+	fixture.setupAuthenticated(t, adminID)
+	rec := fixture.authenticatedRequest(t, http.MethodGet, fmt.Sprintf("/api/v1/users/%s", uuid.New().String()), nil)
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
 
@@ -308,33 +329,15 @@ func TestChangeUserRole_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := createTestUser(t, testCtx.db, fmt.Sprintf("admin-changerole-%s@acme.com", testCtx.testID), "admin", testCtx)
+	adminID := testCtx.createUser(t, fmt.Sprintf("admin-changerole-%s@acme.com", testCtx.testID), "admin")
+	userID := testCtx.createUser(t, fmt.Sprintf("change-role-%s@acme.com", testCtx.testID), "architect")
 
-	email := fmt.Sprintf("change-role-%s@acme.com", testCtx.testID)
-	userID := createTestUser(t, testCtx.db, email, "architect", testCtx)
-
-	router := fixture.createRouter(adminID)
-	cookies := fixture.setupSessionAndGetCookies(t, router)
-
+	fixture.setupAuthenticated(t, adminID)
 	body, _ := json.Marshal(UpdateUserRequest{Role: stringPtr("stakeholder")})
-	req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/v1/users/%s", userID), bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	for _, c := range cookies {
-		req.AddCookie(c)
-	}
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code)
-
-	var response UserResponse
-	err := json.Unmarshal(rec.Body.Bytes(), &response)
-	require.NoError(t, err)
-
+	response := fixture.patchUser(t, userID, body)
 	assert.Equal(t, "stakeholder", response.Role)
 
-	ctx := tenantContext()
-	user, err := fixture.readModel.GetByIDString(ctx, userID)
+	user, err := fixture.readModel.GetByIDString(tenantContext(), userID)
 	require.NoError(t, err)
 	assert.Equal(t, "stakeholder", user.Role)
 }
@@ -345,23 +348,12 @@ func TestChangeUserRole_InvalidRole_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := createTestUser(t, testCtx.db, fmt.Sprintf("admin-invalidrole-%s@acme.com", testCtx.testID), "admin", testCtx)
+	adminID := testCtx.createUser(t, fmt.Sprintf("admin-invalidrole-%s@acme.com", testCtx.testID), "admin")
+	userID := testCtx.createUser(t, fmt.Sprintf("invalid-role-%s@acme.com", testCtx.testID), "architect")
 
-	email := fmt.Sprintf("invalid-role-%s@acme.com", testCtx.testID)
-	userID := createTestUser(t, testCtx.db, email, "architect", testCtx)
-
-	router := fixture.createRouter(adminID)
-	cookies := fixture.setupSessionAndGetCookies(t, router)
-
+	fixture.setupAuthenticated(t, adminID)
 	body, _ := json.Marshal(UpdateUserRequest{Role: stringPtr("superadmin")})
-	req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/v1/users/%s", userID), bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	for _, c := range cookies {
-		req.AddCookie(c)
-	}
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
+	rec := fixture.authenticatedRequest(t, http.MethodPatch, fmt.Sprintf("/api/v1/users/%s", userID), body)
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
@@ -371,33 +363,15 @@ func TestDisableUser_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := createTestUser(t, testCtx.db, fmt.Sprintf("admin-disable-%s@acme.com", testCtx.testID), "admin", testCtx)
+	adminID := testCtx.createUser(t, fmt.Sprintf("admin-disable-%s@acme.com", testCtx.testID), "admin")
+	userID := testCtx.createUser(t, fmt.Sprintf("disable-user-%s@acme.com", testCtx.testID), "architect")
 
-	email := fmt.Sprintf("disable-user-%s@acme.com", testCtx.testID)
-	userID := createTestUser(t, testCtx.db, email, "architect", testCtx)
-
-	router := fixture.createRouter(adminID)
-	cookies := fixture.setupSessionAndGetCookies(t, router)
-
+	fixture.setupAuthenticated(t, adminID)
 	body, _ := json.Marshal(UpdateUserRequest{Status: stringPtr("disabled")})
-	req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/v1/users/%s", userID), bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	for _, c := range cookies {
-		req.AddCookie(c)
-	}
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code)
-
-	var response UserResponse
-	err := json.Unmarshal(rec.Body.Bytes(), &response)
-	require.NoError(t, err)
-
+	response := fixture.patchUser(t, userID, body)
 	assert.Equal(t, "disabled", response.Status)
 
-	ctx := tenantContext()
-	user, err := fixture.readModel.GetByIDString(ctx, userID)
+	user, err := fixture.readModel.GetByIDString(tenantContext(), userID)
 	require.NoError(t, err)
 	assert.Equal(t, "disabled", user.Status)
 }
@@ -408,43 +382,24 @@ func TestEnableUser_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := createTestUser(t, testCtx.db, fmt.Sprintf("admin-enable-%s@acme.com", testCtx.testID), "admin", testCtx)
-
-	email := fmt.Sprintf("enable-user-%s@acme.com", testCtx.testID)
-	userID := createTestUser(t, testCtx.db, email, "architect", testCtx)
+	adminID := testCtx.createUser(t, fmt.Sprintf("admin-enable-%s@acme.com", testCtx.testID), "admin")
+	userID := testCtx.createUser(t, fmt.Sprintf("enable-user-%s@acme.com", testCtx.testID), "architect")
 
 	ctx := tenantContext()
-	disableCmd := &commands.DisableUser{
+	_, err := fixture.commandBus.Dispatch(ctx, &commands.DisableUser{
 		UserID:       userID,
 		DisabledByID: adminID,
-	}
-	_, err := fixture.commandBus.Dispatch(ctx, disableCmd)
+	})
 	require.NoError(t, err)
-
 	time.Sleep(50 * time.Millisecond)
 
 	user, err := fixture.readModel.GetByIDString(ctx, userID)
 	require.NoError(t, err)
 	require.Equal(t, "disabled", user.Status)
 
-	router := fixture.createRouter(adminID)
-	cookies := fixture.setupSessionAndGetCookies(t, router)
-
+	fixture.setupAuthenticated(t, adminID)
 	body, _ := json.Marshal(UpdateUserRequest{Status: stringPtr("active")})
-	req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/v1/users/%s", userID), bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	for _, c := range cookies {
-		req.AddCookie(c)
-	}
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code)
-
-	var response UserResponse
-	err = json.Unmarshal(rec.Body.Bytes(), &response)
-	require.NoError(t, err)
-
+	response := fixture.patchUser(t, userID, body)
 	assert.Equal(t, "active", response.Status)
 }
 
@@ -459,32 +414,14 @@ func TestCannotDemoteLastAdmin_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminEmail := fmt.Sprintf("sole-admin-demote-%s@acme.com", testCtx.testID)
-	adminID := createTestUser(t, testCtx.db, adminEmail, "admin", testCtx)
+	adminID := testCtx.createUser(t, fmt.Sprintf("sole-admin-demote-%s@acme.com", testCtx.testID), "admin")
+	otherUserID := testCtx.createUser(t, fmt.Sprintf("other-user-demote-%s@acme.com", testCtx.testID), "architect")
 
-	otherUserID := createTestUser(t, testCtx.db, fmt.Sprintf("other-user-demote-%s@acme.com", testCtx.testID), "architect", testCtx)
-
-	router := fixture.createRouter(otherUserID)
-	cookies := fixture.setupSessionAndGetCookies(t, router)
-
+	fixture.setupAuthenticated(t, otherUserID)
 	body, _ := json.Marshal(UpdateUserRequest{Role: stringPtr("architect")})
-	req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/v1/users/%s", adminID), bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	for _, c := range cookies {
-		req.AddCookie(c)
-	}
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
+	fixture.assertPatchConflict(t, adminID, body, "last admin")
 
-	assert.Equal(t, http.StatusConflict, rec.Code)
-
-	var response map[string]interface{}
-	err = json.Unmarshal(rec.Body.Bytes(), &response)
-	require.NoError(t, err)
-	assert.Contains(t, response["message"], "last admin")
-
-	ctx := tenantContext()
-	admin, err := fixture.readModel.GetByIDString(ctx, adminID)
+	admin, err := fixture.readModel.GetByIDString(tenantContext(), adminID)
 	require.NoError(t, err)
 	assert.Equal(t, "admin", admin.Role)
 }
@@ -495,32 +432,14 @@ func TestCannotDisableSelf_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	createTestUser(t, testCtx.db, fmt.Sprintf("other-admin-self-%s@acme.com", testCtx.testID), "admin", testCtx)
+	testCtx.createUser(t, fmt.Sprintf("other-admin-self-%s@acme.com", testCtx.testID), "admin")
+	userID := testCtx.createUser(t, fmt.Sprintf("self-disable-%s@acme.com", testCtx.testID), "admin")
 
-	email := fmt.Sprintf("self-disable-%s@acme.com", testCtx.testID)
-	userID := createTestUser(t, testCtx.db, email, "admin", testCtx)
-
-	router := fixture.createRouter(userID)
-	cookies := fixture.setupSessionAndGetCookies(t, router)
-
+	fixture.setupAuthenticated(t, userID)
 	body, _ := json.Marshal(UpdateUserRequest{Status: stringPtr("disabled")})
-	req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/v1/users/%s", userID), bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	for _, c := range cookies {
-		req.AddCookie(c)
-	}
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
+	fixture.assertPatchConflict(t, userID, body, "own account")
 
-	assert.Equal(t, http.StatusConflict, rec.Code)
-
-	var response map[string]interface{}
-	err := json.Unmarshal(rec.Body.Bytes(), &response)
-	require.NoError(t, err)
-	assert.Contains(t, response["message"], "own account")
-
-	ctx := tenantContext()
-	user, err := fixture.readModel.GetByIDString(ctx, userID)
+	user, err := fixture.readModel.GetByIDString(tenantContext(), userID)
 	require.NoError(t, err)
 	assert.Equal(t, "active", user.Status)
 }
@@ -536,32 +455,14 @@ func TestCannotDisableLastAdmin_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminEmail := fmt.Sprintf("sole-admin-disable-%s@acme.com", testCtx.testID)
-	adminID := createTestUser(t, testCtx.db, adminEmail, "admin", testCtx)
+	adminID := testCtx.createUser(t, fmt.Sprintf("sole-admin-disable-%s@acme.com", testCtx.testID), "admin")
+	otherUserID := testCtx.createUser(t, fmt.Sprintf("other-user-disable-%s@acme.com", testCtx.testID), "architect")
 
-	otherUserID := createTestUser(t, testCtx.db, fmt.Sprintf("other-user-disable-%s@acme.com", testCtx.testID), "architect", testCtx)
-
-	router := fixture.createRouter(otherUserID)
-	cookies := fixture.setupSessionAndGetCookies(t, router)
-
+	fixture.setupAuthenticated(t, otherUserID)
 	body, _ := json.Marshal(UpdateUserRequest{Status: stringPtr("disabled")})
-	req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/v1/users/%s", adminID), bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	for _, c := range cookies {
-		req.AddCookie(c)
-	}
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
+	fixture.assertPatchConflict(t, adminID, body, "last admin")
 
-	assert.Equal(t, http.StatusConflict, rec.Code)
-
-	var response map[string]interface{}
-	err = json.Unmarshal(rec.Body.Bytes(), &response)
-	require.NoError(t, err)
-	assert.Contains(t, response["message"], "last admin")
-
-	ctx := tenantContext()
-	admin, err := fixture.readModel.GetByIDString(ctx, adminID)
+	admin, err := fixture.readModel.GetByIDString(tenantContext(), adminID)
 	require.NoError(t, err)
 	assert.Equal(t, "active", admin.Status)
 }
@@ -572,25 +473,12 @@ func TestDemoteAdmin_WithMultipleAdmins_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	admin1Email := fmt.Sprintf("admin1-%s@acme.com", testCtx.testID)
-	admin1ID := createTestUser(t, testCtx.db, admin1Email, "admin", testCtx)
+	admin1ID := testCtx.createUser(t, fmt.Sprintf("admin1-%s@acme.com", testCtx.testID), "admin")
+	admin2ID := testCtx.createUser(t, fmt.Sprintf("admin2-%s@acme.com", testCtx.testID), "admin")
 
-	admin2Email := fmt.Sprintf("admin2-%s@acme.com", testCtx.testID)
-	admin2ID := createTestUser(t, testCtx.db, admin2Email, "admin", testCtx)
-
-	router := fixture.createRouter(admin2ID)
-	cookies := fixture.setupSessionAndGetCookies(t, router)
-
+	fixture.setupAuthenticated(t, admin2ID)
 	body, _ := json.Marshal(UpdateUserRequest{Role: stringPtr("architect")})
-	req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/v1/users/%s", admin1ID), bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	for _, c := range cookies {
-		req.AddCookie(c)
-	}
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code)
+	fixture.patchUser(t, admin1ID, body)
 
 	ctx := tenantContext()
 	admin1, err := fixture.readModel.GetByIDString(ctx, admin1ID)
@@ -608,41 +496,20 @@ func TestFilterUsersByStatus_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminID := createTestUser(t, testCtx.db, fmt.Sprintf("admin-filter-status-%s@acme.com", testCtx.testID), "admin", testCtx)
-
-	activeEmail := fmt.Sprintf("filter-active-%s@acme.com", testCtx.testID)
-	createTestUser(t, testCtx.db, activeEmail, "architect", testCtx)
-
-	disabledEmail := fmt.Sprintf("filter-disabled-%s@acme.com", testCtx.testID)
-	disabledUserID := createTestUser(t, testCtx.db, disabledEmail, "stakeholder", testCtx)
+	adminID := testCtx.createUser(t, fmt.Sprintf("admin-filter-status-%s@acme.com", testCtx.testID), "admin")
+	testCtx.createUser(t, fmt.Sprintf("filter-active-%s@acme.com", testCtx.testID), "architect")
+	disabledUserID := testCtx.createUser(t, fmt.Sprintf("filter-disabled-%s@acme.com", testCtx.testID), "stakeholder")
 
 	ctx := tenantContext()
-	disableCmd := &commands.DisableUser{
+	_, err := fixture.commandBus.Dispatch(ctx, &commands.DisableUser{
 		UserID:       disabledUserID,
 		DisabledByID: adminID,
-	}
-	_, err := fixture.commandBus.Dispatch(ctx, disableCmd)
+	})
 	require.NoError(t, err)
-
 	time.Sleep(50 * time.Millisecond)
 
-	router := fixture.createRouter(adminID)
-	cookies := fixture.setupSessionAndGetCookies(t, router)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/users?status=disabled&limit=50", nil)
-	for _, c := range cookies {
-		req.AddCookie(c)
-	}
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code)
-
-	var response map[string]interface{}
-	err = json.Unmarshal(rec.Body.Bytes(), &response)
-	require.NoError(t, err)
-
-	data := response["data"].([]interface{})
+	fixture.setupAuthenticated(t, adminID)
+	data := fixture.listUsersData(t, "status=disabled&limit=50")
 	for _, item := range data {
 		user := item.(map[string]interface{})
 		assert.Equal(t, "disabled", user["status"])
@@ -655,29 +522,11 @@ func TestFilterUsersByRole_Integration(t *testing.T) {
 
 	fixture := setupUserHandlers(testCtx.db)
 
-	adminEmail := fmt.Sprintf("role-admin-%s@acme.com", testCtx.testID)
-	adminID := createTestUser(t, testCtx.db, adminEmail, "admin", testCtx)
+	adminID := testCtx.createUser(t, fmt.Sprintf("role-admin-%s@acme.com", testCtx.testID), "admin")
+	testCtx.createUser(t, fmt.Sprintf("role-architect-%s@acme.com", testCtx.testID), "architect")
 
-	architectEmail := fmt.Sprintf("role-architect-%s@acme.com", testCtx.testID)
-	createTestUser(t, testCtx.db, architectEmail, "architect", testCtx)
-
-	router := fixture.createRouter(adminID)
-	cookies := fixture.setupSessionAndGetCookies(t, router)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/users?role=admin&limit=50", nil)
-	for _, c := range cookies {
-		req.AddCookie(c)
-	}
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code)
-
-	var response map[string]interface{}
-	err := json.Unmarshal(rec.Body.Bytes(), &response)
-	require.NoError(t, err)
-
-	data := response["data"].([]interface{})
+	fixture.setupAuthenticated(t, adminID)
+	data := fixture.listUsersData(t, "role=admin&limit=50")
 	for _, item := range data {
 		user := item.(map[string]interface{})
 		assert.Equal(t, "admin", user["role"])

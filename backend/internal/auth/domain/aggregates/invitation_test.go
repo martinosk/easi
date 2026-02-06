@@ -13,6 +13,26 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
+func newPendingInvitation(t *testing.T) *Invitation {
+	t.Helper()
+	email, _ := valueobjects.NewEmail("user@example.com")
+	invitation, err := NewInvitation(email, valueobjects.RoleArchitect, nil)
+	require.NoError(t, err)
+	invitation.MarkChangesAsCommitted()
+	return invitation
+}
+
+func newInvitationCreatedEvent(id string) events.InvitationCreated {
+	return events.NewInvitationCreated(
+		id,
+		"user@example.com",
+		"architect",
+		"",
+		"",
+		time.Now().UTC().Add(DefaultInvitationTTL),
+	)
+}
+
 func TestNewInvitation_CreatesPendingInvitation(t *testing.T) {
 	email, _ := valueobjects.NewEmail("user@example.com")
 	role := valueobjects.RoleArchitect
@@ -76,11 +96,7 @@ func TestNewInvitation_RaisesInvitationCreatedEvent(t *testing.T) {
 }
 
 func TestInvitation_Accept_FromPendingStatus(t *testing.T) {
-	email, _ := valueobjects.NewEmail("user@example.com")
-	role := valueobjects.RoleArchitect
-
-	invitation, _ := NewInvitation(email, role, nil)
-	invitation.MarkChangesAsCommitted()
+	invitation := newPendingInvitation(t)
 
 	err := invitation.Accept()
 	require.NoError(t, err)
@@ -94,70 +110,42 @@ func TestInvitation_Accept_FromPendingStatus(t *testing.T) {
 	event, ok := uncommittedEvents[0].(events.InvitationAccepted)
 	require.True(t, ok)
 	assert.Equal(t, invitation.ID(), event.ID)
-	assert.Equal(t, email.Value(), event.Email)
-}
-
-func TestInvitation_Accept_WhenAlreadyAccepted(t *testing.T) {
-	email, _ := valueobjects.NewEmail("user@example.com")
-	role := valueobjects.RoleArchitect
-
-	invitation, _ := NewInvitation(email, role, nil)
-	invitation.MarkChangesAsCommitted()
-
-	invitation.Accept()
-	invitation.MarkChangesAsCommitted()
-
-	err := invitation.Accept()
-	assert.ErrorIs(t, err, ErrInvitationAlreadyAccepted)
-}
-
-func TestInvitation_Accept_WhenRevoked(t *testing.T) {
-	email, _ := valueobjects.NewEmail("user@example.com")
-	role := valueobjects.RoleArchitect
-
-	invitation, _ := NewInvitation(email, role, nil)
-	invitation.MarkChangesAsCommitted()
-
-	invitation.Revoke()
-	invitation.MarkChangesAsCommitted()
-
-	err := invitation.Accept()
-	assert.ErrorIs(t, err, ErrInvitationAlreadyRevoked)
-}
-
-func TestInvitation_Accept_WhenExpired(t *testing.T) {
-	email, _ := valueobjects.NewEmail("user@example.com")
-	role := valueobjects.RoleArchitect
-
-	invitation, _ := NewInvitation(email, role, nil)
-	invitation.MarkChangesAsCommitted()
-
-	invitation.MarkExpired()
-	invitation.MarkChangesAsCommitted()
-
-	err := invitation.Accept()
-	assert.ErrorIs(t, err, ErrInvitationAlreadyExpired)
+	assert.Equal(t, invitation.Email().Value(), event.Email)
 }
 
 func TestInvitation_Accept_WhenTTLElapsed(t *testing.T) {
-	email, _ := valueobjects.NewEmail("user@example.com")
-	role := valueobjects.RoleArchitect
-
-	invitation, _ := NewInvitation(email, role, nil)
-	invitation.MarkChangesAsCommitted()
-
+	invitation := newPendingInvitation(t)
 	invitation.expiresAt = time.Now().UTC().Add(-1 * time.Hour)
 
 	err := invitation.Accept()
 	assert.ErrorIs(t, err, ErrInvitationExpired)
 }
 
-func TestInvitation_Revoke_FromPendingStatus(t *testing.T) {
-	email, _ := valueobjects.NewEmail("user@example.com")
-	role := valueobjects.RoleArchitect
+func TestInvitation_Accept_RejectsTerminalStates(t *testing.T) {
+	tests := []struct {
+		name       string
+		transition func(*Invitation)
+		wantErr    error
+	}{
+		{"WhenAlreadyAccepted", func(inv *Invitation) { inv.Accept() }, ErrInvitationAlreadyAccepted},
+		{"WhenRevoked", func(inv *Invitation) { inv.Revoke() }, ErrInvitationAlreadyRevoked},
+		{"WhenExpired", func(inv *Invitation) { inv.MarkExpired() }, ErrInvitationAlreadyExpired},
+	}
 
-	invitation, _ := NewInvitation(email, role, nil)
-	invitation.MarkChangesAsCommitted()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			invitation := newPendingInvitation(t)
+			tt.transition(invitation)
+			invitation.MarkChangesAsCommitted()
+
+			err := invitation.Accept()
+			assert.ErrorIs(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestInvitation_Revoke_FromPendingStatus(t *testing.T) {
+	invitation := newPendingInvitation(t)
 
 	err := invitation.Revoke()
 	require.NoError(t, err)
@@ -173,40 +161,30 @@ func TestInvitation_Revoke_FromPendingStatus(t *testing.T) {
 	assert.Equal(t, invitation.ID(), event.ID)
 }
 
-func TestInvitation_Revoke_WhenAlreadyRevoked(t *testing.T) {
-	email, _ := valueobjects.NewEmail("user@example.com")
-	role := valueobjects.RoleArchitect
+func TestInvitation_Revoke_RejectsTerminalStates(t *testing.T) {
+	tests := []struct {
+		name       string
+		transition func(*Invitation)
+		wantErr    error
+	}{
+		{"WhenAlreadyRevoked", func(inv *Invitation) { inv.Revoke() }, ErrInvitationAlreadyRevoked},
+		{"WhenAccepted", func(inv *Invitation) { inv.Accept() }, ErrInvitationNotPending},
+	}
 
-	invitation, _ := NewInvitation(email, role, nil)
-	invitation.MarkChangesAsCommitted()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			invitation := newPendingInvitation(t)
+			tt.transition(invitation)
+			invitation.MarkChangesAsCommitted()
 
-	invitation.Revoke()
-	invitation.MarkChangesAsCommitted()
-
-	err := invitation.Revoke()
-	assert.ErrorIs(t, err, ErrInvitationAlreadyRevoked)
-}
-
-func TestInvitation_Revoke_WhenAccepted(t *testing.T) {
-	email, _ := valueobjects.NewEmail("user@example.com")
-	role := valueobjects.RoleArchitect
-
-	invitation, _ := NewInvitation(email, role, nil)
-	invitation.MarkChangesAsCommitted()
-
-	invitation.Accept()
-	invitation.MarkChangesAsCommitted()
-
-	err := invitation.Revoke()
-	assert.ErrorIs(t, err, ErrInvitationNotPending)
+			err := invitation.Revoke()
+			assert.ErrorIs(t, err, tt.wantErr)
+		})
+	}
 }
 
 func TestInvitation_MarkExpired_FromPendingStatus(t *testing.T) {
-	email, _ := valueobjects.NewEmail("user@example.com")
-	role := valueobjects.RoleArchitect
-
-	invitation, _ := NewInvitation(email, role, nil)
-	invitation.MarkChangesAsCommitted()
+	invitation := newPendingInvitation(t)
 
 	err := invitation.MarkExpired()
 	require.NoError(t, err)
@@ -221,39 +199,30 @@ func TestInvitation_MarkExpired_FromPendingStatus(t *testing.T) {
 	assert.Equal(t, invitation.ID(), event.ID)
 }
 
-func TestInvitation_MarkExpired_WhenAlreadyExpired(t *testing.T) {
-	email, _ := valueobjects.NewEmail("user@example.com")
-	role := valueobjects.RoleArchitect
+func TestInvitation_MarkExpired_RejectsTerminalStates(t *testing.T) {
+	tests := []struct {
+		name       string
+		transition func(*Invitation)
+		wantErr    error
+	}{
+		{"WhenAlreadyExpired", func(inv *Invitation) { inv.MarkExpired() }, ErrInvitationAlreadyExpired},
+		{"WhenAccepted", func(inv *Invitation) { inv.Accept() }, ErrInvitationNotPending},
+	}
 
-	invitation, _ := NewInvitation(email, role, nil)
-	invitation.MarkChangesAsCommitted()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			invitation := newPendingInvitation(t)
+			tt.transition(invitation)
+			invitation.MarkChangesAsCommitted()
 
-	invitation.MarkExpired()
-	invitation.MarkChangesAsCommitted()
-
-	err := invitation.MarkExpired()
-	assert.ErrorIs(t, err, ErrInvitationAlreadyExpired)
-}
-
-func TestInvitation_MarkExpired_WhenAccepted(t *testing.T) {
-	email, _ := valueobjects.NewEmail("user@example.com")
-	role := valueobjects.RoleArchitect
-
-	invitation, _ := NewInvitation(email, role, nil)
-	invitation.MarkChangesAsCommitted()
-
-	invitation.Accept()
-	invitation.MarkChangesAsCommitted()
-
-	err := invitation.MarkExpired()
-	assert.ErrorIs(t, err, ErrInvitationNotPending)
+			err := invitation.MarkExpired()
+			assert.ErrorIs(t, err, tt.wantErr)
+		})
+	}
 }
 
 func TestInvitation_IsExpired_ChecksTTL(t *testing.T) {
-	email, _ := valueobjects.NewEmail("user@example.com")
-	role := valueobjects.RoleArchitect
-
-	invitation, _ := NewInvitation(email, role, nil)
+	invitation := newPendingInvitation(t)
 
 	t.Run("not expired within TTL", func(t *testing.T) {
 		invitation.expiresAt = time.Now().UTC().Add(1 * time.Hour)
@@ -295,68 +264,46 @@ func TestLoadInvitationFromHistory_ReconstructsState(t *testing.T) {
 	assert.Equal(t, inviterEmail, invitation.InviterInfo().Email().Value())
 }
 
-func TestLoadInvitationFromHistory_AcceptedInvitation(t *testing.T) {
-	invitationID := uuid.New().String()
-	email := "user@example.com"
-	expiresAt := time.Now().UTC().Add(DefaultInvitationTTL)
+func TestLoadInvitationFromHistory_TerminalStates(t *testing.T) {
+	tests := []struct {
+		name        string
+		extraEvent  func(string) domain.DomainEvent
+		checkStatus func(*Invitation) bool
+		hasTimeset  func(*Invitation) bool
+	}{
+		{
+			"AcceptedInvitation",
+			func(id string) domain.DomainEvent { return events.NewInvitationAccepted(id, "user@example.com") },
+			func(inv *Invitation) bool { return inv.Status().IsAccepted() },
+			func(inv *Invitation) bool { return inv.AcceptedAt() != nil },
+		},
+		{
+			"RevokedInvitation",
+			func(id string) domain.DomainEvent { return events.NewInvitationRevoked(id) },
+			func(inv *Invitation) bool { return inv.Status().IsRevoked() },
+			func(inv *Invitation) bool { return inv.RevokedAt() != nil },
+		},
+		{
+			"ExpiredInvitation",
+			func(id string) domain.DomainEvent { return events.NewInvitationExpired(id) },
+			func(inv *Invitation) bool { return inv.Status().IsExpired() },
+			nil,
+		},
+	}
 
-	createdEvent := events.NewInvitationCreated(
-		invitationID,
-		email,
-		"stakeholder",
-		"",
-		"",
-		expiresAt,
-	)
-	acceptedEvent := events.NewInvitationAccepted(invitationID, email)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			invitationID := uuid.New().String()
+			createdEvent := newInvitationCreatedEvent(invitationID)
 
-	evts := []domain.DomainEvent{createdEvent, acceptedEvent}
-	invitation, err := LoadInvitationFromHistory(evts)
-	require.NoError(t, err)
+			evts := []domain.DomainEvent{createdEvent, tt.extraEvent(invitationID)}
+			invitation, err := LoadInvitationFromHistory(evts)
+			require.NoError(t, err)
 
-	assert.True(t, invitation.Status().IsAccepted())
-	assert.NotNil(t, invitation.AcceptedAt())
-}
-
-func TestLoadInvitationFromHistory_RevokedInvitation(t *testing.T) {
-	invitationID := uuid.New().String()
-	expiresAt := time.Now().UTC().Add(DefaultInvitationTTL)
-
-	createdEvent := events.NewInvitationCreated(
-		invitationID,
-		"user@example.com",
-		"architect",
-		"",
-		"",
-		expiresAt,
-	)
-	revokedEvent := events.NewInvitationRevoked(invitationID)
-
-	evts := []domain.DomainEvent{createdEvent, revokedEvent}
-	invitation, err := LoadInvitationFromHistory(evts)
-	require.NoError(t, err)
-
-	assert.True(t, invitation.Status().IsRevoked())
-	assert.NotNil(t, invitation.RevokedAt())
-}
-
-func TestLoadInvitationFromHistory_ExpiredInvitation(t *testing.T) {
-	invitationID := uuid.New().String()
-	expiresAt := time.Now().UTC().Add(DefaultInvitationTTL)
-
-	createdEvent := events.NewInvitationCreated(
-		invitationID,
-		"user@example.com",
-		"architect",
-		"",
-		"",
-		expiresAt,
-	)
-	expiredEvent := events.NewInvitationExpired(invitationID)
-
-	evts := []domain.DomainEvent{createdEvent, expiredEvent}
-	invitation, err := LoadInvitationFromHistory(evts)
-	require.NoError(t, err)
-
-	assert.True(t, invitation.Status().IsExpired())
+			assert.True(t, tt.checkStatus(invitation))
+			if tt.hasTimeset != nil {
+				assert.True(t, tt.hasTimeset(invitation))
+			}
+		})
+	}
 }

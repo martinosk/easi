@@ -28,6 +28,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type parentTestFixture struct {
+	t       *testing.T
+	testCtx *testContext
+	h       *CapabilityHandlers
+}
+
+func newParentTestFixture(t *testing.T) (*parentTestFixture, func()) {
+	testCtx, cleanup := setupTestDB(t)
+	h := setupParentHandlers(testCtx.db)
+	return &parentTestFixture{t: t, testCtx: testCtx, h: h}, cleanup
+}
+
 func setupParentHandlers(db *sql.DB) *CapabilityHandlers {
 	tenantDB := database.NewTenantAwareDB(db)
 
@@ -67,7 +79,7 @@ func setupParentHandlers(db *sql.DB) *CapabilityHandlers {
 	return NewCapabilityHandlers(commandBus, readModel, hateoas)
 }
 
-func createCapabilityViaAPI(t *testing.T, h *CapabilityHandlers, name, level, parentID string) string {
+func (f *parentTestFixture) createCapability(name, level, parentID string) string {
 	reqBody := CreateCapabilityRequest{
 		Name:     name,
 		Level:    level,
@@ -80,347 +92,193 @@ func createCapabilityViaAPI(t *testing.T, h *CapabilityHandlers, name, level, pa
 	req = withTestTenant(req)
 	w := httptest.NewRecorder()
 
-	h.CreateCapability(w, req)
-	require.Equal(t, http.StatusCreated, w.Code, "Failed to create capability: %s", w.Body.String())
+	f.h.CreateCapability(w, req)
+	require.Equal(f.t, http.StatusCreated, w.Code, "Failed to create capability: %s", w.Body.String())
 
 	var response readmodels.CapabilityDTO
 	err := json.NewDecoder(w.Body).Decode(&response)
-	require.NoError(t, err)
+	require.NoError(f.t, err)
 
+	f.testCtx.trackID(response.ID)
 	return response.ID
 }
 
-func TestChangeCapabilityParent_SuccessfullyChangeParent_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	h := setupParentHandlers(testCtx.db)
-
-	parentID := createCapabilityViaAPI(t, h, "Parent Capability", "L1", "")
-	testCtx.trackID(parentID)
-
-	newParentID := createCapabilityViaAPI(t, h, "New Parent Capability", "L1", "")
-	testCtx.trackID(newParentID)
-
-	childID := createCapabilityViaAPI(t, h, "Child Capability", "L2", parentID)
-	testCtx.trackID(childID)
-
-	time.Sleep(100 * time.Millisecond)
-
+func (f *parentTestFixture) changeParent(capabilityID, newParentID string) *httptest.ResponseRecorder {
 	reqBody := ChangeCapabilityParentRequest{
 		ParentID: newParentID,
 	}
 	body, _ := json.Marshal(reqBody)
 
-	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+childID+"/parent", body, map[string]string{
-		"id": childID,
+	w, req := makeRequest(f.t, http.MethodPatch, "/api/v1/capabilities/"+capabilityID+"/parent", body, map[string]string{
+		"id": capabilityID,
 	})
-	h.ChangeCapabilityParent(w, req)
+	f.h.ChangeCapabilityParent(w, req)
+	return w
+}
 
+func (f *parentTestFixture) waitForProjection() {
+	time.Sleep(100 * time.Millisecond)
+}
+
+func (f *parentTestFixture) getCapability(id string) *readmodels.CapabilityDTO {
+	capability, err := f.h.readModel.GetByID(tenantContext(), id)
+	require.NoError(f.t, err)
+	return capability
+}
+
+func TestChangeCapabilityParent_SuccessfullyChangeParent_Integration(t *testing.T) {
+	f, cleanup := newParentTestFixture(t)
+	defer cleanup()
+
+	parentID := f.createCapability("Parent Capability", "L1", "")
+	newParentID := f.createCapability("New Parent Capability", "L1", "")
+	childID := f.createCapability("Child Capability", "L2", parentID)
+	f.waitForProjection()
+
+	w := f.changeParent(childID, newParentID)
 	assert.Equal(t, http.StatusNoContent, w.Code)
 
-	time.Sleep(100 * time.Millisecond)
+	f.waitForProjection()
 
-	capability, err := h.readModel.GetByID(tenantContext(), childID)
-	require.NoError(t, err)
+	capability := f.getCapability(childID)
 	assert.Equal(t, newParentID, capability.ParentID)
 	assert.Equal(t, "L2", capability.Level)
 }
 
 func TestChangeCapabilityParent_MakeCapabilityRoot_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
+	f, cleanup := newParentTestFixture(t)
 	defer cleanup()
 
-	h := setupParentHandlers(testCtx.db)
+	parentID := f.createCapability("Parent Capability", "L1", "")
+	childID := f.createCapability("Child Capability", "L2", parentID)
+	f.waitForProjection()
 
-	parentID := createCapabilityViaAPI(t, h, "Parent Capability", "L1", "")
-	testCtx.trackID(parentID)
-
-	childID := createCapabilityViaAPI(t, h, "Child Capability", "L2", parentID)
-	testCtx.trackID(childID)
-
-	time.Sleep(100 * time.Millisecond)
-
-	reqBody := ChangeCapabilityParentRequest{
-		ParentID: "",
-	}
-	body, _ := json.Marshal(reqBody)
-
-	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+childID+"/parent", body, map[string]string{
-		"id": childID,
-	})
-	h.ChangeCapabilityParent(w, req)
-
+	w := f.changeParent(childID, "")
 	assert.Equal(t, http.StatusNoContent, w.Code)
 
-	time.Sleep(100 * time.Millisecond)
+	f.waitForProjection()
 
-	capability, err := h.readModel.GetByID(tenantContext(), childID)
-	require.NoError(t, err)
+	capability := f.getCapability(childID)
 	assert.Equal(t, "", capability.ParentID)
 	assert.Equal(t, "L1", capability.Level)
 }
 
 func TestChangeCapabilityParent_LevelAutoCalculation_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
+	f, cleanup := newParentTestFixture(t)
 	defer cleanup()
 
-	h := setupParentHandlers(testCtx.db)
+	l1ID := f.createCapability("L1 Capability", "L1", "")
+	anotherL1ID := f.createCapability("Another L1", "L1", "")
+	anotherL2ID := f.createCapability("Another L2", "L2", anotherL1ID)
+	anotherL3ID := f.createCapability("Another L3", "L3", anotherL2ID)
+	f.waitForProjection()
 
-	// Create a capability without children so it can be moved to L4
-	l1ID := createCapabilityViaAPI(t, h, "L1 Capability", "L1", "")
-	testCtx.trackID(l1ID)
-
-	// Create another hierarchy to move under
-	anotherL1ID := createCapabilityViaAPI(t, h, "Another L1", "L1", "")
-	testCtx.trackID(anotherL1ID)
-
-	anotherL2ID := createCapabilityViaAPI(t, h, "Another L2", "L2", anotherL1ID)
-	testCtx.trackID(anotherL2ID)
-
-	anotherL3ID := createCapabilityViaAPI(t, h, "Another L3", "L3", anotherL2ID)
-	testCtx.trackID(anotherL3ID)
-
-	time.Sleep(100 * time.Millisecond)
-
-	// Move l1ID under anotherL3ID - should become L4
-	reqBody := ChangeCapabilityParentRequest{
-		ParentID: anotherL3ID,
-	}
-	body, _ := json.Marshal(reqBody)
-
-	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+l1ID+"/parent", body, map[string]string{
-		"id": l1ID,
-	})
-	h.ChangeCapabilityParent(w, req)
-
+	w := f.changeParent(l1ID, anotherL3ID)
 	assert.Equal(t, http.StatusNoContent, w.Code)
 
-	time.Sleep(100 * time.Millisecond)
+	f.waitForProjection()
 
-	capability, err := h.readModel.GetByID(tenantContext(), l1ID)
-	require.NoError(t, err)
+	capability := f.getCapability(l1ID)
 	assert.Equal(t, anotherL3ID, capability.ParentID)
 	assert.Equal(t, "L4", capability.Level)
 }
 
 func TestChangeCapabilityParent_RejectSelfReference_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
+	f, cleanup := newParentTestFixture(t)
 	defer cleanup()
 
-	h := setupParentHandlers(testCtx.db)
+	capabilityID := f.createCapability("Test Capability", "L1", "")
+	f.waitForProjection()
 
-	capabilityID := createCapabilityViaAPI(t, h, "Test Capability", "L1", "")
-	testCtx.trackID(capabilityID)
-
-	time.Sleep(100 * time.Millisecond)
-
-	reqBody := ChangeCapabilityParentRequest{
-		ParentID: capabilityID,
-	}
-	body, _ := json.Marshal(reqBody)
-
-	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+capabilityID+"/parent", body, map[string]string{
-		"id": capabilityID,
-	})
-	h.ChangeCapabilityParent(w, req)
-
+	w := f.changeParent(capabilityID, capabilityID)
 	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
 func TestChangeCapabilityParent_RejectCircularReference_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
+	f, cleanup := newParentTestFixture(t)
 	defer cleanup()
 
-	h := setupParentHandlers(testCtx.db)
+	l1ID := f.createCapability("L1 Capability", "L1", "")
+	l2ID := f.createCapability("L2 Capability", "L2", l1ID)
+	l3ID := f.createCapability("L3 Capability", "L3", l2ID)
+	f.waitForProjection()
 
-	l1ID := createCapabilityViaAPI(t, h, "L1 Capability", "L1", "")
-	testCtx.trackID(l1ID)
-
-	l2ID := createCapabilityViaAPI(t, h, "L2 Capability", "L2", l1ID)
-	testCtx.trackID(l2ID)
-
-	l3ID := createCapabilityViaAPI(t, h, "L3 Capability", "L3", l2ID)
-	testCtx.trackID(l3ID)
-
-	time.Sleep(100 * time.Millisecond)
-
-	reqBody := ChangeCapabilityParentRequest{
-		ParentID: l3ID,
-	}
-	body, _ := json.Marshal(reqBody)
-
-	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+l1ID+"/parent", body, map[string]string{
-		"id": l1ID,
-	})
-	h.ChangeCapabilityParent(w, req)
-
+	w := f.changeParent(l1ID, l3ID)
 	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
 func TestChangeCapabilityParent_RejectL5PlusHierarchy_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
+	f, cleanup := newParentTestFixture(t)
 	defer cleanup()
 
-	h := setupParentHandlers(testCtx.db)
+	l1ID := f.createCapability("L1 Capability", "L1", "")
+	l2ID := f.createCapability("L2 Capability", "L2", l1ID)
+	l3ID := f.createCapability("L3 Capability", "L3", l2ID)
+	l4ID := f.createCapability("L4 Capability", "L4", l3ID)
+	anotherL1ID := f.createCapability("Another L1", "L1", "")
+	f.waitForProjection()
 
-	l1ID := createCapabilityViaAPI(t, h, "L1 Capability", "L1", "")
-	testCtx.trackID(l1ID)
-
-	l2ID := createCapabilityViaAPI(t, h, "L2 Capability", "L2", l1ID)
-	testCtx.trackID(l2ID)
-
-	l3ID := createCapabilityViaAPI(t, h, "L3 Capability", "L3", l2ID)
-	testCtx.trackID(l3ID)
-
-	l4ID := createCapabilityViaAPI(t, h, "L4 Capability", "L4", l3ID)
-	testCtx.trackID(l4ID)
-
-	anotherL1ID := createCapabilityViaAPI(t, h, "Another L1", "L1", "")
-	testCtx.trackID(anotherL1ID)
-
-	time.Sleep(100 * time.Millisecond)
-
-	reqBody := ChangeCapabilityParentRequest{
-		ParentID: l4ID,
-	}
-	body, _ := json.Marshal(reqBody)
-
-	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+anotherL1ID+"/parent", body, map[string]string{
-		"id": anotherL1ID,
-	})
-	h.ChangeCapabilityParent(w, req)
-
+	w := f.changeParent(anotherL1ID, l4ID)
 	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
 func TestChangeCapabilityParent_RejectL5PlusHierarchyWithSubtree_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
+	f, cleanup := newParentTestFixture(t)
 	defer cleanup()
 
-	h := setupParentHandlers(testCtx.db)
+	l1ID := f.createCapability("L1 Capability", "L1", "")
+	l2ID := f.createCapability("L2 Capability", "L2", l1ID)
+	l3ID := f.createCapability("L3 Capability", "L3", l2ID)
+	targetL1ID := f.createCapability("Target L1", "L1", "")
+	_ = f.createCapability("Target L2", "L2", targetL1ID)
+	f.waitForProjection()
 
-	l1ID := createCapabilityViaAPI(t, h, "L1 Capability", "L1", "")
-	testCtx.trackID(l1ID)
-
-	l2ID := createCapabilityViaAPI(t, h, "L2 Capability", "L2", l1ID)
-	testCtx.trackID(l2ID)
-
-	l3ID := createCapabilityViaAPI(t, h, "L3 Capability", "L3", l2ID)
-	testCtx.trackID(l3ID)
-
-	targetL1ID := createCapabilityViaAPI(t, h, "Target L1", "L1", "")
-	testCtx.trackID(targetL1ID)
-
-	targetL2ID := createCapabilityViaAPI(t, h, "Target L2", "L2", targetL1ID)
-	testCtx.trackID(targetL2ID)
-
-	time.Sleep(100 * time.Millisecond)
-
-	reqBody := ChangeCapabilityParentRequest{
-		ParentID: l3ID,
-	}
-	body, _ := json.Marshal(reqBody)
-
-	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+targetL1ID+"/parent", body, map[string]string{
-		"id": targetL1ID,
-	})
-	h.ChangeCapabilityParent(w, req)
-
+	w := f.changeParent(targetL1ID, l3ID)
 	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
 func TestChangeCapabilityParent_NonExistentCapability_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
+	f, cleanup := newParentTestFixture(t)
 	defer cleanup()
 
-	h := setupParentHandlers(testCtx.db)
-
-	parentID := createCapabilityViaAPI(t, h, "Parent Capability", "L1", "")
-	testCtx.trackID(parentID)
-
-	time.Sleep(100 * time.Millisecond)
+	parentID := f.createCapability("Parent Capability", "L1", "")
+	f.waitForProjection()
 
 	nonExistentID := fmt.Sprintf("non-existent-%d", time.Now().UnixNano())
-
-	reqBody := ChangeCapabilityParentRequest{
-		ParentID: parentID,
-	}
-	body, _ := json.Marshal(reqBody)
-
-	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+nonExistentID+"/parent", body, map[string]string{
-		"id": nonExistentID,
-	})
-	h.ChangeCapabilityParent(w, req)
-
+	w := f.changeParent(nonExistentID, parentID)
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
 func TestChangeCapabilityParent_NonExistentParent_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
+	f, cleanup := newParentTestFixture(t)
 	defer cleanup()
 
-	h := setupParentHandlers(testCtx.db)
+	capabilityID := f.createCapability("Test Capability", "L1", "")
+	f.waitForProjection()
 
-	capabilityID := createCapabilityViaAPI(t, h, "Test Capability", "L1", "")
-	testCtx.trackID(capabilityID)
-
-	time.Sleep(100 * time.Millisecond)
-
-	// Use a valid UUID format that doesn't exist in the database
-	nonExistentParentID := "00000000-0000-0000-0000-000000000000"
-
-	reqBody := ChangeCapabilityParentRequest{
-		ParentID: nonExistentParentID,
-	}
-	body, _ := json.Marshal(reqBody)
-
-	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+capabilityID+"/parent", body, map[string]string{
-		"id": capabilityID,
-	})
-	h.ChangeCapabilityParent(w, req)
-
+	w := f.changeParent(capabilityID, "00000000-0000-0000-0000-000000000000")
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
 func TestChangeCapabilityParent_DescendantLevelsUpdated_Integration(t *testing.T) {
-	testCtx, cleanup := setupTestDB(t)
+	f, cleanup := newParentTestFixture(t)
 	defer cleanup()
 
-	h := setupParentHandlers(testCtx.db)
+	l1ID := f.createCapability("L1 Capability", "L1", "")
+	l2ID := f.createCapability("L2 Capability", "L2", l1ID)
+	l3ID := f.createCapability("L3 Capability", "L3", l2ID)
+	f.waitForProjection()
 
-	l1ID := createCapabilityViaAPI(t, h, "L1 Capability", "L1", "")
-	testCtx.trackID(l1ID)
-
-	l2ID := createCapabilityViaAPI(t, h, "L2 Capability", "L2", l1ID)
-	testCtx.trackID(l2ID)
-
-	l3ID := createCapabilityViaAPI(t, h, "L3 Capability", "L3", l2ID)
-	testCtx.trackID(l3ID)
-
-	time.Sleep(100 * time.Millisecond)
-
-	reqBody := ChangeCapabilityParentRequest{
-		ParentID: "",
-	}
-	body, _ := json.Marshal(reqBody)
-
-	w, req := makeRequest(t, http.MethodPatch, "/api/v1/capabilities/"+l2ID+"/parent", body, map[string]string{
-		"id": l2ID,
-	})
-	h.ChangeCapabilityParent(w, req)
-
+	w := f.changeParent(l2ID, "")
 	assert.Equal(t, http.StatusNoContent, w.Code)
 
 	time.Sleep(150 * time.Millisecond)
 
-	l2Capability, err := h.readModel.GetByID(tenantContext(), l2ID)
-	require.NoError(t, err)
+	l2Capability := f.getCapability(l2ID)
 	assert.Equal(t, "L1", l2Capability.Level)
 	assert.Equal(t, "", l2Capability.ParentID)
 
-	l3Capability, err := h.readModel.GetByID(tenantContext(), l3ID)
-	require.NoError(t, err)
+	l3Capability := f.getCapability(l3ID)
 	assert.Equal(t, "L2", l3Capability.Level)
 	assert.Equal(t, l2ID, l3Capability.ParentID)
 }

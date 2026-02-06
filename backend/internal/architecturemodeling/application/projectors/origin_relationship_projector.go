@@ -10,10 +10,13 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
+type eventHandler func(ctx context.Context, eventData []byte) error
+
 type OriginRelationshipProjector struct {
-	acquiredViaReadModel    *readmodels.AcquiredViaRelationshipReadModel
-	purchasedFromReadModel  *readmodels.PurchasedFromRelationshipReadModel
-	builtByReadModel        *readmodels.BuiltByRelationshipReadModel
+	acquiredViaReadModel   *readmodels.AcquiredViaRelationshipReadModel
+	purchasedFromReadModel *readmodels.PurchasedFromRelationshipReadModel
+	builtByReadModel       *readmodels.BuiltByRelationshipReadModel
+	handlers               map[string]eventHandler
 }
 
 func NewOriginRelationshipProjector(
@@ -21,11 +24,27 @@ func NewOriginRelationshipProjector(
 	purchasedFromReadModel *readmodels.PurchasedFromRelationshipReadModel,
 	builtByReadModel *readmodels.BuiltByRelationshipReadModel,
 ) *OriginRelationshipProjector {
-	return &OriginRelationshipProjector{
+	p := &OriginRelationshipProjector{
 		acquiredViaReadModel:   acquiredViaReadModel,
 		purchasedFromReadModel: purchasedFromReadModel,
 		builtByReadModel:       builtByReadModel,
 	}
+	p.handlers = map[string]eventHandler{
+		"AcquiredViaRelationshipSet":      p.projectAcquiredViaSet,
+		"AcquiredViaRelationshipReplaced": p.projectAcquiredViaReplaced,
+		"AcquiredViaNotesUpdated":         p.projectAcquiredViaNotesUpdated,
+		"AcquiredViaRelationshipCleared":  p.projectAcquiredViaCleared,
+		"PurchasedFromRelationshipSet":      p.projectPurchasedFromSet,
+		"PurchasedFromRelationshipReplaced": p.projectPurchasedFromReplaced,
+		"PurchasedFromNotesUpdated":         p.projectPurchasedFromNotesUpdated,
+		"PurchasedFromRelationshipCleared":  p.projectPurchasedFromCleared,
+		"BuiltByRelationshipSet":      p.projectBuiltBySet,
+		"BuiltByRelationshipReplaced": p.projectBuiltByReplaced,
+		"BuiltByNotesUpdated":         p.projectBuiltByNotesUpdated,
+		"BuiltByRelationshipCleared":  p.projectBuiltByCleared,
+		"ComponentOriginsDeleted":     p.projectComponentOriginsDeleted,
+	}
+	return p
 }
 
 func (p *OriginRelationshipProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
@@ -38,37 +57,11 @@ func (p *OriginRelationshipProjector) Handle(ctx context.Context, event domain.D
 }
 
 func (p *OriginRelationshipProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
-	switch eventType {
-	case "ComponentOriginsCreated":
+	handler, exists := p.handlers[eventType]
+	if !exists {
 		return nil
-	case "AcquiredViaRelationshipSet":
-		return p.projectAcquiredViaSet(ctx, eventData)
-	case "AcquiredViaRelationshipReplaced":
-		return p.projectAcquiredViaReplaced(ctx, eventData)
-	case "AcquiredViaNotesUpdated":
-		return p.projectAcquiredViaNotesUpdated(ctx, eventData)
-	case "AcquiredViaRelationshipCleared":
-		return p.projectAcquiredViaCleared(ctx, eventData)
-	case "PurchasedFromRelationshipSet":
-		return p.projectPurchasedFromSet(ctx, eventData)
-	case "PurchasedFromRelationshipReplaced":
-		return p.projectPurchasedFromReplaced(ctx, eventData)
-	case "PurchasedFromNotesUpdated":
-		return p.projectPurchasedFromNotesUpdated(ctx, eventData)
-	case "PurchasedFromRelationshipCleared":
-		return p.projectPurchasedFromCleared(ctx, eventData)
-	case "BuiltByRelationshipSet":
-		return p.projectBuiltBySet(ctx, eventData)
-	case "BuiltByRelationshipReplaced":
-		return p.projectBuiltByReplaced(ctx, eventData)
-	case "BuiltByNotesUpdated":
-		return p.projectBuiltByNotesUpdated(ctx, eventData)
-	case "BuiltByRelationshipCleared":
-		return p.projectBuiltByCleared(ctx, eventData)
-	case "ComponentOriginsDeleted":
-		return p.projectComponentOriginsDeleted(ctx, eventData)
 	}
-	return nil
+	return handler(ctx, eventData)
 }
 
 func (p *OriginRelationshipProjector) projectAcquiredViaSet(ctx context.Context, eventData []byte) error {

@@ -31,100 +31,74 @@ func (m *mockElementColorUpdater) UpdateElementColor(ctx context.Context, viewID
 	return m.updateElementColorErr
 }
 
-func TestUpdateElementColorHandler_ValidComponent(t *testing.T) {
-	mockRepo := &mockElementColorUpdater{}
-	handler := NewUpdateElementColorHandler(mockRepo)
-
-	cmd := &commands.UpdateElementColor{
-		ViewID:      "view-123",
-		ElementID:   "comp-456",
-		ElementType: "component",
-		Color:       "#FF5733",
+func TestUpdateElementColorHandler_ValidInputs(t *testing.T) {
+	tests := []struct {
+		name             string
+		viewID           string
+		elementID        string
+		elementType      string
+		color            string
+		expectedRepoType repositories.ElementType
+	}{
+		{"component", "view-123", "comp-456", "component", "#FF5733", repositories.ElementTypeComponent},
+		{"capability", "view-789", "cap-101", "capability", "#00FF00", repositories.ElementTypeCapability},
+		{"lowercase color", "view-123", "comp-456", "component", "#ffffff", repositories.ElementTypeComponent},
+		{"mixed case color", "view-123", "comp-456", "component", "#FfA5b3", repositories.ElementTypeComponent},
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &mockElementColorUpdater{}
+			handler := NewUpdateElementColorHandler(mockRepo)
 
-	assert.NoError(t, err)
-	assert.True(t, mockRepo.updateElementColorCalled)
-	assert.Equal(t, "view-123", mockRepo.viewID)
-	assert.Equal(t, "comp-456", mockRepo.elementID)
-	assert.Equal(t, repositories.ElementTypeComponent, mockRepo.elementType)
-	assert.Equal(t, "#FF5733", mockRepo.color)
+			cmd := &commands.UpdateElementColor{
+				ViewID:      tt.viewID,
+				ElementID:   tt.elementID,
+				ElementType: tt.elementType,
+				Color:       tt.color,
+			}
+
+			_, err := handler.Handle(context.Background(), cmd)
+
+			assert.NoError(t, err)
+			assert.True(t, mockRepo.updateElementColorCalled)
+			assert.Equal(t, tt.viewID, mockRepo.viewID)
+			assert.Equal(t, tt.elementID, mockRepo.elementID)
+			assert.Equal(t, tt.expectedRepoType, mockRepo.elementType)
+			assert.Equal(t, tt.color, mockRepo.color)
+		})
+	}
 }
 
-func TestUpdateElementColorHandler_ValidCapability(t *testing.T) {
-	mockRepo := &mockElementColorUpdater{}
-	handler := NewUpdateElementColorHandler(mockRepo)
-
-	cmd := &commands.UpdateElementColor{
-		ViewID:      "view-789",
-		ElementID:   "cap-101",
-		ElementType: "capability",
-		Color:       "#00FF00",
+func TestUpdateElementColorHandler_InvalidColors(t *testing.T) {
+	tests := []struct {
+		name  string
+		color string
+	}{
+		{"not hex format", "invalid"},
+		{"missing hash prefix", "FF5733"},
+		{"too short", "#FFF"},
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &mockElementColorUpdater{}
+			handler := NewUpdateElementColorHandler(mockRepo)
 
-	assert.NoError(t, err)
-	assert.True(t, mockRepo.updateElementColorCalled)
-	assert.Equal(t, "view-789", mockRepo.viewID)
-	assert.Equal(t, "cap-101", mockRepo.elementID)
-	assert.Equal(t, repositories.ElementTypeCapability, mockRepo.elementType)
-	assert.Equal(t, "#00FF00", mockRepo.color)
-}
+			cmd := &commands.UpdateElementColor{
+				ViewID:      "view-123",
+				ElementID:   "comp-456",
+				ElementType: "component",
+				Color:       tt.color,
+			}
 
-func TestUpdateElementColorHandler_InvalidHexColor(t *testing.T) {
-	mockRepo := &mockElementColorUpdater{}
-	handler := NewUpdateElementColorHandler(mockRepo)
+			_, err := handler.Handle(context.Background(), cmd)
 
-	cmd := &commands.UpdateElementColor{
-		ViewID:      "view-123",
-		ElementID:   "comp-456",
-		ElementType: "component",
-		Color:       "invalid",
+			assert.Error(t, err)
+			assert.Equal(t, valueobjects.ErrInvalidHexColor, err)
+			assert.False(t, mockRepo.updateElementColorCalled)
+		})
 	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-
-	assert.Error(t, err)
-	assert.Equal(t, valueobjects.ErrInvalidHexColor, err)
-	assert.False(t, mockRepo.updateElementColorCalled)
-}
-
-func TestUpdateElementColorHandler_InvalidHexColorMissingHash(t *testing.T) {
-	mockRepo := &mockElementColorUpdater{}
-	handler := NewUpdateElementColorHandler(mockRepo)
-
-	cmd := &commands.UpdateElementColor{
-		ViewID:      "view-123",
-		ElementID:   "comp-456",
-		ElementType: "component",
-		Color:       "FF5733",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-
-	assert.Error(t, err)
-	assert.Equal(t, valueobjects.ErrInvalidHexColor, err)
-	assert.False(t, mockRepo.updateElementColorCalled)
-}
-
-func TestUpdateElementColorHandler_InvalidHexColorTooShort(t *testing.T) {
-	mockRepo := &mockElementColorUpdater{}
-	handler := NewUpdateElementColorHandler(mockRepo)
-
-	cmd := &commands.UpdateElementColor{
-		ViewID:      "view-123",
-		ElementID:   "comp-456",
-		ElementType: "component",
-		Color:       "#FFF",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-
-	assert.Error(t, err)
-	assert.Equal(t, valueobjects.ErrInvalidHexColor, err)
-	assert.False(t, mockRepo.updateElementColorCalled)
 }
 
 func TestUpdateElementColorHandler_InvalidElementType(t *testing.T) {
@@ -179,40 +153,4 @@ func TestUpdateElementColorHandler_InvalidCommand(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, cqrs.ErrInvalidCommand, err)
 	assert.False(t, mockRepo.updateElementColorCalled)
-}
-
-func TestUpdateElementColorHandler_ValidLowercaseColor(t *testing.T) {
-	mockRepo := &mockElementColorUpdater{}
-	handler := NewUpdateElementColorHandler(mockRepo)
-
-	cmd := &commands.UpdateElementColor{
-		ViewID:      "view-123",
-		ElementID:   "comp-456",
-		ElementType: "component",
-		Color:       "#ffffff",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-
-	assert.NoError(t, err)
-	assert.True(t, mockRepo.updateElementColorCalled)
-	assert.Equal(t, "#ffffff", mockRepo.color)
-}
-
-func TestUpdateElementColorHandler_ValidMixedCaseColor(t *testing.T) {
-	mockRepo := &mockElementColorUpdater{}
-	handler := NewUpdateElementColorHandler(mockRepo)
-
-	cmd := &commands.UpdateElementColor{
-		ViewID:      "view-123",
-		ElementID:   "comp-456",
-		ElementType: "component",
-		Color:       "#FfA5b3",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-
-	assert.NoError(t, err)
-	assert.True(t, mockRepo.updateElementColorCalled)
-	assert.Equal(t, "#FfA5b3", mockRepo.color)
 }
