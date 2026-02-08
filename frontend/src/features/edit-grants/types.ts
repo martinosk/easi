@@ -11,9 +11,11 @@ export interface EditGrant {
   granteeEmail: string;
   artifactType: ArtifactType;
   artifactId: string;
+  artifactName?: string;
   scope: GrantScope;
   status: EditGrantStatus;
   reason?: string;
+  invitationCreated?: boolean;
   createdAt: string;
   expiresAt: string;
   revokedAt?: string;

@@ -6,9 +6,11 @@ import (
 	"os"
 
 	"easi/backend/docs"
+	adPL "easi/backend/internal/accessdelegation/publishedlanguage"
 	accessdelegationAPI "easi/backend/internal/accessdelegation/infrastructure/api"
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
+	authProjectors "easi/backend/internal/auth/application/projectors"
 	authAPI "easi/backend/internal/auth/infrastructure/api"
 	authReadModels "easi/backend/internal/auth/application/readmodels"
 	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
@@ -154,9 +156,13 @@ func registerTenantRoutes(r chi.Router, deps routerDependencies) {
 	setupDomainRoutes(r, deps)
 	setupSupportRoutes(r, deps)
 	setupAuthRoutes(r, deps)
+	wireAutoInvitationProjector(deps)
 }
 
 func setupAccessDelegation(deps routerDependencies) *accessdelegationAPI.AccessDelegationDependencies {
+	invReadModel := authReadModels.NewInvitationReadModel(deps.db)
+	domainChecker := authReadModels.NewTenantDomainChecker(deps.db)
+
 	adDeps, adErr := accessdelegationAPI.SetupAccessDelegationRoutes(accessdelegationAPI.AccessDelegationRoutesDeps{
 		CommandBus:     deps.commandBus,
 		EventStore:     deps.eventStore,
@@ -164,6 +170,9 @@ func setupAccessDelegation(deps routerDependencies) *accessdelegationAPI.AccessD
 		DB:             deps.db,
 		HATEOAS:        deps.hateoas,
 		AuthMiddleware: deps.authDeps.AuthMiddleware,
+		UserReadModel:  deps.userReadModel,
+		InvReadModel:   invReadModel,
+		DomainChecker:  domainChecker,
 	})
 	mustSetup(adErr, "access delegation routes")
 	return adDeps
@@ -257,6 +266,11 @@ func setupAuthRoutes(r chi.Router, deps routerDependencies) {
 		AuthDeps:   deps.authDeps,
 		InvDeps:    invDeps,
 	}), "user routes")
+}
+
+func wireAutoInvitationProjector(deps routerDependencies) {
+	projector := authProjectors.NewInvitationAutoCreateProjector(deps.commandBus)
+	deps.eventBus.Subscribe(adPL.EditGrantForNonUserCreated, projector)
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

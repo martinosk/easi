@@ -28,5 +28,6 @@ export const ROUTES = {
   INVITATIONS: '/invitations',
   SETTINGS: '/settings',
   SETTINGS_MATURITY_SCALE: '/settings/maturity-scale',
+  MY_EDIT_ACCESS: '/my-edit-access',
   LOGIN: '/login',
 } as const;

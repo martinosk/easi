@@ -2436,6 +2436,22 @@ body {
   height: 18px;
 }
 
+a.user-menu-item {
+  text-decoration: none;
+  color: var(--color-gray-700);
+}
+
+.user-menu-badge {
+  margin-left: auto;
+  background: var(--color-primary);
+  color: white;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  line-height: 1.4;
+}
+
 .user-menu-logout {
   color: var(--color-error);
 }

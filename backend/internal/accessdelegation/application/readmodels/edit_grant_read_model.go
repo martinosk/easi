@@ -11,19 +11,21 @@ import (
 )
 
 type EditGrantDTO struct {
-	ID           string            `json:"id"`
-	GrantorID    string            `json:"grantorId"`
-	GrantorEmail string            `json:"grantorEmail"`
-	GranteeEmail string            `json:"granteeEmail"`
-	ArtifactType string            `json:"artifactType"`
-	ArtifactID   string            `json:"artifactId"`
-	Scope        string            `json:"scope"`
-	Status       string            `json:"status"`
-	Reason       *string           `json:"reason,omitempty"`
-	CreatedAt    time.Time         `json:"createdAt"`
-	ExpiresAt    time.Time         `json:"expiresAt"`
-	RevokedAt    *time.Time        `json:"revokedAt,omitempty"`
-	Links        types.Links       `json:"_links,omitempty"`
+	ID                string            `json:"id"`
+	GrantorID         string            `json:"grantorId"`
+	GrantorEmail      string            `json:"grantorEmail"`
+	GranteeEmail      string            `json:"granteeEmail"`
+	ArtifactType      string            `json:"artifactType"`
+	ArtifactID        string            `json:"artifactId"`
+	ArtifactName      string            `json:"artifactName,omitempty"`
+	Scope             string            `json:"scope"`
+	Status            string            `json:"status"`
+	Reason            *string           `json:"reason,omitempty"`
+	InvitationCreated bool              `json:"invitationCreated,omitempty"`
+	CreatedAt         time.Time         `json:"createdAt"`
+	ExpiresAt         time.Time         `json:"expiresAt"`
+	RevokedAt         *time.Time        `json:"revokedAt,omitempty"`
+	Links             types.Links       `json:"_links,omitempty"`
 }
 
 type EditGrantStatusUpdate struct {
@@ -119,10 +121,6 @@ func (rm *EditGrantReadModel) HasActiveGrant(ctx context.Context, granteeEmail, 
 	})
 
 	return exists, err
-}
-
-func (rm *EditGrantReadModel) ExistsActiveGrant(ctx context.Context, granteeEmail, artifactType, artifactID string) (bool, error) {
-	return rm.HasActiveGrant(ctx, granteeEmail, artifactType, artifactID)
 }
 
 func (rm *EditGrantReadModel) GetGrantedArtifactIDs(ctx context.Context, granteeEmail, artifactType string) (map[string]bool, error) {

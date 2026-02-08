@@ -15,9 +15,63 @@ import { useCapabilityRealizations } from './useCapabilityRealizations';
 import { useCapabilitySelection } from './useCapabilitySelection';
 import { useCapabilityContextMenu } from './useCapabilityContextMenu';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
+import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { getParamValue, clearParams, deepLinkParams } from '../../../lib/deepLinks';
 import { canCreate } from '../../../utils/hateoas';
 import type { BusinessDomain, Capability, ComponentId } from '../../../api/types';
+
+function useDomainDeepLink(
+  domains: BusinessDomain[],
+  isLoading: boolean,
+  onFound: (domain: BusinessDomain) => void
+) {
+  const processedRef = useRef(false);
+
+  useEffect(() => {
+    if (isLoading || processedRef.current) return;
+
+    const domainIdFromUrl = getParamValue(deepLinkParams.DOMAIN.param);
+    if (!domainIdFromUrl) return;
+
+    processedRef.current = true;
+    const linkedDomain = domains.find(d => d.id === domainIdFromUrl);
+
+    if (linkedDomain) {
+      onFound(linkedDomain);
+    } else {
+      toast.error('The linked domain does not exist');
+    }
+
+    clearParams([deepLinkParams.DOMAIN.param]);
+  }, [domains, isLoading, onFound]);
+}
+
+function useCapabilityDeepLink(
+  allCapabilities: Capability[],
+  isLoading: boolean,
+  onFound: (capability: Capability) => void
+) {
+  const processedRef = useRef(false);
+
+  useEffect(() => {
+    if (isLoading || processedRef.current) return;
+    if (allCapabilities.length === 0) return;
+
+    const capabilityIdFromUrl = getParamValue(deepLinkParams.CAPABILITY.param);
+    if (!capabilityIdFromUrl) return;
+
+    processedRef.current = true;
+    const linkedCapability = allCapabilities.find(c => c.id === capabilityIdFromUrl);
+
+    if (linkedCapability) {
+      onFound(linkedCapability);
+    } else {
+      toast.error('The linked capability does not exist');
+    }
+
+    clearParams([deepLinkParams.CAPABILITY.param]);
+  }, [allCapabilities, isLoading, onFound]);
+}
 
 export function useBusinessDomainsPage() {
   const [visualizedDomain, setVisualizedDomain] = useState<BusinessDomain | null>(null);
@@ -31,25 +85,10 @@ export function useBusinessDomainsPage() {
 
   const { domains, collectionLinks, isLoading, error, createDomain, updateDomain, deleteDomain } = useBusinessDomains();
   const { tree, isLoading: treeLoading } = useCapabilityTree();
-  const deepLinkProcessedRef = useRef(false);
+  const { data: allCapabilities = [] } = useCapabilities();
 
-  useEffect(() => {
-    if (isLoading || deepLinkProcessedRef.current) return;
-
-    const domainIdFromUrl = getParamValue(deepLinkParams.DOMAIN.param);
-    if (!domainIdFromUrl) return;
-
-    deepLinkProcessedRef.current = true;
-    const linkedDomain = domains.find(d => d.id === domainIdFromUrl);
-
-    if (linkedDomain) {
-      setVisualizedDomain(linkedDomain);
-    } else {
-      toast.error('The linked domain does not exist');
-    }
-
-    clearParams([deepLinkParams.DOMAIN.param]);
-  }, [domains, isLoading]);
+  useDomainDeepLink(domains, isLoading, setVisualizedDomain);
+  useCapabilityDeepLink(allCapabilities, treeLoading, setSelectedCapability);
 
   const sidebarState = useSidebarState();
 

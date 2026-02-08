@@ -1,0 +1,93 @@
+.my-edit-access-page {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  background: var(--color-gray-50);
+  overflow: auto;
+}
+
+.my-edit-access-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--spacing-2xl);
+}
+
+.my-edit-access-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-2xl);
+}
+
+.my-edit-access-title {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--color-gray-900);
+  margin-bottom: var(--spacing-xs);
+}
+
+.my-edit-access-subtitle {
+  font-size: var(--font-size-base);
+  color: var(--color-gray-600);
+}
+
+.my-edit-access-table-container {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.my-edit-access-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.my-edit-access-table thead {
+  background: var(--color-gray-100);
+}
+
+.my-edit-access-table th {
+  padding: var(--spacing-md) var(--spacing-lg);
+  text-align: left;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-gray-700);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.my-edit-access-table tbody tr {
+  border-bottom: 1px solid var(--color-gray-200);
+  transition: background-color 0.15s ease;
+}
+
+.my-edit-access-table tbody tr:hover {
+  background: var(--color-gray-50);
+}
+
+.my-edit-access-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.my-edit-access-table td {
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-900);
+}
+
+.my-edit-access-artifact-link {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.my-edit-access-artifact-link:hover {
+  text-decoration: underline;
+  color: var(--color-primary-dark);
+}
+
+.my-edit-access-date {
+  color: var(--color-gray-600);
+  font-size: var(--font-size-xs);
+}

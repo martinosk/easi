@@ -3,6 +3,7 @@ import type { DeepLinkParam } from './types';
 export const deepLinkParams = {
   VIEW: { param: 'view', routes: ['*'] } as DeepLinkParam,
   DOMAIN: { param: 'domain', routes: ['/business-domains'] } as DeepLinkParam,
+  CAPABILITY: { param: 'capability', routes: ['/business-domains'] } as DeepLinkParam,
 } as const;
 
 export function getParamValue(param: string): string | null {

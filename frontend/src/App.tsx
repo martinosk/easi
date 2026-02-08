@@ -42,7 +42,11 @@ const EnterpriseArchRouter = lazy(() =>
   import('./features/enterprise-architecture').then(module => ({ default: module.EnterpriseArchRouter }))
 );
 
-type AppView = 'canvas' | 'business-domains' | 'invitations' | 'users' | 'settings' | 'enterprise-architecture';
+const MyEditAccessPage = lazy(() =>
+  import('./features/edit-grants/pages/MyEditAccessPage')
+);
+
+type AppView = 'canvas' | 'business-domains' | 'invitations' | 'users' | 'settings' | 'enterprise-architecture' | 'my-edit-access';
 
 function useAuthErrorHandler() {
   const [authError, setAuthError] = useState<string | null>(null);
@@ -178,6 +182,9 @@ function MainContent({ view, canvasViewProps }: MainContentProps) {
   }
   if (view === 'enterprise-architecture') {
     return <LazyFeatureView featureName="Enterprise Architecture"><EnterpriseArchRouter /></LazyFeatureView>;
+  }
+  if (view === 'my-edit-access') {
+    return <LazyFeatureView featureName="My Edit Access"><MyEditAccessPage /></LazyFeatureView>;
   }
   return <LazyFeatureView featureName="Business Domains"><BusinessDomainsRouter /></LazyFeatureView>;
 }

@@ -28,7 +28,11 @@ export function useCreateEditGrant() {
     mutationFn: (request: CreateEditGrantRequest) => editGrantApi.create(request),
     onSuccess: (grant) => {
       invalidateFor(queryClient, editGrantsMutationEffects.create());
-      toast.success(`Edit access granted to ${grant.granteeEmail}`);
+      if (grant.invitationCreated) {
+        toast.success(`Edit access granted. An invitation to join EASI was also created for ${grant.granteeEmail}.`);
+      } else {
+        toast.success(`Edit access granted to ${grant.granteeEmail}`);
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to grant edit access');

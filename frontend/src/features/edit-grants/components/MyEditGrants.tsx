@@ -20,7 +20,13 @@ export function MyEditGrants() {
         <div key={grant.id} className="card" data-testid={`my-grant-${grant.id}`}>
           <div className="card-body">
             <span className="card-title">
-              {grant.artifactType}: {grant.artifactId}
+              {grant._links?.artifact ? (
+                <a href={grant._links.artifact.href}>
+                  {grant.artifactName || 'Deleted artifact'}
+                </a>
+              ) : (
+                grant.artifactName || 'Deleted artifact'
+              )}
             </span>
             <span className="card-subtitle">
               Granted by {grant.grantorEmail}

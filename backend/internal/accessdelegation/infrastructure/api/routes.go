@@ -5,9 +5,14 @@ import (
 	"easi/backend/internal/accessdelegation/application/projectors"
 	"easi/backend/internal/accessdelegation/application/readmodels"
 	"easi/backend/internal/accessdelegation/infrastructure/repositories"
+	adServices "easi/backend/internal/accessdelegation/infrastructure/services"
+	archReadModels "easi/backend/internal/architecturemodeling/application/readmodels"
 	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
+	viewsReadModels "easi/backend/internal/architectureviews/application/readmodels"
 	viewsPL "easi/backend/internal/architectureviews/publishedlanguage"
+	authReadModels "easi/backend/internal/auth/application/readmodels"
 	authAPI "easi/backend/internal/auth/infrastructure/api"
+	capReadModels "easi/backend/internal/capabilitymapping/application/readmodels"
 	capPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -20,12 +25,15 @@ import (
 )
 
 type AccessDelegationRoutesDeps struct {
-	CommandBus     *cqrs.InMemoryCommandBus
-	EventStore     eventstore.EventStore
-	EventBus       *events.InMemoryEventBus
-	DB             *database.TenantAwareDB
-	HATEOAS        *sharedAPI.HATEOASLinks
-	AuthMiddleware *authAPI.AuthMiddleware
+	CommandBus      *cqrs.InMemoryCommandBus
+	EventStore      eventstore.EventStore
+	EventBus        *events.InMemoryEventBus
+	DB              *database.TenantAwareDB
+	HATEOAS         *sharedAPI.HATEOASLinks
+	AuthMiddleware  *authAPI.AuthMiddleware
+	UserReadModel   *authReadModels.UserReadModel
+	InvReadModel    *authReadModels.InvitationReadModel
+	DomainChecker   *authReadModels.TenantDomainChecker
 }
 
 type AccessDelegationDependencies struct {
@@ -47,7 +55,22 @@ func SetupAccessDelegationRoutes(deps AccessDelegationRoutesDeps) (*AccessDelega
 	registerEventSubscriptions(deps.EventBus, readModel)
 	registerArtifactDeletionSubscriptions(deps.EventBus, readModel, deps.CommandBus)
 
-	httpHandlers := NewEditGrantHandlers(deps.CommandBus, readModel, NewEditGrantLinks(deps.HATEOAS))
+	nameResolver := adServices.NewArtifactNameResolver(
+		capReadModels.NewCapabilityReadModel(deps.DB),
+		archReadModels.NewApplicationComponentReadModel(deps.DB),
+		viewsReadModels.NewArchitectureViewReadModel(deps.DB),
+	)
+
+	httpHandlers := NewEditGrantHandlers(EditGrantHandlerDeps{
+		CommandBus:    deps.CommandBus,
+		ReadModel:     readModel,
+		Hateoas:       NewEditGrantLinks(deps.HATEOAS),
+		NameResolver:  nameResolver,
+		UserReadModel: deps.UserReadModel,
+		InvReadModel:  deps.InvReadModel,
+		DomainChecker: deps.DomainChecker,
+		EventBus:      deps.EventBus,
+	})
 	rateLimiter := platformAPI.NewRateLimiter(100, 60)
 
 	return &AccessDelegationDependencies{
