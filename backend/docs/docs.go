@@ -9137,6 +9137,9 @@ const docTemplate = `{
                 "artifactId": {
                     "type": "string"
                 },
+                "artifactName": {
+                    "type": "string"
+                },
                 "artifactType": {
                     "type": "string"
                 },
@@ -9157,6 +9160,9 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "string"
+                },
+                "invitationCreated": {
+                    "type": "boolean"
                 },
                 "reason": {
                     "type": "string"

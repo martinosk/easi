@@ -241,7 +241,7 @@ func (h *EditGrantHandlers) RevokeEditGrant(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if !canRevokeGrant(grant, actor) {
+	if !canRevokeEditGrant(*grant, actor) {
 		sharedAPI.RespondError(w, http.StatusForbidden, nil, "Only the grantor or an admin can revoke this grant")
 		return
 	}
@@ -260,9 +260,6 @@ func canViewGrant(grant *readmodels.EditGrantDTO, actor sharedctx.Actor) bool {
 	return grant.GrantorID == actor.ID || grant.GranteeEmail == actor.Email || actor.HasPermission("edit-grants:manage")
 }
 
-func canRevokeGrant(grant *readmodels.EditGrantDTO, actor sharedctx.Actor) bool {
-	return grant.GrantorID == actor.ID || actor.HasPermission("edit-grants:manage")
-}
 
 func (h *EditGrantHandlers) getGrantOrFail(w http.ResponseWriter, r *http.Request, id string) *readmodels.EditGrantDTO {
 	grant, err := h.deps.ReadModel.GetByID(r.Context(), id)

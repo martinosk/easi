@@ -27,18 +27,12 @@ func (h *EditGrantLinks) EditGrantLinksForActor(grant readmodels.EditGrantDTO, a
 }
 
 func (h *EditGrantLinks) AddArtifactLink(links sharedAPI.Links, grant readmodels.EditGrantDTO) {
-	switch grant.ArtifactType {
-	case "capability":
-		links["artifact"] = sharedAPI.Link{Href: "/business-domains?capability=" + grant.ArtifactID, Method: "GET"}
-	case "component":
-		links["artifact"] = sharedAPI.Link{Href: "/?component=" + grant.ArtifactID, Method: "GET"}
-	case "view":
-		links["artifact"] = sharedAPI.Link{Href: "/?view=" + grant.ArtifactID, Method: "GET"}
-	}
+	resourcePath := "/" + sharedctx.PluralResourceName(grant.ArtifactType) + "/" + grant.ArtifactID
+	links["artifact"] = h.Get(resourcePath)
 }
 
 func canRevokeEditGrant(grant readmodels.EditGrantDTO, actor sharedctx.Actor) bool {
-	return grant.Status == "active" && (grant.GrantorID == actor.ID || actor.Role == "admin")
+	return grant.Status == "active" && (grant.GrantorID == actor.ID || actor.HasPermission("edit-grants:manage"))
 }
 
 func (h *EditGrantLinks) EditGrantCollectionLinksForActor(actor sharedctx.Actor) sharedAPI.Links {
