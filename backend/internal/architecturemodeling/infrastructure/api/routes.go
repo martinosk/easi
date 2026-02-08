@@ -37,7 +37,7 @@ type repositorySet struct {
 	acquiredEntity   *repositories.AcquiredEntityRepository
 	vendor           *repositories.VendorRepository
 	internalTeam     *repositories.InternalTeamRepository
-	componentOrigins *repositories.ComponentOriginsRepository
+	componentOriginLink *repositories.ComponentOriginLinkRepository
 }
 
 type readModelSet struct {
@@ -68,7 +68,7 @@ func newRepositorySet(eventStore eventstore.EventStore) *repositorySet {
 		acquiredEntity:   repositories.NewAcquiredEntityRepository(eventStore),
 		vendor:           repositories.NewVendorRepository(eventStore),
 		internalTeam:     repositories.NewInternalTeamRepository(eventStore),
-		componentOrigins: repositories.NewComponentOriginsRepository(eventStore),
+		componentOriginLink: repositories.NewComponentOriginLinkRepository(eventStore),
 	}
 }
 
@@ -122,20 +122,12 @@ func subscribeOriginEntityProjectors(eventBus events.EventBus, acquired, vendor,
 }
 
 func subscribeOriginRelationshipProjectors(eventBus events.EventBus, projector events.EventHandler) {
-	eventBus.Subscribe("ComponentOriginsCreated", projector)
-	eventBus.Subscribe("AcquiredViaRelationshipSet", projector)
-	eventBus.Subscribe("AcquiredViaRelationshipReplaced", projector)
-	eventBus.Subscribe("AcquiredViaNotesUpdated", projector)
-	eventBus.Subscribe("AcquiredViaRelationshipCleared", projector)
-	eventBus.Subscribe("PurchasedFromRelationshipSet", projector)
-	eventBus.Subscribe("PurchasedFromRelationshipReplaced", projector)
-	eventBus.Subscribe("PurchasedFromNotesUpdated", projector)
-	eventBus.Subscribe("PurchasedFromRelationshipCleared", projector)
-	eventBus.Subscribe("BuiltByRelationshipSet", projector)
-	eventBus.Subscribe("BuiltByRelationshipReplaced", projector)
-	eventBus.Subscribe("BuiltByNotesUpdated", projector)
-	eventBus.Subscribe("BuiltByRelationshipCleared", projector)
-	eventBus.Subscribe("ComponentOriginsDeleted", projector)
+	eventBus.Subscribe("OriginLinkCreated", projector)
+	eventBus.Subscribe("OriginLinkSet", projector)
+	eventBus.Subscribe("OriginLinkReplaced", projector)
+	eventBus.Subscribe("OriginLinkNotesUpdated", projector)
+	eventBus.Subscribe("OriginLinkCleared", projector)
+	eventBus.Subscribe("OriginLinkDeleted", projector)
 }
 
 func registerCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *repositorySet, rm *readModelSet) {
@@ -168,12 +160,8 @@ func registerOriginEntityCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *re
 }
 
 func registerOriginRelationshipCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *repositorySet, rm *readModelSet) {
-	bus.Register("SetAcquiredVia", handlers.NewSetAcquiredViaHandler(repos.componentOrigins))
-	bus.Register("ClearAcquiredVia", handlers.NewClearAcquiredViaHandler(repos.componentOrigins))
-	bus.Register("SetPurchasedFrom", handlers.NewSetPurchasedFromHandler(repos.componentOrigins))
-	bus.Register("ClearPurchasedFrom", handlers.NewClearPurchasedFromHandler(repos.componentOrigins))
-	bus.Register("SetBuiltBy", handlers.NewSetBuiltByHandler(repos.componentOrigins))
-	bus.Register("ClearBuiltBy", handlers.NewClearBuiltByHandler(repos.componentOrigins))
+	bus.Register("SetOriginLink", handlers.NewSetOriginLinkHandler(repos.componentOriginLink))
+	bus.Register("ClearOriginLink", handlers.NewClearOriginLinkHandler(repos.componentOriginLink))
 }
 
 func newHTTPHandlerSet(bus *cqrs.InMemoryCommandBus, rm *readModelSet, hateoas *sharedAPI.HATEOASLinks) *httpHandlerSet {
@@ -185,7 +173,15 @@ func newHTTPHandlerSet(bus *cqrs.InMemoryCommandBus, rm *readModelSet, hateoas *
 		acquiredEntity:     NewAcquiredEntityHandlers(bus, rm.acquiredEntity, links),
 		vendor:             NewVendorHandlers(bus, rm.vendor, links),
 		internalTeam:       NewInternalTeamHandlers(bus, rm.internalTeam, links),
-		originRelationship: NewOriginRelationshipHandlers(bus, rm.acquiredVia, rm.purchasedFrom, rm.builtBy, links),
+		originRelationship: NewOriginRelationshipHandlersFromConfig(OriginRelationshipHandlersConfig{
+			CommandBus: bus,
+			ReadModels: OriginReadModels{
+				AcquiredVia:   rm.acquiredVia,
+				PurchasedFrom: rm.purchasedFrom,
+				BuiltBy:       rm.builtBy,
+			},
+			HATEOAS: links,
+		}),
 	}
 }
 

@@ -15,9 +15,10 @@ func init() {
 	registry.RegisterNotFound(repositories.ErrAcquiredEntityNotFound, "Acquired entity not found")
 	registry.RegisterNotFound(repositories.ErrVendorNotFound, "Vendor not found")
 	registry.RegisterNotFound(repositories.ErrInternalTeamNotFound, "Internal team not found")
-	registry.RegisterNotFound(repositories.ErrComponentOriginsNotFound, "Component origins not found")
+	registry.RegisterNotFound(repositories.ErrComponentOriginLinkNotFound, "Component origin link not found")
 
 	registry.RegisterConflict(aggregates.ErrSelfReference, "Component cannot have a relation to itself")
+	registry.RegisterNotFound(aggregates.ErrNoOriginLink, "No origin link exists")
 
 	registry.RegisterValidation(valueobjects.ErrEntityNameEmpty, "Name cannot be empty")
 	registry.RegisterValidation(valueobjects.ErrEntityNameTooLong, "Name exceeds maximum length of 100 characters")

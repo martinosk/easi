@@ -42,6 +42,22 @@ func (rm *BuiltByRelationshipReadModel) Insert(ctx context.Context, dto BuiltByR
 	return err
 }
 
+func (rm *BuiltByRelationshipReadModel) Upsert(ctx context.Context, dto BuiltByRelationshipDTO) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`INSERT INTO built_by_relationships (id, tenant_id, internal_team_id, component_id, notes, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6)
+		 ON CONFLICT (tenant_id, component_id) WHERE is_deleted = FALSE
+		 DO UPDATE SET internal_team_id = $3, notes = $5, created_at = $6, is_deleted = FALSE, deleted_at = NULL`,
+		dto.ID, tenantID.Value(), dto.InternalTeamID, dto.ComponentID, dto.Notes, dto.CreatedAt,
+	)
+	return err
+}
+
 func (rm *BuiltByRelationshipReadModel) UpdateByComponentID(ctx context.Context, dto BuiltByRelationshipDTO) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
@@ -58,28 +74,25 @@ func (rm *BuiltByRelationshipReadModel) UpdateByComponentID(ctx context.Context,
 }
 
 func (rm *BuiltByRelationshipReadModel) UpdateNotesByComponentID(ctx context.Context, componentID string, notes string) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
+	return rm.execWithTenant(ctx,
 		`UPDATE built_by_relationships SET notes = $1 WHERE tenant_id = $2 AND component_id = $3`,
-		notes, tenantID.Value(), componentID,
+		func(tenantID string) []interface{} { return []interface{}{notes, tenantID, componentID} },
 	)
-	return err
 }
 
 func (rm *BuiltByRelationshipReadModel) DeleteByComponentID(ctx context.Context, componentID string) error {
+	return rm.execWithTenant(ctx,
+		`DELETE FROM built_by_relationships WHERE tenant_id = $1 AND component_id = $2`,
+		func(tenantID string) []interface{} { return []interface{}{tenantID, componentID} },
+	)
+}
+
+func (rm *BuiltByRelationshipReadModel) execWithTenant(ctx context.Context, query string, argsFn func(tenantID string) []interface{}) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
 	}
-
-	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM built_by_relationships WHERE tenant_id = $1 AND component_id = $2",
-		tenantID.Value(), componentID,
-	)
+	_, err = rm.db.ExecContext(ctx, query, argsFn(tenantID.Value())...)
 	return err
 }
 
@@ -134,94 +147,42 @@ func (rm *BuiltByRelationshipReadModel) GetByID(ctx context.Context, id string) 
 }
 
 func (rm *BuiltByRelationshipReadModel) GetByTeamID(ctx context.Context, teamID string) ([]BuiltByRelationshipDTO, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	relationships := make([]BuiltByRelationshipDTO, 0)
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx,
-			`SELECT r.id, r.internal_team_id, COALESCE(t.name, '') as internal_team_name,
-			        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
-			 FROM built_by_relationships r
-			 LEFT JOIN internal_teams t ON t.tenant_id = r.tenant_id AND t.id = r.internal_team_id AND t.is_deleted = FALSE
-			 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
-			 WHERE r.tenant_id = $1 AND r.internal_team_id = $2 AND r.is_deleted = FALSE`,
-			tenantID.Value(), teamID,
-		)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var dto BuiltByRelationshipDTO
-			if err := rows.Scan(&dto.ID, &dto.InternalTeamID, &dto.InternalTeamName, &dto.ComponentID, &dto.ComponentName, &dto.Notes, &dto.CreatedAt); err != nil {
-				return err
-			}
-			relationships = append(relationships, dto)
-		}
-
-		return rows.Err()
-	})
-
-	return relationships, err
+	return rm.queryList(ctx,
+		`WHERE r.tenant_id = $1 AND r.internal_team_id = $2 AND r.is_deleted = FALSE`,
+		func(tenantID string) []interface{} { return []interface{}{tenantID, teamID} },
+	)
 }
 
 func (rm *BuiltByRelationshipReadModel) GetByComponentID(ctx context.Context, componentID string) ([]BuiltByRelationshipDTO, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	relationships := make([]BuiltByRelationshipDTO, 0)
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx,
-			`SELECT r.id, r.internal_team_id, COALESCE(t.name, '') as internal_team_name,
-			        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
-			 FROM built_by_relationships r
-			 LEFT JOIN internal_teams t ON t.tenant_id = r.tenant_id AND t.id = r.internal_team_id AND t.is_deleted = FALSE
-			 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
-			 WHERE r.tenant_id = $1 AND r.component_id = $2 AND r.is_deleted = FALSE`,
-			tenantID.Value(), componentID,
-		)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var dto BuiltByRelationshipDTO
-			if err := rows.Scan(&dto.ID, &dto.InternalTeamID, &dto.InternalTeamName, &dto.ComponentID, &dto.ComponentName, &dto.Notes, &dto.CreatedAt); err != nil {
-				return err
-			}
-			relationships = append(relationships, dto)
-		}
-
-		return rows.Err()
-	})
-
-	return relationships, err
+	return rm.queryList(ctx,
+		`WHERE r.tenant_id = $1 AND r.component_id = $2 AND r.is_deleted = FALSE`,
+		func(tenantID string) []interface{} { return []interface{}{tenantID, componentID} },
+	)
 }
 
 func (rm *BuiltByRelationshipReadModel) GetAll(ctx context.Context) ([]BuiltByRelationshipDTO, error) {
+	return rm.queryList(ctx,
+		`WHERE r.tenant_id = $1 AND r.is_deleted = FALSE`,
+		func(tenantID string) []interface{} { return []interface{}{tenantID} },
+	)
+}
+
+func (rm *BuiltByRelationshipReadModel) queryList(ctx context.Context, whereClause string, argsFn func(tenantID string) []interface{}) ([]BuiltByRelationshipDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	query := `SELECT r.id, r.internal_team_id, COALESCE(t.name, '') as internal_team_name,
+		        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
+		 FROM built_by_relationships r
+		 LEFT JOIN internal_teams t ON t.tenant_id = r.tenant_id AND t.id = r.internal_team_id AND t.is_deleted = FALSE
+		 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
+		 ` + whereClause
+
 	relationships := make([]BuiltByRelationshipDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx,
-			`SELECT r.id, r.internal_team_id, COALESCE(t.name, '') as internal_team_name,
-			        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
-			 FROM built_by_relationships r
-			 LEFT JOIN internal_teams t ON t.tenant_id = r.tenant_id AND t.id = r.internal_team_id AND t.is_deleted = FALSE
-			 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
-			 WHERE r.tenant_id = $1 AND r.is_deleted = FALSE`,
-			tenantID.Value(),
-		)
+		rows, err := tx.QueryContext(ctx, query, argsFn(tenantID.Value())...)
 		if err != nil {
 			return err
 		}
@@ -234,7 +195,6 @@ func (rm *BuiltByRelationshipReadModel) GetAll(ctx context.Context) ([]BuiltByRe
 			}
 			relationships = append(relationships, dto)
 		}
-
 		return rows.Err()
 	})
 

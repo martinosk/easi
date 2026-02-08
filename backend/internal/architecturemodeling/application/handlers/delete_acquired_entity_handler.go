@@ -51,20 +51,23 @@ func (h *DeleteAcquiredEntityHandler) Handle(ctx context.Context, cmd cqrs.Comma
 		return cqrs.EmptyResult(), err
 	}
 
-	relations, err := h.relationReadModel.GetByEntityID(ctx, command.ID)
+	return cqrs.EmptyResult(), h.cascadeClear(ctx, command.ID)
+}
+
+func (h *DeleteAcquiredEntityHandler) cascadeClear(ctx context.Context, entityID string) error {
+	relations, err := h.relationReadModel.GetByEntityID(ctx, entityID)
 	if err != nil {
-		log.Printf("Error querying relationships for acquired entity %s: %v", command.ID, err)
-		return cqrs.EmptyResult(), err
+		log.Printf("Error querying relationships for acquired entity %s: %v", entityID, err)
+		return err
 	}
 
 	for _, relation := range relations {
-		clearCmd := &commands.ClearAcquiredVia{ComponentID: relation.ComponentID}
+		clearCmd := &commands.ClearOriginLink{ComponentID: relation.ComponentID, OriginType: "acquired-via"}
 		if _, err := h.commandBus.Dispatch(ctx, clearCmd); err != nil {
 			log.Printf("Error cascading clear for relationship on component %s: %v", relation.ComponentID, err)
 			continue
 		}
 		log.Printf("Cascaded clear for acquired via relationship on component %s", relation.ComponentID)
 	}
-
-	return cqrs.EmptyResult(), nil
+	return nil
 }

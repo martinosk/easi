@@ -51,20 +51,23 @@ func (h *DeleteInternalTeamHandler) Handle(ctx context.Context, cmd cqrs.Command
 		return cqrs.EmptyResult(), err
 	}
 
-	relations, err := h.relationReadModel.GetByTeamID(ctx, command.ID)
+	return cqrs.EmptyResult(), h.cascadeClear(ctx, command.ID)
+}
+
+func (h *DeleteInternalTeamHandler) cascadeClear(ctx context.Context, teamID string) error {
+	relations, err := h.relationReadModel.GetByTeamID(ctx, teamID)
 	if err != nil {
-		log.Printf("Error querying relationships for internal team %s: %v", command.ID, err)
-		return cqrs.EmptyResult(), err
+		log.Printf("Error querying relationships for internal team %s: %v", teamID, err)
+		return err
 	}
 
 	for _, relation := range relations {
-		clearCmd := &commands.ClearBuiltBy{ComponentID: relation.ComponentID}
+		clearCmd := &commands.ClearOriginLink{ComponentID: relation.ComponentID, OriginType: "built-by"}
 		if _, err := h.commandBus.Dispatch(ctx, clearCmd); err != nil {
 			log.Printf("Error cascading clear for relationship on component %s: %v", relation.ComponentID, err)
 			continue
 		}
 		log.Printf("Cascaded clear for built by relationship on component %s", relation.ComponentID)
 	}
-
-	return cqrs.EmptyResult(), nil
+	return nil
 }

@@ -60,33 +60,26 @@ func setupOriginTestHandlers(db *sql.DB) *originTestContext {
 	builtByReadModel := readmodels.NewBuiltByRelationshipReadModel(tenantDB)
 
 	originProjector := projectors.NewOriginRelationshipProjector(acquiredViaReadModel, purchasedFromReadModel, builtByReadModel)
-	eventBus.Subscribe("AcquiredViaRelationshipSet", originProjector)
-	eventBus.Subscribe("AcquiredViaRelationshipReplaced", originProjector)
-	eventBus.Subscribe("AcquiredViaNotesUpdated", originProjector)
-	eventBus.Subscribe("AcquiredViaRelationshipCleared", originProjector)
-	eventBus.Subscribe("PurchasedFromRelationshipSet", originProjector)
-	eventBus.Subscribe("PurchasedFromRelationshipReplaced", originProjector)
-	eventBus.Subscribe("PurchasedFromNotesUpdated", originProjector)
-	eventBus.Subscribe("PurchasedFromRelationshipCleared", originProjector)
-	eventBus.Subscribe("BuiltByRelationshipSet", originProjector)
-	eventBus.Subscribe("BuiltByRelationshipReplaced", originProjector)
-	eventBus.Subscribe("BuiltByNotesUpdated", originProjector)
-	eventBus.Subscribe("BuiltByRelationshipCleared", originProjector)
-	eventBus.Subscribe("ComponentOriginsDeleted", originProjector)
+	eventBus.Subscribe("OriginLinkCreated", originProjector)
+	eventBus.Subscribe("OriginLinkSet", originProjector)
+	eventBus.Subscribe("OriginLinkReplaced", originProjector)
+	eventBus.Subscribe("OriginLinkNotesUpdated", originProjector)
+	eventBus.Subscribe("OriginLinkCleared", originProjector)
+	eventBus.Subscribe("OriginLinkDeleted", originProjector)
 
-	componentOriginsRepo := repositories.NewComponentOriginsRepository(eventStore)
-	setAcquiredViaHandler := handlers.NewSetAcquiredViaHandler(componentOriginsRepo)
-	setBuiltByHandler := handlers.NewSetBuiltByHandler(componentOriginsRepo)
-	commandBus.Register("SetAcquiredVia", setAcquiredViaHandler)
-	commandBus.Register("SetBuiltBy", setBuiltByHandler)
+	originLinkRepo := repositories.NewComponentOriginLinkRepository(eventStore)
+	commandBus.Register("SetOriginLink", handlers.NewSetOriginLinkHandler(originLinkRepo))
+	commandBus.Register("ClearOriginLink", handlers.NewClearOriginLinkHandler(originLinkRepo))
 
-	originHandlers := NewOriginRelationshipHandlers(
-		commandBus,
-		acquiredViaReadModel,
-		purchasedFromReadModel,
-		builtByReadModel,
-		hateoas,
-	)
+	originHandlers := NewOriginRelationshipHandlersFromConfig(OriginRelationshipHandlersConfig{
+		CommandBus: commandBus,
+		ReadModels: OriginReadModels{
+			AcquiredVia:   acquiredViaReadModel,
+			PurchasedFrom: purchasedFromReadModel,
+			BuiltBy:       builtByReadModel,
+		},
+		HATEOAS: hateoas,
+	})
 
 	return &originTestContext{
 		db:                db,
@@ -114,7 +107,7 @@ func (ctx *originTestContext) cleanup() {
 		ctx.db.Exec("DELETE FROM application_components WHERE id = $1", id)
 		ctx.db.Exec("DELETE FROM acquired_entities WHERE id = $1", id)
 		ctx.db.Exec("DELETE FROM internal_teams WHERE id = $1", id)
-		ctx.db.Exec("DELETE FROM events WHERE aggregate_id = $1 OR aggregate_id LIKE $2", id, "component-origins:"+id)
+		ctx.db.Exec("DELETE FROM events WHERE aggregate_id = $1 OR aggregate_id LIKE $2 OR aggregate_id LIKE $3", id, "component-origins:"+id, "origin-link:%:"+id)
 	}
 	ctx.db.Close()
 }

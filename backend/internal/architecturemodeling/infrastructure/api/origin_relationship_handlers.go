@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 
 	"easi/backend/internal/architecturemodeling/application/commands"
@@ -28,24 +29,6 @@ type OriginRelationshipHandlers struct {
 	commandBus cqrs.CommandBus
 	readModels OriginReadModels
 	hateoas    *ArchitectureModelingLinks
-}
-
-func NewOriginRelationshipHandlers(
-	commandBus cqrs.CommandBus,
-	acquiredViaReadModel *readmodels.AcquiredViaRelationshipReadModel,
-	purchasedFromReadModel *readmodels.PurchasedFromRelationshipReadModel,
-	builtByReadModel *readmodels.BuiltByRelationshipReadModel,
-	hateoas *ArchitectureModelingLinks,
-) *OriginRelationshipHandlers {
-	return NewOriginRelationshipHandlersFromConfig(OriginRelationshipHandlersConfig{
-		CommandBus: commandBus,
-		ReadModels: OriginReadModels{
-			AcquiredVia:   acquiredViaReadModel,
-			PurchasedFrom: purchasedFromReadModel,
-			BuiltBy:       builtByReadModel,
-		},
-		HATEOAS: hateoas,
-	})
 }
 
 func NewOriginRelationshipHandlersFromConfig(cfg OriginRelationshipHandlersConfig) *OriginRelationshipHandlers {
@@ -216,30 +199,17 @@ func (h *OriginRelationshipHandlers) enrichAllRelationships(
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components/{componentId}/origin/acquired-via [put]
 func (h *OriginRelationshipHandlers) CreateAcquiredViaRelationship(w http.ResponseWriter, r *http.Request) {
-	componentID := sharedAPI.GetPathParam(r, "componentId")
-	req, ok := sharedAPI.DecodeRequestOrFail[CreateAcquiredViaRelationshipRequest](w, r)
-	if !ok {
-		return
-	}
-
-	cmd := &commands.SetAcquiredVia{
-		ComponentID: componentID,
-		EntityID:    req.AcquiredEntityID,
-		Notes:       req.Notes,
-	}
-
-	h.dispatchSetAndRespond(w, r, cmd, componentID, "acquired-via", func(componentID string) (interface{}, error) {
-		relationships, err := h.readModels.AcquiredVia.GetByComponentID(r.Context(), componentID)
-		if err != nil || len(relationships) == 0 {
-			return nil, err
-		}
-		return &relationships[0], nil
-	}, func(rel interface{}) {
-		if dto, ok := rel.(*readmodels.AcquiredViaRelationshipDTO); ok {
-			actor, _ := sharedctx.GetActor(r.Context())
-			h.enrichAcquiredViaWithLinks(actor, dto)
-		}
-	})
+	createOriginRelationship(h, w, r, "acquired-via",
+		func(req CreateAcquiredViaRelationshipRequest) (string, string) { return req.AcquiredEntityID, req.Notes },
+		func(ctx context.Context, componentID string) (interface{}, error) {
+			return fetchFirst(h.readModels.AcquiredVia.GetByComponentID(ctx, componentID))
+		},
+		func(rel interface{}, actor sharedctx.Actor) {
+			if dto, ok := rel.(*readmodels.AcquiredViaRelationshipDTO); ok {
+				h.enrichAcquiredViaWithLinks(actor, dto)
+			}
+		},
+	)
 }
 
 // GetAcquiredViaByComponent godoc
@@ -271,7 +241,7 @@ func (h *OriginRelationshipHandlers) GetAcquiredViaByComponent(w http.ResponseWr
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components/{componentId}/origin/acquired-via [delete]
 func (h *OriginRelationshipHandlers) DeleteAcquiredViaRelationship(w http.ResponseWriter, r *http.Request) {
-	h.dispatchClearAndRespond(w, r, &commands.ClearAcquiredVia{ComponentID: sharedAPI.GetPathParam(r, "componentId")})
+	h.dispatchClearAndRespond(w, r, &commands.ClearOriginLink{ComponentID: sharedAPI.GetPathParam(r, "componentId"), OriginType: "acquired-via"})
 }
 
 // CreatePurchasedFromRelationship godoc
@@ -287,30 +257,17 @@ func (h *OriginRelationshipHandlers) DeleteAcquiredViaRelationship(w http.Respon
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components/{componentId}/origin/purchased-from [put]
 func (h *OriginRelationshipHandlers) CreatePurchasedFromRelationship(w http.ResponseWriter, r *http.Request) {
-	componentID := sharedAPI.GetPathParam(r, "componentId")
-	req, ok := sharedAPI.DecodeRequestOrFail[CreatePurchasedFromRelationshipRequest](w, r)
-	if !ok {
-		return
-	}
-
-	cmd := &commands.SetPurchasedFrom{
-		ComponentID: componentID,
-		VendorID:    req.VendorID,
-		Notes:       req.Notes,
-	}
-
-	h.dispatchSetAndRespond(w, r, cmd, componentID, "purchased-from", func(componentID string) (interface{}, error) {
-		relationships, err := h.readModels.PurchasedFrom.GetByComponentID(r.Context(), componentID)
-		if err != nil || len(relationships) == 0 {
-			return nil, err
-		}
-		return &relationships[0], nil
-	}, func(rel interface{}) {
-		if dto, ok := rel.(*readmodels.PurchasedFromRelationshipDTO); ok {
-			actor, _ := sharedctx.GetActor(r.Context())
-			h.enrichPurchasedFromWithLinks(actor, dto)
-		}
-	})
+	createOriginRelationship(h, w, r, "purchased-from",
+		func(req CreatePurchasedFromRelationshipRequest) (string, string) { return req.VendorID, req.Notes },
+		func(ctx context.Context, componentID string) (interface{}, error) {
+			return fetchFirst(h.readModels.PurchasedFrom.GetByComponentID(ctx, componentID))
+		},
+		func(rel interface{}, actor sharedctx.Actor) {
+			if dto, ok := rel.(*readmodels.PurchasedFromRelationshipDTO); ok {
+				h.enrichPurchasedFromWithLinks(actor, dto)
+			}
+		},
+	)
 }
 
 // GetPurchasedFromByComponent godoc
@@ -342,7 +299,7 @@ func (h *OriginRelationshipHandlers) GetPurchasedFromByComponent(w http.Response
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components/{componentId}/origin/purchased-from [delete]
 func (h *OriginRelationshipHandlers) DeletePurchasedFromRelationship(w http.ResponseWriter, r *http.Request) {
-	h.dispatchClearAndRespond(w, r, &commands.ClearPurchasedFrom{ComponentID: sharedAPI.GetPathParam(r, "componentId")})
+	h.dispatchClearAndRespond(w, r, &commands.ClearOriginLink{ComponentID: sharedAPI.GetPathParam(r, "componentId"), OriginType: "purchased-from"})
 }
 
 // CreateBuiltByRelationship godoc
@@ -358,30 +315,17 @@ func (h *OriginRelationshipHandlers) DeletePurchasedFromRelationship(w http.Resp
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components/{componentId}/origin/built-by [put]
 func (h *OriginRelationshipHandlers) CreateBuiltByRelationship(w http.ResponseWriter, r *http.Request) {
-	componentID := sharedAPI.GetPathParam(r, "componentId")
-	req, ok := sharedAPI.DecodeRequestOrFail[CreateBuiltByRelationshipRequest](w, r)
-	if !ok {
-		return
-	}
-
-	cmd := &commands.SetBuiltBy{
-		ComponentID: componentID,
-		TeamID:      req.InternalTeamID,
-		Notes:       req.Notes,
-	}
-
-	h.dispatchSetAndRespond(w, r, cmd, componentID, "built-by", func(componentID string) (interface{}, error) {
-		relationships, err := h.readModels.BuiltBy.GetByComponentID(r.Context(), componentID)
-		if err != nil || len(relationships) == 0 {
-			return nil, err
-		}
-		return &relationships[0], nil
-	}, func(rel interface{}) {
-		if dto, ok := rel.(*readmodels.BuiltByRelationshipDTO); ok {
-			actor, _ := sharedctx.GetActor(r.Context())
-			h.enrichBuiltByWithLinks(actor, dto)
-		}
-	})
+	createOriginRelationship(h, w, r, "built-by",
+		func(req CreateBuiltByRelationshipRequest) (string, string) { return req.InternalTeamID, req.Notes },
+		func(ctx context.Context, componentID string) (interface{}, error) {
+			return fetchFirst(h.readModels.BuiltBy.GetByComponentID(ctx, componentID))
+		},
+		func(rel interface{}, actor sharedctx.Actor) {
+			if dto, ok := rel.(*readmodels.BuiltByRelationshipDTO); ok {
+				h.enrichBuiltByWithLinks(actor, dto)
+			}
+		},
+	)
 }
 
 // GetBuiltByByComponent godoc
@@ -413,7 +357,46 @@ func (h *OriginRelationshipHandlers) GetBuiltByByComponent(w http.ResponseWriter
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components/{componentId}/origin/built-by [delete]
 func (h *OriginRelationshipHandlers) DeleteBuiltByRelationship(w http.ResponseWriter, r *http.Request) {
-	h.dispatchClearAndRespond(w, r, &commands.ClearBuiltBy{ComponentID: sharedAPI.GetPathParam(r, "componentId")})
+	h.dispatchClearAndRespond(w, r, &commands.ClearOriginLink{ComponentID: sharedAPI.GetPathParam(r, "componentId"), OriginType: "built-by"})
+}
+
+func createOriginRelationship[T any](
+	h *OriginRelationshipHandlers,
+	w http.ResponseWriter,
+	r *http.Request,
+	originType string,
+	extractFn func(T) (string, string),
+	fetchFn func(context.Context, string) (interface{}, error),
+	enrichFn func(interface{}, sharedctx.Actor),
+) {
+	componentID := sharedAPI.GetPathParam(r, "componentId")
+	req, ok := sharedAPI.DecodeRequestOrFail[T](w, r)
+	if !ok {
+		return
+	}
+
+	entityID, notes := extractFn(req)
+	cmd := &commands.SetOriginLink{
+		ComponentID: componentID,
+		OriginType:  originType,
+		EntityID:    entityID,
+		Notes:       notes,
+	}
+
+	h.dispatchSetAndRespond(w, r, cmd, componentID, originType,
+		func(cid string) (interface{}, error) { return fetchFn(r.Context(), cid) },
+		func(rel interface{}) {
+			actor, _ := sharedctx.GetActor(r.Context())
+			enrichFn(rel, actor)
+		},
+	)
+}
+
+func fetchFirst[T any](items []T, err error) (interface{}, error) {
+	if err != nil || len(items) == 0 {
+		return nil, err
+	}
+	return &items[0], nil
 }
 
 func (h *OriginRelationshipHandlers) dispatchSetAndRespond(
