@@ -14,6 +14,8 @@ import {
   isRealizationEdge,
   isRelationEdge,
   isOriginRelationshipEdge,
+  toNodeId,
+  toEdgeId,
   type NodeEntityType,
 } from '../../constants/entityIdentifiers';
 
@@ -62,13 +64,14 @@ interface EdgeDetailProps {
 }
 
 const EdgeDetail: React.FC<EdgeDetailProps> = ({ edgeId, onEditRelation }) => {
-  if (isRealizationEdge(edgeId)) {
+  const typedEdgeId = toEdgeId(edgeId);
+  if (isRealizationEdge(typedEdgeId)) {
     return <RealizationDetails />;
   }
-  if (isOriginRelationshipEdge(edgeId)) {
+  if (isOriginRelationshipEdge(typedEdgeId)) {
     return <OriginRelationshipDetails />;
   }
-  if (isRelationEdge(edgeId)) {
+  if (isRelationEdge(typedEdgeId)) {
     return <RelationDetails onEdit={onEditRelation} />;
   }
   return null;
@@ -86,8 +89,8 @@ export const DetailContentRenderer: React.FC<DetailContentRendererProps> = ({
   if (selectedNodeId) {
     return (
       <NodeDetail
-        entityType={getEntityType(selectedNodeId)}
-        entityId={getEntityId(selectedNodeId)}
+        entityType={getEntityType(toNodeId(selectedNodeId))}
+        entityId={getEntityId(toNodeId(selectedNodeId))}
         onEditComponent={onEditComponent}
         onRemoveFromView={onRemoveFromView}
         onRemoveCapabilityFromView={onRemoveCapabilityFromView}

@@ -114,6 +114,22 @@ function buildTree(capabilities: Capability[]): TreeNode[] {
   return roots;
 }
 
+function DragHandle() {
+  return <span style={{ color: '#9ca3af', fontSize: '0.875rem' }}>⋮⋮</span>;
+}
+
+function StatusLabel({ status, text }: { status: CapabilityLinkStatus; text: string }) {
+  return <span style={getStatusDisplayStyle(status)}>{text}</span>;
+}
+
+function getDragCursor(isDraggable: boolean) {
+  return isDraggable ? 'grab' : 'not-allowed';
+}
+
+function getDragTitle(status: CapabilityLinkStatus, statusDisplay: string | null) {
+  return isBlockedStatus(status) ? statusDisplay || undefined : undefined;
+}
+
 interface DraggableCapabilityItemProps {
   capability: Capability;
   linkStatus: CapabilityLinkStatusResponse | undefined;
@@ -156,24 +172,20 @@ function DraggableCapabilityItem({
           padding: '0.5rem',
           backgroundColor: styles.bg,
           borderRadius: '0.25rem',
-          cursor: isDraggable ? 'grab' : 'not-allowed',
+          cursor: getDragCursor(isDraggable),
           userSelect: 'none',
           WebkitUserSelect: 'none',
           border: '1px solid #e5e7eb',
           position: 'relative',
         }}
-        title={isBlockedStatus(status) ? statusDisplay || undefined : undefined}
+        title={getDragTitle(status, statusDisplay)}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          {isDraggable && (
-            <span style={{ color: '#9ca3af', fontSize: '0.875rem' }}>⋮⋮</span>
-          )}
+          {isDraggable && <DragHandle />}
           <span style={{ fontWeight: 500, color: styles.text, flex: 1 }}>
             {capability.name}
           </span>
-          {statusDisplay && (
-            <span style={getStatusDisplayStyle(status)}>{statusDisplay}</span>
-          )}
+          {statusDisplay && <StatusLabel status={status} text={statusDisplay} />}
         </div>
       </div>
 
