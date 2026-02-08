@@ -3,12 +3,12 @@ package projectors
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"fmt"
 
 	"easi/backend/internal/accessdelegation/application/commands"
 	"easi/backend/internal/accessdelegation/application/readmodels"
-	domain "easi/backend/internal/shared/eventsourcing"
 	"easi/backend/internal/shared/cqrs"
+	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 type ArtifactDeletionProjector struct {
@@ -32,14 +32,12 @@ type artifactDeletedEvent struct {
 func (p *ArtifactDeletionProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data for artifact deletion: %v", err)
-		return err
+		return fmt.Errorf("marshal event data for artifact deletion: %w", err)
 	}
 
 	var deleted artifactDeletedEvent
 	if err := json.Unmarshal(eventData, &deleted); err != nil {
-		log.Printf("Failed to unmarshal artifact deleted event: %v", err)
-		return err
+		return fmt.Errorf("unmarshal artifact deleted event: %w", err)
 	}
 
 	artifactID := deleted.ID
@@ -49,17 +47,22 @@ func (p *ArtifactDeletionProjector) Handle(ctx context.Context, event domain.Dom
 
 	grantIDs, err := p.readModel.GetActiveGrantIDsForArtifact(ctx, p.artifactType, artifactID)
 	if err != nil {
-		log.Printf("Failed to get active grants for deleted %s %s: %v", p.artifactType, artifactID, err)
-		return err
+		return fmt.Errorf("get active grants for deleted %s %s: %w", p.artifactType, artifactID, err)
 	}
 
 	for _, grantID := range grantIDs {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		cmd := &commands.RevokeEditGrant{
 			ID:        grantID,
 			RevokedBy: "system:artifact-deleted",
 		}
 		if _, err := p.commandBus.Dispatch(ctx, cmd); err != nil {
-			log.Printf("Failed to revoke edit grant %s for deleted %s %s: %v", grantID, p.artifactType, artifactID, err)
+			return fmt.Errorf("revoke edit grant %s for deleted %s %s: %w", grantID, p.artifactType, artifactID, err)
 		}
 	}
 

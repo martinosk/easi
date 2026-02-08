@@ -2,14 +2,18 @@ package valueobjects
 
 import (
 	"errors"
+	"regexp"
 
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 var (
-	ErrInvalidArtifactType = errors.New("invalid artifact type: must be capability, component, or view")
+	ErrInvalidArtifactType = errors.New("invalid artifact type: must be capability, component, view, or domain")
 	ErrEmptyArtifactID     = errors.New("artifact ID cannot be empty")
+	ErrInvalidArtifactID   = errors.New("artifact ID must be a valid UUID")
 )
+
+var uuidRegex = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 type ArtifactType string
 
@@ -17,12 +21,14 @@ const (
 	ArtifactTypeCapability ArtifactType = "capability"
 	ArtifactTypeComponent  ArtifactType = "component"
 	ArtifactTypeView       ArtifactType = "view"
+	ArtifactTypeDomain     ArtifactType = "domain"
 )
 
 var validArtifactTypes = map[string]ArtifactType{
 	"capability": ArtifactTypeCapability,
 	"component":  ArtifactTypeComponent,
 	"view":       ArtifactTypeView,
+	"domain":     ArtifactTypeDomain,
 }
 
 func NewArtifactType(s string) (ArtifactType, error) {
@@ -44,6 +50,9 @@ type ArtifactRef struct {
 func NewArtifactRef(artifactType ArtifactType, artifactID string) (ArtifactRef, error) {
 	if artifactID == "" {
 		return ArtifactRef{}, ErrEmptyArtifactID
+	}
+	if !uuidRegex.MatchString(artifactID) {
+		return ArtifactRef{}, ErrInvalidArtifactID
 	}
 	return ArtifactRef{artifactType: artifactType, artifactID: artifactID}, nil
 }

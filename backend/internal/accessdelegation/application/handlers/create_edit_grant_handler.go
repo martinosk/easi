@@ -44,7 +44,17 @@ func (h *CreateEditGrantHandler) Handle(ctx context.Context, cmd cqrs.Command) (
 		return cqrs.EmptyResult(), err
 	}
 
-	grant, err := aggregates.NewEditGrant(grantor, command.GranteeEmail, artifactRef, scope, command.Reason)
+	granteeEmail, err := valueobjects.NewGranteeEmail(command.GranteeEmail)
+	if err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	reason, err := valueobjects.NewReason(command.Reason)
+	if err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
+	grant, err := aggregates.NewEditGrant(grantor, granteeEmail, artifactRef, scope, reason)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}

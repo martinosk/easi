@@ -3,7 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"fmt"
 	"time"
 
 	"easi/backend/internal/accessdelegation/application/readmodels"
@@ -22,8 +22,7 @@ func NewEditGrantProjector(readModel *readmodels.EditGrantReadModel) *EditGrantP
 func (p *EditGrantProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		return fmt.Errorf("marshal event data: %w", err)
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -43,8 +42,7 @@ func (p *EditGrantProjector) ProjectEvent(ctx context.Context, eventType string,
 func (p *EditGrantProjector) handleEditGrantActivated(ctx context.Context, eventData []byte) error {
 	var event events.EditGrantActivated
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal EditGrantActivated event: %v", err)
-		return err
+		return fmt.Errorf("unmarshal EditGrantActivated: %w", err)
 	}
 
 	var reason *string
@@ -77,8 +75,7 @@ type statusTransitionEvent struct {
 func (p *EditGrantProjector) handleStatusTransition(ctx context.Context, eventData []byte, eventType, status string) error {
 	var event statusTransitionEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal %s event: %v", eventType, err)
-		return err
+		return fmt.Errorf("unmarshal %s: %w", eventType, err)
 	}
 
 	return p.readModel.UpdateStatus(ctx, readmodels.EditGrantStatusUpdate{

@@ -2,6 +2,7 @@ package aggregates
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"easi/backend/internal/accessdelegation/domain/events"
@@ -22,10 +23,10 @@ type EditGrant struct {
 	domain.AggregateRoot
 	artifactRef  valueobjects.ArtifactRef
 	grantor      valueobjects.Grantor
-	granteeEmail string
+	granteeEmail valueobjects.GranteeEmail
 	scope        valueobjects.GrantScope
 	status       valueobjects.GrantStatus
-	reason       string
+	reason       valueobjects.Reason
 	createdAt    time.Time
 	expiresAt    time.Time
 	revokedAt    *time.Time
@@ -33,12 +34,12 @@ type EditGrant struct {
 
 func NewEditGrant(
 	grantor valueobjects.Grantor,
-	granteeEmail string,
+	granteeEmail valueobjects.GranteeEmail,
 	artifactRef valueobjects.ArtifactRef,
 	scope valueobjects.GrantScope,
-	reason string,
+	reason valueobjects.Reason,
 ) (*EditGrant, error) {
-	if grantor.Email() == granteeEmail {
+	if grantor.Email() == granteeEmail.Value() {
 		return nil, ErrCannotGrantToSelf
 	}
 
@@ -54,9 +55,9 @@ func NewEditGrant(
 		ArtifactID:   artifactRef.ID(),
 		GrantorID:    grantor.ID(),
 		GrantorEmail: grantor.Email(),
-		GranteeEmail: granteeEmail,
+		GranteeEmail: granteeEmail.Value(),
 		Scope:        scope.String(),
-		Reason:       reason,
+		Reason:       reason.Value(),
 		CreatedAt:    now,
 		ExpiresAt:    now.Add(DefaultEditGrantTTL),
 	}
@@ -116,21 +117,35 @@ func (g *EditGrant) ensureActive() error {
 	return ErrGrantNotActive
 }
 
-func (g *EditGrant) IsExpired() bool {
-	return time.Now().UTC().After(g.expiresAt)
-}
-
 func (g *EditGrant) apply(event domain.DomainEvent) {
 	switch e := event.(type) {
 	case events.EditGrantActivated:
 		g.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-		artifactType, _ := valueobjects.NewArtifactType(e.ArtifactType)
-		g.artifactRef, _ = valueobjects.NewArtifactRef(artifactType, e.ArtifactID)
-		g.grantor, _ = valueobjects.NewGrantor(e.GrantorID, e.GrantorEmail)
-		g.granteeEmail = e.GranteeEmail
-		g.scope, _ = valueobjects.NewGrantScope(e.Scope)
+		artifactType, err := valueobjects.NewArtifactType(e.ArtifactType)
+		if err != nil {
+			panic(fmt.Sprintf("corrupt event data in %T: %v", event, err))
+		}
+		g.artifactRef, err = valueobjects.NewArtifactRef(artifactType, e.ArtifactID)
+		if err != nil {
+			panic(fmt.Sprintf("corrupt event data in %T: %v", event, err))
+		}
+		g.grantor, err = valueobjects.NewGrantor(e.GrantorID, e.GrantorEmail)
+		if err != nil {
+			panic(fmt.Sprintf("corrupt event data in %T: %v", event, err))
+		}
+		g.granteeEmail, err = valueobjects.NewGranteeEmail(e.GranteeEmail)
+		if err != nil {
+			panic(fmt.Sprintf("corrupt event data in %T: %v", event, err))
+		}
+		g.scope, err = valueobjects.NewGrantScope(e.Scope)
+		if err != nil {
+			panic(fmt.Sprintf("corrupt event data in %T: %v", event, err))
+		}
+		g.reason, err = valueobjects.NewReason(e.Reason)
+		if err != nil {
+			panic(fmt.Sprintf("corrupt event data in %T: %v", event, err))
+		}
 		g.status = valueobjects.GrantStatusActive
-		g.reason = e.Reason
 		g.createdAt = e.CreatedAt
 		g.expiresAt = e.ExpiresAt
 	case events.EditGrantRevoked:
@@ -145,10 +160,10 @@ func (g *EditGrant) ArtifactRef() valueobjects.ArtifactRef { return g.artifactRe
 func (g *EditGrant) Grantor() valueobjects.Grantor         { return g.grantor }
 func (g *EditGrant) GrantorID() string                     { return g.grantor.ID() }
 func (g *EditGrant) GrantorEmail() string                  { return g.grantor.Email() }
-func (g *EditGrant) GranteeEmail() string                  { return g.granteeEmail }
+func (g *EditGrant) GranteeEmail() string                  { return g.granteeEmail.Value() }
 func (g *EditGrant) Scope() valueobjects.GrantScope        { return g.scope }
 func (g *EditGrant) Status() valueobjects.GrantStatus      { return g.status }
-func (g *EditGrant) Reason() string                        { return g.reason }
+func (g *EditGrant) Reason() string                        { return g.reason.Value() }
 func (g *EditGrant) CreatedAt() time.Time                  { return g.createdAt }
 func (g *EditGrant) ExpiresAt() time.Time                  { return g.expiresAt }
 func (g *EditGrant) RevokedAt() *time.Time                 { return g.revokedAt }

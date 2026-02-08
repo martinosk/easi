@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 
 	"easi/backend/internal/shared/config"
@@ -35,6 +36,7 @@ func RequireWriteOrEditGrant(artifactType, idParam string) func(http.Handler) ht
 			}
 
 			if actor.HasEditGrant(artifactType, artifactID) {
+				log.Printf("[AUDIT] edit-grant-used actor=%s artifact-type=%s artifact-id=%s method=%s path=%s", actor.ID, artifactType, artifactID, r.Method, r.URL.Path)
 				next.ServeHTTP(w, r)
 				return
 			}

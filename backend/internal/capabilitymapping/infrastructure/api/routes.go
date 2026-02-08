@@ -459,8 +459,11 @@ func registerBusinessDomainRoutes(r chi.Router, h *routeHTTPHandlers, authMiddle
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authValueObjects.PermDomainsWrite))
 			r.Post("/", h.businessDomain.CreateBusinessDomain)
-			r.Put("/{id}", h.businessDomain.UpdateBusinessDomain)
 			r.Post("/{id}/capabilities", h.businessDomain.AssignCapabilityToDomain)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(sharedAPI.RequireWriteOrEditGrant("domains", "id"))
+			r.Put("/{id}", h.businessDomain.UpdateBusinessDomain)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authValueObjects.PermDomainsDelete))

@@ -17,6 +17,11 @@ func init() {
 	registry.RegisterValidation(valueobjects.ErrEmptyArtifactID, "Artifact ID is required")
 	registry.RegisterValidation(valueobjects.ErrInvalidGrantScope, "Invalid grant scope")
 
+	registry.RegisterValidation(valueobjects.ErrReasonTooLong, "Reason must not exceed 1000 characters")
+	registry.RegisterValidation(valueobjects.ErrInvalidArtifactID, "Artifact ID must be a valid UUID")
+	registry.RegisterValidation(valueobjects.ErrGranteeEmailEmpty, "Grantee email is required")
+	registry.RegisterValidation(valueobjects.ErrGranteeEmailInvalid, "Invalid grantee email format")
+
 	registry.RegisterConflict(aggregates.ErrGrantAlreadyRevoked, "Edit grant has already been revoked")
 	registry.RegisterConflict(aggregates.ErrGrantAlreadyExpired, "Edit grant has already expired")
 	registry.RegisterConflict(aggregates.ErrGrantNotActive, "Edit grant is not active")

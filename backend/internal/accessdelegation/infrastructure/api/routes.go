@@ -11,6 +11,7 @@ import (
 	capPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
+	platformAPI "easi/backend/internal/platform/infrastructure/api"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
@@ -31,10 +32,11 @@ type AccessDelegationDependencies struct {
 	GrantResolver  *readmodels.EditGrantReadModel
 	handlers       *EditGrantHandlers
 	authMiddleware *authAPI.AuthMiddleware
+	rateLimiter    *platformAPI.RateLimiter
 }
 
 func (d *AccessDelegationDependencies) RegisterRoutes(r chi.Router) {
-	registerRoutes(r, d.handlers, d.authMiddleware)
+	registerRoutes(r, d.handlers, d.authMiddleware, d.rateLimiter)
 }
 
 func SetupAccessDelegationRoutes(deps AccessDelegationRoutesDeps) (*AccessDelegationDependencies, error) {
@@ -46,11 +48,13 @@ func SetupAccessDelegationRoutes(deps AccessDelegationRoutesDeps) (*AccessDelega
 	registerArtifactDeletionSubscriptions(deps.EventBus, readModel, deps.CommandBus)
 
 	httpHandlers := NewEditGrantHandlers(deps.CommandBus, readModel, deps.HATEOAS)
+	rateLimiter := platformAPI.NewRateLimiter(100, 60)
 
 	return &AccessDelegationDependencies{
 		GrantResolver:  readModel,
 		handlers:       httpHandlers,
 		authMiddleware: deps.AuthMiddleware,
+		rateLimiter:    rateLimiter,
 	}, nil
 }
 
@@ -70,16 +74,21 @@ func registerArtifactDeletionSubscriptions(eventBus *events.InMemoryEventBus, re
 	capabilityDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "capability")
 	componentDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "component")
 	viewDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "view")
+	domainDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "domain")
 
 	eventBus.Subscribe(capPL.CapabilityDeleted, capabilityDeletionProjector)
 	eventBus.Subscribe(archPL.ApplicationComponentDeleted, componentDeletionProjector)
 	eventBus.Subscribe(viewsPL.ViewDeleted, viewDeletionProjector)
+	eventBus.Subscribe(capPL.BusinessDomainDeleted, domainDeletionProjector)
 }
 
-func registerRoutes(r chi.Router, h *EditGrantHandlers, authMiddleware *authAPI.AuthMiddleware) {
+func registerRoutes(r chi.Router, h *EditGrantHandlers, authMiddleware *authAPI.AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
 	r.Route("/edit-grants", func(r chi.Router) {
 		r.Use(authMiddleware.RequireAuth())
-		r.Post("/", h.CreateEditGrant)
+		r.Group(func(r chi.Router) {
+			r.Use(platformAPI.RateLimitMiddleware(rateLimiter))
+			r.Post("/", h.CreateEditGrant)
+		})
 		r.Get("/", h.GetMyEditGrants)
 		r.Get("/{id}", h.GetEditGrantByID)
 		r.Delete("/{id}", h.RevokeEditGrant)

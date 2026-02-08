@@ -55,6 +55,7 @@ var resourceAliases = map[string]string{
 	"capability": "capabilities",
 	"component":  "components",
 	"view":       "views",
+	"domain":     "domains",
 }
 
 func PluralResourceName(singular string) string {

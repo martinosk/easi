@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"easi/backend/internal/accessdelegation/application/commands"
@@ -96,11 +97,12 @@ func (h *EditGrantHandlers) CreateEditGrant(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	log.Printf("[AUDIT] edit-grant-created grantor=%s grantee=%s artifact-type=%s artifact-id=%s reason=%s", actor.ID, req.GranteeEmail, req.ArtifactType, req.ArtifactID, req.Reason)
 	h.respondCreated(w, r, result.CreatedID, actor)
 }
 
 func (h *EditGrantHandlers) canGrantEditAccess(actor sharedctx.Actor, artifactType string) bool {
-	return actor.CanWrite(artifactType+"s") || actor.HasPermission("edit-grants:manage")
+	return actor.CanWrite(sharedctx.PluralResourceName(artifactType)) || actor.HasPermission("edit-grants:manage")
 }
 
 func (h *EditGrantHandlers) ensureNoActiveGrant(w http.ResponseWriter, r *http.Request, req CreateEditGrantRequest) error {
@@ -169,6 +171,12 @@ func (h *EditGrantHandlers) GetMyEditGrants(w http.ResponseWriter, r *http.Reque
 func (h *EditGrantHandlers) GetEditGrantByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
+	actor, ok := sharedctx.GetActor(r.Context())
+	if !ok {
+		sharedAPI.RespondError(w, http.StatusUnauthorized, nil, "Unauthorized")
+		return
+	}
+
 	grant, err := h.readModel.GetByID(r.Context(), id)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve edit grant")
@@ -179,7 +187,11 @@ func (h *EditGrantHandlers) GetEditGrantByID(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	actor, _ := sharedctx.GetActor(r.Context())
+	if !canViewGrant(grant, actor) {
+		sharedAPI.RespondError(w, http.StatusForbidden, nil, "You do not have permission to view this grant")
+		return
+	}
+
 	grant.Links = h.hateoas.EditGrantLinksForActor(grant.ID, grant.Status, grant.GrantorID, actor)
 	sharedAPI.RespondJSON(w, http.StatusOK, grant)
 }
@@ -206,7 +218,7 @@ func (h *EditGrantHandlers) RevokeEditGrant(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	grant, err := h.getGrantOrFail(w, r, id)
+	grant := h.getGrantOrFail(w, r, id)
 	if grant == nil {
 		return
 	}
@@ -217,29 +229,34 @@ func (h *EditGrantHandlers) RevokeEditGrant(w http.ResponseWriter, r *http.Reque
 	}
 
 	cmd := &commands.RevokeEditGrant{ID: id, RevokedBy: actor.ID}
-	if _, err = h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		sharedAPI.HandleError(w, err)
 		return
 	}
 
+	log.Printf("[AUDIT] edit-grant-revoked actor=%s grant-id=%s", actor.ID, id)
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func canRevokeGrant(grant *readmodels.EditGrantDTO, actor sharedctx.Actor) bool {
-	return grant.GrantorID == actor.ID || actor.Role == "admin"
+func canViewGrant(grant *readmodels.EditGrantDTO, actor sharedctx.Actor) bool {
+	return grant.GrantorID == actor.ID || grant.GranteeEmail == actor.Email || actor.HasPermission("edit-grants:manage")
 }
 
-func (h *EditGrantHandlers) getGrantOrFail(w http.ResponseWriter, r *http.Request, id string) (*readmodels.EditGrantDTO, error) {
+func canRevokeGrant(grant *readmodels.EditGrantDTO, actor sharedctx.Actor) bool {
+	return grant.GrantorID == actor.ID || actor.HasPermission("edit-grants:manage")
+}
+
+func (h *EditGrantHandlers) getGrantOrFail(w http.ResponseWriter, r *http.Request, id string) *readmodels.EditGrantDTO {
 	grant, err := h.readModel.GetByID(r.Context(), id)
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve edit grant")
-		return nil, err
+		return nil
 	}
 	if grant == nil {
 		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Edit grant not found")
-		return nil, fmt.Errorf("not found")
+		return nil
 	}
-	return grant, nil
+	return grant
 }
 
 // GetEditGrantsForArtifact godoc
@@ -260,6 +277,11 @@ func (h *EditGrantHandlers) GetEditGrantsForArtifact(w http.ResponseWriter, r *h
 	actor, ok := sharedctx.GetActor(r.Context())
 	if !ok {
 		sharedAPI.RespondError(w, http.StatusUnauthorized, nil, "Unauthorized")
+		return
+	}
+
+	if !actor.CanWrite(sharedctx.PluralResourceName(artifactType)) && !actor.HasPermission("edit-grants:manage") {
+		sharedAPI.RespondError(w, http.StatusForbidden, nil, "You do not have permission to view grants for this artifact")
 		return
 	}
 

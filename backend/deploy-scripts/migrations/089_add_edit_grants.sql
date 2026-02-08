@@ -11,10 +11,7 @@ CREATE TABLE IF NOT EXISTS edit_grants (
     reason TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP NOT NULL,
-    revoked_at TIMESTAMP,
-    CONSTRAINT chk_edit_grant_artifact_type CHECK (artifact_type IN ('capability', 'component', 'view')),
-    CONSTRAINT chk_edit_grant_status CHECK (status IN ('active', 'expired', 'revoked')),
-    CONSTRAINT chk_edit_grant_scope CHECK (scope IN ('write'))
+    revoked_at TIMESTAMP
 );
 
 CREATE INDEX idx_edit_grants_tenant ON edit_grants(tenant_id);

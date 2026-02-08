@@ -16,6 +16,8 @@ import {
   vendorsMutationEffects,
   internalTeamsMutationEffects,
 } from '../features/origin-entities/mutationEffects';
+import { editGrantsQueryKeys } from '../features/edit-grants/queryKeys';
+import { editGrantsMutationEffects } from '../features/edit-grants/mutationEffects';
 
 describe('mutationEffects', () => {
   describe('capabilitiesMutationEffects.linkSystem', () => {
@@ -208,6 +210,24 @@ describe('mutationEffects', () => {
       expect(effects).toContainEqual(businessDomainsQueryKeys.details());
       expect(effects).toContainEqual(capabilitiesQueryKeys.lists());
       expect(effects).toContainEqual(auditQueryKeys.history('cap-child'));
+    });
+  });
+
+  describe('editGrantsMutationEffects.create', () => {
+    it('should invalidate the correct query keys', () => {
+      const effects = editGrantsMutationEffects.create();
+
+      expect(effects).toContainEqual(editGrantsQueryKeys.mine());
+      expect(effects).toContainEqual(editGrantsQueryKeys.all);
+    });
+  });
+
+  describe('editGrantsMutationEffects.revoke', () => {
+    it('should invalidate the correct query keys', () => {
+      const effects = editGrantsMutationEffects.revoke();
+
+      expect(effects).toContainEqual(editGrantsQueryKeys.mine());
+      expect(effects).toContainEqual(editGrantsQueryKeys.all);
     });
   });
 });

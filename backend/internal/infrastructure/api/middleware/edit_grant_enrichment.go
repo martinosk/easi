@@ -34,7 +34,7 @@ func EditGrantEnrichment(resolver EditGrantResolver) func(http.Handler) http.Han
 
 			grants, err := resolver.ResolveEditGrants(r.Context(), actor.Email)
 			if err != nil {
-				log.Printf("Failed to resolve edit grants for %s: %v", actor.Email, err)
+				log.Printf("Failed to resolve edit grants for %s: %v", actor.ID, err)
 				next.ServeHTTP(w, r)
 				return
 			}
