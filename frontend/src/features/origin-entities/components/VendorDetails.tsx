@@ -7,19 +7,21 @@ import type { Vendor, OriginRelationship } from '../../../api/types';
 interface VendorDetailsProps {
   vendor: Vendor;
   relationships: OriginRelationship[];
+  canRemoveFromView: boolean;
   onEdit: () => void;
-  onDelete: () => void;
+  onRemoveFromView: () => void;
 }
 
 export const VendorDetails: React.FC<VendorDetailsProps> = ({
   vendor,
   relationships,
+  canRemoveFromView,
   onEdit,
-  onDelete,
+  onRemoveFromView,
 }) => {
   const canEdit = hasLink(vendor, 'edit');
-  const canDelete = hasLink(vendor, 'delete');
   const formattedCreatedAt = new Date(vendor.createdAt).toLocaleString();
+  const showActionButtons = canEdit || canRemoveFromView;
 
   return (
     <div className="detail-panel">
@@ -28,18 +30,20 @@ export const VendorDetails: React.FC<VendorDetailsProps> = ({
       </div>
 
       <div className="detail-content">
-        <div className="detail-actions">
-          {canEdit && (
-            <button className="btn btn-secondary btn-small" onClick={onEdit}>
-              Edit
-            </button>
-          )}
-          {canDelete && (
-            <button className="btn btn-danger btn-small" onClick={onDelete}>
-              Delete
-            </button>
-          )}
-        </div>
+        {showActionButtons && (
+          <div className="detail-actions">
+            {canEdit && (
+              <button className="btn btn-secondary btn-small" onClick={onEdit}>
+                Edit
+              </button>
+            )}
+            {canRemoveFromView && (
+              <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>
+                Remove from View
+              </button>
+            )}
+          </div>
+        )}
 
         <DetailField label="Name">{vendor.name}</DetailField>
 

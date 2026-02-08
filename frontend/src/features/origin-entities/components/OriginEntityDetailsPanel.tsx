@@ -1,20 +1,18 @@
 import React, { useState } from 'react';
-import { useAcquiredEntity, useDeleteAcquiredEntity } from '../hooks/useAcquiredEntities';
-import { useVendor, useDeleteVendor } from '../hooks/useVendors';
-import { useInternalTeam, useDeleteInternalTeam } from '../hooks/useInternalTeams';
+import { useAcquiredEntity } from '../hooks/useAcquiredEntities';
+import { useVendor } from '../hooks/useVendors';
+import { useInternalTeam } from '../hooks/useInternalTeams';
 import { useOriginRelationshipsQuery } from '../hooks/useOriginRelationships';
+import { useRemoveOriginEntityFromView } from '../../views/hooks/useViews';
+import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { AcquiredEntityDetails } from './AcquiredEntityDetails';
 import { VendorDetails } from './VendorDetails';
 import { InternalTeamDetails } from './InternalTeamDetails';
 import { EditAcquiredEntityDialog } from './EditAcquiredEntityDialog';
 import { EditVendorDialog } from './EditVendorDialog';
 import { EditInternalTeamDialog } from './EditInternalTeamDialog';
-import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import { type OriginEntityType } from '../../../constants/entityIdentifiers';
 import type {
-  AcquiredEntityId,
-  VendorId,
-  InternalTeamId,
   AcquiredEntity,
   Vendor,
   InternalTeam,
@@ -28,31 +26,10 @@ type EntityMap = {
   team: InternalTeam;
 };
 
-interface EntityConfig {
-  relationshipType: OriginRelationshipType;
-  deleteDialogTitle: string;
-  deleteDialogMessageTemplate: (name: string) => string;
-}
-
-const ENTITY_CONFIGS: Record<OriginEntityType, EntityConfig> = {
-  acquired: {
-    relationshipType: 'AcquiredVia',
-    deleteDialogTitle: 'Delete Acquired Entity',
-    deleteDialogMessageTemplate: (name) =>
-      `Are you sure you want to delete "${name}"? This will also delete all relationships to this entity.`,
-  },
-  vendor: {
-    relationshipType: 'PurchasedFrom',
-    deleteDialogTitle: 'Delete Vendor',
-    deleteDialogMessageTemplate: (name) =>
-      `Are you sure you want to delete "${name}"? This will also delete all relationships to this vendor.`,
-  },
-  team: {
-    relationshipType: 'BuiltBy',
-    deleteDialogTitle: 'Delete Internal Team',
-    deleteDialogMessageTemplate: (name) =>
-      `Are you sure you want to delete "${name}"? This will also delete all relationships to this team.`,
-  },
+const RELATIONSHIP_TYPES: Record<OriginEntityType, OriginRelationshipType> = {
+  acquired: 'AcquiredVia',
+  vendor: 'PurchasedFrom',
+  team: 'BuiltBy',
 };
 
 interface UseOriginEntityResult<T extends OriginEntityType> {
@@ -96,38 +73,6 @@ function useOriginEntity<T extends OriginEntityType>(
   };
 }
 
-interface UseOriginEntityDeleteResult {
-  deleteEntity: (id: string, name: string) => Promise<void>;
-  isPending: boolean;
-}
-
-function useOriginEntityDelete(entityType: OriginEntityType): UseOriginEntityDeleteResult {
-  const deleteAcquired = useDeleteAcquiredEntity();
-  const deleteVendor = useDeleteVendor();
-  const deleteTeam = useDeleteInternalTeam();
-
-  const deleteEntity = async (id: string, name: string) => {
-    switch (entityType) {
-      case 'acquired':
-        await deleteAcquired.mutateAsync({ id: id as AcquiredEntityId, name });
-        break;
-      case 'vendor':
-        await deleteVendor.mutateAsync({ id: id as VendorId, name });
-        break;
-      case 'team':
-        await deleteTeam.mutateAsync({ id: id as InternalTeamId, name });
-        break;
-    }
-  };
-
-  const isPending =
-    entityType === 'acquired' ? deleteAcquired.isPending :
-    entityType === 'vendor' ? deleteVendor.isPending :
-    deleteTeam.isPending;
-
-  return { deleteEntity, isPending };
-}
-
 interface OriginEntityDetailsPanelProps {
   entityType: OriginEntityType;
   entityId: string;
@@ -137,13 +82,12 @@ export const OriginEntityDetailsPanel: React.FC<OriginEntityDetailsPanelProps> =
   entityType,
   entityId,
 }) => {
-  const config = ENTITY_CONFIGS[entityType];
   const { entity, isLoading, error } = useOriginEntity(entityType, entityId);
   const { data: allRelationships = [] } = useOriginRelationshipsQuery();
-  const { deleteEntity, isPending: isDeleting } = useOriginEntityDelete(entityType);
+  const { currentView } = useCurrentView();
+  const removeFromViewMutation = useRemoveOriginEntityFromView();
 
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   if (isLoading) {
     return (
@@ -163,15 +107,19 @@ export const OriginEntityDetailsPanel: React.FC<OriginEntityDetailsPanelProps> =
 
   const relationships = allRelationships.filter(
     (rel) =>
-      rel.relationshipType === config.relationshipType && rel.originEntityId === entityId
+      rel.relationshipType === RELATIONSHIP_TYPES[entityType] && rel.originEntityId === entityId
   );
 
-  const handleEdit = () => setShowEditDialog(true);
-  const handleDelete = () => setShowDeleteConfirm(true);
+  const entityInView = currentView?.originEntities.find(
+    (oe) => oe.originEntityId === entityId
+  );
+  const canRemoveFromView = entityInView?._links?.['x-remove'] !== undefined;
 
-  const confirmDelete = async () => {
-    await deleteEntity(entityId, entity.name);
-    setShowDeleteConfirm(false);
+  const handleEdit = () => setShowEditDialog(true);
+  const handleRemoveFromView = () => {
+    if (currentView) {
+      removeFromViewMutation.mutate({ viewId: currentView.id, originEntityId: entityId });
+    }
   };
 
   return (
@@ -180,8 +128,9 @@ export const OriginEntityDetailsPanel: React.FC<OriginEntityDetailsPanelProps> =
         entityType={entityType}
         entity={entity}
         relationships={relationships}
+        canRemoveFromView={canRemoveFromView}
         onEdit={handleEdit}
-        onDelete={handleDelete}
+        onRemoveFromView={handleRemoveFromView}
       />
 
       <EntityEditDialog
@@ -190,17 +139,6 @@ export const OriginEntityDetailsPanel: React.FC<OriginEntityDetailsPanelProps> =
         isOpen={showEditDialog}
         onClose={() => setShowEditDialog(false)}
       />
-
-      {showDeleteConfirm && (
-        <ConfirmationDialog
-          title={config.deleteDialogTitle}
-          message={config.deleteDialogMessageTemplate(entity.name)}
-          confirmText="Delete"
-          onConfirm={confirmDelete}
-          onCancel={() => setShowDeleteConfirm(false)}
-          isLoading={isDeleting}
-        />
-      )}
     </>
   );
 };
@@ -209,16 +147,18 @@ interface EntityDetailsContentProps {
   entityType: OriginEntityType;
   entity: AcquiredEntity | Vendor | InternalTeam;
   relationships: OriginRelationship[];
+  canRemoveFromView: boolean;
   onEdit: () => void;
-  onDelete: () => void;
+  onRemoveFromView: () => void;
 }
 
 const EntityDetailsContent: React.FC<EntityDetailsContentProps> = ({
   entityType,
   entity,
   relationships,
+  canRemoveFromView,
   onEdit,
-  onDelete,
+  onRemoveFromView,
 }) => {
   switch (entityType) {
     case 'acquired':
@@ -226,8 +166,9 @@ const EntityDetailsContent: React.FC<EntityDetailsContentProps> = ({
         <AcquiredEntityDetails
           entity={entity as AcquiredEntity}
           relationships={relationships}
+          canRemoveFromView={canRemoveFromView}
           onEdit={onEdit}
-          onDelete={onDelete}
+          onRemoveFromView={onRemoveFromView}
         />
       );
     case 'vendor':
@@ -235,8 +176,9 @@ const EntityDetailsContent: React.FC<EntityDetailsContentProps> = ({
         <VendorDetails
           vendor={entity as Vendor}
           relationships={relationships}
+          canRemoveFromView={canRemoveFromView}
           onEdit={onEdit}
-          onDelete={onDelete}
+          onRemoveFromView={onRemoveFromView}
         />
       );
     case 'team':
@@ -244,8 +186,9 @@ const EntityDetailsContent: React.FC<EntityDetailsContentProps> = ({
         <InternalTeamDetails
           team={entity as InternalTeam}
           relationships={relationships}
+          canRemoveFromView={canRemoveFromView}
           onEdit={onEdit}
-          onDelete={onDelete}
+          onRemoveFromView={onRemoveFromView}
         />
       );
   }

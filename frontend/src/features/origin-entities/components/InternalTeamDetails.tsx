@@ -7,19 +7,21 @@ import type { InternalTeam, OriginRelationship } from '../../../api/types';
 interface InternalTeamDetailsProps {
   team: InternalTeam;
   relationships: OriginRelationship[];
+  canRemoveFromView: boolean;
   onEdit: () => void;
-  onDelete: () => void;
+  onRemoveFromView: () => void;
 }
 
 export const InternalTeamDetails: React.FC<InternalTeamDetailsProps> = ({
   team,
   relationships,
+  canRemoveFromView,
   onEdit,
-  onDelete,
+  onRemoveFromView,
 }) => {
   const canEdit = hasLink(team, 'edit');
-  const canDelete = hasLink(team, 'delete');
   const formattedCreatedAt = new Date(team.createdAt).toLocaleString();
+  const showActionButtons = canEdit || canRemoveFromView;
 
   return (
     <div className="detail-panel">
@@ -28,18 +30,20 @@ export const InternalTeamDetails: React.FC<InternalTeamDetailsProps> = ({
       </div>
 
       <div className="detail-content">
-        <div className="detail-actions">
-          {canEdit && (
-            <button className="btn btn-secondary btn-small" onClick={onEdit}>
-              Edit
-            </button>
-          )}
-          {canDelete && (
-            <button className="btn btn-danger btn-small" onClick={onDelete}>
-              Delete
-            </button>
-          )}
-        </div>
+        {showActionButtons && (
+          <div className="detail-actions">
+            {canEdit && (
+              <button className="btn btn-secondary btn-small" onClick={onEdit}>
+                Edit
+              </button>
+            )}
+            {canRemoveFromView && (
+              <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>
+                Remove from View
+              </button>
+            )}
+          </div>
+        )}
 
         <DetailField label="Name">{team.name}</DetailField>
 

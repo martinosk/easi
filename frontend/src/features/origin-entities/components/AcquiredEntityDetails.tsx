@@ -7,8 +7,9 @@ import type { AcquiredEntity, OriginRelationship } from '../../../api/types';
 interface AcquiredEntityDetailsProps {
   entity: AcquiredEntity;
   relationships: OriginRelationship[];
+  canRemoveFromView: boolean;
   onEdit: () => void;
-  onDelete: () => void;
+  onRemoveFromView: () => void;
 }
 
 const formatDate = (dateString: string | undefined): string => {
@@ -43,12 +44,13 @@ const getIntegrationStatusColor = (status: string): string => {
 export const AcquiredEntityDetails: React.FC<AcquiredEntityDetailsProps> = ({
   entity,
   relationships,
+  canRemoveFromView,
   onEdit,
-  onDelete,
+  onRemoveFromView,
 }) => {
   const canEdit = hasLink(entity, 'edit');
-  const canDelete = hasLink(entity, 'delete');
   const formattedCreatedAt = new Date(entity.createdAt).toLocaleString();
+  const showActionButtons = canEdit || canRemoveFromView;
 
   return (
     <div className="detail-panel">
@@ -57,18 +59,20 @@ export const AcquiredEntityDetails: React.FC<AcquiredEntityDetailsProps> = ({
       </div>
 
       <div className="detail-content">
-        <div className="detail-actions">
-          {canEdit && (
-            <button className="btn btn-secondary btn-small" onClick={onEdit}>
-              Edit
-            </button>
-          )}
-          {canDelete && (
-            <button className="btn btn-danger btn-small" onClick={onDelete}>
-              Delete
-            </button>
-          )}
-        </div>
+        {showActionButtons && (
+          <div className="detail-actions">
+            {canEdit && (
+              <button className="btn btn-secondary btn-small" onClick={onEdit}>
+                Edit
+              </button>
+            )}
+            {canRemoveFromView && (
+              <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>
+                Remove from View
+              </button>
+            )}
+          </div>
+        )}
 
         <DetailField label="Name">{entity.name}</DetailField>
 
