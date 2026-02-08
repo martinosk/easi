@@ -10,6 +10,7 @@ import (
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/cqrs"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -143,20 +144,7 @@ func (h *CapabilityHandlers) AddCapabilityExpert(w http.ResponseWriter, r *http.
 		ContactInfo:  req.ContactInfo,
 	}
 
-	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		if isNotFoundError(err) {
-			sharedAPI.RespondError(w, http.StatusNotFound, err, "Capability not found")
-			return
-		}
-		if isValidationError(err) {
-			sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
-			return
-		}
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to add expert")
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	h.dispatchCapabilityCommand(w, r, cmd, "Failed to add expert")
 }
 
 // RemoveCapabilityExpert godoc
@@ -261,6 +249,10 @@ func (h *CapabilityHandlers) AddCapabilityTag(w http.ResponseWriter, r *http.Req
 		Tag:          req.Tag,
 	}
 
+	h.dispatchCapabilityCommand(w, r, cmd, "Failed to add tag")
+}
+
+func (h *CapabilityHandlers) dispatchCapabilityCommand(w http.ResponseWriter, r *http.Request, cmd cqrs.Command, failureMsg string) {
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
 		if isNotFoundError(err) {
 			sharedAPI.RespondError(w, http.StatusNotFound, err, "Capability not found")
@@ -270,7 +262,7 @@ func (h *CapabilityHandlers) AddCapabilityTag(w http.ResponseWriter, r *http.Req
 			sharedAPI.RespondError(w, http.StatusBadRequest, err, "")
 			return
 		}
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to add tag")
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, failureMsg)
 		return
 	}
 

@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../api/client';
-import { queryKeys } from '../../../lib/queryClient';
+import { businessDomainsQueryKeys } from '../queryKeys';
 import type { BusinessDomainId, CapabilityId, CapabilityLevel, CapabilityRealization } from '../../../api/types';
 
 export interface UseCapabilityRealizationsResult {
@@ -79,7 +79,7 @@ export function useCapabilityRealizations(
   depth: number
 ): UseCapabilityRealizationsResult {
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: queryKeys.businessDomains.realizations(domainId ?? '', depth),
+    queryKey: businessDomainsQueryKeys.realizations(domainId ?? '', depth),
     queryFn: async (): Promise<RealizationsData> => {
       const groups = await apiClient.getCapabilityRealizationsByDomain(domainId!, depth);
       const levelMap = new Map<CapabilityId, number>();

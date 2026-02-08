@@ -74,6 +74,23 @@ func (h *HATEOASLinks) ComponentLinks(id string) Links {
 	return links
 }
 
+func (h *HATEOASLinks) addEditOrGrantLink(links Links, actor sharedctx.Actor, permission, artifactType, artifactID string, editLink types.Link, extraWriteLinks map[string]types.Link) {
+	if actor.CanWrite(permission) {
+		links["edit"] = editLink
+		for k, v := range extraWriteLinks {
+			links[k] = v
+		}
+	} else if actor.HasEditGrant(artifactType, artifactID) {
+		links["edit"] = editLink
+	}
+}
+
+func (h *HATEOASLinks) addEditGrantsLink(links Links, actor sharedctx.Actor, permission string) {
+	if actor.CanWrite(permission) || actor.HasPermission("edit-grants:manage") {
+		links["x-edit-grants"] = h.post("/edit-grants")
+	}
+}
+
 func (h *HATEOASLinks) ComponentLinksForActor(id string, actor sharedctx.Actor) Links {
 	p := "/components/" + id
 	links := Links{
@@ -82,13 +99,13 @@ func (h *HATEOASLinks) ComponentLinksForActor(id string, actor sharedctx.Actor) 
 		"collection":     h.get("/components"),
 		"x-expert-roles": h.get("/components/expert-roles"),
 	}
-	if actor.CanWrite("components") {
-		links["edit"] = h.put(p)
-		links["x-add-expert"] = h.post(p + "/experts")
-	}
+	h.addEditOrGrantLink(links, actor, "components", "components", id, h.put(p), map[string]types.Link{
+		"x-add-expert": h.post(p + "/experts"),
+	})
 	if actor.CanDelete("components") {
 		links["delete"] = h.del(p)
 	}
+	h.addEditGrantsLink(links, actor, "components")
 	return links
 }
 
@@ -150,10 +167,14 @@ func (h *HATEOASLinks) ViewLinksForActor(v ViewInfo, actor sharedctx.Actor) Link
 	if v.canBeEditedBy(actor) {
 		links["edit"] = h.patch(p + "/name")
 		links["x-change-visibility"] = h.patch(p + "/visibility")
+	} else if actor.HasEditGrant("views", v.ID) {
+		links["edit"] = h.patch(p + "/name")
+		links["x-change-visibility"] = h.patch(p + "/visibility")
 	}
 	if v.canBeDeletedBy(actor) {
 		links["delete"] = h.del(p)
 	}
+	h.addEditGrantsLink(links, actor, "views")
 	return links
 }
 
@@ -196,13 +217,13 @@ func (h *HATEOASLinks) capabilityBaseForActor(id string, actor sharedctx.Actor) 
 		"collection":              h.get("/capabilities"),
 		"x-expert-roles":          h.get("/capabilities/expert-roles"),
 	}
-	if actor.CanWrite("capabilities") {
-		links["edit"] = h.put(p)
-		links["x-add-expert"] = h.post(p + "/experts")
-	}
+	h.addEditOrGrantLink(links, actor, "capabilities", "capabilities", id, h.put(p), map[string]types.Link{
+		"x-add-expert": h.post(p + "/experts"),
+	})
 	if actor.CanDelete("capabilities") {
 		links["delete"] = h.del(p)
 	}
+	h.addEditGrantsLink(links, actor, "capabilities")
 	return links
 }
 
@@ -255,6 +276,7 @@ func (h *HATEOASLinks) BusinessDomainLinksForActor(id string, hasCaps bool, acto
 	if actor.CanDelete("domains") && !hasCaps {
 		links["delete"] = h.del(p)
 	}
+	h.addEditGrantsLink(links, actor, "domains")
 	return links
 }
 
@@ -605,6 +627,34 @@ func (h *HATEOASLinks) VendorLinksForActor(id string, actor sharedctx.Actor) Lin
 
 func (h *HATEOASLinks) InternalTeamLinksForActor(id string, actor sharedctx.Actor) Links {
 	return h.simpleResourceLinks(internalTeamConfig, id, actor)
+}
+
+func (h *HATEOASLinks) EditGrantLinksForActor(id, status, grantorID string, actor sharedctx.Actor) Links {
+	p := "/edit-grants/" + id
+	links := Links{
+		"self":       h.get(p),
+		"collection": h.get("/edit-grants"),
+	}
+	if status == "active" && (grantorID == actor.ID || actor.Role == "admin") {
+		links["delete"] = h.del(p)
+	}
+	return links
+}
+
+func (h *HATEOASLinks) EditGrantCollectionLinksForActor(actor sharedctx.Actor) Links {
+	links := Links{"self": h.get("/edit-grants")}
+	if actor.HasPermission("edit-grants:manage") {
+		links["create"] = h.post("/edit-grants")
+	}
+	return links
+}
+
+func (h *HATEOASLinks) EditGrantArtifactCollectionLinks(artifactType, artifactID string) Links {
+	return Links{
+		"self":       h.get("/edit-grants/artifact/" + artifactType + "/" + artifactID),
+		"collection": h.get("/edit-grants"),
+		"x-artifact": h.get("/" + sharedctx.PluralResourceName(artifactType) + "/" + artifactID),
+	}
 }
 
 func (h *HATEOASLinks) OriginRelationshipLinksForActor(basePath, id, componentID string, extraLinks map[string]types.Link, actor sharedctx.Actor) Links {

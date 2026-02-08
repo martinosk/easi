@@ -1,0 +1,45 @@
+package api
+
+import (
+	"net/http"
+
+	"easi/backend/internal/shared/config"
+	sharedctx "easi/backend/internal/shared/context"
+
+	"github.com/go-chi/chi/v5"
+)
+
+func RequireWriteOrEditGrant(artifactType, idParam string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if config.IsAuthBypassed() {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			actor, ok := sharedctx.GetActor(r.Context())
+			if !ok {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			if actor.CanWrite(artifactType) {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			artifactID := chi.URLParam(r, idParam)
+			if artifactID == "" {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
+
+			if actor.HasEditGrant(artifactType, artifactID) {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			http.Error(w, "Forbidden", http.StatusForbidden)
+		})
+	}
+}

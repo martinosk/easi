@@ -2,7 +2,8 @@ import { useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { enterpriseArchApi } from '../api/enterpriseArchApi';
 import { capabilitiesApi } from '../../capabilities/api/capabilitiesApi';
-import { queryKeys } from '../../../lib/queryClient';
+import { enterpriseCapabilitiesQueryKeys } from '../queryKeys';
+import { capabilitiesQueryKeys } from '../../capabilities/queryKeys';
 import { useLinkDomainCapability } from './useEnterpriseCapabilities';
 import type { EnterpriseCapabilityId, CapabilityLinkStatusResponse } from '../types';
 import type { Capability } from '../../../api/types';
@@ -19,7 +20,7 @@ export function useDomainCapabilityLinking(enabled: boolean): UseDomainCapabilit
   const queryClient = useQueryClient();
 
   const domainQuery = useQuery({
-    queryKey: queryKeys.capabilities.lists(),
+    queryKey: capabilitiesQueryKeys.lists(),
     queryFn: () => capabilitiesApi.getAll(),
     enabled,
   });
@@ -30,7 +31,7 @@ export function useDomainCapabilityLinking(enabled: boolean): UseDomainCapabilit
   );
 
   const linkStatusQuery = useQuery({
-    queryKey: [...queryKeys.enterpriseCapabilities.linkStatuses(), domainCapabilityIds] as const,
+    queryKey: [...enterpriseCapabilitiesQueryKeys.linkStatuses(), domainCapabilityIds] as const,
     queryFn: () => enterpriseArchApi.getBatchLinkStatus(domainCapabilityIds),
     enabled: enabled && domainCapabilityIds.length > 0,
   });
@@ -48,7 +49,7 @@ export function useDomainCapabilityLinking(enabled: boolean): UseDomainCapabilit
         enterpriseCapabilityId,
         request: { domainCapabilityId: domainCapability.id },
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.enterpriseCapabilities.linkStatuses() });
+      queryClient.invalidateQueries({ queryKey: enterpriseCapabilitiesQueryKeys.linkStatuses() });
     },
     [linkMutation, queryClient]
   );

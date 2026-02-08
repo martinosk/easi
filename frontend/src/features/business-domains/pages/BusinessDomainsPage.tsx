@@ -3,6 +3,8 @@ import { DomainDialogs } from '../components/DomainDialogs';
 import { PageLoadingStates } from '../components/PageLoadingStates';
 import { ContextMenu } from '../../../components/shared/ContextMenu';
 import { DeleteCapabilityDialog } from '../../capabilities/components/DeleteCapabilityDialog';
+import { InviteToEditDialog } from '../../edit-grants/components/InviteToEditDialog';
+import { useCreateEditGrant } from '../../edit-grants/hooks/useEditGrants';
 import { useBusinessDomainsPage } from '../hooks/useBusinessDomainsPage';
 import '../components/visualization.css';
 
@@ -16,6 +18,7 @@ export function BusinessDomainsPage() {
     domainContextMenu,
     capabilityContextMenu,
   } = hookData;
+  const createGrant = useCreateEditGrant();
 
   return (
     <PageLoadingStates isLoading={isLoading} hasData={domains.length > 0} error={error}>
@@ -46,6 +49,16 @@ export function BusinessDomainsPage() {
         onConfirm={capabilityContextMenu.handleDeleteConfirm}
         capabilitiesToDelete={capabilityContextMenu.capabilitiesToDelete}
       />
+
+      {capabilityContextMenu.capabilityToInvite && (
+        <InviteToEditDialog
+          isOpen={capabilityContextMenu.capabilityToInvite !== null}
+          onClose={() => capabilityContextMenu.setCapabilityToInvite(null)}
+          onSubmit={async (request) => { await createGrant.mutateAsync(request); }}
+          artifactType="capability"
+          artifactId={capabilityContextMenu.capabilityToInvite.id}
+        />
+      )}
 
       <DomainDialogs
         dialogMode={dialogManager.dialogMode}

@@ -1,198 +1,213 @@
 import { describe, it, expect } from 'vitest';
-import { mutationEffects } from './mutationEffects';
-import { queryKeys } from './queryClient';
+import { auditQueryKeys } from '../features/audit/queryKeys';
+import { layoutsQueryKeys } from '../features/canvas/queryKeys';
+import { capabilitiesQueryKeys } from '../features/capabilities/queryKeys';
+import { capabilitiesMutationEffects } from '../features/capabilities/mutationEffects';
+import { businessDomainsQueryKeys } from '../features/business-domains/queryKeys';
+import { componentsQueryKeys } from '../features/components/queryKeys';
+import {
+  acquiredEntitiesQueryKeys,
+  vendorsQueryKeys,
+  internalTeamsQueryKeys,
+  originRelationshipsQueryKeys,
+} from '../features/origin-entities/queryKeys';
+import {
+  acquiredEntitiesMutationEffects,
+  vendorsMutationEffects,
+  internalTeamsMutationEffects,
+} from '../features/origin-entities/mutationEffects';
 
 describe('mutationEffects', () => {
-  describe('capabilities.linkSystem', () => {
+  describe('capabilitiesMutationEffects.linkSystem', () => {
     it('should invalidate business domain details to refresh realizations in domain views', () => {
-      const effects = mutationEffects.capabilities.linkSystem('cap-1', 'comp-1');
+      const effects = capabilitiesMutationEffects.linkSystem('cap-1', 'comp-1');
 
-      expect(effects).toContainEqual(queryKeys.capabilities.realizations('cap-1'));
-      expect(effects).toContainEqual(queryKeys.capabilities.byComponent('comp-1'));
-      expect(effects).toContainEqual(queryKeys.capabilities.realizationsByComponents());
-      expect(effects).toContainEqual(queryKeys.businessDomains.details());
+      expect(effects).toContainEqual(capabilitiesQueryKeys.realizations('cap-1'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.byComponent('comp-1'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.realizationsByComponents());
+      expect(effects).toContainEqual(businessDomainsQueryKeys.details());
     });
   });
 
-  describe('capabilities.updateRealization', () => {
+  describe('capabilitiesMutationEffects.updateRealization', () => {
     it('should invalidate business domain details to refresh realizations in domain views', () => {
-      const effects = mutationEffects.capabilities.updateRealization('cap-1', 'comp-1');
+      const effects = capabilitiesMutationEffects.updateRealization('cap-1', 'comp-1');
 
-      expect(effects).toContainEqual(queryKeys.capabilities.realizations('cap-1'));
-      expect(effects).toContainEqual(queryKeys.capabilities.byComponent('comp-1'));
-      expect(effects).toContainEqual(queryKeys.capabilities.realizationsByComponents());
-      expect(effects).toContainEqual(queryKeys.businessDomains.details());
+      expect(effects).toContainEqual(capabilitiesQueryKeys.realizations('cap-1'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.byComponent('comp-1'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.realizationsByComponents());
+      expect(effects).toContainEqual(businessDomainsQueryKeys.details());
     });
   });
 
-  describe('capabilities.deleteRealization', () => {
+  describe('capabilitiesMutationEffects.deleteRealization', () => {
     it('should invalidate business domain details to refresh realizations in domain views', () => {
-      const effects = mutationEffects.capabilities.deleteRealization('cap-1', 'comp-1');
+      const effects = capabilitiesMutationEffects.deleteRealization('cap-1', 'comp-1');
 
-      expect(effects).toContainEqual(queryKeys.capabilities.realizations('cap-1'));
-      expect(effects).toContainEqual(queryKeys.capabilities.byComponent('comp-1'));
-      expect(effects).toContainEqual(queryKeys.capabilities.realizationsByComponents());
-      expect(effects).toContainEqual(queryKeys.businessDomains.details());
+      expect(effects).toContainEqual(capabilitiesQueryKeys.realizations('cap-1'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.byComponent('comp-1'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.realizationsByComponents());
+      expect(effects).toContainEqual(businessDomainsQueryKeys.details());
     });
 
     it('should invalidate domain views so deleted components no longer appear as realizing systems', () => {
-      const effects = mutationEffects.capabilities.deleteRealization('any-cap', 'deleted-comp');
+      const effects = capabilitiesMutationEffects.deleteRealization('any-cap', 'deleted-comp');
 
-      const businessDomainDetailsKey = queryKeys.businessDomains.details();
+      const businessDomainDetailsKey = businessDomainsQueryKeys.details();
       expect(effects).toContainEqual(businessDomainDetailsKey);
     });
   });
 
   describe('acquiredEntities.linkComponent', () => {
     it('should invalidate component origins to show relationship in details panel', () => {
-      const effects = mutationEffects.acquiredEntities.linkComponent('entity-1', 'comp-1');
+      const effects = acquiredEntitiesMutationEffects.linkComponent('entity-1', 'comp-1');
 
-      expect(effects).toContainEqual(queryKeys.components.origins('comp-1'));
+      expect(effects).toContainEqual(componentsQueryKeys.origins('comp-1'));
     });
 
     it('should invalidate origin relationships list for canvas edges', () => {
-      const effects = mutationEffects.acquiredEntities.linkComponent('entity-1', 'comp-1');
+      const effects = acquiredEntitiesMutationEffects.linkComponent('entity-1', 'comp-1');
 
-      expect(effects).toContainEqual(queryKeys.originRelationships.lists());
+      expect(effects).toContainEqual(originRelationshipsQueryKeys.lists());
     });
 
     it('should invalidate acquired entity relationships', () => {
-      const effects = mutationEffects.acquiredEntities.linkComponent('entity-1', 'comp-1');
+      const effects = acquiredEntitiesMutationEffects.linkComponent('entity-1', 'comp-1');
 
-      expect(effects).toContainEqual(queryKeys.acquiredEntities.relationships('entity-1'));
-      expect(effects).toContainEqual(queryKeys.acquiredEntities.detail('entity-1'));
+      expect(effects).toContainEqual(acquiredEntitiesQueryKeys.relationships('entity-1'));
+      expect(effects).toContainEqual(acquiredEntitiesQueryKeys.detail('entity-1'));
     });
   });
 
   describe('vendors.linkComponent', () => {
     it('should invalidate component origins to show relationship in details panel', () => {
-      const effects = mutationEffects.vendors.linkComponent('vendor-1', 'comp-1');
+      const effects = vendorsMutationEffects.linkComponent('vendor-1', 'comp-1');
 
-      expect(effects).toContainEqual(queryKeys.components.origins('comp-1'));
+      expect(effects).toContainEqual(componentsQueryKeys.origins('comp-1'));
     });
 
     it('should invalidate origin relationships list for canvas edges', () => {
-      const effects = mutationEffects.vendors.linkComponent('vendor-1', 'comp-1');
+      const effects = vendorsMutationEffects.linkComponent('vendor-1', 'comp-1');
 
-      expect(effects).toContainEqual(queryKeys.originRelationships.lists());
+      expect(effects).toContainEqual(originRelationshipsQueryKeys.lists());
     });
   });
 
   describe('internalTeams.linkComponent', () => {
     it('should invalidate component origins to show relationship in details panel', () => {
-      const effects = mutationEffects.internalTeams.linkComponent('team-1', 'comp-1');
+      const effects = internalTeamsMutationEffects.linkComponent('team-1', 'comp-1');
 
-      expect(effects).toContainEqual(queryKeys.components.origins('comp-1'));
+      expect(effects).toContainEqual(componentsQueryKeys.origins('comp-1'));
     });
 
     it('should invalidate origin relationships list for canvas edges', () => {
-      const effects = mutationEffects.internalTeams.linkComponent('team-1', 'comp-1');
+      const effects = internalTeamsMutationEffects.linkComponent('team-1', 'comp-1');
 
-      expect(effects).toContainEqual(queryKeys.originRelationships.lists());
+      expect(effects).toContainEqual(originRelationshipsQueryKeys.lists());
     });
   });
 
   describe('acquiredEntities.delete', () => {
     it('should invalidate layouts cache to remove deleted entity from canvas', () => {
-      const effects = mutationEffects.acquiredEntities.delete('entity-1');
+      const effects = acquiredEntitiesMutationEffects.delete('entity-1');
 
-      expect(effects).toContainEqual(queryKeys.layouts.all);
+      expect(effects).toContainEqual(layoutsQueryKeys.all);
     });
 
     it('should invalidate entity lists and detail', () => {
-      const effects = mutationEffects.acquiredEntities.delete('entity-1');
+      const effects = acquiredEntitiesMutationEffects.delete('entity-1');
 
-      expect(effects).toContainEqual(queryKeys.acquiredEntities.lists());
-      expect(effects).toContainEqual(queryKeys.acquiredEntities.detail('entity-1'));
+      expect(effects).toContainEqual(acquiredEntitiesQueryKeys.lists());
+      expect(effects).toContainEqual(acquiredEntitiesQueryKeys.detail('entity-1'));
     });
   });
 
   describe('vendors.delete', () => {
     it('should invalidate layouts cache to remove deleted vendor from canvas', () => {
-      const effects = mutationEffects.vendors.delete('vendor-1');
+      const effects = vendorsMutationEffects.delete('vendor-1');
 
-      expect(effects).toContainEqual(queryKeys.layouts.all);
+      expect(effects).toContainEqual(layoutsQueryKeys.all);
     });
 
     it('should invalidate vendor lists and detail', () => {
-      const effects = mutationEffects.vendors.delete('vendor-1');
+      const effects = vendorsMutationEffects.delete('vendor-1');
 
-      expect(effects).toContainEqual(queryKeys.vendors.lists());
-      expect(effects).toContainEqual(queryKeys.vendors.detail('vendor-1'));
+      expect(effects).toContainEqual(vendorsQueryKeys.lists());
+      expect(effects).toContainEqual(vendorsQueryKeys.detail('vendor-1'));
     });
   });
 
   describe('internalTeams.delete', () => {
     it('should invalidate layouts cache to remove deleted team from canvas', () => {
-      const effects = mutationEffects.internalTeams.delete('team-1');
+      const effects = internalTeamsMutationEffects.delete('team-1');
 
-      expect(effects).toContainEqual(queryKeys.layouts.all);
+      expect(effects).toContainEqual(layoutsQueryKeys.all);
     });
 
     it('should invalidate team lists and detail', () => {
-      const effects = mutationEffects.internalTeams.delete('team-1');
+      const effects = internalTeamsMutationEffects.delete('team-1');
 
-      expect(effects).toContainEqual(queryKeys.internalTeams.lists());
-      expect(effects).toContainEqual(queryKeys.internalTeams.detail('team-1'));
+      expect(effects).toContainEqual(internalTeamsQueryKeys.lists());
+      expect(effects).toContainEqual(internalTeamsQueryKeys.detail('team-1'));
     });
   });
 
   describe('capabilities.changeParent', () => {
     it('should invalidate moved capability realizations', () => {
-      const effects = mutationEffects.capabilities.changeParent({
+      const effects = capabilitiesMutationEffects.changeParent({
         id: 'cap-child',
         oldParentId: 'cap-old-parent',
         newParentId: 'cap-new-parent',
       });
 
-      expect(effects).toContainEqual(queryKeys.capabilities.realizations('cap-child'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.realizations('cap-child'));
     });
 
     it('should invalidate new parent realizations to show inherited realizations from moved capability', () => {
-      const effects = mutationEffects.capabilities.changeParent({
+      const effects = capabilitiesMutationEffects.changeParent({
         id: 'cap-child',
         newParentId: 'cap-new-parent',
       });
 
-      expect(effects).toContainEqual(queryKeys.capabilities.realizations('cap-new-parent'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.realizations('cap-new-parent'));
     });
 
     it('should invalidate old parent realizations to remove inherited realizations', () => {
-      const effects = mutationEffects.capabilities.changeParent({
+      const effects = capabilitiesMutationEffects.changeParent({
         id: 'cap-child',
         oldParentId: 'cap-old-parent',
       });
 
-      expect(effects).toContainEqual(queryKeys.capabilities.realizations('cap-old-parent'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.realizations('cap-old-parent'));
     });
 
     it('should invalidate global realization indexes', () => {
-      const effects = mutationEffects.capabilities.changeParent({
+      const effects = capabilitiesMutationEffects.changeParent({
         id: 'cap-child',
         newParentId: 'cap-new-parent',
       });
 
-      expect(effects).toContainEqual(queryKeys.capabilities.realizationsByComponents());
-      expect(effects).toContainEqual(queryKeys.businessDomains.details());
+      expect(effects).toContainEqual(capabilitiesQueryKeys.realizationsByComponents());
+      expect(effects).toContainEqual(businessDomainsQueryKeys.details());
     });
 
     it('should invalidate all affected caches when moving between parents', () => {
-      const effects = mutationEffects.capabilities.changeParent({
+      const effects = capabilitiesMutationEffects.changeParent({
         id: 'cap-child',
         oldParentId: 'cap-old-parent',
         newParentId: 'cap-new-parent',
       });
 
-      expect(effects).toContainEqual(queryKeys.capabilities.detail('cap-child'));
-      expect(effects).toContainEqual(queryKeys.capabilities.children('cap-old-parent'));
-      expect(effects).toContainEqual(queryKeys.capabilities.children('cap-new-parent'));
-      expect(effects).toContainEqual(queryKeys.capabilities.realizations('cap-child'));
-      expect(effects).toContainEqual(queryKeys.capabilities.realizations('cap-old-parent'));
-      expect(effects).toContainEqual(queryKeys.capabilities.realizations('cap-new-parent'));
-      expect(effects).toContainEqual(queryKeys.capabilities.realizationsByComponents());
-      expect(effects).toContainEqual(queryKeys.businessDomains.details());
-      expect(effects).toContainEqual(queryKeys.capabilities.lists());
-      expect(effects).toContainEqual(queryKeys.audit.history('cap-child'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.detail('cap-child'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.children('cap-old-parent'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.children('cap-new-parent'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.realizations('cap-child'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.realizations('cap-old-parent'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.realizations('cap-new-parent'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.realizationsByComponents());
+      expect(effects).toContainEqual(businessDomainsQueryKeys.details());
+      expect(effects).toContainEqual(capabilitiesQueryKeys.lists());
+      expect(effects).toContainEqual(auditQueryKeys.history('cap-child'));
     });
   });
 });

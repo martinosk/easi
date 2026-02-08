@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { originEntitiesApi } from '../api/originEntitiesApi';
-import { queryKeys } from '../../../lib/queryClient';
+import { vendorsQueryKeys } from '../queryKeys';
 import { invalidateFor } from '../../../lib/invalidateFor';
-import { mutationEffects } from '../../../lib/mutationEffects';
+import { vendorsMutationEffects } from '../mutationEffects';
 import type {
   Vendor,
   VendorId,
@@ -67,14 +67,14 @@ export function useVendors(): UseVendorsResult {
 
 export function useVendorsQuery() {
   return useQuery({
-    queryKey: queryKeys.vendors.lists(),
+    queryKey: vendorsQueryKeys.lists(),
     queryFn: () => originEntitiesApi.vendors.getAll(),
   });
 }
 
 export function useVendor(id: VendorId | undefined) {
   return useQuery({
-    queryKey: queryKeys.vendors.detail(id!),
+    queryKey: vendorsQueryKeys.detail(id!),
     queryFn: () => originEntitiesApi.vendors.getById(id!),
     enabled: !!id,
   });
@@ -87,7 +87,7 @@ export function useCreateVendor() {
     mutationFn: (request: CreateVendorRequest) =>
       originEntitiesApi.vendors.create(request),
     onSuccess: (newVendor) => {
-      invalidateFor(queryClient, mutationEffects.vendors.create());
+      invalidateFor(queryClient, vendorsMutationEffects.create());
       toast.success(`Vendor "${newVendor.name}" created successfully`);
     },
     onError: () => {
@@ -103,7 +103,7 @@ export function useUpdateVendor() {
     mutationFn: ({ id, request }: { id: VendorId; request: UpdateVendorRequest }) =>
       originEntitiesApi.vendors.update(id, request),
     onSuccess: (updatedVendor, { id }) => {
-      invalidateFor(queryClient, mutationEffects.vendors.update(id));
+      invalidateFor(queryClient, vendorsMutationEffects.update(id));
       toast.success(`Vendor "${updatedVendor.name}" updated`);
     },
     onError: () => {
@@ -119,7 +119,7 @@ export function useDeleteVendor() {
     mutationFn: ({ id }: { id: VendorId; name: string }) =>
       originEntitiesApi.vendors.delete(id),
     onSuccess: (_, { id, name }) => {
-      invalidateFor(queryClient, mutationEffects.vendors.delete(id));
+      invalidateFor(queryClient, vendorsMutationEffects.delete(id));
       toast.success(`Vendor "${name}" deleted`);
     },
     onError: () => {
@@ -142,7 +142,7 @@ export function useLinkComponentToVendor() {
       notes?: string;
     }) => originEntitiesApi.vendors.linkComponent(componentId, vendorId, notes),
     onSuccess: (_, { vendorId, componentId }) => {
-      invalidateFor(queryClient, mutationEffects.vendors.linkComponent(vendorId, componentId));
+      invalidateFor(queryClient, vendorsMutationEffects.linkComponent(vendorId, componentId));
       toast.success('Component linked to vendor');
     },
     onError: () => {
@@ -158,7 +158,7 @@ export function useUnlinkComponentFromVendor() {
     mutationFn: ({ componentId }: { vendorId: VendorId; componentId: ComponentId }) =>
       originEntitiesApi.vendors.unlinkComponent(componentId),
     onSuccess: (_, { vendorId, componentId }) => {
-      invalidateFor(queryClient, mutationEffects.vendors.unlinkComponent(vendorId, componentId));
+      invalidateFor(queryClient, vendorsMutationEffects.unlinkComponent(vendorId, componentId));
       toast.success('Component unlinked');
     },
     onError: () => {

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"easi/backend/docs"
+	accessdelegationAPI "easi/backend/internal/accessdelegation/infrastructure/api"
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
 	authAPI "easi/backend/internal/auth/infrastructure/api"
@@ -125,98 +126,137 @@ func swaggerHandlerWithDynamicBasePath() http.HandlerFunc {
 func registerAPIRoutes(r chi.Router, deps routerDependencies) {
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/version", versionHandler)
-
-		mustSetup(platformAPI.SetupPlatformRoutes(platformAPI.PlatformRoutesDeps{
-			Router:     r,
-			RawDB:      deps.db.DB(),
-			TenantDB:   deps.db,
-			CommandBus: deps.commandBus,
-			EventStore: deps.eventStore,
-		}), "platform routes")
-		mustSetup(authAPI.SetupAuthRoutes(r, deps.db.DB(), deps.authDeps), "auth routes")
+		registerPublicRoutes(r, deps)
 
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.TenantMiddlewareWithSession(deps.authDeps.SessionManager, deps.userReadModel))
-
-			mustSetup(architectureAPI.SetupArchitectureModelingRoutes(architectureAPI.RouteConfig{
-				Router:         r,
-				CommandBus:     deps.commandBus,
-				EventStore:     deps.eventStore,
-				EventBus:       deps.eventBus,
-				DB:             deps.db,
-				HATEOAS:        deps.hateoas,
-				AuthMiddleware: deps.authDeps.AuthMiddleware,
-			}), "architecture modeling routes")
-			viewsAPI.SubscribeEvents(deps.eventBus, deps.commandBus, deps.db)
-			viewsAPI.RegisterCommands(deps.commandBus, deps.eventStore, deps.db)
-			viewHandlers := viewsAPI.NewHTTPHandlers(deps.commandBus, deps.db, deps.hateoas)
-			viewsAPI.RegisterRoutes(r, viewHandlers, deps.authDeps.AuthMiddleware)
-			mustSetup(capabilityAPI.SetupCapabilityMappingRoutes(&capabilityAPI.RouteConfig{
-				Router:         r,
-				CommandBus:     deps.commandBus,
-				EventStore:     deps.eventStore,
-				EventBus:       deps.eventBus,
-				DB:             deps.db,
-				HATEOAS:        deps.hateoas,
-				SessionManager: deps.authDeps.SessionManager,
-				AuthMiddleware: deps.authDeps.AuthMiddleware,
-			}), "capability mapping routes")
-			mustSetup(enterpriseArchAPI.SetupEnterpriseArchitectureRoutes(enterpriseArchAPI.EnterpriseArchRoutesDeps{
-				Router:         r,
-				CommandBus:     deps.commandBus,
-				EventStore:     deps.eventStore,
-				EventBus:       deps.eventBus,
-				DB:             deps.db,
-				AuthMiddleware: deps.authDeps.AuthMiddleware,
-				SessionManager: deps.authDeps.SessionManager,
-			}), "enterprise architecture routes")
-			mustSetup(releasesAPI.SetupReleasesRoutes(r, deps.db.DB()), "releases routes")
-			viewlayoutsAPI.SubscribeEvents(deps.eventBus, deps.db)
-			viewlayoutsAPI.RegisterRoutes(r, deps.db, deps.hateoas, deps.authDeps.AuthMiddleware)
-			mustSetup(importingAPI.SetupImportingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db), "importing routes")
-			mustSetup(metamodelAPI.SetupMetaModelRoutes(metamodelAPI.MetaModelRoutesDeps{
-				Router:         r,
-				CommandBus:     deps.commandBus,
-				EventStore:     deps.eventStore,
-				EventBus:       deps.eventBus,
-				DB:             deps.db,
-				Hateoas:        deps.hateoas,
-				AuthMiddleware: deps.authDeps.AuthMiddleware,
-				SessionManager: deps.authDeps.SessionManager,
-			}), "metamodel routes")
-
-			invDeps, err := authAPI.SetupInvitationRoutes(authAPI.InvitationRoutesDeps{
-				Router:     r,
-				CommandBus: deps.commandBus,
-				EventStore: deps.eventStore,
-				EventBus:   deps.eventBus,
-				DB:         deps.db,
-				AuthDeps:   deps.authDeps,
-			})
-			mustSetup(err, "invitation routes")
-			authAPI.WireLoginService(deps.authDeps, invDeps)
-
-			mustSetup(authAPI.SetupUserRoutes(authAPI.UserRoutesDeps{
-				Router:     r,
-				CommandBus: deps.commandBus,
-				EventStore: deps.eventStore,
-				EventBus:   deps.eventBus,
-				DB:         deps.db,
-				RawDB:      deps.db.DB(),
-				AuthDeps:   deps.authDeps,
-				InvDeps:    invDeps,
-			}), "user routes")
-
-			sharedAPI.SetupReferenceRoutes(r)
-
-			mustSetup(audit.SetupAuditRoutes(audit.AuditRoutesDeps{
-				Router:         r,
-				DB:             deps.db,
-				Hateoas:        deps.hateoas,
-				AuthMiddleware: deps.authDeps.AuthMiddleware,
-			}), "audit routes")
+			registerTenantRoutes(r, deps)
 		})
 	})
+}
+
+func registerPublicRoutes(r chi.Router, deps routerDependencies) {
+	mustSetup(platformAPI.SetupPlatformRoutes(platformAPI.PlatformRoutesDeps{
+		Router:     r,
+		RawDB:      deps.db.DB(),
+		TenantDB:   deps.db,
+		CommandBus: deps.commandBus,
+		EventStore: deps.eventStore,
+	}), "platform routes")
+	mustSetup(authAPI.SetupAuthRoutes(r, deps.db.DB(), deps.authDeps), "auth routes")
+}
+
+func registerTenantRoutes(r chi.Router, deps routerDependencies) {
+	adDeps := setupAccessDelegation(deps)
+	r.Use(middleware.EditGrantEnrichment(adDeps.GrantResolver))
+	adDeps.RegisterRoutes(r)
+	setupModelingRoutes(r, deps)
+	setupDomainRoutes(r, deps)
+	setupSupportRoutes(r, deps)
+	setupAuthRoutes(r, deps)
+}
+
+func setupAccessDelegation(deps routerDependencies) *accessdelegationAPI.AccessDelegationDependencies {
+	adDeps, adErr := accessdelegationAPI.SetupAccessDelegationRoutes(accessdelegationAPI.AccessDelegationRoutesDeps{
+		CommandBus:     deps.commandBus,
+		EventStore:     deps.eventStore,
+		EventBus:       deps.eventBus,
+		DB:             deps.db,
+		HATEOAS:        deps.hateoas,
+		AuthMiddleware: deps.authDeps.AuthMiddleware,
+	})
+	mustSetup(adErr, "access delegation routes")
+	return adDeps
+}
+
+func setupModelingRoutes(r chi.Router, deps routerDependencies) {
+	mustSetup(architectureAPI.SetupArchitectureModelingRoutes(architectureAPI.RouteConfig{
+		Router:         r,
+		CommandBus:     deps.commandBus,
+		EventStore:     deps.eventStore,
+		EventBus:       deps.eventBus,
+		DB:             deps.db,
+		HATEOAS:        deps.hateoas,
+		AuthMiddleware: deps.authDeps.AuthMiddleware,
+	}), "architecture modeling routes")
+
+	viewsAPI.SubscribeEvents(deps.eventBus, deps.commandBus, deps.db)
+	viewsAPI.RegisterCommands(deps.commandBus, deps.eventStore, deps.db)
+	viewHandlers := viewsAPI.NewHTTPHandlers(deps.commandBus, deps.db, deps.hateoas)
+	viewsAPI.RegisterRoutes(r, viewHandlers, deps.authDeps.AuthMiddleware)
+
+	mustSetup(capabilityAPI.SetupCapabilityMappingRoutes(&capabilityAPI.RouteConfig{
+		Router:         r,
+		CommandBus:     deps.commandBus,
+		EventStore:     deps.eventStore,
+		EventBus:       deps.eventBus,
+		DB:             deps.db,
+		HATEOAS:        deps.hateoas,
+		SessionManager: deps.authDeps.SessionManager,
+		AuthMiddleware: deps.authDeps.AuthMiddleware,
+	}), "capability mapping routes")
+}
+
+func setupDomainRoutes(r chi.Router, deps routerDependencies) {
+	mustSetup(enterpriseArchAPI.SetupEnterpriseArchitectureRoutes(enterpriseArchAPI.EnterpriseArchRoutesDeps{
+		Router:         r,
+		CommandBus:     deps.commandBus,
+		EventStore:     deps.eventStore,
+		EventBus:       deps.eventBus,
+		DB:             deps.db,
+		AuthMiddleware: deps.authDeps.AuthMiddleware,
+		SessionManager: deps.authDeps.SessionManager,
+	}), "enterprise architecture routes")
+
+	viewlayoutsAPI.SubscribeEvents(deps.eventBus, deps.db)
+	viewlayoutsAPI.RegisterRoutes(r, deps.db, deps.hateoas, deps.authDeps.AuthMiddleware)
+
+	mustSetup(metamodelAPI.SetupMetaModelRoutes(metamodelAPI.MetaModelRoutesDeps{
+		Router:         r,
+		CommandBus:     deps.commandBus,
+		EventStore:     deps.eventStore,
+		EventBus:       deps.eventBus,
+		DB:             deps.db,
+		Hateoas:        deps.hateoas,
+		AuthMiddleware: deps.authDeps.AuthMiddleware,
+		SessionManager: deps.authDeps.SessionManager,
+	}), "metamodel routes")
+}
+
+func setupSupportRoutes(r chi.Router, deps routerDependencies) {
+	mustSetup(releasesAPI.SetupReleasesRoutes(r, deps.db.DB()), "releases routes")
+	mustSetup(importingAPI.SetupImportingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db), "importing routes")
+	sharedAPI.SetupReferenceRoutes(r)
+	mustSetup(audit.SetupAuditRoutes(audit.AuditRoutesDeps{
+		Router:         r,
+		DB:             deps.db,
+		Hateoas:        deps.hateoas,
+		AuthMiddleware: deps.authDeps.AuthMiddleware,
+	}), "audit routes")
+}
+
+func setupAuthRoutes(r chi.Router, deps routerDependencies) {
+	invDeps, err := authAPI.SetupInvitationRoutes(authAPI.InvitationRoutesDeps{
+		Router:     r,
+		CommandBus: deps.commandBus,
+		EventStore: deps.eventStore,
+		EventBus:   deps.eventBus,
+		DB:         deps.db,
+		AuthDeps:   deps.authDeps,
+	})
+	mustSetup(err, "invitation routes")
+	authAPI.WireLoginService(deps.authDeps, invDeps)
+
+	mustSetup(authAPI.SetupUserRoutes(authAPI.UserRoutesDeps{
+		Router:     r,
+		CommandBus: deps.commandBus,
+		EventStore: deps.eventStore,
+		EventBus:   deps.eventBus,
+		DB:         deps.db,
+		RawDB:      deps.db.DB(),
+		AuthDeps:   deps.authDeps,
+		InvDeps:    invDeps,
+	}), "user routes")
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

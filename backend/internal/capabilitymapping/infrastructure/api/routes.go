@@ -74,7 +74,14 @@ func SetupCapabilityMappingRoutes(config *RouteConfig) error {
 	}
 
 	rateLimiter := platformAPI.NewRateLimiter(100, 60)
-	registerRoutes(config.Router, httpHandlers, config.AuthMiddleware, rateLimiter)
+
+	registerCapabilityRoutes(config.Router, httpHandlers, config.AuthMiddleware)
+	registerDependencyRoutes(config.Router, httpHandlers, config.AuthMiddleware)
+	registerRealizationRoutes(config.Router, httpHandlers, config.AuthMiddleware)
+	registerBusinessDomainRoutes(config.Router, httpHandlers, config.AuthMiddleware)
+	registerStrategyImportanceRoutes(config.Router, httpHandlers)
+	registerApplicationFitScoreRoutes(config.Router, httpHandlers, config.AuthMiddleware, rateLimiter)
+	registerStrategicFitAnalysisRoutes(config.Router, httpHandlers, config.AuthMiddleware)
 
 	return nil
 }
@@ -366,16 +373,6 @@ func registerApplicationFitScoreCommands(commandBus *cqrs.InMemoryCommandBus, de
 	commandBus.Register("RemoveApplicationFitScore", handlers.NewRemoveApplicationFitScoreHandler(deps.FitScoreRepo))
 }
 
-func registerRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
-	registerCapabilityRoutes(r, h, authMiddleware)
-	registerDependencyRoutes(r, h, authMiddleware)
-	registerRealizationRoutes(r, h, authMiddleware)
-	registerBusinessDomainRoutes(r, h, authMiddleware)
-	registerStrategyImportanceRoutes(r, h)
-	registerApplicationFitScoreRoutes(r, h, authMiddleware, rateLimiter)
-	registerStrategicFitAnalysisRoutes(r, h, authMiddleware)
-}
-
 func registerCapabilityRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware) {
 	r.Route("/capabilities", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
@@ -398,12 +395,15 @@ func registerCapabilityRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware
 			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesWrite))
 			r.Post("/", h.capability.CreateCapability)
 			r.Post("/{id}/systems", h.realization.LinkSystemToCapability)
-			r.Put("/{id}", h.capability.UpdateCapability)
-			r.Put("/{id}/metadata", h.capability.UpdateCapabilityMetadata)
-			r.Patch("/{id}/parent", h.capability.ChangeCapabilityParent)
 			r.Post("/{id}/experts", h.capability.AddCapabilityExpert)
 			r.Delete("/{id}/experts", h.capability.RemoveCapabilityExpert)
 			r.Post("/{id}/tags", h.capability.AddCapabilityTag)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(sharedAPI.RequireWriteOrEditGrant("capabilities", "id"))
+			r.Put("/{id}", h.capability.UpdateCapability)
+			r.Put("/{id}/metadata", h.capability.UpdateCapabilityMetadata)
+			r.Patch("/{id}/parent", h.capability.ChangeCapabilityParent)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesDelete))

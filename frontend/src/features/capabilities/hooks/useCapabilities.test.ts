@@ -12,7 +12,8 @@ import {
   useCreateCapabilityDependency,
   useDeleteCapabilityDependency,
 } from './useCapabilities';
-import { queryKeys } from '../../../lib/queryClient';
+import { capabilitiesQueryKeys } from '../queryKeys';
+import { businessDomainsQueryKeys } from '../../business-domains/queryKeys';
 import { buildCapability, buildCapabilityDependency } from '../../../test/helpers/entityBuilders';
 import type { CapabilityId, CapabilityDependencyId } from '../../../api/types';
 
@@ -164,7 +165,7 @@ describe('useCapabilities hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.capabilities.lists(),
+        queryKey: capabilitiesQueryKeys.lists(),
       });
       expect(toast.success).toHaveBeenCalledWith('Capability "New Capability" created');
     });
@@ -191,7 +192,7 @@ describe('useCapabilities hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.capabilities.children('parent-1'),
+        queryKey: capabilitiesQueryKeys.children('parent-1'),
       });
     });
 
@@ -229,8 +230,8 @@ describe('useCapabilities hooks', () => {
         name: 'Updated Name',
       });
 
-      queryClient.setQueryData(queryKeys.capabilities.lists(), [existingCapability]);
-      queryClient.setQueryData(queryKeys.capabilities.detail('cap-1'), existingCapability);
+      queryClient.setQueryData(capabilitiesQueryKeys.lists(), [existingCapability]);
+      queryClient.setQueryData(capabilitiesQueryKeys.detail('cap-1'), existingCapability);
       vi.mocked(capabilitiesApi.update).mockResolvedValue(updatedCapability);
 
       const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
@@ -247,10 +248,10 @@ describe('useCapabilities hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.capabilities.lists(),
+        queryKey: capabilitiesQueryKeys.lists(),
       });
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.capabilities.detail('cap-1'),
+        queryKey: capabilitiesQueryKeys.detail('cap-1'),
       });
 
       expect(toast.success).toHaveBeenCalledWith('Capability "Updated Name" updated');
@@ -261,8 +262,8 @@ describe('useCapabilities hooks', () => {
     it('should delete capability and invalidate relevant queries', async () => {
       const capability = buildCapability({ id: 'cap-1' as CapabilityId, name: 'To Delete' });
 
-      queryClient.setQueryData(queryKeys.capabilities.lists(), [capability]);
-      queryClient.setQueryData(queryKeys.capabilities.detail('cap-1'), capability);
+      queryClient.setQueryData(capabilitiesQueryKeys.lists(), [capability]);
+      queryClient.setQueryData(capabilitiesQueryKeys.detail('cap-1'), capability);
       vi.mocked(capabilitiesApi.delete).mockResolvedValue(undefined);
 
       const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
@@ -276,11 +277,11 @@ describe('useCapabilities hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.capabilities.lists(),
+        queryKey: capabilitiesQueryKeys.lists(),
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.capabilities.detail('cap-1'),
+        queryKey: capabilitiesQueryKeys.detail('cap-1'),
       });
 
       expect(toast.success).toHaveBeenCalledWith('Capability deleted');
@@ -303,7 +304,7 @@ describe('useCapabilities hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.capabilities.children('parent-1'),
+        queryKey: capabilitiesQueryKeys.children('parent-1'),
       });
     });
 
@@ -324,7 +325,7 @@ describe('useCapabilities hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.businessDomains.capabilities('domain-1'),
+        queryKey: businessDomainsQueryKeys.capabilities('domain-1'),
       });
     });
   });
@@ -376,13 +377,13 @@ describe('useCapabilities hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.capabilities.dependencies(),
+        queryKey: capabilitiesQueryKeys.dependencies(),
       });
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.capabilities.outgoing('cap-1'),
+        queryKey: capabilitiesQueryKeys.outgoing('cap-1'),
       });
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.capabilities.incoming('cap-2'),
+        queryKey: capabilitiesQueryKeys.incoming('cap-2'),
       });
       expect(toast.success).toHaveBeenCalledWith('Dependency created');
     });
@@ -407,13 +408,13 @@ describe('useCapabilities hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.capabilities.dependencies(),
+        queryKey: capabilitiesQueryKeys.dependencies(),
       });
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.capabilities.outgoing('cap-1'),
+        queryKey: capabilitiesQueryKeys.outgoing('cap-1'),
       });
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.capabilities.incoming('cap-2'),
+        queryKey: capabilitiesQueryKeys.incoming('cap-2'),
       });
       expect(toast.success).toHaveBeenCalledWith('Dependency deleted');
     });

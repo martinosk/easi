@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { httpClient } from '../../../api/core/httpClient';
 import { invalidateFor } from '../../../lib/invalidateFor';
-import { mutationEffects } from '../../../lib/mutationEffects';
+import { importsMutationEffects } from '../mutationEffects';
 import type { ImportSession, CreateImportSessionRequest, ImportSessionId } from '../types';
 
 interface UseImportSessionReturn {
@@ -47,7 +47,7 @@ export function useImportSession(): UseImportSessionReturn {
       } else {
         stopPolling();
         if (response.data.status === 'completed') {
-          invalidateFor(queryClient, mutationEffects.imports.completed());
+          invalidateFor(queryClient, importsMutationEffects.completed());
         }
       }
     } catch (err) {

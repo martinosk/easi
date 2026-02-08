@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { businessDomainsApi } from '../api';
-import { queryKeys } from '../../../lib/queryClient';
+import { businessDomainsQueryKeys } from '../queryKeys';
+import { businessDomainsMutationEffects } from '../mutationEffects';
 import { invalidateFor } from '../../../lib/invalidateFor';
-import { mutationEffects } from '../../../lib/mutationEffects';
 import type {
   BusinessDomain,
   BusinessDomainId,
@@ -70,14 +70,14 @@ export function useBusinessDomains(): UseBusinessDomainsResult {
 
 export function useBusinessDomainsQuery() {
   return useQuery<BusinessDomainsResponse>({
-    queryKey: queryKeys.businessDomains.lists(),
+    queryKey: businessDomainsQueryKeys.lists(),
     queryFn: () => businessDomainsApi.getAll(),
   });
 }
 
 export function useBusinessDomain(id: BusinessDomainId | undefined) {
   return useQuery({
-    queryKey: queryKeys.businessDomains.detail(id!),
+    queryKey: businessDomainsQueryKeys.detail(id!),
     queryFn: () => businessDomainsApi.getById(id!),
     enabled: !!id,
   });
@@ -85,7 +85,7 @@ export function useBusinessDomain(id: BusinessDomainId | undefined) {
 
 export function useDomainCapabilities(capabilitiesLink: string | undefined) {
   return useQuery({
-    queryKey: queryKeys.businessDomains.capabilitiesByLink(capabilitiesLink!),
+    queryKey: businessDomainsQueryKeys.capabilitiesByLink(capabilitiesLink!),
     queryFn: () => businessDomainsApi.getCapabilities(capabilitiesLink!),
     enabled: !!capabilitiesLink,
   });
@@ -96,7 +96,7 @@ export function useCapabilityRealizationsByDomain(
   depth: number = 4
 ) {
   return useQuery({
-    queryKey: queryKeys.businessDomains.realizations(domainId!, depth),
+    queryKey: businessDomainsQueryKeys.realizations(domainId!, depth),
     queryFn: () => businessDomainsApi.getCapabilityRealizations(domainId!, depth),
     enabled: !!domainId,
   });
@@ -109,7 +109,7 @@ export function useCreateBusinessDomain() {
     mutationFn: (request: CreateBusinessDomainRequest) =>
       businessDomainsApi.create(request),
     onSuccess: (newDomain) => {
-      invalidateFor(queryClient, mutationEffects.businessDomains.create());
+      invalidateFor(queryClient, businessDomainsMutationEffects.create());
       toast.success(`Business domain "${newDomain.name}" created`);
     },
     onError: (error: Error) => {
@@ -130,7 +130,7 @@ export function useUpdateBusinessDomain() {
       request: UpdateBusinessDomainRequest;
     }) => businessDomainsApi.update(domain, request),
     onSuccess: (updatedDomain) => {
-      invalidateFor(queryClient, mutationEffects.businessDomains.update(updatedDomain.id));
+      invalidateFor(queryClient, businessDomainsMutationEffects.update(updatedDomain.id));
       toast.success(`Business domain "${updatedDomain.name}" updated`);
     },
     onError: (error: Error) => {
@@ -145,7 +145,7 @@ export function useDeleteBusinessDomain() {
   return useMutation({
     mutationFn: (domain: BusinessDomain) => businessDomainsApi.delete(domain),
     onSuccess: (_, deletedDomain) => {
-      invalidateFor(queryClient, mutationEffects.businessDomains.delete(deletedDomain.id));
+      invalidateFor(queryClient, businessDomainsMutationEffects.delete(deletedDomain.id));
       toast.success('Business domain deleted');
     },
     onError: (error: Error) => {

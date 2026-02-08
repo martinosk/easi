@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { metadataApi } from '../api/metadata';
-import { queryKeys } from '../lib/queryClient';
+import { metadataQueryKeys, releasesQueryKeys } from '../lib/appQueryKeys';
 
 export function useMaturityLevels() {
   return useQuery({
-    queryKey: queryKeys.metadata.maturityLevels(),
+    queryKey: metadataQueryKeys.maturityLevels(),
     queryFn: () => metadataApi.getMaturityLevels(),
     staleTime: Infinity,
   });
@@ -12,7 +12,7 @@ export function useMaturityLevels() {
 
 export function useStatuses() {
   return useQuery({
-    queryKey: queryKeys.metadata.statuses(),
+    queryKey: metadataQueryKeys.statuses(),
     queryFn: () => metadataApi.getStatuses(),
     staleTime: Infinity,
   });
@@ -20,7 +20,7 @@ export function useStatuses() {
 
 export function useOwnershipModels() {
   return useQuery({
-    queryKey: queryKeys.metadata.ownershipModels(),
+    queryKey: metadataQueryKeys.ownershipModels(),
     queryFn: () => metadataApi.getOwnershipModels(),
     staleTime: Infinity,
   });
@@ -28,7 +28,7 @@ export function useOwnershipModels() {
 
 export function useVersion() {
   return useQuery({
-    queryKey: queryKeys.metadata.version(),
+    queryKey: metadataQueryKeys.version(),
     queryFn: () => metadataApi.getVersion(),
     staleTime: 1000 * 60 * 60,
   });
@@ -36,7 +36,7 @@ export function useVersion() {
 
 export function useReleases() {
   return useQuery({
-    queryKey: queryKeys.releases.lists(),
+    queryKey: releasesQueryKeys.lists(),
     queryFn: () => metadataApi.getReleases(),
     staleTime: 1000 * 60 * 5,
   });
@@ -44,7 +44,7 @@ export function useReleases() {
 
 export function useLatestRelease() {
   return useQuery({
-    queryKey: queryKeys.releases.latest(),
+    queryKey: releasesQueryKeys.latest(),
     queryFn: () => metadataApi.getLatestRelease(),
     staleTime: 1000 * 60 * 5,
   });

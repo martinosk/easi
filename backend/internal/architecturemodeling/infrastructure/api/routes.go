@@ -22,13 +22,13 @@ type AuthMiddleware interface {
 }
 
 type RouteConfig struct {
-	Router         chi.Router
-	CommandBus     *cqrs.InMemoryCommandBus
-	EventStore     eventstore.EventStore
-	EventBus       events.EventBus
-	DB             *database.TenantAwareDB
-	HATEOAS        *sharedAPI.HATEOASLinks
-	AuthMiddleware AuthMiddleware
+	Router           chi.Router
+	CommandBus       *cqrs.InMemoryCommandBus
+	EventStore       eventstore.EventStore
+	EventBus         events.EventBus
+	DB               *database.TenantAwareDB
+	HATEOAS          *sharedAPI.HATEOASLinks
+	AuthMiddleware   AuthMiddleware
 }
 
 type repositorySet struct {
@@ -210,11 +210,14 @@ func registerComponentRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddlewar
 		r.Group(func(r chi.Router) {
 			r.Use(auth.RequirePermission(authValueObjects.PermComponentsWrite))
 			r.Post("/", h.component.CreateApplicationComponent)
-			r.Put("/{id}", h.component.UpdateApplicationComponent)
 			r.Post("/{id}/experts", h.expert.AddComponentExpert)
 			r.Put("/{componentId}/origin/acquired-via", h.originRelationship.CreateAcquiredViaRelationship)
 			r.Put("/{componentId}/origin/purchased-from", h.originRelationship.CreatePurchasedFromRelationship)
 			r.Put("/{componentId}/origin/built-by", h.originRelationship.CreateBuiltByRelationship)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(sharedAPI.RequireWriteOrEditGrant("components", "id"))
+			r.Put("/{id}", h.component.UpdateApplicationComponent)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(auth.RequirePermission(authValueObjects.PermComponentsDelete))

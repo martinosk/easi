@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { originEntitiesApi } from '../api/originEntitiesApi';
-import { queryKeys } from '../../../lib/queryClient';
+import { originRelationshipsQueryKeys } from '../queryKeys';
 import type { OriginRelationship, AllOriginRelationshipsResponse } from '../../../api/types';
 import { toOriginRelationshipId, toComponentId } from '../../../api/types';
 
@@ -54,7 +54,7 @@ function transformToOriginRelationships(response: AllOriginRelationshipsResponse
 
 export function useOriginRelationshipsQuery() {
   return useQuery({
-    queryKey: queryKeys.originRelationships.lists(),
+    queryKey: originRelationshipsQueryKeys.lists(),
     queryFn: async () => {
       const response = await originEntitiesApi.getAllOriginRelationships();
       return transformToOriginRelationships(response);

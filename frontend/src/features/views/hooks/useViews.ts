@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient, QueryClient } from '@tanstack/react-query';
 import { viewsApi } from '../api';
-import { queryKeys } from '../../../lib/queryClient';
+import { viewsQueryKeys } from '../queryKeys';
+import { viewsMutationEffects } from '../mutationEffects';
 import { invalidateFor } from '../../../lib/invalidateFor';
-import { mutationEffects } from '../../../lib/mutationEffects';
 import {
   ApiError,
   type View,
@@ -63,7 +63,7 @@ function useViewMutation<TVariables extends { viewId: ViewId }, TData = void>(
     retryDelay: (attempt) =>
       Math.min(100 * 2 ** attempt, 1000) + Math.random() * 100,
     onSuccess: (_, variables) => {
-      invalidateFor(queryClient, mutationEffects.views.updateDetail(variables.viewId));
+      invalidateFor(queryClient, viewsMutationEffects.updateDetail(variables.viewId));
     },
     onError: showErrorToast
       ? (error: Error) => {
@@ -75,14 +75,14 @@ function useViewMutation<TVariables extends { viewId: ViewId }, TData = void>(
 
 export function useViews() {
   return useQuery({
-    queryKey: queryKeys.views.lists(),
+    queryKey: viewsQueryKeys.lists(),
     queryFn: () => viewsApi.getAll(),
   });
 }
 
 export function useView(id: ViewId | undefined) {
   return useQuery({
-    queryKey: queryKeys.views.detail(id!),
+    queryKey: viewsQueryKeys.detail(id!),
     queryFn: () => viewsApi.getById(id!),
     enabled: !!id,
   });
@@ -90,7 +90,7 @@ export function useView(id: ViewId | undefined) {
 
 export function useViewComponents(viewId: ViewId | undefined) {
   return useQuery({
-    queryKey: queryKeys.views.components(viewId!),
+    queryKey: viewsQueryKeys.components(viewId!),
     queryFn: () => viewsApi.getComponents(viewId!),
     enabled: !!viewId,
   });
@@ -100,7 +100,7 @@ export function useCreateView() {
   return useViewAction<CreateViewRequest, View>({
     mutationFn: (request) => viewsApi.create(request),
     onSuccess: (newView, _, qc) => {
-      invalidateFor(qc, mutationEffects.views.create());
+      invalidateFor(qc, viewsMutationEffects.create());
       toast.success(`View "${newView.name}" created`);
     },
     errorMessage: 'Failed to create view',
@@ -111,7 +111,7 @@ export function useDeleteView() {
   return useViewAction<View>({
     mutationFn: (view) => viewsApi.delete(view),
     onSuccess: (_, deletedView, qc) => {
-      invalidateFor(qc, mutationEffects.views.delete(deletedView.id));
+      invalidateFor(qc, viewsMutationEffects.delete(deletedView.id));
       toast.success('View deleted');
     },
     errorMessage: 'Failed to delete view',
@@ -122,7 +122,7 @@ export function useRenameView() {
   return useViewAction<{ viewId: ViewId; request: RenameViewRequest }>({
     mutationFn: ({ viewId, request }) => viewsApi.rename(viewId, request),
     onSuccess: (_, { viewId }, qc) => {
-      invalidateFor(qc, mutationEffects.views.rename(viewId));
+      invalidateFor(qc, viewsMutationEffects.rename(viewId));
       toast.success('View renamed');
     },
     errorMessage: 'Failed to rename view',
@@ -133,7 +133,7 @@ export function useSetDefaultView() {
   return useViewAction<ViewId>({
     mutationFn: (viewId) => viewsApi.setDefault(viewId),
     onSuccess: (_data, _vars, qc) => {
-      invalidateFor(qc, mutationEffects.views.setDefault());
+      invalidateFor(qc, viewsMutationEffects.setDefault());
       toast.success('Default view updated');
     },
     errorMessage: 'Failed to set default view',
@@ -260,7 +260,7 @@ export function useChangeViewVisibility() {
   return useViewAction<{ viewId: ViewId; isPrivate: boolean }>({
     mutationFn: ({ viewId, isPrivate }) => viewsApi.changeVisibility(viewId, isPrivate),
     onSuccess: (_, { isPrivate, viewId }, qc) => {
-      invalidateFor(qc, mutationEffects.views.changeVisibility(viewId));
+      invalidateFor(qc, viewsMutationEffects.changeVisibility(viewId));
       toast.success(isPrivate ? 'View made private' : 'View made public');
     },
     errorMessage: 'Failed to change view visibility',

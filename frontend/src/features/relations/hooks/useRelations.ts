@@ -1,21 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { relationsApi } from '../api';
-import { queryKeys } from '../../../lib/queryClient';
+import { relationsQueryKeys } from '../queryKeys';
+import { relationsMutationEffects } from '../mutationEffects';
 import { invalidateFor } from '../../../lib/invalidateFor';
-import { mutationEffects } from '../../../lib/mutationEffects';
 import type { Relation, RelationId, CreateRelationRequest } from '../../../api/types';
 import toast from 'react-hot-toast';
 
 export function useRelations() {
   return useQuery({
-    queryKey: queryKeys.relations.lists(),
+    queryKey: relationsQueryKeys.lists(),
     queryFn: () => relationsApi.getAll(),
   });
 }
 
 export function useRelation(id: RelationId | undefined) {
   return useQuery({
-    queryKey: queryKeys.relations.detail(id!),
+    queryKey: relationsQueryKeys.detail(id!),
     queryFn: () => relationsApi.getById(id!),
     enabled: !!id,
   });
@@ -27,7 +27,7 @@ export function useCreateRelation() {
   return useMutation({
     mutationFn: (request: CreateRelationRequest) => relationsApi.create(request),
     onSuccess: () => {
-      invalidateFor(queryClient, mutationEffects.relations.create());
+      invalidateFor(queryClient, relationsMutationEffects.create());
       toast.success('Relation created');
     },
     onError: (error: Error) => {
@@ -48,7 +48,7 @@ export function useUpdateRelation() {
       request: Partial<CreateRelationRequest>;
     }) => relationsApi.update(relation, request),
     onSuccess: (updatedRelation) => {
-      invalidateFor(queryClient, mutationEffects.relations.update(updatedRelation.id));
+      invalidateFor(queryClient, relationsMutationEffects.update(updatedRelation.id));
       toast.success('Relation updated');
     },
     onError: (error: Error) => {
@@ -63,7 +63,7 @@ export function useDeleteRelation() {
   return useMutation({
     mutationFn: (relation: Relation) => relationsApi.delete(relation),
     onSuccess: (_, deletedRelation) => {
-      invalidateFor(queryClient, mutationEffects.relations.delete(deletedRelation.id));
+      invalidateFor(queryClient, relationsMutationEffects.delete(deletedRelation.id));
       toast.success('Relation deleted');
     },
     onError: (error: Error) => {

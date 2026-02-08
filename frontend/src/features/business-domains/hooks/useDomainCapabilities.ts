@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { businessDomainsApi } from '../api';
-import { queryKeys } from '../../../lib/queryClient';
+import { businessDomainsQueryKeys } from '../queryKeys';
+import { businessDomainsMutationEffects } from '../mutationEffects';
 import { invalidateFor } from '../../../lib/invalidateFor';
-import { mutationEffects } from '../../../lib/mutationEffects';
 import type { Capability, CapabilityId, BusinessDomainId } from '../../../api/types';
 import toast from 'react-hot-toast';
 
@@ -22,7 +22,7 @@ export function useDomainCapabilities(
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: queryKeys.businessDomains.capabilities(domainId!),
+    queryKey: businessDomainsQueryKeys.capabilities(domainId!),
     queryFn: () => businessDomainsApi.getCapabilitiesByDomainId(domainId!),
     enabled: !!domainId,
   });
@@ -33,7 +33,7 @@ export function useDomainCapabilities(
     onSuccess: (_, capabilityId) => {
       invalidateFor(
         queryClient,
-        mutationEffects.businessDomains.associateCapability(domainId!, capabilityId)
+        businessDomainsMutationEffects.associateCapability(domainId!, capabilityId)
       );
       toast.success('Capability associated with domain');
     },
@@ -48,7 +48,7 @@ export function useDomainCapabilities(
     onSuccess: (_, capabilityId) => {
       invalidateFor(
         queryClient,
-        mutationEffects.businessDomains.dissociateCapability(domainId!, capabilityId)
+        businessDomainsMutationEffects.dissociateCapability(domainId!, capabilityId)
       );
       toast.success('Capability removed from domain');
     },

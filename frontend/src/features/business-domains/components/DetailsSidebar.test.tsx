@@ -21,6 +21,15 @@ vi.mock('../../components/components/EditComponentDialog', () => ({
     ) : null,
 }));
 
+vi.mock('../../capabilities/components/EditCapabilityDialog', () => ({
+  EditCapabilityDialog: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
+    isOpen ? (
+      <div data-testid="edit-capability-dialog">
+        <button onClick={onClose}>Close Dialog</button>
+      </div>
+    ) : null,
+}));
+
 const mockCapability: Capability = {
   id: 'cap-1' as CapabilityId,
   name: 'Financial Management',
@@ -94,6 +103,30 @@ describe('DetailsSidebar', () => {
     it('shows capability description when available', () => {
       renderSidebar({ ...defaultProps, selectedCapability: mockCapability });
       expect(screen.getByText('Manage financial operations')).toBeInTheDocument();
+    });
+
+    it('shows edit button when capability has edit link', () => {
+      const editableCapability = {
+        ...mockCapability,
+        _links: { ...mockCapability._links, edit: { href: '/api/v1/capabilities/cap-1', method: 'PUT' as const } },
+      };
+      renderSidebar({ ...defaultProps, selectedCapability: editableCapability });
+      expect(screen.getByText('Edit')).toBeInTheDocument();
+    });
+
+    it('does not show edit button when capability lacks edit link', () => {
+      renderSidebar({ ...defaultProps, selectedCapability: mockCapability });
+      expect(screen.queryByText('Edit')).not.toBeInTheDocument();
+    });
+
+    it('opens edit capability dialog when Edit is clicked', () => {
+      const editableCapability = {
+        ...mockCapability,
+        _links: { ...mockCapability._links, edit: { href: '/api/v1/capabilities/cap-1', method: 'PUT' as const } },
+      };
+      renderSidebar({ ...defaultProps, selectedCapability: editableCapability });
+      fireEvent.click(screen.getByText('Edit'));
+      expect(screen.getByTestId('edit-capability-dialog')).toBeInTheDocument();
     });
   });
 

@@ -5,7 +5,7 @@ import { useAppStore } from '../store/appStore';
 import type { View, ViewId } from '../api/types';
 import { toViewId } from '../api/types';
 import toast from 'react-hot-toast';
-import { queryKeys } from '../lib/queryClient';
+import { metadataQueryKeys } from '../lib/appQueryKeys';
 import { metadataApi } from '../api/metadata';
 import { getParamValue, clearParams, deepLinkParams } from '../lib/deepLinks';
 
@@ -34,7 +34,7 @@ function usePrefetchMetadata(): void {
   const queryClient = useQueryClient();
   useEffect(() => {
     queryClient.prefetchQuery({
-      queryKey: queryKeys.metadata.maturityScale(),
+      queryKey: metadataQueryKeys.maturityScale(),
       queryFn: () => metadataApi.getMaturityScale(),
       staleTime: Infinity,
     });

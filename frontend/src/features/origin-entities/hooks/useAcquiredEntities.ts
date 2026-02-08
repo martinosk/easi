@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { originEntitiesApi } from '../api/originEntitiesApi';
-import { queryKeys } from '../../../lib/queryClient';
+import { acquiredEntitiesQueryKeys } from '../queryKeys';
 import { invalidateFor } from '../../../lib/invalidateFor';
-import { mutationEffects } from '../../../lib/mutationEffects';
+import { acquiredEntitiesMutationEffects } from '../mutationEffects';
 import type {
   AcquiredEntity,
   AcquiredEntityId,
@@ -67,14 +67,14 @@ export function useAcquiredEntities(): UseAcquiredEntitiesResult {
 
 export function useAcquiredEntitiesQuery() {
   return useQuery({
-    queryKey: queryKeys.acquiredEntities.lists(),
+    queryKey: acquiredEntitiesQueryKeys.lists(),
     queryFn: () => originEntitiesApi.acquiredEntities.getAll(),
   });
 }
 
 export function useAcquiredEntity(id: AcquiredEntityId | undefined) {
   return useQuery({
-    queryKey: queryKeys.acquiredEntities.detail(id!),
+    queryKey: acquiredEntitiesQueryKeys.detail(id!),
     queryFn: () => originEntitiesApi.acquiredEntities.getById(id!),
     enabled: !!id,
   });
@@ -87,7 +87,7 @@ export function useCreateAcquiredEntity() {
     mutationFn: (request: CreateAcquiredEntityRequest) =>
       originEntitiesApi.acquiredEntities.create(request),
     onSuccess: (newEntity) => {
-      invalidateFor(queryClient, mutationEffects.acquiredEntities.create());
+      invalidateFor(queryClient, acquiredEntitiesMutationEffects.create());
       toast.success(`Acquired entity "${newEntity.name}" created successfully`);
     },
     onError: () => {
@@ -103,7 +103,7 @@ export function useUpdateAcquiredEntity() {
     mutationFn: ({ id, request }: { id: AcquiredEntityId; request: UpdateAcquiredEntityRequest }) =>
       originEntitiesApi.acquiredEntities.update(id, request),
     onSuccess: (updatedEntity, { id }) => {
-      invalidateFor(queryClient, mutationEffects.acquiredEntities.update(id));
+      invalidateFor(queryClient, acquiredEntitiesMutationEffects.update(id));
       toast.success(`Acquired entity "${updatedEntity.name}" updated`);
     },
     onError: () => {
@@ -119,7 +119,7 @@ export function useDeleteAcquiredEntity() {
     mutationFn: ({ id }: { id: AcquiredEntityId; name: string }) =>
       originEntitiesApi.acquiredEntities.delete(id),
     onSuccess: (_, { id, name }) => {
-      invalidateFor(queryClient, mutationEffects.acquiredEntities.delete(id));
+      invalidateFor(queryClient, acquiredEntitiesMutationEffects.delete(id));
       toast.success(`Acquired entity "${name}" deleted`);
     },
     onError: () => {
@@ -142,7 +142,7 @@ export function useLinkComponentToAcquiredEntity() {
       notes?: string;
     }) => originEntitiesApi.acquiredEntities.linkComponent(componentId, entityId, notes),
     onSuccess: (_, { entityId, componentId }) => {
-      invalidateFor(queryClient, mutationEffects.acquiredEntities.linkComponent(entityId, componentId));
+      invalidateFor(queryClient, acquiredEntitiesMutationEffects.linkComponent(entityId, componentId));
       toast.success('Component linked to acquired entity');
     },
     onError: () => {
@@ -158,7 +158,7 @@ export function useUnlinkComponentFromAcquiredEntity() {
     mutationFn: ({ componentId }: { entityId: AcquiredEntityId; componentId: ComponentId }) =>
       originEntitiesApi.acquiredEntities.unlinkComponent(componentId),
     onSuccess: (_, { entityId, componentId }) => {
-      invalidateFor(queryClient, mutationEffects.acquiredEntities.unlinkComponent(entityId, componentId));
+      invalidateFor(queryClient, acquiredEntitiesMutationEffects.unlinkComponent(entityId, componentId));
       toast.success('Component unlinked');
     },
     onError: () => {

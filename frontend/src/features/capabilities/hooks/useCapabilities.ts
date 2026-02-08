@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { capabilitiesApi } from '../api';
-import { queryKeys } from '../../../lib/queryClient';
+import { capabilitiesQueryKeys } from '../queryKeys';
 import { invalidateFor } from '../../../lib/invalidateFor';
-import { mutationEffects } from '../../../lib/mutationEffects';
+import { capabilitiesMutationEffects } from '../mutationEffects';
 import type {
   Capability,
   CapabilityId,
@@ -66,14 +66,14 @@ function createIdRequestMutation<TRequest, TData>(
 
 export function useCapabilities() {
   return useQuery({
-    queryKey: queryKeys.capabilities.lists(),
+    queryKey: capabilitiesQueryKeys.lists(),
     queryFn: () => capabilitiesApi.getAll(),
   });
 }
 
 export function useCapability(id: CapabilityId | undefined) {
   return useQuery({
-    queryKey: queryKeys.capabilities.detail(id!),
+    queryKey: capabilitiesQueryKeys.detail(id!),
     queryFn: () => capabilitiesApi.getById(id!),
     enabled: !!id,
   });
@@ -81,7 +81,7 @@ export function useCapability(id: CapabilityId | undefined) {
 
 export function useCapabilityChildren(id: CapabilityId | undefined) {
   return useQuery({
-    queryKey: queryKeys.capabilities.children(id!),
+    queryKey: capabilitiesQueryKeys.children(id!),
     queryFn: () => capabilitiesApi.getChildren(id!),
     enabled: !!id,
   });
@@ -89,14 +89,14 @@ export function useCapabilityChildren(id: CapabilityId | undefined) {
 
 export function useCapabilityDependencies() {
   return useQuery({
-    queryKey: queryKeys.capabilities.dependencies(),
+    queryKey: capabilitiesQueryKeys.dependencies(),
     queryFn: () => capabilitiesApi.getAllDependencies(),
   });
 }
 
 export function useOutgoingDependencies(capabilityId: CapabilityId | undefined) {
   return useQuery({
-    queryKey: queryKeys.capabilities.outgoing(capabilityId!),
+    queryKey: capabilitiesQueryKeys.outgoing(capabilityId!),
     queryFn: () => capabilitiesApi.getOutgoingDependencies(capabilityId!),
     enabled: !!capabilityId,
   });
@@ -104,7 +104,7 @@ export function useOutgoingDependencies(capabilityId: CapabilityId | undefined) 
 
 export function useIncomingDependencies(capabilityId: CapabilityId | undefined) {
   return useQuery({
-    queryKey: queryKeys.capabilities.incoming(capabilityId!),
+    queryKey: capabilitiesQueryKeys.incoming(capabilityId!),
     queryFn: () => capabilitiesApi.getIncomingDependencies(capabilityId!),
     enabled: !!capabilityId,
   });
@@ -112,7 +112,7 @@ export function useIncomingDependencies(capabilityId: CapabilityId | undefined) 
 
 export function useCapabilityRealizations(capabilityId: CapabilityId | undefined) {
   return useQuery({
-    queryKey: queryKeys.capabilities.realizations(capabilityId!),
+    queryKey: capabilitiesQueryKeys.realizations(capabilityId!),
     queryFn: () => capabilitiesApi.getSystemsByCapability(capabilityId!),
     enabled: !!capabilityId,
   });
@@ -120,7 +120,7 @@ export function useCapabilityRealizations(capabilityId: CapabilityId | undefined
 
 export function useCapabilitiesByComponent(componentId: ComponentId | undefined) {
   return useQuery({
-    queryKey: queryKeys.capabilities.byComponent(componentId!),
+    queryKey: capabilitiesQueryKeys.byComponent(componentId!),
     queryFn: () => capabilitiesApi.getCapabilitiesByComponent(componentId!),
     enabled: !!componentId,
   });
@@ -130,7 +130,7 @@ export function useCreateCapability() {
   return useCapabilityMutation({
     mutationFn: (request: CreateCapabilityRequest) => capabilitiesApi.create(request),
     getEffects: (newCapability) =>
-      mutationEffects.capabilities.create({
+      capabilitiesMutationEffects.create({
         parentId: newCapability.parentId ?? undefined,
         businessDomainId: undefined,
       }),
@@ -143,7 +143,7 @@ export function useUpdateCapability() {
   return useCapabilityMutation({
     mutationFn: ({ capability, request }: { capability: Capability; request: UpdateCapabilityRequest }) =>
       capabilitiesApi.update(capability, request),
-    getEffects: (updatedCapability) => mutationEffects.capabilities.update(updatedCapability.id),
+    getEffects: (updatedCapability) => capabilitiesMutationEffects.update(updatedCapability.id),
     successMessage: (cap) => `Capability "${cap.name}" updated`,
     errorMessage: 'Failed to update capability',
   });
@@ -151,21 +151,21 @@ export function useUpdateCapability() {
 
 export const useUpdateCapabilityMetadata = createIdRequestMutation<UpdateCapabilityMetadataRequest, Capability>(
   capabilitiesApi.updateMetadata,
-  (id) => mutationEffects.capabilities.update(id),
+  (id) => capabilitiesMutationEffects.update(id),
   'Capability metadata updated',
   'Failed to update capability metadata'
 );
 
 export const useAddCapabilityExpert = createIdRequestMutation<AddCapabilityExpertRequest, void>(
   capabilitiesApi.addExpert,
-  (id) => mutationEffects.capabilities.addExpert(id),
+  (id) => capabilitiesMutationEffects.addExpert(id),
   'Expert added',
   'Failed to add expert'
 );
 
 export function useCapabilityExpertRoles() {
   return useQuery({
-    queryKey: queryKeys.capabilities.expertRoles(),
+    queryKey: capabilitiesQueryKeys.expertRoles(),
     queryFn: () => capabilitiesApi.getExpertRoles(),
   });
 }
@@ -174,7 +174,7 @@ export function useRemoveCapabilityExpert() {
   return useCapabilityMutation({
     mutationFn: ({ id, expert }: { id: CapabilityId; expert: { name: string; role: string; contact: string } }) =>
       capabilitiesApi.removeExpert(id, expert),
-    getEffects: (_, { id }) => mutationEffects.capabilities.removeExpert(id),
+    getEffects: (_, { id }) => capabilitiesMutationEffects.removeExpert(id),
     successMessage: 'Expert removed',
     errorMessage: 'Failed to remove expert',
   });
@@ -182,7 +182,7 @@ export function useRemoveCapabilityExpert() {
 
 export const useAddCapabilityTag = createIdRequestMutation<AddCapabilityTagRequest, void>(
   capabilitiesApi.addTag,
-  (id) => mutationEffects.capabilities.addTag(id),
+  (id) => capabilitiesMutationEffects.addTag(id),
   'Tag added',
   'Failed to add tag'
 );
@@ -192,7 +192,7 @@ export function useDeleteCapability() {
     mutationFn: (context: { capability: Capability; parentId?: string; domainId?: string }) =>
       capabilitiesApi.delete(context.capability),
     getEffects: (_, context) =>
-      mutationEffects.capabilities.delete({
+      capabilitiesMutationEffects.delete({
         id: context.capability.id,
         parentId: context.parentId,
         domainId: context.domainId,
@@ -207,7 +207,7 @@ export function useChangeCapabilityParent() {
     mutationFn: (context: { id: CapabilityId; oldParentId?: string; newParentId?: CapabilityId | null }) =>
       capabilitiesApi.changeParent(context.id, context.newParentId ?? null),
     getEffects: (_, context) =>
-      mutationEffects.capabilities.changeParent({
+      capabilitiesMutationEffects.changeParent({
         id: context.id,
         oldParentId: context.oldParentId,
         newParentId: context.newParentId ?? undefined,
@@ -221,7 +221,7 @@ export function useCreateCapabilityDependency() {
   return useCapabilityMutation({
     mutationFn: (request: CreateCapabilityDependencyRequest) => capabilitiesApi.createDependency(request),
     getEffects: (newDependency) =>
-      mutationEffects.capabilities.addDependency(newDependency.sourceCapabilityId, newDependency.targetCapabilityId),
+      capabilitiesMutationEffects.addDependency(newDependency.sourceCapabilityId, newDependency.targetCapabilityId),
     successMessage: 'Dependency created',
     errorMessage: 'Failed to create dependency',
   });
@@ -231,7 +231,7 @@ export function useDeleteCapabilityDependency() {
   return useCapabilityMutation({
     mutationFn: (dependency: CapabilityDependency) => capabilitiesApi.deleteDependency(dependency),
     getEffects: (_, dependency) =>
-      mutationEffects.capabilities.removeDependency(dependency.sourceCapabilityId, dependency.targetCapabilityId),
+      capabilitiesMutationEffects.removeDependency(dependency.sourceCapabilityId, dependency.targetCapabilityId),
     successMessage: 'Dependency deleted',
     errorMessage: 'Failed to delete dependency',
   });
@@ -242,7 +242,7 @@ export function useLinkSystemToCapability() {
     mutationFn: ({ capabilityId, request }: { capabilityId: CapabilityId; request: LinkSystemToCapabilityRequest }) =>
       capabilitiesApi.linkSystem(capabilityId, request),
     getEffects: (_, { capabilityId, request }) =>
-      mutationEffects.capabilities.linkSystem(capabilityId, request.componentId),
+      capabilitiesMutationEffects.linkSystem(capabilityId, request.componentId),
     successMessage: 'System linked to capability',
     errorMessage: 'Failed to link system',
   });
@@ -253,7 +253,7 @@ export function useUpdateRealization() {
     mutationFn: (context: { realization: CapabilityRealization; request: UpdateRealizationRequest }) =>
       capabilitiesApi.updateRealization(context.realization, context.request),
     getEffects: (_, context) =>
-      mutationEffects.capabilities.updateRealization(context.realization.capabilityId, context.realization.componentId),
+      capabilitiesMutationEffects.updateRealization(context.realization.capabilityId, context.realization.componentId),
     successMessage: 'Realization updated',
     errorMessage: 'Failed to update realization',
   });
@@ -263,7 +263,7 @@ export function useDeleteRealization() {
   return useCapabilityMutation({
     mutationFn: (realization: CapabilityRealization) => capabilitiesApi.deleteRealization(realization),
     getEffects: (_, realization) =>
-      mutationEffects.capabilities.deleteRealization(realization.capabilityId, realization.componentId),
+      capabilitiesMutationEffects.deleteRealization(realization.capabilityId, realization.componentId),
     successMessage: 'Realization deleted',
     errorMessage: 'Failed to delete realization',
   });
@@ -271,7 +271,7 @@ export function useDeleteRealization() {
 
 export function useRealizationsForComponents(componentIds: ComponentId[]) {
   return useQuery({
-    queryKey: queryKeys.capabilities.realizationsByComponents(componentIds),
+    queryKey: capabilitiesQueryKeys.realizationsByComponents(componentIds),
     queryFn: async () => {
       const results = await Promise.all(
         componentIds.map((id) => capabilitiesApi.getCapabilitiesByComponent(id))

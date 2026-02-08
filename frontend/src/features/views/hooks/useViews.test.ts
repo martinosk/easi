@@ -12,7 +12,7 @@ import {
   useAddComponentToView,
   useRemoveComponentFromView,
 } from './useViews';
-import { queryKeys } from '../../../lib/queryClient';
+import { viewsQueryKeys } from '../queryKeys';
 import { buildView } from '../../../test/helpers/entityBuilders';
 import type { ViewId, ComponentId } from '../../../api/types';
 
@@ -163,7 +163,7 @@ describe('useViews hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.views.lists(),
+        queryKey: viewsQueryKeys.lists(),
       });
       expect(toast.success).toHaveBeenCalledWith('View "New View" created');
     });
@@ -203,10 +203,10 @@ describe('useViews hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.views.lists(),
+        queryKey: viewsQueryKeys.lists(),
       });
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.views.detail('view-1'),
+        queryKey: viewsQueryKeys.detail('view-1'),
       });
 
       expect(toast.success).toHaveBeenCalledWith('View deleted');
@@ -230,10 +230,10 @@ describe('useViews hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.views.lists(),
+        queryKey: viewsQueryKeys.lists(),
       });
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.views.detail('view-1'),
+        queryKey: viewsQueryKeys.detail('view-1'),
       });
 
       expect(toast.success).toHaveBeenCalledWith('View renamed');
@@ -254,7 +254,7 @@ describe('useViews hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.views.lists(),
+        queryKey: viewsQueryKeys.lists(),
       });
 
       expect(toast.success).toHaveBeenCalledWith('Default view updated');
@@ -288,7 +288,7 @@ describe('useViews hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.views.detail('view-1'),
+        queryKey: viewsQueryKeys.detail('view-1'),
       });
     });
 
@@ -334,7 +334,7 @@ describe('useViews hooks', () => {
       expect(viewsApi.removeComponent).toHaveBeenCalledWith('view-1', 'comp-1');
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.views.detail('view-1'),
+        queryKey: viewsQueryKeys.detail('view-1'),
       });
     });
   });

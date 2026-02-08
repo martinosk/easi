@@ -9,7 +9,7 @@ import {
   useUpdateComponent,
   useDeleteComponent,
 } from './useComponents';
-import { queryKeys } from '../../../lib/queryClient';
+import { componentsQueryKeys } from '../queryKeys';
 import { buildComponent } from '../../../test/helpers/entityBuilders';
 import type { ComponentId } from '../../../api/types';
 
@@ -151,7 +151,7 @@ describe('useComponents hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.components.lists(),
+        queryKey: componentsQueryKeys.lists(),
       });
       expect(toast.success).toHaveBeenCalledWith('Component "New Component" created');
     });
@@ -187,8 +187,8 @@ describe('useComponents hooks', () => {
         name: 'Updated Name',
       });
 
-      queryClient.setQueryData(queryKeys.components.lists(), [existingComponent]);
-      queryClient.setQueryData(queryKeys.components.detail('comp-1'), existingComponent);
+      queryClient.setQueryData(componentsQueryKeys.lists(), [existingComponent]);
+      queryClient.setQueryData(componentsQueryKeys.detail('comp-1'), existingComponent);
       vi.mocked(componentsApi.update).mockResolvedValue(updatedComponent);
 
       const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
@@ -205,10 +205,10 @@ describe('useComponents hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.components.lists(),
+        queryKey: componentsQueryKeys.lists(),
       });
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.components.detail('comp-1'),
+        queryKey: componentsQueryKeys.detail('comp-1'),
       });
 
       expect(toast.success).toHaveBeenCalledWith('Component "Updated Name" updated');
@@ -248,8 +248,8 @@ describe('useComponents hooks', () => {
         name: 'To Delete',
       });
 
-      queryClient.setQueryData(queryKeys.components.lists(), [component]);
-      queryClient.setQueryData(queryKeys.components.detail('comp-1'), component);
+      queryClient.setQueryData(componentsQueryKeys.lists(), [component]);
+      queryClient.setQueryData(componentsQueryKeys.detail('comp-1'), component);
       vi.mocked(componentsApi.delete).mockResolvedValue(undefined);
 
       const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
@@ -263,10 +263,10 @@ describe('useComponents hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.components.lists(),
+        queryKey: componentsQueryKeys.lists(),
       });
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.components.detail('comp-1'),
+        queryKey: componentsQueryKeys.detail('comp-1'),
       });
 
       expect(toast.success).toHaveBeenCalledWith('Component deleted');

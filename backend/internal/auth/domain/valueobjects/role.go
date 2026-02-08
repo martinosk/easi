@@ -43,43 +43,46 @@ func (r Role) Equals(other domain.ValueObject) bool {
 	return r.value == otherRole.value
 }
 
+var rolePermissionsList = map[string][]Permission{
+	"admin": {
+		PermComponentsRead, PermComponentsWrite, PermComponentsDelete,
+		PermViewsRead, PermViewsWrite, PermViewsDelete,
+		PermCapabilitiesRead, PermCapabilitiesWrite, PermCapabilitiesDelete,
+		PermDomainsRead, PermDomainsWrite, PermDomainsDelete,
+		PermUsersRead, PermUsersManage,
+		PermInvitationsManage,
+		PermMetaModelRead, PermMetaModelWrite,
+		PermAuditRead,
+		PermEnterpriseArchRead, PermEnterpriseArchWrite, PermEnterpriseArchDelete,
+		PermEditGrantsManage,
+	},
+	"architect": {
+		PermComponentsRead, PermComponentsWrite, PermComponentsDelete,
+		PermViewsRead, PermViewsWrite, PermViewsDelete,
+		PermCapabilitiesRead, PermCapabilitiesWrite, PermCapabilitiesDelete,
+		PermDomainsRead, PermDomainsWrite, PermDomainsDelete,
+		PermUsersRead,
+		PermMetaModelRead,
+		PermAuditRead,
+		PermEnterpriseArchRead, PermEnterpriseArchWrite, PermEnterpriseArchDelete,
+		PermEditGrantsManage,
+	},
+	"stakeholder": {
+		PermComponentsRead,
+		PermViewsRead,
+		PermCapabilitiesRead,
+		PermDomainsRead,
+		PermMetaModelRead,
+		PermAuditRead,
+		PermEnterpriseArchRead,
+	},
+}
+
 func (r Role) Permissions() []Permission {
-	switch r.value {
-	case "admin":
-		return []Permission{
-			PermComponentsRead, PermComponentsWrite, PermComponentsDelete,
-			PermViewsRead, PermViewsWrite, PermViewsDelete,
-			PermCapabilitiesRead, PermCapabilitiesWrite, PermCapabilitiesDelete,
-			PermDomainsRead, PermDomainsWrite, PermDomainsDelete,
-			PermUsersRead, PermUsersManage,
-			PermInvitationsManage,
-			PermMetaModelRead, PermMetaModelWrite,
-			PermAuditRead,
-			PermEnterpriseArchRead, PermEnterpriseArchWrite, PermEnterpriseArchDelete,
-		}
-	case "architect":
-		return []Permission{
-			PermComponentsRead, PermComponentsWrite, PermComponentsDelete,
-			PermViewsRead, PermViewsWrite, PermViewsDelete,
-			PermCapabilitiesRead, PermCapabilitiesWrite, PermCapabilitiesDelete,
-			PermDomainsRead, PermDomainsWrite, PermDomainsDelete,
-			PermMetaModelRead,
-			PermAuditRead,
-			PermEnterpriseArchRead, PermEnterpriseArchWrite, PermEnterpriseArchDelete,
-		}
-	case "stakeholder":
-		return []Permission{
-			PermComponentsRead,
-			PermViewsRead,
-			PermCapabilitiesRead,
-			PermDomainsRead,
-			PermMetaModelRead,
-			PermAuditRead,
-			PermEnterpriseArchRead,
-		}
-	default:
-		return []Permission{}
+	if perms, ok := rolePermissionsList[r.value]; ok {
+		return perms
 	}
+	return []Permission{}
 }
 
 func (r Role) HasPermission(p Permission) bool {

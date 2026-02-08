@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useDomainCapabilities } from './useDomainCapabilities';
-import { queryKeys } from '../../../lib/queryClient';
+import { businessDomainsQueryKeys } from '../queryKeys';
 import type { BusinessDomainId, Capability, CapabilityId } from '../../../api/types';
 
 vi.mock('../api', () => ({
@@ -111,7 +111,7 @@ describe('useDomainCapabilities - Business Domain Query Invalidation', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.businessDomains.capabilities(domainId),
+        queryKey: businessDomainsQueryKeys.capabilities(domainId),
       });
     });
 
@@ -155,7 +155,7 @@ describe('useDomainCapabilities - Business Domain Query Invalidation', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.businessDomains.capabilities(domainId),
+        queryKey: businessDomainsQueryKeys.capabilities(domainId),
       });
     });
 

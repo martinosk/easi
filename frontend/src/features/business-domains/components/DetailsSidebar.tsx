@@ -3,6 +3,7 @@ import type { BusinessDomain, Capability, ComponentId } from '../../../api/types
 import { useComponentDetails } from '../hooks/useComponentDetails';
 import { ComponentDetailsContent } from '../../components/components/ComponentDetails';
 import { EditComponentDialog } from '../../components/components/EditComponentDialog';
+import { EditCapabilityDialog } from '../../capabilities/components/EditCapabilityDialog';
 import { useCapabilities, useCapabilitiesByComponent } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { StrategicImportanceSection } from './StrategicImportanceSection';
@@ -34,12 +35,20 @@ interface CapabilityContentProps {
 }
 
 function CapabilityContent({ capability, domain }: CapabilityContentProps) {
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const canEdit = capability._links?.edit !== undefined;
+
   return (
     <div className="detail-panel">
       <div className="detail-header">
         <h3 className="detail-title">Capability Details</h3>
       </div>
       <div className="detail-content">
+        {canEdit && (
+          <div className="detail-actions">
+            <button className="btn btn-secondary btn-small" onClick={() => setEditDialogOpen(true)}>Edit</button>
+          </div>
+        )}
         <div className="detail-field">
           <span className="detail-label">Name</span>
           <span className="detail-value">{capability.name}</span>
@@ -62,6 +71,11 @@ function CapabilityContent({ capability, domain }: CapabilityContentProps) {
           />
         )}
       </div>
+      <EditCapabilityDialog
+        isOpen={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        capability={capability}
+      />
     </div>
   );
 }

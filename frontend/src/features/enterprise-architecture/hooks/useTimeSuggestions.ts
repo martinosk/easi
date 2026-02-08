@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { enterpriseArchApi } from '../api/enterpriseArchApi';
-import { queryKeys } from '../../../lib/queryClient';
+import { timeSuggestionsQueryKeys } from '../queryKeys';
 import type { TimeSuggestion } from '../types';
 
 export interface TimeSuggestionsFilters {
@@ -18,7 +18,7 @@ export interface UseTimeSuggestionsResult {
 
 export function useTimeSuggestions(filters?: TimeSuggestionsFilters): UseTimeSuggestionsResult {
   const query = useQuery({
-    queryKey: queryKeys.timeSuggestions.list(filters),
+    queryKey: timeSuggestionsQueryKeys.list(filters),
     queryFn: () => enterpriseArchApi.getTimeSuggestions(filters),
   });
 

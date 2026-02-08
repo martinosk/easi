@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { enterpriseArchApi } from '../api/enterpriseArchApi';
-import { queryKeys } from '../../../lib/queryClient';
+import { enterpriseCapabilitiesQueryKeys, maturityAnalysisQueryKeys } from '../queryKeys';
+import { enterpriseCapabilitiesMutationEffects } from '../mutationEffects';
 import { invalidateFor } from '../../../lib/invalidateFor';
-import { mutationEffects } from '../../../lib/mutationEffects';
 import { getErrorMessage } from '../utils/errorMessages';
 import type {
   EnterpriseCapabilityId,
@@ -15,7 +15,7 @@ import toast from 'react-hot-toast';
 
 export function useMaturityAnalysisCandidates(sortBy: string = 'gap') {
   return useQuery({
-    queryKey: queryKeys.maturityAnalysis.candidates(sortBy),
+    queryKey: maturityAnalysisQueryKeys.candidates(sortBy),
     queryFn: () => enterpriseArchApi.getMaturityAnalysisCandidates(sortBy),
   });
 }
@@ -46,7 +46,7 @@ export function useMaturityAnalysis(sortBy: string = 'gap'): UseMaturityAnalysis
 
 export function useMaturityGapDetail(enterpriseCapabilityId: EnterpriseCapabilityId | undefined) {
   return useQuery({
-    queryKey: queryKeys.enterpriseCapabilities.maturityGap(enterpriseCapabilityId!),
+    queryKey: enterpriseCapabilitiesQueryKeys.maturityGap(enterpriseCapabilityId!),
     queryFn: () => enterpriseArchApi.getMaturityGapDetail(enterpriseCapabilityId!),
     enabled: !!enterpriseCapabilityId,
   });
@@ -88,7 +88,7 @@ export function useSetTargetMaturity() {
     onSuccess: (_, { enterpriseCapabilityId }) => {
       invalidateFor(
         queryClient,
-        mutationEffects.enterpriseCapabilities.setTargetMaturity(enterpriseCapabilityId)
+        enterpriseCapabilitiesMutationEffects.setTargetMaturity(enterpriseCapabilityId)
       );
       toast.success('Target maturity updated successfully');
     },

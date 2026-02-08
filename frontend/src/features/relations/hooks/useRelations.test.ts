@@ -9,7 +9,7 @@ import {
   useUpdateRelation,
   useDeleteRelation,
 } from './useRelations';
-import { queryKeys } from '../../../lib/queryClient';
+import { relationsQueryKeys } from '../queryKeys';
 import { buildRelation } from '../../../test/helpers/entityBuilders';
 import type { RelationId, ComponentId } from '../../../api/types';
 
@@ -166,7 +166,7 @@ describe('useRelations hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.relations.lists(),
+        queryKey: relationsQueryKeys.lists(),
       });
       expect(toast.success).toHaveBeenCalledWith('Relation created');
     });
@@ -222,10 +222,10 @@ describe('useRelations hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.relations.lists(),
+        queryKey: relationsQueryKeys.lists(),
       });
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.relations.detail('rel-1'),
+        queryKey: relationsQueryKeys.detail('rel-1'),
       });
 
       expect(toast.success).toHaveBeenCalledWith('Relation updated');
@@ -276,10 +276,10 @@ describe('useRelations hooks', () => {
       });
 
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.relations.lists(),
+        queryKey: relationsQueryKeys.lists(),
       });
       expect(invalidateQueriesSpy).toHaveBeenCalledWith({
-        queryKey: queryKeys.relations.detail('rel-1'),
+        queryKey: relationsQueryKeys.detail('rel-1'),
       });
 
       expect(toast.success).toHaveBeenCalledWith('Relation deleted');

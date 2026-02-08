@@ -65,3 +65,7 @@ export function canRemove(resource: ResourceWithLinks | null | undefined): boole
 export function canCreate(resource: ResourceWithLinks | null | undefined): boolean {
   return hasLink(resource, 'create');
 }
+
+export function canInviteToEdit(resource: ResourceWithLinks | null | undefined): boolean {
+  return hasLink(resource, 'x-edit-grants');
+}

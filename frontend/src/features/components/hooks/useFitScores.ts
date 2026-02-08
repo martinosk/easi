@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fitScoresApi } from '../api';
-import { queryKeys } from '../../../lib/queryClient';
+import { fitScoresQueryKeys, fitComparisonsQueryKeys } from '../queryKeys';
 import { invalidateFor } from '../../../lib/invalidateFor';
-import { mutationEffects } from '../../../lib/mutationEffects';
+import { fitScoresMutationEffects } from '../mutationEffects';
 import type {
   ComponentId,
   CapabilityId,
@@ -36,7 +36,7 @@ function getFitScoreErrorMessage(error: unknown, defaultMessage: string): string
 
 export function useComponentFitScores(componentId: ComponentId | undefined) {
   return useQuery<ApplicationFitScoresResponse>({
-    queryKey: queryKeys.fitScores.byComponent(componentId!),
+    queryKey: fitScoresQueryKeys.byComponent(componentId!),
     queryFn: () => fitScoresApi.getByComponent(componentId!),
     enabled: !!componentId,
   });
@@ -56,7 +56,7 @@ export function useSetFitScore() {
       request: SetApplicationFitScoreRequest;
     }) => fitScoresApi.setScore(componentId, pillarId, request),
     onSuccess: (_, { componentId }) => {
-      invalidateFor(queryClient, mutationEffects.fitScores.set(componentId));
+      invalidateFor(queryClient, fitScoresMutationEffects.set(componentId));
       toast.success('Fit score saved');
     },
     onError: (error: unknown) => {
@@ -77,7 +77,7 @@ export function useDeleteFitScore() {
       pillarId: string;
     }) => fitScoresApi.deleteScore(componentId, pillarId),
     onSuccess: (_, { componentId }) => {
-      invalidateFor(queryClient, mutationEffects.fitScores.delete(componentId));
+      invalidateFor(queryClient, fitScoresMutationEffects.delete(componentId));
       toast.success('Fit score removed');
     },
     onError: (error: unknown) => {
@@ -92,7 +92,7 @@ export function useFitComparisons(
   businessDomainId: BusinessDomainId | undefined
 ) {
   return useQuery({
-    queryKey: queryKeys.fitComparisons.byContext(
+    queryKey: fitComparisonsQueryKeys.byContext(
       componentId!,
       capabilityId!,
       businessDomainId!

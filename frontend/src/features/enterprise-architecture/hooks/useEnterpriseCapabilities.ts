@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { enterpriseArchApi } from '../api/enterpriseArchApi';
-import { queryKeys } from '../../../lib/queryClient';
+import { enterpriseCapabilitiesQueryKeys } from '../queryKeys';
+import { enterpriseCapabilitiesMutationEffects } from '../mutationEffects';
 import { invalidateFor } from '../../../lib/invalidateFor';
-import { mutationEffects } from '../../../lib/mutationEffects';
 import { getErrorMessage } from '../utils/errorMessages';
 import type {
   EnterpriseCapability,
@@ -58,14 +58,14 @@ export function useEnterpriseCapabilities(): UseEnterpriseCapabilitiesResult {
 
 export function useEnterpriseCapabilitiesQuery() {
   return useQuery({
-    queryKey: queryKeys.enterpriseCapabilities.lists(),
+    queryKey: enterpriseCapabilitiesQueryKeys.lists(),
     queryFn: () => enterpriseArchApi.getAll(),
   });
 }
 
 export function useEnterpriseCapability(id: EnterpriseCapabilityId | undefined) {
   return useQuery({
-    queryKey: queryKeys.enterpriseCapabilities.detail(id!),
+    queryKey: enterpriseCapabilitiesQueryKeys.detail(id!),
     queryFn: () => enterpriseArchApi.getById(id!),
     enabled: !!id,
   });
@@ -78,7 +78,7 @@ export function useCreateEnterpriseCapability() {
     mutationFn: (request: CreateEnterpriseCapabilityRequest) =>
       enterpriseArchApi.create(request),
     onSuccess: (newCapability) => {
-      invalidateFor(queryClient, mutationEffects.enterpriseCapabilities.create());
+      invalidateFor(queryClient, enterpriseCapabilitiesMutationEffects.create());
       toast.success(`Enterprise capability "${newCapability.name}" created successfully`);
     },
     onError: (error: unknown) => {
@@ -94,7 +94,7 @@ export function useDeleteEnterpriseCapability() {
     mutationFn: ({ id }: { id: EnterpriseCapabilityId; name: string }) =>
       enterpriseArchApi.delete(id),
     onSuccess: (_, { id, name }) => {
-      invalidateFor(queryClient, mutationEffects.enterpriseCapabilities.delete(id));
+      invalidateFor(queryClient, enterpriseCapabilitiesMutationEffects.delete(id));
       toast.success(`Enterprise capability "${name}" deleted`);
     },
     onError: (error: unknown) => {
@@ -105,7 +105,7 @@ export function useDeleteEnterpriseCapability() {
 
 export function useEnterpriseCapabilityLinks(enterpriseCapabilityId: EnterpriseCapabilityId | undefined) {
   return useQuery({
-    queryKey: queryKeys.enterpriseCapabilities.links(enterpriseCapabilityId!),
+    queryKey: enterpriseCapabilitiesQueryKeys.links(enterpriseCapabilityId!),
     queryFn: () => enterpriseArchApi.getLinks(enterpriseCapabilityId!),
     enabled: !!enterpriseCapabilityId,
   });
@@ -123,7 +123,7 @@ export function useLinkDomainCapability() {
       request: LinkCapabilityRequest;
     }) => enterpriseArchApi.linkDomainCapability(enterpriseCapabilityId, request),
     onSuccess: (_, { enterpriseCapabilityId }) => {
-      invalidateFor(queryClient, mutationEffects.enterpriseCapabilities.link(enterpriseCapabilityId));
+      invalidateFor(queryClient, enterpriseCapabilitiesMutationEffects.link(enterpriseCapabilityId));
       toast.success('Capability linked successfully');
     },
     onError: (error: unknown) => {
@@ -144,7 +144,7 @@ export function useUnlinkDomainCapability() {
       linkId: EnterpriseCapabilityLinkId;
     }) => enterpriseArchApi.unlinkDomainCapability(enterpriseCapabilityId, linkId),
     onSuccess: (_, { enterpriseCapabilityId }) => {
-      invalidateFor(queryClient, mutationEffects.enterpriseCapabilities.unlink(enterpriseCapabilityId));
+      invalidateFor(queryClient, enterpriseCapabilitiesMutationEffects.unlink(enterpriseCapabilityId));
       toast.success('Capability unlinked successfully');
     },
     onError: (error: unknown) => {

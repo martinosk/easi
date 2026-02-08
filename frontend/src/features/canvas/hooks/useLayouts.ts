@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { layoutsApi } from '../api';
-import { queryKeys } from '../../../lib/queryClient';
+import { layoutsQueryKeys } from '../queryKeys';
+import { layoutsMutationEffects } from '../mutationEffects';
 import { invalidateFor } from '../../../lib/invalidateFor';
-import { mutationEffects } from '../../../lib/mutationEffects';
 import type {
   LayoutContextType,
   UpsertLayoutRequest,
@@ -22,7 +22,7 @@ function useLayoutMutationWithInvalidation<TVariables extends LayoutContext>(
   return useMutation({
     mutationFn,
     onSuccess: (_, { contextType, contextRef }) => {
-      invalidateFor(queryClient, mutationEffects.layouts.updateElement(contextType, contextRef));
+      invalidateFor(queryClient, layoutsMutationEffects.updateElement(contextType, contextRef));
     },
   });
 }
@@ -32,7 +32,7 @@ export function useLayout(
   contextRef: string | undefined
 ) {
   return useQuery({
-    queryKey: queryKeys.layouts.detail(contextType!, contextRef!),
+    queryKey: layoutsQueryKeys.detail(contextType!, contextRef!),
     queryFn: () => layoutsApi.get(contextType!, contextRef!),
     enabled: !!contextType && !!contextRef,
   });
@@ -49,7 +49,7 @@ export function useUpsertLayout() {
     }: LayoutContext & { request?: UpsertLayoutRequest }) =>
       layoutsApi.upsert(contextType, contextRef, request),
     onSuccess: (_, { contextType, contextRef }) => {
-      invalidateFor(queryClient, mutationEffects.layouts.upsert(contextType, contextRef));
+      invalidateFor(queryClient, layoutsMutationEffects.upsert(contextType, contextRef));
     },
   });
 }
@@ -61,7 +61,7 @@ export function useDeleteLayout() {
     mutationFn: ({ contextType, contextRef }: LayoutContext) =>
       layoutsApi.delete(contextType, contextRef),
     onSuccess: (_, { contextType, contextRef }) => {
-      invalidateFor(queryClient, mutationEffects.layouts.delete(contextType, contextRef));
+      invalidateFor(queryClient, layoutsMutationEffects.delete(contextType, contextRef));
     },
   });
 }
@@ -78,7 +78,7 @@ export function useUpdateLayoutPreferences() {
     }: LayoutContext & { preferences: Record<string, unknown>; version: number }) =>
       layoutsApi.updatePreferences(contextType, contextRef, preferences, version),
     onSuccess: (_, { contextType, contextRef }) => {
-      invalidateFor(queryClient, mutationEffects.layouts.updatePreferences(contextType, contextRef));
+      invalidateFor(queryClient, layoutsMutationEffects.updatePreferences(contextType, contextRef));
     },
   });
 }

@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { auditApi } from '../api/auditApi';
-import { queryKeys } from '../../../lib/queryClient';
+import { auditQueryKeys } from '../queryKeys';
 
 export function useAuditHistory(aggregateId: string | undefined) {
   return useQuery({
-    queryKey: queryKeys.audit.history(aggregateId!),
+    queryKey: auditQueryKeys.history(aggregateId!),
     queryFn: () => auditApi.getHistory({ aggregateId: aggregateId! }),
     enabled: !!aggregateId,
   });

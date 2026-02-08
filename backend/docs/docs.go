@@ -3819,6 +3819,279 @@ const docTemplate = `{
                 }
             }
         },
+        "/edit-grants": {
+            "get": {
+                "description": "Retrieves all active edit grants where the current user is the grantee",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "edit-grants"
+                ],
+                "summary": "Get my active edit grants",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/easi_backend_internal_accessdelegation_application_readmodels.EditGrantDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Grants temporary edit access to a specific artifact for another user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "edit-grants"
+                ],
+                "summary": "Create a new edit grant",
+                "parameters": [
+                    {
+                        "description": "Edit grant data",
+                        "name": "grant",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_accessdelegation_infrastructure_api.CreateEditGrantRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_accessdelegation_application_readmodels.EditGrantDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Active grant already exists",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/edit-grants/artifact/{artifactType}/{artifactId}": {
+            "get": {
+                "description": "Retrieves all active edit grants for a specific artifact",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "edit-grants"
+                ],
+                "summary": "Get edit grants for an artifact",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Artifact type (e.g., capability, component, view)",
+                        "name": "artifactType",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Artifact ID",
+                        "name": "artifactId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/easi_backend_internal_accessdelegation_application_readmodels.EditGrantDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/edit-grants/{id}": {
+            "get": {
+                "description": "Retrieves a specific edit grant by its ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "edit-grants"
+                ],
+                "summary": "Get an edit grant by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Edit Grant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_accessdelegation_application_readmodels.EditGrantDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Revokes an active edit grant. Only the grantor or an admin can revoke a grant.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "edit-grants"
+                ],
+                "summary": "Revoke an edit grant",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Edit Grant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Grant already revoked or expired",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/enterprise-capabilities": {
             "get": {
                 "description": "Retrieves all active enterprise capabilities with optional pagination",
@@ -8855,6 +9128,50 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "easi_backend_internal_accessdelegation_application_readmodels.EditGrantDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "artifactId": {
+                    "type": "string"
+                },
+                "artifactType": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "expiresAt": {
+                    "type": "string"
+                },
+                "granteeEmail": {
+                    "type": "string"
+                },
+                "grantorEmail": {
+                    "type": "string"
+                },
+                "grantorId": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "revokedAt": {
+                    "type": "string"
+                },
+                "scope": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "easi_backend_internal_architecturemodeling_application_readmodels.AcquiredEntityDTO": {
             "type": "object",
             "properties": {
@@ -10136,6 +10453,26 @@ const docTemplate = `{
             "type": "object",
             "additionalProperties": {
                 "$ref": "#/definitions/easi_backend_internal_shared_types.Link"
+            }
+        },
+        "internal_accessdelegation_infrastructure_api.CreateEditGrantRequest": {
+            "type": "object",
+            "properties": {
+                "artifactId": {
+                    "type": "string"
+                },
+                "artifactType": {
+                    "type": "string"
+                },
+                "granteeEmail": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "scope": {
+                    "type": "string"
+                }
             }
         },
         "internal_architecturemodeling_infrastructure_api.AddComponentExpertRequest": {

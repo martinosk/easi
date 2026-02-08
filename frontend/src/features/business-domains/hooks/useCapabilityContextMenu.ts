@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { Capability, CapabilityId } from '../../../api/types';
 import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
+import { hasLink } from '../../../utils/hateoas';
 
 interface CapabilityContextMenuState {
   x: number;
@@ -61,6 +62,7 @@ export function useCapabilityContextMenu({
   const [contextMenu, setContextMenu] = useState<CapabilityContextMenuState | null>(null);
   const [capabilityToDelete, setCapabilityToDelete] = useState<Capability | null>(null);
   const [capabilitiesToDelete, setCapabilitiesToDelete] = useState<Capability[]>([]);
+  const [capabilityToInvite, setCapabilityToInvite] = useState<Capability | null>(null);
 
   const handleCapabilityContextMenu = useCallback((capability: Capability, event: React.MouseEvent) => {
     event.preventDefault();
@@ -68,52 +70,69 @@ export function useCapabilityContextMenu({
   }, []);
 
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
+  const clearSelection = useCallback(() => setSelectedCapabilities(new Set()), [setSelectedCapabilities]);
+
+  const getTargetL1s = useCallback(() => {
+    if (!contextMenu) return [];
+    return getTargetL1Capabilities(contextMenu.capability, selectedCapabilities, capabilities);
+  }, [contextMenu, selectedCapabilities, capabilities]);
 
   const handleRemoveFromDomain = useCallback(async () => {
-    if (!contextMenu) return;
-
-    const uniqueL1s = getTargetL1Capabilities(contextMenu.capability, selectedCapabilities, capabilities);
-    const domainL1s = uniqueL1s
+    const domainL1s = getTargetL1s()
       .map(l1 => domainCapabilities.find(c => c.id === l1.id))
       .filter((c): c is Capability => c !== undefined);
 
     await Promise.all(domainL1s.map(l1 => dissociateCapability(l1)));
     await refetch();
-    setSelectedCapabilities(new Set());
+    clearSelection();
     closeContextMenu();
-  }, [contextMenu, capabilities, domainCapabilities, dissociateCapability, refetch, closeContextMenu, selectedCapabilities, setSelectedCapabilities]);
+  }, [getTargetL1s, domainCapabilities, dissociateCapability, refetch, clearSelection, closeContextMenu]);
 
   const handleDeleteFromModel = useCallback(() => {
-    if (!contextMenu) return;
-
-    const uniqueL1s = getTargetL1Capabilities(contextMenu.capability, selectedCapabilities, capabilities);
+    const uniqueL1s = getTargetL1s();
     if (uniqueL1s.length > 0) {
       setCapabilityToDelete(uniqueL1s[0]);
       setCapabilitiesToDelete(uniqueL1s);
     }
     closeContextMenu();
-  }, [contextMenu, capabilities, closeContextMenu, selectedCapabilities]);
+  }, [getTargetL1s, closeContextMenu]);
 
   const handleDeleteConfirm = useCallback(async () => {
     await refetch();
-    setSelectedCapabilities(new Set());
+    clearSelection();
     setCapabilityToDelete(null);
     setCapabilitiesToDelete([]);
-  }, [refetch, setSelectedCapabilities]);
+  }, [refetch, clearSelection]);
 
-  const contextMenuItems: ContextMenuItem[] = useMemo(() => [
-    { label: 'Remove from Business Domain', onClick: handleRemoveFromDomain },
-    { label: 'Delete from Model', onClick: handleDeleteFromModel, isDanger: true },
-  ], [handleRemoveFromDomain, handleDeleteFromModel]);
+  const handleInviteToEdit = useCallback(() => {
+    if (!contextMenu) return;
+    setCapabilityToInvite(contextMenu.capability);
+    closeContextMenu();
+  }, [contextMenu, closeContextMenu]);
+
+  const contextMenuItems = useContextMenuItems(contextMenu, handleRemoveFromDomain, handleDeleteFromModel, handleInviteToEdit);
 
   return {
-    contextMenu,
-    capabilityToDelete,
-    capabilitiesToDelete,
-    handleCapabilityContextMenu,
-    closeContextMenu,
-    contextMenuItems,
-    handleDeleteConfirm,
-    setCapabilityToDelete,
+    contextMenu, capabilityToDelete, capabilitiesToDelete, capabilityToInvite,
+    handleCapabilityContextMenu, closeContextMenu, contextMenuItems,
+    handleDeleteConfirm, setCapabilityToDelete, setCapabilityToInvite,
   };
+}
+
+function useContextMenuItems(
+  contextMenu: CapabilityContextMenuState | null,
+  handleRemoveFromDomain: () => void,
+  handleDeleteFromModel: () => void,
+  handleInviteToEdit: () => void,
+): ContextMenuItem[] {
+  return useMemo(() => {
+    const items: ContextMenuItem[] = [
+      { label: 'Remove from Business Domain', onClick: handleRemoveFromDomain },
+      { label: 'Delete from Model', onClick: handleDeleteFromModel, isDanger: true },
+    ];
+    if (contextMenu?.capability && hasLink(contextMenu.capability, 'x-edit-grants')) {
+      items.unshift({ label: 'Invite to Edit', onClick: handleInviteToEdit });
+    }
+    return items;
+  }, [handleRemoveFromDomain, handleDeleteFromModel, handleInviteToEdit, contextMenu]);
 }
