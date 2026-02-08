@@ -14,6 +14,7 @@ export interface NodeContextMenu {
   x: number;
   y: number;
   nodeId: string;
+  viewElementId: string;
   nodeName: string;
   nodeType: 'component' | 'capability' | 'originEntity';
   originEntityType?: OriginEntityType;
@@ -57,11 +58,13 @@ function resolveOriginEntityNode(
   viewElementLinks?: HATEOASLinks
 ): NodeContextMenu | null {
   const result = findOriginEntity(node.id, lookups);
-  if (!result) return null;
+  const entityId = extractOriginEntityId(node.id);
+  if (!result || !entityId) return null;
 
   return {
     ...position,
-    nodeId: node.id,
+    nodeId: entityId,
+    viewElementId: node.id,
     nodeName: result.entity.name,
     nodeType: 'originEntity',
     originEntityType: result.originEntityType,
@@ -83,6 +86,7 @@ function resolveCapabilityNode(
   return {
     ...position,
     nodeId: capId,
+    viewElementId: capId,
     nodeName: capability.name,
     nodeType: 'capability',
     modelLinks: capability._links,
@@ -102,6 +106,7 @@ function resolveComponentNode(
   return {
     ...position,
     nodeId: node.id,
+    viewElementId: node.id,
     nodeName: component.name,
     nodeType: 'component',
     modelLinks: component._links,

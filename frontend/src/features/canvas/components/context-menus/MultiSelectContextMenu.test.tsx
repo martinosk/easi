@@ -5,10 +5,12 @@ import type { MultiSelectMenuState } from '../../hooks/useMultiSelectContextMenu
 import type { NodeContextMenu } from '../../hooks/useNodeContextMenu';
 
 function makeNode(overrides: Partial<NodeContextMenu> = {}): NodeContextMenu {
+  const nodeId = overrides.nodeId ?? 'test-id';
   return {
     x: 0,
     y: 0,
-    nodeId: 'test-id',
+    nodeId,
+    viewElementId: nodeId,
     nodeName: 'Test Node',
     nodeType: 'component',
     ...overrides,

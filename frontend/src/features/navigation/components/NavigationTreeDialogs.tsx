@@ -1,6 +1,8 @@
 import React from 'react';
 import type { Capability } from '../../../api/types';
 import { DeleteCapabilityDialog } from '../../capabilities/components/DeleteCapabilityDialog';
+import { InviteToEditDialog } from '../../edit-grants/components/InviteToEditDialog';
+import { useCreateEditGrant } from '../../edit-grants/hooks/useEditGrants';
 import { CreateAcquiredEntityDialog } from '../../origin-entities/components/CreateAcquiredEntityDialog';
 import { CreateVendorDialog } from '../../origin-entities/components/CreateVendorDialog';
 import { CreateInternalTeamDialog } from '../../origin-entities/components/CreateInternalTeamDialog';
@@ -11,7 +13,7 @@ import { TreeMultiSelectContextMenu } from './TreeMultiSelectContextMenu';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import type { DeleteTarget } from './DeleteConfirmation';
 import type { ViewContextMenuState, ComponentContextMenuState, CapabilityContextMenuState } from '../types';
-import type { OriginEntityContextMenuState } from '../hooks/useTreeContextMenus';
+import type { OriginEntityContextMenuState, InviteTarget } from '../hooks/useTreeContextMenus';
 import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
 import type { TreeMultiSelectMenuState } from '../hooks/useTreeMultiSelectMenu';
 import type { TreeBulkOperationRequest } from './TreeMultiSelectContextMenu';
@@ -50,6 +52,8 @@ interface NavigationTreeDialogsProps {
     isDeleting: boolean;
     deleteCapability: Capability | null;
     setDeleteCapability: (v: Capability | null) => void;
+    inviteTarget: InviteTarget | null;
+    setInviteTarget: (v: InviteTarget | null) => void;
   };
   openOriginDialog: OriginEntityDialogType;
   onCloseOriginDialog: () => void;
@@ -75,7 +79,10 @@ export const NavigationTreeDialogs: React.FC<NavigationTreeDialogsProps> = ({
   onRequestBulkOperation,
   bulkDelete,
   onBulkDeleteConfirm,
-}) => (
+}) => {
+  const createGrant = useCreateEditGrant();
+
+  return (
   <>
     <TreeContextMenus
       viewContextMenu={contextMenus.viewContextMenu}
@@ -147,5 +154,16 @@ export const NavigationTreeDialogs: React.FC<NavigationTreeDialogsProps> = ({
       isOpen={openOriginDialog === 'team'}
       onClose={onCloseOriginDialog}
     />
+
+    {contextMenus.inviteTarget && (
+      <InviteToEditDialog
+        isOpen={contextMenus.inviteTarget !== null}
+        onClose={() => contextMenus.setInviteTarget(null)}
+        onSubmit={async (request) => { await createGrant.mutateAsync(request); }}
+        artifactType={contextMenus.inviteTarget.artifactType}
+        artifactId={contextMenus.inviteTarget.id}
+      />
+    )}
   </>
-);
+  );
+};

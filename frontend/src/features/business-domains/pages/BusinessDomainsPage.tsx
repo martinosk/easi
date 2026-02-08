@@ -60,6 +60,16 @@ export function BusinessDomainsPage() {
         />
       )}
 
+      {domainContextMenu.domainToInvite && (
+        <InviteToEditDialog
+          isOpen={domainContextMenu.domainToInvite !== null}
+          onClose={() => domainContextMenu.setDomainToInvite(null)}
+          onSubmit={async (request) => { await createGrant.mutateAsync(request); }}
+          artifactType={domainContextMenu.domainToInvite.artifactType}
+          artifactId={domainContextMenu.domainToInvite.id}
+        />
+      )}
+
       <DomainDialogs
         dialogMode={dialogManager.dialogMode}
         selectedDomain={dialogManager.selectedDomain}

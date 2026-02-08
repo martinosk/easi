@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	ErrInvalidArtifactType = errors.New("invalid artifact type: must be capability, component, view, or domain")
+	ErrInvalidArtifactType = errors.New("invalid artifact type: must be capability, component, view, domain, vendor, internal_team, or acquired_entity")
 	ErrEmptyArtifactID     = errors.New("artifact ID cannot be empty")
 	ErrInvalidArtifactID   = errors.New("artifact ID must be a valid UUID")
 )
@@ -18,17 +18,23 @@ var uuidRegex = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 type ArtifactType string
 
 const (
-	ArtifactTypeCapability ArtifactType = "capability"
-	ArtifactTypeComponent  ArtifactType = "component"
-	ArtifactTypeView       ArtifactType = "view"
-	ArtifactTypeDomain     ArtifactType = "domain"
+	ArtifactTypeCapability      ArtifactType = "capability"
+	ArtifactTypeComponent       ArtifactType = "component"
+	ArtifactTypeView            ArtifactType = "view"
+	ArtifactTypeDomain          ArtifactType = "domain"
+	ArtifactTypeVendor          ArtifactType = "vendor"
+	ArtifactTypeInternalTeam    ArtifactType = "internal_team"
+	ArtifactTypeAcquiredEntity  ArtifactType = "acquired_entity"
 )
 
 var validArtifactTypes = map[string]ArtifactType{
-	"capability": ArtifactTypeCapability,
-	"component":  ArtifactTypeComponent,
-	"view":       ArtifactTypeView,
-	"domain":     ArtifactTypeDomain,
+	"capability":       ArtifactTypeCapability,
+	"component":        ArtifactTypeComponent,
+	"view":             ArtifactTypeView,
+	"domain":           ArtifactTypeDomain,
+	"vendor":           ArtifactTypeVendor,
+	"internal_team":    ArtifactTypeInternalTeam,
+	"acquired_entity":  ArtifactTypeAcquiredEntity,
 }
 
 func NewArtifactType(s string) (ArtifactType, error) {

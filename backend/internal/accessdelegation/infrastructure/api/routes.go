@@ -55,11 +55,15 @@ func SetupAccessDelegationRoutes(deps AccessDelegationRoutesDeps) (*AccessDelega
 	registerEventSubscriptions(deps.EventBus, readModel)
 	registerArtifactDeletionSubscriptions(deps.EventBus, readModel, deps.CommandBus)
 
-	nameResolver := adServices.NewArtifactNameResolver(
-		capReadModels.NewCapabilityReadModel(deps.DB),
-		archReadModels.NewApplicationComponentReadModel(deps.DB),
-		viewsReadModels.NewArchitectureViewReadModel(deps.DB),
-	)
+	nameResolver := adServices.NewArtifactNameResolver(adServices.ArtifactNameResolverDeps{
+		Capabilities:     capReadModels.NewCapabilityReadModel(deps.DB),
+		Components:       archReadModels.NewApplicationComponentReadModel(deps.DB),
+		Views:            viewsReadModels.NewArchitectureViewReadModel(deps.DB),
+		Domains:          capReadModels.NewBusinessDomainReadModel(deps.DB),
+		Vendors:          archReadModels.NewVendorReadModel(deps.DB),
+		AcquiredEntities: archReadModels.NewAcquiredEntityReadModel(deps.DB),
+		InternalTeams:    archReadModels.NewInternalTeamReadModel(deps.DB),
+	})
 
 	httpHandlers := NewEditGrantHandlers(EditGrantHandlerDeps{
 		CommandBus:    deps.CommandBus,
@@ -98,11 +102,17 @@ func registerArtifactDeletionSubscriptions(eventBus *events.InMemoryEventBus, re
 	componentDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "component")
 	viewDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "view")
 	domainDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "domain")
+	acquiredEntityDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "acquired_entity")
+	vendorDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "vendor")
+	internalTeamDeletionProjector := projectors.NewArtifactDeletionProjector(readModel, commandBus, "internal_team")
 
 	eventBus.Subscribe(capPL.CapabilityDeleted, capabilityDeletionProjector)
 	eventBus.Subscribe(archPL.ApplicationComponentDeleted, componentDeletionProjector)
 	eventBus.Subscribe(viewsPL.ViewDeleted, viewDeletionProjector)
 	eventBus.Subscribe(capPL.BusinessDomainDeleted, domainDeletionProjector)
+	eventBus.Subscribe(archPL.AcquiredEntityDeleted, acquiredEntityDeletionProjector)
+	eventBus.Subscribe(archPL.VendorDeleted, vendorDeletionProjector)
+	eventBus.Subscribe(archPL.InternalTeamDeleted, internalTeamDeletionProjector)
 }
 
 func registerRoutes(r chi.Router, h *EditGrantHandlers, authMiddleware *authAPI.AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {

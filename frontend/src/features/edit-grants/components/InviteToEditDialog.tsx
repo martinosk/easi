@@ -1,6 +1,16 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import type { CreateEditGrantRequest, ArtifactType } from '../types';
 
+const artifactTypeLabels: Record<ArtifactType, string> = {
+  capability: 'capability',
+  component: 'application component',
+  view: 'view',
+  domain: 'business domain',
+  vendor: 'vendor',
+  internal_team: 'internal team',
+  acquired_entity: 'acquired entity',
+};
+
 interface InviteToEditDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -67,7 +77,7 @@ export function InviteToEditDialog({
       <div className="dialog-content">
         <h2 className="dialog-title">Invite to Edit</h2>
         <p className="dialog-description">
-          Grant temporary edit access for this {artifactType} to a stakeholder.
+          Grant temporary edit access for this {artifactTypeLabels[artifactType]} to a stakeholder.
         </p>
 
         <form onSubmit={handleSubmit}>

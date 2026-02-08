@@ -4,10 +4,12 @@ import { computeAvailableActions } from './useMultiSelectContextMenu';
 import type { HATEOASLinks } from '../../../api/types';
 
 function makeNode(overrides: Partial<NodeContextMenu> = {}): NodeContextMenu {
+  const nodeId = overrides.nodeId ?? 'test-id';
   return {
     x: 100,
     y: 200,
-    nodeId: 'test-id',
+    nodeId,
+    viewElementId: nodeId,
     nodeName: 'Test Node',
     nodeType: 'component',
     ...overrides,

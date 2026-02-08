@@ -6,10 +6,32 @@ import (
 
 const ActorContextKey contextKey = "actor"
 
+type Role string
+
+const (
+	RoleAdmin       Role = "admin"
+	RoleArchitect   Role = "architect"
+	RoleStakeholder Role = "stakeholder"
+)
+
+func (r Role) String() string { return string(r) }
+
+func (r Role) Permissions() map[string]bool {
+	permList, ok := rolePermissions[r]
+	if !ok {
+		return make(map[string]bool)
+	}
+	perms := make(map[string]bool, len(permList))
+	for _, p := range permList {
+		perms[p] = true
+	}
+	return perms
+}
+
 type Actor struct {
 	ID          string
 	Email       string
-	Role        string
+	Role        Role
 	Permissions map[string]bool
 	editGrants  map[string]map[string]bool
 }
@@ -52,10 +74,13 @@ func (a Actor) EditGrantIDs(artifactType string) map[string]bool {
 }
 
 var resourceAliases = map[string]string{
-	"capability": "capabilities",
-	"component":  "components",
-	"view":       "views",
-	"domain":     "domains",
+	"capability":       "capabilities",
+	"component":        "components",
+	"view":             "views",
+	"domain":           "domains",
+	"vendor":           "vendors",
+	"internal_team":    "internal_teams",
+	"acquired_entity":  "acquired_entities",
 }
 
 func PluralResourceName(singular string) string {
@@ -74,17 +99,17 @@ func (a Actor) WithEditGrants(grants map[string]map[string]bool) Actor {
 	return a
 }
 
-func NewActor(id, email, role string) Actor {
+func NewActor(id, email string, role Role) Actor {
 	return Actor{
 		ID:          id,
 		Email:       email,
 		Role:        role,
-		Permissions: PermissionsForRole(role),
+		Permissions: role.Permissions(),
 	}
 }
 
-var rolePermissions = map[string][]string{
-	"admin": {
+var rolePermissions = map[Role][]string{
+	RoleAdmin: {
 		"components:read", "components:write", "components:delete",
 		"views:read", "views:write", "views:delete",
 		"capabilities:read", "capabilities:write", "capabilities:delete",
@@ -96,7 +121,7 @@ var rolePermissions = map[string][]string{
 		"enterprise-arch:read", "enterprise-arch:write", "enterprise-arch:delete",
 		"edit-grants:manage",
 	},
-	"architect": {
+	RoleArchitect: {
 		"components:read", "components:write", "components:delete",
 		"views:read", "views:write", "views:delete",
 		"capabilities:read", "capabilities:write", "capabilities:delete",
@@ -107,7 +132,7 @@ var rolePermissions = map[string][]string{
 		"enterprise-arch:read", "enterprise-arch:write", "enterprise-arch:delete",
 		"edit-grants:manage",
 	},
-	"stakeholder": {
+	RoleStakeholder: {
 		"components:read",
 		"views:read",
 		"capabilities:read",
@@ -116,18 +141,6 @@ var rolePermissions = map[string][]string{
 		"audit:read",
 		"enterprise-arch:read",
 	},
-}
-
-func PermissionsForRole(role string) map[string]bool {
-	permList, ok := rolePermissions[role]
-	if !ok {
-		return make(map[string]bool)
-	}
-	perms := make(map[string]bool, len(permList))
-	for _, p := range permList {
-		perms[p] = true
-	}
-	return perms
 }
 
 func WithActor(ctx context.Context, actor Actor) context.Context {

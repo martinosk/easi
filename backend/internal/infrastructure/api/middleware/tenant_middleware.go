@@ -41,9 +41,10 @@ func TenantMiddlewareWithSession(sessionManager *session.SessionManager, userRol
 				}
 				ctx = sharedctx.WithTenant(ctx, info.tenantID)
 
-				role := ""
+				var role sharedctx.Role
 				if userRoleLookup != nil {
-					role, _ = userRoleLookup.GetRoleByEmail(ctx, info.userEmail)
+					roleStr, _ := userRoleLookup.GetRoleByEmail(ctx, info.userEmail)
+					role = sharedctx.Role(roleStr)
 				}
 
 				actor := sharedctx.NewActor(info.userID, info.userEmail, role)

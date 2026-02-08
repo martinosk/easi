@@ -1,4 +1,4 @@
-import React, { useCallback, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -27,7 +27,9 @@ import { useContextMenu } from '../hooks/useContextMenu';
 import { useDeleteConfirmation } from '../hooks/useDeleteConfirmation';
 import { useBulkOperations } from '../hooks/useBulkOperations';
 import { AutoLayoutButton } from './AutoLayoutButton';
-import { NodeContextMenu } from './context-menus/NodeContextMenu';
+import { NodeContextMenu, type InviteTarget } from './context-menus/NodeContextMenu';
+import { InviteToEditDialog } from '../../edit-grants/components/InviteToEditDialog';
+import { useCreateEditGrant } from '../../edit-grants/hooks/useEditGrants';
 import { EdgeContextMenu } from './context-menus/EdgeContextMenu';
 import { MultiSelectContextMenu } from './context-menus/MultiSelectContextMenu';
 import { DeleteConfirmationWrapper } from './dialogs/DeleteConfirmationWrapper';
@@ -94,6 +96,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     handleDeleteConfirm,
     handleDeleteCancel,
   } = useDeleteConfirmation();
+  const [inviteTarget, setInviteTarget] = useState<InviteTarget | null>(null);
+  const createGrant = useCreateEditGrant();
   const {
     bulkOperation,
     isExecuting,
@@ -186,6 +190,7 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         menu={nodeContextMenu}
         onClose={closeMenus}
         onRequestDelete={setDeleteTarget}
+        onRequestInviteToEdit={setInviteTarget}
       />
 
       <EdgeContextMenu
@@ -214,6 +219,16 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         onConfirm={handleBulkConfirm}
         onCancel={handleBulkCancel}
       />
+
+      {inviteTarget && (
+        <InviteToEditDialog
+          isOpen={inviteTarget !== null}
+          onClose={() => setInviteTarget(null)}
+          onSubmit={async (request) => { await createGrant.mutateAsync(request); }}
+          artifactType={inviteTarget.artifactType}
+          artifactId={inviteTarget.id}
+        />
+      )}
     </div>
   );
 });

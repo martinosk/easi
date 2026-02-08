@@ -257,6 +257,9 @@ func registerOriginEntityRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddle
 		r.Group(func(r chi.Router) {
 			r.Use(auth.RequirePermission(authValueObjects.PermComponentsWrite))
 			r.Post("/", h.acquiredEntity.CreateAcquiredEntity)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(sharedAPI.RequireWriteOrEditGrantFor("components", "acquired_entities", "id"))
 			r.Put("/{id}", h.acquiredEntity.UpdateAcquiredEntity)
 		})
 		r.Group(func(r chi.Router) {
@@ -274,6 +277,9 @@ func registerOriginEntityRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddle
 		r.Group(func(r chi.Router) {
 			r.Use(auth.RequirePermission(authValueObjects.PermComponentsWrite))
 			r.Post("/", h.vendor.CreateVendor)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(sharedAPI.RequireWriteOrEditGrantFor("components", "vendors", "id"))
 			r.Put("/{id}", h.vendor.UpdateVendor)
 		})
 		r.Group(func(r chi.Router) {
@@ -291,6 +297,9 @@ func registerOriginEntityRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddle
 		r.Group(func(r chi.Router) {
 			r.Use(auth.RequirePermission(authValueObjects.PermComponentsWrite))
 			r.Post("/", h.internalTeam.CreateInternalTeam)
+		})
+		r.Group(func(r chi.Router) {
+			r.Use(sharedAPI.RequireWriteOrEditGrantFor("components", "internal_teams", "id"))
 			r.Put("/{id}", h.internalTeam.UpdateInternalTeam)
 		})
 		r.Group(func(r chi.Router) {

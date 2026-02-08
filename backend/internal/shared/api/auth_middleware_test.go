@@ -30,7 +30,7 @@ func requestWithActor(actor sharedctx.Actor) *http.Request {
 
 func TestRequireWriteOrEditGrant_NativeWritePermission_PassesThrough(t *testing.T) {
 	r := setupTestRouter("capabilities", "id")
-	actor := sharedctx.NewActor("user-1", "user@test.com", "architect")
+	actor := sharedctx.NewActor("user-1", "user@test.com", sharedctx.RoleArchitect)
 
 	req := requestWithActor(actor)
 	rr := httptest.NewRecorder()
@@ -54,7 +54,7 @@ func TestRequireWriteOrEditGrant_StakeholderWithEditGrants(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := setupTestRouter("capabilities", "id")
-			actor := sharedctx.NewActor("user-1", "user@test.com", "stakeholder")
+			actor := sharedctx.NewActor("user-1", "user@test.com", sharedctx.RoleStakeholder)
 			if tt.grants != nil {
 				actor = actor.WithEditGrants(tt.grants)
 			}
@@ -75,7 +75,7 @@ func TestRequireWriteOrEditGrant_NonexistentURLParam_Returns403(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 		})
 	})
-	actor := sharedctx.NewActor("user-1", "user@test.com", "stakeholder")
+	actor := sharedctx.NewActor("user-1", "user@test.com", sharedctx.RoleStakeholder)
 
 	req := requestWithActor(actor)
 	rr := httptest.NewRecorder()
@@ -96,7 +96,7 @@ func TestRequireWriteOrEditGrant_MissingActor_Returns401(t *testing.T) {
 
 func TestRequireWriteOrEditGrant_AdminRole_PassesThrough(t *testing.T) {
 	r := setupTestRouter("capabilities", "id")
-	actor := sharedctx.NewActor("user-1", "admin@test.com", "admin")
+	actor := sharedctx.NewActor("user-1", "admin@test.com", sharedctx.RoleAdmin)
 
 	req := requestWithActor(actor)
 	rr := httptest.NewRecorder()

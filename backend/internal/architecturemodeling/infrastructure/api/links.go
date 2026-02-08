@@ -1,6 +1,7 @@
 package api
 
 import (
+	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
@@ -14,10 +15,15 @@ func NewArchitectureModelingLinks(h *sharedAPI.HATEOASLinks) *ArchitectureModeli
 	return &ArchitectureModelingLinks{HATEOASLinks: h}
 }
 
+type originResourceConfig struct {
+	sharedAPI.ResourceConfig
+	ArtifactType string
+}
+
 var (
-	acquiredEntityConfig = sharedAPI.ResourceConfig{Path: "/acquired-entities", Collection: "/acquired-entities", Permission: "components"}
-	vendorConfig         = sharedAPI.ResourceConfig{Path: "/vendors", Collection: "/vendors", Permission: "components"}
-	internalTeamConfig   = sharedAPI.ResourceConfig{Path: "/internal-teams", Collection: "/internal-teams", Permission: "components"}
+	acquiredEntityConfig = originResourceConfig{sharedAPI.ResourceConfig{Path: "/acquired-entities", Collection: "/acquired-entities", Permission: "components"}, "acquired_entities"}
+	vendorConfig         = originResourceConfig{sharedAPI.ResourceConfig{Path: "/vendors", Collection: "/vendors", Permission: "components"}, "vendors"}
+	internalTeamConfig   = originResourceConfig{sharedAPI.ResourceConfig{Path: "/internal-teams", Collection: "/internal-teams", Permission: "components"}, "internal_teams"}
 )
 
 func (h *ArchitectureModelingLinks) ComponentLinksForActor(id string, actor sharedctx.Actor) sharedAPI.Links {
@@ -49,26 +55,40 @@ func (h *ArchitectureModelingLinks) RelationLinks(id string) sharedAPI.Links {
 	return links
 }
 
-func (h *ArchitectureModelingLinks) RelationTypeLinks(relationType string) sharedAPI.Links {
+func (h *ArchitectureModelingLinks) RelationTypeLinks(relationType valueobjects.RelationType) sharedAPI.Links {
 	doc := "relations/generic"
-	if relationType == "Triggers" {
+	if relationType == valueobjects.RelationTypeTriggers {
 		doc = "relations/triggering"
-	} else if relationType == "Serves" {
+	} else if relationType == valueobjects.RelationTypeServes {
 		doc = "relations/serving"
 	}
 	return sharedAPI.Links{"describedby": h.Get("/reference/" + doc)}
 }
 
+func (h *ArchitectureModelingLinks) originEntityLinksForActor(cfg originResourceConfig, id string, actor sharedctx.Actor) sharedAPI.Links {
+	p := cfg.Path + "/" + id
+	links := sharedAPI.Links{
+		"self":       h.Get(p),
+		"collection": h.Get(cfg.Collection),
+	}
+	h.AddEditOrGrantLink(links, actor, cfg.Permission, cfg.ArtifactType, id, h.Put(p), nil)
+	if actor.CanDelete(cfg.Permission) {
+		links["delete"] = h.Del(p)
+	}
+	h.AddEditGrantsLink(links, actor, cfg.Permission)
+	return links
+}
+
 func (h *ArchitectureModelingLinks) AcquiredEntityLinksForActor(id string, actor sharedctx.Actor) sharedAPI.Links {
-	return h.SimpleResourceLinks(acquiredEntityConfig, id, actor)
+	return h.originEntityLinksForActor(acquiredEntityConfig, id, actor)
 }
 
 func (h *ArchitectureModelingLinks) VendorLinksForActor(id string, actor sharedctx.Actor) sharedAPI.Links {
-	return h.SimpleResourceLinks(vendorConfig, id, actor)
+	return h.originEntityLinksForActor(vendorConfig, id, actor)
 }
 
 func (h *ArchitectureModelingLinks) InternalTeamLinksForActor(id string, actor sharedctx.Actor) sharedAPI.Links {
-	return h.SimpleResourceLinks(internalTeamConfig, id, actor)
+	return h.originEntityLinksForActor(internalTeamConfig, id, actor)
 }
 
 func (h *ArchitectureModelingLinks) OriginRelationshipLinksForActor(basePath, id, componentID string, extraLinks map[string]types.Link, actor sharedctx.Actor) sharedAPI.Links {

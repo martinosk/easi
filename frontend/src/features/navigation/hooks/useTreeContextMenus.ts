@@ -3,6 +3,7 @@ import type { View, Component, Capability, AcquiredEntity, Vendor, InternalTeam,
 import type { ViewContextMenuState, ComponentContextMenuState, CapabilityContextMenuState, EditingState } from '../types';
 import type { DeleteTarget } from '../components/DeleteConfirmation';
 import type { ContextMenuItem } from '../../../components/shared/ContextMenu';
+import type { ArtifactType } from '../../edit-grants/types';
 import { useUpdateComponent, useDeleteComponent } from '../../components/hooks/useComponents';
 import { useCreateView, useDeleteView, useRenameView, useSetDefaultView, useChangeViewVisibility } from '../../views/hooks/useViews';
 import { useDeleteAcquiredEntity } from '../../origin-entities/hooks/useAcquiredEntities';
@@ -10,6 +11,12 @@ import { useDeleteVendor } from '../../origin-entities/hooks/useVendors';
 import { useDeleteInternalTeam } from '../../origin-entities/hooks/useInternalTeams';
 import { getContextMenuPosition } from '../utils/treeUtils';
 import { copyToClipboard, generateViewShareUrl } from '../../../utils/clipboard';
+import { hasLink } from '../../../utils/hateoas';
+
+export interface InviteTarget {
+  id: string;
+  artifactType: ArtifactType;
+}
 
 export interface OriginEntityContextMenuState {
   x: number;
@@ -22,29 +29,26 @@ interface EntityMenuConfig {
   links?: HATEOASLinks;
   onEdit?: () => void;
   onDelete: () => void;
+  onInviteToEdit?: () => void;
   deleteLabel: string;
   deleteAriaLabel: string;
 }
 
 function buildEntityMenuItems(config: EntityMenuConfig): ContextMenuItem[] {
-  const items: ContextMenuItem[] = [];
-  const canEdit = config.links?.edit !== undefined;
-  const canDelete = config.links?.delete !== undefined;
+  const hasInvite = config.links?.['x-edit-grants'] !== undefined && config.onInviteToEdit !== undefined;
+  const hasEdit = config.links?.edit !== undefined && config.onEdit !== undefined;
+  const hasDelete = config.links?.delete !== undefined;
 
-  if (canEdit && config.onEdit) {
-    items.push({ label: 'Edit', onClick: config.onEdit });
-  }
-
-  if (canDelete) {
-    items.push({
+  return filterNullItems([
+    createConditionalMenuItem(hasInvite, { label: 'Invite to Edit', onClick: config.onInviteToEdit! }),
+    createConditionalMenuItem(hasEdit, { label: 'Edit', onClick: config.onEdit! }),
+    createConditionalMenuItem(hasDelete, {
       label: config.deleteLabel,
       onClick: config.onDelete,
       isDanger: true,
       ariaLabel: config.deleteAriaLabel,
-    });
-  }
-
-  return items;
+    }),
+  ]);
 }
 
 function createConditionalMenuItem(
@@ -85,6 +89,7 @@ export function useTreeContextMenus({
   const [createViewName, setCreateViewName] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteCapability, setDeleteCapability] = useState<Capability | null>(null);
+  const [inviteTarget, setInviteTarget] = useState<InviteTarget | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
 
   const updateComponentMutation = useUpdateComponent();
@@ -213,6 +218,7 @@ export function useTreeContextMenus({
     const canEdit = view._links?.edit !== undefined;
     const canDelete = view._links?.delete !== undefined && !view.isDefault;
     const canChangeVisibility = view._links?.['x-change-visibility'] !== undefined;
+    const canInvite = hasLink(view, 'x-edit-grants');
     const visibilityLabel = view.isPrivate ? 'Make Public' : 'Make Private';
 
     const shareItem: ContextMenuItem = {
@@ -221,6 +227,10 @@ export function useTreeContextMenus({
     };
 
     return filterNullItems([
+      createConditionalMenuItem(canInvite, {
+        label: 'Invite to Edit',
+        onClick: () => setInviteTarget({ id: view.id, artifactType: 'view' }),
+      }),
       shareItem,
       createConditionalMenuItem(canEdit, {
         label: 'Rename View',
@@ -247,6 +257,7 @@ export function useTreeContextMenus({
     return buildEntityMenuItems({
       links: component._links,
       onEdit: onEditComponent ? () => onEditComponent(component.id) : undefined,
+      onInviteToEdit: () => setInviteTarget({ id: component.id, artifactType: 'component' }),
       onDelete: () => setDeleteTarget({ type: 'component', component }),
       deleteLabel: 'Delete from Model',
       deleteAriaLabel: 'Delete application from model',
@@ -257,6 +268,7 @@ export function useTreeContextMenus({
     return buildEntityMenuItems({
       links: menu.capability._links,
       onEdit: onEditCapability ? () => onEditCapability(menu.capability) : undefined,
+      onInviteToEdit: () => setInviteTarget({ id: menu.capability.id, artifactType: 'capability' }),
       onDelete: () => setDeleteCapability(menu.capability),
       deleteLabel: 'Delete from Model',
       deleteAriaLabel: 'Delete capability from model',
@@ -268,6 +280,12 @@ export function useTreeContextMenus({
       acquired: 'acquired entity',
       vendor: 'vendor',
       team: 'internal team',
+    };
+
+    const originEntityArtifactTypes: Record<OriginEntityContextMenuState['entityType'], ArtifactType> = {
+      acquired: 'acquired_entity',
+      vendor: 'vendor',
+      team: 'internal_team',
     };
 
     const editHandlers: Record<OriginEntityContextMenuState['entityType'], (() => void) | undefined> = {
@@ -285,6 +303,7 @@ export function useTreeContextMenus({
     return buildEntityMenuItems({
       links: menu.entity._links,
       onEdit: editHandlers[menu.entityType],
+      onInviteToEdit: () => setInviteTarget({ id: menu.entity.id, artifactType: originEntityArtifactTypes[menu.entityType] }),
       onDelete: () => setDeleteTarget(deleteTargetFactories[menu.entityType]()),
       deleteLabel: 'Delete from Model',
       deleteAriaLabel: `Delete ${entityTypeLabels[menu.entityType]} from model`,
@@ -311,6 +330,8 @@ export function useTreeContextMenus({
     isDeleting,
     deleteCapability,
     setDeleteCapability,
+    inviteTarget,
+    setInviteTarget,
     editInputRef,
     handleViewContextMenu,
     handleComponentContextMenu,

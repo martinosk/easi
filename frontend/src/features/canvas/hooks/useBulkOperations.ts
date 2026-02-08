@@ -8,7 +8,6 @@ import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { useDeleteAcquiredEntity } from '../../origin-entities/hooks/useAcquiredEntities';
 import { useDeleteVendor } from '../../origin-entities/hooks/useVendors';
 import { useDeleteInternalTeam } from '../../origin-entities/hooks/useInternalTeams';
-import { extractOriginEntityId } from '../utils/nodeFactory';
 import { toComponentId, toCapabilityId } from '../../../api/types';
 import type { ViewId, AcquiredEntityId, VendorId, InternalTeamId, Component, Capability } from '../../../api/types';
 import type { OriginEntityType } from '../../../constants/entityIdentifiers';
@@ -50,7 +49,7 @@ function removeNodeFromView(node: NodeContextMenu, viewId: ViewId, mutations: Re
   const handlers: Record<NodeContextMenu['nodeType'], () => Promise<void>> = {
     component: () => mutations.component.mutateAsync({ viewId, componentId: toComponentId(node.nodeId) }),
     capability: () => mutations.capability.mutateAsync({ viewId, capabilityId: toCapabilityId(node.nodeId) }),
-    originEntity: () => mutations.originEntity.mutateAsync({ viewId, originEntityId: node.nodeId }),
+    originEntity: () => mutations.originEntity.mutateAsync({ viewId, originEntityId: node.viewElementId }),
   };
   return handlers[node.nodeType]();
 }
@@ -111,9 +110,8 @@ function deleteOriginEntityFromModel(
   node: NodeContextMenu,
   mutations: OriginEntityDeleteMutations
 ): Promise<void> {
-  const entityId = extractOriginEntityId(node.nodeId);
-  if (!entityId || !node.originEntityType) throw new Error(`Origin entity not found: ${node.nodeName}`);
-  return deleteOriginEntity(entityId, node.originEntityType, node.nodeName, mutations);
+  if (!node.originEntityType) throw new Error(`Origin entity not found: ${node.nodeName}`);
+  return deleteOriginEntity(node.nodeId, node.originEntityType, node.nodeName, mutations);
 }
 
 function useModelDeleteHandler() {

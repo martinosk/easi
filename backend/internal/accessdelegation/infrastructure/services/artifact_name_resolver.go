@@ -9,63 +9,119 @@ import (
 	capReadModels "easi/backend/internal/capabilitymapping/application/readmodels"
 )
 
+type nameResolveFn func(ctx context.Context, id string) (string, error)
+
 type artifactNameResolver struct {
-	capabilities *capReadModels.CapabilityReadModel
-	components   *archReadModels.ApplicationComponentReadModel
-	views        *viewsReadModels.ArchitectureViewReadModel
+	resolvers map[string]nameResolveFn
 }
 
-func NewArtifactNameResolver(
-	capabilities *capReadModels.CapabilityReadModel,
-	components *archReadModels.ApplicationComponentReadModel,
-	views *viewsReadModels.ArchitectureViewReadModel,
-) appservices.ArtifactNameResolver {
+type ArtifactNameResolverDeps struct {
+	Capabilities     *capReadModels.CapabilityReadModel
+	Components       *archReadModels.ApplicationComponentReadModel
+	Views            *viewsReadModels.ArchitectureViewReadModel
+	Domains          *capReadModels.BusinessDomainReadModel
+	Vendors          *archReadModels.VendorReadModel
+	AcquiredEntities *archReadModels.AcquiredEntityReadModel
+	InternalTeams    *archReadModels.InternalTeamReadModel
+}
+
+func NewArtifactNameResolver(deps ArtifactNameResolverDeps) appservices.ArtifactNameResolver {
 	return &artifactNameResolver{
-		capabilities: capabilities,
-		components:   components,
-		views:        views,
+		resolvers: buildResolverMap(deps),
+	}
+}
+
+func buildResolverMap(deps ArtifactNameResolverDeps) map[string]nameResolveFn {
+	return map[string]nameResolveFn{
+		"capability":      capabilityResolver(deps.Capabilities),
+		"component":       componentResolver(deps.Components),
+		"view":            viewResolver(deps.Views),
+		"domain":          domainResolver(deps.Domains),
+		"vendor":          vendorResolver(deps.Vendors),
+		"acquired_entity": acquiredEntityResolver(deps.AcquiredEntities),
+		"internal_team":   internalTeamResolver(deps.InternalTeams),
+	}
+}
+
+func capabilityResolver(rm *capReadModels.CapabilityReadModel) nameResolveFn {
+	return func(ctx context.Context, id string) (string, error) {
+		dto, err := rm.GetByID(ctx, id)
+		if err != nil || dto == nil {
+			return "", err
+		}
+		return dto.Name, nil
+	}
+}
+
+func componentResolver(rm *archReadModels.ApplicationComponentReadModel) nameResolveFn {
+	return func(ctx context.Context, id string) (string, error) {
+		dto, err := rm.GetByID(ctx, id)
+		if err != nil || dto == nil {
+			return "", err
+		}
+		return dto.Name, nil
+	}
+}
+
+func viewResolver(rm *viewsReadModels.ArchitectureViewReadModel) nameResolveFn {
+	return func(ctx context.Context, id string) (string, error) {
+		dto, err := rm.GetByID(ctx, id)
+		if err != nil || dto == nil {
+			return "", err
+		}
+		return dto.Name, nil
+	}
+}
+
+func domainResolver(rm *capReadModels.BusinessDomainReadModel) nameResolveFn {
+	return func(ctx context.Context, id string) (string, error) {
+		dto, err := rm.GetByID(ctx, id)
+		if err != nil || dto == nil {
+			return "", err
+		}
+		return dto.Name, nil
+	}
+}
+
+func vendorResolver(rm *archReadModels.VendorReadModel) nameResolveFn {
+	return func(ctx context.Context, id string) (string, error) {
+		dto, err := rm.GetByID(ctx, id)
+		if err != nil || dto == nil {
+			return "", err
+		}
+		return dto.Name, nil
+	}
+}
+
+func acquiredEntityResolver(rm *archReadModels.AcquiredEntityReadModel) nameResolveFn {
+	return func(ctx context.Context, id string) (string, error) {
+		dto, err := rm.GetByID(ctx, id)
+		if err != nil || dto == nil {
+			return "", err
+		}
+		return dto.Name, nil
+	}
+}
+
+func internalTeamResolver(rm *archReadModels.InternalTeamReadModel) nameResolveFn {
+	return func(ctx context.Context, id string) (string, error) {
+		dto, err := rm.GetByID(ctx, id)
+		if err != nil || dto == nil {
+			return "", err
+		}
+		return dto.Name, nil
 	}
 }
 
 func (r *artifactNameResolver) ResolveName(ctx context.Context, artifactType, artifactID string) (string, error) {
-	var name string
-	var err error
-
-	switch artifactType {
-	case "capability":
-		name, err = r.resolveCapability(ctx, artifactID)
-	case "component":
-		name, err = r.resolveComponent(ctx, artifactID)
-	case "view":
-		name, err = r.resolveView(ctx, artifactID)
+	resolve, ok := r.resolvers[artifactType]
+	if !ok {
+		return "Deleted artifact", nil
 	}
 
+	name, err := resolve(ctx, artifactID)
 	if err != nil || name == "" {
 		return "Deleted artifact", nil
 	}
 	return name, nil
-}
-
-func (r *artifactNameResolver) resolveCapability(ctx context.Context, id string) (string, error) {
-	dto, err := r.capabilities.GetByID(ctx, id)
-	if err != nil || dto == nil {
-		return "", err
-	}
-	return dto.Name, nil
-}
-
-func (r *artifactNameResolver) resolveComponent(ctx context.Context, id string) (string, error) {
-	dto, err := r.components.GetByID(ctx, id)
-	if err != nil || dto == nil {
-		return "", err
-	}
-	return dto.Name, nil
-}
-
-func (r *artifactNameResolver) resolveView(ctx context.Context, id string) (string, error) {
-	dto, err := r.views.GetByID(ctx, id)
-	if err != nil || dto == nil {
-		return "", err
-	}
-	return dto.Name, nil
 }

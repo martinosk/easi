@@ -10,7 +10,6 @@ import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { useDeleteAcquiredEntity, useUnlinkComponentFromAcquiredEntity } from '../../origin-entities/hooks/useAcquiredEntities';
 import { useDeleteVendor, useUnlinkComponentFromVendor } from '../../origin-entities/hooks/useVendors';
 import { useDeleteInternalTeam, useUnlinkComponentFromInternalTeam } from '../../origin-entities/hooks/useInternalTeams';
-import { extractOriginEntityId } from '../utils/nodeFactory';
 import { toComponentId, toCapabilityId, toRealizationId } from '../../../api/types';
 import type { CapabilityId, ComponentId, ViewId, Component, Relation, Capability, HATEOASLinks, AcquiredEntityId, VendorId, InternalTeamId, OriginRelationshipId, OriginRelationshipType } from '../../../api/types';
 import type { OriginEntityType } from '../../../constants/entityIdentifiers';
@@ -179,11 +178,9 @@ function useDeleteHandlers() {
     },
     'origin-entity-from-model': async (target) => {
       if (!target.originEntityType) return;
-      const entityId = extractOriginEntityId(target.id);
-      if (!entityId) return;
 
       const strategy = ORIGIN_ENTITY_DELETE_STRATEGIES[target.originEntityType];
-      await strategy(originEntityDeleteMutations, entityId, target.name);
+      await strategy(originEntityDeleteMutations, target.id, target.name);
     },
     'origin-relationship': async (target) => {
       if (!hasOriginRelationshipData(target)) return;

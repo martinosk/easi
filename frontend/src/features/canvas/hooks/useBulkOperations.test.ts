@@ -69,10 +69,12 @@ const createWrapper = () => {
 };
 
 function makeNode(overrides: Partial<NodeContextMenu> = {}): NodeContextMenu {
+  const nodeId = overrides.nodeId ?? 'comp-1';
   return {
     x: 100,
     y: 200,
-    nodeId: 'comp-1',
+    nodeId,
+    viewElementId: nodeId,
     nodeName: 'Component 1',
     nodeType: 'component',
     ...overrides,

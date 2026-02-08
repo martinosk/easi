@@ -1,7 +1,7 @@
 import type { HATEOASLinks } from '../../api/types';
 
 export type EditGrantStatus = 'active' | 'revoked' | 'expired';
-export type ArtifactType = 'capability' | 'component' | 'view';
+export type ArtifactType = 'capability' | 'component' | 'view' | 'domain' | 'vendor' | 'internal_team' | 'acquired_entity';
 export type GrantScope = 'write';
 
 export interface EditGrant {

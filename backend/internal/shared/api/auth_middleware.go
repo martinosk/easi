@@ -11,6 +11,10 @@ import (
 )
 
 func RequireWriteOrEditGrant(artifactType, idParam string) func(http.Handler) http.Handler {
+	return RequireWriteOrEditGrantFor(artifactType, artifactType, idParam)
+}
+
+func RequireWriteOrEditGrantFor(permission, artifactType, idParam string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if config.IsAuthBypassed() {
@@ -24,7 +28,7 @@ func RequireWriteOrEditGrant(artifactType, idParam string) func(http.Handler) ht
 				return
 			}
 
-			if actor.CanWrite(artifactType) {
+			if actor.CanWrite(permission) {
 				next.ServeHTTP(w, r)
 				return
 			}
