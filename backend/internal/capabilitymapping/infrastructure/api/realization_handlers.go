@@ -17,13 +17,13 @@ import (
 type RealizationHandlers struct {
 	commandBus cqrs.CommandBus
 	readModel  *readmodels.RealizationReadModel
-	hateoas    *sharedAPI.HATEOASLinks
+	hateoas    *CapabilityMappingLinks
 }
 
 func NewRealizationHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.RealizationReadModel,
-	hateoas *sharedAPI.HATEOASLinks,
+	hateoas *CapabilityMappingLinks,
 ) *RealizationHandlers {
 	return &RealizationHandlers{
 		commandBus: commandBus,

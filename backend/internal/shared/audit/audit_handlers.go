@@ -11,10 +11,10 @@ import (
 
 type AuditHandlers struct {
 	readModel *AuditHistoryReadModel
-	hateoas   *sharedAPI.HATEOASLinks
+	hateoas   *AuditLinks
 }
 
-func NewAuditHandlers(readModel *AuditHistoryReadModel, hateoas *sharedAPI.HATEOASLinks) *AuditHandlers {
+func NewAuditHandlers(readModel *AuditHistoryReadModel, hateoas *AuditLinks) *AuditHandlers {
 	return &AuditHandlers{
 		readModel: readModel,
 		hateoas:   hateoas,

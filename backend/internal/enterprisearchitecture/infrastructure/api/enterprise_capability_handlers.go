@@ -24,7 +24,7 @@ type EnterpriseCapabilityHandlers struct {
 	commandBus     cqrs.CommandBus
 	readModels     *EnterpriseCapabilityReadModels
 	sessionManager *session.SessionManager
-	hateoas        *sharedAPI.HATEOASLinks
+	hateoas        *EnterpriseArchLinks
 }
 
 func NewEnterpriseCapabilityHandlers(
@@ -36,7 +36,7 @@ func NewEnterpriseCapabilityHandlers(
 		commandBus:     commandBus,
 		readModels:     readModels,
 		sessionManager: sessionManager,
-		hateoas:        sharedAPI.NewHATEOASLinks(""),
+		hateoas:        NewEnterpriseArchLinks(sharedAPI.NewHATEOASLinks("")),
 	}
 }
 
@@ -569,7 +569,7 @@ func (h *EnterpriseCapabilityHandlers) addLinkStatusLinks(status *readmodels.Cap
 		blockingCapabilityID = &status.BlockingCapability.ID
 	}
 
-	status.Links = h.hateoas.CapabilityLinkStatusLinks(sharedAPI.LinkStatusParams{
+	status.Links = h.hateoas.CapabilityLinkStatusLinks(LinkStatusParams{
 		CapabilityID:  status.CapabilityID,
 		Status:        string(status.Status),
 		LinkedToID:    linkedToID,

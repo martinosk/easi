@@ -23,13 +23,13 @@ type BusinessDomainReadModels struct {
 type BusinessDomainHandlers struct {
 	commandBus cqrs.CommandBus
 	readModels *BusinessDomainReadModels
-	hateoas    *sharedAPI.HATEOASLinks
+	hateoas    *CapabilityMappingLinks
 }
 
 func NewBusinessDomainHandlers(
 	commandBus cqrs.CommandBus,
 	readModels *BusinessDomainReadModels,
-	hateoas *sharedAPI.HATEOASLinks,
+	hateoas *CapabilityMappingLinks,
 ) *BusinessDomainHandlers {
 	return &BusinessDomainHandlers{
 		commandBus: commandBus,

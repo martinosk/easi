@@ -21,14 +21,14 @@ import (
 type StrategyPillarsHandlers struct {
 	commandBus     cqrs.CommandBus
 	readModel      *readmodels.MetaModelConfigurationReadModel
-	hateoas        *sharedAPI.HATEOASLinks
+	hateoas        *MetaModelLinks
 	sessionManager *session.SessionManager
 }
 
 func NewStrategyPillarsHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.MetaModelConfigurationReadModel,
-	hateoas *sharedAPI.HATEOASLinks,
+	hateoas *MetaModelLinks,
 	sessionManager *session.SessionManager,
 ) *StrategyPillarsHandlers {
 	return &StrategyPillarsHandlers{

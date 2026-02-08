@@ -16,14 +16,14 @@ import (
 type ViewColorHandlers struct {
 	commandBus   cqrs.CommandBus
 	readModel    *readmodels.ArchitectureViewReadModel
-	hateoas      *sharedAPI.HATEOASLinks
+	hateoas      *ViewLinks
 	errorHandler *sharedAPI.ErrorHandler
 }
 
 func NewViewColorHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.ArchitectureViewReadModel,
-	hateoas *sharedAPI.HATEOASLinks,
+	hateoas *ViewLinks,
 ) *ViewColorHandlers {
 	return &ViewColorHandlers{
 		commandBus:   commandBus,

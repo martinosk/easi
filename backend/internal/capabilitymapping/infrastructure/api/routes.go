@@ -61,14 +61,15 @@ func SetupCapabilityMappingRoutes(config *RouteConfig) error {
 		Realization: rm.realization,
 	}
 
+	links := NewCapabilityMappingLinks(config.HATEOAS)
 	httpHandlers := &routeHTTPHandlers{
-		capability:           NewCapabilityHandlers(config.CommandBus, rm.capability, config.HATEOAS),
-		dependency:           NewDependencyHandlers(config.CommandBus, rm.dependency, config.HATEOAS),
-		realization:          NewRealizationHandlers(config.CommandBus, rm.realization, config.HATEOAS),
+		capability:           NewCapabilityHandlers(config.CommandBus, rm.capability, links),
+		dependency:           NewDependencyHandlers(config.CommandBus, rm.dependency, links),
+		realization:          NewRealizationHandlers(config.CommandBus, rm.realization, links),
 		maturityLevel:        NewMaturityLevelHandlers(config.MaturityScaleGateway),
-		businessDomain:       NewBusinessDomainHandlers(config.CommandBus, businessDomainReadModels, config.HATEOAS),
-		strategyImportance:   NewStrategyImportanceHandlers(config.CommandBus, rm.strategyImportance, config.HATEOAS),
-		applicationFitScore:  NewApplicationFitScoreHandlers(config.CommandBus, rm.applicationFitScore, config.HATEOAS, config.SessionManager),
+		businessDomain:       NewBusinessDomainHandlers(config.CommandBus, businessDomainReadModels, links),
+		strategyImportance:   NewStrategyImportanceHandlers(config.CommandBus, rm.strategyImportance, links),
+		applicationFitScore:  NewApplicationFitScoreHandlers(config.CommandBus, rm.applicationFitScore, links, config.SessionManager),
 		fitComparison:        NewFitComparisonHandlers(rm.componentFitComparison),
 		strategicFitAnalysis: NewStrategicFitAnalysisHandlers(rm.strategicFitAnalysis, config.StrategyPillarsGateway, config.SessionManager),
 	}

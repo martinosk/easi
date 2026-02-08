@@ -14,13 +14,13 @@ type InternalTeamHandlers struct {
 	commandBus       cqrs.CommandBus
 	readModel        *readmodels.InternalTeamReadModel
 	paginationHelper *sharedAPI.PaginationHelper
-	hateoas          *sharedAPI.HATEOASLinks
+	hateoas          *ArchitectureModelingLinks
 }
 
 func NewInternalTeamHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.InternalTeamReadModel,
-	hateoas *sharedAPI.HATEOASLinks,
+	hateoas *ArchitectureModelingLinks,
 ) *InternalTeamHandlers {
 	return &InternalTeamHandlers{
 		commandBus:       commandBus,

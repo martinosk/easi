@@ -47,7 +47,7 @@ func SetupAccessDelegationRoutes(deps AccessDelegationRoutesDeps) (*AccessDelega
 	registerEventSubscriptions(deps.EventBus, readModel)
 	registerArtifactDeletionSubscriptions(deps.EventBus, readModel, deps.CommandBus)
 
-	httpHandlers := NewEditGrantHandlers(deps.CommandBus, readModel, deps.HATEOAS)
+	httpHandlers := NewEditGrantHandlers(deps.CommandBus, readModel, NewEditGrantLinks(deps.HATEOAS))
 	rateLimiter := platformAPI.NewRateLimiter(100, 60)
 
 	return &AccessDelegationDependencies{

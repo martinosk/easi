@@ -16,13 +16,13 @@ import (
 type StrategyImportanceHandlers struct {
 	commandBus   cqrs.CommandBus
 	importanceRM *readmodels.StrategyImportanceReadModel
-	hateoas      *sharedAPI.HATEOASLinks
+	hateoas      *CapabilityMappingLinks
 }
 
 func NewStrategyImportanceHandlers(
 	commandBus cqrs.CommandBus,
 	importanceRM *readmodels.StrategyImportanceReadModel,
-	hateoas *sharedAPI.HATEOASLinks,
+	hateoas *CapabilityMappingLinks,
 ) *StrategyImportanceHandlers {
 	return &StrategyImportanceHandlers{
 		commandBus:   commandBus,

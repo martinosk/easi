@@ -14,14 +14,14 @@ import (
 type ComponentHandlers struct {
 	commandBus       cqrs.CommandBus
 	readModel        *readmodels.ApplicationComponentReadModel
-	hateoas          *sharedAPI.HATEOASLinks
+	hateoas          *ArchitectureModelingLinks
 	paginationHelper *sharedAPI.PaginationHelper
 }
 
 func NewComponentHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.ApplicationComponentReadModel,
-	hateoas *sharedAPI.HATEOASLinks,
+	hateoas *ArchitectureModelingLinks,
 ) *ComponentHandlers {
 	return &ComponentHandlers{
 		commandBus:       commandBus,

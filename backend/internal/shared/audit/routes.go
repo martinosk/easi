@@ -23,7 +23,7 @@ type AuditRoutesDeps struct {
 
 func SetupAuditRoutes(deps AuditRoutesDeps) error {
 	readModel := NewAuditHistoryReadModel(deps.DB)
-	handlers := NewAuditHandlers(readModel, deps.Hateoas)
+	handlers := NewAuditHandlers(readModel, NewAuditLinks(deps.Hateoas))
 
 	deps.Router.Route("/audit", func(r chi.Router) {
 		r.Use(deps.AuthMiddleware.RequirePermission(authValueObjects.PermAuditRead))

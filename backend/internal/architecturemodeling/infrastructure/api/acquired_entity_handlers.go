@@ -15,13 +15,13 @@ type AcquiredEntityHandlers struct {
 	commandBus       cqrs.CommandBus
 	readModel        *readmodels.AcquiredEntityReadModel
 	paginationHelper *sharedAPI.PaginationHelper
-	hateoas          *sharedAPI.HATEOASLinks
+	hateoas          *ArchitectureModelingLinks
 }
 
 func NewAcquiredEntityHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.AcquiredEntityReadModel,
-	hateoas *sharedAPI.HATEOASLinks,
+	hateoas *ArchitectureModelingLinks,
 ) *AcquiredEntityHandlers {
 	return &AcquiredEntityHandlers{
 		commandBus:       commandBus,

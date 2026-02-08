@@ -16,14 +16,14 @@ import (
 type RelationHandlers struct {
 	commandBus cqrs.CommandBus
 	readModel  *readmodels.ComponentRelationReadModel
-	hateoas    *sharedAPI.HATEOASLinks
+	hateoas    *ArchitectureModelingLinks
 }
 
 // NewRelationHandlers creates a new relation handlers instance
 func NewRelationHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.ComponentRelationReadModel,
-	hateoas *sharedAPI.HATEOASLinks,
+	hateoas *ArchitectureModelingLinks,
 ) *RelationHandlers {
 	return &RelationHandlers{
 		commandBus: commandBus,

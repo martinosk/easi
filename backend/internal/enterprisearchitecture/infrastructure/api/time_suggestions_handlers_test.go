@@ -51,7 +51,7 @@ func (m *mockTimeSuggestionReadModel) GetByComponent(ctx context.Context, compon
 }
 
 func createTestTimeSuggestionsHandler(mock *mockTimeSuggestionReadModel) *TimeSuggestionsHandlers {
-	return NewTimeSuggestionsHandlers(mock, sharedAPI.NewHATEOASLinks(""))
+	return NewTimeSuggestionsHandlers(mock, NewEnterpriseArchLinks(sharedAPI.NewHATEOASLinks("")))
 }
 
 func TestGetTimeSuggestions_ReturnsAllSuggestions(t *testing.T) {

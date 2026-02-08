@@ -24,14 +24,14 @@ func setMaturityScaleCacheHeaders(w http.ResponseWriter, version int) {
 type MetaModelHandlers struct {
 	commandBus     cqrs.CommandBus
 	readModel      *readmodels.MetaModelConfigurationReadModel
-	hateoas        *sharedAPI.HATEOASLinks
+	hateoas        *MetaModelLinks
 	sessionManager *session.SessionManager
 }
 
 func NewMetaModelHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.MetaModelConfigurationReadModel,
-	hateoas *sharedAPI.HATEOASLinks,
+	hateoas *MetaModelLinks,
 	sessionManager *session.SessionManager,
 ) *MetaModelHandlers {
 	return &MetaModelHandlers{

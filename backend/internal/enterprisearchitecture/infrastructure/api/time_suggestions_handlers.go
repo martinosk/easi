@@ -16,10 +16,10 @@ type TimeSuggestionReader interface {
 
 type TimeSuggestionsHandlers struct {
 	readModel TimeSuggestionReader
-	hateoas   *sharedAPI.HATEOASLinks
+	hateoas   *EnterpriseArchLinks
 }
 
-func NewTimeSuggestionsHandlers(readModel TimeSuggestionReader, hateoas *sharedAPI.HATEOASLinks) *TimeSuggestionsHandlers {
+func NewTimeSuggestionsHandlers(readModel TimeSuggestionReader, hateoas *EnterpriseArchLinks) *TimeSuggestionsHandlers {
 	return &TimeSuggestionsHandlers{
 		readModel: readModel,
 		hateoas:   hateoas,

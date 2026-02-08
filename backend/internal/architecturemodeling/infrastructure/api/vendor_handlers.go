@@ -14,13 +14,13 @@ type VendorHandlers struct {
 	commandBus       cqrs.CommandBus
 	readModel        *readmodels.VendorReadModel
 	paginationHelper *sharedAPI.PaginationHelper
-	hateoas          *sharedAPI.HATEOASLinks
+	hateoas          *ArchitectureModelingLinks
 }
 
 func NewVendorHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.VendorReadModel,
-	hateoas *sharedAPI.HATEOASLinks,
+	hateoas *ArchitectureModelingLinks,
 ) *VendorHandlers {
 	return &VendorHandlers{
 		commandBus:       commandBus,

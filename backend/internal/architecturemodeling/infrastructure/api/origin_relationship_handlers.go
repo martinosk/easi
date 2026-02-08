@@ -21,13 +21,13 @@ type OriginReadModels struct {
 type OriginRelationshipHandlersConfig struct {
 	CommandBus cqrs.CommandBus
 	ReadModels OriginReadModels
-	HATEOAS    *sharedAPI.HATEOASLinks
+	HATEOAS    *ArchitectureModelingLinks
 }
 
 type OriginRelationshipHandlers struct {
 	commandBus cqrs.CommandBus
 	readModels OriginReadModels
-	hateoas    *sharedAPI.HATEOASLinks
+	hateoas    *ArchitectureModelingLinks
 }
 
 func NewOriginRelationshipHandlers(
@@ -35,7 +35,7 @@ func NewOriginRelationshipHandlers(
 	acquiredViaReadModel *readmodels.AcquiredViaRelationshipReadModel,
 	purchasedFromReadModel *readmodels.PurchasedFromRelationshipReadModel,
 	builtByReadModel *readmodels.BuiltByRelationshipReadModel,
-	hateoas *sharedAPI.HATEOASLinks,
+	hateoas *ArchitectureModelingLinks,
 ) *OriginRelationshipHandlers {
 	return NewOriginRelationshipHandlersFromConfig(OriginRelationshipHandlersConfig{
 		CommandBus: commandBus,

@@ -71,8 +71,9 @@ func SetupMetaModelRoutes(deps MetaModelRoutesDeps) error {
 	tenantCreatedHandler := handlers.NewTenantCreatedHandler(deps.CommandBus)
 	deps.EventBus.Subscribe("TenantCreated", tenantCreatedHandler)
 
-	metaModelHandlers := NewMetaModelHandlers(deps.CommandBus, configReadModel, deps.Hateoas, deps.SessionManager)
-	strategyPillarsHandlers := NewStrategyPillarsHandlers(deps.CommandBus, configReadModel, deps.Hateoas, deps.SessionManager)
+	links := NewMetaModelLinks(deps.Hateoas)
+	metaModelHandlers := NewMetaModelHandlers(deps.CommandBus, configReadModel, links, deps.SessionManager)
+	strategyPillarsHandlers := NewStrategyPillarsHandlers(deps.CommandBus, configReadModel, links, deps.SessionManager)
 
 	deps.Router.Route("/meta-model", func(r chi.Router) {
 		r.Group(func(r chi.Router) {

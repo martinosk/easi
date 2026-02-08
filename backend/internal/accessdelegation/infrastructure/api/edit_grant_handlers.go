@@ -18,13 +18,13 @@ import (
 type EditGrantHandlers struct {
 	commandBus cqrs.CommandBus
 	readModel  *readmodels.EditGrantReadModel
-	hateoas    *sharedAPI.HATEOASLinks
+	hateoas    *EditGrantLinks
 }
 
 func NewEditGrantHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.EditGrantReadModel,
-	hateoas *sharedAPI.HATEOASLinks,
+	hateoas *EditGrantLinks,
 ) *EditGrantHandlers {
 	return &EditGrantHandlers{
 		commandBus: commandBus,

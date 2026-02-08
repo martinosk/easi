@@ -14,14 +14,14 @@ import (
 type ViewHandlers struct {
 	commandBus   cqrs.CommandBus
 	readModel    *readmodels.ArchitectureViewReadModel
-	hateoas      *sharedAPI.HATEOASLinks
+	hateoas      *ViewLinks
 	errorHandler *sharedAPI.ErrorHandler
 }
 
 func NewViewHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.ArchitectureViewReadModel,
-	hateoas *sharedAPI.HATEOASLinks,
+	hateoas *ViewLinks,
 ) *ViewHandlers {
 	return &ViewHandlers{
 		commandBus:   commandBus,
@@ -325,7 +325,7 @@ func (h *ViewHandlers) UpdateLayoutDirection(w http.ResponseWriter, r *http.Requ
 
 func (h *ViewHandlers) buildViewLinks(r *http.Request, view *readmodels.ArchitectureViewDTO) sharedAPI.Links {
 	actor, _ := sharedctx.GetActor(r.Context())
-	viewInfo := sharedAPI.ViewInfo{
+	viewInfo := ViewInfo{
 		ID:          view.ID,
 		IsPrivate:   view.IsPrivate,
 		IsDefault:   view.IsDefault,

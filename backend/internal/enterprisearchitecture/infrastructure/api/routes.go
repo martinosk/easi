@@ -196,10 +196,10 @@ func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadMo
 		Importance:       rm.importance,
 		MaturityAnalysis: rm.maturityAnalysis,
 	}
-	hateoas := sharedAPI.NewHATEOASLinks("")
+	links := NewEnterpriseArchLinks(sharedAPI.NewHATEOASLinks(""))
 	return &routeHTTPHandlers{
 		enterpriseCapability: NewEnterpriseCapabilityHandlers(commandBus, readModels, sessionManager),
-		timeSuggestions:      NewTimeSuggestionsHandlers(rm.timeSuggestion, hateoas),
+		timeSuggestions:      NewTimeSuggestionsHandlers(rm.timeSuggestion, links),
 	}
 }
 

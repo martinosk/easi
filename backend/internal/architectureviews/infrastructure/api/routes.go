@@ -74,11 +74,12 @@ type HTTPHandlers struct {
 func NewHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, db *database.TenantAwareDB, hateoas *sharedAPI.HATEOASLinks) *HTTPHandlers {
 	viewReadModel := readmodels.NewArchitectureViewReadModel(db)
 	layoutRepo := repositories.NewViewLayoutRepository(db)
+	links := NewViewLinks(hateoas)
 	return &HTTPHandlers{
-		view:      NewViewHandlers(commandBus, viewReadModel, hateoas),
+		view:      NewViewHandlers(commandBus, viewReadModel, links),
 		component: NewViewComponentHandlers(commandBus, viewReadModel),
 		element:   NewViewElementHandlers(layoutRepo, viewReadModel),
-		color:     NewViewColorHandlers(commandBus, viewReadModel, hateoas),
+		color:     NewViewColorHandlers(commandBus, viewReadModel, links),
 	}
 }
 

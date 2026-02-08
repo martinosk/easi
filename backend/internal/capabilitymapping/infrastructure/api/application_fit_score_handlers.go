@@ -19,14 +19,14 @@ import (
 type ApplicationFitScoreHandlers struct {
 	commandBus     cqrs.CommandBus
 	fitScoreRM     *readmodels.ApplicationFitScoreReadModel
-	hateoas        *sharedAPI.HATEOASLinks
+	hateoas        *CapabilityMappingLinks
 	sessionManager *session.SessionManager
 }
 
 func NewApplicationFitScoreHandlers(
 	commandBus cqrs.CommandBus,
 	fitScoreRM *readmodels.ApplicationFitScoreReadModel,
-	hateoas *sharedAPI.HATEOASLinks,
+	hateoas *CapabilityMappingLinks,
 	sessionManager *session.SessionManager,
 ) *ApplicationFitScoreHandlers {
 	return &ApplicationFitScoreHandlers{

@@ -177,14 +177,15 @@ func registerOriginRelationshipCommandHandlers(bus *cqrs.InMemoryCommandBus, rep
 }
 
 func newHTTPHandlerSet(bus *cqrs.InMemoryCommandBus, rm *readModelSet, hateoas *sharedAPI.HATEOASLinks) *httpHandlerSet {
+	links := NewArchitectureModelingLinks(hateoas)
 	return &httpHandlerSet{
-		component:          NewComponentHandlers(bus, rm.component, hateoas),
+		component:          NewComponentHandlers(bus, rm.component, links),
 		expert:             NewComponentExpertHandlers(bus, rm.component),
-		relation:           NewRelationHandlers(bus, rm.relation, hateoas),
-		acquiredEntity:     NewAcquiredEntityHandlers(bus, rm.acquiredEntity, hateoas),
-		vendor:             NewVendorHandlers(bus, rm.vendor, hateoas),
-		internalTeam:       NewInternalTeamHandlers(bus, rm.internalTeam, hateoas),
-		originRelationship: NewOriginRelationshipHandlers(bus, rm.acquiredVia, rm.purchasedFrom, rm.builtBy, hateoas),
+		relation:           NewRelationHandlers(bus, rm.relation, links),
+		acquiredEntity:     NewAcquiredEntityHandlers(bus, rm.acquiredEntity, links),
+		vendor:             NewVendorHandlers(bus, rm.vendor, links),
+		internalTeam:       NewInternalTeamHandlers(bus, rm.internalTeam, links),
+		originRelationship: NewOriginRelationshipHandlers(bus, rm.acquiredVia, rm.purchasedFrom, rm.builtBy, links),
 	}
 }
 

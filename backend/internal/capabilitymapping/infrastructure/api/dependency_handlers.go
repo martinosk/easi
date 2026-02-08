@@ -20,13 +20,13 @@ import (
 type DependencyHandlers struct {
 	commandBus cqrs.CommandBus
 	readModel  *readmodels.DependencyReadModel
-	hateoas    *sharedAPI.HATEOASLinks
+	hateoas    *CapabilityMappingLinks
 }
 
 func NewDependencyHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.DependencyReadModel,
-	hateoas *sharedAPI.HATEOASLinks,
+	hateoas *CapabilityMappingLinks,
 ) *DependencyHandlers {
 	return &DependencyHandlers{
 		commandBus: commandBus,
