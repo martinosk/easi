@@ -14,7 +14,6 @@ export interface NodeContextMenu {
   x: number;
   y: number;
   nodeId: string;
-  viewElementId: string;
   nodeName: string;
   nodeType: 'component' | 'capability' | 'originEntity';
   originEntityType?: OriginEntityType;
@@ -64,7 +63,6 @@ function resolveOriginEntityNode(
   return {
     ...position,
     nodeId: entityId,
-    viewElementId: node.id,
     nodeName: result.entity.name,
     nodeType: 'originEntity',
     originEntityType: result.originEntityType,
@@ -86,7 +84,6 @@ function resolveCapabilityNode(
   return {
     ...position,
     nodeId: capId,
-    viewElementId: capId,
     nodeName: capability.name,
     nodeType: 'capability',
     modelLinks: capability._links,
@@ -106,7 +103,6 @@ function resolveComponentNode(
   return {
     ...position,
     nodeId: node.id,
-    viewElementId: node.id,
     nodeName: component.name,
     nodeType: 'component',
     modelLinks: component._links,
@@ -135,7 +131,8 @@ export function resolveNodeMenu(
   }
 
   if (node.type === 'originEntity') {
-    const viewElement = deps.currentViewOriginEntities.find((vo) => vo.originEntityId === node.id);
+    const entityId = extractOriginEntityId(node.id);
+    const viewElement = entityId ? deps.currentViewOriginEntities.find((vo) => vo.originEntityId === entityId) : undefined;
     return resolveOriginEntityNode(node, deps.originEntityLookups, position, viewElement?._links);
   }
 

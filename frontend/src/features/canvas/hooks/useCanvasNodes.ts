@@ -9,7 +9,6 @@ import {
   createVendorNode,
   createInternalTeamNode,
   isComponentInView,
-  ORIGIN_ENTITY_PREFIXES,
 } from '../utils/nodeFactory';
 import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
@@ -18,15 +17,6 @@ import { useAcquiredEntitiesQuery } from '../../origin-entities/hooks/useAcquire
 import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
 import { useInternalTeamsQuery } from '../../origin-entities/hooks/useInternalTeams';
 import type { ViewCapability } from '../../../api/types';
-
-function isOriginEntityInView(
-  entityId: string,
-  prefix: string,
-  viewOriginEntityIds: Set<string>
-): boolean {
-  const nodeId = `${prefix}${entityId}`;
-  return viewOriginEntityIds.has(nodeId);
-}
 
 export const useCanvasNodes = (): Node[] => {
   const { data: components = [] } = useComponents();
@@ -60,15 +50,15 @@ export const useCanvasNodes = (): Node[] => {
       .filter((n): n is Node => n !== null);
 
     const acquiredEntityNodes = acquiredEntities
-      .filter((e) => isOriginEntityInView(e.id, ORIGIN_ENTITY_PREFIXES.acquired, viewOriginEntityIds))
+      .filter((e) => viewOriginEntityIds.has(e.id))
       .map((entity) => createAcquiredEntityNode(entity, viewOriginEntityPositions, selectedNodeId));
 
     const vendorNodes = vendors
-      .filter((v) => isOriginEntityInView(v.id, ORIGIN_ENTITY_PREFIXES.vendor, viewOriginEntityIds))
+      .filter((v) => viewOriginEntityIds.has(v.id))
       .map((vendor) => createVendorNode(vendor, viewOriginEntityPositions, selectedNodeId));
 
     const internalTeamNodes = internalTeams
-      .filter((t) => isOriginEntityInView(t.id, ORIGIN_ENTITY_PREFIXES.team, viewOriginEntityIds))
+      .filter((t) => viewOriginEntityIds.has(t.id))
       .map((team) => createInternalTeamNode(team, viewOriginEntityPositions, selectedNodeId));
 
     return [...componentNodes, ...capabilityNodes, ...acquiredEntityNodes, ...vendorNodes, ...internalTeamNodes];

@@ -5,7 +5,6 @@ import { useAddCapabilityToView, useAddOriginEntityToView } from '../../views/ho
 import { toCapabilityId, toComponentId } from '../../../api/types';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 import { canEdit } from '../../../utils/hateoas';
-import { ORIGIN_ENTITY_PREFIXES } from '../utils/nodeFactory';
 import type { MultiDragPayload, TreeItemType } from '../../navigation/hooks/useTreeMultiSelect';
 
 const MULTI_DROP_OFFSET_Y = 100;
@@ -31,11 +30,9 @@ function isItemInView(item: { type: TreeItemType; id: string }, presence: ViewPr
     case 'capability':
       return presence.capabilityIds.has(item.id);
     case 'acquired':
-      return presence.originEntityIds.has(`${ORIGIN_ENTITY_PREFIXES.acquired}${item.id}`);
     case 'vendor':
-      return presence.originEntityIds.has(`${ORIGIN_ENTITY_PREFIXES.vendor}${item.id}`);
     case 'team':
-      return presence.originEntityIds.has(`${ORIGIN_ENTITY_PREFIXES.team}${item.id}`);
+      return presence.originEntityIds.has(item.id);
   }
 }
 
@@ -65,12 +62,6 @@ function parseMultiDragPayload(dataTransfer: DataTransfer): MultiDragPayload | n
   }
 }
 
-const ORIGIN_PREFIX_MAP: Record<string, string> = {
-  acquired: ORIGIN_ENTITY_PREFIXES.acquired,
-  vendor: ORIGIN_ENTITY_PREFIXES.vendor,
-  team: ORIGIN_ENTITY_PREFIXES.team,
-};
-
 interface DropHandlers {
   onComponentDrop?: (componentId: string, x: number, y: number) => void;
   updateComponentPosition: (componentId: ReturnType<typeof toComponentId>, x: number, y: number) => Promise<void>;
@@ -97,7 +88,7 @@ async function addItemToView(item: { type: TreeItemType; id: string }, x: number
     case 'acquired':
     case 'vendor':
     case 'team':
-      await handlers.addOriginEntity(handlers.currentViewId, `${ORIGIN_PREFIX_MAP[item.type]}${item.id}`, x, y);
+      await handlers.addOriginEntity(handlers.currentViewId, item.id, x, y);
       break;
   }
 }

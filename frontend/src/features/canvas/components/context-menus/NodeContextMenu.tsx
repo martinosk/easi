@@ -91,7 +91,7 @@ function buildViewElementItems(ctx: MenuItemBuilderContext, config: ViewElementC
     items.push({
       label: 'Remove from View',
       onClick: () => {
-        ctx.removeFromView(ctx.menu.viewElementId);
+        ctx.removeFromView(ctx.menu.nodeId);
         ctx.onClose();
       },
     });
@@ -126,7 +126,7 @@ function buildOriginEntityItems(ctx: MenuItemBuilderContext, config: ViewElement
     items.push({
       label: 'Remove from View',
       onClick: () => {
-        ctx.removeFromView(ctx.menu.viewElementId);
+        ctx.removeFromView(ctx.menu.nodeId);
         ctx.onClose();
       },
     });

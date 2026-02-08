@@ -9,7 +9,6 @@ function makeNode(overrides: Partial<NodeContextMenu> = {}): NodeContextMenu {
     x: 100,
     y: 200,
     nodeId,
-    viewElementId: nodeId,
     nodeName: 'Test Node',
     nodeType: 'component',
     ...overrides,

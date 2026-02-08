@@ -49,7 +49,7 @@ function removeNodeFromView(node: NodeContextMenu, viewId: ViewId, mutations: Re
   const handlers: Record<NodeContextMenu['nodeType'], () => Promise<void>> = {
     component: () => mutations.component.mutateAsync({ viewId, componentId: toComponentId(node.nodeId) }),
     capability: () => mutations.capability.mutateAsync({ viewId, capabilityId: toCapabilityId(node.nodeId) }),
-    originEntity: () => mutations.originEntity.mutateAsync({ viewId, originEntityId: node.viewElementId }),
+    originEntity: () => mutations.originEntity.mutateAsync({ viewId, originEntityId: node.nodeId }),
   };
   return handlers[node.nodeType]();
 }

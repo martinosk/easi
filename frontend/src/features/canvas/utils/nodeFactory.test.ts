@@ -134,7 +134,7 @@ describe('extractOriginEntityId', () => {
 
 describe('createOriginEntityNode', () => {
   const emptyLayoutPositions = {};
-  const layoutWithPosition = { 'acq-123': { x: 100, y: 200 } };
+  const layoutWithPosition = { '123': { x: 100, y: 200 } };
 
   const makeParams = (overrides = {}) => ({
     entityId: '123',

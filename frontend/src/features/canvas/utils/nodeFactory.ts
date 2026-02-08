@@ -82,7 +82,7 @@ export const createOriginEntityNode = (params: OriginEntityNodeParams): Node => 
   const { entityId, entityType, name, layoutPositions, selectedOriginEntityId, subtitle } = params;
   const prefix = ORIGIN_ENTITY_PREFIXES[entityType];
   const nodeId = `${prefix}${entityId}`;
-  const layoutPosition = layoutPositions[nodeId];
+  const layoutPosition = layoutPositions[entityId];
   const position = layoutPosition ?? DEFAULT_POSITION;
 
   return {

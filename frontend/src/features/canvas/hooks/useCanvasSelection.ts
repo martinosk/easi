@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { Node, Edge } from '@xyflow/react';
 import { useReactFlow } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
@@ -30,7 +30,7 @@ function persistOriginEntityPosition(
   if (!originEntityId) return;
   mutate({
     viewId,
-    originEntityId: node.id,
+    originEntityId,
     position: { x: node.position.x, y: node.position.y },
   });
 }
@@ -39,23 +39,23 @@ function getNodesToPersist(node: Node, selectedNodes: Node[]): Node[] {
   return selectedNodes.length > 0 ? selectedNodes : [node];
 }
 
-function updateSingleNode(
-  node: Node,
-  currentViewId: ViewId,
-  updateCapabilityPosition: (id: CapabilityId, x: number, y: number) => Promise<void>,
-  updateComponentPosition: (id: ComponentId, x: number, y: number) => Promise<void>,
-  updateOriginEntity: (node: Node, viewId: ViewId) => void
-): void {
+interface PositionPersisters {
+  updateCapabilityPosition: (id: CapabilityId, x: number, y: number) => Promise<void>;
+  updateComponentPosition: (id: ComponentId, x: number, y: number) => Promise<void>;
+  updateOriginEntity: (node: Node) => void;
+}
+
+function updateSingleNode(node: Node, persisters: PositionPersisters): void {
   if (node.type === 'capability') {
     const capId = toCapabilityId(node.id.replace('cap-', ''));
-    updateCapabilityPosition(capId, node.position.x, node.position.y);
+    persisters.updateCapabilityPosition(capId, node.position.x, node.position.y);
     return;
   }
   if (node.type === 'originEntity') {
-    updateOriginEntity(node, currentViewId);
+    persisters.updateOriginEntity(node);
     return;
   }
-  updateComponentPosition(toComponentId(node.id), node.position.x, node.position.y);
+  persisters.updateComponentPosition(toComponentId(node.id), node.position.x, node.position.y);
 }
 
 function buildBatchUpdates(nodes: Node[], updateOriginEntity: (node: Node) => void): BatchUpdateItem[] {
@@ -111,37 +111,28 @@ export const useCanvasSelection = () => {
     selectCapability(null);
   }, [clearSelection, selectCapability]);
 
+  const persisters = useMemo<PositionPersisters>(() => ({
+    updateCapabilityPosition,
+    updateComponentPosition,
+    updateOriginEntity: (target: Node) =>
+      currentViewId && persistOriginEntityPosition(target, currentViewId, updateOriginEntityPositionMutation.mutate),
+  }), [updateCapabilityPosition, updateComponentPosition, currentViewId, updateOriginEntityPositionMutation]);
+
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       if (!canEdit(currentView) || !currentViewId) return;
       const selectedNodes = reactFlowInstance.getNodes().filter((n) => n.selected);
       const nodesToPersist = getNodesToPersist(node, selectedNodes);
-      const updateOriginEntity = (target: Node) =>
-        persistOriginEntityPosition(target, currentViewId, updateOriginEntityPositionMutation.mutate);
 
       if (nodesToPersist.length === 1) {
-        updateSingleNode(
-          nodesToPersist[0],
-          currentViewId,
-          updateCapabilityPosition,
-          updateComponentPosition,
-          updateOriginEntity
-        );
+        updateSingleNode(nodesToPersist[0], persisters);
         return;
       }
 
-      const updates = buildBatchUpdates(nodesToPersist, updateOriginEntity);
+      const updates = buildBatchUpdates(nodesToPersist, persisters.updateOriginEntity);
       if (updates.length > 0) batchUpdatePositions(updates);
     },
-    [
-      updateComponentPosition,
-      updateCapabilityPosition,
-      updateOriginEntityPositionMutation,
-      currentView,
-      currentViewId,
-      reactFlowInstance,
-      batchUpdatePositions,
-    ]
+    [persisters, currentView, currentViewId, reactFlowInstance, batchUpdatePositions]
   );
 
   return {

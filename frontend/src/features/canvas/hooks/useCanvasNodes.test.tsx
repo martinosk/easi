@@ -111,7 +111,7 @@ describe('useCanvasNodes', () => {
 
   describe('origin entity nodes with relationships', () => {
     it('should include origin entity when it is explicitly added to the view', () => {
-      addOriginEntityToView('acq-ae-1');
+      addOriginEntityToView('ae-1');
 
       const nodes = renderAndGetAcquiredEntityNodes();
 
@@ -136,7 +136,7 @@ describe('useCanvasNodes', () => {
     });
 
     it('should include origin entity from view membership even with relationship (no duplicates)', () => {
-      addOriginEntityToView('acq-ae-1');
+      addOriginEntityToView('ae-1');
       mockOriginRelationships = [createMockRelationship('comp-1', 'ae-1', 'Acquired Entity 1')];
 
       const nodes = renderAndGetAcquiredEntityNodes();
@@ -146,7 +146,7 @@ describe('useCanvasNodes', () => {
     });
 
     it('should only include origin entity explicitly in view, ignoring relationship-only entities', () => {
-      addOriginEntityToView('acq-ae-1');
+      addOriginEntityToView('ae-1');
       mockOriginRelationships = [createMockRelationship('comp-2', 'ae-2', 'Acquired Entity 2')];
 
       const nodes = renderAndGetAcquiredEntityNodes();
