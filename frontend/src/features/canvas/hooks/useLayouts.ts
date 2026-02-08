@@ -16,13 +16,14 @@ interface LayoutContext {
 }
 
 function useLayoutMutationWithInvalidation<TVariables extends LayoutContext>(
-  mutationFn: (variables: TVariables) => Promise<unknown>
+  mutationFn: (variables: TVariables) => Promise<unknown>,
+  getEffects: (contextType: LayoutContextType, contextRef: string) => ReadonlyArray<readonly unknown[]> = layoutsMutationEffects.updateElement
 ) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn,
     onSuccess: (_, { contextType, contextRef }) => {
-      invalidateFor(queryClient, layoutsMutationEffects.updateElement(contextType, contextRef));
+      invalidateFor(queryClient, getEffects(contextType, contextRef));
     },
   });
 }
@@ -39,48 +40,27 @@ export function useLayout(
 }
 
 export function useUpsertLayout() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      contextType,
-      contextRef,
-      request,
-    }: LayoutContext & { request?: UpsertLayoutRequest }) =>
+  return useLayoutMutationWithInvalidation(
+    ({ contextType, contextRef, request }: LayoutContext & { request?: UpsertLayoutRequest }) =>
       layoutsApi.upsert(contextType, contextRef, request),
-    onSuccess: (_, { contextType, contextRef }) => {
-      invalidateFor(queryClient, layoutsMutationEffects.upsert(contextType, contextRef));
-    },
-  });
+    layoutsMutationEffects.upsert
+  );
 }
 
 export function useDeleteLayout() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ contextType, contextRef }: LayoutContext) =>
+  return useLayoutMutationWithInvalidation(
+    ({ contextType, contextRef }: LayoutContext) =>
       layoutsApi.delete(contextType, contextRef),
-    onSuccess: (_, { contextType, contextRef }) => {
-      invalidateFor(queryClient, layoutsMutationEffects.delete(contextType, contextRef));
-    },
-  });
+    layoutsMutationEffects.delete
+  );
 }
 
 export function useUpdateLayoutPreferences() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      contextType,
-      contextRef,
-      preferences,
-      version,
-    }: LayoutContext & { preferences: Record<string, unknown>; version: number }) =>
+  return useLayoutMutationWithInvalidation(
+    ({ contextType, contextRef, preferences, version }: LayoutContext & { preferences: Record<string, unknown>; version: number }) =>
       layoutsApi.updatePreferences(contextType, contextRef, preferences, version),
-    onSuccess: (_, { contextType, contextRef }) => {
-      invalidateFor(queryClient, layoutsMutationEffects.updatePreferences(contextType, contextRef));
-    },
-  });
+    layoutsMutationEffects.updatePreferences
+  );
 }
 
 export function useUpsertElementPosition() {

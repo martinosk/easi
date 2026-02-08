@@ -54,13 +54,11 @@ func TestNewEditGrant_RaisesEditGrantActivatedEvent(t *testing.T) {
 }
 
 func TestNewEditGrant_RejectsSelfGrant(t *testing.T) {
-	artifactRef := mustNewArtifactRef(t, "capability", "550e8400-e29b-41d4-a716-446655440000")
-	scope, _ := valueobjects.NewGrantScope("write")
-	grantor := mustNewGrantor(t, "user-id", "same@example.com")
-	granteeEmail := mustNewGranteeEmail(t, "same@example.com")
-	reason := mustNewReason(t, "reason")
+	args := defaultGrantRequest(t)
+	args.Grantor = mustNewGrantor(t, "user-id", "same@example.com")
+	args.GranteeEmail = mustNewGranteeEmail(t, "same@example.com")
 
-	grant, err := NewEditGrant(grantor, granteeEmail, artifactRef, scope, reason)
+	grant, err := NewEditGrant(args)
 
 	assert.Nil(t, grant)
 	assert.Error(t, err)
@@ -229,13 +227,11 @@ func TestNewEditGrant_DifferentArtifactTypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			artifactRef := mustNewArtifactRef(t, tt.artifactType, tt.artifactID)
-			scope, _ := valueobjects.NewGrantScope("write")
+			args := defaultGrantRequest(t)
+			args.ArtifactRef = mustNewArtifactRef(t, tt.artifactType, tt.artifactID)
+			args.Reason = mustNewReason(t, "")
 
-			grantor := mustNewGrantor(t, "grantor-id", "grantor@example.com")
-			granteeEmail := mustNewGranteeEmail(t, "grantee@example.com")
-			reason := mustNewReason(t, "")
-			grant, err := NewEditGrant(grantor, granteeEmail, artifactRef, scope, reason)
+			grant, err := NewEditGrant(args)
 			require.NoError(t, err)
 			assert.Equal(t, tt.artifactID, grant.ArtifactRef().ID())
 		})
@@ -243,13 +239,10 @@ func TestNewEditGrant_DifferentArtifactTypes(t *testing.T) {
 }
 
 func TestNewEditGrant_EmptyReasonIsAllowed(t *testing.T) {
-	artifactRef := mustNewArtifactRef(t, "capability", "550e8400-e29b-41d4-a716-446655440000")
-	scope, _ := valueobjects.NewGrantScope("write")
+	args := defaultGrantRequest(t)
+	args.Reason = mustNewReason(t, "")
 
-	grantor := mustNewGrantor(t, "grantor-id", "grantor@example.com")
-	granteeEmail := mustNewGranteeEmail(t, "grantee@example.com")
-	reason := mustNewReason(t, "")
-	grant, err := NewEditGrant(grantor, granteeEmail, artifactRef, scope, reason)
+	grant, err := NewEditGrant(args)
 	require.NoError(t, err)
 	assert.Equal(t, "", grant.Reason())
 }
@@ -265,19 +258,21 @@ func TestLoadEditGrantFromHistory_EmptyEvents(t *testing.T) {
 	assert.NotNil(t, loaded)
 }
 
+func defaultGrantRequest(t *testing.T) GrantRequest {
+	t.Helper()
+	return GrantRequest{
+		Grantor:      mustNewGrantor(t, "grantor-id", "grantor@example.com"),
+		GranteeEmail: mustNewGranteeEmail(t, "grantee@example.com"),
+		ArtifactRef:  mustNewArtifactRef(t, "capability", "550e8400-e29b-41d4-a716-446655440000"),
+		Scope:        mustNewGrantScope(t, "write"),
+		Reason:       mustNewReason(t, "collaboration needed"),
+	}
+}
+
 func createEditGrant(t *testing.T) *EditGrant {
 	t.Helper()
-
-	artifactRef := mustNewArtifactRef(t, "capability", "550e8400-e29b-41d4-a716-446655440000")
-	scope, err := valueobjects.NewGrantScope("write")
+	grant, err := NewEditGrant(defaultGrantRequest(t))
 	require.NoError(t, err)
-
-	grantor := mustNewGrantor(t, "grantor-id", "grantor@example.com")
-	granteeEmail := mustNewGranteeEmail(t, "grantee@example.com")
-	reason := mustNewReason(t, "collaboration needed")
-	grant, err := NewEditGrant(grantor, granteeEmail, artifactRef, scope, reason)
-	require.NoError(t, err)
-
 	return grant
 }
 
@@ -309,6 +304,15 @@ func mustNewGranteeEmail(t *testing.T, email string) valueobjects.GranteeEmail {
 	require.NoError(t, err)
 
 	return ge
+}
+
+func mustNewGrantScope(t *testing.T, s string) valueobjects.GrantScope {
+	t.Helper()
+
+	scope, err := valueobjects.NewGrantScope(s)
+	require.NoError(t, err)
+
+	return scope
 }
 
 func mustNewReason(t *testing.T, s string) valueobjects.Reason {

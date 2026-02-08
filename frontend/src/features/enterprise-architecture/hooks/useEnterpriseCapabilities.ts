@@ -71,36 +71,39 @@ export function useEnterpriseCapability(id: EnterpriseCapabilityId | undefined) 
   });
 }
 
-export function useCreateEnterpriseCapability() {
+function useEnterpriseMutation<TArgs, TResult>(
+  mutationFn: (args: TArgs) => Promise<TResult>,
+  onMutationSuccess: (queryClient: ReturnType<typeof useQueryClient>, result: TResult, args: TArgs) => void,
+  errorMessage: string
+) {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (request: CreateEnterpriseCapabilityRequest) =>
-      enterpriseArchApi.create(request),
-    onSuccess: (newCapability) => {
-      invalidateFor(queryClient, enterpriseCapabilitiesMutationEffects.create());
-      toast.success(`Enterprise capability "${newCapability.name}" created successfully`);
-    },
-    onError: (error: unknown) => {
-      toast.error(getErrorMessage(error, 'Failed to create enterprise capability'));
-    },
+    mutationFn,
+    onSuccess: (result, args) => onMutationSuccess(queryClient, result, args),
+    onError: (error: unknown) => toast.error(getErrorMessage(error, errorMessage)),
   });
 }
 
-export function useDeleteEnterpriseCapability() {
-  const queryClient = useQueryClient();
+export function useCreateEnterpriseCapability() {
+  return useEnterpriseMutation(
+    (request: CreateEnterpriseCapabilityRequest) => enterpriseArchApi.create(request),
+    (qc, newCapability) => {
+      invalidateFor(qc, enterpriseCapabilitiesMutationEffects.create());
+      toast.success(`Enterprise capability "${newCapability.name}" created successfully`);
+    },
+    'Failed to create enterprise capability'
+  );
+}
 
-  return useMutation({
-    mutationFn: ({ id }: { id: EnterpriseCapabilityId; name: string }) =>
-      enterpriseArchApi.delete(id),
-    onSuccess: (_, { id, name }) => {
-      invalidateFor(queryClient, enterpriseCapabilitiesMutationEffects.delete(id));
+export function useDeleteEnterpriseCapability() {
+  return useEnterpriseMutation(
+    ({ id }: { id: EnterpriseCapabilityId; name: string }) => enterpriseArchApi.delete(id),
+    (qc, _, { id, name }) => {
+      invalidateFor(qc, enterpriseCapabilitiesMutationEffects.delete(id));
       toast.success(`Enterprise capability "${name}" deleted`);
     },
-    onError: (error: unknown) => {
-      toast.error(getErrorMessage(error, 'Failed to delete capability'));
-    },
-  });
+    'Failed to delete capability'
+  );
 }
 
 export function useEnterpriseCapabilityLinks(enterpriseCapabilityId: EnterpriseCapabilityId | undefined) {
@@ -112,43 +115,25 @@ export function useEnterpriseCapabilityLinks(enterpriseCapabilityId: EnterpriseC
 }
 
 export function useLinkDomainCapability() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      enterpriseCapabilityId,
-      request,
-    }: {
-      enterpriseCapabilityId: EnterpriseCapabilityId;
-      request: LinkCapabilityRequest;
-    }) => enterpriseArchApi.linkDomainCapability(enterpriseCapabilityId, request),
-    onSuccess: (_, { enterpriseCapabilityId }) => {
-      invalidateFor(queryClient, enterpriseCapabilitiesMutationEffects.link(enterpriseCapabilityId));
+  return useEnterpriseMutation(
+    ({ enterpriseCapabilityId, request }: { enterpriseCapabilityId: EnterpriseCapabilityId; request: LinkCapabilityRequest }) =>
+      enterpriseArchApi.linkDomainCapability(enterpriseCapabilityId, request),
+    (qc, _, { enterpriseCapabilityId }) => {
+      invalidateFor(qc, enterpriseCapabilitiesMutationEffects.link(enterpriseCapabilityId));
       toast.success('Capability linked successfully');
     },
-    onError: (error: unknown) => {
-      toast.error(getErrorMessage(error, 'Failed to link capability'));
-    },
-  });
+    'Failed to link capability'
+  );
 }
 
 export function useUnlinkDomainCapability() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      enterpriseCapabilityId,
-      linkId,
-    }: {
-      enterpriseCapabilityId: EnterpriseCapabilityId;
-      linkId: EnterpriseCapabilityLinkId;
-    }) => enterpriseArchApi.unlinkDomainCapability(enterpriseCapabilityId, linkId),
-    onSuccess: (_, { enterpriseCapabilityId }) => {
-      invalidateFor(queryClient, enterpriseCapabilitiesMutationEffects.unlink(enterpriseCapabilityId));
+  return useEnterpriseMutation(
+    ({ enterpriseCapabilityId, linkId }: { enterpriseCapabilityId: EnterpriseCapabilityId; linkId: EnterpriseCapabilityLinkId }) =>
+      enterpriseArchApi.unlinkDomainCapability(enterpriseCapabilityId, linkId),
+    (qc, _, { enterpriseCapabilityId }) => {
+      invalidateFor(qc, enterpriseCapabilitiesMutationEffects.unlink(enterpriseCapabilityId));
       toast.success('Capability unlinked successfully');
     },
-    onError: (error: unknown) => {
-      toast.error(getErrorMessage(error, 'Failed to unlink capability'));
-    },
-  });
+    'Failed to unlink capability'
+  );
 }

@@ -13,6 +13,10 @@ type EditGrantResolver interface {
 	ResolveEditGrants(ctx context.Context, email string) (map[string]map[string]bool, error)
 }
 
+func hasFullWriteAccess(actor sharedctx.Actor) bool {
+	return actor.CanWrite("components") && actor.CanWrite("views") && actor.CanWrite("capabilities")
+}
+
 func EditGrantEnrichment(resolver EditGrantResolver) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -27,7 +31,7 @@ func EditGrantEnrichment(resolver EditGrantResolver) func(http.Handler) http.Han
 				return
 			}
 
-			if actor.CanWrite("components") && actor.CanWrite("views") && actor.CanWrite("capabilities") {
+			if hasFullWriteAccess(actor) {
 				next.ServeHTTP(w, r)
 				return
 			}

@@ -32,14 +32,16 @@ type EditGrant struct {
 	revokedAt    *time.Time
 }
 
-func NewEditGrant(
-	grantor valueobjects.Grantor,
-	granteeEmail valueobjects.GranteeEmail,
-	artifactRef valueobjects.ArtifactRef,
-	scope valueobjects.GrantScope,
-	reason valueobjects.Reason,
-) (*EditGrant, error) {
-	if grantor.Email() == granteeEmail.Value() {
+type GrantRequest struct {
+	Grantor      valueobjects.Grantor
+	GranteeEmail valueobjects.GranteeEmail
+	ArtifactRef  valueobjects.ArtifactRef
+	Scope        valueobjects.GrantScope
+	Reason       valueobjects.Reason
+}
+
+func NewEditGrant(req GrantRequest) (*EditGrant, error) {
+	if req.Grantor.Email() == req.GranteeEmail.Value() {
 		return nil, ErrCannotGrantToSelf
 	}
 
@@ -51,13 +53,13 @@ func NewEditGrant(
 	event := events.EditGrantActivated{
 		BaseEvent:    domain.NewBaseEvent(grant.ID()),
 		ID:           grant.ID(),
-		ArtifactType: artifactRef.Type().String(),
-		ArtifactID:   artifactRef.ID(),
-		GrantorID:    grantor.ID(),
-		GrantorEmail: grantor.Email(),
-		GranteeEmail: granteeEmail.Value(),
-		Scope:        scope.String(),
-		Reason:       reason.Value(),
+		ArtifactType: req.ArtifactRef.Type().String(),
+		ArtifactID:   req.ArtifactRef.ID(),
+		GrantorID:    req.Grantor.ID(),
+		GrantorEmail: req.Grantor.Email(),
+		GranteeEmail: req.GranteeEmail.Value(),
+		Scope:        req.Scope.String(),
+		Reason:       req.Reason.Value(),
 		CreatedAt:    now,
 		ExpiresAt:    now.Add(DefaultEditGrantTTL),
 	}
@@ -120,40 +122,50 @@ func (g *EditGrant) ensureActive() error {
 func (g *EditGrant) apply(event domain.DomainEvent) {
 	switch e := event.(type) {
 	case events.EditGrantActivated:
-		g.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-		artifactType, err := valueobjects.NewArtifactType(e.ArtifactType)
-		if err != nil {
-			panic(fmt.Sprintf("corrupt event data in %T: %v", event, err))
-		}
-		g.artifactRef, err = valueobjects.NewArtifactRef(artifactType, e.ArtifactID)
-		if err != nil {
-			panic(fmt.Sprintf("corrupt event data in %T: %v", event, err))
-		}
-		g.grantor, err = valueobjects.NewGrantor(e.GrantorID, e.GrantorEmail)
-		if err != nil {
-			panic(fmt.Sprintf("corrupt event data in %T: %v", event, err))
-		}
-		g.granteeEmail, err = valueobjects.NewGranteeEmail(e.GranteeEmail)
-		if err != nil {
-			panic(fmt.Sprintf("corrupt event data in %T: %v", event, err))
-		}
-		g.scope, err = valueobjects.NewGrantScope(e.Scope)
-		if err != nil {
-			panic(fmt.Sprintf("corrupt event data in %T: %v", event, err))
-		}
-		g.reason, err = valueobjects.NewReason(e.Reason)
-		if err != nil {
-			panic(fmt.Sprintf("corrupt event data in %T: %v", event, err))
-		}
-		g.status = valueobjects.GrantStatusActive
-		g.createdAt = e.CreatedAt
-		g.expiresAt = e.ExpiresAt
+		g.applyActivated(e)
 	case events.EditGrantRevoked:
 		g.status = valueobjects.GrantStatusRevoked
 		g.revokedAt = &e.RevokedAt
 	case events.EditGrantExpired:
 		g.status = valueobjects.GrantStatusExpired
 	}
+}
+
+func (g *EditGrant) applyActivated(e events.EditGrantActivated) {
+	g.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
+	g.artifactRef = mustReconstructArtifactRef(e.ArtifactType, e.ArtifactID)
+	g.grantor = mustReconstruct("Grantor", func() (valueobjects.Grantor, error) {
+		return valueobjects.NewGrantor(e.GrantorID, e.GrantorEmail)
+	})
+	g.granteeEmail = mustReconstruct("GranteeEmail", func() (valueobjects.GranteeEmail, error) {
+		return valueobjects.NewGranteeEmail(e.GranteeEmail)
+	})
+	g.scope = mustReconstruct("GrantScope", func() (valueobjects.GrantScope, error) {
+		return valueobjects.NewGrantScope(e.Scope)
+	})
+	g.reason = mustReconstruct("Reason", func() (valueobjects.Reason, error) {
+		return valueobjects.NewReason(e.Reason)
+	})
+	g.status = valueobjects.GrantStatusActive
+	g.createdAt = e.CreatedAt
+	g.expiresAt = e.ExpiresAt
+}
+
+func mustReconstructArtifactRef(artifactType, artifactID string) valueobjects.ArtifactRef {
+	at := mustReconstruct("ArtifactType", func() (valueobjects.ArtifactType, error) {
+		return valueobjects.NewArtifactType(artifactType)
+	})
+	return mustReconstruct("ArtifactRef", func() (valueobjects.ArtifactRef, error) {
+		return valueobjects.NewArtifactRef(at, artifactID)
+	})
+}
+
+func mustReconstruct[T any](name string, fn func() (T, error)) T {
+	val, err := fn()
+	if err != nil {
+		panic(fmt.Sprintf("corrupt event data for %s: %v", name, err))
+	}
+	return val
 }
 
 func (g *EditGrant) ArtifactRef() valueobjects.ArtifactRef { return g.artifactRef }

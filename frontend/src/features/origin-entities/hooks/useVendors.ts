@@ -80,89 +80,74 @@ export function useVendor(id: VendorId | undefined) {
   });
 }
 
-export function useCreateVendor() {
+function useVendorMutation<TArgs, TResult>(
+  mutationFn: (args: TArgs) => Promise<TResult>,
+  onMutationSuccess: (queryClient: ReturnType<typeof useQueryClient>, result: TResult, args: TArgs) => void,
+  errorMessage: string
+) {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (request: CreateVendorRequest) =>
-      originEntitiesApi.vendors.create(request),
-    onSuccess: (newVendor) => {
-      invalidateFor(queryClient, vendorsMutationEffects.create());
+    mutationFn,
+    onSuccess: (result, args) => onMutationSuccess(queryClient, result, args),
+    onError: () => toast.error(errorMessage),
+  });
+}
+
+export function useCreateVendor() {
+  return useVendorMutation(
+    (request: CreateVendorRequest) => originEntitiesApi.vendors.create(request),
+    (qc, newVendor) => {
+      invalidateFor(qc, vendorsMutationEffects.create());
       toast.success(`Vendor "${newVendor.name}" created successfully`);
     },
-    onError: () => {
-      toast.error('Failed to create vendor');
-    },
-  });
+    'Failed to create vendor'
+  );
 }
 
 export function useUpdateVendor() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, request }: { id: VendorId; request: UpdateVendorRequest }) =>
+  return useVendorMutation(
+    ({ id, request }: { id: VendorId; request: UpdateVendorRequest }) =>
       originEntitiesApi.vendors.update(id, request),
-    onSuccess: (updatedVendor, { id }) => {
-      invalidateFor(queryClient, vendorsMutationEffects.update(id));
+    (qc, updatedVendor, { id }) => {
+      invalidateFor(qc, vendorsMutationEffects.update(id));
       toast.success(`Vendor "${updatedVendor.name}" updated`);
     },
-    onError: () => {
-      toast.error('Failed to update vendor');
-    },
-  });
+    'Failed to update vendor'
+  );
 }
 
 export function useDeleteVendor() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id }: { id: VendorId; name: string }) =>
+  return useVendorMutation(
+    ({ id }: { id: VendorId; name: string }) =>
       originEntitiesApi.vendors.delete(id),
-    onSuccess: (_, { id, name }) => {
-      invalidateFor(queryClient, vendorsMutationEffects.delete(id));
+    (qc, _, { id, name }) => {
+      invalidateFor(qc, vendorsMutationEffects.delete(id));
       toast.success(`Vendor "${name}" deleted`);
     },
-    onError: () => {
-      toast.error('Failed to delete vendor');
-    },
-  });
+    'Failed to delete vendor'
+  );
 }
 
 export function useLinkComponentToVendor() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      componentId,
-      vendorId,
-      notes,
-    }: {
-      componentId: ComponentId;
-      vendorId: VendorId;
-      notes?: string;
-    }) => originEntitiesApi.vendors.linkComponent(componentId, vendorId, notes),
-    onSuccess: (_, { vendorId, componentId }) => {
-      invalidateFor(queryClient, vendorsMutationEffects.linkComponent(vendorId, componentId));
+  return useVendorMutation(
+    ({ componentId, vendorId, notes }: { componentId: ComponentId; vendorId: VendorId; notes?: string }) =>
+      originEntitiesApi.vendors.linkComponent(componentId, vendorId, notes),
+    (qc, _, { vendorId, componentId }) => {
+      invalidateFor(qc, vendorsMutationEffects.linkComponent(vendorId, componentId));
       toast.success('Component linked to vendor');
     },
-    onError: () => {
-      toast.error('Failed to link component to vendor');
-    },
-  });
+    'Failed to link component to vendor'
+  );
 }
 
 export function useUnlinkComponentFromVendor() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ componentId }: { vendorId: VendorId; componentId: ComponentId }) =>
+  return useVendorMutation(
+    ({ componentId }: { vendorId: VendorId; componentId: ComponentId }) =>
       originEntitiesApi.vendors.unlinkComponent(componentId),
-    onSuccess: (_, { vendorId, componentId }) => {
-      invalidateFor(queryClient, vendorsMutationEffects.unlinkComponent(vendorId, componentId));
+    (qc, _, { vendorId, componentId }) => {
+      invalidateFor(qc, vendorsMutationEffects.unlinkComponent(vendorId, componentId));
       toast.success('Component unlinked');
     },
-    onError: () => {
-      toast.error('Failed to unlink component');
-    },
-  });
+    'Failed to unlink component'
+  );
 }

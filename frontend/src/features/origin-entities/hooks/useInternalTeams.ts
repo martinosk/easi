@@ -80,89 +80,74 @@ export function useInternalTeam(id: InternalTeamId | undefined) {
   });
 }
 
-export function useCreateInternalTeam() {
+function useTeamMutation<TArgs, TResult>(
+  mutationFn: (args: TArgs) => Promise<TResult>,
+  onMutationSuccess: (queryClient: ReturnType<typeof useQueryClient>, result: TResult, args: TArgs) => void,
+  errorMessage: string
+) {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (request: CreateInternalTeamRequest) =>
-      originEntitiesApi.internalTeams.create(request),
-    onSuccess: (newTeam) => {
-      invalidateFor(queryClient, internalTeamsMutationEffects.create());
+    mutationFn,
+    onSuccess: (result, args) => onMutationSuccess(queryClient, result, args),
+    onError: () => toast.error(errorMessage),
+  });
+}
+
+export function useCreateInternalTeam() {
+  return useTeamMutation(
+    (request: CreateInternalTeamRequest) => originEntitiesApi.internalTeams.create(request),
+    (qc, newTeam) => {
+      invalidateFor(qc, internalTeamsMutationEffects.create());
       toast.success(`Internal team "${newTeam.name}" created successfully`);
     },
-    onError: () => {
-      toast.error('Failed to create internal team');
-    },
-  });
+    'Failed to create internal team'
+  );
 }
 
 export function useUpdateInternalTeam() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, request }: { id: InternalTeamId; request: UpdateInternalTeamRequest }) =>
+  return useTeamMutation(
+    ({ id, request }: { id: InternalTeamId; request: UpdateInternalTeamRequest }) =>
       originEntitiesApi.internalTeams.update(id, request),
-    onSuccess: (updatedTeam, { id }) => {
-      invalidateFor(queryClient, internalTeamsMutationEffects.update(id));
+    (qc, updatedTeam, { id }) => {
+      invalidateFor(qc, internalTeamsMutationEffects.update(id));
       toast.success(`Internal team "${updatedTeam.name}" updated`);
     },
-    onError: () => {
-      toast.error('Failed to update internal team');
-    },
-  });
+    'Failed to update internal team'
+  );
 }
 
 export function useDeleteInternalTeam() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id }: { id: InternalTeamId; name: string }) =>
+  return useTeamMutation(
+    ({ id }: { id: InternalTeamId; name: string }) =>
       originEntitiesApi.internalTeams.delete(id),
-    onSuccess: (_, { id, name }) => {
-      invalidateFor(queryClient, internalTeamsMutationEffects.delete(id));
+    (qc, _, { id, name }) => {
+      invalidateFor(qc, internalTeamsMutationEffects.delete(id));
       toast.success(`Internal team "${name}" deleted`);
     },
-    onError: () => {
-      toast.error('Failed to delete internal team');
-    },
-  });
+    'Failed to delete internal team'
+  );
 }
 
 export function useLinkComponentToInternalTeam() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      componentId,
-      teamId,
-      notes,
-    }: {
-      componentId: ComponentId;
-      teamId: InternalTeamId;
-      notes?: string;
-    }) => originEntitiesApi.internalTeams.linkComponent(componentId, teamId, notes),
-    onSuccess: (_, { teamId, componentId }) => {
-      invalidateFor(queryClient, internalTeamsMutationEffects.linkComponent(teamId, componentId));
+  return useTeamMutation(
+    ({ componentId, teamId, notes }: { componentId: ComponentId; teamId: InternalTeamId; notes?: string }) =>
+      originEntitiesApi.internalTeams.linkComponent(componentId, teamId, notes),
+    (qc, _, { teamId, componentId }) => {
+      invalidateFor(qc, internalTeamsMutationEffects.linkComponent(teamId, componentId));
       toast.success('Component linked to internal team');
     },
-    onError: () => {
-      toast.error('Failed to link component to internal team');
-    },
-  });
+    'Failed to link component to internal team'
+  );
 }
 
 export function useUnlinkComponentFromInternalTeam() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ componentId }: { teamId: InternalTeamId; componentId: ComponentId }) =>
+  return useTeamMutation(
+    ({ componentId }: { teamId: InternalTeamId; componentId: ComponentId }) =>
       originEntitiesApi.internalTeams.unlinkComponent(componentId),
-    onSuccess: (_, { teamId, componentId }) => {
-      invalidateFor(queryClient, internalTeamsMutationEffects.unlinkComponent(teamId, componentId));
+    (qc, _, { teamId, componentId }) => {
+      invalidateFor(qc, internalTeamsMutationEffects.unlinkComponent(teamId, componentId));
       toast.success('Component unlinked');
     },
-    onError: () => {
-      toast.error('Failed to unlink component');
-    },
-  });
+    'Failed to unlink component'
+  );
 }

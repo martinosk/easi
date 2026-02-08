@@ -13,6 +13,10 @@ export function useStrategyPillarsConfig() {
   });
 }
 
+function isVersionConflict(error: unknown): boolean {
+  return error instanceof ApiError && (error.statusCode === 409 || error.statusCode === 412);
+}
+
 export function useBatchUpdateStrategyPillars() {
   const queryClient = useQueryClient();
 
@@ -26,7 +30,7 @@ export function useBatchUpdateStrategyPillars() {
       toast.success('Strategy pillars updated successfully');
     },
     onError: (error: unknown) => {
-      if (error instanceof ApiError && (error.statusCode === 409 || error.statusCode === 412)) {
+      if (isVersionConflict(error)) {
         return;
       }
       const message = error instanceof Error ? error.message : 'Failed to update strategy pillars';

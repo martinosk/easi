@@ -80,89 +80,74 @@ export function useAcquiredEntity(id: AcquiredEntityId | undefined) {
   });
 }
 
-export function useCreateAcquiredEntity() {
+function useEntityMutation<TArgs, TResult>(
+  mutationFn: (args: TArgs) => Promise<TResult>,
+  onMutationSuccess: (queryClient: ReturnType<typeof useQueryClient>, result: TResult, args: TArgs) => void,
+  errorMessage: string
+) {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (request: CreateAcquiredEntityRequest) =>
-      originEntitiesApi.acquiredEntities.create(request),
-    onSuccess: (newEntity) => {
-      invalidateFor(queryClient, acquiredEntitiesMutationEffects.create());
+    mutationFn,
+    onSuccess: (result, args) => onMutationSuccess(queryClient, result, args),
+    onError: () => toast.error(errorMessage),
+  });
+}
+
+export function useCreateAcquiredEntity() {
+  return useEntityMutation(
+    (request: CreateAcquiredEntityRequest) => originEntitiesApi.acquiredEntities.create(request),
+    (qc, newEntity) => {
+      invalidateFor(qc, acquiredEntitiesMutationEffects.create());
       toast.success(`Acquired entity "${newEntity.name}" created successfully`);
     },
-    onError: () => {
-      toast.error('Failed to create acquired entity');
-    },
-  });
+    'Failed to create acquired entity'
+  );
 }
 
 export function useUpdateAcquiredEntity() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, request }: { id: AcquiredEntityId; request: UpdateAcquiredEntityRequest }) =>
+  return useEntityMutation(
+    ({ id, request }: { id: AcquiredEntityId; request: UpdateAcquiredEntityRequest }) =>
       originEntitiesApi.acquiredEntities.update(id, request),
-    onSuccess: (updatedEntity, { id }) => {
-      invalidateFor(queryClient, acquiredEntitiesMutationEffects.update(id));
+    (qc, updatedEntity, { id }) => {
+      invalidateFor(qc, acquiredEntitiesMutationEffects.update(id));
       toast.success(`Acquired entity "${updatedEntity.name}" updated`);
     },
-    onError: () => {
-      toast.error('Failed to update acquired entity');
-    },
-  });
+    'Failed to update acquired entity'
+  );
 }
 
 export function useDeleteAcquiredEntity() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id }: { id: AcquiredEntityId; name: string }) =>
+  return useEntityMutation(
+    ({ id }: { id: AcquiredEntityId; name: string }) =>
       originEntitiesApi.acquiredEntities.delete(id),
-    onSuccess: (_, { id, name }) => {
-      invalidateFor(queryClient, acquiredEntitiesMutationEffects.delete(id));
+    (qc, _, { id, name }) => {
+      invalidateFor(qc, acquiredEntitiesMutationEffects.delete(id));
       toast.success(`Acquired entity "${name}" deleted`);
     },
-    onError: () => {
-      toast.error('Failed to delete acquired entity');
-    },
-  });
+    'Failed to delete acquired entity'
+  );
 }
 
 export function useLinkComponentToAcquiredEntity() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      componentId,
-      entityId,
-      notes,
-    }: {
-      componentId: ComponentId;
-      entityId: AcquiredEntityId;
-      notes?: string;
-    }) => originEntitiesApi.acquiredEntities.linkComponent(componentId, entityId, notes),
-    onSuccess: (_, { entityId, componentId }) => {
-      invalidateFor(queryClient, acquiredEntitiesMutationEffects.linkComponent(entityId, componentId));
+  return useEntityMutation(
+    ({ componentId, entityId, notes }: { componentId: ComponentId; entityId: AcquiredEntityId; notes?: string }) =>
+      originEntitiesApi.acquiredEntities.linkComponent(componentId, entityId, notes),
+    (qc, _, { entityId, componentId }) => {
+      invalidateFor(qc, acquiredEntitiesMutationEffects.linkComponent(entityId, componentId));
       toast.success('Component linked to acquired entity');
     },
-    onError: () => {
-      toast.error('Failed to link component to acquired entity');
-    },
-  });
+    'Failed to link component to acquired entity'
+  );
 }
 
 export function useUnlinkComponentFromAcquiredEntity() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ componentId }: { entityId: AcquiredEntityId; componentId: ComponentId }) =>
+  return useEntityMutation(
+    ({ componentId }: { entityId: AcquiredEntityId; componentId: ComponentId }) =>
       originEntitiesApi.acquiredEntities.unlinkComponent(componentId),
-    onSuccess: (_, { entityId, componentId }) => {
-      invalidateFor(queryClient, acquiredEntitiesMutationEffects.unlinkComponent(entityId, componentId));
+    (qc, _, { entityId, componentId }) => {
+      invalidateFor(qc, acquiredEntitiesMutationEffects.unlinkComponent(entityId, componentId));
       toast.success('Component unlinked');
     },
-    onError: () => {
-      toast.error('Failed to unlink component');
-    },
-  });
+    'Failed to unlink component'
+  );
 }

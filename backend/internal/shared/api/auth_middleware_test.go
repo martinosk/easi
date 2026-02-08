@@ -39,57 +39,32 @@ func TestRequireWriteOrEditGrant_NativeWritePermission_PassesThrough(t *testing.
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
-func TestRequireWriteOrEditGrant_NoWriteButHasEditGrant_PassesThrough(t *testing.T) {
-	r := setupTestRouter("capabilities", "id")
-	actor := sharedctx.NewActor("user-1", "user@test.com", "stakeholder")
-	actor = actor.WithEditGrants(map[string]map[string]bool{
-		"capability": {"artifact-123": true},
-	})
+func TestRequireWriteOrEditGrant_StakeholderWithEditGrants(t *testing.T) {
+	tests := []struct {
+		name       string
+		grants     map[string]map[string]bool
+		wantStatus int
+	}{
+		{"matching grant passes through", map[string]map[string]bool{"capability": {"artifact-123": true}}, http.StatusOK},
+		{"no grants returns 403", nil, http.StatusForbidden},
+		{"different artifact returns 403", map[string]map[string]bool{"capability": {"other-artifact-456": true}}, http.StatusForbidden},
+		{"different type returns 403", map[string]map[string]bool{"component": {"artifact-123": true}}, http.StatusForbidden},
+	}
 
-	req := requestWithActor(actor)
-	rr := httptest.NewRecorder()
-	r.ServeHTTP(rr, req)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := setupTestRouter("capabilities", "id")
+			actor := sharedctx.NewActor("user-1", "user@test.com", "stakeholder")
+			if tt.grants != nil {
+				actor = actor.WithEditGrants(tt.grants)
+			}
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-}
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, requestWithActor(actor))
 
-func TestRequireWriteOrEditGrant_NoWriteNoEditGrant_Returns403(t *testing.T) {
-	r := setupTestRouter("capabilities", "id")
-	actor := sharedctx.NewActor("user-1", "user@test.com", "stakeholder")
-
-	req := requestWithActor(actor)
-	rr := httptest.NewRecorder()
-	r.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusForbidden, rr.Code)
-}
-
-func TestRequireWriteOrEditGrant_EditGrantForDifferentArtifact_Returns403(t *testing.T) {
-	r := setupTestRouter("capabilities", "id")
-	actor := sharedctx.NewActor("user-1", "user@test.com", "stakeholder")
-	actor = actor.WithEditGrants(map[string]map[string]bool{
-		"capability": {"other-artifact-456": true},
-	})
-
-	req := requestWithActor(actor)
-	rr := httptest.NewRecorder()
-	r.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusForbidden, rr.Code)
-}
-
-func TestRequireWriteOrEditGrant_EditGrantForDifferentType_Returns403(t *testing.T) {
-	r := setupTestRouter("capabilities", "id")
-	actor := sharedctx.NewActor("user-1", "user@test.com", "stakeholder")
-	actor = actor.WithEditGrants(map[string]map[string]bool{
-		"component": {"artifact-123": true},
-	})
-
-	req := requestWithActor(actor)
-	rr := httptest.NewRecorder()
-	r.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusForbidden, rr.Code)
+			assert.Equal(t, tt.wantStatus, rr.Code)
+		})
+	}
 }
 
 func TestRequireWriteOrEditGrant_NonexistentURLParam_Returns403(t *testing.T) {

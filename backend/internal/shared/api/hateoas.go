@@ -635,10 +635,14 @@ func (h *HATEOASLinks) EditGrantLinksForActor(id, status, grantorID string, acto
 		"self":       h.get(p),
 		"collection": h.get("/edit-grants"),
 	}
-	if status == "active" && (grantorID == actor.ID || actor.Role == "admin") {
+	if canRevokeGrant(status, grantorID, actor) {
 		links["delete"] = h.del(p)
 	}
 	return links
+}
+
+func canRevokeGrant(status, grantorID string, actor sharedctx.Actor) bool {
+	return status == "active" && (grantorID == actor.ID || actor.Role == "admin")
 }
 
 func (h *HATEOASLinks) EditGrantCollectionLinksForActor(actor sharedctx.Actor) Links {

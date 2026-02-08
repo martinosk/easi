@@ -13,23 +13,18 @@ import type {
 } from '../../../api/types';
 import toast from 'react-hot-toast';
 
+const fitScoreErrorMessages: Record<number, string> = {
+  400: 'Invalid input. Please check the score value.',
+  403: 'You do not have permission to modify fit scores.',
+  404: 'Strategy pillar not found.',
+  409: 'Fit scoring is not enabled for this pillar.',
+  429: 'Too many requests. Please wait a moment and try again.',
+};
+
 function getFitScoreErrorMessage(error: unknown, defaultMessage: string): string {
   if (error instanceof Error && 'statusCode' in error) {
     const apiError = error as ApiError;
-    switch (apiError.statusCode) {
-      case 400:
-        return apiError.message || 'Invalid input. Please check the score value.';
-      case 403:
-        return 'You do not have permission to modify fit scores.';
-      case 404:
-        return 'Strategy pillar not found.';
-      case 409:
-        return 'Fit scoring is not enabled for this pillar.';
-      case 429:
-        return 'Too many requests. Please wait a moment and try again.';
-      default:
-        return apiError.message || defaultMessage;
-    }
+    return fitScoreErrorMessages[apiError.statusCode] ?? apiError.message ?? defaultMessage;
   }
   return error instanceof Error ? error.message : defaultMessage;
 }

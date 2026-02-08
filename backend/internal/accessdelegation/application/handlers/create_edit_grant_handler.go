@@ -24,37 +24,7 @@ func (h *CreateEditGrantHandler) Handle(ctx context.Context, cmd cqrs.Command) (
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
-	artifactType, err := valueobjects.NewArtifactType(command.ArtifactType)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	artifactRef, err := valueobjects.NewArtifactRef(artifactType, command.ArtifactID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	scope, err := valueobjects.NewGrantScope(command.Scope)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	grantor, err := valueobjects.NewGrantor(command.GrantorID, command.GrantorEmail)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	granteeEmail, err := valueobjects.NewGranteeEmail(command.GranteeEmail)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	reason, err := valueobjects.NewReason(command.Reason)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	grant, err := aggregates.NewEditGrant(grantor, granteeEmail, artifactRef, scope, reason)
+	grant, err := buildEditGrant(command)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
@@ -64,4 +34,44 @@ func (h *CreateEditGrantHandler) Handle(ctx context.Context, cmd cqrs.Command) (
 	}
 
 	return cqrs.NewResult(grant.ID()), nil
+}
+
+func buildEditGrant(cmd *commands.CreateEditGrant) (*aggregates.EditGrant, error) {
+	artifactType, err := valueobjects.NewArtifactType(cmd.ArtifactType)
+	if err != nil {
+		return nil, err
+	}
+
+	artifactRef, err := valueobjects.NewArtifactRef(artifactType, cmd.ArtifactID)
+	if err != nil {
+		return nil, err
+	}
+
+	scope, err := valueobjects.NewGrantScope(cmd.Scope)
+	if err != nil {
+		return nil, err
+	}
+
+	grantor, err := valueobjects.NewGrantor(cmd.GrantorID, cmd.GrantorEmail)
+	if err != nil {
+		return nil, err
+	}
+
+	granteeEmail, err := valueobjects.NewGranteeEmail(cmd.GranteeEmail)
+	if err != nil {
+		return nil, err
+	}
+
+	reason, err := valueobjects.NewReason(cmd.Reason)
+	if err != nil {
+		return nil, err
+	}
+
+	return aggregates.NewEditGrant(aggregates.GrantRequest{
+		Grantor:      grantor,
+		GranteeEmail: granteeEmail,
+		ArtifactRef:  artifactRef,
+		Scope:        scope,
+		Reason:       reason,
+	})
 }

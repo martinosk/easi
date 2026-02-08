@@ -75,33 +75,42 @@ func TestEditGrantProjector_HandleEditGrantActivated_AllFieldsSurviveRoundtrip(t
 	assert.Equal(t, expires.Format(time.RFC3339), parsed.ExpiresAt.Format(time.RFC3339))
 }
 
-func TestEditGrantProjector_HandleEditGrantRevoked_FieldsSurviveRoundtrip(t *testing.T) {
-	revoked := events.NewEditGrantRevoked("grant-1", "admin@example.com")
+func TestEditGrantProjector_StatusTransitionEvents_FieldsSurviveRoundtrip(t *testing.T) {
+	tests := []struct {
+		name        string
+		event       domain.DomainEvent
+		checkFields func(t *testing.T, parsed statusTransitionEvent)
+	}{
+		{
+			name:  "revoked",
+			event: events.NewEditGrantRevoked("grant-1", "admin@example.com"),
+			checkFields: func(t *testing.T, parsed statusTransitionEvent) {
+				assert.Equal(t, "grant-1", parsed.ID)
+				assert.NotNil(t, parsed.RevokedAt)
+			},
+		},
+		{
+			name:  "expired",
+			event: events.NewEditGrantExpired("grant-1"),
+			checkFields: func(t *testing.T, parsed statusTransitionEvent) {
+				assert.Equal(t, "grant-1", parsed.ID)
+			},
+		},
+	}
 
-	eventData := revoked.EventData()
-	jsonBytes, err := json.Marshal(eventData)
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			eventData := tt.event.EventData()
+			jsonBytes, err := json.Marshal(eventData)
+			require.NoError(t, err)
 
-	var parsed statusTransitionEvent
-	err = json.Unmarshal(jsonBytes, &parsed)
-	require.NoError(t, err)
+			var parsed statusTransitionEvent
+			err = json.Unmarshal(jsonBytes, &parsed)
+			require.NoError(t, err)
 
-	assert.Equal(t, "grant-1", parsed.ID)
-	assert.NotNil(t, parsed.RevokedAt)
-}
-
-func TestEditGrantProjector_HandleEditGrantExpired_FieldsSurviveRoundtrip(t *testing.T) {
-	expired := events.NewEditGrantExpired("grant-1")
-
-	eventData := expired.EventData()
-	jsonBytes, err := json.Marshal(eventData)
-	require.NoError(t, err)
-
-	var parsed statusTransitionEvent
-	err = json.Unmarshal(jsonBytes, &parsed)
-	require.NoError(t, err)
-
-	assert.Equal(t, "grant-1", parsed.ID)
+			tt.checkFields(t, parsed)
+		})
+	}
 }
 
 func TestEditGrantProjector_ProjectEvent_UnknownEventType_DoesNotError(t *testing.T) {

@@ -49,23 +49,16 @@ func (e testDomainEvent) EventType() string                  { return e.eventTyp
 func (e testDomainEvent) OccurredAt() time.Time              { return time.Now() }
 func (e testDomainEvent) EventData() map[string]interface{} { return e.data }
 
-func TestArtifactDeletionProjector_Handle_RevokesActiveGrants(t *testing.T) {
-	rm := &stubReadModel{
-		grantIDs: map[string][]string{
-			"capability:cap-123": {"grant-1", "grant-2"},
-		},
-	}
-	bus := &spyCommandBus{}
+func deletionEvent(aggregateID, eventType string, data map[string]interface{}) testDomainEvent {
+	return testDomainEvent{aggregateID: aggregateID, eventType: eventType, data: data}
+}
 
+func TestArtifactDeletionProjector_Handle_RevokesActiveGrants(t *testing.T) {
+	rm := &stubReadModel{grantIDs: map[string][]string{"capability:cap-123": {"grant-1", "grant-2"}}}
+	bus := &spyCommandBus{}
 	projector := newTestArtifactDeletionProjector(rm, bus, "capability")
 
-	event := testDomainEvent{
-		aggregateID: "cap-123",
-		eventType:   "CapabilityDeleted",
-		data:        map[string]interface{}{"id": "cap-123"},
-	}
-
-	err := projector.Handle(context.Background(), event)
+	err := projector.Handle(context.Background(), deletionEvent("cap-123", "CapabilityDeleted", map[string]interface{}{"id": "cap-123"}))
 	require.NoError(t, err)
 
 	assert.Len(t, bus.dispatched, 2)
@@ -74,102 +67,51 @@ func TestArtifactDeletionProjector_Handle_RevokesActiveGrants(t *testing.T) {
 }
 
 func TestArtifactDeletionProjector_Handle_NoActiveGrants_DoesNothing(t *testing.T) {
-	rm := &stubReadModel{
-		grantIDs: map[string][]string{},
-	}
+	rm := &stubReadModel{grantIDs: map[string][]string{}}
 	bus := &spyCommandBus{}
-
 	projector := newTestArtifactDeletionProjector(rm, bus, "capability")
 
-	event := testDomainEvent{
-		aggregateID: "cap-123",
-		eventType:   "CapabilityDeleted",
-		data:        map[string]interface{}{"id": "cap-123"},
-	}
-
-	err := projector.Handle(context.Background(), event)
+	err := projector.Handle(context.Background(), deletionEvent("cap-123", "CapabilityDeleted", map[string]interface{}{"id": "cap-123"}))
 	require.NoError(t, err)
 
 	assert.Empty(t, bus.dispatched)
 }
 
 func TestArtifactDeletionProjector_Handle_ReadModelError_ReturnsError(t *testing.T) {
-	rm := &stubReadModel{
-		err: errors.New("database error"),
-	}
+	rm := &stubReadModel{err: errors.New("database error")}
 	bus := &spyCommandBus{}
-
 	projector := newTestArtifactDeletionProjector(rm, bus, "capability")
 
-	event := testDomainEvent{
-		aggregateID: "cap-123",
-		eventType:   "CapabilityDeleted",
-		data:        map[string]interface{}{"id": "cap-123"},
-	}
-
-	err := projector.Handle(context.Background(), event)
+	err := projector.Handle(context.Background(), deletionEvent("cap-123", "CapabilityDeleted", map[string]interface{}{"id": "cap-123"}))
 	assert.Error(t, err)
 }
 
 func TestArtifactDeletionProjector_Handle_UsesAggregateIDWhenEventIDEmpty(t *testing.T) {
-	rm := &stubReadModel{
-		grantIDs: map[string][]string{
-			"capability:agg-456": {"grant-1"},
-		},
-	}
+	rm := &stubReadModel{grantIDs: map[string][]string{"capability:agg-456": {"grant-1"}}}
 	bus := &spyCommandBus{}
-
 	projector := newTestArtifactDeletionProjector(rm, bus, "capability")
 
-	event := testDomainEvent{
-		aggregateID: "agg-456",
-		eventType:   "CapabilityDeleted",
-		data:        map[string]interface{}{},
-	}
-
-	err := projector.Handle(context.Background(), event)
+	err := projector.Handle(context.Background(), deletionEvent("agg-456", "CapabilityDeleted", map[string]interface{}{}))
 	require.NoError(t, err)
 
 	assert.Len(t, bus.dispatched, 1)
 }
 
 func TestArtifactDeletionProjector_Handle_CommandBusError_DoesNotReturnError(t *testing.T) {
-	rm := &stubReadModel{
-		grantIDs: map[string][]string{
-			"capability:cap-123": {"grant-1"},
-		},
-	}
+	rm := &stubReadModel{grantIDs: map[string][]string{"capability:cap-123": {"grant-1"}}}
 	bus := &spyCommandBus{err: errors.New("command failed")}
-
 	projector := newTestArtifactDeletionProjector(rm, bus, "capability")
 
-	event := testDomainEvent{
-		aggregateID: "cap-123",
-		eventType:   "CapabilityDeleted",
-		data:        map[string]interface{}{"id": "cap-123"},
-	}
-
-	err := projector.Handle(context.Background(), event)
+	err := projector.Handle(context.Background(), deletionEvent("cap-123", "CapabilityDeleted", map[string]interface{}{"id": "cap-123"}))
 	assert.NoError(t, err)
 }
 
 func TestArtifactDeletionProjector_Handle_RevokedBySystemArtifactDeleted(t *testing.T) {
-	rm := &stubReadModel{
-		grantIDs: map[string][]string{
-			"component:comp-789": {"grant-5"},
-		},
-	}
+	rm := &stubReadModel{grantIDs: map[string][]string{"component:comp-789": {"grant-5"}}}
 	bus := &spyCommandBus{}
-
 	projector := newTestArtifactDeletionProjector(rm, bus, "component")
 
-	event := testDomainEvent{
-		aggregateID: "comp-789",
-		eventType:   "ComponentDeleted",
-		data:        map[string]interface{}{"id": "comp-789"},
-	}
-
-	err := projector.Handle(context.Background(), event)
+	err := projector.Handle(context.Background(), deletionEvent("comp-789", "ComponentDeleted", map[string]interface{}{"id": "comp-789"}))
 	require.NoError(t, err)
 
 	require.Len(t, bus.dispatched, 1)
