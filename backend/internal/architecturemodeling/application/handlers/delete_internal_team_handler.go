@@ -6,6 +6,7 @@ import (
 
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
+	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
@@ -62,7 +63,7 @@ func (h *DeleteInternalTeamHandler) cascadeClear(ctx context.Context, teamID str
 	}
 
 	for _, relation := range relations {
-		clearCmd := &commands.ClearOriginLink{ComponentID: relation.ComponentID, OriginType: "built-by"}
+		clearCmd := &commands.ClearOriginLink{ComponentID: relation.ComponentID, OriginType: valueobjects.OriginTypeBuiltBy}
 		if _, err := h.commandBus.Dispatch(ctx, clearCmd); err != nil {
 			log.Printf("Error cascading clear for relationship on component %s: %v", relation.ComponentID, err)
 			continue

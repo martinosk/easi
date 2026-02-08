@@ -2,6 +2,7 @@ package aggregates
 
 import (
 	"errors"
+	"log"
 	"time"
 
 	"easi/backend/internal/architecturemodeling/domain/events"
@@ -9,7 +10,10 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
-var ErrNoOriginLink = errors.New("no origin link exists")
+var (
+	ErrNoOriginLink        = errors.New("no origin link exists")
+	ErrOriginLinkDeleted   = errors.New("origin link has been deleted")
+)
 
 type ComponentOriginLink struct {
 	domain.AggregateRoot
@@ -67,6 +71,9 @@ func (ol *ComponentOriginLink) IsDeleted() bool {
 }
 
 func (ol *ComponentOriginLink) Set(entityID string, notes valueobjects.Notes) error {
+	if ol.isDeleted {
+		return ErrOriginLinkDeleted
+	}
 	ol.ensureCreated()
 	linkedAt := time.Now().UTC()
 	base := ol.eventBase()
@@ -91,6 +98,9 @@ func (ol *ComponentOriginLink) Set(entityID string, notes valueobjects.Notes) er
 }
 
 func (ol *ComponentOriginLink) Clear() error {
+	if ol.isDeleted {
+		return ErrOriginLinkDeleted
+	}
 	if ol.link.IsEmpty() {
 		return ErrNoOriginLink
 	}
@@ -141,18 +151,32 @@ func (ol *ComponentOriginLink) apply(event domain.DomainEvent) {
 
 func (ol *ComponentOriginLink) applyCreated(e events.OriginLinkCreated) {
 	ol.AggregateRoot = domain.NewAggregateRootWithID(e.AggregateID())
-	ol.componentID, _ = valueobjects.NewComponentIDFromString(e.ComponentID)
-	ol.originType, _ = valueobjects.NewOriginType(e.OriginType)
+	componentID, err := valueobjects.NewComponentIDFromString(e.ComponentID)
+	if err != nil {
+		log.Printf("corrupted event: invalid componentID %q in OriginLinkCreated: %v", e.ComponentID, err)
+	}
+	originType, err := valueobjects.NewOriginType(e.OriginType)
+	if err != nil {
+		log.Printf("corrupted event: invalid originType %q in OriginLinkCreated: %v", e.OriginType, err)
+	}
+	ol.componentID = componentID
+	ol.originType = originType
 	ol.link = valueobjects.EmptyOriginLink()
 	ol.createdAt = e.CreatedAt
 }
 
 func newOriginLink(entityID string, notesStr string, linkedAt time.Time) valueobjects.OriginLink {
-	notes, _ := valueobjects.NewNotes(notesStr)
+	notes, err := valueobjects.NewNotes(notesStr)
+	if err != nil {
+		log.Printf("corrupted event: invalid notes in origin link event: %v", err)
+	}
 	return valueobjects.NewOriginLink(entityID, notes, linkedAt)
 }
 
 func updatedOriginLink(current valueobjects.OriginLink, notesStr string) valueobjects.OriginLink {
-	notes, _ := valueobjects.NewNotes(notesStr)
+	notes, err := valueobjects.NewNotes(notesStr)
+	if err != nil {
+		log.Printf("corrupted event: invalid notes in origin link event: %v", err)
+	}
 	return valueobjects.NewOriginLink(current.EntityID(), notes, current.LinkedAt())
 }

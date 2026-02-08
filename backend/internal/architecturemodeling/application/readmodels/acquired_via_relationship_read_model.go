@@ -29,19 +29,6 @@ func NewAcquiredViaRelationshipReadModel(db *database.TenantAwareDB) *AcquiredVi
 	return &AcquiredViaRelationshipReadModel{db: db}
 }
 
-func (rm *AcquiredViaRelationshipReadModel) Insert(ctx context.Context, dto AcquiredViaRelationshipDTO) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO acquired_via_relationships (id, tenant_id, acquired_entity_id, component_id, notes, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		dto.ID, tenantID.Value(), dto.AcquiredEntityID, dto.ComponentID, dto.Notes, dto.CreatedAt,
-	)
-	return err
-}
-
 func (rm *AcquiredViaRelationshipReadModel) Upsert(ctx context.Context, dto AcquiredViaRelationshipDTO) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
@@ -54,21 +41,6 @@ func (rm *AcquiredViaRelationshipReadModel) Upsert(ctx context.Context, dto Acqu
 		 ON CONFLICT (tenant_id, component_id) WHERE is_deleted = FALSE
 		 DO UPDATE SET acquired_entity_id = $3, notes = $5, created_at = $6, is_deleted = FALSE, deleted_at = NULL`,
 		dto.ID, tenantID.Value(), dto.AcquiredEntityID, dto.ComponentID, dto.Notes, dto.CreatedAt,
-	)
-	return err
-}
-
-func (rm *AcquiredViaRelationshipReadModel) UpdateByComponentID(ctx context.Context, dto AcquiredViaRelationshipDTO) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
-		`UPDATE acquired_via_relationships
-		 SET acquired_entity_id = $1, notes = $2, created_at = $3, is_deleted = FALSE, deleted_at = NULL
-		 WHERE tenant_id = $4 AND component_id = $5`,
-		dto.AcquiredEntityID, dto.Notes, dto.CreatedAt, tenantID.Value(), dto.ComponentID,
 	)
 	return err
 }

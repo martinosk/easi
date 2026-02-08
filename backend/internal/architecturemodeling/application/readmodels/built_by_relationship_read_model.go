@@ -29,19 +29,6 @@ func NewBuiltByRelationshipReadModel(db *database.TenantAwareDB) *BuiltByRelatio
 	return &BuiltByRelationshipReadModel{db: db}
 }
 
-func (rm *BuiltByRelationshipReadModel) Insert(ctx context.Context, dto BuiltByRelationshipDTO) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO built_by_relationships (id, tenant_id, internal_team_id, component_id, notes, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		dto.ID, tenantID.Value(), dto.InternalTeamID, dto.ComponentID, dto.Notes, dto.CreatedAt,
-	)
-	return err
-}
-
 func (rm *BuiltByRelationshipReadModel) Upsert(ctx context.Context, dto BuiltByRelationshipDTO) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
@@ -54,21 +41,6 @@ func (rm *BuiltByRelationshipReadModel) Upsert(ctx context.Context, dto BuiltByR
 		 ON CONFLICT (tenant_id, component_id) WHERE is_deleted = FALSE
 		 DO UPDATE SET internal_team_id = $3, notes = $5, created_at = $6, is_deleted = FALSE, deleted_at = NULL`,
 		dto.ID, tenantID.Value(), dto.InternalTeamID, dto.ComponentID, dto.Notes, dto.CreatedAt,
-	)
-	return err
-}
-
-func (rm *BuiltByRelationshipReadModel) UpdateByComponentID(ctx context.Context, dto BuiltByRelationshipDTO) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
-		`UPDATE built_by_relationships
-		 SET internal_team_id = $1, notes = $2, created_at = $3, is_deleted = FALSE, deleted_at = NULL
-		 WHERE tenant_id = $4 AND component_id = $5`,
-		dto.InternalTeamID, dto.Notes, dto.CreatedAt, tenantID.Value(), dto.ComponentID,
 	)
 	return err
 }

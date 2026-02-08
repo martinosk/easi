@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -112,7 +113,7 @@ func (p *OriginRelationshipProjector) upsertRelationship(ctx context.Context, pa
 			ComponentID: params.componentID, Notes: params.notes, CreatedAt: params.linkedAt,
 		})
 	}
-	return nil
+	return fmt.Errorf("unknown origin type in upsert: %s", params.originType)
 }
 
 func (p *OriginRelationshipProjector) updateNotes(ctx context.Context, originType, componentID, notes string) error {
@@ -156,5 +157,5 @@ func (p *OriginRelationshipProjector) forOriginType(originType string, acquiredV
 	case valueobjects.OriginTypeBuiltBy:
 		return builtBy()
 	}
-	return nil
+	return fmt.Errorf("unknown origin type: %s", originType)
 }

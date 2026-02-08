@@ -6,6 +6,7 @@ import (
 
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
+	"easi/backend/internal/architecturemodeling/domain/valueobjects"
 	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
@@ -199,7 +200,7 @@ func (h *OriginRelationshipHandlers) enrichAllRelationships(
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components/{componentId}/origin/acquired-via [put]
 func (h *OriginRelationshipHandlers) CreateAcquiredViaRelationship(w http.ResponseWriter, r *http.Request) {
-	createOriginRelationship(h, w, r, "acquired-via",
+	createOriginRelationship(h, w, r, valueobjects.OriginTypeAcquiredVia,
 		func(req CreateAcquiredViaRelationshipRequest) (string, string) { return req.AcquiredEntityID, req.Notes },
 		func(ctx context.Context, componentID string) (interface{}, error) {
 			return fetchFirst(h.readModels.AcquiredVia.GetByComponentID(ctx, componentID))
@@ -241,7 +242,7 @@ func (h *OriginRelationshipHandlers) GetAcquiredViaByComponent(w http.ResponseWr
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components/{componentId}/origin/acquired-via [delete]
 func (h *OriginRelationshipHandlers) DeleteAcquiredViaRelationship(w http.ResponseWriter, r *http.Request) {
-	h.dispatchClearAndRespond(w, r, &commands.ClearOriginLink{ComponentID: sharedAPI.GetPathParam(r, "componentId"), OriginType: "acquired-via"})
+	h.dispatchClearAndRespond(w, r, &commands.ClearOriginLink{ComponentID: sharedAPI.GetPathParam(r, "componentId"), OriginType: valueobjects.OriginTypeAcquiredVia})
 }
 
 // CreatePurchasedFromRelationship godoc
@@ -257,7 +258,7 @@ func (h *OriginRelationshipHandlers) DeleteAcquiredViaRelationship(w http.Respon
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components/{componentId}/origin/purchased-from [put]
 func (h *OriginRelationshipHandlers) CreatePurchasedFromRelationship(w http.ResponseWriter, r *http.Request) {
-	createOriginRelationship(h, w, r, "purchased-from",
+	createOriginRelationship(h, w, r, valueobjects.OriginTypePurchasedFrom,
 		func(req CreatePurchasedFromRelationshipRequest) (string, string) { return req.VendorID, req.Notes },
 		func(ctx context.Context, componentID string) (interface{}, error) {
 			return fetchFirst(h.readModels.PurchasedFrom.GetByComponentID(ctx, componentID))
@@ -299,7 +300,7 @@ func (h *OriginRelationshipHandlers) GetPurchasedFromByComponent(w http.Response
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components/{componentId}/origin/purchased-from [delete]
 func (h *OriginRelationshipHandlers) DeletePurchasedFromRelationship(w http.ResponseWriter, r *http.Request) {
-	h.dispatchClearAndRespond(w, r, &commands.ClearOriginLink{ComponentID: sharedAPI.GetPathParam(r, "componentId"), OriginType: "purchased-from"})
+	h.dispatchClearAndRespond(w, r, &commands.ClearOriginLink{ComponentID: sharedAPI.GetPathParam(r, "componentId"), OriginType: valueobjects.OriginTypePurchasedFrom})
 }
 
 // CreateBuiltByRelationship godoc
@@ -315,7 +316,7 @@ func (h *OriginRelationshipHandlers) DeletePurchasedFromRelationship(w http.Resp
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components/{componentId}/origin/built-by [put]
 func (h *OriginRelationshipHandlers) CreateBuiltByRelationship(w http.ResponseWriter, r *http.Request) {
-	createOriginRelationship(h, w, r, "built-by",
+	createOriginRelationship(h, w, r, valueobjects.OriginTypeBuiltBy,
 		func(req CreateBuiltByRelationshipRequest) (string, string) { return req.InternalTeamID, req.Notes },
 		func(ctx context.Context, componentID string) (interface{}, error) {
 			return fetchFirst(h.readModels.BuiltBy.GetByComponentID(ctx, componentID))
@@ -357,7 +358,7 @@ func (h *OriginRelationshipHandlers) GetBuiltByByComponent(w http.ResponseWriter
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components/{componentId}/origin/built-by [delete]
 func (h *OriginRelationshipHandlers) DeleteBuiltByRelationship(w http.ResponseWriter, r *http.Request) {
-	h.dispatchClearAndRespond(w, r, &commands.ClearOriginLink{ComponentID: sharedAPI.GetPathParam(r, "componentId"), OriginType: "built-by"})
+	h.dispatchClearAndRespond(w, r, &commands.ClearOriginLink{ComponentID: sharedAPI.GetPathParam(r, "componentId"), OriginType: valueobjects.OriginTypeBuiltBy})
 }
 
 func createOriginRelationship[T any](

@@ -122,7 +122,6 @@ func subscribeOriginEntityProjectors(eventBus events.EventBus, acquired, vendor,
 }
 
 func subscribeOriginRelationshipProjectors(eventBus events.EventBus, projector events.EventHandler) {
-	eventBus.Subscribe("OriginLinkCreated", projector)
 	eventBus.Subscribe("OriginLinkSet", projector)
 	eventBus.Subscribe("OriginLinkReplaced", projector)
 	eventBus.Subscribe("OriginLinkNotesUpdated", projector)

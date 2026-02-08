@@ -50,10 +50,7 @@ func NewOriginLinkBase(aggregateID, componentID, originType string) OriginLinkBa
 }
 
 func (b OriginLinkBase) aggregateID() string {
-	if baseID := b.BaseEvent.AggregateID(); baseID != "" {
-		return baseID
-	}
-	return b.ComponentID
+	return b.BaseEvent.AggregateID()
 }
 
 func (b OriginLinkBase) eventData() map[string]interface{} {
