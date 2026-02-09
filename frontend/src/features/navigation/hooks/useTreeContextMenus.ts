@@ -40,7 +40,7 @@ function buildEntityMenuItems(config: EntityMenuConfig): ContextMenuItem[] {
   const hasDelete = config.links?.delete !== undefined;
 
   return filterNullItems([
-    createConditionalMenuItem(hasInvite, { label: 'Invite to Edit', onClick: config.onInviteToEdit! }),
+    createConditionalMenuItem(hasInvite, { label: 'Invite to Edit...', onClick: config.onInviteToEdit! }),
     createConditionalMenuItem(hasEdit, { label: 'Edit', onClick: config.onEdit! }),
     createConditionalMenuItem(hasDelete, {
       label: config.deleteLabel,
@@ -228,7 +228,7 @@ export function useTreeContextMenus({
 
     return filterNullItems([
       createConditionalMenuItem(canInvite, {
-        label: 'Invite to Edit',
+        label: 'Invite to Edit...',
         onClick: () => setInviteTarget({ id: view.id, artifactType: 'view' }),
       }),
       shareItem,

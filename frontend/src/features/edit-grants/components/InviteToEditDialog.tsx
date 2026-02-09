@@ -75,7 +75,7 @@ export function InviteToEditDialog({
   return (
     <dialog ref={dialogRef} className="dialog" onClose={handleCancel} data-testid="invite-to-edit-dialog">
       <div className="dialog-content">
-        <h2 className="dialog-title">Invite to Edit</h2>
+        <h2 className="dialog-title">Invite to Edit...</h2>
         <p className="dialog-description">
           Grant temporary edit access for this {artifactTypeLabels[artifactType]} to a stakeholder.
         </p>

@@ -158,7 +158,7 @@ function useContextMenuItems(
       items.push({ label: 'Delete from Model', onClick: handleDeleteFromModel, isDanger: true });
     }
     if (contextMenu?.capability && hasLink(contextMenu.capability, 'x-edit-grants')) {
-      items.unshift({ label: 'Invite to Edit', onClick: handleInviteToEdit });
+      items.unshift({ label: 'Invite to Edit...', onClick: handleInviteToEdit });
     }
     return items;
   }, [canRemoveFromDomain, canDeleteFromModel, handleRemoveFromDomain, handleDeleteFromModel, handleInviteToEdit, contextMenu]);

@@ -51,7 +51,7 @@ describe('InviteToEditButton', () => {
 
     const button = screen.getByTestId('invite-to-edit-btn');
     expect(button).toBeInTheDocument();
-    expect(button).toHaveTextContent('Invite to Edit');
+    expect(button).toHaveTextContent('Invite to Edit...');
   });
 
   it('should not render when x-edit-grants link is absent', () => {

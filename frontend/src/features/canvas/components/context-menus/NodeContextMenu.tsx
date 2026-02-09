@@ -73,7 +73,7 @@ function buildInviteToEditItem(ctx: MenuItemBuilderContext): ContextMenuItem | n
   if (!ctx.canInviteToEdit || !ctx.onRequestInviteToEdit) return null;
   const artifactType = resolveArtifactType(ctx.menu);
   return {
-    label: 'Invite to Edit',
+    label: 'Invite to Edit...',
     onClick: () => {
       ctx.onRequestInviteToEdit!({ id: ctx.menu.nodeId, artifactType });
       ctx.onClose();
