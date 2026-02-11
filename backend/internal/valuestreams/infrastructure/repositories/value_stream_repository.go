@@ -28,8 +28,14 @@ func NewValueStreamRepository(eventStore eventstore.EventStore) *ValueStreamRepo
 
 var valueStreamEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"ValueStreamCreated": repository.JSONDeserializer[events.ValueStreamCreated],
-		"ValueStreamUpdated": repository.JSONDeserializer[events.ValueStreamUpdated],
-		"ValueStreamDeleted": repository.JSONDeserializer[events.ValueStreamDeleted],
+		"ValueStreamCreated":                repository.JSONDeserializer[events.ValueStreamCreated],
+		"ValueStreamUpdated":                repository.JSONDeserializer[events.ValueStreamUpdated],
+		"ValueStreamDeleted":                repository.JSONDeserializer[events.ValueStreamDeleted],
+		"ValueStreamStageAdded":             repository.JSONDeserializer[events.ValueStreamStageAdded],
+		"ValueStreamStageUpdated":           repository.JSONDeserializer[events.ValueStreamStageUpdated],
+		"ValueStreamStageRemoved":           repository.JSONDeserializer[events.ValueStreamStageRemoved],
+		"ValueStreamStagesReordered":        repository.JSONDeserializer[events.ValueStreamStagesReordered],
+		"ValueStreamStageCapabilityAdded":   repository.JSONDeserializer[events.ValueStreamStageCapabilityAdded],
+		"ValueStreamStageCapabilityRemoved": repository.JSONDeserializer[events.ValueStreamStageCapabilityRemoved],
 	},
 )

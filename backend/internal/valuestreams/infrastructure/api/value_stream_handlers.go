@@ -95,22 +95,38 @@ func (h *ValueStreamHandlers) GetAllValueStreams(w http.ResponseWriter, r *http.
 
 // GetValueStreamByID godoc
 // @Summary Get a value stream by ID
-// @Description Returns a single value stream with its details
+// @Description Returns a single value stream with its details including stages and capability mappings
 // @Tags value-streams
 // @Produce json
 // @Param id path string true "Value Stream ID"
-// @Success 200 {object} easi_backend_internal_valuestreams_application_readmodels.ValueStreamDTO
+// @Success 200 {object} easi_backend_internal_valuestreams_application_readmodels.ValueStreamDetailDTO
 // @Failure 404 {object} sharedAPI.ErrorResponse
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /value-streams/{id} [get]
 func (h *ValueStreamHandlers) GetValueStreamByID(w http.ResponseWriter, r *http.Request) {
-	vs := h.getValueStreamOrNotFound(w, r, sharedAPI.GetPathParam(r, "id"))
-	if vs == nil {
+	id := sharedAPI.GetPathParam(r, "id")
+	detail, err := h.readModel.GetValueStreamDetail(r.Context(), id)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve value stream")
 		return
 	}
+	if detail == nil {
+		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Value stream not found")
+		return
+	}
+
 	actor, _ := sharedctx.GetActor(r.Context())
-	vs.Links = h.hateoas.ValueStreamLinksForActor(vs.ID, actor)
-	sharedAPI.RespondJSON(w, http.StatusOK, vs)
+	detail.Links = h.hateoas.ValueStreamLinksForActor(detail.ID, actor)
+	for i := range detail.Stages {
+		detail.Stages[i].Links = h.hateoas.StageLinksForActor(detail.ID, detail.Stages[i].ID, actor)
+	}
+	for i := range detail.StageCapabilities {
+		detail.StageCapabilities[i].Links = h.hateoas.StageCapabilityLinksForActor(
+			detail.ID, detail.StageCapabilities[i].StageID, detail.StageCapabilities[i].CapabilityID, actor,
+		)
+	}
+
+	sharedAPI.RespondJSON(w, http.StatusOK, detail)
 }
 
 // UpdateValueStream godoc

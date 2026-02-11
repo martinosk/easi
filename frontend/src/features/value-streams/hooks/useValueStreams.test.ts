@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useValueStreams, useValueStreamsQuery, useValueStream } from './useValueStreams';
 import { valueStreamsQueryKeys } from '../queryKeys';
-import type { ValueStream, ValueStreamId, ValueStreamsResponse } from '../../../api/types';
+import type { ValueStream, ValueStreamId, ValueStreamDetail, ValueStreamsResponse } from '../../../api/types';
 
 vi.mock('../api', () => ({
   valueStreamsApi: {
@@ -87,7 +87,7 @@ describe('useValueStreams', () => {
 
   describe('useValueStream', () => {
     it('should fetch a single value stream by id', async () => {
-      const vs = createValueStream('vs-1', 'Customer Onboarding');
+      const vs: ValueStreamDetail = { ...createValueStream('vs-1', 'Customer Onboarding'), stages: [], stageCapabilities: [] };
       vi.mocked(valueStreamsApi.getById).mockResolvedValue(vs);
 
       const { result } = renderHook(() => useValueStream('vs-1' as ValueStreamId), {

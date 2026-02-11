@@ -24,6 +24,7 @@ export const ROUTES = {
   BUSINESS_DOMAINS: '/business-domains',
   BUSINESS_DOMAIN_DETAIL: '/business-domains/:domainId',
   VALUE_STREAMS: '/value-streams',
+  VALUE_STREAM_DETAIL: '/value-streams/:valueStreamId',
   ENTERPRISE_ARCHITECTURE: '/enterprise-architecture',
   USERS: '/users',
   INVITATIONS: '/invitations',

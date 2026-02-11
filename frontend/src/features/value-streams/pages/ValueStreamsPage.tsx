@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useValueStreams } from '../hooks/useValueStreams';
 import { useUserStore } from '../../../store/userStore';
 import { hasLink } from '../../../utils/hateoas';
@@ -13,6 +14,7 @@ interface ValueStreamFormData {
 export function ValueStreamsPage() {
   const { valueStreams, isLoading, error, createValueStream, updateValueStream, deleteValueStream, collectionLinks } = useValueStreams();
   const hasPermission = useUserStore((state) => state.hasPermission);
+  const navigate = useNavigate();
   const canWrite = hasPermission('valuestreams:write');
   const canDelete = hasPermission('valuestreams:delete');
 
@@ -187,7 +189,7 @@ export function ValueStreamsPage() {
         ) : (
           <div className="vs-list" data-testid="value-streams-list">
             {valueStreams.map((stream) => (
-              <div key={stream.id} className="vs-card" data-testid={`value-stream-${stream.id}`}>
+              <div key={stream.id} className="vs-card vs-card-clickable" data-testid={`value-stream-${stream.id}`} onClick={() => navigate(stream.id)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && navigate(stream.id)}>
                 <div>
                   <div className="vs-card-name">{stream.name}</div>
                   {stream.description && (
@@ -203,7 +205,7 @@ export function ValueStreamsPage() {
                     <button
                       type="button"
                       className="btn-small"
-                      onClick={() => startEdit(stream)}
+                      onClick={(e) => { e.stopPropagation(); startEdit(stream); }}
                       data-testid={`edit-${stream.id}`}
                     >
                       Edit
@@ -213,7 +215,7 @@ export function ValueStreamsPage() {
                     <button
                       type="button"
                       className="btn-small btn-danger"
-                      onClick={() => setDeletingStream(stream)}
+                      onClick={(e) => { e.stopPropagation(); setDeletingStream(stream); }}
                       data-testid={`delete-${stream.id}`}
                     >
                       Delete

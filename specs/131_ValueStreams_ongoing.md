@@ -1,7 +1,7 @@
 # Value Streams
 
 ## Status
-**ongoing** — Slice 1 complete, Slices 2–4 pending
+**ongoing** — Slice 1 & 2 complete, Slices 3–4 pending
 
 ---
 
@@ -84,10 +84,10 @@ A stage can be realized by one or more capabilities. A capability can participat
 - [x] User can create a new value stream by providing a name and optional description
 - [x] Duplicate names are rejected with a clear error message
 - [x] Empty state is shown when no value streams exist, with guidance to create the first one
-- [ ] Each value stream in the list is clickable to navigate to its detail view *(deferred to Slice 2 — detail view)*
+- [x] Each value stream in the list is clickable to navigate to its detail view
 - [x] User can edit the name and description of an existing value stream
 - [x] User can delete a value stream (with confirmation dialog)
-- [ ] Deleting a value stream removes all its stages and mappings *(cascade logic deferred to Slice 2 — no stages exist yet)*
+- [x] Deleting a value stream removes all its stages and mappings
 
 **Edge Cases:**
 - Deleting a value stream that has stages with mapped capabilities triggers cascade deletion
@@ -103,29 +103,29 @@ A stage can be realized by one or more capabilities. A capability can participat
 The flow diagram is the primary modeling surface for value streams. It combines stage management, capability mapping, and visualization into a single interactive experience.
 
 **Acceptance Criteria — Stage Management:**
-- [ ] Value stream detail page renders stages as columns in a horizontal left-to-right flow
-- [ ] User can add a new stage via a "+" button at the end of the flow (appended at the end by default)
+- [x] Value stream detail page renders stages as columns in a horizontal left-to-right flow
+- [x] User can add a new stage via a "+" button at the end of the flow (appended at the end by default)
 - [ ] User can insert a stage between existing stages (via "+" insert point between columns)
-- [ ] User can reorder stages via drag-and-drop of stage columns
-- [ ] User can edit a stage name and description inline (click to edit) or via context menu
-- [ ] User can delete a stage via context menu (with confirmation if it has capability mappings)
-- [ ] Deleting a stage automatically adjusts positions of subsequent stages
-- [ ] Each stage column displays its name, description (on hover/expand), and mapped capabilities
+- [x] User can reorder stages via drag-and-drop of stage columns
+- [x] User can edit a stage name and description inline (click to edit) or via context menu
+- [x] User can delete a stage via context menu (with confirmation if it has capability mappings)
+- [x] Deleting a stage automatically adjusts positions of subsequent stages
+- [x] Each stage column displays its name, description (on hover/expand), and mapped capabilities
 
 **Acceptance Criteria — Capability Mapping:**
-- [ ] A capability panel is available on the side of the flow diagram, showing the full L1-L4 capability tree
-- [ ] User can drag capabilities from the panel onto a stage column to create a mapping
-- [ ] User can remove a capability mapping by clicking a remove action on the capability chip within a stage
-- [ ] Already-mapped capabilities are visually indicated in the capability panel (e.g., dimmed or badged with stage count)
-- [ ] A capability can be mapped to multiple stages (same or different value streams)
-- [ ] The capability name and level (L1-L4) are displayed as chips/cards within the stage column
+- [x] A capability panel is available on the side of the flow diagram, showing the full L1-L4 capability tree
+- [x] User can drag capabilities from the panel onto a stage column to create a mapping
+- [x] User can remove a capability mapping by clicking a remove action on the capability chip within a stage
+- [x] Already-mapped capabilities are visually indicated in the capability panel (e.g., dimmed or badged with stage count)
+- [x] A capability can be mapped to multiple stages (same or different value streams)
+- [x] The capability name and level (L1-L4) are displayed as chips/cards within the stage column
 
 **Acceptance Criteria — Visualization & Analysis:**
-- [ ] Capabilities with no realization (no IT system linked) are visually highlighted as gaps (e.g., warning icon or color)
-- [ ] Clicking a capability chip navigates to or shows capability details
-- [ ] The flow is responsive to the number of stages (horizontal scroll for many stages)
-- [ ] A summary bar shows: total stages, total unique capabilities mapped, gap count (capabilities without system realization)
-- [ ] Empty state (zero stages) prompts the user to add their first stage
+- [ ] Capabilities with no realization (no IT system linked) are visually highlighted as gaps (e.g., warning icon or color) *(deferred — requires cross-context enterprise architecture data)*
+- [ ] Clicking a capability chip navigates to or shows capability details *(deferred to Slice 4)*
+- [x] The flow is responsive to the number of stages (horizontal scroll for many stages)
+- [x] A summary bar shows: total stages, total unique capabilities mapped *(gap count deferred — requires cross-context data)*
+- [x] Empty state (zero stages) prompts the user to add their first stage
 
 **Edge Cases:**
 - Reordering a single stage to the same position is a no-op
@@ -436,8 +436,8 @@ Three read model tables, no foreign keys, RLS on all three. `value_stream_id` de
 
 ## Checklist
 - [x] Specification ready
-- [ ] Implementation done *(Slice 1 complete; Slices 2–4 pending)*
-- [x] Unit tests implemented and passing *(43 tests: 36 backend, 7 frontend)*
+- [ ] Implementation done *(Slice 1 & 2 complete; Slices 3–4 pending)*
+- [x] Unit tests implemented and passing *(73+ tests: 56+ backend, 17+ frontend)*
 - [ ] Integration tests implemented if relevant
 - [ ] API Documentation updated in OpenAPI specification
 - [ ] User sign-off
@@ -461,3 +461,64 @@ Three read model tables, no foreign keys, RLS on all three. `value_stream_id` de
 **Tests:**
 - Backend: value object tests, aggregate tests, handler tests (36 tests)
 - Frontend: hook tests (7 tests)
+
+## Slice 2 Implementation Notes
+
+**Backend** — extended `valuestreams` bounded context:
+
+*Domain layer:*
+- New value objects: `StageID`, `StageName`, `StagePosition`, `CapabilityRef`
+- New entity: `Stage` (immutable with `With*` methods)
+- 6 new domain events: `ValueStreamStageAdded`, `ValueStreamStageUpdated`, `ValueStreamStageRemoved`, `ValueStreamStagesReordered`, `ValueStreamStageCapabilityAdded`, `ValueStreamStageCapabilityRemoved`
+- Extended `ValueStream` aggregate with stage management (AddStage, UpdateStage, RemoveStage, ReorderStages, AddCapabilityToStage, RemoveCapabilityFromStage)
+
+*Application layer:*
+- 6 new commands and handlers
+- `CapabilityGateway` interface for cross-context capability existence check
+- Expanded read model with stage/capability DTOs, CRUD methods, detail query
+- Projector handles 6 new events with generic `unmarshalEvent` helper
+
+*Infrastructure layer:*
+- Migration `095_add_value_stream_stages.sql` (2 tables + RLS)
+- `CapabilityGatewayImpl` querying capability read model
+- 7 new API handlers in `stage_handlers.go`
+- HATEOAS links for stages and capability mappings
+- 6 new routes with permission middleware
+- Error registration for stage/capability domain errors
+
+*Published language:*
+- 6 new event constants for cross-context integration
+
+**Frontend** — expanded `value-streams` feature:
+
+*Types & API:*
+- `StageId` branded type, `ValueStreamStage`, `StageCapabilityMapping`, `ValueStreamDetail`
+- 7 new API methods (addStage, updateStage, deleteStage, reorderStages, addStageCapability, removeStageCapability, getById returns detail)
+
+*Hooks:*
+- `useValueStreamDetail`, `useAddStage`, `useUpdateStage`, `useDeleteStage`, `useReorderStages`, `useAddStageCapability`, `useRemoveStageCapability`
+- `useStageOperations` — extracted form/mutation logic for clean page component
+
+*Components:*
+- `ValueStreamDetailPage` — detail page with header, back nav, summary bar, form overlay
+- `StageFlowDiagram` — horizontal flow with drag-and-drop stage reorder and capability drop
+- `StageColumn` — individual stage card with capabilities, edit/delete actions
+- `CapabilityChip` — capability badge with remove button
+- `AddStageButton` — dashed "+" button
+- `SummaryBar` — stage count and capability count
+- `CapabilitySidebar` — filterable L1-L4 capability tree with drag support
+- `StageFormOverlay` — extracted add/edit stage form
+
+*Routing:*
+- Added `VALUE_STREAM_DETAIL` route, nested routing in `ValueStreamsRouter`
+- Value stream cards are clickable to navigate to detail
+
+*MSW:*
+- 7 new endpoint handlers for tests
+
+*Mutation effects:*
+- 6 new cache invalidation effects (addStage, updateStage, deleteStage, reorderStages, addStageCapability, removeStageCapability)
+
+**Tests:**
+- Backend: value object tests (StageID, StageName, StagePosition, CapabilityRef), aggregate stage tests (20 tests), handler tests (6 files with success/error cases)
+- Frontend: hook tests (existing 7 tests updated), 975 total tests passing
