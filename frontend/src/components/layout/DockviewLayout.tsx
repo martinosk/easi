@@ -63,46 +63,6 @@ function restorePanelSizes(api: DockviewReadyEvent['api'], sizesRef: React.Mutab
   }, 0);
 }
 
-const panelToggleButtonStyle = {
-  padding: '4px 12px',
-  border: '1px solid var(--color-gray-300)',
-  borderRadius: '4px',
-  backgroundColor: 'white',
-  cursor: 'pointer',
-  fontSize: '13px',
-} as const;
-
-const panelBarStyle = {
-  height: '32px',
-  flexShrink: 0,
-  display: 'flex',
-  alignItems: 'center',
-  gap: '8px',
-  padding: '0 12px',
-  backgroundColor: 'var(--color-gray-50)',
-  borderBottom: '1px solid var(--color-gray-200)',
-  fontSize: '13px',
-} as const;
-
-interface PanelToggleBarProps {
-  panelVisibility: { navigation: boolean; details: boolean };
-  onToggle: (panelId: PanelId) => void;
-}
-
-function PanelToggleBar({ panelVisibility, onToggle }: PanelToggleBarProps) {
-  return (
-    <div style={panelBarStyle}>
-      <span style={{ color: 'var(--color-gray-600)', fontWeight: 500 }}>Panels:</span>
-      <button onClick={() => onToggle('navigation')} style={panelToggleButtonStyle}>
-        {panelVisibility.navigation ? '☑' : '☐'} Explorer
-      </button>
-      <button onClick={() => onToggle('details')} style={panelToggleButtonStyle}>
-        {panelVisibility.details ? '☑' : '☐'} Details
-      </button>
-    </div>
-  );
-}
-
 function usePanelParams(props: DockviewLayoutProps) {
   const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
   const { currentViewId } = useCurrentView();
@@ -339,8 +299,7 @@ export const DockviewLayout: React.FC<DockviewLayoutProps> = (props) => {
   return (
     <CanvasLayoutProvider>
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        <Toolbar />
-        <PanelToggleBar panelVisibility={panelVisibility} onToggle={togglePanel} />
+        <Toolbar panelVisibility={panelVisibility} onTogglePanel={togglePanel} />
         <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
             <DockviewReact

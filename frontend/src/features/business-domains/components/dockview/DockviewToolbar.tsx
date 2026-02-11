@@ -12,42 +12,57 @@ interface DockviewToolbarProps {
   showExplorer: boolean;
 }
 
-const toolbarStyle: React.CSSProperties = {
-  height: '32px',
-  flexShrink: 0,
-  display: 'flex',
-  alignItems: 'center',
-  gap: '8px',
-  padding: '0 12px',
-  backgroundColor: 'var(--color-gray-50)',
-  borderBottom: '1px solid var(--color-gray-200)',
-  fontSize: '13px',
-};
+const LeftPanelIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+    <line x1="9" y1="3" x2="9" y2="21" />
+  </svg>
+);
 
-const buttonStyle: React.CSSProperties = {
-  padding: '4px 12px',
-  border: '1px solid var(--color-gray-300)',
-  borderRadius: '4px',
-  backgroundColor: 'white',
-  cursor: 'pointer',
-  fontSize: '13px',
-};
+const RightPanelIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+    <line x1="15" y1="3" x2="15" y2="21" />
+  </svg>
+);
 
 export const DockviewToolbar: React.FC<DockviewToolbarProps> = ({ panelVisibility, onTogglePanel, showExplorer }) => {
   return (
-    <div style={toolbarStyle}>
-      <span style={{ color: 'var(--color-gray-600)', fontWeight: 500 }}>View:</span>
-      <button onClick={() => onTogglePanel('domains')} style={buttonStyle}>
-        {panelVisibility.domains ? '☑' : '☐'} Business Domains
-      </button>
-      {showExplorer && (
-        <button onClick={() => onTogglePanel('explorer')} style={buttonStyle}>
-          {panelVisibility.explorer ? '☑' : '☐'} Capability Explorer
-        </button>
-      )}
-      <button onClick={() => onTogglePanel('details')} style={buttonStyle}>
-        {panelVisibility.details ? '☑' : '☐'} Details
-      </button>
+    <div className="toolbar">
+      <div className="toolbar-left">
+        <div className="toolbar-panel-toggles">
+          <button
+            className={`toolbar-panel-toggle ${panelVisibility.domains ? 'active' : ''}`}
+            onClick={() => onTogglePanel('domains')}
+            aria-label="Toggle Business Domains panel"
+            aria-pressed={panelVisibility.domains}
+          >
+            <LeftPanelIcon />
+            Domains
+          </button>
+          {showExplorer && (
+            <button
+              className={`toolbar-panel-toggle ${panelVisibility.explorer ? 'active' : ''}`}
+              onClick={() => onTogglePanel('explorer')}
+              aria-label="Toggle Capability Explorer panel"
+              aria-pressed={panelVisibility.explorer}
+            >
+              <LeftPanelIcon />
+              Explorer
+            </button>
+          )}
+          <button
+            className={`toolbar-panel-toggle ${panelVisibility.details ? 'active' : ''}`}
+            onClick={() => onTogglePanel('details')}
+            aria-label="Toggle Details panel"
+            aria-pressed={panelVisibility.details}
+          >
+            Details
+            <RightPanelIcon />
+          </button>
+        </div>
+      </div>
+      <div className="toolbar-right" />
     </div>
   );
 };
