@@ -6,7 +6,9 @@ import { CapabilitiesSection } from './sections/CapabilitiesSection';
 import { AcquiredEntitiesSection } from './sections/AcquiredEntitiesSection';
 import { VendorsSection } from './sections/VendorsSection';
 import { InternalTeamsSection } from './sections/InternalTeamsSection';
+import { CreatedByFilter } from './CreatedByFilter';
 import type { EditingState, TreeMultiSelectProps } from '../types';
+import type { ArtifactCreator } from '../utils/filterByCreator';
 
 interface SelectedEntityIds {
   acquiredEntityId: string | null;
@@ -68,7 +70,68 @@ interface NavigationTreeContentProps {
   onAddAcquiredEntity?: () => void;
   onAddVendor?: () => void;
   onAddTeam?: () => void;
+  artifactCreators?: ArtifactCreator[];
+  users?: Array<{ id: string; name?: string; email: string }>;
+  selectedCreatorIds?: string[];
+  onCreatorSelectionChange?: (creatorIds: string[]) => void;
 }
+
+interface OriginEntitySectionsProps {
+  acquiredEntities: AcquiredEntity[];
+  vendors: Vendor[];
+  internalTeams: InternalTeam[];
+  currentView: View | null;
+  selectedEntityIds: SelectedEntityIds;
+  treeState: NavigationTreeContentProps['treeState'];
+  contextMenus: NavigationTreeContentProps['contextMenus'];
+  multiSelect: TreeMultiSelectProps;
+  onOriginEntitySelect?: (nodeId: string) => void;
+  onAddAcquiredEntity?: () => void;
+  onAddVendor?: () => void;
+  onAddTeam?: () => void;
+}
+
+const OriginEntitySections: React.FC<OriginEntitySectionsProps> = ({
+  acquiredEntities, vendors, internalTeams, currentView, selectedEntityIds,
+  treeState, contextMenus, multiSelect, onOriginEntitySelect,
+  onAddAcquiredEntity, onAddVendor, onAddTeam,
+}) => (
+  <>
+    <AcquiredEntitiesSection
+      acquiredEntities={acquiredEntities}
+      currentView={currentView}
+      selectedEntityId={selectedEntityIds.acquiredEntityId}
+      isExpanded={treeState.isAcquiredEntitiesExpanded}
+      onToggle={() => treeState.setIsAcquiredEntitiesExpanded(!treeState.isAcquiredEntitiesExpanded)}
+      onAddEntity={onAddAcquiredEntity}
+      onEntitySelect={(entityId) => onOriginEntitySelect?.(`acq-${entityId}`)}
+      onEntityContextMenu={contextMenus.handleAcquiredEntityContextMenu}
+      multiSelect={multiSelect}
+    />
+    <VendorsSection
+      vendors={vendors}
+      currentView={currentView}
+      selectedVendorId={selectedEntityIds.vendorId}
+      isExpanded={treeState.isVendorsExpanded}
+      onToggle={() => treeState.setIsVendorsExpanded(!treeState.isVendorsExpanded)}
+      onAddVendor={onAddVendor}
+      onVendorSelect={(vendorId) => onOriginEntitySelect?.(`vendor-${vendorId}`)}
+      onVendorContextMenu={contextMenus.handleVendorContextMenu}
+      multiSelect={multiSelect}
+    />
+    <InternalTeamsSection
+      internalTeams={internalTeams}
+      currentView={currentView}
+      selectedTeamId={selectedEntityIds.teamId}
+      isExpanded={treeState.isInternalTeamsExpanded}
+      onToggle={() => treeState.setIsInternalTeamsExpanded(!treeState.isInternalTeamsExpanded)}
+      onAddTeam={onAddTeam}
+      onTeamSelect={(teamId) => onOriginEntitySelect?.(`team-${teamId}`)}
+      onTeamContextMenu={contextMenus.handleInternalTeamContextMenu}
+      multiSelect={multiSelect}
+    />
+  </>
+);
 
 const TreeHeader: React.FC<{ onClose: () => void }> = ({ onClose }) => (
   <div className="navigation-tree-header">
@@ -105,9 +168,22 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
   onAddAcquiredEntity,
   onAddVendor,
   onAddTeam,
+  artifactCreators = [],
+  users = [],
+  selectedCreatorIds = [],
+  onCreatorSelectionChange,
 }) => (
   <div className="navigation-tree-content">
     <TreeHeader onClose={() => treeState.setIsOpen(false)} />
+
+    {onCreatorSelectionChange && (
+      <CreatedByFilter
+        artifactCreators={artifactCreators}
+        users={users}
+        selectedCreatorIds={selectedCreatorIds}
+        onSelectionChange={onCreatorSelectionChange}
+      />
+    )}
 
     <ApplicationsSection
       components={components}
@@ -155,40 +231,19 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
       multiSelect={multiSelect}
     />
 
-    <AcquiredEntitiesSection
+    <OriginEntitySections
       acquiredEntities={acquiredEntities}
-      currentView={currentView}
-      selectedEntityId={selectedEntityIds.acquiredEntityId}
-      isExpanded={treeState.isAcquiredEntitiesExpanded}
-      onToggle={() => treeState.setIsAcquiredEntitiesExpanded(!treeState.isAcquiredEntitiesExpanded)}
-      onAddEntity={onAddAcquiredEntity}
-      onEntitySelect={(entityId) => onOriginEntitySelect?.(`acq-${entityId}`)}
-      onEntityContextMenu={contextMenus.handleAcquiredEntityContextMenu}
-      multiSelect={multiSelect}
-    />
-
-    <VendorsSection
       vendors={vendors}
-      currentView={currentView}
-      selectedVendorId={selectedEntityIds.vendorId}
-      isExpanded={treeState.isVendorsExpanded}
-      onToggle={() => treeState.setIsVendorsExpanded(!treeState.isVendorsExpanded)}
-      onAddVendor={onAddVendor}
-      onVendorSelect={(vendorId) => onOriginEntitySelect?.(`vendor-${vendorId}`)}
-      onVendorContextMenu={contextMenus.handleVendorContextMenu}
-      multiSelect={multiSelect}
-    />
-
-    <InternalTeamsSection
       internalTeams={internalTeams}
       currentView={currentView}
-      selectedTeamId={selectedEntityIds.teamId}
-      isExpanded={treeState.isInternalTeamsExpanded}
-      onToggle={() => treeState.setIsInternalTeamsExpanded(!treeState.isInternalTeamsExpanded)}
-      onAddTeam={onAddTeam}
-      onTeamSelect={(teamId) => onOriginEntitySelect?.(`team-${teamId}`)}
-      onTeamContextMenu={contextMenus.handleInternalTeamContextMenu}
+      selectedEntityIds={selectedEntityIds}
+      treeState={treeState}
+      contextMenus={contextMenus}
       multiSelect={multiSelect}
+      onOriginEntitySelect={onOriginEntitySelect}
+      onAddAcquiredEntity={onAddAcquiredEntity}
+      onAddVendor={onAddVendor}
+      onAddTeam={onAddTeam}
     />
 
     {selectionCount >= 2 && (

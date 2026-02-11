@@ -221,7 +221,7 @@ export function useCreateCapabilityDependency() {
   return useCapabilityMutation({
     mutationFn: (request: CreateCapabilityDependencyRequest) => capabilitiesApi.createDependency(request),
     getEffects: (newDependency) =>
-      capabilitiesMutationEffects.addDependency(newDependency.sourceCapabilityId, newDependency.targetCapabilityId),
+      capabilitiesMutationEffects.addDependency(newDependency),
     successMessage: 'Dependency created',
     errorMessage: 'Failed to create dependency',
   });
@@ -231,7 +231,7 @@ export function useDeleteCapabilityDependency() {
   return useCapabilityMutation({
     mutationFn: (dependency: CapabilityDependency) => capabilitiesApi.deleteDependency(dependency),
     getEffects: (_, dependency) =>
-      capabilitiesMutationEffects.removeDependency(dependency.sourceCapabilityId, dependency.targetCapabilityId),
+      capabilitiesMutationEffects.removeDependency(dependency),
     successMessage: 'Dependency deleted',
     errorMessage: 'Failed to delete dependency',
   });
@@ -242,7 +242,7 @@ export function useLinkSystemToCapability() {
     mutationFn: ({ capabilityId, request }: { capabilityId: CapabilityId; request: LinkSystemToCapabilityRequest }) =>
       capabilitiesApi.linkSystem(capabilityId, request),
     getEffects: (_, { capabilityId, request }) =>
-      capabilitiesMutationEffects.linkSystem(capabilityId, request.componentId),
+      capabilitiesMutationEffects.linkSystem({ capabilityId, componentId: request.componentId }),
     successMessage: 'System linked to capability',
     errorMessage: 'Failed to link system',
   });
@@ -253,7 +253,7 @@ export function useUpdateRealization() {
     mutationFn: (context: { realization: CapabilityRealization; request: UpdateRealizationRequest }) =>
       capabilitiesApi.updateRealization(context.realization, context.request),
     getEffects: (_, context) =>
-      capabilitiesMutationEffects.updateRealization(context.realization.capabilityId, context.realization.componentId),
+      capabilitiesMutationEffects.updateRealization(context.realization),
     successMessage: 'Realization updated',
     errorMessage: 'Failed to update realization',
   });
@@ -263,7 +263,7 @@ export function useDeleteRealization() {
   return useCapabilityMutation({
     mutationFn: (realization: CapabilityRealization) => capabilitiesApi.deleteRealization(realization),
     getEffects: (_, realization) =>
-      capabilitiesMutationEffects.deleteRealization(realization.capabilityId, realization.componentId),
+      capabilitiesMutationEffects.deleteRealization(realization),
     successMessage: 'Realization deleted',
     errorMessage: 'Failed to delete realization',
   });

@@ -2,6 +2,7 @@ import { capabilitiesQueryKeys } from './queryKeys';
 import { businessDomainsQueryKeys } from '../business-domains/queryKeys';
 import { maturityAnalysisQueryKeys } from '../enterprise-architecture/queryKeys';
 import { auditQueryKeys } from '../audit/queryKeys';
+import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
 
 export const capabilitiesMutationEffects = {
   create: (context: { parentId?: string; businessDomainId?: string }) => [
@@ -11,6 +12,7 @@ export const capabilitiesMutationEffects = {
       ? [businessDomainsQueryKeys.capabilities(context.businessDomainId)]
       : []),
     maturityAnalysisQueryKeys.unlinked(),
+    artifactCreatorsQueryKeys.all,
   ],
 
   update: (capabilityId: string) => [
@@ -28,17 +30,17 @@ export const capabilitiesMutationEffects = {
     maturityAnalysisQueryKeys.unlinked(),
   ],
 
-  assignToDomain: (capabilityId: string, domainId: string) => [
-    businessDomainsQueryKeys.capabilities(domainId),
-    businessDomainsQueryKeys.detail(domainId),
-    capabilitiesQueryKeys.detail(capabilityId),
+  assignToDomain: (context: { capabilityId: string; domainId: string }) => [
+    businessDomainsQueryKeys.capabilities(context.domainId),
+    businessDomainsQueryKeys.detail(context.domainId),
+    capabilitiesQueryKeys.detail(context.capabilityId),
     maturityAnalysisQueryKeys.unlinked(),
   ],
 
-  unassignFromDomain: (capabilityId: string, domainId: string) => [
-    businessDomainsQueryKeys.capabilities(domainId),
-    businessDomainsQueryKeys.detail(domainId),
-    capabilitiesQueryKeys.detail(capabilityId),
+  unassignFromDomain: (context: { capabilityId: string; domainId: string }) => [
+    businessDomainsQueryKeys.capabilities(context.domainId),
+    businessDomainsQueryKeys.detail(context.domainId),
+    capabilitiesQueryKeys.detail(context.capabilityId),
     maturityAnalysisQueryKeys.unlinked(),
   ],
 
@@ -55,35 +57,35 @@ export const capabilitiesMutationEffects = {
     businessDomainsQueryKeys.details(),
   ],
 
-  addDependency: (sourceCapabilityId: string, targetCapabilityId: string) => [
+  addDependency: (context: { sourceCapabilityId: string; targetCapabilityId: string }) => [
     capabilitiesQueryKeys.dependencies(),
-    capabilitiesQueryKeys.outgoing(sourceCapabilityId),
-    capabilitiesQueryKeys.incoming(targetCapabilityId),
+    capabilitiesQueryKeys.outgoing(context.sourceCapabilityId),
+    capabilitiesQueryKeys.incoming(context.targetCapabilityId),
   ],
 
-  removeDependency: (sourceCapabilityId: string, targetCapabilityId: string) => [
+  removeDependency: (context: { sourceCapabilityId: string; targetCapabilityId: string }) => [
     capabilitiesQueryKeys.dependencies(),
-    capabilitiesQueryKeys.outgoing(sourceCapabilityId),
-    capabilitiesQueryKeys.incoming(targetCapabilityId),
+    capabilitiesQueryKeys.outgoing(context.sourceCapabilityId),
+    capabilitiesQueryKeys.incoming(context.targetCapabilityId),
   ],
 
-  linkSystem: (capabilityId: string, componentId: string) => [
-    capabilitiesQueryKeys.realizations(capabilityId),
-    capabilitiesQueryKeys.byComponent(componentId),
+  linkSystem: (context: { capabilityId: string; componentId: string }) => [
+    capabilitiesQueryKeys.realizations(context.capabilityId),
+    capabilitiesQueryKeys.byComponent(context.componentId),
     capabilitiesQueryKeys.realizationsByComponents(),
     businessDomainsQueryKeys.details(),
   ],
 
-  updateRealization: (capabilityId: string, componentId: string) => [
-    capabilitiesQueryKeys.realizations(capabilityId),
-    capabilitiesQueryKeys.byComponent(componentId),
+  updateRealization: (context: { capabilityId: string; componentId: string }) => [
+    capabilitiesQueryKeys.realizations(context.capabilityId),
+    capabilitiesQueryKeys.byComponent(context.componentId),
     capabilitiesQueryKeys.realizationsByComponents(),
     businessDomainsQueryKeys.details(),
   ],
 
-  deleteRealization: (capabilityId: string, componentId: string) => [
-    capabilitiesQueryKeys.realizations(capabilityId),
-    capabilitiesQueryKeys.byComponent(componentId),
+  deleteRealization: (context: { capabilityId: string; componentId: string }) => [
+    capabilitiesQueryKeys.realizations(context.capabilityId),
+    capabilitiesQueryKeys.byComponent(context.componentId),
     capabilitiesQueryKeys.realizationsByComponents(),
     businessDomainsQueryKeys.details(),
   ],

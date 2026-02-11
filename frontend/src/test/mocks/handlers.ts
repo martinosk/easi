@@ -266,6 +266,13 @@ export const handlers = [
     });
   }),
 
+  http.get(`${BASE_URL}/api/v1/artifact-creators`, () => {
+    return HttpResponse.json({
+      data: [],
+      _links: { self: { href: '/api/v1/artifact-creators', method: 'GET' } },
+    });
+  }),
+
   http.get(`${BASE_URL}/api/v1/audit/:id`, () => {
     return HttpResponse.json({
       entries: [],

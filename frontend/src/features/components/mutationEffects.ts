@@ -2,10 +2,12 @@ import { componentsQueryKeys, fitScoresQueryKeys } from './queryKeys';
 import { businessDomainsQueryKeys } from '../business-domains/queryKeys';
 import { strategicFitAnalysisQueryKeys } from '../enterprise-architecture/queryKeys';
 import { auditQueryKeys } from '../audit/queryKeys';
+import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
 
 export const componentsMutationEffects = {
   create: () => [
     componentsQueryKeys.lists(),
+    artifactCreatorsQueryKeys.all,
   ],
 
   update: (componentId: string) => [

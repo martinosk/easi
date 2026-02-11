@@ -7,6 +7,7 @@ import {
 import { componentsQueryKeys } from '../components/queryKeys';
 import { layoutsQueryKeys } from '../canvas/queryKeys';
 import { auditQueryKeys } from '../audit/queryKeys';
+import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
 
 interface OriginEntityQueryKeys {
   all: readonly [string];
@@ -20,6 +21,7 @@ function createOriginEntityMutationEffects(entityQueryKeys: OriginEntityQueryKey
   return {
     create: () => [
       entityQueryKeys.lists(),
+      artifactCreatorsQueryKeys.all,
     ],
 
     update: (id: string) => [

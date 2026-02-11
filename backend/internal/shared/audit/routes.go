@@ -22,12 +22,22 @@ type AuditRoutesDeps struct {
 }
 
 func SetupAuditRoutes(deps AuditRoutesDeps) error {
+	auditLinks := NewAuditLinks(deps.Hateoas)
+
 	readModel := NewAuditHistoryReadModel(deps.DB)
-	handlers := NewAuditHandlers(readModel, NewAuditLinks(deps.Hateoas))
+	handlers := NewAuditHandlers(readModel, auditLinks)
+
+	creatorReadModel := NewArtifactCreatorReadModel(deps.DB)
+	creatorHandlers := NewArtifactCreatorHandlers(creatorReadModel, auditLinks)
 
 	deps.Router.Route("/audit", func(r chi.Router) {
 		r.Use(deps.AuthMiddleware.RequirePermission(authValueObjects.PermAuditRead))
 		r.Get("/{aggregateId}", handlers.GetAuditHistory)
+	})
+
+	deps.Router.Route("/artifact-creators", func(r chi.Router) {
+		r.Use(deps.AuthMiddleware.RequirePermission(authValueObjects.PermAuditRead))
+		r.Get("/", creatorHandlers.GetArtifactCreators)
 	})
 
 	return nil

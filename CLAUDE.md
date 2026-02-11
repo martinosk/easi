@@ -41,6 +41,16 @@ Find detailed patterns and conventions in `/docs/`:
 - Swagger annotations use relative paths (no `/api/v1/` prefix)
 - Validation in domain model only - API translates exceptions to status codes
 
+### Testing
+- When adding a new API endpoint consumed by the frontend, add an MSW handler in `frontend/src/test/mocks/handlers.ts`
+- Keep filtering/transformation logic in pure utility functions for easy testing
+
+### Cache Invalidation (Frontend)
+- **Every mutation that creates/deletes an artifact MUST update its `mutationEffects`** to invalidate all affected query caches
+- Mutation effects live in `<feature>/mutationEffects.ts` — they return query keys to invalidate on success
+- When adding a new query (e.g. `artifact-creators`), check which existing mutations affect it and add the query key to their `create`/`delete` effects
+- Cross-feature invalidation is normal — a component creation can invalidate `artifact-creators`, layouts, etc.
+
 ## Running Tests
 
 ```bash

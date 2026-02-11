@@ -18,11 +18,13 @@ import {
 } from '../features/origin-entities/mutationEffects';
 import { editGrantsQueryKeys } from '../features/edit-grants/queryKeys';
 import { editGrantsMutationEffects } from '../features/edit-grants/mutationEffects';
+import { componentsMutationEffects } from '../features/components/mutationEffects';
+import { artifactCreatorsQueryKeys } from '../features/navigation/hooks/useArtifactCreators';
 
 describe('mutationEffects', () => {
   describe('capabilitiesMutationEffects.linkSystem', () => {
     it('should invalidate business domain details to refresh realizations in domain views', () => {
-      const effects = capabilitiesMutationEffects.linkSystem('cap-1', 'comp-1');
+      const effects = capabilitiesMutationEffects.linkSystem({ capabilityId: 'cap-1', componentId: 'comp-1' });
 
       expect(effects).toContainEqual(capabilitiesQueryKeys.realizations('cap-1'));
       expect(effects).toContainEqual(capabilitiesQueryKeys.byComponent('comp-1'));
@@ -33,7 +35,7 @@ describe('mutationEffects', () => {
 
   describe('capabilitiesMutationEffects.updateRealization', () => {
     it('should invalidate business domain details to refresh realizations in domain views', () => {
-      const effects = capabilitiesMutationEffects.updateRealization('cap-1', 'comp-1');
+      const effects = capabilitiesMutationEffects.updateRealization({ capabilityId: 'cap-1', componentId: 'comp-1' });
 
       expect(effects).toContainEqual(capabilitiesQueryKeys.realizations('cap-1'));
       expect(effects).toContainEqual(capabilitiesQueryKeys.byComponent('comp-1'));
@@ -44,7 +46,7 @@ describe('mutationEffects', () => {
 
   describe('capabilitiesMutationEffects.deleteRealization', () => {
     it('should invalidate business domain details to refresh realizations in domain views', () => {
-      const effects = capabilitiesMutationEffects.deleteRealization('cap-1', 'comp-1');
+      const effects = capabilitiesMutationEffects.deleteRealization({ capabilityId: 'cap-1', componentId: 'comp-1' });
 
       expect(effects).toContainEqual(capabilitiesQueryKeys.realizations('cap-1'));
       expect(effects).toContainEqual(capabilitiesQueryKeys.byComponent('comp-1'));
@@ -53,7 +55,7 @@ describe('mutationEffects', () => {
     });
 
     it('should invalidate domain views so deleted components no longer appear as realizing systems', () => {
-      const effects = capabilitiesMutationEffects.deleteRealization('any-cap', 'deleted-comp');
+      const effects = capabilitiesMutationEffects.deleteRealization({ capabilityId: 'any-cap', componentId: 'deleted-comp' });
 
       const businessDomainDetailsKey = businessDomainsQueryKeys.details();
       expect(effects).toContainEqual(businessDomainDetailsKey);
@@ -210,6 +212,33 @@ describe('mutationEffects', () => {
       expect(effects).toContainEqual(businessDomainsQueryKeys.details());
       expect(effects).toContainEqual(capabilitiesQueryKeys.lists());
       expect(effects).toContainEqual(auditQueryKeys.history('cap-child'));
+    });
+  });
+
+  describe('artifact-creators invalidation on create', () => {
+    it('should invalidate artifact-creators when a component is created', () => {
+      const effects = componentsMutationEffects.create();
+      expect(effects).toContainEqual(artifactCreatorsQueryKeys.all);
+    });
+
+    it('should invalidate artifact-creators when a capability is created', () => {
+      const effects = capabilitiesMutationEffects.create({});
+      expect(effects).toContainEqual(artifactCreatorsQueryKeys.all);
+    });
+
+    it('should invalidate artifact-creators when an acquired entity is created', () => {
+      const effects = acquiredEntitiesMutationEffects.create();
+      expect(effects).toContainEqual(artifactCreatorsQueryKeys.all);
+    });
+
+    it('should invalidate artifact-creators when a vendor is created', () => {
+      const effects = vendorsMutationEffects.create();
+      expect(effects).toContainEqual(artifactCreatorsQueryKeys.all);
+    });
+
+    it('should invalidate artifact-creators when an internal team is created', () => {
+      const effects = internalTeamsMutationEffects.create();
+      expect(effects).toContainEqual(artifactCreatorsQueryKeys.all);
     });
   });
 

@@ -14,8 +14,11 @@ import { EditInternalTeamDialog } from './EditInternalTeamDialog';
 import { type OriginEntityType } from '../../../constants/entityIdentifiers';
 import type {
   AcquiredEntity,
+  AcquiredEntityId,
   Vendor,
+  VendorId,
   InternalTeam,
+  InternalTeamId,
   OriginRelationship,
   OriginRelationshipType,
 } from '../../../api/types';

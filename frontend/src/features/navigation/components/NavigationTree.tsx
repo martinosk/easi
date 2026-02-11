@@ -1,18 +1,13 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAppStore } from '../../../store/appStore';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { useCapabilities } from '../../capabilities/hooks/useCapabilities';
-import { useComponents } from '../../components/hooks/useComponents';
-import { useViews } from '../../views/hooks/useViews';
-import { useAcquiredEntitiesQuery } from '../../origin-entities/hooks/useAcquiredEntities';
-import { useVendorsQuery } from '../../origin-entities/hooks/useVendors';
-import { useInternalTeamsQuery } from '../../origin-entities/hooks/useInternalTeams';
 import { useNavigationTreeState } from '../hooks/useNavigationTreeState';
 import { useTreeContextMenus } from '../hooks/useTreeContextMenus';
 import { useTreeMultiSelect } from '../hooks/useTreeMultiSelect';
 import type { TreeSelectedItem } from '../hooks/useTreeMultiSelect';
 import { useTreeMultiSelectMenu } from '../hooks/useTreeMultiSelectMenu';
 import { useTreeBulkDelete } from '../hooks/useTreeBulkDelete';
+import { useFilteredTreeData } from '../hooks/useFilteredTreeData';
 import { NavigationTreeContent } from './NavigationTreeContent';
 import { NavigationTreeDialogs } from './NavigationTreeDialogs';
 import type { NavigationTreeProps } from '../types';
@@ -141,15 +136,11 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   canCreateView = true,
   canCreateOriginEntity = false,
 }) => {
-  const { data: components = [] } = useComponents();
+  const { components, views, filtered, artifactCreators, activeUsers, selectedCreatorIds, setSelectedCreatorIds } =
+    useFilteredTreeData();
   const { currentView } = useCurrentView();
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const selectNode = useAppStore((state) => state.selectNode);
-  const { data: capabilities = [] } = useCapabilities();
-  const { data: views = [] } = useViews();
-  const { data: acquiredEntities = [] } = useAcquiredEntitiesQuery();
-  const { data: vendors = [] } = useVendorsQuery();
-  const { data: internalTeams = [] } = useInternalTeamsQuery();
 
   const [selectedCapabilityId, setSelectedCapabilityId] = useState<string | null>(null);
 
@@ -190,14 +181,14 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
       <div className={`navigation-tree ${treeState.isOpen ? 'open' : 'closed'}`}>
         {treeState.isOpen && (
           <NavigationTreeContent
-            components={components}
+            components={filtered.components}
             currentView={currentView}
             selectedNodeId={selectedNodeId}
-            capabilities={capabilities}
+            capabilities={filtered.capabilities}
             views={views}
-            acquiredEntities={acquiredEntities}
-            vendors={vendors}
-            internalTeams={internalTeams}
+            acquiredEntities={filtered.acquiredEntities}
+            vendors={filtered.vendors}
+            internalTeams={filtered.internalTeams}
             selectedCapabilityId={selectedCapabilityId}
             setSelectedCapabilityId={setSelectedCapabilityId}
             selectedEntityIds={selectedEntityIds}
@@ -215,6 +206,10 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
             onAddAcquiredEntity={originEntity.onAddAcquired}
             onAddVendor={originEntity.onAddVendor}
             onAddTeam={originEntity.onAddTeam}
+            artifactCreators={artifactCreators}
+            users={activeUsers}
+            selectedCreatorIds={selectedCreatorIds}
+            onCreatorSelectionChange={setSelectedCreatorIds}
           />
         )}
       </div>
