@@ -38,6 +38,10 @@ const SettingsPage = lazy(() =>
   import('./features/settings').then(module => ({ default: module.SettingsPage }))
 );
 
+const ValueStreamsRouter = lazy(() =>
+  import('./features/value-streams').then(module => ({ default: module.ValueStreamsRouter }))
+);
+
 const EnterpriseArchRouter = lazy(() =>
   import('./features/enterprise-architecture').then(module => ({ default: module.EnterpriseArchRouter }))
 );
@@ -46,7 +50,7 @@ const MyEditAccessPage = lazy(() =>
   import('./features/edit-grants/pages/MyEditAccessPage')
 );
 
-type AppView = 'canvas' | 'business-domains' | 'invitations' | 'users' | 'settings' | 'enterprise-architecture' | 'my-edit-access';
+type AppView = 'canvas' | 'business-domains' | 'value-streams' | 'invitations' | 'users' | 'settings' | 'enterprise-architecture' | 'my-edit-access';
 
 function useAuthErrorHandler() {
   const [authError, setAuthError] = useState<string | null>(null);
@@ -179,6 +183,9 @@ function MainContent({ view, canvasViewProps }: MainContentProps) {
   }
   if (view === 'settings') {
     return <LazyFeatureView featureName="Settings"><SettingsPage /></LazyFeatureView>;
+  }
+  if (view === 'value-streams') {
+    return <LazyFeatureView featureName="Value Streams"><ValueStreamsRouter /></LazyFeatureView>;
   }
   if (view === 'enterprise-architecture') {
     return <LazyFeatureView featureName="Enterprise Architecture"><EnterpriseArchRouter /></LazyFeatureView>;

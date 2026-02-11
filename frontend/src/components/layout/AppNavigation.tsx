@@ -4,7 +4,7 @@ import { UserMenu } from './UserMenu';
 import { ROUTES } from '../../routes/routes';
 import { useUserStore } from '../../store/userStore';
 
-type AppView = 'canvas' | 'business-domains' | 'invitations' | 'users' | 'settings' | 'enterprise-architecture' | 'my-edit-access';
+type AppView = 'canvas' | 'business-domains' | 'value-streams' | 'invitations' | 'users' | 'settings' | 'enterprise-architecture' | 'my-edit-access';
 
 interface AppNavigationProps {
   currentView: AppView;
@@ -14,6 +14,7 @@ interface AppNavigationProps {
 const viewRouteMap: Record<AppView, string> = {
   'canvas': ROUTES.HOME,
   'business-domains': ROUTES.BUSINESS_DOMAINS,
+  'value-streams': ROUTES.VALUE_STREAMS,
   'enterprise-architecture': ROUTES.ENTERPRISE_ARCHITECTURE,
   'invitations': ROUTES.INVITATIONS,
   'users': ROUTES.USERS,
@@ -26,6 +27,7 @@ function NavItems({ currentView, onNavigate }: { currentView: AppView; onNavigat
   const canViewUsers = hasPermission('users:read');
   const canManageInvitations = hasPermission('invitations:manage');
   const canManageMetaModel = hasPermission('metamodel:write');
+  const canViewValueStreams = hasPermission('valuestreams:read');
   const canViewEnterpriseArch = hasPermission('enterprise-arch:read');
 
   return (
@@ -58,6 +60,19 @@ function NavItems({ currentView, onNavigate }: { currentView: AppView; onNavigat
         </svg>
         Business Domains
       </button>
+      {canViewValueStreams && (
+        <button
+          type="button"
+          className={`app-header-nav-item ${currentView === 'value-streams' ? 'app-header-nav-item-active' : ''}`}
+          onClick={() => onNavigate('value-streams')}
+          data-testid="nav-value-streams"
+        >
+          <svg className="app-header-nav-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 12H6L9 3L15 21L18 12H22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Value Streams
+        </button>
+      )}
       {canViewEnterpriseArch && (
         <button
           type="button"

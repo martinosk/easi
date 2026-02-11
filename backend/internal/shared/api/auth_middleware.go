@@ -10,11 +10,11 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func RequireWriteOrEditGrant(artifactType, idParam string) func(http.Handler) http.Handler {
+func RequireWriteOrEditGrant(artifactType sharedctx.ResourceName, idParam string) func(http.Handler) http.Handler {
 	return RequireWriteOrEditGrantFor(artifactType, artifactType, idParam)
 }
 
-func RequireWriteOrEditGrantFor(permission, artifactType, idParam string) func(http.Handler) http.Handler {
+func RequireWriteOrEditGrantFor(permission, artifactType sharedctx.ResourceName, idParam string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if config.IsAuthBypassed() {

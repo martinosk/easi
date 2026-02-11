@@ -19,6 +19,7 @@ export type AcquiredEntityId = Branded<string, 'AcquiredEntityId'>;
 export type VendorId = Branded<string, 'VendorId'>;
 export type InternalTeamId = Branded<string, 'InternalTeamId'>;
 export type OriginRelationshipId = Branded<string, 'OriginRelationshipId'>;
+export type ValueStreamId = Branded<string, 'ValueStreamId'>;
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0;
@@ -54,6 +55,7 @@ export const toAcquiredEntityId = createBrandedFactory<AcquiredEntityId>('Acquir
 export const toVendorId = createBrandedFactory<VendorId>('VendorId');
 export const toInternalTeamId = createBrandedFactory<InternalTeamId>('InternalTeamId');
 export const toOriginRelationshipId = createBrandedFactory<OriginRelationshipId>('OriginRelationshipId');
+export const toValueStreamId = createBrandedFactory<ValueStreamId>('ValueStreamId');
 
 export const isComponentId = createBrandedTypeGuard<ComponentId>();
 export const isRelationId = createBrandedTypeGuard<RelationId>();
@@ -72,6 +74,7 @@ export const isAcquiredEntityId = createBrandedTypeGuard<AcquiredEntityId>();
 export const isVendorId = createBrandedTypeGuard<VendorId>();
 export const isInternalTeamId = createBrandedTypeGuard<InternalTeamId>();
 export const isOriginRelationshipId = createBrandedTypeGuard<OriginRelationshipId>();
+export const isValueStreamId = createBrandedTypeGuard<ValueStreamId>();
 
 export interface Position {
   x: number;
@@ -465,6 +468,28 @@ export interface AssociateCapabilityRequest {
 }
 
 export type BusinessDomainsResponse = CollectionResponse<BusinessDomain>;
+
+export interface ValueStream {
+  id: ValueStreamId;
+  name: string;
+  description: string;
+  stageCount: number;
+  createdAt: string;
+  updatedAt?: string;
+  _links: HATEOASLinks;
+}
+
+export interface CreateValueStreamRequest {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateValueStreamRequest {
+  name: string;
+  description?: string;
+}
+
+export type ValueStreamsResponse = CollectionResponse<ValueStream>;
 
 export type LayoutContextType = 'architecture-canvas' | 'business-domain-grid';
 

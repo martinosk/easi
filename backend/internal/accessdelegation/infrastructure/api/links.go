@@ -27,7 +27,7 @@ func (h *EditGrantLinks) EditGrantLinksForActor(grant readmodels.EditGrantDTO, a
 }
 
 func (h *EditGrantLinks) AddArtifactLink(links sharedAPI.Links, grant readmodels.EditGrantDTO) {
-	resourcePath := "/" + sharedctx.PluralResourceName(grant.ArtifactType) + "/" + grant.ArtifactID
+	resourcePath := "/" + string(sharedctx.PluralResourceName(grant.ArtifactType)) + "/" + grant.ArtifactID
 	links["artifact"] = h.Get(resourcePath)
 }
 
@@ -47,6 +47,6 @@ func (h *EditGrantLinks) EditGrantArtifactCollectionLinks(artifactType, artifact
 	return sharedAPI.Links{
 		"self":       h.Get("/edit-grants/artifact/" + artifactType + "/" + artifactID),
 		"collection": h.Get("/edit-grants"),
-		"x-artifact": h.Get("/" + sharedctx.PluralResourceName(artifactType) + "/" + artifactID),
+		"x-artifact": h.Get("/" + string(sharedctx.PluralResourceName(artifactType)) + "/" + artifactID),
 	}
 }
