@@ -27,10 +27,7 @@ const DEFAULT_VALUES: CreateCapabilityFormData = {
   maturityValue: 12,
 };
 
-export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
-  isOpen,
-  onClose,
-}) => {
+function useCreateCapabilityForm(isOpen: boolean, onClose: () => void) {
   const [backendError, setBackendError] = useState<string | null>(null);
 
   const { data: statusesData, isLoading: isLoadingStatuses } = useStatuses();
@@ -64,9 +61,9 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
     }
   }, [isOpen, reset]);
 
-  const handleClose = () => {
-    onClose();
-  };
+  const statusOptions = [...statuses]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((s) => ({ value: s.value, label: s.displayName }));
 
   const onSubmit = async (data: CreateCapabilityFormData) => {
     setBackendError(null);
@@ -83,20 +80,33 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
           maturityValue: data.maturityValue,
         },
       });
-      handleClose();
+      onClose();
     } catch (err) {
       setBackendError(err instanceof Error ? err.message : 'Failed to create capability');
     }
   };
 
-  const statusOptions = [...statuses]
-    .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((s) => ({ value: s.value, label: s.displayName }));
+  return {
+    register, handleSubmit, control, errors, isValid,
+    backendError, isCreating, isLoadingStatuses,
+    statusOptions, onSubmit,
+  };
+}
+
+export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
+  isOpen,
+  onClose,
+}) => {
+  const {
+    register, handleSubmit, control, errors, isValid,
+    backendError, isCreating, isLoadingStatuses,
+    statusOptions, onSubmit,
+  } = useCreateCapabilityForm(isOpen, onClose);
 
   return (
     <Modal
       opened={isOpen}
-      onClose={handleClose}
+      onClose={onClose}
       title="Create Capability"
       centered
       data-testid="create-capability-dialog"
@@ -160,7 +170,7 @@ export const CreateCapabilityDialog: React.FC<CreateCapabilityDialogProps> = ({
           <Group justify="flex-end" gap="sm">
             <Button
               variant="default"
-              onClick={handleClose}
+              onClick={onClose}
               disabled={isCreating}
               data-testid="create-capability-cancel"
             >
