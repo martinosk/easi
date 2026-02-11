@@ -14,12 +14,24 @@ describe('useCapabilityContextMenu', () => {
   });
 
   const mockCapabilities: Capability[] = [
-    createCapability('l1-1', 'Finance', 'L1'),
+    {
+      ...createCapability('l1-1', 'Finance', 'L1'),
+      _links: {
+        self: { href: '/api/v1/capabilities/l1-1', method: 'GET' },
+        delete: { href: '/api/v1/capabilities/l1-1', method: 'DELETE' },
+      },
+    },
     createCapability('l2-1', 'Accounting', 'L2', 'l1-1'),
   ];
 
   const mockDomainCapabilities: Capability[] = [
-    { ...createCapability('l1-1', 'Finance', 'L1'), _links: { self: { href: '/api/v1/capabilities/l1-1', method: 'GET' }, removeFromDomain: { href: '/api/v1/business-domains/domain-1/capabilities/l1-1', method: 'DELETE' } } },
+    {
+      ...createCapability('l1-1', 'Finance', 'L1'),
+      _links: {
+        self: { href: '/api/v1/capabilities/l1-1', method: 'GET' },
+        'x-remove-from-domain': { href: '/api/v1/business-domains/domain-1/capabilities/l1-1', method: 'DELETE' },
+      },
+    },
   ];
 
   const defaultProps = {
@@ -67,8 +79,14 @@ describe('useCapabilityContextMenu', () => {
     expect(result.current.contextMenu).toBeNull();
   });
 
-  it('provides two menu items: remove and delete', () => {
+  it('provides two menu items: remove and delete when allowed', () => {
     const { result } = renderHook(() => useCapabilityContextMenu(defaultProps));
+
+    const mockEvent = { preventDefault: vi.fn(), clientX: 100, clientY: 200 } as unknown as React.MouseEvent;
+
+    act(() => {
+      result.current.handleCapabilityContextMenu(mockCapabilities[0], mockEvent);
+    });
 
     expect(result.current.contextMenuItems).toHaveLength(2);
     expect(result.current.contextMenuItems[0].label).toBe('Remove from Business Domain');
@@ -93,7 +111,7 @@ describe('useCapabilityContextMenu', () => {
     });
 
     expect(dissociateCapability).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'l1-1', level: 'L1', _links: expect.objectContaining({ removeFromDomain: { href: '/api/v1/business-domains/domain-1/capabilities/l1-1', method: 'DELETE' } }) })
+      expect.objectContaining({ id: 'l1-1', level: 'L1', _links: expect.objectContaining({ 'x-remove-from-domain': { href: '/api/v1/business-domains/domain-1/capabilities/l1-1', method: 'DELETE' } }) })
     );
   });
 

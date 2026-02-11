@@ -35,7 +35,7 @@ describe('InviteToEditDialog', () => {
     it('should render dialog with title and description', () => {
       renderDialog();
 
-      expect(screen.getByText('Invite to Edit')).toBeInTheDocument();
+      expect(screen.getByText('Invite to Edit...')).toBeInTheDocument();
       expect(
         screen.getByText('Grant temporary edit access for this capability to a stakeholder.')
       ).toBeInTheDocument();

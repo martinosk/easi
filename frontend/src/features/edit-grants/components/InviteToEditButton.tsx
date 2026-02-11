@@ -38,7 +38,7 @@ export function InviteToEditButton({
         onClick={() => setIsDialogOpen(true)}
         data-testid="invite-to-edit-btn"
       >
-        Invite to Edit
+        Invite to Edit...
       </button>
       <InviteToEditDialog
         isOpen={isDialogOpen}

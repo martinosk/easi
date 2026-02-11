@@ -34,7 +34,7 @@ export function useDomainContextMenu({ onEdit, onDelete }: UseDomainContextMenuP
 
     if (hasLink(menu.domain, 'x-edit-grants')) {
       items.push({
-        label: 'Invite to Edit',
+        label: 'Invite to Edit...',
         onClick: () => {
           setDomainToInvite({ id: menu.domain.id, artifactType: 'domain' });
         },
