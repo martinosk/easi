@@ -55,6 +55,7 @@ var rolePermissionsList = map[string][]Permission{
 		PermAuditRead,
 		PermEnterpriseArchRead, PermEnterpriseArchWrite, PermEnterpriseArchDelete,
 		PermEditGrantsManage,
+		PermValueStreamsRead, PermValueStreamsWrite, PermValueStreamsDelete,
 	},
 	"architect": {
 		PermComponentsRead, PermComponentsWrite, PermComponentsDelete,
@@ -66,6 +67,7 @@ var rolePermissionsList = map[string][]Permission{
 		PermAuditRead,
 		PermEnterpriseArchRead, PermEnterpriseArchWrite, PermEnterpriseArchDelete,
 		PermEditGrantsManage,
+		PermValueStreamsRead, PermValueStreamsWrite, PermValueStreamsDelete,
 	},
 	"stakeholder": {
 		PermComponentsRead,
@@ -75,6 +77,7 @@ var rolePermissionsList = map[string][]Permission{
 		PermMetaModelRead,
 		PermAuditRead,
 		PermEnterpriseArchRead,
+		PermValueStreamsRead,
 	},
 }
 

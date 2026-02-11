@@ -17,7 +17,7 @@ func NewArchitectureModelingLinks(h *sharedAPI.HATEOASLinks) *ArchitectureModeli
 
 type originResourceConfig struct {
 	sharedAPI.ResourceConfig
-	ArtifactType string
+	ArtifactType sharedctx.ResourceName
 }
 
 var (

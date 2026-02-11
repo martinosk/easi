@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func setupTestRouter(artifactType, idParam string) *chi.Mux {
+func setupTestRouter(artifactType sharedctx.ResourceName, idParam string) *chi.Mux {
 	r := chi.NewRouter()
 	r.Route("/test/{id}", func(r chi.Router) {
 		r.Use(RequireWriteOrEditGrant(artifactType, idParam))

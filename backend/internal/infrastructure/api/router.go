@@ -14,6 +14,7 @@ import (
 	authAPI "easi/backend/internal/auth/infrastructure/api"
 	authReadModels "easi/backend/internal/auth/application/readmodels"
 	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
+	valuestreamsAPI "easi/backend/internal/valuestreams/infrastructure/api"
 	enterpriseArchAPI "easi/backend/internal/enterprisearchitecture/infrastructure/api"
 	importingAPI "easi/backend/internal/importing/infrastructure/api"
 	"easi/backend/internal/infrastructure/api/middleware"
@@ -154,6 +155,7 @@ func registerTenantRoutes(r chi.Router, deps routerDependencies) {
 	adDeps.RegisterRoutes(r)
 	setupModelingRoutes(r, deps)
 	setupDomainRoutes(r, deps)
+	setupValueStreamsRoutes(r, deps)
 	setupSupportRoutes(r, deps)
 	setupAuthRoutes(r, deps)
 	wireAutoInvitationProjector(deps)
@@ -204,6 +206,18 @@ func setupModelingRoutes(r chi.Router, deps routerDependencies) {
 		SessionManager: deps.authDeps.SessionManager,
 		AuthMiddleware: deps.authDeps.AuthMiddleware,
 	}), "capability mapping routes")
+}
+
+func setupValueStreamsRoutes(r chi.Router, deps routerDependencies) {
+	mustSetup(valuestreamsAPI.SetupValueStreamsRoutes(&valuestreamsAPI.RouteConfig{
+		Router:         r,
+		CommandBus:     deps.commandBus,
+		EventStore:     deps.eventStore,
+		EventBus:       deps.eventBus,
+		DB:             deps.db,
+		HATEOAS:        deps.hateoas,
+		AuthMiddleware: deps.authDeps.AuthMiddleware,
+	}), "value streams routes")
 }
 
 func setupDomainRoutes(r chi.Router, deps routerDependencies) {

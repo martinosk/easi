@@ -7,7 +7,6 @@ import (
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/domain/valueobjects"
-	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
@@ -478,10 +477,10 @@ func buildOriginLinks(actor sharedctx.Actor, p originLinkParams) types.Links {
 		"component":     {Href: sharedAPI.BuildResourceLink("/components", sharedAPI.ResourceID(p.componentID)), Method: "GET"},
 		p.entityLinkName: {Href: sharedAPI.BuildResourceLink(sharedAPI.ResourcePath(p.entityResource), sharedAPI.ResourceID(p.entityID)), Method: "GET"},
 	}
-	if actor.CanWrite(authValueObjects.PermComponentsWrite.String()) {
+	if actor.CanWrite("components") {
 		links["update"] = types.Link{Href: baseURL, Method: "PUT"}
 	}
-	if actor.CanDelete(authValueObjects.PermComponentsDelete.String()) {
+	if actor.CanDelete("components") {
 		links["delete"] = types.Link{Href: baseURL, Method: "DELETE"}
 	}
 	return links

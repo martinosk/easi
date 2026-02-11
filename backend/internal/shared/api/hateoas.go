@@ -39,7 +39,7 @@ func (h *HATEOASLinks) Crud(path string) Links {
 type ResourceConfig struct {
 	Path       string
 	Collection string
-	Permission string
+	Permission sharedctx.ResourceName
 }
 
 func (h *HATEOASLinks) SimpleResourceLinks(cfg ResourceConfig, id string, actor sharedctx.Actor) Links {
@@ -61,7 +61,7 @@ type ExpertParams struct {
 	ContactInfo  string
 }
 
-func (h *HATEOASLinks) ExpertRemoveLink(p ExpertParams, actor sharedctx.Actor, permission string) Links {
+func (h *HATEOASLinks) ExpertRemoveLink(p ExpertParams, actor sharedctx.Actor, permission sharedctx.ResourceName) Links {
 	links := Links{}
 	if actor.CanDelete(permission) {
 		links["x-remove"] = h.Del(p.ResourcePath + "/experts?name=" + url.QueryEscape(p.ExpertName) + "&role=" + url.QueryEscape(p.ExpertRole) + "&contact=" + url.QueryEscape(p.ContactInfo))
@@ -69,7 +69,7 @@ func (h *HATEOASLinks) ExpertRemoveLink(p ExpertParams, actor sharedctx.Actor, p
 	return links
 }
 
-func (h *HATEOASLinks) AddEditOrGrantLink(links Links, actor sharedctx.Actor, permission, artifactType, artifactID string, editLink types.Link, extraWriteLinks map[string]types.Link) {
+func (h *HATEOASLinks) AddEditOrGrantLink(links Links, actor sharedctx.Actor, permission, artifactType sharedctx.ResourceName, artifactID string, editLink types.Link, extraWriteLinks map[string]types.Link) {
 	if actor.CanWrite(permission) {
 		links["edit"] = editLink
 		for k, v := range extraWriteLinks {
@@ -80,7 +80,7 @@ func (h *HATEOASLinks) AddEditOrGrantLink(links Links, actor sharedctx.Actor, pe
 	}
 }
 
-func (h *HATEOASLinks) AddEditGrantsLink(links Links, actor sharedctx.Actor, permission string) {
+func (h *HATEOASLinks) AddEditGrantsLink(links Links, actor sharedctx.Actor, permission sharedctx.ResourceName) {
 	if actor.CanWrite(permission) || actor.HasPermission("edit-grants:manage") {
 		links["x-edit-grants"] = h.Post("/edit-grants")
 	}

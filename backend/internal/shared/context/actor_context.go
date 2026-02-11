@@ -6,6 +6,8 @@ import (
 
 const ActorContextKey contextKey = "actor"
 
+type ResourceName string
+
 type Role string
 
 const (
@@ -33,7 +35,7 @@ type Actor struct {
 	Email       string
 	Role        Role
 	Permissions map[string]bool
-	editGrants  map[string]map[string]bool
+	editGrants  map[ResourceName]map[string]bool
 }
 
 func (a Actor) HasPermission(perm string) bool {
@@ -43,19 +45,19 @@ func (a Actor) HasPermission(perm string) bool {
 	return a.Permissions[perm]
 }
 
-func (a Actor) CanWrite(resource string) bool {
-	return a.HasPermission(resource + ":write")
+func (a Actor) CanWrite(resource ResourceName) bool {
+	return a.HasPermission(string(resource) + ":write")
 }
 
-func (a Actor) CanDelete(resource string) bool {
-	return a.HasPermission(resource + ":delete")
+func (a Actor) CanDelete(resource ResourceName) bool {
+	return a.HasPermission(string(resource) + ":delete")
 }
 
-func (a Actor) CanRead(resource string) bool {
-	return a.HasPermission(resource + ":read")
+func (a Actor) CanRead(resource ResourceName) bool {
+	return a.HasPermission(string(resource) + ":read")
 }
 
-func (a Actor) HasEditGrant(artifactType, artifactID string) bool {
+func (a Actor) HasEditGrant(artifactType ResourceName, artifactID string) bool {
 	if a.editGrants == nil {
 		return false
 	}
@@ -66,32 +68,32 @@ func (a Actor) HasEditGrant(artifactType, artifactID string) bool {
 	return ids[artifactID]
 }
 
-func (a Actor) EditGrantIDs(artifactType string) map[string]bool {
+func (a Actor) EditGrantIDs(artifactType ResourceName) map[string]bool {
 	if a.editGrants == nil {
 		return nil
 	}
 	return a.editGrants[artifactType]
 }
 
-var resourceAliases = map[string]string{
-	"capability":       "capabilities",
-	"component":        "components",
-	"view":             "views",
-	"domain":           "domains",
-	"vendor":           "vendors",
-	"internal_team":    "internal_teams",
-	"acquired_entity":  "acquired_entities",
+var resourceAliases = map[string]ResourceName{
+	"capability":      "capabilities",
+	"component":       "components",
+	"view":            "views",
+	"domain":          "domains",
+	"vendor":          "vendors",
+	"internal_team":   "internal_teams",
+	"acquired_entity": "acquired_entities",
 }
 
-func PluralResourceName(singular string) string {
+func PluralResourceName(singular string) ResourceName {
 	if plural, ok := resourceAliases[singular]; ok {
 		return plural
 	}
-	return singular
+	return ResourceName(singular)
 }
 
 func (a Actor) WithEditGrants(grants map[string]map[string]bool) Actor {
-	normalized := make(map[string]map[string]bool, len(grants))
+	normalized := make(map[ResourceName]map[string]bool, len(grants))
 	for key, ids := range grants {
 		normalized[PluralResourceName(key)] = ids
 	}
@@ -120,6 +122,7 @@ var rolePermissions = map[Role][]string{
 		"audit:read",
 		"enterprise-arch:read", "enterprise-arch:write", "enterprise-arch:delete",
 		"edit-grants:manage",
+		"valuestreams:read", "valuestreams:write", "valuestreams:delete",
 	},
 	RoleArchitect: {
 		"components:read", "components:write", "components:delete",
@@ -131,6 +134,7 @@ var rolePermissions = map[Role][]string{
 		"audit:read",
 		"enterprise-arch:read", "enterprise-arch:write", "enterprise-arch:delete",
 		"edit-grants:manage",
+		"valuestreams:read", "valuestreams:write", "valuestreams:delete",
 	},
 	RoleStakeholder: {
 		"components:read",
@@ -140,6 +144,7 @@ var rolePermissions = map[Role][]string{
 		"metamodel:read",
 		"audit:read",
 		"enterprise-arch:read",
+		"valuestreams:read",
 	},
 }
 

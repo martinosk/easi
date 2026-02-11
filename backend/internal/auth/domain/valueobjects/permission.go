@@ -43,6 +43,10 @@ var (
 	PermEnterpriseArchDelete = Permission{value: "enterprise-arch:delete"}
 
 	PermEditGrantsManage = Permission{value: "edit-grants:manage"}
+
+	PermValueStreamsRead   = Permission{value: "valuestreams:read"}
+	PermValueStreamsWrite  = Permission{value: "valuestreams:write"}
+	PermValueStreamsDelete = Permission{value: "valuestreams:delete"}
 )
 
 var validPermissions = map[string]Permission{
@@ -68,6 +72,9 @@ var validPermissions = map[string]Permission{
 	"enterprise-arch:write":  PermEnterpriseArchWrite,
 	"enterprise-arch:delete": PermEnterpriseArchDelete,
 	"edit-grants:manage":     PermEditGrantsManage,
+	"valuestreams:read":      PermValueStreamsRead,
+	"valuestreams:write":     PermValueStreamsWrite,
+	"valuestreams:delete":    PermValueStreamsDelete,
 }
 
 func PermissionFromString(s string) (Permission, error) {

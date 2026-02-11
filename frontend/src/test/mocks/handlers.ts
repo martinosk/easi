@@ -211,6 +211,55 @@ export const handlers = [
     return HttpResponse.json(relation, { status: 201 });
   }),
 
+  http.get(`${BASE_URL}/api/v1/value-streams`, () => {
+    return HttpResponse.json({
+      data: [],
+      _links: {
+        self: { href: '/api/v1/value-streams', method: 'GET' },
+        'x-create': { href: '/api/v1/value-streams', method: 'POST' },
+      },
+    });
+  }),
+
+  http.post(`${BASE_URL}/api/v1/value-streams`, async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json({
+      id: 'test-vs-id',
+      name: body.name,
+      description: body.description || '',
+      stageCount: 0,
+      createdAt: new Date().toISOString(),
+      _links: {
+        self: { href: '/api/v1/value-streams/test-vs-id', method: 'GET' },
+        edit: { href: '/api/v1/value-streams/test-vs-id', method: 'PUT' },
+        delete: { href: '/api/v1/value-streams/test-vs-id', method: 'DELETE' },
+        collection: { href: '/api/v1/value-streams', method: 'GET' },
+      },
+    }, { status: 201 });
+  }),
+
+  http.put(`${BASE_URL}/api/v1/value-streams/:id`, async ({ params, request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json({
+      id: params.id,
+      name: body.name,
+      description: body.description || '',
+      stageCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      _links: {
+        self: { href: `/api/v1/value-streams/${params.id}`, method: 'GET' },
+        edit: { href: `/api/v1/value-streams/${params.id}`, method: 'PUT' },
+        delete: { href: `/api/v1/value-streams/${params.id}`, method: 'DELETE' },
+        collection: { href: '/api/v1/value-streams', method: 'GET' },
+      },
+    });
+  }),
+
+  http.delete(`${BASE_URL}/api/v1/value-streams/:id`, () => {
+    return new HttpResponse(null, { status: 204 });
+  }),
+
   http.get(`${BASE_URL}/api/v1/business-domains`, () => {
     return HttpResponse.json({
       data: [],
