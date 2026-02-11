@@ -136,8 +136,12 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   canCreateView = true,
   canCreateOriginEntity = false,
 }) => {
-  const { components, views, filtered, artifactCreators, activeUsers, selectedCreatorIds, setSelectedCreatorIds } =
-    useFilteredTreeData();
+  const {
+    components, views, filtered, artifactCreators, activeUsers,
+    selectedCreatorIds, setSelectedCreatorIds,
+    domains, selectedDomainIds, setSelectedDomainIds,
+    hasActiveFilters, clearAllFilters,
+  } = useFilteredTreeData();
   const { currentView } = useCurrentView();
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const selectNode = useAppStore((state) => state.selectNode);
@@ -210,6 +214,11 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
             users={activeUsers}
             selectedCreatorIds={selectedCreatorIds}
             onCreatorSelectionChange={setSelectedCreatorIds}
+            domains={domains}
+            selectedDomainIds={selectedDomainIds}
+            onDomainSelectionChange={setSelectedDomainIds}
+            hasActiveFilters={hasActiveFilters}
+            onClearAllFilters={clearAllFilters}
           />
         )}
       </div>

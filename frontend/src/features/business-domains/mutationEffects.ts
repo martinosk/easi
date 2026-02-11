@@ -42,6 +42,7 @@ export const businessDomainsMutationEffects = {
 
   associateCapability: (domainId: string, capabilityId: string) => [
     businessDomainsQueryKeys.capabilities(domainId),
+    businessDomainsQueryKeys.realizations(domainId, 4),
     businessDomainsQueryKeys.detail(domainId),
     businessDomainsQueryKeys.lists(),
     capabilitiesQueryKeys.detail(capabilityId),
@@ -50,6 +51,7 @@ export const businessDomainsMutationEffects = {
 
   dissociateCapability: (domainId: string, capabilityId: string) => [
     businessDomainsQueryKeys.capabilities(domainId),
+    businessDomainsQueryKeys.realizations(domainId, 4),
     businessDomainsQueryKeys.detail(domainId),
     businessDomainsQueryKeys.lists(),
     capabilitiesQueryKeys.detail(capabilityId),

@@ -1370,6 +1370,95 @@ body {
   color: white;
 }
 
+/* Filter bar between header and tree sections */
+.tree-filter-bar {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+/* Filter Popover */
+.filter-popover {
+  position: relative;
+}
+
+.filter-popover-trigger {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 3px 6px;
+  color: var(--color-gray-500);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.filter-popover-trigger:hover {
+  color: var(--color-gray-700);
+  background: var(--color-gray-100);
+}
+
+.filter-popover-trigger.active {
+  color: var(--color-primary);
+  border-color: var(--color-primary-light, var(--color-gray-200));
+  background: var(--color-primary-bg, rgba(37, 99, 235, 0.06));
+}
+
+.filter-popover-badge {
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--color-primary);
+  color: white;
+  border-radius: 10px;
+  min-width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.filter-popover-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 50;
+  background: white;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  min-width: 220px;
+  max-width: 280px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.filter-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.filter-popover-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-gray-700);
+}
+
+.filter-popover-panel .tree-filter {
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.filter-popover-panel .tree-filter:last-child {
+  border-bottom: none;
+}
+
 /* Default badge for views */
 .default-badge {
   margin-left: var(--spacing-xs);

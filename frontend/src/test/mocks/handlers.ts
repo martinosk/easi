@@ -318,4 +318,13 @@ export const handlers = [
       _links: { self: '/api/v1/vendors' },
     });
   }),
+
+  http.get(`${BASE_URL}/api/v1/origin-relationships`, () => {
+    return HttpResponse.json({
+      acquiredVia: [],
+      purchasedFrom: [],
+      builtBy: [],
+      _links: { self: { href: '/api/v1/origin-relationships', method: 'GET' } },
+    });
+  }),
 ];

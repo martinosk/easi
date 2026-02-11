@@ -6,7 +6,7 @@ import { CapabilitiesSection } from './sections/CapabilitiesSection';
 import { AcquiredEntitiesSection } from './sections/AcquiredEntitiesSection';
 import { VendorsSection } from './sections/VendorsSection';
 import { InternalTeamsSection } from './sections/InternalTeamsSection';
-import { CreatedByFilter } from './CreatedByFilter';
+import { FilterPopover } from './FilterPopover';
 import type { EditingState, TreeMultiSelectProps } from '../types';
 import type { ArtifactCreator } from '../utils/filterByCreator';
 
@@ -74,6 +74,11 @@ interface NavigationTreeContentProps {
   users?: Array<{ id: string; name?: string; email: string }>;
   selectedCreatorIds?: string[];
   onCreatorSelectionChange?: (creatorIds: string[]) => void;
+  domains?: Array<{ id: string; name: string }>;
+  selectedDomainIds?: string[];
+  onDomainSelectionChange?: (domainIds: string[]) => void;
+  hasActiveFilters?: boolean;
+  onClearAllFilters?: () => void;
 }
 
 interface OriginEntitySectionsProps {
@@ -172,18 +177,28 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
   users = [],
   selectedCreatorIds = [],
   onCreatorSelectionChange,
+  domains = [],
+  selectedDomainIds = [],
+  onDomainSelectionChange,
+  hasActiveFilters = false,
+  onClearAllFilters,
 }) => (
   <div className="navigation-tree-content">
     <TreeHeader onClose={() => treeState.setIsOpen(false)} />
 
-    {onCreatorSelectionChange && (
-      <CreatedByFilter
+    <div className="tree-filter-bar">
+      <FilterPopover
         artifactCreators={artifactCreators}
         users={users}
         selectedCreatorIds={selectedCreatorIds}
-        onSelectionChange={onCreatorSelectionChange}
+        onCreatorSelectionChange={onCreatorSelectionChange}
+        domains={domains}
+        selectedDomainIds={selectedDomainIds}
+        onDomainSelectionChange={onDomainSelectionChange}
+        hasActiveFilters={hasActiveFilters}
+        onClearAllFilters={onClearAllFilters}
       />
-    )}
+    </div>
 
     <ApplicationsSection
       components={components}

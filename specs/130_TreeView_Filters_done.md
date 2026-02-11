@@ -163,23 +163,23 @@ Only returns creators for components, capabilities, acquired entities, vendors, 
 **Example:** Given Capability X created by user A, Capability Y created by user B, App Z created by user C, Vendor U created by user B -- when filtering by "Created by: user A, user C" then only Capability X and App Z appear in tree. Canvas still shows everything.
 
 ### "Assigned to domain" filter
-- [ ] Dropdown lists all business domains plus "Unassigned"
-- [ ] Selecting a domain shows: its directly-assigned capabilities, their descendant capabilities, components realizing those capabilities, and origin entities of those components
-- [ ] "Unassigned" shows artifacts not reachable from any domain (including orphan components with no realizations and orphan origin entities with no component links)
-- [ ] Multiple domains can be selected (union of their artifacts)
+- [x] Dropdown lists all business domains plus "Unassigned"
+- [x] Selecting a domain shows: its directly-assigned capabilities, their descendant capabilities, components realizing those capabilities, and origin entities of those components
+- [x] "Unassigned" shows artifacts not reachable from any domain (including orphan components with no realizations and orphan origin entities with no component links)
+- [x] Multiple domains can be selected (union of their artifacts)
 
 **Example:** Given capability X (parent of Y), app Z realizes Y, vendor U is origin of Z, X is assigned to domain 1, capability P is not assigned to domain 1 -- when filtering by "Assigned to domain 1" then X, Y, Z, U are shown but P is not.
 
 ### Combined filters
-- [ ] When both filters are active, only artifacts matching BOTH filters are shown (AND logic)
-- [ ] Clearing one filter still applies the other
-- [ ] Clearing all filters restores the full tree
+- [x] When both filters are active, only artifacts matching BOTH filters are shown (AND logic)
+- [x] Clearing one filter still applies the other
+- [x] Clearing all filters restores the full tree
 
 ### General
-- [ ] Filters are placed between the Explorer header and the first tree section
-- [ ] Filter state does not persist across page navigation (local state only)
-- [ ] Section item counts reflect filtered results
-- [ ] Capability tree hierarchy remains navigable (structural parents shown when needed)
+- [x] Filters are placed between the Explorer header and the first tree section
+- [x] Filter state does not persist across page navigation (local state only)
+- [x] Section item counts reflect filtered results
+- [x] Capability tree hierarchy remains navigable (structural parents shown when needed)
 
 ## Out of Scope
 
@@ -193,7 +193,7 @@ Only returns creators for components, capabilities, acquired entities, vendors, 
 
 - [x] Specification ready
 - [x] Slice 1: "Created by" backend + frontend implemented (includes hierarchy preservation)
-- [ ] Slice 2: "Assigned to domain" frontend + combined filter logic
-- [x] Unit tests implemented and passing (Slice 1)
+- [x] Slice 2: "Assigned to domain" frontend + combined filter logic
+- [x] Unit tests implemented and passing (Slice 1 + Slice 2)
 - [ ] Integration tests for new endpoint
 - [ ] User sign-off
