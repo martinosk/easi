@@ -7,6 +7,7 @@ import { invalidateFor } from '../../../lib/invalidateFor';
 import type {
   ValueStream,
   ValueStreamId,
+  ValueStreamDetail,
   CreateValueStreamRequest,
   UpdateValueStreamRequest,
   ValueStreamsResponse,
@@ -76,7 +77,7 @@ export function useValueStreamsQuery() {
 }
 
 export function useValueStream(id: ValueStreamId | undefined) {
-  return useQuery({
+  return useQuery<ValueStreamDetail>({
     queryKey: valueStreamsQueryKeys.detail(id!),
     queryFn: () => valueStreamsApi.getById(id!),
     enabled: !!id,

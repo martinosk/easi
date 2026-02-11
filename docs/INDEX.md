@@ -19,14 +19,17 @@ Quick reference for navigating EASI documentation.
 | Context | Canvas | Classification | Status |
 |---------|--------|----------------|--------|
 | CapabilityMapping | [docs/architecture/CapabilityMapping.md](architecture/CapabilityMapping.md) | Core | Implemented |
+| EnterpriseArchitecture | [docs/architecture/EnterpriseArchitecture.md](architecture/EnterpriseArchitecture.md) | Core | Implemented |
+| ValueStreams | [docs/architecture/README.md](architecture/README.md) | Core | Implemented |
 | ArchitectureModeling | [docs/architecture/ArchitectureModeling.md](architecture/ArchitectureModeling.md) | Supporting | Implemented |
 | ArchitectureViews | [docs/architecture/ArchitectureViews.md](architecture/ArchitectureViews.md) | Supporting | Implemented |
 | MetaModel | [docs/architecture/MetaModel.md](architecture/MetaModel.md) | Supporting | Implemented |
+| AccessDelegation | [docs/architecture/README.md](architecture/README.md) | Supporting | Implemented |
+| ViewLayouts | [docs/architecture/README.md](architecture/README.md) | Supporting | Implemented |
 | Releases | [docs/architecture/Releases.md](architecture/Releases.md) | Generic | Implemented |
-| EnterpriseArchitecture | [docs/architecture/EnterpriseArchitecture.md](architecture/EnterpriseArchitecture.md) | Core | Specified |
 | EnterpriseStrategy | [docs/architecture/EnterpriseStrategy.md](architecture/EnterpriseStrategy.md) | Core | Future |
 
-Full context map: [docs/architecture/README.md](architecture/README.md)
+Full context map and published language catalogue: [docs/architecture/README.md](architecture/README.md)
 
 ## Core Rules
 

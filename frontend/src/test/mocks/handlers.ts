@@ -256,8 +256,136 @@ export const handlers = [
     });
   }),
 
+  http.get(`${BASE_URL}/api/v1/value-streams/:id`, ({ params }) => {
+    const vsLinks = {
+      self: { href: `/api/v1/value-streams/${params.id}`, method: 'GET' },
+      edit: { href: `/api/v1/value-streams/${params.id}`, method: 'PUT' },
+      delete: { href: `/api/v1/value-streams/${params.id}`, method: 'DELETE' },
+      collection: { href: '/api/v1/value-streams', method: 'GET' },
+      'x-add-stage': { href: `/api/v1/value-streams/${params.id}/stages`, method: 'POST' },
+      'x-reorder-stages': { href: `/api/v1/value-streams/${params.id}/stages/positions`, method: 'PUT' },
+      'x-capabilities': { href: `/api/v1/value-streams/${params.id}/capabilities`, method: 'GET' },
+    };
+    return HttpResponse.json({
+      id: params.id,
+      name: 'Test Value Stream',
+      description: '',
+      stageCount: 0,
+      createdAt: new Date().toISOString(),
+      stages: [],
+      stageCapabilities: [],
+      _links: vsLinks,
+    });
+  }),
+
   http.delete(`${BASE_URL}/api/v1/value-streams/:id`, () => {
     return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.post(`${BASE_URL}/api/v1/value-streams/:id/stages`, async ({ params, request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json({
+      id: params.id,
+      name: 'Test Value Stream',
+      description: '',
+      stageCount: 1,
+      createdAt: new Date().toISOString(),
+      stages: [{
+        id: 'test-stage-id',
+        valueStreamId: params.id,
+        name: body.name,
+        description: body.description || '',
+        position: 1,
+        _links: {
+          self: { href: `/api/v1/value-streams/${params.id}/stages/test-stage-id`, method: 'GET' },
+          edit: { href: `/api/v1/value-streams/${params.id}/stages/test-stage-id`, method: 'PUT' },
+          delete: { href: `/api/v1/value-streams/${params.id}/stages/test-stage-id`, method: 'DELETE' },
+          'x-add-capability': { href: `/api/v1/value-streams/${params.id}/stages/test-stage-id/capabilities`, method: 'POST' },
+        },
+      }],
+      stageCapabilities: [],
+      _links: {
+        self: { href: `/api/v1/value-streams/${params.id}`, method: 'GET' },
+        'x-add-stage': { href: `/api/v1/value-streams/${params.id}/stages`, method: 'POST' },
+      },
+    }, { status: 201 });
+  }),
+
+  http.put(`${BASE_URL}/api/v1/value-streams/:id/stages/:stageId`, async ({ params, request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json({
+      id: params.id,
+      name: 'Test Value Stream',
+      description: '',
+      stageCount: 1,
+      createdAt: new Date().toISOString(),
+      stages: [{
+        id: params.stageId,
+        valueStreamId: params.id,
+        name: body.name,
+        description: body.description || '',
+        position: 1,
+        _links: {},
+      }],
+      stageCapabilities: [],
+      _links: { self: { href: `/api/v1/value-streams/${params.id}`, method: 'GET' } },
+    });
+  }),
+
+  http.delete(`${BASE_URL}/api/v1/value-streams/:id/stages/:stageId`, ({ params }) => {
+    return HttpResponse.json({
+      id: params.id,
+      name: 'Test Value Stream',
+      description: '',
+      stageCount: 0,
+      createdAt: new Date().toISOString(),
+      stages: [],
+      stageCapabilities: [],
+      _links: { self: { href: `/api/v1/value-streams/${params.id}`, method: 'GET' } },
+    });
+  }),
+
+  http.put(`${BASE_URL}/api/v1/value-streams/:id/stages/positions`, ({ params }) => {
+    return HttpResponse.json({
+      id: params.id,
+      name: 'Test Value Stream',
+      description: '',
+      stageCount: 0,
+      createdAt: new Date().toISOString(),
+      stages: [],
+      stageCapabilities: [],
+      _links: { self: { href: `/api/v1/value-streams/${params.id}`, method: 'GET' } },
+    });
+  }),
+
+  http.post(`${BASE_URL}/api/v1/value-streams/:id/stages/:stageId/capabilities`, ({ params }) => {
+    return HttpResponse.json({
+      id: params.id,
+      name: 'Test Value Stream',
+      description: '',
+      stageCount: 1,
+      createdAt: new Date().toISOString(),
+      stages: [],
+      stageCapabilities: [],
+      _links: { self: { href: `/api/v1/value-streams/${params.id}`, method: 'GET' } },
+    });
+  }),
+
+  http.delete(`${BASE_URL}/api/v1/value-streams/:id/stages/:stageId/capabilities/:capabilityId`, ({ params }) => {
+    return HttpResponse.json({
+      id: params.id,
+      name: 'Test Value Stream',
+      description: '',
+      stageCount: 1,
+      createdAt: new Date().toISOString(),
+      stages: [],
+      stageCapabilities: [],
+      _links: { self: { href: `/api/v1/value-streams/${params.id}`, method: 'GET' } },
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/v1/value-streams/:id/capabilities`, () => {
+    return HttpResponse.json([]);
   }),
 
   http.get(`${BASE_URL}/api/v1/business-domains`, () => {

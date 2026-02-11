@@ -20,6 +20,7 @@ export type VendorId = Branded<string, 'VendorId'>;
 export type InternalTeamId = Branded<string, 'InternalTeamId'>;
 export type OriginRelationshipId = Branded<string, 'OriginRelationshipId'>;
 export type ValueStreamId = Branded<string, 'ValueStreamId'>;
+export type StageId = Branded<string, 'StageId'>;
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0;
@@ -56,6 +57,7 @@ export const toVendorId = createBrandedFactory<VendorId>('VendorId');
 export const toInternalTeamId = createBrandedFactory<InternalTeamId>('InternalTeamId');
 export const toOriginRelationshipId = createBrandedFactory<OriginRelationshipId>('OriginRelationshipId');
 export const toValueStreamId = createBrandedFactory<ValueStreamId>('ValueStreamId');
+export const toStageId = createBrandedFactory<StageId>('StageId');
 
 export const isComponentId = createBrandedTypeGuard<ComponentId>();
 export const isRelationId = createBrandedTypeGuard<RelationId>();
@@ -75,6 +77,7 @@ export const isVendorId = createBrandedTypeGuard<VendorId>();
 export const isInternalTeamId = createBrandedTypeGuard<InternalTeamId>();
 export const isOriginRelationshipId = createBrandedTypeGuard<OriginRelationshipId>();
 export const isValueStreamId = createBrandedTypeGuard<ValueStreamId>();
+export const isStageId = createBrandedTypeGuard<StageId>();
 
 export interface Position {
   x: number;
@@ -490,6 +493,46 @@ export interface UpdateValueStreamRequest {
 }
 
 export type ValueStreamsResponse = CollectionResponse<ValueStream>;
+
+export interface ValueStreamStage {
+  id: StageId;
+  valueStreamId: ValueStreamId;
+  name: string;
+  description?: string;
+  position: number;
+  _links?: HATEOASLinks;
+}
+
+export interface StageCapabilityMapping {
+  stageId: StageId;
+  capabilityId: string;
+  capabilityName?: string;
+  _links?: HATEOASLinks;
+}
+
+export interface ValueStreamDetail extends ValueStream {
+  stages: ValueStreamStage[];
+  stageCapabilities: StageCapabilityMapping[];
+}
+
+export interface CreateStageRequest {
+  name: string;
+  description?: string;
+  position?: number;
+}
+
+export interface UpdateStageRequest {
+  name: string;
+  description?: string;
+}
+
+export interface ReorderStagesRequest {
+  positions: { stageId: string; position: number }[];
+}
+
+export interface AddStageCapabilityRequest {
+  capabilityId: string;
+}
 
 export type LayoutContextType = 'architecture-canvas' | 'business-domain-grid';
 
