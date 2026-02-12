@@ -213,7 +213,7 @@ const NavigationTreePanel = (props: IDockviewPanelProps<{
   canCreateOriginEntity?: boolean;
 }>) => {
   return (
-    <div style={{ height: '100%', width: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '100%', width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <ErrorBoundary
         fallback={(error, reset) => (
           <FeatureErrorFallback featureName="Navigation" error={error} onReset={reset} />

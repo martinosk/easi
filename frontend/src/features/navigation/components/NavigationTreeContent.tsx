@@ -200,71 +200,73 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
       />
     </div>
 
-    <ApplicationsSection
-      components={components}
-      currentView={currentView}
-      selectedNodeId={selectedNodeId}
-      isExpanded={treeState.isModelsExpanded}
-      onToggle={() => treeState.setIsModelsExpanded(!treeState.isModelsExpanded)}
-      onAddComponent={onAddComponent}
-      onComponentSelect={onComponentSelect}
-      onComponentContextMenu={contextMenus.handleComponentContextMenu}
-      editingState={contextMenus.editingState}
-      setEditingState={contextMenus.setEditingState}
-      onRenameSubmit={contextMenus.handleRenameSubmit}
-      editInputRef={contextMenus.editInputRef}
-      multiSelect={multiSelect}
-    />
+    <div className="navigation-tree-sections">
+      <ApplicationsSection
+        components={components}
+        currentView={currentView}
+        selectedNodeId={selectedNodeId}
+        isExpanded={treeState.isModelsExpanded}
+        onToggle={() => treeState.setIsModelsExpanded(!treeState.isModelsExpanded)}
+        onAddComponent={onAddComponent}
+        onComponentSelect={onComponentSelect}
+        onComponentContextMenu={contextMenus.handleComponentContextMenu}
+        editingState={contextMenus.editingState}
+        setEditingState={contextMenus.setEditingState}
+        onRenameSubmit={contextMenus.handleRenameSubmit}
+        editInputRef={contextMenus.editInputRef}
+        multiSelect={multiSelect}
+      />
 
-    <ViewsSection
-      views={views}
-      currentView={currentView}
-      isExpanded={treeState.isViewsExpanded}
-      onToggle={() => treeState.setIsViewsExpanded(!treeState.isViewsExpanded)}
-      canCreateView={canCreateView}
-      onCreateView={() => contextMenus.setShowCreateDialog(true)}
-      onViewSelect={onViewSelect}
-      onViewContextMenu={contextMenus.handleViewContextMenu}
-      editingState={contextMenus.editingState}
-      setEditingState={contextMenus.setEditingState}
-      onRenameSubmit={contextMenus.handleRenameSubmit}
-      editInputRef={contextMenus.editInputRef}
-    />
+      <ViewsSection
+        views={views}
+        currentView={currentView}
+        isExpanded={treeState.isViewsExpanded}
+        onToggle={() => treeState.setIsViewsExpanded(!treeState.isViewsExpanded)}
+        canCreateView={canCreateView}
+        onCreateView={() => contextMenus.setShowCreateDialog(true)}
+        onViewSelect={onViewSelect}
+        onViewContextMenu={contextMenus.handleViewContextMenu}
+        editingState={contextMenus.editingState}
+        setEditingState={contextMenus.setEditingState}
+        onRenameSubmit={contextMenus.handleRenameSubmit}
+        editInputRef={contextMenus.editInputRef}
+      />
 
-    <CapabilitiesSection
-      capabilities={capabilities}
-      currentView={currentView}
-      isExpanded={treeState.isCapabilitiesExpanded}
-      onToggle={() => treeState.setIsCapabilitiesExpanded(!treeState.isCapabilitiesExpanded)}
-      onAddCapability={onAddCapability}
-      onCapabilitySelect={onCapabilitySelect}
-      onCapabilityContextMenu={contextMenus.handleCapabilityContextMenu}
-      expandedCapabilities={treeState.expandedCapabilities}
-      toggleCapabilityExpanded={treeState.toggleCapabilityExpanded}
-      selectedCapabilityId={selectedCapabilityId}
-      setSelectedCapabilityId={setSelectedCapabilityId}
-      multiSelect={multiSelect}
-    />
+      <CapabilitiesSection
+        capabilities={capabilities}
+        currentView={currentView}
+        isExpanded={treeState.isCapabilitiesExpanded}
+        onToggle={() => treeState.setIsCapabilitiesExpanded(!treeState.isCapabilitiesExpanded)}
+        onAddCapability={onAddCapability}
+        onCapabilitySelect={onCapabilitySelect}
+        onCapabilityContextMenu={contextMenus.handleCapabilityContextMenu}
+        expandedCapabilities={treeState.expandedCapabilities}
+        toggleCapabilityExpanded={treeState.toggleCapabilityExpanded}
+        selectedCapabilityId={selectedCapabilityId}
+        setSelectedCapabilityId={setSelectedCapabilityId}
+        multiSelect={multiSelect}
+      />
 
-    <OriginEntitySections
-      acquiredEntities={acquiredEntities}
-      vendors={vendors}
-      internalTeams={internalTeams}
-      currentView={currentView}
-      selectedEntityIds={selectedEntityIds}
-      treeState={treeState}
-      contextMenus={contextMenus}
-      multiSelect={multiSelect}
-      onOriginEntitySelect={onOriginEntitySelect}
-      onAddAcquiredEntity={onAddAcquiredEntity}
-      onAddVendor={onAddVendor}
-      onAddTeam={onAddTeam}
-    />
+      <OriginEntitySections
+        acquiredEntities={acquiredEntities}
+        vendors={vendors}
+        internalTeams={internalTeams}
+        currentView={currentView}
+        selectedEntityIds={selectedEntityIds}
+        treeState={treeState}
+        contextMenus={contextMenus}
+        multiSelect={multiSelect}
+        onOriginEntitySelect={onOriginEntitySelect}
+        onAddAcquiredEntity={onAddAcquiredEntity}
+        onAddVendor={onAddVendor}
+        onAddTeam={onAddTeam}
+      />
 
-    {selectionCount >= 2 && (
-      <div className="tree-selection-count">
-        {selectionCount} items selected
-      </div>
-    )}
+      {selectionCount >= 2 && (
+        <div className="tree-selection-count">
+          {selectionCount} items selected
+        </div>
+      )}
+    </div>
   </div>
 );
