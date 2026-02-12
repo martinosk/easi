@@ -41,14 +41,15 @@ function selectDeepestInherited(
 
 export function filterVisibleRealizations(
   realizations: CapabilityRealization[],
-  capabilityLevels: Map<CapabilityId, number>
+  capabilityLevels: Map<CapabilityId, number>,
+  visibleCapabilityIds?: Set<CapabilityId>
 ): CapabilityRealization[] {
-  const visibleCapabilityIds = new Set(capabilityLevels.keys());
+  const visibleIds = visibleCapabilityIds ?? new Set(capabilityLevels.keys());
   const directRealizations: CapabilityRealization[] = [];
   const inheritedByKey = new Map<string, CapabilityRealization>();
 
   for (const r of realizations) {
-    if (!visibleCapabilityIds.has(r.capabilityId)) {
+    if (!visibleIds.has(r.capabilityId)) {
       continue;
     }
 
@@ -57,7 +58,7 @@ export function filterVisibleRealizations(
       continue;
     }
 
-    if (isInheritedWithHiddenSource(r, visibleCapabilityIds)) {
+    if (isInheritedWithHiddenSource(r, visibleIds)) {
       const key = `${r.componentId}:${r.sourceCapabilityId}`;
       const existing = inheritedByKey.get(key);
       const selected = existing ? selectDeepestInherited(existing, r, capabilityLevels) : r;
@@ -76,7 +77,8 @@ interface RealizationsData {
 export function useCapabilityRealizations(
   enabled: boolean,
   domainId: BusinessDomainId | null,
-  depth: number
+  depth: number,
+  visibleCapabilityIds?: Set<CapabilityId> | CapabilityId[]
 ): UseCapabilityRealizationsResult {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: businessDomainsQueryKeys.realizations(domainId ?? '', depth),
@@ -95,12 +97,20 @@ export function useCapabilityRealizations(
     enabled: enabled && !!domainId,
   });
 
+  const visibleIds = useMemo(() => {
+    if (!visibleCapabilityIds) return undefined;
+    return visibleCapabilityIds instanceof Set
+      ? visibleCapabilityIds
+      : new Set(visibleCapabilityIds);
+  }, [visibleCapabilityIds]);
+
   const filteredRealizations = useMemo(
     () => filterVisibleRealizations(
       data?.realizations ?? [],
-      data?.capabilityLevels ?? new Map()
+      data?.capabilityLevels ?? new Map(),
+      visibleIds
     ),
-    [data]
+    [data, visibleIds]
   );
 
   const getRealizationsForCapability = useCallback(

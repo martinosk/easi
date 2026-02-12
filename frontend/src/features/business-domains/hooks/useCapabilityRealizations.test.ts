@@ -181,6 +181,33 @@ describe('useCapabilityRealizations', () => {
       expect(result.current.realizations[0].origin).toBe('Inherited');
     });
 
+    it('should show inherited when source capability is not rendered', async () => {
+      vi.mocked(apiClient.getCapabilityRealizationsByDomain).mockResolvedValue([
+        createGroup('cap-l1', 'L1', [
+          createRealization('real-inherited', 'cap-l1', 'Inherited', 'cap-l2'),
+        ]),
+        createGroup('cap-l2', 'L2', [
+          createRealization('real-direct', 'cap-l2', 'Direct'),
+        ]),
+      ]);
+
+      const visibleIds = new Set<CapabilityId>(['cap-l1' as CapabilityId]);
+
+      const { result } = renderHook(() =>
+        useCapabilityRealizations(true, domainId, 2, visibleIds),
+        { wrapper: createWrapper(queryClient) }
+      );
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.realizations).toHaveLength(1);
+      expect(result.current.realizations[0].id).toBe('real-inherited');
+      expect(result.current.realizations[0].origin).toBe('Inherited');
+    });
+
+
     it('should hide inherited realization when source capability IS visible', async () => {
       vi.mocked(apiClient.getCapabilityRealizationsByDomain).mockResolvedValue([
         createGroup('cap-l1', 'L1', [

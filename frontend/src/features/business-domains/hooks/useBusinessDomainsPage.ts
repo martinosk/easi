@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { useBusinessDomains } from './useBusinessDomains';
 import { useDomainCapabilities } from './useDomainCapabilities';
@@ -115,10 +115,20 @@ export function useBusinessDomainsPage() {
 
   const filtering = useCapabilityFiltering(tree, capabilities);
 
+  const visibleCapabilityIds = useMemo(
+    () => new Set(
+      filtering.capabilitiesWithDescendants
+        .filter((capability) => Number(capability.level.substring(1)) <= depth)
+        .map((capability) => capability.id)
+    ),
+    [filtering.capabilitiesWithDescendants, depth]
+  );
+
   const { getRealizationsForCapability, refetch: refetchRealizations } = useCapabilityRealizations(
     showApplications,
     visualizedDomain?.id ?? null,
-    depth
+    depth,
+    visibleCapabilityIds
   );
 
   const handleApplicationClick = useCallback((componentId: ComponentId) => {
