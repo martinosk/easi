@@ -36,6 +36,8 @@ var capabilityEventDeserializers = repository.NewEventDeserializers(
 		"CapabilityExpertRemoved":   repository.JSONDeserializer[events.CapabilityExpertRemoved],
 		"CapabilityTagAdded":        repository.JSONDeserializer[events.CapabilityTagAdded],
 		"CapabilityParentChanged":   repository.JSONDeserializer[events.CapabilityParentChanged],
+		"CapabilityRealizationsInherited":   repository.JSONDeserializer[events.CapabilityRealizationsInherited],
+		"CapabilityRealizationsUninherited": repository.JSONDeserializer[events.CapabilityRealizationsUninherited],
 	},
 	CapabilityMetadataUpdatedV1ToV2Upcaster{},
 )

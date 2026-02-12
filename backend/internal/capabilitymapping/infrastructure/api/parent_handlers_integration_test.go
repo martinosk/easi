@@ -16,6 +16,8 @@ import (
 	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/application/projectors"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
+	"easi/backend/internal/capabilitymapping/domain/services"
+	"easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -51,6 +53,7 @@ func setupParentHandlers(db *sql.DB) *CapabilityHandlers {
 	eventStore.SetEventBus(eventBus)
 
 	readModel := readmodels.NewCapabilityReadModel(tenantDB)
+	realizationReadModel := readmodels.NewRealizationReadModel(tenantDB)
 	assignmentReadModel := readmodels.NewDomainCapabilityAssignmentReadModel(tenantDB)
 
 	projector := projectors.NewCapabilityProjector(readModel, assignmentReadModel)
@@ -67,7 +70,8 @@ func setupParentHandlers(db *sql.DB) *CapabilityHandlers {
 	updateMetadataHandler := handlers.NewUpdateCapabilityMetadataHandler(capabilityRepo)
 	addExpertHandler := handlers.NewAddCapabilityExpertHandler(capabilityRepo)
 	addTagHandler := handlers.NewAddCapabilityTagHandler(capabilityRepo)
-	changeParentHandler := handlers.NewChangeCapabilityParentHandler(capabilityRepo, readModel)
+	reparentingService := services.NewCapabilityReparentingService(adapters.NewCapabilityLookupAdapter(readModel))
+	changeParentHandler := handlers.NewChangeCapabilityParentHandler(capabilityRepo, readModel, realizationReadModel, reparentingService)
 
 	commandBus.Register("CreateCapability", createHandler)
 	commandBus.Register("UpdateCapability", updateHandler)

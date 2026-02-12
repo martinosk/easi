@@ -13,6 +13,8 @@ import (
 	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/application/projectors"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
+	"easi/backend/internal/capabilitymapping/domain/services"
+	"easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -61,6 +63,7 @@ func setupAssignmentConsistencyTestDB(t *testing.T) (*assignmentConsistencyTestC
 	eventStore.SetEventBus(eventBus)
 
 	capabilityRM := readmodels.NewCapabilityReadModel(tenantDB)
+	realizationRM := readmodels.NewRealizationReadModel(tenantDB)
 	domainRM := readmodels.NewBusinessDomainReadModel(tenantDB)
 	assignmentRM := readmodels.NewDomainCapabilityAssignmentReadModel(tenantDB)
 
@@ -84,7 +87,8 @@ func setupAssignmentConsistencyTestDB(t *testing.T) (*assignmentConsistencyTestC
 	assignmentRepo := repositories.NewBusinessDomainAssignmentRepository(eventStore)
 
 	commandBus.Register("CreateCapability", handlers.NewCreateCapabilityHandler(capabilityRepo))
-	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(capabilityRepo, capabilityRM))
+	reparentingService := services.NewCapabilityReparentingService(adapters.NewCapabilityLookupAdapter(capabilityRM))
+	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(capabilityRepo, capabilityRM, realizationRM, reparentingService))
 	commandBus.Register("CreateBusinessDomain", handlers.NewCreateBusinessDomainHandler(domainRepo, domainRM))
 	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(assignmentRepo, capabilityRepo, domainRM, assignmentRM))
 	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(assignmentRepo))
@@ -161,7 +165,9 @@ func (ctx *assignmentConsistencyTestContext) setupParentChangeHandlers() cqrs.Co
 	eventBus.Subscribe("CapabilityParentChanged", onParentChangedHandler)
 
 	capabilityRepo := repositories.NewCapabilityRepository(eventStore)
-	changeParentHandler := handlers.NewChangeCapabilityParentHandler(capabilityRepo, ctx.capabilityRM)
+	realizationRM := readmodels.NewRealizationReadModel(tenantDB)
+	reparentingService := services.NewCapabilityReparentingService(adapters.NewCapabilityLookupAdapter(ctx.capabilityRM))
+	changeParentHandler := handlers.NewChangeCapabilityParentHandler(capabilityRepo, ctx.capabilityRM, realizationRM, reparentingService)
 	commandBus.Register("ChangeCapabilityParent", changeParentHandler)
 
 	return commandBus

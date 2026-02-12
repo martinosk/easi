@@ -308,7 +308,7 @@ func setupCascadingDeleteHandlers(eventBus events.EventBus, commandBus *cqrs.InM
 }
 
 func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepositories, rm *routeReadModels, pillarsGateway metamodel.StrategyPillarsGateway) {
-	registerCapabilityCommands(commandBus, repos.capability, rm.capability)
+	registerCapabilityCommands(commandBus, repos.capability, rm.capability, rm.realization)
 	registerDependencyCommands(commandBus, repos.dependency, repos.capability)
 	registerRealizationCommands(commandBus, repos.realization, repos.capability, rm.componentCache)
 	registerBusinessDomainCommands(commandBus, repos.businessDomain, rm.businessDomain, rm.domainAssignment)
@@ -328,9 +328,10 @@ func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepos
 	})
 }
 
-func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repositories.CapabilityRepository, rm *readmodels.CapabilityReadModel) {
-	childrenChecker := adapters.NewCapabilityChildrenCheckerAdapter(rm)
+func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repositories.CapabilityRepository, capabilityRM *readmodels.CapabilityReadModel, realizationRM *readmodels.RealizationReadModel) {
+	childrenChecker := adapters.NewCapabilityChildrenCheckerAdapter(capabilityRM)
 	deletionService := services.NewCapabilityDeletionService(childrenChecker)
+	reparentingService := services.NewCapabilityReparentingService(adapters.NewCapabilityLookupAdapter(capabilityRM))
 
 	commandBus.Register("CreateCapability", handlers.NewCreateCapabilityHandler(repo))
 	commandBus.Register("UpdateCapability", handlers.NewUpdateCapabilityHandler(repo))
@@ -338,7 +339,7 @@ func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repos
 	commandBus.Register("AddCapabilityExpert", handlers.NewAddCapabilityExpertHandler(repo))
 	commandBus.Register("RemoveCapabilityExpert", handlers.NewRemoveCapabilityExpertHandler(repo))
 	commandBus.Register("AddCapabilityTag", handlers.NewAddCapabilityTagHandler(repo))
-	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(repo, rm))
+	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(repo, capabilityRM, realizationRM, reparentingService))
 	commandBus.Register("DeleteCapability", handlers.NewDeleteCapabilityHandler(repo, deletionService))
 }
 
