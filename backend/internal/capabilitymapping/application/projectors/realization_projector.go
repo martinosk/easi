@@ -145,7 +145,7 @@ func (p *RealizationProjector) handleCapabilityParentChanged(ctx context.Context
 		return err
 	}
 
-	if event.NewParentID == "" {
+	if event.OldParentID == "" && event.NewParentID == "" {
 		return nil
 	}
 
@@ -159,6 +159,31 @@ func (p *RealizationProjector) handleCapabilityParentChanged(ctx context.Context
 		return err
 	}
 
+	if event.OldParentID != "" {
+		oldAncestorIDs, err := p.collectAncestorIDs(ctx, event.OldParentID)
+		if err != nil {
+			return err
+		}
+		sourceIDs := make(map[string]struct{})
+		for _, realization := range realizations {
+			sourceID := resolveSourceRealizationID(realization)
+			if sourceID == "" {
+				continue
+			}
+			sourceIDs[sourceID] = struct{}{}
+		}
+
+		for sourceID := range sourceIDs {
+			if err := p.readModel.DeleteInheritedBySourceRealizationIDAndCapabilities(ctx, sourceID, oldAncestorIDs); err != nil {
+				return err
+			}
+		}
+	}
+
+	if event.NewParentID == "" {
+		return nil
+	}
+
 	for _, realization := range realizations {
 		source := buildPropagationSource(realization, capability, event.CapabilityID, event.NewParentID)
 		if err := p.propagateInheritedRealizations(ctx, source); err != nil {
@@ -167,6 +192,42 @@ func (p *RealizationProjector) handleCapabilityParentChanged(ctx context.Context
 	}
 
 	return nil
+}
+
+func (p *RealizationProjector) collectAncestorIDs(ctx context.Context, startID string) ([]string, error) {
+	if startID == "" {
+		return nil, nil
+	}
+
+	ids := []string{}
+	visited := map[string]struct{}{}
+	currentID := startID
+
+	for currentID != "" {
+		if _, seen := visited[currentID]; seen {
+			break
+		}
+		visited[currentID] = struct{}{}
+		ids = append(ids, currentID)
+
+		capability, err := p.capabilityReadModel.GetByID(ctx, currentID)
+		if err != nil {
+			return nil, err
+		}
+		if capability == nil {
+			break
+		}
+		currentID = capability.ParentID
+	}
+
+	return ids, nil
+}
+
+func resolveSourceRealizationID(realization readmodels.RealizationDTO) string {
+	if realization.Origin == "Inherited" && realization.SourceRealizationID != "" {
+		return realization.SourceRealizationID
+	}
+	return realization.ID
 }
 
 func buildPropagationSource(realization readmodels.RealizationDTO, capability *readmodels.CapabilityDTO, capabilityID, newParentID string) readmodels.RealizationDTO {

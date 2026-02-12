@@ -19,6 +19,7 @@ type mockRealizationReadModel struct {
 	updatedRealizations           []updateCall
 	deletedIDs                    []string
 	deletedBySourceIDs            []string
+	deletedInheritedBySourceCaps  []deleteInheritedBySourceCapsCall
 	deletedByComponentIDs         []string
 	realizationsByCapability      map[string][]readmodels.RealizationDTO
 	insertErr                     error
@@ -26,6 +27,7 @@ type mockRealizationReadModel struct {
 	updateErr                     error
 	deleteErr                     error
 	deleteBySourceErr             error
+	deleteInheritedBySourceCapsErr error
 	deleteByComponentErr          error
 	getByCapabilityErr            error
 }
@@ -34,6 +36,11 @@ type updateCall struct {
 	ID               string
 	RealizationLevel string
 	Notes            string
+}
+
+type deleteInheritedBySourceCapsCall struct {
+	SourceRealizationID string
+	CapabilityIDs       []string
 }
 
 func (m *mockRealizationReadModel) Insert(ctx context.Context, dto readmodels.RealizationDTO) error {
@@ -84,6 +91,17 @@ func (m *mockRealizationReadModel) DeleteByComponentID(ctx context.Context, comp
 	return nil
 }
 
+func (m *mockRealizationReadModel) DeleteInheritedBySourceRealizationIDAndCapabilities(ctx context.Context, sourceRealizationID string, capabilityIDs []string) error {
+	if m.deleteInheritedBySourceCapsErr != nil {
+		return m.deleteInheritedBySourceCapsErr
+	}
+	m.deletedInheritedBySourceCaps = append(m.deletedInheritedBySourceCaps, deleteInheritedBySourceCapsCall{
+		SourceRealizationID: sourceRealizationID,
+		CapabilityIDs:       capabilityIDs,
+	})
+	return nil
+}
+
 func (m *mockRealizationReadModel) GetByCapabilityID(ctx context.Context, capabilityID string) ([]readmodels.RealizationDTO, error) {
 	if m.getByCapabilityErr != nil {
 		return nil, m.getByCapabilityErr
@@ -116,6 +134,7 @@ type realizationReadModelInterface interface {
 	Update(ctx context.Context, id, realizationLevel, notes string) error
 	Delete(ctx context.Context, id string) error
 	DeleteBySourceRealizationID(ctx context.Context, sourceRealizationID string) error
+	DeleteInheritedBySourceRealizationIDAndCapabilities(ctx context.Context, sourceRealizationID string, capabilityIDs []string) error
 	DeleteByComponentID(ctx context.Context, componentID string) error
 	GetByCapabilityID(ctx context.Context, capabilityID string) ([]readmodels.RealizationDTO, error)
 }
@@ -227,7 +246,7 @@ func (p *testableRealizationProjector) handleCapabilityParentChanged(ctx context
 		return err
 	}
 
-	if event.NewParentID == "" {
+	if event.OldParentID == "" && event.NewParentID == "" {
 		return nil
 	}
 
@@ -241,6 +260,31 @@ func (p *testableRealizationProjector) handleCapabilityParentChanged(ctx context
 		return err
 	}
 
+	if event.OldParentID != "" {
+		oldAncestorIDs, err := p.collectAncestorIDs(ctx, event.OldParentID)
+		if err != nil {
+			return err
+		}
+		sourceIDs := make(map[string]struct{})
+		for _, realization := range realizations {
+			sourceID := resolveSourceRealizationID(realization)
+			if sourceID == "" {
+				continue
+			}
+			sourceIDs[sourceID] = struct{}{}
+		}
+
+		for sourceID := range sourceIDs {
+			if err := p.readModel.DeleteInheritedBySourceRealizationIDAndCapabilities(ctx, sourceID, oldAncestorIDs); err != nil {
+				return err
+			}
+		}
+	}
+
+	if event.NewParentID == "" {
+		return nil
+	}
+
 	for _, realization := range realizations {
 		source := buildPropagationSource(realization, capability, event.CapabilityID, event.NewParentID)
 		if err := p.propagateInheritedRealizations(ctx, source); err != nil {
@@ -249,6 +293,35 @@ func (p *testableRealizationProjector) handleCapabilityParentChanged(ctx context
 	}
 
 	return nil
+}
+
+func (p *testableRealizationProjector) collectAncestorIDs(ctx context.Context, startID string) ([]string, error) {
+	if startID == "" {
+		return nil, nil
+	}
+
+	ids := []string{}
+	visited := map[string]struct{}{}
+	currentID := startID
+
+	for currentID != "" {
+		if _, seen := visited[currentID]; seen {
+			break
+		}
+		visited[currentID] = struct{}{}
+		ids = append(ids, currentID)
+
+		capability, err := p.capabilityReadModel.GetByID(ctx, currentID)
+		if err != nil {
+			return nil, err
+		}
+		if capability == nil {
+			break
+		}
+		currentID = capability.ParentID
+	}
+
+	return ids, nil
 }
 
 func (p *testableRealizationProjector) propagateInheritedRealizations(ctx context.Context, source readmodels.RealizationDTO) error {
@@ -512,6 +585,11 @@ func (o *orderTrackingReadModel) DeleteBySourceRealizationID(ctx context.Context
 	return nil
 }
 
+func (o *orderTrackingReadModel) DeleteInheritedBySourceRealizationIDAndCapabilities(ctx context.Context, sourceRealizationID string, capabilityIDs []string) error {
+	*o.deletionOrder = append(*o.deletionOrder, "inherited-caps:"+sourceRealizationID)
+	return nil
+}
+
 func (o *orderTrackingReadModel) DeleteByComponentID(ctx context.Context, componentID string) error {
 	*o.deletionOrder = append(*o.deletionOrder, "component:"+componentID)
 	return nil
@@ -704,6 +782,67 @@ func TestRealizationProjector_HandleCapabilityParentChanged_NoOpWhenNoNewParent(
 	require.NoError(t, err)
 
 	assert.Empty(t, mockRealRM.insertedInheritedRealizations, "Should not create any realizations when removing parent")
+}
+
+func TestRealizationProjector_HandleCapabilityParentChanged_RemovesInheritedFromOldAncestors(t *testing.T) {
+	mockRealRM := &mockRealizationReadModel{
+		realizationsByCapability: map[string][]readmodels.RealizationDTO{
+			"cap-A": {
+				{
+					ID:               "real-direct-A",
+					CapabilityID:     "cap-A",
+					ComponentID:      "comp-1",
+					RealizationLevel: "Full",
+					Origin:           "Direct",
+					LinkedAt:         time.Now(),
+				},
+				{
+					ID:                  "inherited-to-A",
+					CapabilityID:        "cap-A",
+					ComponentID:         "comp-2",
+					RealizationLevel:    "Full",
+					Origin:              "Inherited",
+					SourceRealizationID: "real-direct-B",
+					SourceCapabilityID:  "cap-B",
+					LinkedAt:            time.Now(),
+				},
+			},
+		},
+	}
+	mockCapRM := &mockCapabilityReadModelForProjector{
+		capabilities: map[string]*readmodels.CapabilityDTO{
+			"cap-old":  {ID: "cap-old", Name: "Old", Level: "L1", ParentID: "cap-root"},
+			"cap-root": {ID: "cap-root", Name: "Root", Level: "L0", ParentID: ""},
+			"cap-A":    {ID: "cap-A", Name: "A", Level: "L2", ParentID: "cap-old"},
+		},
+	}
+
+	projector := newTestableRealizationProjector(mockRealRM, mockCapRM)
+
+	event := events.CapabilityParentChanged{
+		CapabilityID: "cap-A",
+		OldParentID:  "cap-old",
+		NewParentID:  "",
+		OldLevel:     "L2",
+		NewLevel:     "L1",
+	}
+
+	eventData, err := json.Marshal(event)
+	require.NoError(t, err)
+
+	err = projector.ProjectEvent(context.Background(), "CapabilityParentChanged", eventData)
+	require.NoError(t, err)
+
+	require.Len(t, mockRealRM.deletedInheritedBySourceCaps, 2)
+	for _, call := range mockRealRM.deletedInheritedBySourceCaps {
+		assert.ElementsMatch(t, []string{"cap-old", "cap-root"}, call.CapabilityIDs)
+	}
+
+	var sourceIDs []string
+	for _, call := range mockRealRM.deletedInheritedBySourceCaps {
+		sourceIDs = append(sourceIDs, call.SourceRealizationID)
+	}
+	assert.ElementsMatch(t, []string{"real-direct-A", "real-direct-B"}, sourceIDs)
 }
 
 func TestRealizationProjector_HandleCapabilityParentChanged_HandlesDirectRealizations(t *testing.T) {

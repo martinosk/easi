@@ -43,7 +43,7 @@ $containerArgs = @(
     "-v", "easi-go-build-cache:/root/.cache/go-build"
     "-w", "/app"
     "-e", "CGO_ENABLED=0"
-    "golang:1.24-alpine"
+    "golang:1.25.6-alpine"
 )
 
 # If no command provided, show usage
@@ -75,7 +75,7 @@ if ($Command[0] -eq "shell") {
         -v "easi-go-build-cache:/root/.cache/go-build" `
         -w /app `
         -e CGO_ENABLED=0 `
-        golang:1.24-alpine sh
+        golang:1.25.6-alpine sh
     exit $LASTEXITCODE
 }
 

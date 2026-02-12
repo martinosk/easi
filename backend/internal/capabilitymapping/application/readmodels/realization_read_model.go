@@ -8,6 +8,8 @@ import (
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
+
+	"github.com/lib/pq"
 )
 
 type RealizationDTO struct {
@@ -177,6 +179,23 @@ func (rm *RealizationReadModel) DeleteByComponentID(ctx context.Context, compone
 	}
 
 	_, err = rm.db.ExecContext(ctx, "DELETE FROM capability_realizations WHERE tenant_id = $1 AND component_id = $2", tenantID.Value(), componentID)
+	return err
+}
+
+func (rm *RealizationReadModel) DeleteInheritedBySourceRealizationIDAndCapabilities(ctx context.Context, sourceRealizationID string, capabilityIDs []string) error {
+	if len(capabilityIDs) == 0 {
+		return nil
+	}
+
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"DELETE FROM capability_realizations WHERE tenant_id = $1 AND origin = 'Inherited' AND source_realization_id = $2 AND capability_id = ANY($3)",
+		tenantID.Value(), sourceRealizationID, pq.Array(capabilityIDs),
+	)
 	return err
 }
 

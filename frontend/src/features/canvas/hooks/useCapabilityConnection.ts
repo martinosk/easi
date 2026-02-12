@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useChangeCapabilityParent, useLinkSystemToCapability } from '../../capabilities/hooks/useCapabilities';
+import { useCapabilities, useChangeCapabilityParent, useLinkSystemToCapability } from '../../capabilities/hooks/useCapabilities';
 import { toComponentId, toCapabilityId } from '../../../api/types';
 import toast from 'react-hot-toast';
 
@@ -18,15 +18,18 @@ const isHierarchyDepthError = (message: string): boolean =>
 export const useCapabilityConnection = () => {
   const changeCapabilityParentMutation = useChangeCapabilityParent();
   const linkSystemToCapabilityMutation = useLinkSystemToCapability();
+  const { data: capabilities = [] } = useCapabilities();
 
   const handleCapabilityParentConnection = useCallback(
     async (source: string, target: string) => {
       const parentId = toCapabilityId(extractCapabilityId(target));
       const childId = toCapabilityId(extractCapabilityId(source));
+      const oldParentId = capabilities.find((capability) => capability.id === childId)?.parentId ?? undefined;
 
       try {
         await changeCapabilityParentMutation.mutateAsync({
           id: childId,
+          oldParentId,
           newParentId: parentId,
         });
       } catch (error) {
@@ -36,7 +39,7 @@ export const useCapabilityConnection = () => {
         }
       }
     },
-    [changeCapabilityParentMutation]
+    [capabilities, changeCapabilityParentMutation]
   );
 
   const handleCapabilityComponentConnection = useCallback(
