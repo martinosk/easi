@@ -27,11 +27,9 @@ $runtime = if ($env:CONTAINER_RUNTIME) { $env:CONTAINER_RUNTIME } else { "podman
 
 # Determine the backend directory (where this script lives)
 $backendDir = $PSScriptRoot
-$workspaceRoot = Split-Path -Parent $backendDir
 
 # Convert Windows paths to Unix-style for container mounting
 $unixBackendPath = $backendDir -replace '\\', '/' -replace '^([A-Z]):', { "/$($_.Groups[1].Value.ToLower())" }
-$unixWorkspacePath = $workspaceRoot -replace '\\', '/' -replace '^([A-Z]):', { "/$($_.Groups[1].Value.ToLower())" }
 
 # Common container options
 $containerArgs = @(
@@ -43,8 +41,25 @@ $containerArgs = @(
     "-v", "easi-go-build-cache:/root/.cache/go-build"
     "-w", "/app"
     "-e", "CGO_ENABLED=0"
-    "golang:1.25.6-alpine"
 )
+
+$integrationEnvVars = @(
+    "INTEGRATION_TEST_DB_HOST",
+    "INTEGRATION_TEST_DB_PORT",
+    "INTEGRATION_TEST_DB_USER",
+    "INTEGRATION_TEST_DB_PASSWORD",
+    "INTEGRATION_TEST_DB_NAME",
+    "INTEGRATION_TEST_DB_SSLMODE"
+)
+
+foreach ($varName in $integrationEnvVars) {
+    $value = [Environment]::GetEnvironmentVariable($varName)
+    if (-not [string]::IsNullOrWhiteSpace($value)) {
+        $containerArgs += @("-e", "$varName=$value")
+    }
+}
+
+$containerArgs += "golang:1.25.6-alpine"
 
 # If no command provided, show usage
 if ($null -eq $Command -or $Command.Length -eq 0) {

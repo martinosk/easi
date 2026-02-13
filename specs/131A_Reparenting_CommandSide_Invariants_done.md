@@ -17,4 +17,4 @@ Enforce capability reparenting invariants in the command-side domain model and e
 - [x] Unit tests implemented and passing
 - [x] Integration tests implemented if relevant
 - [x] Documentation updated if needed
-- [ ] User sign-off
+- [x] User sign-off

@@ -41,10 +41,12 @@ func NewStrategicAnalysisFixtures(tc *TestContext) *StrategicAnalysisFixtures {
 	importanceRepo := repositories.NewStrategyImportanceRepository(tc.EventStore)
 	fitScoreRepo := repositories.NewApplicationFitScoreRepository(tc.EventStore)
 
-	realizationProjector := projectors.NewRealizationProjector(realizationRM, capabilityRM, componentCacheRM)
+	realizationProjector := projectors.NewRealizationProjector(realizationRM, componentCacheRM)
 	tc.EventBus.Subscribe("SystemLinkedToCapability", realizationProjector)
 	tc.EventBus.Subscribe("SystemRealizationUpdated", realizationProjector)
 	tc.EventBus.Subscribe("SystemRealizationDeleted", realizationProjector)
+	tc.EventBus.Subscribe("CapabilityRealizationsInherited", realizationProjector)
+	tc.EventBus.Subscribe("CapabilityRealizationsUninherited", realizationProjector)
 
 	importanceProjector := projectors.NewStrategyImportanceProjector(importanceRM, domainRM, capabilityRM, pillarsGateway)
 	tc.EventBus.Subscribe("StrategyImportanceSet", importanceProjector)

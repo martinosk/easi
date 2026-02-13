@@ -11,9 +11,9 @@ Refactor read-model projectors to apply explicit inheritance events without busi
 - Integration tests cover projector behavior for inheritance change events
 
 ## Checklist
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] Documentation updated if needed
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] Documentation updated if needed
+- [x] User sign-off

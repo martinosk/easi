@@ -48,6 +48,7 @@ func setupParentHandlers(db *sql.DB) *CapabilityHandlers {
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	commandBus := cqrs.NewInMemoryCommandBus()
 	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewCapabilityMappingLinks(hateoas)
 
 	eventBus := events.NewInMemoryEventBus()
 	eventStore.SetEventBus(eventBus)
@@ -80,7 +81,7 @@ func setupParentHandlers(db *sql.DB) *CapabilityHandlers {
 	commandBus.Register("AddCapabilityTag", addTagHandler)
 	commandBus.Register("ChangeCapabilityParent", changeParentHandler)
 
-	return NewCapabilityHandlers(commandBus, readModel, hateoas)
+	return NewCapabilityHandlers(commandBus, readModel, links)
 }
 
 func (f *parentTestFixture) createCapability(name, level, parentID string) string {

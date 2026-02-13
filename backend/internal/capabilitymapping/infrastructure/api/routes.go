@@ -166,7 +166,7 @@ func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pillarsGateway metamodel.StrategyPillarsGateway) {
 	capabilityProjector := projectors.NewCapabilityProjector(rm.capability, rm.domainAssignment)
 	dependencyProjector := projectors.NewDependencyProjector(rm.dependency)
-	realizationProjector := projectors.NewRealizationProjector(rm.realization, rm.capability, rm.componentCache)
+	realizationProjector := projectors.NewRealizationProjector(rm.realization, rm.componentCache)
 	businessDomainProjector := projectors.NewBusinessDomainProjector(rm.businessDomain)
 	domainAssignmentProjector := projectors.NewBusinessDomainAssignmentProjector(rm.domainAssignment, rm.businessDomain, rm.capability)
 	strategyImportanceProjector := projectors.NewStrategyImportanceProjector(rm.strategyImportance, rm.businessDomain, rm.capability, pillarsGateway)
@@ -215,7 +215,8 @@ func subscribeRealizationEvents(eventBus events.EventBus, projector *projectors.
 		"SystemLinkedToCapability",
 		"SystemRealizationUpdated",
 		"SystemRealizationDeleted",
-		"CapabilityParentChanged",
+		"CapabilityRealizationsInherited",
+		"CapabilityRealizationsUninherited",
 		"CapabilityUpdated",
 		archPL.ApplicationComponentUpdated,
 		archPL.ApplicationComponentDeleted,

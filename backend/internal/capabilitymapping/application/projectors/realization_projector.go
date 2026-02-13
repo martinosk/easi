@@ -14,19 +14,16 @@ import (
 
 type RealizationProjector struct {
 	readModel           *readmodels.RealizationReadModel
-	capabilityReadModel *readmodels.CapabilityReadModel
 	componentGateway    architecturemodeling.ComponentGateway
 }
 
 func NewRealizationProjector(
 	readModel *readmodels.RealizationReadModel,
-	capabilityReadModel *readmodels.CapabilityReadModel,
 	componentGateway architecturemodeling.ComponentGateway,
 ) *RealizationProjector {
 	return &RealizationProjector{
-		readModel:           readModel,
-		capabilityReadModel: capabilityReadModel,
-		componentGateway:    componentGateway,
+		readModel:        readModel,
+		componentGateway: componentGateway,
 	}
 }
 
@@ -47,8 +44,10 @@ func (p *RealizationProjector) ProjectEvent(ctx context.Context, eventType strin
 		return p.handleRealizationUpdated(ctx, eventData)
 	case "SystemRealizationDeleted":
 		return p.handleRealizationDeleted(ctx, eventData)
-	case "CapabilityParentChanged":
-		return p.handleCapabilityParentChanged(ctx, eventData)
+	case "CapabilityRealizationsInherited":
+		return p.handleCapabilityRealizationsInherited(ctx, eventData)
+	case "CapabilityRealizationsUninherited":
+		return p.handleCapabilityRealizationsUninherited(ctx, eventData)
 	case "CapabilityUpdated":
 		return p.handleCapabilityUpdated(ctx, eventData)
 	case archPL.ApplicationComponentUpdated:
@@ -85,7 +84,7 @@ func (p *RealizationProjector) handleSystemLinked(ctx context.Context, eventData
 		return err
 	}
 
-	return p.createInheritedRealizationsForAncestors(ctx, dto)
+	return nil
 }
 
 func (p *RealizationProjector) lookupComponentName(ctx context.Context, componentID string) string {
@@ -123,70 +122,26 @@ func unmarshalEvent(data []byte, v interface{}, eventType string) error {
 	return nil
 }
 
-func (p *RealizationProjector) createInheritedRealizationsForAncestors(ctx context.Context, source readmodels.RealizationDTO) error {
-	capability, err := p.capabilityReadModel.GetByID(ctx, source.CapabilityID)
-	if err != nil {
-		return err
-	}
-	if capability == nil || capability.ParentID == "" {
-		return nil
-	}
-
-	source.SourceCapabilityID = source.CapabilityID
-	source.SourceCapabilityName = capability.Name
-	nextSource := source
-	nextSource.CapabilityID = capability.ParentID
-	return p.propagateInheritedRealizations(ctx, nextSource)
-}
-
-func (p *RealizationProjector) handleCapabilityParentChanged(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityParentChanged
-	if err := unmarshalEvent(eventData, &event, "CapabilityParentChanged"); err != nil {
+func (p *RealizationProjector) handleCapabilityRealizationsInherited(ctx context.Context, eventData []byte) error {
+	var event events.CapabilityRealizationsInherited
+	if err := unmarshalEvent(eventData, &event, "CapabilityRealizationsInherited"); err != nil {
 		return err
 	}
 
-	if event.OldParentID == "" && event.NewParentID == "" {
-		return nil
-	}
-
-	realizations, err := p.readModel.GetByCapabilityID(ctx, event.CapabilityID)
-	if err != nil {
-		return err
-	}
-
-	capability, err := p.capabilityReadModel.GetByID(ctx, event.CapabilityID)
-	if err != nil {
-		return err
-	}
-
-	if event.OldParentID != "" {
-		oldAncestorIDs, err := p.collectAncestorIDs(ctx, event.OldParentID)
-		if err != nil {
-			return err
+	for _, realization := range event.InheritedRealizations {
+		dto := readmodels.RealizationDTO{
+			CapabilityID:         realization.CapabilityID,
+			ComponentID:          realization.ComponentID,
+			ComponentName:        realization.ComponentName,
+			RealizationLevel:     realization.RealizationLevel,
+			Notes:                realization.Notes,
+			Origin:               realization.Origin,
+			SourceRealizationID:  realization.SourceRealizationID,
+			SourceCapabilityID:   realization.SourceCapabilityID,
+			SourceCapabilityName: realization.SourceCapabilityName,
+			LinkedAt:             realization.LinkedAt,
 		}
-		sourceIDs := make(map[string]struct{})
-		for _, realization := range realizations {
-			sourceID := resolveSourceRealizationID(realization)
-			if sourceID == "" {
-				continue
-			}
-			sourceIDs[sourceID] = struct{}{}
-		}
-
-		for sourceID := range sourceIDs {
-			if err := p.readModel.DeleteInheritedBySourceRealizationIDAndCapabilities(ctx, sourceID, oldAncestorIDs); err != nil {
-				return err
-			}
-		}
-	}
-
-	if event.NewParentID == "" {
-		return nil
-	}
-
-	for _, realization := range realizations {
-		source := buildPropagationSource(realization, capability, event.CapabilityID, event.NewParentID)
-		if err := p.propagateInheritedRealizations(ctx, source); err != nil {
+		if err := p.readModel.InsertInherited(ctx, dto); err != nil {
 			return err
 		}
 	}
@@ -194,99 +149,19 @@ func (p *RealizationProjector) handleCapabilityParentChanged(ctx context.Context
 	return nil
 }
 
-func (p *RealizationProjector) collectAncestorIDs(ctx context.Context, startID string) ([]string, error) {
-	if startID == "" {
-		return nil, nil
-	}
-
-	ids := []string{}
-	visited := map[string]struct{}{}
-	currentID := startID
-
-	for currentID != "" {
-		if _, seen := visited[currentID]; seen {
-			break
-		}
-		visited[currentID] = struct{}{}
-		ids = append(ids, currentID)
-
-		capability, err := p.capabilityReadModel.GetByID(ctx, currentID)
-		if err != nil {
-			return nil, err
-		}
-		if capability == nil {
-			break
-		}
-		currentID = capability.ParentID
-	}
-
-	return ids, nil
-}
-
-func resolveSourceRealizationID(realization readmodels.RealizationDTO) string {
-	if realization.Origin == "Inherited" && realization.SourceRealizationID != "" {
-		return realization.SourceRealizationID
-	}
-	return realization.ID
-}
-
-func buildPropagationSource(realization readmodels.RealizationDTO, capability *readmodels.CapabilityDTO, capabilityID, newParentID string) readmodels.RealizationDTO {
-	sourceID := realization.ID
-	sourceCapabilityID := capabilityID
-	sourceCapabilityName := ""
-	if capability != nil {
-		sourceCapabilityName = capability.Name
-	}
-
-	if realization.Origin == "Inherited" && realization.SourceRealizationID != "" {
-		sourceID = realization.SourceRealizationID
-		sourceCapabilityID = realization.SourceCapabilityID
-		sourceCapabilityName = realization.SourceCapabilityName
-	}
-
-	return readmodels.RealizationDTO{
-		ID:                   sourceID,
-		CapabilityID:         newParentID,
-		ComponentID:          realization.ComponentID,
-		ComponentName:        realization.ComponentName,
-		SourceCapabilityID:   sourceCapabilityID,
-		SourceCapabilityName: sourceCapabilityName,
-		LinkedAt:             realization.LinkedAt,
-	}
-}
-
-func (p *RealizationProjector) propagateInheritedRealizations(ctx context.Context, source readmodels.RealizationDTO) error {
-	capability, err := p.capabilityReadModel.GetByID(ctx, source.CapabilityID)
-	if err != nil {
-		return err
-	}
-	if capability == nil {
-		return nil
-	}
-
-	inheritedDTO := readmodels.RealizationDTO{
-		CapabilityID:         source.CapabilityID,
-		ComponentID:          source.ComponentID,
-		ComponentName:        source.ComponentName,
-		RealizationLevel:     "Full",
-		Origin:               "Inherited",
-		SourceRealizationID:  source.ID,
-		SourceCapabilityID:   source.SourceCapabilityID,
-		SourceCapabilityName: source.SourceCapabilityName,
-		LinkedAt:             source.LinkedAt,
-	}
-
-	if err := p.readModel.InsertInherited(ctx, inheritedDTO); err != nil {
+func (p *RealizationProjector) handleCapabilityRealizationsUninherited(ctx context.Context, eventData []byte) error {
+	var event events.CapabilityRealizationsUninherited
+	if err := unmarshalEvent(eventData, &event, "CapabilityRealizationsUninherited"); err != nil {
 		return err
 	}
 
-	if capability.ParentID == "" {
-		return nil
+	for _, removal := range event.Removals {
+		if err := p.readModel.DeleteInheritedBySourceRealizationIDAndCapabilities(ctx, removal.SourceRealizationID, removal.CapabilityIDs); err != nil {
+			return err
+		}
 	}
 
-	nextSource := source
-	nextSource.CapabilityID = capability.ParentID
-	return p.propagateInheritedRealizations(ctx, nextSource)
+	return nil
 }
 
 func (p *RealizationProjector) handleCapabilityUpdated(ctx context.Context, eventData []byte) error {

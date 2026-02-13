@@ -257,6 +257,7 @@ func setupBusinessDomainHandlers(db *sql.DB) *BusinessDomainHandlers {
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	commandBus := cqrs.NewInMemoryCommandBus()
 	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewCapabilityMappingLinks(hateoas)
 
 	eventBus := events.NewInMemoryEventBus()
 	eventStore.SetEventBus(eventBus)
@@ -298,7 +299,7 @@ func setupBusinessDomainHandlers(db *sql.DB) *BusinessDomainHandlers {
 		Realization: realizationRM,
 	}
 
-	return NewBusinessDomainHandlers(commandBus, readModels, hateoas)
+	return NewBusinessDomainHandlers(commandBus, readModels, links)
 }
 
 func TestCreateBusinessDomain_Integration(t *testing.T) {
