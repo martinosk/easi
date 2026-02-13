@@ -7,5 +7,8 @@ export function useAuditHistory(aggregateId: string | undefined) {
     queryKey: auditQueryKeys.history(aggregateId!),
     queryFn: () => auditApi.getHistory({ aggregateId: aggregateId! }),
     enabled: !!aggregateId,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 }

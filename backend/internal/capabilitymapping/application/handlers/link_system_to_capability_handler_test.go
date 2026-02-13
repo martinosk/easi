@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
+	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
+	domainEvents "easi/backend/internal/capabilitymapping/domain/events"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/capabilitymapping/infrastructure/architecturemodeling"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
@@ -29,8 +31,10 @@ func (m *mockLinkSystemRealizationRepository) Save(ctx context.Context, realizat
 }
 
 type mockLinkSystemCapabilityRepository struct {
-	capability *aggregates.Capability
-	getByIDErr error
+	capability         *aggregates.Capability
+	getByIDErr         error
+	savedCapabilities  []*aggregates.Capability
+	saveErr            error
 }
 
 func (m *mockLinkSystemCapabilityRepository) GetByID(ctx context.Context, id string) (*aggregates.Capability, error) {
@@ -38,6 +42,14 @@ func (m *mockLinkSystemCapabilityRepository) GetByID(ctx context.Context, id str
 		return nil, m.getByIDErr
 	}
 	return m.capability, nil
+}
+
+func (m *mockLinkSystemCapabilityRepository) Save(ctx context.Context, capability *aggregates.Capability) error {
+	if m.saveErr != nil {
+		return m.saveErr
+	}
+	m.savedCapabilities = append(m.savedCapabilities, capability)
+	return nil
 }
 
 type mockLinkSystemComponentReadModel struct {
@@ -50,6 +62,22 @@ func (m *mockLinkSystemComponentReadModel) GetByID(ctx context.Context, id strin
 		return nil, m.getErr
 	}
 	return m.component, nil
+}
+
+type mockLinkSystemCapabilityReadModel struct {
+	capabilities map[string]*readmodels.CapabilityDTO
+	getErr       error
+}
+
+func (m *mockLinkSystemCapabilityReadModel) GetByID(ctx context.Context, id string) (*readmodels.CapabilityDTO, error) {
+	if m.getErr != nil {
+		return nil, m.getErr
+	}
+	capability, ok := m.capabilities[id]
+	if !ok {
+		return nil, nil
+	}
+	return capability, nil
 }
 
 func createTestCapabilityForLink(t *testing.T, level string, parentID string) *aggregates.Capability {
@@ -93,7 +121,8 @@ func TestLinkSystemToCapabilityHandler_CreatesRealization(t *testing.T) {
 		},
 	}
 
-	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCompReadModel)
+	mockCapReadModel := &mockLinkSystemCapabilityReadModel{capabilities: map[string]*readmodels.CapabilityDTO{}}
+	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCapReadModel, mockCompReadModel)
 
 	cmd := &commands.LinkSystemToCapability{
 		CapabilityID:     l1CapabilityID,
@@ -130,7 +159,8 @@ func TestLinkSystemToCapabilityHandler_ReturnsCreatedID(t *testing.T) {
 		},
 	}
 
-	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCompReadModel)
+	mockCapReadModel := &mockLinkSystemCapabilityReadModel{capabilities: map[string]*readmodels.CapabilityDTO{}}
+	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCapReadModel, mockCompReadModel)
 
 	cmd := &commands.LinkSystemToCapability{
 		CapabilityID:     l1CapabilityID,
@@ -160,7 +190,8 @@ func TestLinkSystemToCapabilityHandler_ComponentNotFound_ReturnsError(t *testing
 		component: nil,
 	}
 
-	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCompReadModel)
+	mockCapReadModel := &mockLinkSystemCapabilityReadModel{capabilities: map[string]*readmodels.CapabilityDTO{}}
+	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCapReadModel, mockCompReadModel)
 
 	cmd := &commands.LinkSystemToCapability{
 		CapabilityID:     l1CapabilityID,
@@ -188,7 +219,8 @@ func TestLinkSystemToCapabilityHandler_CapabilityNotFound_ReturnsError(t *testin
 		},
 	}
 
-	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCompReadModel)
+	mockCapReadModel := &mockLinkSystemCapabilityReadModel{capabilities: map[string]*readmodels.CapabilityDTO{}}
+	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCapReadModel, mockCompReadModel)
 
 	cmd := &commands.LinkSystemToCapability{
 		CapabilityID:     capabilityID,
@@ -206,10 +238,46 @@ func TestLinkSystemToCapabilityHandler_InvalidCommand_ReturnsError(t *testing.T)
 	mockRealRepo := &mockLinkSystemRealizationRepository{}
 	mockCompReadModel := &mockLinkSystemComponentReadModel{}
 
-	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCompReadModel)
+	mockCapReadModel := &mockLinkSystemCapabilityReadModel{capabilities: map[string]*readmodels.CapabilityDTO{}}
+	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCapReadModel, mockCompReadModel)
 
 	invalidCmd := &commands.DeleteSystemRealization{}
 
 	_, err := handler.Handle(context.Background(), invalidCmd)
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
+}
+
+func TestLinkSystemToCapabilityHandler_EmitsInheritanceEventForAncestors(t *testing.T) {
+	parentID := valueobjects.NewCapabilityID().Value()
+	rootID := valueobjects.NewCapabilityID().Value()
+	l2Capability := createTestCapabilityForLink(t, "L2", parentID)
+
+	componentID := valueobjects.NewCapabilityID().Value()
+	mockCapRepo := &mockLinkSystemCapabilityRepository{capability: l2Capability}
+	mockRealRepo := &mockLinkSystemRealizationRepository{}
+	mockCapReadModel := &mockLinkSystemCapabilityReadModel{
+		capabilities: map[string]*readmodels.CapabilityDTO{
+			parentID: {ID: parentID, ParentID: rootID},
+			rootID:   {ID: rootID, ParentID: ""},
+		},
+	}
+	mockCompReadModel := &mockLinkSystemComponentReadModel{
+		component: &architecturemodeling.ComponentDTO{ID: componentID, Name: "Test Component"},
+	}
+
+	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCapReadModel, mockCompReadModel)
+	cmd := &commands.LinkSystemToCapability{CapabilityID: l2Capability.ID(), ComponentID: componentID, RealizationLevel: "Partial"}
+
+	_, err := handler.Handle(context.Background(), cmd)
+	require.NoError(t, err)
+	require.Len(t, mockCapRepo.savedCapabilities, 1)
+
+	changes := mockCapRepo.savedCapabilities[0].GetUncommittedChanges()
+	require.Len(t, changes, 1)
+
+	inherited, ok := changes[0].(domainEvents.CapabilityRealizationsInherited)
+	require.True(t, ok)
+	require.Len(t, inherited.InheritedRealizations, 2)
+	assert.Equal(t, parentID, inherited.InheritedRealizations[0].CapabilityID)
+	assert.Equal(t, rootID, inherited.InheritedRealizations[1].CapabilityID)
 }

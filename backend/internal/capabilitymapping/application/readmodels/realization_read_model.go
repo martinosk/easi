@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"time"
 
+	"strings"
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
@@ -27,6 +28,41 @@ type RealizationDTO struct {
 	Links                types.Links `json:"_links,omitempty"`
 }
 
+func (rm *RealizationReadModel) GetInheritedCapabilityIDsBySourceRealizationID(ctx context.Context, sourceRealizationID string) ([]string, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := []string{}
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx,
+			"SELECT capability_id FROM capability_realizations WHERE tenant_id = $1 AND origin = 'Inherited' AND source_realization_id = $2",
+			tenantID.Value(), sourceRealizationID,
+		)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var capabilityID string
+			if err := rows.Scan(&capabilityID); err != nil {
+				return err
+			}
+			if strings.TrimSpace(capabilityID) == "" {
+				continue
+			}
+			ids = append(ids, capabilityID)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return ids, nil
+}
 type RealizationReadModel struct {
 	db *database.TenantAwareDB
 }

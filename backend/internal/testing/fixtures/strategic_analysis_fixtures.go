@@ -78,7 +78,7 @@ func NewStrategicAnalysisFixtures(tc *TestContext) *StrategicAnalysisFixtures {
 	tc.EventBus.Subscribe("CapabilityAssignedToDomain", domainAssignmentEffectiveProjector)
 	tc.EventBus.Subscribe("CapabilityUnassignedFromDomain", domainAssignmentEffectiveProjector)
 
-	tc.CommandBus.Register("LinkSystemToCapability", capHandlers.NewLinkSystemToCapabilityHandler(realizationRepo, capabilityRepo, componentCacheRM))
+	tc.CommandBus.Register("LinkSystemToCapability", capHandlers.NewLinkSystemToCapabilityHandler(realizationRepo, capabilityRepo, capabilityRM, componentCacheRM))
 	tc.CommandBus.Register("UpdateSystemRealization", capHandlers.NewUpdateSystemRealizationHandler(realizationRepo))
 	tc.CommandBus.Register("DeleteSystemRealization", capHandlers.NewDeleteSystemRealizationHandler(realizationRepo))
 

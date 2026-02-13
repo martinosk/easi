@@ -311,7 +311,7 @@ func setupCascadingDeleteHandlers(eventBus events.EventBus, commandBus *cqrs.InM
 func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepositories, rm *routeReadModels, pillarsGateway metamodel.StrategyPillarsGateway) {
 	registerCapabilityCommands(commandBus, repos.capability, rm.capability, rm.realization)
 	registerDependencyCommands(commandBus, repos.dependency, repos.capability)
-	registerRealizationCommands(commandBus, repos.realization, repos.capability, rm.componentCache)
+	registerRealizationCommands(commandBus, repos.realization, repos.capability, rm.capability, rm.componentCache)
 	registerBusinessDomainCommands(commandBus, repos.businessDomain, rm.businessDomain, rm.domainAssignment)
 	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(repos.domainAssignment, repos.capability, rm.businessDomain, rm.domainAssignment))
 	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(repos.domainAssignment))
@@ -341,6 +341,7 @@ func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repos
 	commandBus.Register("RemoveCapabilityExpert", handlers.NewRemoveCapabilityExpertHandler(repo))
 	commandBus.Register("AddCapabilityTag", handlers.NewAddCapabilityTagHandler(repo))
 	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(repo, capabilityRM, realizationRM, reparentingService))
+	commandBus.Register("RecomputeCapabilityInheritance", handlers.NewRecomputeCapabilityInheritanceHandler(repo, capabilityRM, realizationRM))
 	commandBus.Register("DeleteCapability", handlers.NewDeleteCapabilityHandler(repo, deletionService))
 }
 
@@ -349,8 +350,8 @@ func registerDependencyCommands(commandBus *cqrs.InMemoryCommandBus, depRepo *re
 	commandBus.Register("DeleteCapabilityDependency", handlers.NewDeleteCapabilityDependencyHandler(depRepo))
 }
 
-func registerRealizationCommands(commandBus *cqrs.InMemoryCommandBus, realRepo *repositories.RealizationRepository, capRepo *repositories.CapabilityRepository, componentCache *readmodels.ComponentCacheReadModel) {
-	commandBus.Register("LinkSystemToCapability", handlers.NewLinkSystemToCapabilityHandler(realRepo, capRepo, componentCache))
+func registerRealizationCommands(commandBus *cqrs.InMemoryCommandBus, realRepo *repositories.RealizationRepository, capRepo *repositories.CapabilityRepository, capabilityRM *readmodels.CapabilityReadModel, componentCache *readmodels.ComponentCacheReadModel) {
+	commandBus.Register("LinkSystemToCapability", handlers.NewLinkSystemToCapabilityHandler(realRepo, capRepo, capabilityRM, componentCache))
 	commandBus.Register("UpdateSystemRealization", handlers.NewUpdateSystemRealizationHandler(realRepo))
 	commandBus.Register("DeleteSystemRealization", handlers.NewDeleteSystemRealizationHandler(realRepo))
 }

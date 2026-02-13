@@ -146,7 +146,7 @@ func TestChangeCapabilityParentHandler_EmitsInheritanceEvents(t *testing.T) {
 	handler := NewChangeCapabilityParentHandler(repo, capRM, realRM, &mockReparentingService{level: valueobjects.LevelL2})
 
 	cmd := &commands.ChangeCapabilityParent{CapabilityID: capability.ID(), NewParentID: newParentID.Value()}
-	_, err := handler.Handle(context.Background(), cmd)
+	_, err = handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	require.NotNil(t, repo.saved)
