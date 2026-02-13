@@ -157,6 +157,16 @@ describe('mutationEffects', () => {
   });
 
   describe('capabilities.changeParent', () => {
+    it('should invalidate capability details collection for inheritance side effects', () => {
+      const effects = capabilitiesMutationEffects.changeParent({
+        id: 'cap-child',
+        oldParentId: 'cap-old-parent',
+        newParentId: 'cap-new-parent',
+      });
+
+      expect(effects).toContainEqual(capabilitiesQueryKeys.details());
+    });
+
     it('should invalidate moved capability realizations', () => {
       const effects = capabilitiesMutationEffects.changeParent({
         id: 'cap-child',
@@ -203,6 +213,7 @@ describe('mutationEffects', () => {
       });
 
       expect(effects).toContainEqual(capabilitiesQueryKeys.detail('cap-child'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.details());
       expect(effects).toContainEqual(capabilitiesQueryKeys.children('cap-old-parent'));
       expect(effects).toContainEqual(capabilitiesQueryKeys.children('cap-new-parent'));
       expect(effects).toContainEqual(capabilitiesQueryKeys.realizations('cap-child'));

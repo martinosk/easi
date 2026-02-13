@@ -46,6 +46,7 @@ export const capabilitiesMutationEffects = {
 
   changeParent: (context: { id: string; oldParentId?: string; newParentId?: string }) => [
     capabilitiesQueryKeys.detail(context.id),
+    capabilitiesQueryKeys.details(),
     ...(context.oldParentId ? [capabilitiesQueryKeys.children(context.oldParentId)] : []),
     ...(context.newParentId ? [capabilitiesQueryKeys.children(context.newParentId)] : []),
     capabilitiesQueryKeys.lists(),
