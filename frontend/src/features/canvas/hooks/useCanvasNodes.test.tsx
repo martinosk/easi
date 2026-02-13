@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useCanvasNodes } from './useCanvasNodes';
-import type { OriginRelationship, ComponentId } from '../../../api/types';
+import { toOriginRelationshipId, type OriginRelationship, type ComponentId } from '../../../api/types';
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -82,7 +82,7 @@ function createMockRelationship(
   originEntityName: string
 ): OriginRelationship {
   return {
-    id: `rel-${originEntityId}` as any,
+    id: toOriginRelationshipId(`rel-${originEntityId}`),
     componentId: componentId as ComponentId,
     componentName: `Component ${componentId}`,
     relationshipType: 'AcquiredVia',

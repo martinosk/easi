@@ -101,7 +101,7 @@ function useMultiContextMenu(
       }
       return handled;
     },
-    [multiSelectMenu.handleMultiSelectContextMenu, clearMultiSelection]
+    [multiSelectMenu, clearMultiSelection]
   );
 }
 

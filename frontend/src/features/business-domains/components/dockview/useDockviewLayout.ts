@@ -188,7 +188,7 @@ export function useDockviewLayout(hookData: BusinessDomainsHookReturn) {
   const onReady = useCallback((event: DockviewReadyEvent) => {
     dockviewApiRef.current = event.api;
     initializePanels(event.api, hookData, showExplorer);
-  }, [showExplorer]);
+  }, [hookData, showExplorer]);
 
   useSyncPanelParams(dockviewApiRef, hookData, showExplorer);
   useExplorerSync(explorerSyncDeps, hookData, showExplorer, panelVisibility.explorer);
