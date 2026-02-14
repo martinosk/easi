@@ -69,33 +69,21 @@ describe('useStageOperations', () => {
     expect(result.current.isFormOpen).toBe(true);
   });
 
-  it('should submit without position when appending', async () => {
+  it.each([
+    { scenario: 'appending', position: undefined, name: 'New Stage', description: '', expectedPosition: undefined },
+    { scenario: 'inserting between stages', position: 2, name: 'Inserted Stage', description: 'desc', expectedPosition: 2 },
+  ])('should submit correctly when $scenario', async ({ position, name, description, expectedPosition }) => {
     const detail = createDetail();
     const { result } = renderHook(() => useStageOperations(detail));
 
-    act(() => result.current.openAddForm());
-    act(() => result.current.setFormData({ name: 'New Stage', description: '' }));
+    act(() => result.current.openAddForm(position));
+    act(() => result.current.setFormData({ name, description }));
 
     await act(() => result.current.submitForm());
 
     expect(mockAddStageMutateAsync).toHaveBeenCalledWith({
       valueStream: detail,
-      request: { name: 'New Stage', description: undefined, position: undefined },
-    });
-  });
-
-  it('should submit with position when inserting between stages', async () => {
-    const detail = createDetail();
-    const { result } = renderHook(() => useStageOperations(detail));
-
-    act(() => result.current.openAddForm(2));
-    act(() => result.current.setFormData({ name: 'Inserted Stage', description: 'desc' }));
-
-    await act(() => result.current.submitForm());
-
-    expect(mockAddStageMutateAsync).toHaveBeenCalledWith({
-      valueStream: detail,
-      request: { name: 'Inserted Stage', description: 'desc', position: 2 },
+      request: { name, description: description || undefined, position: expectedPosition },
     });
   });
 

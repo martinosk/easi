@@ -34,36 +34,24 @@ func NewValueStreamReadModel(db *database.TenantAwareDB) *ValueStreamReadModel {
 }
 
 func (rm *ValueStreamReadModel) Insert(ctx context.Context, dto ValueStreamDTO) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-	_, err = rm.db.ExecContext(ctx,
+	return rm.execTenantQuery(ctx,
 		"INSERT INTO value_streams (id, tenant_id, name, description, stage_count, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-		dto.ID, tenantID.Value(), dto.Name, dto.Description, 0, dto.CreatedAt,
+		func(tid string) []interface{} { return []interface{}{dto.ID, tid, dto.Name, dto.Description, 0, dto.CreatedAt} },
 	)
-	return err
 }
 
 func (rm *ValueStreamReadModel) Update(ctx context.Context, id string, update ValueStreamUpdate) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-	_, err = rm.db.ExecContext(ctx,
+	return rm.execTenantQuery(ctx,
 		"UPDATE value_streams SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
-		update.Name, update.Description, tenantID.Value(), id,
+		func(tid string) []interface{} { return []interface{}{update.Name, update.Description, tid, id} },
 	)
-	return err
 }
 
 func (rm *ValueStreamReadModel) Delete(ctx context.Context, id string) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-	_, err = rm.db.ExecContext(ctx, "DELETE FROM value_streams WHERE tenant_id = $1 AND id = $2", tenantID.Value(), id)
-	return err
+	return rm.execTenantQuery(ctx,
+		"DELETE FROM value_streams WHERE tenant_id = $1 AND id = $2",
+		func(tid string) []interface{} { return []interface{}{tid, id} },
+	)
 }
 
 func (rm *ValueStreamReadModel) GetAll(ctx context.Context) ([]ValueStreamDTO, error) {
@@ -201,27 +189,17 @@ type StageNameQuery struct {
 }
 
 func (rm *ValueStreamReadModel) InsertStage(ctx context.Context, dto ValueStreamStageDTO) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-	_, err = rm.db.ExecContext(ctx,
+	return rm.execTenantQuery(ctx,
 		"INSERT INTO value_stream_stages (id, tenant_id, value_stream_id, name, description, position) VALUES ($1, $2, $3, $4, $5, $6)",
-		dto.ID, tenantID.Value(), dto.ValueStreamID, dto.Name, dto.Description, dto.Position,
+		func(tid string) []interface{} { return []interface{}{dto.ID, tid, dto.ValueStreamID, dto.Name, dto.Description, dto.Position} },
 	)
-	return err
 }
 
 func (rm *ValueStreamReadModel) UpdateStage(ctx context.Context, update StageUpdate) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-	_, err = rm.db.ExecContext(ctx,
+	return rm.execTenantQuery(ctx,
 		"UPDATE value_stream_stages SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
-		update.Name, update.Description, tenantID.Value(), update.StageID,
+		func(tid string) []interface{} { return []interface{}{update.Name, update.Description, tid, update.StageID} },
 	)
-	return err
 }
 
 func (rm *ValueStreamReadModel) DeleteStage(ctx context.Context, stageID string) error {
@@ -398,6 +376,15 @@ func (rm *ValueStreamReadModel) StageNameExists(ctx context.Context, query Stage
 		"SELECT COUNT(*) FROM value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2 AND name = $3 AND id != $4",
 		query.ExcludeID, query.ValueStreamID, query.Name,
 	)
+}
+
+func (rm *ValueStreamReadModel) execTenantQuery(ctx context.Context, query string, buildArgs func(tenantID string) []interface{}) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = rm.db.ExecContext(ctx, query, buildArgs(tenantID.Value())...)
+	return err
 }
 
 func (rm *ValueStreamReadModel) nameExistsForTenant(ctx context.Context, baseQuery, excludeQuery, excludeID string, extraArgs ...interface{}) (bool, error) {

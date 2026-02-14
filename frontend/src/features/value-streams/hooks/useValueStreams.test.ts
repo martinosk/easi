@@ -154,15 +154,40 @@ describe('useValueStreams', () => {
       expect(result.current.valueStreams).toEqual([]);
     });
 
-    it('should create a value stream and invalidate queries', async () => {
+    it.each([
+      {
+        scenario: 'create',
+        seedData: [] as ValueStream[],
+        setupMock: () => {
+          vi.mocked(valueStreamsApi.create).mockResolvedValue(createValueStream('vs-new', 'New Stream'));
+        },
+        performAction: async (hook: ReturnType<typeof useValueStreams>) => {
+          await hook.createValueStream('New Stream', 'Description');
+        },
+        assertApi: () => {
+          expect(valueStreamsApi.create).toHaveBeenCalledWith({ name: 'New Stream', description: 'Description' });
+        },
+      },
+      {
+        scenario: 'delete',
+        seedData: [createValueStream('vs-1', 'To Delete')],
+        setupMock: () => {
+          vi.mocked(valueStreamsApi.delete).mockResolvedValue(undefined);
+        },
+        performAction: async (hook: ReturnType<typeof useValueStreams>) => {
+          await hook.deleteValueStream(createValueStream('vs-1', 'To Delete'));
+        },
+        assertApi: () => {
+          expect(valueStreamsApi.delete).toHaveBeenCalledWith(createValueStream('vs-1', 'To Delete'));
+        },
+      },
+    ])('should $scenario a value stream and invalidate queries', async ({ seedData, setupMock, performAction, assertApi }) => {
       const response: ValueStreamsResponse = {
-        data: [],
+        data: seedData,
         _links: { self: { href: '/api/v1/value-streams', method: 'GET' } },
       };
       vi.mocked(valueStreamsApi.getAll).mockResolvedValue(response);
-
-      const newStream = createValueStream('vs-new', 'New Stream');
-      vi.mocked(valueStreamsApi.create).mockResolvedValue(newStream);
+      setupMock();
 
       const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -175,39 +200,10 @@ describe('useValueStreams', () => {
       });
 
       await act(async () => {
-        await result.current.createValueStream('New Stream', 'Description');
+        await performAction(result.current);
       });
 
-      expect(valueStreamsApi.create).toHaveBeenCalledWith({ name: 'New Stream', description: 'Description' });
-      expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: valueStreamsQueryKeys.lists(),
-      });
-    });
-
-    it('should delete a value stream and invalidate queries', async () => {
-      const stream = createValueStream('vs-1', 'To Delete');
-      const response: ValueStreamsResponse = {
-        data: [stream],
-        _links: { self: { href: '/api/v1/value-streams', method: 'GET' } },
-      };
-      vi.mocked(valueStreamsApi.getAll).mockResolvedValue(response);
-      vi.mocked(valueStreamsApi.delete).mockResolvedValue(undefined);
-
-      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-
-      const { result } = renderHook(() => useValueStreams(), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      await act(async () => {
-        await result.current.deleteValueStream(stream);
-      });
-
-      expect(valueStreamsApi.delete).toHaveBeenCalledWith(stream);
+      assertApi();
       expect(invalidateSpy).toHaveBeenCalledWith({
         queryKey: valueStreamsQueryKeys.lists(),
       });

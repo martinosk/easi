@@ -2,17 +2,13 @@ package handlers
 
 import (
 	"context"
-	"errors"
 
+	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/valuestreams/application/commands"
 	"easi/backend/internal/valuestreams/application/gateways"
 	"easi/backend/internal/valuestreams/domain/aggregates"
 	"easi/backend/internal/valuestreams/domain/valueobjects"
-	"easi/backend/internal/valuestreams/infrastructure/repositories"
-	"easi/backend/internal/shared/cqrs"
 )
-
-var ErrCapabilityNotFound = errors.New("capability not found")
 
 type AddStageCapabilityRepository interface {
 	GetByID(ctx context.Context, id string) (*aggregates.ValueStream, error)
@@ -42,18 +38,12 @@ func (h *AddStageCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command
 
 	vs, err := h.repository.GetByID(ctx, command.ValueStreamID)
 	if err != nil {
-		if errors.Is(err, repositories.ErrValueStreamNotFound) {
-			return cqrs.EmptyResult(), ErrValueStreamNotFound
-		}
-		return cqrs.EmptyResult(), err
+		return cqrs.EmptyResult(), mapRepositoryError(err)
 	}
 
-	exists, err := h.capabilityGateway.CapabilityExists(ctx, command.CapabilityID)
+	capRef, err := h.resolveCapability(ctx, command.CapabilityID)
 	if err != nil {
 		return cqrs.EmptyResult(), err
-	}
-	if !exists {
-		return cqrs.EmptyResult(), ErrCapabilityNotFound
 	}
 
 	stageID, err := valueobjects.NewStageIDFromString(command.StageID)
@@ -61,16 +51,8 @@ func (h *AddStageCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command
 		return cqrs.EmptyResult(), err
 	}
 
-	capRef, err := valueobjects.NewCapabilityRef(command.CapabilityID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
 	if err := vs.AddCapabilityToStage(stageID, capRef); err != nil {
-		if errors.Is(err, aggregates.ErrStageNotFound) {
-			return cqrs.EmptyResult(), ErrStageNotFound
-		}
-		return cqrs.EmptyResult(), err
+		return cqrs.EmptyResult(), mapStageError(err)
 	}
 
 	if err := h.repository.Save(ctx, vs); err != nil {
@@ -78,4 +60,15 @@ func (h *AddStageCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command
 	}
 
 	return cqrs.EmptyResult(), nil
+}
+
+func (h *AddStageCapabilityHandler) resolveCapability(ctx context.Context, capabilityID string) (valueobjects.CapabilityRef, error) {
+	exists, err := h.capabilityGateway.CapabilityExists(ctx, capabilityID)
+	if err != nil {
+		return valueobjects.CapabilityRef{}, err
+	}
+	if !exists {
+		return valueobjects.CapabilityRef{}, ErrCapabilityNotFound
+	}
+	return valueobjects.NewCapabilityRef(capabilityID)
 }

@@ -2,15 +2,12 @@ package handlers
 
 import (
 	"context"
-	"errors"
 
 	"easi/backend/internal/valuestreams/application/commands"
 	"easi/backend/internal/valuestreams/domain/aggregates"
 	"easi/backend/internal/valuestreams/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
 )
-
-var ErrValueStreamNameExists = errors.New("value stream with this name already exists")
 
 type CreateValueStreamRepository interface {
 	Save(ctx context.Context, vs *aggregates.ValueStream) error

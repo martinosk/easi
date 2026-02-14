@@ -101,19 +101,11 @@ func TestValueStream_UpdateStage_NotFound(t *testing.T) {
 }
 
 func TestValueStream_UpdateStage_DuplicateName(t *testing.T) {
-	vs := createValueStream(t, "Test VS")
-	vs.MarkChangesAsCommitted()
-
-	name1, _ := valueobjects.NewStageName("First")
-	name2, _ := valueobjects.NewStageName("Second")
-	desc := valueobjects.MustNewDescription("")
-
-	vs.AddStage(name1, desc, nil)
-	vs.AddStage(name2, desc, nil)
-	vs.MarkChangesAsCommitted()
+	vs := createValueStreamWithStages(t, "Test VS", "First", "Second")
 
 	secondID := findStageByName(vs, "Second")
 	duplicateName, _ := valueobjects.NewStageName("First")
+	desc := valueobjects.MustNewDescription("")
 	err := vs.UpdateStage(secondID, duplicateName, desc)
 	assert.ErrorIs(t, err, ErrStageNameExists)
 }
@@ -194,17 +186,7 @@ func TestValueStream_ReorderStages(t *testing.T) {
 }
 
 func TestValueStream_ReorderStages_InvalidPositions(t *testing.T) {
-	vs := createValueStream(t, "Test VS")
-	vs.MarkChangesAsCommitted()
-
-	name1, _ := valueobjects.NewStageName("First")
-	name2, _ := valueobjects.NewStageName("Second")
-	desc := valueobjects.MustNewDescription("")
-
-	vs.AddStage(name1, desc, nil)
-	vs.AddStage(name2, desc, nil)
-	vs.MarkChangesAsCommitted()
-
+	vs := createValueStreamWithStages(t, "Test VS", "First", "Second")
 	firstID := findStageByName(vs, "First")
 
 	err := vs.ReorderStages([]StagePositionUpdate{
@@ -214,19 +196,9 @@ func TestValueStream_ReorderStages_InvalidPositions(t *testing.T) {
 }
 
 func TestValueStream_ReorderStages_MissingStage(t *testing.T) {
-	vs := createValueStream(t, "Test VS")
-	vs.MarkChangesAsCommitted()
-
-	name1, _ := valueobjects.NewStageName("First")
-	name2, _ := valueobjects.NewStageName("Second")
-	desc := valueobjects.MustNewDescription("")
-
-	vs.AddStage(name1, desc, nil)
-	vs.AddStage(name2, desc, nil)
-	vs.MarkChangesAsCommitted()
-
-	fakeID := valueobjects.NewStageID()
+	vs := createValueStreamWithStages(t, "Test VS", "First", "Second")
 	firstID := findStageByName(vs, "First")
+	fakeID := valueobjects.NewStageID()
 
 	err := vs.ReorderStages([]StagePositionUpdate{
 		{StageID: firstID.Value(), Position: 1},
@@ -326,6 +298,21 @@ func TestValueStream_LoadFromHistory_WithStageEvents(t *testing.T) {
 	assert.Equal(t, 2, loaded.StageCount())
 	assert.Equal(t, "Discovery", loaded.Stages()[0].Name().Value())
 	assert.Len(t, loaded.Stages()[0].CapabilityRefs(), 1)
+}
+
+func createValueStreamWithStages(t *testing.T, vsName string, stageNames ...string) *ValueStream {
+	t.Helper()
+	vs := createValueStream(t, vsName)
+	vs.MarkChangesAsCommitted()
+	desc := valueobjects.MustNewDescription("")
+	for _, sn := range stageNames {
+		name, err := valueobjects.NewStageName(sn)
+		require.NoError(t, err)
+		_, err = vs.AddStage(name, desc, nil)
+		require.NoError(t, err)
+	}
+	vs.MarkChangesAsCommitted()
+	return vs
 }
 
 func createValueStreamWithStage(t *testing.T, vsName, stageName string) *ValueStream {

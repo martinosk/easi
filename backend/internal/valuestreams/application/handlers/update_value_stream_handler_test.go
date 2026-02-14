@@ -87,92 +87,74 @@ func TestUpdateValueStreamHandler_UpdatesValueStream(t *testing.T) {
 	assert.Equal(t, "Updated Description", vs.Description().Value())
 }
 
-func TestUpdateValueStreamHandler_NameExistsForOtherStream_ReturnsError(t *testing.T) {
-	vs := createTestValueStream(t, "Original Name", "Description")
-	vsID := vs.ID()
-
-	mockRepo := &mockUpdateValueStreamRepository{valueStream: vs}
-	mockReadModel := &mockUpdateValueStreamReadModel{nameExists: true}
-
-	handler := NewUpdateValueStreamHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.UpdateValueStream{
-		ID:          vsID,
-		Name:        "Duplicate Name",
-		Description: "Description",
+func TestUpdateValueStreamHandler_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name      string
+		setup     func(t *testing.T) (*mockUpdateValueStreamRepository, *mockUpdateValueStreamReadModel, cqrs.Command)
+		wantErr   error
+		notSaved  bool
+	}{
+		{
+			name: "name exists for other stream",
+			setup: func(t *testing.T) (*mockUpdateValueStreamRepository, *mockUpdateValueStreamReadModel, cqrs.Command) {
+				vs := createTestValueStream(t, "Original Name", "Description")
+				return &mockUpdateValueStreamRepository{valueStream: vs},
+					&mockUpdateValueStreamReadModel{nameExists: true},
+					&commands.UpdateValueStream{ID: vs.ID(), Name: "Duplicate Name", Description: "Description"}
+			},
+			wantErr:  ErrValueStreamNameExists,
+			notSaved: true,
+		},
+		{
+			name: "not found",
+			setup: func(t *testing.T) (*mockUpdateValueStreamRepository, *mockUpdateValueStreamReadModel, cqrs.Command) {
+				return &mockUpdateValueStreamRepository{getByIDErr: repositories.ErrValueStreamNotFound},
+					&mockUpdateValueStreamReadModel{nameExists: false},
+					&commands.UpdateValueStream{ID: "non-existent", Name: "Name", Description: "Description"}
+			},
+			wantErr: ErrValueStreamNotFound,
+		},
+		{
+			name: "invalid name",
+			setup: func(t *testing.T) (*mockUpdateValueStreamRepository, *mockUpdateValueStreamReadModel, cqrs.Command) {
+				vs := createTestValueStream(t, "Original Name", "Description")
+				return &mockUpdateValueStreamRepository{valueStream: vs},
+					&mockUpdateValueStreamReadModel{nameExists: false},
+					&commands.UpdateValueStream{ID: vs.ID(), Name: "", Description: "Description"}
+			},
+			notSaved: true,
+		},
+		{
+			name: "invalid command",
+			setup: func(t *testing.T) (*mockUpdateValueStreamRepository, *mockUpdateValueStreamReadModel, cqrs.Command) {
+				return &mockUpdateValueStreamRepository{}, &mockUpdateValueStreamReadModel{}, &commands.DeleteValueStream{}
+			},
+			wantErr: cqrs.ErrInvalidCommand,
+		},
+		{
+			name: "read model error",
+			setup: func(t *testing.T) (*mockUpdateValueStreamRepository, *mockUpdateValueStreamReadModel, cqrs.Command) {
+				vs := createTestValueStream(t, "Original Name", "Description")
+				return &mockUpdateValueStreamRepository{valueStream: vs},
+					&mockUpdateValueStreamReadModel{checkErr: errors.New("database error")},
+					&commands.UpdateValueStream{ID: vs.ID(), Name: "New Name", Description: "Description"}
+			},
+			notSaved: true,
+		},
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, ErrValueStreamNameExists)
-	assert.Equal(t, 0, mockRepo.savedCount, "Should not save when name exists")
-}
-
-func TestUpdateValueStreamHandler_NotFound_ReturnsError(t *testing.T) {
-	mockRepo := &mockUpdateValueStreamRepository{
-		getByIDErr: repositories.ErrValueStreamNotFound,
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo, readModel, cmd := tt.setup(t)
+			handler := NewUpdateValueStreamHandler(repo, readModel)
+			_, err := handler.Handle(context.Background(), cmd)
+			assert.Error(t, err)
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+			}
+			if tt.notSaved {
+				assert.Equal(t, 0, repo.savedCount)
+			}
+		})
 	}
-	mockReadModel := &mockUpdateValueStreamReadModel{nameExists: false}
-
-	handler := NewUpdateValueStreamHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.UpdateValueStream{
-		ID:          "non-existent",
-		Name:        "Name",
-		Description: "Description",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, ErrValueStreamNotFound)
-}
-
-func TestUpdateValueStreamHandler_InvalidName_ReturnsError(t *testing.T) {
-	vs := createTestValueStream(t, "Original Name", "Description")
-	vsID := vs.ID()
-
-	mockRepo := &mockUpdateValueStreamRepository{valueStream: vs}
-	mockReadModel := &mockUpdateValueStreamReadModel{nameExists: false}
-
-	handler := NewUpdateValueStreamHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.UpdateValueStream{
-		ID:          vsID,
-		Name:        "",
-		Description: "Description",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Equal(t, 0, mockRepo.savedCount, "Should not save with invalid name")
-}
-
-func TestUpdateValueStreamHandler_InvalidCommand_ReturnsError(t *testing.T) {
-	mockRepo := &mockUpdateValueStreamRepository{}
-	mockReadModel := &mockUpdateValueStreamReadModel{}
-
-	handler := NewUpdateValueStreamHandler(mockRepo, mockReadModel)
-
-	invalidCmd := &commands.DeleteValueStream{}
-
-	_, err := handler.Handle(context.Background(), invalidCmd)
-	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
-}
-
-func TestUpdateValueStreamHandler_ReadModelError_ReturnsError(t *testing.T) {
-	vs := createTestValueStream(t, "Original Name", "Description")
-	vsID := vs.ID()
-
-	mockRepo := &mockUpdateValueStreamRepository{valueStream: vs}
-	mockReadModel := &mockUpdateValueStreamReadModel{checkErr: errors.New("database error")}
-
-	handler := NewUpdateValueStreamHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.UpdateValueStream{
-		ID:          vsID,
-		Name:        "New Name",
-		Description: "Description",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Equal(t, 0, mockRepo.savedCount)
 }

@@ -77,77 +77,63 @@ func TestCreateValueStreamHandler_ReturnsCreatedID(t *testing.T) {
 	assert.Equal(t, mockRepo.savedStreams[0].ID(), result.CreatedID)
 }
 
-func TestCreateValueStreamHandler_NameExists_ReturnsError(t *testing.T) {
-	mockRepo := &mockCreateValueStreamRepository{}
-	mockReadModel := &mockCreateValueStreamReadModel{nameExists: true}
-
-	handler := NewCreateValueStreamHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.CreateValueStream{
-		Name:        "Duplicate Name",
-		Description: "Should fail",
+func TestCreateValueStreamHandler_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name      string
+		repo      *mockCreateValueStreamRepository
+		readModel *mockCreateValueStreamReadModel
+		cmd       cqrs.Command
+		wantErr   error
+		notSaved  bool
+	}{
+		{
+			name:      "name exists",
+			repo:      &mockCreateValueStreamRepository{},
+			readModel: &mockCreateValueStreamReadModel{nameExists: true},
+			cmd:       &commands.CreateValueStream{Name: "Duplicate Name", Description: "Should fail"},
+			wantErr:   ErrValueStreamNameExists,
+			notSaved:  true,
+		},
+		{
+			name:      "invalid name",
+			repo:      &mockCreateValueStreamRepository{},
+			readModel: &mockCreateValueStreamReadModel{nameExists: false},
+			cmd:       &commands.CreateValueStream{Name: "", Description: "Invalid name"},
+			notSaved:  true,
+		},
+		{
+			name:      "invalid command",
+			repo:      &mockCreateValueStreamRepository{},
+			readModel: &mockCreateValueStreamReadModel{},
+			cmd:       &commands.DeleteValueStream{},
+			wantErr:   cqrs.ErrInvalidCommand,
+		},
+		{
+			name:      "read model error",
+			repo:      &mockCreateValueStreamRepository{},
+			readModel: &mockCreateValueStreamReadModel{checkErr: errors.New("database error")},
+			cmd:       &commands.CreateValueStream{Name: "Test Stream", Description: "Test"},
+			notSaved:  true,
+		},
+		{
+			name:      "repository save error",
+			repo:      &mockCreateValueStreamRepository{saveErr: errors.New("save failed")},
+			readModel: &mockCreateValueStreamReadModel{nameExists: false},
+			cmd:       &commands.CreateValueStream{Name: "Test Stream", Description: "Test"},
+		},
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, ErrValueStreamNameExists)
-	assert.Empty(t, mockRepo.savedStreams, "Should not save value stream when name exists")
-}
-
-func TestCreateValueStreamHandler_InvalidName_ReturnsError(t *testing.T) {
-	mockRepo := &mockCreateValueStreamRepository{}
-	mockReadModel := &mockCreateValueStreamReadModel{nameExists: false}
-
-	handler := NewCreateValueStreamHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.CreateValueStream{
-		Name:        "",
-		Description: "Invalid name",
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := NewCreateValueStreamHandler(tt.repo, tt.readModel)
+			_, err := handler.Handle(context.Background(), tt.cmd)
+			assert.Error(t, err)
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+			}
+			if tt.notSaved {
+				assert.Empty(t, tt.repo.savedStreams)
+			}
+		})
 	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Empty(t, mockRepo.savedStreams, "Should not save value stream with invalid name")
-}
-
-func TestCreateValueStreamHandler_InvalidCommand_ReturnsError(t *testing.T) {
-	mockRepo := &mockCreateValueStreamRepository{}
-	mockReadModel := &mockCreateValueStreamReadModel{}
-
-	handler := NewCreateValueStreamHandler(mockRepo, mockReadModel)
-
-	invalidCmd := &commands.DeleteValueStream{}
-
-	_, err := handler.Handle(context.Background(), invalidCmd)
-	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
-}
-
-func TestCreateValueStreamHandler_ReadModelError_ReturnsError(t *testing.T) {
-	mockRepo := &mockCreateValueStreamRepository{}
-	mockReadModel := &mockCreateValueStreamReadModel{checkErr: errors.New("database error")}
-
-	handler := NewCreateValueStreamHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.CreateValueStream{
-		Name:        "Test Stream",
-		Description: "Test",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Empty(t, mockRepo.savedStreams)
-}
-
-func TestCreateValueStreamHandler_RepositorySaveError_ReturnsError(t *testing.T) {
-	mockRepo := &mockCreateValueStreamRepository{saveErr: errors.New("save failed")}
-	mockReadModel := &mockCreateValueStreamReadModel{nameExists: false}
-
-	handler := NewCreateValueStreamHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.CreateValueStream{
-		Name:        "Test Stream",
-		Description: "Test",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
 }

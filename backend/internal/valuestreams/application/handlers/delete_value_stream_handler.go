@@ -2,11 +2,9 @@ package handlers
 
 import (
 	"context"
-	"errors"
 
 	"easi/backend/internal/valuestreams/application/commands"
 	"easi/backend/internal/valuestreams/domain/aggregates"
-	"easi/backend/internal/valuestreams/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
@@ -35,10 +33,7 @@ func (h *DeleteValueStreamHandler) Handle(ctx context.Context, cmd cqrs.Command)
 
 	vs, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
-		if errors.Is(err, repositories.ErrValueStreamNotFound) {
-			return cqrs.EmptyResult(), ErrValueStreamNotFound
-		}
-		return cqrs.EmptyResult(), err
+		return cqrs.EmptyResult(), mapRepositoryError(err)
 	}
 
 	if err := vs.Delete(); err != nil {

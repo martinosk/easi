@@ -2,13 +2,11 @@ package handlers
 
 import (
 	"context"
-	"errors"
 
+	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/valuestreams/application/commands"
 	"easi/backend/internal/valuestreams/domain/aggregates"
 	"easi/backend/internal/valuestreams/domain/valueobjects"
-	"easi/backend/internal/valuestreams/infrastructure/repositories"
-	"easi/backend/internal/shared/cqrs"
 )
 
 type RemoveStageRepository interface {
@@ -32,10 +30,7 @@ func (h *RemoveStageHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs
 
 	vs, err := h.repository.GetByID(ctx, command.ValueStreamID)
 	if err != nil {
-		if errors.Is(err, repositories.ErrValueStreamNotFound) {
-			return cqrs.EmptyResult(), ErrValueStreamNotFound
-		}
-		return cqrs.EmptyResult(), err
+		return cqrs.EmptyResult(), mapRepositoryError(err)
 	}
 
 	stageID, err := valueobjects.NewStageIDFromString(command.StageID)
@@ -44,10 +39,7 @@ func (h *RemoveStageHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs
 	}
 
 	if err := vs.RemoveStage(stageID); err != nil {
-		if errors.Is(err, aggregates.ErrStageNotFound) {
-			return cqrs.EmptyResult(), ErrStageNotFound
-		}
-		return cqrs.EmptyResult(), err
+		return cqrs.EmptyResult(), mapStageError(err)
 	}
 
 	if err := h.repository.Save(ctx, vs); err != nil {

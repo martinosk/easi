@@ -2,16 +2,12 @@ package handlers
 
 import (
 	"context"
-	"errors"
 
+	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/valuestreams/application/commands"
 	"easi/backend/internal/valuestreams/domain/aggregates"
 	"easi/backend/internal/valuestreams/domain/valueobjects"
-	"easi/backend/internal/valuestreams/infrastructure/repositories"
-	"easi/backend/internal/shared/cqrs"
 )
-
-var ErrStageNotFound = errors.New("stage not found")
 
 type UpdateStageRepository interface {
 	GetByID(ctx context.Context, id string) (*aggregates.ValueStream, error)
@@ -34,10 +30,7 @@ func (h *UpdateStageHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs
 
 	vs, err := h.repository.GetByID(ctx, command.ValueStreamID)
 	if err != nil {
-		if errors.Is(err, repositories.ErrValueStreamNotFound) {
-			return cqrs.EmptyResult(), ErrValueStreamNotFound
-		}
-		return cqrs.EmptyResult(), err
+		return cqrs.EmptyResult(), mapRepositoryError(err)
 	}
 
 	stageID, err := valueobjects.NewStageIDFromString(command.StageID)
@@ -56,13 +49,7 @@ func (h *UpdateStageHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs
 	}
 
 	if err := vs.UpdateStage(stageID, name, description); err != nil {
-		if errors.Is(err, aggregates.ErrStageNotFound) {
-			return cqrs.EmptyResult(), ErrStageNotFound
-		}
-		if errors.Is(err, aggregates.ErrStageNameExists) {
-			return cqrs.EmptyResult(), ErrStageNameExists
-		}
-		return cqrs.EmptyResult(), err
+		return cqrs.EmptyResult(), mapStageError(err)
 	}
 
 	if err := h.repository.Save(ctx, vs); err != nil {

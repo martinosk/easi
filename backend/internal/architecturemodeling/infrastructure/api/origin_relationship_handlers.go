@@ -200,15 +200,7 @@ func (h *OriginRelationshipHandlers) enrichAllRelationships(
 // @Router /components/{componentId}/origin/acquired-via [put]
 func (h *OriginRelationshipHandlers) CreateAcquiredViaRelationship(w http.ResponseWriter, r *http.Request) {
 	createOriginRelationship(h, w, r, valueobjects.OriginTypeAcquiredVia,
-		func(req CreateAcquiredViaRelationshipRequest) (string, string) { return req.AcquiredEntityID, req.Notes },
-		func(ctx context.Context, componentID string) (interface{}, error) {
-			return fetchFirst(h.readModels.AcquiredVia.GetByComponentID(ctx, componentID))
-		},
-		func(rel interface{}, actor sharedctx.Actor) {
-			if dto, ok := rel.(*readmodels.AcquiredViaRelationshipDTO); ok {
-				h.enrichAcquiredViaWithLinks(actor, dto)
-			}
-		},
+		extractAcquiredViaFields, h.fetchAcquiredVia, h.enrichAcquiredVia,
 	)
 }
 
@@ -258,15 +250,7 @@ func (h *OriginRelationshipHandlers) DeleteAcquiredViaRelationship(w http.Respon
 // @Router /components/{componentId}/origin/purchased-from [put]
 func (h *OriginRelationshipHandlers) CreatePurchasedFromRelationship(w http.ResponseWriter, r *http.Request) {
 	createOriginRelationship(h, w, r, valueobjects.OriginTypePurchasedFrom,
-		func(req CreatePurchasedFromRelationshipRequest) (string, string) { return req.VendorID, req.Notes },
-		func(ctx context.Context, componentID string) (interface{}, error) {
-			return fetchFirst(h.readModels.PurchasedFrom.GetByComponentID(ctx, componentID))
-		},
-		func(rel interface{}, actor sharedctx.Actor) {
-			if dto, ok := rel.(*readmodels.PurchasedFromRelationshipDTO); ok {
-				h.enrichPurchasedFromWithLinks(actor, dto)
-			}
-		},
+		extractPurchasedFromFields, h.fetchPurchasedFrom, h.enrichPurchasedFrom,
 	)
 }
 
@@ -316,15 +300,7 @@ func (h *OriginRelationshipHandlers) DeletePurchasedFromRelationship(w http.Resp
 // @Router /components/{componentId}/origin/built-by [put]
 func (h *OriginRelationshipHandlers) CreateBuiltByRelationship(w http.ResponseWriter, r *http.Request) {
 	createOriginRelationship(h, w, r, valueobjects.OriginTypeBuiltBy,
-		func(req CreateBuiltByRelationshipRequest) (string, string) { return req.InternalTeamID, req.Notes },
-		func(ctx context.Context, componentID string) (interface{}, error) {
-			return fetchFirst(h.readModels.BuiltBy.GetByComponentID(ctx, componentID))
-		},
-		func(rel interface{}, actor sharedctx.Actor) {
-			if dto, ok := rel.(*readmodels.BuiltByRelationshipDTO); ok {
-				h.enrichBuiltByWithLinks(actor, dto)
-			}
-		},
+		extractBuiltByFields, h.fetchBuiltBy, h.enrichBuiltBy,
 	)
 }
 
@@ -484,6 +460,48 @@ func buildOriginLinks(actor sharedctx.Actor, p originLinkParams) types.Links {
 		links["delete"] = types.Link{Href: baseURL, Method: "DELETE"}
 	}
 	return links
+}
+
+func extractAcquiredViaFields(req CreateAcquiredViaRelationshipRequest) (string, string) {
+	return req.AcquiredEntityID, req.Notes
+}
+
+func (h *OriginRelationshipHandlers) fetchAcquiredVia(ctx context.Context, componentID string) (interface{}, error) {
+	return fetchFirst(h.readModels.AcquiredVia.GetByComponentID(ctx, componentID))
+}
+
+func (h *OriginRelationshipHandlers) enrichAcquiredVia(rel interface{}, actor sharedctx.Actor) {
+	if dto, ok := rel.(*readmodels.AcquiredViaRelationshipDTO); ok {
+		h.enrichAcquiredViaWithLinks(actor, dto)
+	}
+}
+
+func extractPurchasedFromFields(req CreatePurchasedFromRelationshipRequest) (string, string) {
+	return req.VendorID, req.Notes
+}
+
+func (h *OriginRelationshipHandlers) fetchPurchasedFrom(ctx context.Context, componentID string) (interface{}, error) {
+	return fetchFirst(h.readModels.PurchasedFrom.GetByComponentID(ctx, componentID))
+}
+
+func (h *OriginRelationshipHandlers) enrichPurchasedFrom(rel interface{}, actor sharedctx.Actor) {
+	if dto, ok := rel.(*readmodels.PurchasedFromRelationshipDTO); ok {
+		h.enrichPurchasedFromWithLinks(actor, dto)
+	}
+}
+
+func extractBuiltByFields(req CreateBuiltByRelationshipRequest) (string, string) {
+	return req.InternalTeamID, req.Notes
+}
+
+func (h *OriginRelationshipHandlers) fetchBuiltBy(ctx context.Context, componentID string) (interface{}, error) {
+	return fetchFirst(h.readModels.BuiltBy.GetByComponentID(ctx, componentID))
+}
+
+func (h *OriginRelationshipHandlers) enrichBuiltBy(rel interface{}, actor sharedctx.Actor) {
+	if dto, ok := rel.(*readmodels.BuiltByRelationshipDTO); ok {
+		h.enrichBuiltByWithLinks(actor, dto)
+	}
 }
 
 func (h *OriginRelationshipHandlers) enrichAcquiredViaWithLinks(actor sharedctx.Actor, rel *readmodels.AcquiredViaRelationshipDTO) {

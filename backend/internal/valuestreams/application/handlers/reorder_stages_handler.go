@@ -2,11 +2,9 @@ package handlers
 
 import (
 	"context"
-	"errors"
 
 	"easi/backend/internal/valuestreams/application/commands"
 	"easi/backend/internal/valuestreams/domain/aggregates"
-	"easi/backend/internal/valuestreams/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
@@ -31,10 +29,7 @@ func (h *ReorderStagesHandler) Handle(ctx context.Context, cmd cqrs.Command) (cq
 
 	vs, err := h.repository.GetByID(ctx, command.ValueStreamID)
 	if err != nil {
-		if errors.Is(err, repositories.ErrValueStreamNotFound) {
-			return cqrs.EmptyResult(), ErrValueStreamNotFound
-		}
-		return cqrs.EmptyResult(), err
+		return cqrs.EmptyResult(), mapRepositoryError(err)
 	}
 
 	positions := make([]aggregates.StagePositionUpdate, len(command.Positions))

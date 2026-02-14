@@ -2,16 +2,12 @@ package handlers
 
 import (
 	"context"
-	"errors"
 
+	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/valuestreams/application/commands"
 	"easi/backend/internal/valuestreams/domain/aggregates"
 	"easi/backend/internal/valuestreams/domain/valueobjects"
-	"easi/backend/internal/valuestreams/infrastructure/repositories"
-	"easi/backend/internal/shared/cqrs"
 )
-
-var ErrValueStreamNotFound = errors.New("value stream not found")
 
 type UpdateValueStreamRepository interface {
 	GetByID(ctx context.Context, id string) (*aggregates.ValueStream, error)
@@ -45,21 +41,10 @@ func (h *UpdateValueStreamHandler) Handle(ctx context.Context, cmd cqrs.Command)
 
 	vs, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
-		if errors.Is(err, repositories.ErrValueStreamNotFound) {
-			return cqrs.EmptyResult(), ErrValueStreamNotFound
-		}
-		return cqrs.EmptyResult(), err
+		return cqrs.EmptyResult(), mapRepositoryError(err)
 	}
 
-	exists, err := h.readModel.NameExists(ctx, command.Name, command.ID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	if exists {
-		return cqrs.EmptyResult(), ErrValueStreamNameExists
-	}
-
-	name, err := valueobjects.NewValueStreamName(command.Name)
+	name, err := h.resolveUniqueName(ctx, command.Name, command.ID)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
@@ -78,4 +63,15 @@ func (h *UpdateValueStreamHandler) Handle(ctx context.Context, cmd cqrs.Command)
 	}
 
 	return cqrs.EmptyResult(), nil
+}
+
+func (h *UpdateValueStreamHandler) resolveUniqueName(ctx context.Context, rawName, excludeID string) (valueobjects.ValueStreamName, error) {
+	exists, err := h.readModel.NameExists(ctx, rawName, excludeID)
+	if err != nil {
+		return valueobjects.ValueStreamName{}, err
+	}
+	if exists {
+		return valueobjects.ValueStreamName{}, ErrValueStreamNameExists
+	}
+	return valueobjects.NewValueStreamName(rawName)
 }
