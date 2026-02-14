@@ -49,9 +49,8 @@ export const valueStreamsApi = {
     return response.data;
   },
 
-  async deleteStage(stage: ValueStreamStage): Promise<ValueStreamDetail> {
-    const response = await httpClient.delete<ValueStreamDetail>(followLink(stage, 'delete'));
-    return response.data;
+  async deleteStage(stage: ValueStreamStage): Promise<void> {
+    await httpClient.delete(followLink(stage, 'delete'));
   },
 
   async reorderStages(valueStream: ValueStream, request: ReorderStagesRequest): Promise<ValueStreamDetail> {
@@ -67,8 +66,7 @@ export const valueStreamsApi = {
     return response.data;
   },
 
-  async removeStageCapability(mapping: StageCapabilityMapping): Promise<ValueStreamDetail> {
-    const response = await httpClient.delete<ValueStreamDetail>(followLink(mapping, 'delete'));
-    return response.data;
+  async removeStageCapability(mapping: StageCapabilityMapping): Promise<void> {
+    await httpClient.delete(followLink(mapping, 'delete'));
   },
 };

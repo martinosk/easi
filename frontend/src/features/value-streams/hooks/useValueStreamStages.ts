@@ -57,10 +57,15 @@ export function useUpdateStage() {
 }
 
 export function useDeleteStage() {
-  return useStageMutation(
-    (stage: ValueStreamStage) => valueStreamsApi.deleteStage(stage),
-    'deleteStage', 'Stage removed', 'Failed to remove stage',
-  );
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (stage: ValueStreamStage) => valueStreamsApi.deleteStage(stage),
+    onSuccess: (_result, stage) => {
+      invalidateFor(queryClient, valueStreamsMutationEffects.deleteStage(stage.valueStreamId));
+      toast.success('Stage removed');
+    },
+    onError: (error: Error) => toast.error(error.message || 'Failed to remove stage'),
+  });
 }
 
 export function useReorderStages() {
@@ -80,8 +85,14 @@ export function useAddStageCapability() {
 }
 
 export function useRemoveStageCapability() {
-  return useStageMutation(
-    (mapping: StageCapabilityMapping) => valueStreamsApi.removeStageCapability(mapping),
-    'removeStageCapability', 'Capability removed from stage', 'Failed to remove capability',
-  );
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ mapping }: { mapping: StageCapabilityMapping; valueStreamId: string }) =>
+      valueStreamsApi.removeStageCapability(mapping),
+    onSuccess: (_result, { valueStreamId }) => {
+      invalidateFor(queryClient, valueStreamsMutationEffects.removeStageCapability(valueStreamId));
+      toast.success('Capability removed from stage');
+    },
+    onError: (error: Error) => toast.error(error.message || 'Failed to remove capability'),
+  });
 }

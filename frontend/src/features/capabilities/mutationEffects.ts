@@ -3,6 +3,7 @@ import { businessDomainsQueryKeys } from '../business-domains/queryKeys';
 import { maturityAnalysisQueryKeys } from '../enterprise-architecture/queryKeys';
 import { auditQueryKeys } from '../audit/queryKeys';
 import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
+import { valueStreamsQueryKeys } from '../value-streams/queryKeys';
 
 export const capabilitiesMutationEffects = {
   create: (context: { parentId?: string; businessDomainId?: string }) => [
@@ -19,6 +20,7 @@ export const capabilitiesMutationEffects = {
     capabilitiesQueryKeys.lists(),
     capabilitiesQueryKeys.detail(capabilityId),
     auditQueryKeys.history(capabilityId),
+    valueStreamsQueryKeys.all,
   ],
 
   delete: (context: { id: string; parentId?: string; domainId?: string }) => [
@@ -28,6 +30,7 @@ export const capabilitiesMutationEffects = {
     ...(context.domainId ? [businessDomainsQueryKeys.capabilities(context.domainId)] : []),
     businessDomainsQueryKeys.lists(),
     maturityAnalysisQueryKeys.unlinked(),
+    valueStreamsQueryKeys.all,
   ],
 
   assignToDomain: (context: { capabilityId: string; domainId: string }) => [

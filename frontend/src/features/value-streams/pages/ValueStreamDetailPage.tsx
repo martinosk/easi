@@ -76,6 +76,7 @@ function DetailContent({ detail, canWrite }: DetailContentProps) {
       <div className="vsd-content">
         <div className="vsd-main">
           <StageFlowDiagram
+            valueStreamId={detail.id}
             stages={detail.stages}
             stageCapabilities={detail.stageCapabilities}
             canWrite={canAddStage}

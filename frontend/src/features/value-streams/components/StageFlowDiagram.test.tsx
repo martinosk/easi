@@ -21,6 +21,7 @@ function createStage(id: string, position: number, name?: string): ValueStreamSt
 }
 
 const defaultProps = {
+  valueStreamId: 'vs-1',
   stages: [] as ValueStreamStage[],
   stageCapabilities: [] as StageCapabilityMapping[],
   canWrite: true,

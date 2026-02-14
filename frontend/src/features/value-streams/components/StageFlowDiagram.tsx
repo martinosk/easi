@@ -6,6 +6,7 @@ import { useRemoveStageCapability } from '../hooks/useValueStreamStages';
 import './StageFlowDiagram.css';
 
 interface StageFlowDiagramProps {
+  valueStreamId: string;
   stages: ValueStreamStage[];
   stageCapabilities: StageCapabilityMapping[];
   canWrite: boolean;
@@ -106,6 +107,7 @@ function EmptyStages({ canWrite, onAddStage }: { canWrite: boolean; onAddStage: 
 }
 
 export function StageFlowDiagram({
+  valueStreamId,
   stages,
   stageCapabilities,
   canWrite,
@@ -139,9 +141,9 @@ export function StageFlowDiagram({
     setDraggedStageId(null);
   }, [draggedStageId, sortedStages, onReorder, onAddCapability]);
 
-  const handleRemoveCapability = useCallback((mapping: StageCapabilityMapping) => {
-    removeCapMutation.mutate(mapping);
-  }, [removeCapMutation]);
+  const handleRemoveCapability = useCallback(async (mapping: StageCapabilityMapping) => {
+    await removeCapMutation.mutateAsync({ mapping, valueStreamId });
+  }, [removeCapMutation, valueStreamId]);
 
   if (stages.length === 0) {
     return <EmptyStages canWrite={canWrite} onAddStage={onAddStage} />;
