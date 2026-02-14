@@ -5,6 +5,7 @@ import (
 
 	architectureCommands "easi/backend/internal/architecturemodeling/application/commands"
 	capabilityCommands "easi/backend/internal/capabilitymapping/application/commands"
+	valueStreamCommands "easi/backend/internal/valuestreams/application/commands"
 	"easi/backend/internal/importing/domain/aggregates"
 	"easi/backend/internal/importing/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
@@ -28,12 +29,14 @@ func NewImportOrchestrator(commandBus cqrs.CommandBus, repository ImportSessionR
 }
 
 type importExecutionContext struct {
-	ctx                  context.Context
-	session              *aggregates.ImportSession
-	result               *aggregates.ImportResult
-	sourceToComponentID  map[string]string
-	sourceToCapabilityID map[string]string
-	createdCapabilityIDs []string
+	ctx                      context.Context
+	session                  *aggregates.ImportSession
+	result                   *aggregates.ImportResult
+	sourceToComponentID      map[string]string
+	sourceToCapabilityID     map[string]string
+	sourceToValueStreamID    map[string]string
+	sourceToStageID          map[string]string
+	createdCapabilityIDs     []string
 }
 
 func (o *ImportOrchestrator) Execute(ctx context.Context, session *aggregates.ImportSession) (aggregates.ImportResult, error) {
@@ -41,19 +44,23 @@ func (o *ImportOrchestrator) Execute(ctx context.Context, session *aggregates.Im
 	parsedData := session.ParsedData()
 
 	execCtx := &importExecutionContext{
-		ctx:                  ctx,
-		session:              session,
-		result:               &result,
-		sourceToComponentID:  make(map[string]string),
-		sourceToCapabilityID: make(map[string]string),
-		createdCapabilityIDs: make([]string, 0),
+		ctx:                      ctx,
+		session:                  session,
+		result:                   &result,
+		sourceToComponentID:      make(map[string]string),
+		sourceToCapabilityID:     make(map[string]string),
+		sourceToValueStreamID:    make(map[string]string),
+		sourceToStageID:          make(map[string]string),
+		createdCapabilityIDs:     make([]string, 0),
 	}
 
 	o.executeComponentPhase(execCtx, parsedData)
 	o.executeCapabilityPhase(execCtx, parsedData)
 	o.executeCapabilityMetadataPhase(execCtx)
+	o.executeValueStreamPhase(execCtx, parsedData)
 	o.executeRealizationPhase(execCtx, parsedData)
 	o.executeComponentRelationPhase(execCtx, parsedData)
+	o.executeCapabilityStageMapping(execCtx, parsedData)
 	o.executeDomainAssignmentPhase(execCtx, parsedData)
 	o.completeSession(execCtx)
 
@@ -113,6 +120,38 @@ func (o *ImportOrchestrator) executeDomainAssignmentPhase(execCtx *importExecuti
 	assigned, errors := o.assignToDomain(execCtx.ctx, assignCtx)
 	execCtx.result.DomainAssignments = assigned
 	execCtx.result.Errors = append(execCtx.result.Errors, errors...)
+}
+
+func (o *ImportOrchestrator) executeValueStreamPhase(execCtx *importExecutionContext, parsedData aggregates.ParsedData) {
+	created, errors := o.createValueStreams(execCtx.ctx, parsedData.ValueStreams, execCtx.sourceToValueStreamID, execCtx.sourceToStageID)
+	execCtx.result.ValueStreamsCreated = created
+	execCtx.result.Errors = append(execCtx.result.Errors, errors...)
+	o.saveProgress(execCtx, valueobjects.PhaseCreatingValueStreams, len(parsedData.ValueStreams), created)
+}
+
+func (o *ImportOrchestrator) executeCapabilityStageMapping(execCtx *importExecutionContext, parsedData aggregates.ParsedData) {
+	if len(execCtx.sourceToValueStreamID) == 0 {
+		return
+	}
+
+	mappingCtx := stageMappingContext{
+		capabilityID:     execCtx.sourceToCapabilityID,
+		valueStreamID:    execCtx.sourceToValueStreamID,
+		stageID:          execCtx.sourceToStageID,
+		relationships:    parsedData.Relationships,
+	}
+
+	mappings, errors := o.mapCapabilitiesToStages(execCtx.ctx, mappingCtx)
+	execCtx.result.CapabilityMappings = mappings
+	execCtx.result.Errors = append(execCtx.result.Errors, errors...)
+	o.saveProgress(execCtx, valueobjects.PhaseMappingCapabilitiesToStages, countCapabilityToStageRelationships(parsedData.Relationships), mappings)
+}
+
+type stageMappingContext struct {
+	capabilityID  map[string]string
+	valueStreamID map[string]string
+	stageID       map[string]string
+	relationships []aggregates.ParsedRelationship
 }
 
 func (o *ImportOrchestrator) completeSession(execCtx *importExecutionContext) {
@@ -293,9 +332,11 @@ func (o *ImportOrchestrator) processRelationships(
 }
 
 func (o *ImportOrchestrator) createRealizations(ctx context.Context, relationships []aggregates.ParsedRelationship, sourceToComponentID, sourceToCapabilityID map[string]string) (int, []valueobjects.ImportError) {
+	realizationRelationships := filterRealizationRelationships(relationships, sourceToComponentID, sourceToCapabilityID)
+
 	return o.processRelationships(
 		ctx,
-		relationships,
+		realizationRelationships,
 		func(t string) bool { return t == "Realization" },
 		func(rel aggregates.ParsedRelationship) (string, string, string, string) {
 			componentID, hasComponent := sourceToComponentID[rel.SourceRef]
@@ -351,9 +392,11 @@ func (o *ImportOrchestrator) assignToDomain(ctx context.Context, assignCtx domai
 }
 
 func (o *ImportOrchestrator) createComponentRelations(ctx context.Context, relationships []aggregates.ParsedRelationship, sourceToComponentID map[string]string) (int, []valueobjects.ImportError) {
+	componentRelationships := filterComponentRelationships(relationships, sourceToComponentID)
+
 	return o.processRelationships(
 		ctx,
-		relationships,
+		componentRelationships,
 		func(t string) bool { return t == "Triggering" || t == "Serving" },
 		func(rel aggregates.ParsedRelationship) (string, string, string, string) {
 			sourceComponentID, hasSource := sourceToComponentID[rel.SourceRef]
@@ -381,6 +424,38 @@ func (o *ImportOrchestrator) createComponentRelations(ctx context.Context, relat
 			}
 		},
 	)
+}
+
+func filterComponentRelationships(relationships []aggregates.ParsedRelationship, sourceToComponentID map[string]string) []aggregates.ParsedRelationship {
+	filtered := make([]aggregates.ParsedRelationship, 0)
+	for _, rel := range relationships {
+		if isComponentRelationType(rel.Type) && isComponentRelationship(rel, sourceToComponentID) {
+			filtered = append(filtered, rel)
+		}
+	}
+	return filtered
+}
+
+func isComponentRelationType(relType string) bool {
+	return relType == "Triggering" || relType == "Serving"
+}
+
+func isComponentRelationship(rel aggregates.ParsedRelationship, sourceToComponentID map[string]string) bool {
+	return sourceToComponentID[rel.SourceRef] != "" && sourceToComponentID[rel.TargetRef] != ""
+}
+
+func filterRealizationRelationships(relationships []aggregates.ParsedRelationship, sourceToComponentID, sourceToCapabilityID map[string]string) []aggregates.ParsedRelationship {
+	filtered := make([]aggregates.ParsedRelationship, 0)
+	for _, rel := range relationships {
+		if rel.Type == "Realization" && isComponentToCapabilityRelationship(rel, sourceToComponentID, sourceToCapabilityID) {
+			filtered = append(filtered, rel)
+		}
+	}
+	return filtered
+}
+
+func isComponentToCapabilityRelationship(rel aggregates.ParsedRelationship, sourceToComponentID, sourceToCapabilityID map[string]string) bool {
+	return sourceToComponentID[rel.SourceRef] != "" && sourceToCapabilityID[rel.TargetRef] != ""
 }
 
 func buildParentMap(relationships []aggregates.ParsedRelationship) map[string]string {
@@ -489,4 +564,117 @@ func findL1Capabilities(capabilities []aggregates.ParsedElement, relationships [
 	}
 
 	return l1IDs
+}
+
+func (o *ImportOrchestrator) createValueStreams(ctx context.Context, valueStreams []aggregates.ParsedElement, sourceToValueStreamID map[string]string, sourceToStageID map[string]string) (int, []valueobjects.ImportError) {
+	var errors []valueobjects.ImportError
+	created := 0
+
+	for _, vs := range valueStreams {
+		cmd := &valueStreamCommands.CreateValueStream{
+			Name:        vs.Name,
+			Description: vs.Description,
+		}
+
+		result, err := o.commandBus.Dispatch(ctx, cmd)
+		if err != nil {
+			errors = append(errors, valueobjects.NewImportError(
+				vs.SourceID,
+				vs.Name,
+				err.Error(),
+				"skipped",
+			))
+			continue
+		}
+
+		valueStreamID := result.CreatedID
+		sourceToValueStreamID[vs.SourceID] = valueStreamID
+
+		// Create default "Main Flow" stage
+		stageCmd := &valueStreamCommands.AddStage{
+			ValueStreamID: valueStreamID,
+			Name:          "Main Flow",
+			Description:   "",
+		}
+
+		stageResult, err := o.commandBus.Dispatch(ctx, stageCmd)
+		if err != nil {
+			errors = append(errors, valueobjects.NewImportError(
+				vs.SourceID,
+				vs.Name,
+				"failed to create default stage: "+err.Error(),
+				"warning",
+			))
+			continue
+		}
+
+		sourceToStageID[vs.SourceID] = stageResult.CreatedID
+		created++
+	}
+
+	return created, errors
+}
+
+func (o *ImportOrchestrator) mapCapabilitiesToStages(ctx context.Context, mappingCtx stageMappingContext) (int, []valueobjects.ImportError) {
+	filtered := filterCapabilityStageRelationships(mappingCtx)
+	var errors []valueobjects.ImportError
+	mapped := 0
+
+	for _, rel := range filtered {
+		if o.addCapabilityToStage(ctx, rel, mappingCtx, &errors) {
+			mapped++
+		}
+	}
+
+	return mapped, errors
+}
+
+func filterCapabilityStageRelationships(mappingCtx stageMappingContext) []aggregates.ParsedRelationship {
+	filtered := make([]aggregates.ParsedRelationship, 0)
+	for _, rel := range mappingCtx.relationships {
+		if isValidCapabilityStageRelationship(rel, mappingCtx) {
+			filtered = append(filtered, rel)
+		}
+	}
+	return filtered
+}
+
+func isValidCapabilityStageRelationship(rel aggregates.ParsedRelationship, mappingCtx stageMappingContext) bool {
+	return isCapabilityStageRelationType(rel.Type) &&
+		mappingCtx.capabilityID[rel.SourceRef] != "" && mappingCtx.valueStreamID[rel.TargetRef] != ""
+}
+
+func isCapabilityStageRelationType(relType string) bool {
+	return relType == "Association" || relType == "Serving" || relType == "Triggering" || relType == "Realization"
+}
+
+func (o *ImportOrchestrator) addCapabilityToStage(ctx context.Context, rel aggregates.ParsedRelationship, mappingCtx stageMappingContext, errors *[]valueobjects.ImportError) bool {
+	stageID := mappingCtx.stageID[rel.TargetRef]
+	if stageID == "" {
+		*errors = append(*errors, valueobjects.NewImportError(rel.SourceID, rel.Name, "ValueStream stage not found", "skipped"))
+		return false
+	}
+
+	cmd := &valueStreamCommands.AddStageCapability{
+		ValueStreamID: mappingCtx.valueStreamID[rel.TargetRef],
+		StageID:       stageID,
+		CapabilityID:  mappingCtx.capabilityID[rel.SourceRef],
+	}
+
+	if _, err := o.commandBus.Dispatch(ctx, cmd); err != nil {
+		*errors = append(*errors, valueobjects.NewImportError(rel.SourceID, rel.Name, err.Error(), "skipped"))
+		return false
+	}
+	return true
+}
+
+func countCapabilityToStageRelationships(relationships []aggregates.ParsedRelationship) int {
+	count := 0
+	for _, rel := range relationships {
+		switch rel.Type {
+		case "Association", "Serving", "Triggering", "Realization":
+			count++
+		}
+	}
+	return count
 }

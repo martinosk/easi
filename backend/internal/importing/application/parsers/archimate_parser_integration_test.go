@@ -108,6 +108,24 @@ func TestArchiMateParser_ParseSampleModel_UnsupportedElements(t *testing.T) {
 	}
 }
 
+func TestArchiMateParser_ParseSampleModel_ValueStreams(t *testing.T) {
+	result := loadSampleResult(t)
+
+	expectedValueStreams := map[string]bool{
+		"Order to cash": true,
+	}
+
+	if len(result.ValueStreams) != len(expectedValueStreams) {
+		t.Errorf("expected %d value streams, got %d", len(expectedValueStreams), len(result.ValueStreams))
+	}
+
+	for _, vs := range result.ValueStreams {
+		if !expectedValueStreams[vs.Name] {
+			t.Errorf("unexpected value stream: %s", vs.Name)
+		}
+	}
+}
+
 func countRelationshipsByType(relationships []ParsedRelationship, relType string) int {
 	count := 0
 	for _, rel := range relationships {
@@ -151,8 +169,8 @@ func TestArchiMateParser_ParseSampleModel_ComponentRelationships(t *testing.T) {
 	if triggeringCount != 0 {
 		t.Errorf("expected 0 Triggering relationships (sample has none between Components), got %d", triggeringCount)
 	}
-	if servingCount != 1 {
-		t.Errorf("expected 1 Serving relationship, got %d", servingCount)
+	if servingCount != 2 {
+		t.Errorf("expected 2 Serving relationships (1 Component→Component, 1 Capability→ValueStream), got %d", servingCount)
 	}
 }
 
@@ -174,6 +192,9 @@ func TestArchiMateParser_ParseSampleModel_SupportedPreview(t *testing.T) {
 	if supported.Components != 2 {
 		t.Errorf("expected 2 components in preview, got %d", supported.Components)
 	}
+	if supported.ValueStreams != 1 {
+		t.Errorf("expected 1 value stream in preview, got %d", supported.ValueStreams)
+	}
 	if supported.ParentChildRelationships != 6 {
 		t.Errorf("expected 6 parent-child relationships in preview, got %d", supported.ParentChildRelationships)
 	}
@@ -183,6 +204,9 @@ func TestArchiMateParser_ParseSampleModel_SupportedPreview(t *testing.T) {
 	if supported.ComponentRelationships != 1 {
 		t.Errorf("expected 1 component relationship in preview (only Component→Component), got %d", supported.ComponentRelationships)
 	}
+	if supported.CapabilityToValueStreamMappings != 1 {
+		t.Errorf("expected 1 capability-to-value-stream mapping in preview, got %d", supported.CapabilityToValueStreamMappings)
+	}
 }
 
 func TestArchiMateParser_ParseSampleModel_UnsupportedPreview(t *testing.T) {
@@ -190,13 +214,13 @@ func TestArchiMateParser_ParseSampleModel_UnsupportedPreview(t *testing.T) {
 	unsupported := result.GetPreview().Unsupported()
 
 	totalElements := sumMapValues(unsupported.Elements)
-	if totalElements != 5 {
-		t.Errorf("expected 5 unsupported elements, got %d", totalElements)
+	if totalElements != 4 {
+		t.Errorf("expected 4 unsupported elements (Resource, BusinessActor, ApplicationInterface, SystemSoftware), got %d", totalElements)
 	}
 
 	totalRels := sumMapValues(unsupported.Relationships)
-	if totalRels != 5 {
-		t.Errorf("expected 5 unsupported relationships (invalid source/target types), got %d", totalRels)
+	if totalRels != 4 {
+		t.Errorf("expected 4 unsupported relationships (Capability->Capability Triggering, ApplicationInterface relationships, ValueStream->Capability Association), got %d", totalRels)
 	}
 }
 

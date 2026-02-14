@@ -11,8 +11,10 @@ var ErrInvalidProgressCounts = errors.New("invalid progress counts: total must b
 const (
 	PhaseCreatingComponents          = "creating_components"
 	PhaseCreatingCapabilities        = "creating_capabilities"
+	PhaseCreatingValueStreams        = "creating_value_streams"
 	PhaseCreatingRealizations        = "creating_realizations"
 	PhaseCreatingComponentRelations  = "creating_component_relations"
+	PhaseMappingCapabilitiesToStages = "mapping_capabilities_to_stages"
 	PhaseAssigningDomains            = "assigning_domains"
 	PhaseAssigningCapabilityMetadata = "assigning_capability_metadata"
 )
@@ -20,10 +22,16 @@ const (
 var validPhases = map[string]bool{
 	PhaseCreatingComponents:          true,
 	PhaseCreatingCapabilities:        true,
+	PhaseCreatingValueStreams:        true,
 	PhaseCreatingRealizations:        true,
 	PhaseCreatingComponentRelations:  true,
+	PhaseMappingCapabilitiesToStages: true,
 	PhaseAssigningDomains:            true,
 	PhaseAssigningCapabilityMetadata: true,
+}
+
+func isValidProgressCounts(totalItems, completedItems int) bool {
+	return totalItems >= 0 && completedItems >= 0 && completedItems <= totalItems
 }
 
 type ImportProgress struct {
@@ -36,7 +44,7 @@ func NewImportProgress(phase string, totalItems, completedItems int) (ImportProg
 	if !validPhases[phase] {
 		return ImportProgress{}, ErrInvalidImportPhase
 	}
-	if totalItems < 0 || completedItems < 0 || completedItems > totalItems {
+	if !isValidProgressCounts(totalItems, completedItems) {
 		return ImportProgress{}, ErrInvalidProgressCounts
 	}
 	return ImportProgress{

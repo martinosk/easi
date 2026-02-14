@@ -6,11 +6,13 @@ import (
 )
 
 type SupportedCounts struct {
-	Capabilities             int `json:"capabilities"`
-	Components               int `json:"components"`
-	ParentChildRelationships int `json:"parentChildRelationships"`
-	Realizations             int `json:"realizations"`
-	ComponentRelationships   int `json:"componentRelationships"`
+	Capabilities                    int `json:"capabilities"`
+	Components                      int `json:"components"`
+	ValueStreams                    int `json:"valueStreams"`
+	ParentChildRelationships        int `json:"parentChildRelationships"`
+	Realizations                    int `json:"realizations"`
+	ComponentRelationships          int `json:"componentRelationships"`
+	CapabilityToValueStreamMappings int `json:"capabilityToValueStreamMappings"`
 }
 
 type UnsupportedCounts struct {
@@ -47,9 +49,11 @@ func (ip ImportPreview) Unsupported() UnsupportedCounts {
 func (ip ImportPreview) TotalSupportedItems() int {
 	return ip.supported.Capabilities +
 		ip.supported.Components +
+		ip.supported.ValueStreams +
 		ip.supported.ParentChildRelationships +
 		ip.supported.Realizations +
-		ip.supported.ComponentRelationships
+		ip.supported.ComponentRelationships +
+		ip.supported.CapabilityToValueStreamMappings
 }
 
 func (ip ImportPreview) HasUnsupportedElements() bool {

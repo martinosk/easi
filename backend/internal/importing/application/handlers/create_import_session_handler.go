@@ -60,7 +60,13 @@ func (h *CreateImportSessionHandler) Handle(ctx context.Context, cmd cqrs.Comman
 		}
 	}
 
-	session, err := aggregates.NewImportSession(sourceFormat, command.BusinessDomainID, command.CapabilityEAOwner, preview, parsedData)
+	session, err := aggregates.NewImportSession(aggregates.ImportSessionConfig{
+		SourceFormat:       sourceFormat,
+		BusinessDomainID:   command.BusinessDomainID,
+		CapabilityEAOwner:  command.CapabilityEAOwner,
+		Preview:            preview,
+		ParsedData:         parsedData,
+	})
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}

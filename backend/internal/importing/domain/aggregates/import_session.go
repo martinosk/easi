@@ -16,6 +16,14 @@ var (
 	ErrImportAlreadyCompleted    = errors.New("import has already completed")
 )
 
+type ImportSessionConfig struct {
+	SourceFormat         valueobjects.SourceFormat
+	BusinessDomainID    string
+	CapabilityEAOwner   string
+	Preview             valueobjects.ImportPreview
+	ParsedData          ParsedData
+}
+
 type ParsedElement struct {
 	SourceID    string
 	Name        string
@@ -35,14 +43,17 @@ type ParsedRelationship struct {
 type ParsedData struct {
 	Capabilities  []ParsedElement
 	Components    []ParsedElement
+	ValueStreams  []ParsedElement
 	Relationships []ParsedRelationship
 }
 
 type ImportResult struct {
 	CapabilitiesCreated       int
 	ComponentsCreated         int
+	ValueStreamsCreated       int
 	RealizationsCreated       int
 	ComponentRelationsCreated int
+	CapabilityMappings        int
 	DomainAssignments         int
 	Errors                    []valueobjects.ImportError
 }
@@ -63,13 +74,7 @@ type ImportSession struct {
 	isCancelled       bool
 }
 
-func NewImportSession(
-	sourceFormat valueobjects.SourceFormat,
-	businessDomainID string,
-	capabilityEAOwner string,
-	preview valueobjects.ImportPreview,
-	parsedData ParsedData,
-) (*ImportSession, error) {
+func NewImportSession(config ImportSessionConfig) (*ImportSession, error) {
 	session := &ImportSession{
 		AggregateRoot: domain.NewAggregateRoot(),
 		id:            valueobjects.NewImportSessionID(),
@@ -77,28 +82,32 @@ func NewImportSession(
 
 	previewMap := map[string]interface{}{
 		"supported": map[string]interface{}{
-			"capabilities":             preview.Supported().Capabilities,
-			"components":               preview.Supported().Components,
-			"parentChildRelationships": preview.Supported().ParentChildRelationships,
-			"realizations":             preview.Supported().Realizations,
+			"capabilities":                    config.Preview.Supported().Capabilities,
+			"components":                      config.Preview.Supported().Components,
+			"valueStreams":                    config.Preview.Supported().ValueStreams,
+			"parentChildRelationships":        config.Preview.Supported().ParentChildRelationships,
+			"realizations":                    config.Preview.Supported().Realizations,
+			"componentRelationships":          config.Preview.Supported().ComponentRelationships,
+			"capabilityToValueStreamMappings": config.Preview.Supported().CapabilityToValueStreamMappings,
 		},
 		"unsupported": map[string]interface{}{
-			"elements":      preview.Unsupported().Elements,
-			"relationships": preview.Unsupported().Relationships,
+			"elements":      config.Preview.Unsupported().Elements,
+			"relationships": config.Preview.Unsupported().Relationships,
 		},
 	}
 
 	parsedDataMap := map[string]interface{}{
-		"capabilities":  serializeElements(parsedData.Capabilities),
-		"components":    serializeElements(parsedData.Components),
-		"relationships": serializeRelationships(parsedData.Relationships),
+		"capabilities":  serializeElements(config.ParsedData.Capabilities),
+		"components":    serializeElements(config.ParsedData.Components),
+		"valueStreams":  serializeElements(config.ParsedData.ValueStreams),
+		"relationships": serializeRelationships(config.ParsedData.Relationships),
 	}
 
 	event := events.NewImportSessionCreated(
 		session.id.Value(),
-		sourceFormat.Value(),
-		businessDomainID,
-		capabilityEAOwner,
+		config.SourceFormat.Value(),
+		config.BusinessDomainID,
+		config.CapabilityEAOwner,
 		previewMap,
 		parsedDataMap,
 	)
@@ -205,7 +214,9 @@ func (s *ImportSession) Complete(result ImportResult) error {
 		s.id.Value(),
 		result.CapabilitiesCreated,
 		result.ComponentsCreated,
+		result.ValueStreamsCreated,
 		result.RealizationsCreated,
+		result.CapabilityMappings,
 		result.DomainAssignments,
 		errorMaps,
 	)
@@ -271,7 +282,9 @@ func (s *ImportSession) apply(event domain.DomainEvent) {
 		s.result = ImportResult{
 			CapabilitiesCreated: e.CapabilitiesCreated,
 			ComponentsCreated:   e.ComponentsCreated,
+			ValueStreamsCreated: e.ValueStreamsCreated,
 			RealizationsCreated: e.RealizationsCreated,
+			CapabilityMappings:  e.CapabilityMappings,
 			DomainAssignments:   e.DomainAssignments,
 			Errors:              deserializeErrors(e.Errors),
 		}
@@ -354,10 +367,13 @@ func deserializeSupportedCounts(data map[string]interface{}) valueobjects.Suppor
 		return valueobjects.SupportedCounts{}
 	}
 	return valueobjects.SupportedCounts{
-		Capabilities:             getInt(s, "capabilities"),
-		Components:               getInt(s, "components"),
-		ParentChildRelationships: getInt(s, "parentChildRelationships"),
-		Realizations:             getInt(s, "realizations"),
+		Capabilities:                    getInt(s, "capabilities"),
+		Components:                      getInt(s, "components"),
+		ValueStreams:                    getInt(s, "valueStreams"),
+		ParentChildRelationships:        getInt(s, "parentChildRelationships"),
+		Realizations:                    getInt(s, "realizations"),
+		ComponentRelationships:          getInt(s, "componentRelationships"),
+		CapabilityToValueStreamMappings: getInt(s, "capabilityToValueStreamMappings"),
 	}
 }
 
@@ -444,8 +460,22 @@ func deserializeParsedData(data map[string]interface{}) ParsedData {
 	return ParsedData{
 		Capabilities:  deserializeCapabilities(data),
 		Components:    deserializeComponents(data),
+		ValueStreams:  deserializeValueStreams(data),
 		Relationships: deserializeRelationships(data),
 	}
+}
+
+func deserializeValueStreams(data map[string]interface{}) []ParsedElement {
+	maps := toMapSlice(data["valueStreams"])
+	result := make([]ParsedElement, 0, len(maps))
+	for _, m := range maps {
+		result = append(result, ParsedElement{
+			SourceID:    getString(m, "sourceId"),
+			Name:        getString(m, "name"),
+			Description: getString(m, "description"),
+		})
+	}
+	return result
 }
 
 func deserializeErrors(errors []map[string]interface{}) []valueobjects.ImportError {
