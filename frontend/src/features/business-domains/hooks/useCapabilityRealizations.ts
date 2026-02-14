@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../api/client';
 import { businessDomainsQueryKeys } from '../queryKeys';
-import type { BusinessDomainId, CapabilityId, CapabilityLevel, CapabilityRealization } from '../../../api/types';
+import type { BusinessDomainId, CapabilityId, CapabilityLevel, CapabilityRealization, CapabilityRealizationsGroup } from '../../../api/types';
 
 export interface UseCapabilityRealizationsResult {
   realizations: CapabilityRealization[];
@@ -69,9 +69,19 @@ export function filterVisibleRealizations(
   return [...directRealizations, ...inheritedByKey.values()];
 }
 
-interface RealizationsData {
+function flattenGroups(groups: CapabilityRealizationsGroup[]): {
   realizations: CapabilityRealization[];
   capabilityLevels: Map<CapabilityId, number>;
+} {
+  const capabilityLevels = new Map<CapabilityId, number>();
+  const realizations: CapabilityRealization[] = [];
+
+  for (const group of groups) {
+    capabilityLevels.set(group.capabilityId, getLevelNumber(group.level));
+    realizations.push(...group.realizations);
+  }
+
+  return { realizations, capabilityLevels };
 }
 
 export function useCapabilityRealizations(
@@ -80,22 +90,16 @@ export function useCapabilityRealizations(
   depth: number,
   visibleCapabilityIds?: Set<CapabilityId> | CapabilityId[]
 ): UseCapabilityRealizationsResult {
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data: groups, isLoading, error, refetch } = useQuery({
     queryKey: businessDomainsQueryKeys.realizations(domainId ?? '', depth),
-    queryFn: async (): Promise<RealizationsData> => {
-      const groups = await apiClient.getCapabilityRealizationsByDomain(domainId!, depth);
-      const levelMap = new Map<CapabilityId, number>();
-      const realizations: CapabilityRealization[] = [];
-
-      for (const group of groups) {
-        levelMap.set(group.capabilityId, getLevelNumber(group.level));
-        realizations.push(...group.realizations);
-      }
-
-      return { realizations, capabilityLevels: levelMap };
-    },
+    queryFn: () => apiClient.getCapabilityRealizationsByDomain(domainId!, depth),
     enabled: enabled && !!domainId,
   });
+
+  const { realizations, capabilityLevels } = useMemo(
+    () => flattenGroups(groups ?? []),
+    [groups]
+  );
 
   const visibleIds = useMemo(() => {
     if (!visibleCapabilityIds) return undefined;
@@ -105,12 +109,8 @@ export function useCapabilityRealizations(
   }, [visibleCapabilityIds]);
 
   const filteredRealizations = useMemo(
-    () => filterVisibleRealizations(
-      data?.realizations ?? [],
-      data?.capabilityLevels ?? new Map(),
-      visibleIds
-    ),
-    [data, visibleIds]
+    () => filterVisibleRealizations(realizations, capabilityLevels, visibleIds),
+    [realizations, capabilityLevels, visibleIds]
   );
 
   const getRealizationsForCapability = useCallback(

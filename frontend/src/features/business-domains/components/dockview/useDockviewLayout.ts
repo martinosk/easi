@@ -181,13 +181,15 @@ export function useDockviewLayout(hookData: BusinessDomainsHookReturn) {
   const userRole = useUserStore((state) => state.user?.role);
   const showExplorer = userRole !== 'stakeholder';
   const dockviewApiRef = useRef<DockviewApi | null>(null);
+  const hookDataRef = useRef(hookData);
+  hookDataRef.current = hookData;
   const [panelVisibility, setPanelVisibility] = useState({ domains: true, explorer: showExplorer, details: true });
   const panelSizesRef = useRef<PanelSizes>({ domains: 320, explorer: 320, details: 300 });
   const explorerSyncDeps: ExplorerSyncDeps = { dockviewApiRef, panelSizesRef, setPanelVisibility };
 
   const onReady = useCallback((event: DockviewReadyEvent) => {
     dockviewApiRef.current = event.api;
-    initializePanels(event.api, hookData, showExplorer);
+    initializePanels(event.api, hookDataRef.current, showExplorer);
   }, [showExplorer]);
 
   useSyncPanelParams(dockviewApiRef, hookData, showExplorer);
@@ -205,12 +207,12 @@ export function useDockviewLayout(hookData: BusinessDomainsHookReturn) {
       api.removePanel(panel);
       setPanelVisibility(prev => ({ ...prev, [panelId]: false }));
     } else {
-      addSidePanel(api, panelId, hookData);
+      addSidePanel(api, panelId, hookDataRef.current);
       setPanelVisibility(prev => ({ ...prev, [panelId]: true }));
     }
 
     restoreAllSizes(api, panelSizesRef.current);
-  }, [hookData, showExplorer]);
+  }, [showExplorer]);
 
   return {
     onReady,

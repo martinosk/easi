@@ -102,22 +102,11 @@ func (ctx *businessDomainTestContext) createTestDomain(t *testing.T, id, name, d
 }
 
 func (ctx *businessDomainTestContext) createTestDomainWithEvents(t *testing.T, id, name, description string) {
-	ctx.setTenantContext(t)
-	_, err := ctx.db.Exec(
-		"INSERT INTO business_domains (id, name, description, capability_count, tenant_id, created_at) VALUES ($1, $2, $3, 0, $4, NOW())",
-		id, name, description, testTenantID(),
-	)
-	require.NoError(t, err)
+	ctx.createTestDomain(t, id, name, description)
 
 	eventData := fmt.Sprintf(`{"id":"%s","name":"%s","description":"%s","createdAt":"%s"}`,
 		id, name, description, time.Now().Format(time.RFC3339Nano))
-	_, err = ctx.db.Exec(
-		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7)",
-		testTenantID(), id, "BusinessDomainCreated", eventData, 1, "test-user-id", "test@example.com",
-	)
-	require.NoError(t, err)
-
-	ctx.trackDomainID(id)
+	ctx.insertTestEvent(t, id, "BusinessDomainCreated", eventData)
 }
 
 func (ctx *businessDomainTestContext) createTestCapability(t *testing.T, id, name, level string) {
@@ -131,22 +120,20 @@ func (ctx *businessDomainTestContext) createTestCapability(t *testing.T, id, nam
 }
 
 func (ctx *businessDomainTestContext) createTestCapabilityWithEvents(t *testing.T, id, name, level string) {
-	ctx.setTenantContext(t)
-	_, err := ctx.db.Exec(
-		"INSERT INTO capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
-		id, name, "", level, testTenantID(), "Genesis", "Active",
-	)
-	require.NoError(t, err)
+	ctx.createTestCapability(t, id, name, level)
 
 	eventData := fmt.Sprintf(`{"id":"%s","name":"%s","description":"","level":"%s","createdAt":"%s"}`,
 		id, name, level, time.Now().Format(time.RFC3339Nano))
-	_, err = ctx.db.Exec(
+	ctx.insertTestEvent(t, id, "CapabilityCreated", eventData)
+}
+
+func (ctx *businessDomainTestContext) insertTestEvent(t *testing.T, aggregateID, eventType, eventData string) {
+	t.Helper()
+	_, err := ctx.db.Exec(
 		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7)",
-		testTenantID(), id, "CapabilityCreated", eventData, 1, "test-user-id", "test@example.com",
+		testTenantID(), aggregateID, eventType, eventData, 1, "test-user-id", "test@example.com",
 	)
 	require.NoError(t, err)
-
-	ctx.trackCapabilityID(id)
 }
 
 type testCapabilityWithParentData struct {
@@ -257,6 +244,7 @@ func setupBusinessDomainHandlers(db *sql.DB) *BusinessDomainHandlers {
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	commandBus := cqrs.NewInMemoryCommandBus()
 	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewCapabilityMappingLinks(hateoas)
 
 	eventBus := events.NewInMemoryEventBus()
 	eventStore.SetEventBus(eventBus)
@@ -298,7 +286,7 @@ func setupBusinessDomainHandlers(db *sql.DB) *BusinessDomainHandlers {
 		Realization: realizationRM,
 	}
 
-	return NewBusinessDomainHandlers(commandBus, readModels, hateoas)
+	return NewBusinessDomainHandlers(commandBus, readModels, links)
 }
 
 func TestCreateBusinessDomain_Integration(t *testing.T) {

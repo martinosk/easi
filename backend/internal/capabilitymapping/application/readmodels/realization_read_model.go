@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"time"
 
+	"strings"
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
@@ -27,6 +28,41 @@ type RealizationDTO struct {
 	Links                types.Links `json:"_links,omitempty"`
 }
 
+func (rm *RealizationReadModel) GetInheritedCapabilityIDsBySourceRealizationID(ctx context.Context, sourceRealizationID string) ([]string, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := []string{}
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx,
+			"SELECT capability_id FROM capability_realizations WHERE tenant_id = $1 AND origin = 'Inherited' AND source_realization_id = $2",
+			tenantID.Value(), sourceRealizationID,
+		)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var capabilityID string
+			if err := rows.Scan(&capabilityID); err != nil {
+				return err
+			}
+			if strings.TrimSpace(capabilityID) == "" {
+				continue
+			}
+			ids = append(ids, capabilityID)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return ids, nil
+}
 type RealizationReadModel struct {
 	db *database.TenantAwareDB
 }
@@ -39,7 +75,13 @@ func (rm *RealizationReadModel) Insert(ctx context.Context, dto RealizationDTO) 
 	return rm.insertRealization(ctx, dto, "INSERT INTO capability_realizations (id, tenant_id, capability_id, component_id, realization_level, notes, origin, source_realization_id, source_capability_id, linked_at, component_name, source_capability_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)", true)
 }
 
-func (rm *RealizationReadModel) Update(ctx context.Context, id, realizationLevel, notes string) error {
+type RealizationUpdate struct {
+	ID               string
+	RealizationLevel string
+	Notes            string
+}
+
+func (rm *RealizationReadModel) Update(ctx context.Context, update RealizationUpdate) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -47,7 +89,7 @@ func (rm *RealizationReadModel) Update(ctx context.Context, id, realizationLevel
 
 	_, err = rm.db.ExecContext(ctx,
 		"UPDATE capability_realizations SET realization_level = $1, notes = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
-		realizationLevel, notes, tenantID.Value(), id,
+		update.RealizationLevel, update.Notes, tenantID.Value(), update.ID,
 	)
 	return err
 }
@@ -128,38 +170,27 @@ func (rm *RealizationReadModel) GetByID(ctx context.Context, id string) (*Realiz
 		return nil, err
 	}
 
-	var dto RealizationDTO
-	var sourceRealizationID, sourceCapabilityID, componentName, sourceCapabilityName sql.NullString
-	var notFound bool
+	var result *RealizationDTO
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		query := `SELECT ` + realizationSelectColumns + ` FROM capability_realizations WHERE tenant_id = $1 AND id = $2`
-		err := tx.QueryRowContext(ctx, query, tenantID.Value(), id).Scan(
-			&dto.ID, &dto.CapabilityID, &dto.ComponentID, &dto.RealizationLevel, &dto.Notes, &dto.Origin,
-			&sourceRealizationID, &sourceCapabilityID, &dto.LinkedAt,
-			&componentName, &sourceCapabilityName,
-		)
-
-		if err == sql.ErrNoRows {
-			notFound = true
-			return nil
+		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), id)
+		if err != nil {
+			return err
 		}
-		return err
+		defer rows.Close()
+
+		if rows.Next() {
+			dto, err := rm.scanRealizationRow(rows)
+			if err != nil {
+				return err
+			}
+			result = &dto
+		}
+		return rows.Err()
 	})
 
-	if err != nil {
-		return nil, err
-	}
-	if notFound {
-		return nil, nil
-	}
-
-	dto.SourceRealizationID = sourceRealizationID.String
-	dto.SourceCapabilityID = sourceCapabilityID.String
-	dto.ComponentName = componentName.String
-	dto.SourceCapabilityName = sourceCapabilityName.String
-
-	return &dto, nil
+	return result, err
 }
 
 func (rm *RealizationReadModel) DeleteBySourceRealizationID(ctx context.Context, sourceRealizationID string) error {
@@ -182,8 +213,13 @@ func (rm *RealizationReadModel) DeleteByComponentID(ctx context.Context, compone
 	return err
 }
 
-func (rm *RealizationReadModel) DeleteInheritedBySourceRealizationIDAndCapabilities(ctx context.Context, sourceRealizationID string, capabilityIDs []string) error {
-	if len(capabilityIDs) == 0 {
+type InheritedRealizationDeletion struct {
+	SourceRealizationID string
+	CapabilityIDs       []string
+}
+
+func (rm *RealizationReadModel) DeleteInheritedBySourceRealizationIDAndCapabilities(ctx context.Context, deletion InheritedRealizationDeletion) error {
+	if len(deletion.CapabilityIDs) == 0 {
 		return nil
 	}
 
@@ -194,7 +230,7 @@ func (rm *RealizationReadModel) DeleteInheritedBySourceRealizationIDAndCapabilit
 
 	_, err = rm.db.ExecContext(ctx,
 		"DELETE FROM capability_realizations WHERE tenant_id = $1 AND origin = 'Inherited' AND source_realization_id = $2 AND capability_id = ANY($3)",
-		tenantID.Value(), sourceRealizationID, pq.Array(capabilityIDs),
+		tenantID.Value(), deletion.SourceRealizationID, pq.Array(deletion.CapabilityIDs),
 	)
 	return err
 }
@@ -211,17 +247,17 @@ func (rm *RealizationReadModel) insertRealization(ctx context.Context, dto Reali
 		return err
 	}
 
-	args := rm.buildInsertArgs(tenantID.Value(), dto, includeID)
+	args := buildInsertArgs(tenantID.Value(), dto, includeID)
 	_, err = rm.db.ExecContext(ctx, query, args...)
 	return err
 }
 
-func (rm *RealizationReadModel) buildInsertArgs(tenantID string, dto RealizationDTO, includeID bool) []interface{} {
+func buildInsertArgs(tenantID string, dto RealizationDTO, includeID bool) []interface{} {
 	commonArgs := []interface{}{
 		tenantID, dto.CapabilityID, dto.ComponentID, dto.RealizationLevel,
-		dto.Notes, dto.Origin, rm.toNullableString(dto.SourceRealizationID),
-		rm.toNullableString(dto.SourceCapabilityID), dto.LinkedAt,
-		rm.toNullableString(dto.ComponentName), rm.toNullableString(dto.SourceCapabilityName),
+		dto.Notes, dto.Origin, toNullableString(dto.SourceRealizationID),
+		toNullableString(dto.SourceCapabilityID), dto.LinkedAt,
+		toNullableString(dto.ComponentName), toNullableString(dto.SourceCapabilityName),
 	}
 
 	if includeID {
@@ -230,14 +266,19 @@ func (rm *RealizationReadModel) buildInsertArgs(tenantID string, dto Realization
 	return commonArgs
 }
 
-func (rm *RealizationReadModel) toNullableString(s string) interface{} {
+func toNullableString(s string) interface{} {
 	if s == "" {
 		return nil
 	}
 	return s
 }
 
-func (rm *RealizationReadModel) UpdateComponentName(ctx context.Context, componentID, componentName string) error {
+type NameUpdate struct {
+	ID   string
+	Name string
+}
+
+func (rm *RealizationReadModel) UpdateComponentName(ctx context.Context, update NameUpdate) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -245,12 +286,12 @@ func (rm *RealizationReadModel) UpdateComponentName(ctx context.Context, compone
 
 	_, err = rm.db.ExecContext(ctx,
 		"UPDATE capability_realizations SET component_name = $1 WHERE tenant_id = $2 AND component_id = $3",
-		componentName, tenantID.Value(), componentID,
+		update.Name, tenantID.Value(), update.ID,
 	)
 	return err
 }
 
-func (rm *RealizationReadModel) UpdateSourceCapabilityName(ctx context.Context, capabilityID, capabilityName string) error {
+func (rm *RealizationReadModel) UpdateSourceCapabilityName(ctx context.Context, update NameUpdate) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -264,7 +305,7 @@ func (rm *RealizationReadModel) UpdateSourceCapabilityName(ctx context.Context, 
 		   AND cr.source_realization_id = source_r.id
 		   AND source_r.tenant_id = cr.tenant_id
 		   AND source_r.capability_id = $3`,
-		capabilityName, tenantID.Value(), capabilityID,
+		update.Name, tenantID.Value(), update.ID,
 	)
 	return err
 }

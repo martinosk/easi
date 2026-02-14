@@ -44,6 +44,7 @@ func (p *DomainCapabilityMetadataProjector) ProjectEvent(ctx context.Context, ev
 		cmPL.CapabilityUpdated:              p.handleCapabilityUpdated,
 		cmPL.CapabilityDeleted:              p.handleCapabilityDeleted,
 		cmPL.CapabilityParentChanged:        p.handleCapabilityParentChanged,
+		cmPL.CapabilityLevelChanged:         p.handleCapabilityLevelChanged,
 		cmPL.CapabilityAssignedToDomain:     p.handleCapabilityAssignedToDomain,
 		cmPL.CapabilityUnassignedFromDomain: p.handleCapabilityUnassignedFromDomain,
 	}
@@ -191,6 +192,21 @@ func (p *DomainCapabilityMetadataProjector) handleCapabilityParentChanged(ctx co
 	}
 
 	return p.recalculateSubtreeAndDomainCounts(ctx, event.CapabilityID)
+}
+
+type capabilityLevelChangedEvent struct {
+	CapabilityID string `json:"capabilityId"`
+	NewLevel     string `json:"newLevel"`
+}
+
+func (p *DomainCapabilityMetadataProjector) handleCapabilityLevelChanged(ctx context.Context, eventData []byte) error {
+	var event capabilityLevelChangedEvent
+	if err := json.Unmarshal(eventData, &event); err != nil {
+		log.Printf("Failed to unmarshal CapabilityLevelChanged event: %v", err)
+		return err
+	}
+
+	return p.metadataReadModel.UpdateLevel(ctx, event.CapabilityID, event.NewLevel)
 }
 
 type capabilityAssignedToDomainEvent struct {

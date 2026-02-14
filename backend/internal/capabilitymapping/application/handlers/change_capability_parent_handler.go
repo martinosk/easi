@@ -3,10 +3,13 @@ package handlers
 import (
 	"context"
 	"errors"
+	"sort"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
+	"easi/backend/internal/capabilitymapping/domain/events"
+	"easi/backend/internal/capabilitymapping/domain/services"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
@@ -16,18 +19,38 @@ var (
 	ErrParentCapabilityNotFound = errors.New("parent capability not found")
 )
 
+type ChangeCapabilityParentRepository interface {
+	GetByID(ctx context.Context, id string) (*aggregates.Capability, error)
+	Save(ctx context.Context, capability *aggregates.Capability) error
+}
+
+type ChangeCapabilityParentReadModel interface {
+	GetChildren(ctx context.Context, parentID string) ([]readmodels.CapabilityDTO, error)
+	GetByID(ctx context.Context, id string) (*readmodels.CapabilityDTO, error)
+}
+
+type ChangeCapabilityParentRealizationReadModel interface {
+	GetByCapabilityID(ctx context.Context, capabilityID string) ([]readmodels.RealizationDTO, error)
+}
+
 type ChangeCapabilityParentHandler struct {
-	repository *repositories.CapabilityRepository
-	readModel  *readmodels.CapabilityReadModel
+	repository        ChangeCapabilityParentRepository
+	capabilityReadModel ChangeCapabilityParentReadModel
+	realizationReadModel ChangeCapabilityParentRealizationReadModel
+	reparentingService services.CapabilityReparentingService
 }
 
 func NewChangeCapabilityParentHandler(
-	repository *repositories.CapabilityRepository,
-	readModel *readmodels.CapabilityReadModel,
+	repository ChangeCapabilityParentRepository,
+	capabilityReadModel ChangeCapabilityParentReadModel,
+	realizationReadModel ChangeCapabilityParentRealizationReadModel,
+	reparentingService services.CapabilityReparentingService,
 ) *ChangeCapabilityParentHandler {
 	return &ChangeCapabilityParentHandler{
-		repository: repository,
-		readModel:  readModel,
+		repository:           repository,
+		capabilityReadModel:  capabilityReadModel,
+		realizationReadModel: realizationReadModel,
+		reparentingService:   reparentingService,
 	}
 }
 
@@ -47,15 +70,7 @@ func (h *ChangeCapabilityParentHandler) Handle(ctx context.Context, cmd cqrs.Com
 		return cqrs.EmptyResult(), err
 	}
 
-	if err := h.validateDepthConstraints(ctx, command.CapabilityID, newLevel); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := capability.ChangeParent(newParentID, newLevel); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := h.repository.Save(ctx, capability); err != nil {
+	if err := h.applyParentChange(ctx, capability, newParentID, newLevel); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
@@ -66,9 +81,41 @@ func (h *ChangeCapabilityParentHandler) Handle(ctx context.Context, cmd cqrs.Com
 	return cqrs.EmptyResult(), nil
 }
 
+func (h *ChangeCapabilityParentHandler) applyParentChange(ctx context.Context, capability *aggregates.Capability, newParentID valueobjects.CapabilityID, newLevel valueobjects.CapabilityLevel) error {
+	oldParentID := capability.ParentID().Value()
+
+	additions, removals, err := h.buildInheritanceChanges(ctx, capability.ID(), oldParentID, newParentID.Value())
+	if err != nil {
+		return err
+	}
+
+	if err := capability.ChangeParent(newParentID, newLevel); err != nil {
+		return err
+	}
+
+	raiseInheritanceEvents(capability, additions, removals)
+
+	return h.repository.Save(ctx, capability)
+}
+
+func raiseInheritanceEvents(capability *aggregates.Capability, additions []events.InheritedRealization, removals []events.RealizationInheritanceRemoval) {
+	if len(additions) > 0 {
+		capability.RaiseEvent(events.NewCapabilityRealizationsInherited(capability.ID(), additions))
+	}
+	if len(removals) > 0 {
+		capability.RaiseEvent(events.NewCapabilityRealizationsUninherited(capability.ID(), removals))
+	}
+}
+
 func (h *ChangeCapabilityParentHandler) determineNewParentAndLevel(ctx context.Context, command *commands.ChangeCapabilityParent) (valueobjects.CapabilityID, valueobjects.CapabilityLevel, error) {
+	capabilityID, err := valueobjects.NewCapabilityIDFromString(command.CapabilityID)
+	if err != nil {
+		return valueobjects.CapabilityID{}, "", err
+	}
+
 	if command.NewParentID == "" {
-		return valueobjects.CapabilityID{}, valueobjects.LevelL1, nil
+		level, err := h.reparentingService.DetermineNewLevel(ctx, capabilityID, valueobjects.CapabilityID{}, valueobjects.LevelL1)
+		return valueobjects.CapabilityID{}, level, err
 	}
 
 	newParentID, err := valueobjects.NewCapabilityIDFromString(command.NewParentID)
@@ -84,11 +131,7 @@ func (h *ChangeCapabilityParentHandler) determineNewParentAndLevel(ctx context.C
 		return valueobjects.CapabilityID{}, "", err
 	}
 
-	if err := h.detectCircularReference(ctx, command.CapabilityID, command.NewParentID); err != nil {
-		return valueobjects.CapabilityID{}, "", err
-	}
-
-	newLevel, err := h.calculateChildLevel(parent.Level())
+	newLevel, err := h.reparentingService.DetermineNewLevel(ctx, capabilityID, newParentID, parent.Level())
 	if err != nil {
 		return valueobjects.CapabilityID{}, "", err
 	}
@@ -96,122 +139,166 @@ func (h *ChangeCapabilityParentHandler) determineNewParentAndLevel(ctx context.C
 	return newParentID, newLevel, nil
 }
 
-func (h *ChangeCapabilityParentHandler) validateDepthConstraints(ctx context.Context, capabilityID string, newLevel valueobjects.CapabilityLevel) error {
-	subtreeDepth, err := h.calculateSubtreeDepth(ctx, capabilityID)
+func (h *ChangeCapabilityParentHandler) buildInheritanceChanges(ctx context.Context, capabilityID, oldParentID, newParentID string) ([]events.InheritedRealization, []events.RealizationInheritanceRemoval, error) {
+	if oldParentID == newParentID {
+		return nil, nil, nil
+	}
+
+	realizations, err := h.realizationReadModel.GetByCapabilityID(ctx, capabilityID)
 	if err != nil {
-		return err
+		return nil, nil, err
+	}
+	if len(realizations) == 0 {
+		return nil, nil, nil
 	}
 
-	if newLevel.NumericValue()+subtreeDepth > 4 {
-		return aggregates.ErrWouldExceedMaximumDepth
-	}
-
-	return nil
-}
-
-func (h *ChangeCapabilityParentHandler) detectCircularReference(ctx context.Context, capabilityID, newParentID string) error {
-	currentID := newParentID
-	visited := make(map[string]bool)
-
-	for currentID != "" {
-		if currentID == capabilityID {
-			return aggregates.ErrWouldCreateCircularReference
-		}
-
-		if visited[currentID] {
-			break
-		}
-		visited[currentID] = true
-
-		nextParentID, err := h.getParentIDOrBreak(ctx, currentID)
-		if err != nil {
-			return err
-		}
-
-		currentID = nextParentID
-	}
-
-	return nil
-}
-
-func (h *ChangeCapabilityParentHandler) getParentIDOrBreak(ctx context.Context, capabilityID string) (string, error) {
-	parent, err := h.repository.GetByID(ctx, capabilityID)
+	capability, err := h.capabilityReadModel.GetByID(ctx, capabilityID)
 	if err != nil {
-		if errors.Is(err, repositories.ErrCapabilityNotFound) {
-			return "", nil
-		}
-		return "", err
+		return nil, nil, err
 	}
-	return parent.ParentID().Value(), nil
-}
-
-func (h *ChangeCapabilityParentHandler) calculateChildLevel(parentLevel valueobjects.CapabilityLevel) (valueobjects.CapabilityLevel, error) {
-	switch parentLevel {
-	case valueobjects.LevelL1:
-		return valueobjects.LevelL2, nil
-	case valueobjects.LevelL2:
-		return valueobjects.LevelL3, nil
-	case valueobjects.LevelL3:
-		return valueobjects.LevelL4, nil
-	default:
-		return "", aggregates.ErrWouldExceedMaximumDepth
+	if capability == nil {
+		return nil, nil, nil
 	}
-}
 
-func (h *ChangeCapabilityParentHandler) calculateSubtreeDepth(ctx context.Context, capabilityID string) (int, error) {
-	children, err := h.readModel.GetChildren(ctx, capabilityID)
+	additions, err := h.buildInheritanceAdditions(ctx, newParentID, capability, realizations)
 	if err != nil {
-		return 0, err
+		return nil, nil, err
 	}
 
-	if len(children) == 0 {
-		return 0, nil
+	removals, err := h.buildInheritanceRemovals(ctx, oldParentID, realizations)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	maxChildDepth := 0
-	for _, child := range children {
-		childDepth, err := h.calculateSubtreeDepth(ctx, child.ID)
-		if err != nil {
-			return 0, err
+	return additions, removals, nil
+}
+
+func (h *ChangeCapabilityParentHandler) buildInheritanceAdditions(ctx context.Context, newParentID string, capability *readmodels.CapabilityDTO, realizations []readmodels.RealizationDTO) ([]events.InheritedRealization, error) {
+	if newParentID == "" {
+		return nil, nil
+	}
+
+	ancestorIDs, err := h.collectAncestorIDs(ctx, newParentID)
+	if err != nil {
+		return nil, err
+	}
+	if len(ancestorIDs) == 0 {
+		return nil, nil
+	}
+
+	additions := make([]events.InheritedRealization, 0, len(ancestorIDs)*len(realizations))
+	for _, realization := range realizations {
+		sourceID, sourceCapabilityID, sourceCapabilityName := buildInheritanceSource(realization, capability)
+		for _, ancestorID := range ancestorIDs {
+			additions = append(additions, events.InheritedRealization{
+				CapabilityID:         ancestorID,
+				ComponentID:          realization.ComponentID,
+				ComponentName:        realization.ComponentName,
+				RealizationLevel:     "Full",
+				Notes:                "",
+				Origin:               "Inherited",
+				SourceRealizationID:  sourceID,
+				SourceCapabilityID:   sourceCapabilityID,
+				SourceCapabilityName: sourceCapabilityName,
+				LinkedAt:             realization.LinkedAt,
+			})
 		}
-		if childDepth > maxChildDepth {
-			maxChildDepth = childDepth
-		}
 	}
 
-	return 1 + maxChildDepth, nil
+	return additions, nil
+}
+
+func (h *ChangeCapabilityParentHandler) buildInheritanceRemovals(ctx context.Context, oldParentID string, realizations []readmodels.RealizationDTO) ([]events.RealizationInheritanceRemoval, error) {
+	if oldParentID == "" {
+		return nil, nil
+	}
+
+	ancestorIDs, err := h.collectAncestorIDs(ctx, oldParentID)
+	if err != nil {
+		return nil, err
+	}
+	if len(ancestorIDs) == 0 {
+		return nil, nil
+	}
+
+	sourceIDs := make(map[string]struct{})
+	for _, realization := range realizations {
+		sourceID := resolveSourceRealizationID(realization)
+		if sourceID == "" {
+			continue
+		}
+		sourceIDs[sourceID] = struct{}{}
+	}
+
+	keys := make([]string, 0, len(sourceIDs))
+	for sourceID := range sourceIDs {
+		keys = append(keys, sourceID)
+	}
+	sort.Strings(keys)
+
+	removals := make([]events.RealizationInheritanceRemoval, 0, len(keys))
+	for _, sourceID := range keys {
+		removals = append(removals, events.RealizationInheritanceRemoval{
+			SourceRealizationID: sourceID,
+			CapabilityIDs:       ancestorIDs,
+		})
+	}
+
+	return removals, nil
+}
+
+func (h *ChangeCapabilityParentHandler) collectAncestorIDs(ctx context.Context, startID string) ([]string, error) {
+	return CollectAncestorIDs(ctx, h.capabilityReadModel, startID)
+}
+
+func resolveSourceRealizationID(realization readmodels.RealizationDTO) string {
+	if realization.Origin == "Inherited" && realization.SourceRealizationID != "" {
+		return realization.SourceRealizationID
+	}
+	return realization.ID
+}
+
+func buildInheritanceSource(realization readmodels.RealizationDTO, capability *readmodels.CapabilityDTO) (string, string, string) {
+	if realization.Origin == "Inherited" && realization.SourceRealizationID != "" {
+		return realization.SourceRealizationID, realization.SourceCapabilityID, realization.SourceCapabilityName
+	}
+
+	return realization.ID, capability.ID, capability.Name
 }
 
 func (h *ChangeCapabilityParentHandler) updateDescendantLevels(ctx context.Context, parentID string, parentLevel valueobjects.CapabilityLevel) error {
-	children, err := h.readModel.GetChildren(ctx, parentID)
+	children, err := h.capabilityReadModel.GetChildren(ctx, parentID)
 	if err != nil {
 		return err
 	}
 
-	childLevel, err := h.calculateChildLevel(parentLevel)
+	childLevel, err := h.reparentingService.CalculateChildLevel(parentLevel)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	for _, child := range children {
-		childCapability, err := h.repository.GetByID(ctx, child.ID)
-		if err != nil {
-			return err
-		}
-
-		childParentID, _ := valueobjects.NewCapabilityIDFromString(parentID)
-		if err := childCapability.ChangeParent(childParentID, childLevel); err != nil {
-			return err
-		}
-
-		if err := h.repository.Save(ctx, childCapability); err != nil {
-			return err
-		}
-
-		if err := h.updateDescendantLevels(ctx, child.ID, childLevel); err != nil {
+		if err := h.updateChildLevel(ctx, child.ID, childLevel); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func (h *ChangeCapabilityParentHandler) updateChildLevel(ctx context.Context, childID string, childLevel valueobjects.CapabilityLevel) error {
+	childCapability, err := h.repository.GetByID(ctx, childID)
+	if err != nil {
+		return err
+	}
+
+	if err := childCapability.ChangeLevel(childLevel); err != nil {
+		return err
+	}
+
+	if err := h.repository.Save(ctx, childCapability); err != nil {
+		return err
+	}
+
+	return h.updateDescendantLevels(ctx, childID, childLevel)
 }

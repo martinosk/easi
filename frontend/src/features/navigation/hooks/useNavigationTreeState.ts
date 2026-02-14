@@ -41,7 +41,7 @@ export function useNavigationTreeState() {
       }
       return next;
     });
-  }, []);
+  }, [setExpandedCapabilities]);
 
   return {
     isOpen,

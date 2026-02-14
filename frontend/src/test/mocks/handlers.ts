@@ -19,6 +19,37 @@ import { toComponentId, toCapabilityId, toViewId } from '../../api/types';
 
 const BASE_URL = 'http://localhost:8080';
 
+const inheritanceAuditMockEntries = [
+  {
+    eventId: 1001,
+    aggregateId: 'cap-child',
+    eventType: 'CapabilityRealizationsInherited',
+    displayName: 'Capability Realizations Inherited',
+    eventData: {
+      capabilityId: 'cap-child',
+      inheritedRealizations: [],
+    },
+    occurredAt: '2026-02-13T09:00:00Z',
+    version: 1,
+    actorId: 'user-1',
+    actorEmail: 'architect@example.com',
+  },
+  {
+    eventId: 1002,
+    aggregateId: 'cap-child',
+    eventType: 'CapabilityRealizationsUninherited',
+    displayName: 'Capability Realizations Uninherited',
+    eventData: {
+      capabilityId: 'cap-child',
+      removals: [],
+    },
+    occurredAt: '2026-02-13T09:01:00Z',
+    version: 2,
+    actorId: 'user-1',
+    actorEmail: 'architect@example.com',
+  },
+];
+
 export const handlers = [
   http.get(`${BASE_URL}/api/v1/components`, () => {
     return HttpResponse.json({
@@ -273,9 +304,12 @@ export const handlers = [
     });
   }),
 
-  http.get(`${BASE_URL}/api/v1/audit/:id`, () => {
+  http.get(`${BASE_URL}/api/v1/audit/:id`, ({ request }) => {
+    const url = new URL(request.url);
+    const withInheritanceEvents = url.searchParams.get('withInheritanceEvents') === 'true';
+
     return HttpResponse.json({
-      entries: [],
+      entries: withInheritanceEvents ? inheritanceAuditMockEntries : [],
       _links: { self: '/api/v1/audit' },
     });
   }),

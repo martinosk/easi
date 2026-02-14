@@ -13,7 +13,7 @@ export interface FilterableArtifacts {
   internalTeams: InternalTeam[];
 }
 
-export interface FilteredArtifacts extends FilterableArtifacts {}
+export type FilteredArtifacts = FilterableArtifacts;
 
 function filterById<T extends { id: string }>(
   items: T[],

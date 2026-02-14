@@ -41,10 +41,12 @@ func NewStrategicAnalysisFixtures(tc *TestContext) *StrategicAnalysisFixtures {
 	importanceRepo := repositories.NewStrategyImportanceRepository(tc.EventStore)
 	fitScoreRepo := repositories.NewApplicationFitScoreRepository(tc.EventStore)
 
-	realizationProjector := projectors.NewRealizationProjector(realizationRM, capabilityRM, componentCacheRM)
+	realizationProjector := projectors.NewRealizationProjector(realizationRM, componentCacheRM)
 	tc.EventBus.Subscribe("SystemLinkedToCapability", realizationProjector)
 	tc.EventBus.Subscribe("SystemRealizationUpdated", realizationProjector)
 	tc.EventBus.Subscribe("SystemRealizationDeleted", realizationProjector)
+	tc.EventBus.Subscribe("CapabilityRealizationsInherited", realizationProjector)
+	tc.EventBus.Subscribe("CapabilityRealizationsUninherited", realizationProjector)
 
 	importanceProjector := projectors.NewStrategyImportanceProjector(importanceRM, domainRM, capabilityRM, pillarsGateway)
 	tc.EventBus.Subscribe("StrategyImportanceSet", importanceProjector)
@@ -76,7 +78,7 @@ func NewStrategicAnalysisFixtures(tc *TestContext) *StrategicAnalysisFixtures {
 	tc.EventBus.Subscribe("CapabilityAssignedToDomain", domainAssignmentEffectiveProjector)
 	tc.EventBus.Subscribe("CapabilityUnassignedFromDomain", domainAssignmentEffectiveProjector)
 
-	tc.CommandBus.Register("LinkSystemToCapability", capHandlers.NewLinkSystemToCapabilityHandler(realizationRepo, capabilityRepo, componentCacheRM))
+	tc.CommandBus.Register("LinkSystemToCapability", capHandlers.NewLinkSystemToCapabilityHandler(realizationRepo, capabilityRepo, capabilityRM, componentCacheRM))
 	tc.CommandBus.Register("UpdateSystemRealization", capHandlers.NewUpdateSystemRealizationHandler(realizationRepo))
 	tc.CommandBus.Register("DeleteSystemRealization", capHandlers.NewDeleteSystemRealizationHandler(realizationRepo))
 

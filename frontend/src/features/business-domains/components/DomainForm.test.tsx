@@ -10,6 +10,16 @@ vi.mock('../../users/hooks/useUsers', () => ({
 }));
 
 describe('DomainForm', () => {
+  type EAOwnerCandidatesResult = ReturnType<typeof useUsersModule.useEAOwnerCandidates>;
+
+  function createEAOwnerCandidatesResult(result: {
+    data: unknown[];
+    isLoading: boolean;
+    error: null;
+  }): EAOwnerCandidatesResult {
+    return result as EAOwnerCandidatesResult;
+  }
+
   const mockUsers = [
     { id: 'user-1', name: 'Alice Smith', email: 'alice@example.com', role: 'architect' },
     { id: 'user-2', name: 'Bob Johnson', email: 'bob@example.com', role: 'admin' },
@@ -34,10 +44,12 @@ describe('DomainForm', () => {
     onSubmit = vi.fn<(name: string, description: string, domainArchitectId?: string) => Promise<void>>();
     onCancel = vi.fn<() => void>();
     vi.mocked(useUsersModule.useEAOwnerCandidates).mockReturnValue({
-      data: mockUsers,
-      isLoading: false,
-      error: null,
-    } as any);
+      ...createEAOwnerCandidatesResult({
+        data: mockUsers,
+        isLoading: false,
+        error: null,
+      }),
+    });
   });
 
   function renderCreateForm(submitOverride?: typeof onSubmit) {
@@ -66,11 +78,11 @@ describe('DomainForm', () => {
   }
 
   function mockLoadingUsers() {
-    vi.mocked(useUsersModule.useEAOwnerCandidates).mockReturnValue({
+    vi.mocked(useUsersModule.useEAOwnerCandidates).mockReturnValue(createEAOwnerCandidatesResult({
       data: [],
       isLoading: true,
       error: null,
-    } as any);
+    }));
   }
 
   describe('Create mode', () => {

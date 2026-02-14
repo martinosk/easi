@@ -165,7 +165,8 @@ func (c *Capability) apply(event domain.DomainEvent) {
 		c.applyTagAdded(e)
 	case events.CapabilityParentChanged:
 		c.applyParentChanged(e)
-	case events.CapabilityDeleted:
+	case events.CapabilityLevelChanged:
+		c.applyLevelChanged(e)
 	}
 }
 
@@ -225,6 +226,10 @@ func (c *Capability) applyParentChanged(e events.CapabilityParentChanged) {
 	} else {
 		c.parentID = valueobjects.CapabilityID{}
 	}
+	c.level, _ = valueobjects.NewCapabilityLevel(e.NewLevel)
+}
+
+func (c *Capability) applyLevelChanged(e events.CapabilityLevelChanged) {
 	c.level, _ = valueobjects.NewCapabilityLevel(e.NewLevel)
 }
 
@@ -289,6 +294,23 @@ func (c *Capability) ChangeParent(newParentID valueobjects.CapabilityID, newLeve
 		c.ID(),
 		c.parentID.Value(),
 		newParentID.Value(),
+		c.level.Value(),
+		newLevel.Value(),
+	)
+
+	c.apply(event)
+	c.RaiseEvent(event)
+
+	return nil
+}
+
+func (c *Capability) ChangeLevel(newLevel valueobjects.CapabilityLevel) error {
+	if newLevel.NumericValue() > 4 {
+		return ErrWouldExceedMaximumDepth
+	}
+
+	event := events.NewCapabilityLevelChanged(
+		c.ID(),
 		c.level.Value(),
 		newLevel.Value(),
 	)

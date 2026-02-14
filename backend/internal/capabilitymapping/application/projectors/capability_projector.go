@@ -40,6 +40,7 @@ func (p *CapabilityProjector) ProjectEvent(ctx context.Context, eventType string
 		"CapabilityExpertRemoved":   p.handleCapabilityExpertRemoved,
 		"CapabilityTagAdded":        p.handleCapabilityTagAdded,
 		"CapabilityParentChanged":   p.handleCapabilityParentChanged,
+		"CapabilityLevelChanged":    p.handleCapabilityLevelChanged,
 		"CapabilityDeleted":         p.handleCapabilityDeleted,
 	}
 
@@ -169,6 +170,15 @@ func (p *CapabilityProjector) handleCapabilityParentChanged(ctx context.Context,
 		ParentID: event.NewParentID,
 		Level:    event.NewLevel,
 	})
+}
+
+func (p *CapabilityProjector) handleCapabilityLevelChanged(ctx context.Context, eventData []byte) error {
+	var event events.CapabilityLevelChanged
+	if err := json.Unmarshal(eventData, &event); err != nil {
+		log.Printf("Failed to unmarshal CapabilityLevelChanged event: %v", err)
+		return err
+	}
+	return p.readModel.UpdateLevel(ctx, event.CapabilityID, event.NewLevel)
 }
 
 func (p *CapabilityProjector) handleCapabilityDeleted(ctx context.Context, eventData []byte) error {

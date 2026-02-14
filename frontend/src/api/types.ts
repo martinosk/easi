@@ -701,10 +701,14 @@ export interface StrategicFitAnalysis {
   _links: HATEOASLinks;
 }
 
+export type InheritanceAuditEventType =
+  | 'CapabilityRealizationsInherited'
+  | 'CapabilityRealizationsUninherited';
+
 export interface AuditEntry {
   eventId: number;
   aggregateId: string;
-  eventType: string;
+  eventType: InheritanceAuditEventType | string;
   displayName: string;
   eventData: Record<string, unknown>;
   occurredAt: string;

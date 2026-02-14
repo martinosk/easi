@@ -166,7 +166,7 @@ func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pillarsGateway metamodel.StrategyPillarsGateway) {
 	capabilityProjector := projectors.NewCapabilityProjector(rm.capability, rm.domainAssignment)
 	dependencyProjector := projectors.NewDependencyProjector(rm.dependency)
-	realizationProjector := projectors.NewRealizationProjector(rm.realization, rm.capability, rm.componentCache)
+	realizationProjector := projectors.NewRealizationProjector(rm.realization, rm.componentCache)
 	businessDomainProjector := projectors.NewBusinessDomainProjector(rm.businessDomain)
 	domainAssignmentProjector := projectors.NewBusinessDomainAssignmentProjector(rm.domainAssignment, rm.businessDomain, rm.capability)
 	strategyImportanceProjector := projectors.NewStrategyImportanceProjector(rm.strategyImportance, rm.businessDomain, rm.capability, pillarsGateway)
@@ -199,7 +199,7 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pill
 
 func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.CapabilityProjector) {
 	events := []string{"CapabilityCreated", "CapabilityUpdated", "CapabilityMetadataUpdated",
-		"CapabilityExpertAdded", "CapabilityExpertRemoved", "CapabilityTagAdded", "CapabilityParentChanged", "CapabilityDeleted"}
+		"CapabilityExpertAdded", "CapabilityExpertRemoved", "CapabilityTagAdded", "CapabilityParentChanged", "CapabilityLevelChanged", "CapabilityDeleted"}
 	for _, event := range events {
 		eventBus.Subscribe(event, projector)
 	}
@@ -215,7 +215,8 @@ func subscribeRealizationEvents(eventBus events.EventBus, projector *projectors.
 		"SystemLinkedToCapability",
 		"SystemRealizationUpdated",
 		"SystemRealizationDeleted",
-		"CapabilityParentChanged",
+		"CapabilityRealizationsInherited",
+		"CapabilityRealizationsUninherited",
 		"CapabilityUpdated",
 		archPL.ApplicationComponentUpdated,
 		archPL.ApplicationComponentDeleted,
@@ -308,9 +309,9 @@ func setupCascadingDeleteHandlers(eventBus events.EventBus, commandBus *cqrs.InM
 }
 
 func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepositories, rm *routeReadModels, pillarsGateway metamodel.StrategyPillarsGateway) {
-	registerCapabilityCommands(commandBus, repos.capability, rm.capability)
+	registerCapabilityCommands(commandBus, repos.capability, rm.capability, rm.realization)
 	registerDependencyCommands(commandBus, repos.dependency, repos.capability)
-	registerRealizationCommands(commandBus, repos.realization, repos.capability, rm.componentCache)
+	registerRealizationCommands(commandBus, repos, rm)
 	registerBusinessDomainCommands(commandBus, repos.businessDomain, rm.businessDomain, rm.domainAssignment)
 	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(repos.domainAssignment, repos.capability, rm.businessDomain, rm.domainAssignment))
 	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(repos.domainAssignment))
@@ -328,9 +329,10 @@ func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepos
 	})
 }
 
-func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repositories.CapabilityRepository, rm *readmodels.CapabilityReadModel) {
-	childrenChecker := adapters.NewCapabilityChildrenCheckerAdapter(rm)
+func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repositories.CapabilityRepository, capabilityRM *readmodels.CapabilityReadModel, realizationRM *readmodels.RealizationReadModel) {
+	childrenChecker := adapters.NewCapabilityChildrenCheckerAdapter(capabilityRM)
 	deletionService := services.NewCapabilityDeletionService(childrenChecker)
+	reparentingService := services.NewCapabilityReparentingService(adapters.NewCapabilityLookupAdapter(capabilityRM))
 
 	commandBus.Register("CreateCapability", handlers.NewCreateCapabilityHandler(repo))
 	commandBus.Register("UpdateCapability", handlers.NewUpdateCapabilityHandler(repo))
@@ -338,7 +340,8 @@ func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repos
 	commandBus.Register("AddCapabilityExpert", handlers.NewAddCapabilityExpertHandler(repo))
 	commandBus.Register("RemoveCapabilityExpert", handlers.NewRemoveCapabilityExpertHandler(repo))
 	commandBus.Register("AddCapabilityTag", handlers.NewAddCapabilityTagHandler(repo))
-	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(repo, rm))
+	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(repo, capabilityRM, realizationRM, reparentingService))
+	commandBus.Register("RecomputeCapabilityInheritance", handlers.NewRecomputeCapabilityInheritanceHandler(repo, capabilityRM, realizationRM))
 	commandBus.Register("DeleteCapability", handlers.NewDeleteCapabilityHandler(repo, deletionService))
 }
 
@@ -347,10 +350,10 @@ func registerDependencyCommands(commandBus *cqrs.InMemoryCommandBus, depRepo *re
 	commandBus.Register("DeleteCapabilityDependency", handlers.NewDeleteCapabilityDependencyHandler(depRepo))
 }
 
-func registerRealizationCommands(commandBus *cqrs.InMemoryCommandBus, realRepo *repositories.RealizationRepository, capRepo *repositories.CapabilityRepository, componentCache *readmodels.ComponentCacheReadModel) {
-	commandBus.Register("LinkSystemToCapability", handlers.NewLinkSystemToCapabilityHandler(realRepo, capRepo, componentCache))
-	commandBus.Register("UpdateSystemRealization", handlers.NewUpdateSystemRealizationHandler(realRepo))
-	commandBus.Register("DeleteSystemRealization", handlers.NewDeleteSystemRealizationHandler(realRepo))
+func registerRealizationCommands(commandBus *cqrs.InMemoryCommandBus, repos *routeRepositories, rm *routeReadModels) {
+	commandBus.Register("LinkSystemToCapability", handlers.NewLinkSystemToCapabilityHandler(repos.realization, repos.capability, rm.capability, rm.componentCache))
+	commandBus.Register("UpdateSystemRealization", handlers.NewUpdateSystemRealizationHandler(repos.realization))
+	commandBus.Register("DeleteSystemRealization", handlers.NewDeleteSystemRealizationHandler(repos.realization))
 }
 
 func registerBusinessDomainCommands(commandBus *cqrs.InMemoryCommandBus, domainRepo *repositories.BusinessDomainRepository, domainRM *readmodels.BusinessDomainReadModel, assignmentRM *readmodels.DomainCapabilityAssignmentReadModel) {

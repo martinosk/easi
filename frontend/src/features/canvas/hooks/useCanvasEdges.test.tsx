@@ -3,7 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useCanvasEdges } from './useCanvasEdges';
 import type { Node } from '@xyflow/react';
-import type { OriginRelationship } from '../../../api/types';
+import { toComponentId, toOriginRelationshipId, type OriginRelationship } from '../../../api/types';
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -46,6 +46,16 @@ vi.mock('../../origin-entities/hooks/useOriginRelationships', () => ({
 }));
 
 describe('useCanvasEdges - Origin Entity Edge Bug', () => {
+  type OriginRelationshipsQueryResult = ReturnType<
+    (typeof import('../../origin-entities/hooks/useOriginRelationships'))['useOriginRelationshipsQuery']
+  >;
+
+  function createOriginRelationshipsResult(
+    data: OriginRelationship[]
+  ): OriginRelationshipsQueryResult {
+    return { data } as OriginRelationshipsQueryResult;
+  }
+
   /**
    * BUG REPRODUCTION: Origin entity edge not appearing after linking
    *
@@ -66,9 +76,10 @@ describe('useCanvasEdges - Origin Entity Edge Bug', () => {
    * c) Edge filtering logic bug
    */
   it('BUG: should show edge immediately after linking when both nodes are on canvas', async () => {
-    const { useOriginRelationshipsQuery } = await import(
+    const originRelationshipsModule = await import(
       '../../origin-entities/hooks/useOriginRelationships'
     );
+    const mockedUseOriginRelationshipsQuery = vi.mocked(originRelationshipsModule.useOriginRelationshipsQuery);
 
     // Setup: Both nodes are on canvas
     const nodes: Node[] = [
@@ -85,9 +96,7 @@ describe('useCanvasEdges - Origin Entity Edge Bug', () => {
     ];
 
     // Initially: No relationships
-    (useOriginRelationshipsQuery as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: [],
-    });
+    mockedUseOriginRelationshipsQuery.mockReturnValue(createOriginRelationshipsResult([]));
 
     const { result, rerender } = renderHook(() => useCanvasEdges(nodes), {
       wrapper: createWrapper(),
@@ -102,8 +111,8 @@ describe('useCanvasEdges - Origin Entity Edge Bug', () => {
     // Mutation invalidates cache
     // Query refetches and returns new data
     const newRelationship: OriginRelationship = {
-      id: 'rel-123' as any,
-      componentId: 'comp-1' as any,
+      id: toOriginRelationshipId('rel-123'),
+      componentId: toComponentId('comp-1'),
       componentName: 'SAP HR',
       relationshipType: 'AcquiredVia',
       originEntityId: 'ae-123',
@@ -112,9 +121,7 @@ describe('useCanvasEdges - Origin Entity Edge Bug', () => {
       _links: { self: { href: '/test', method: 'GET' } },
     };
 
-    (useOriginRelationshipsQuery as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: [newRelationship],
-    });
+    mockedUseOriginRelationshipsQuery.mockReturnValue(createOriginRelationshipsResult([newRelationship]));
 
     // Trigger re-render (simulating React Query refetch)
     rerender();

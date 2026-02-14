@@ -94,6 +94,8 @@ Enable enterprise architects to model business capabilities and map them to IT s
 - `SystemLinkedToCapability` - System-capability mapping created
 - `SystemRealizationUpdated` - Realization level changed
 - `SystemRealizationDeleted` - Mapping removed
+- `CapabilityRealizationsInherited` - Inherited realizations applied after hierarchy change
+- `CapabilityRealizationsUninherited` - Inherited realizations revoked after hierarchy change
 - `CapabilityAssignedToDomain` (new) - L1 capability assigned to business domain
 - `CapabilityUnassignedFromDomain` (new) - L1 capability removed from business domain
 

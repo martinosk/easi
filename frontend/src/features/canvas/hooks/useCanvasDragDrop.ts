@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import type { ReactFlowInstance } from '@xyflow/react';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useAddCapabilityToView, useAddOriginEntityToView } from '../../views/hooks/useViews';
-import { toCapabilityId, toComponentId } from '../../../api/types';
+import { toCapabilityId, toComponentId, toViewId } from '../../../api/types';
 import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 import { canEdit } from '../../../utils/hateoas';
 import type { MultiDragPayload, TreeItemType } from '../../navigation/hooks/useTreeMultiSelect';
@@ -120,11 +120,11 @@ export const useCanvasDragDrop = (
       onComponentDrop,
       updateComponentPosition,
       addCapability: async (viewId, capId, x, y) => {
-        await addCapabilityToViewMutation.mutateAsync({ viewId: viewId as any, request: { capabilityId: capId, x, y } });
+        await addCapabilityToViewMutation.mutateAsync({ viewId: toViewId(viewId), request: { capabilityId: capId, x, y } });
       },
       updateCapabilityPosition,
       addOriginEntity: async (viewId, originEntityId, x, y) => {
-        await addOriginEntityToViewMutation.mutateAsync({ viewId: viewId as any, request: { originEntityId, x, y } });
+        await addOriginEntityToViewMutation.mutateAsync({ viewId: toViewId(viewId), request: { originEntityId, x, y } });
       },
       currentViewId: currentViewId!,
     }),
