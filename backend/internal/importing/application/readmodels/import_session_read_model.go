@@ -67,11 +67,6 @@ type ImportSessionDTO struct {
 	Links             map[string]sharedAPI.Link `json:"_links,omitempty"`
 }
 
-type updatePayload struct {
-	value     any
-	timestamp *time.Time
-}
-
 type ImportSessionReadModel struct {
 	db *database.TenantAwareDB
 }
@@ -100,7 +95,7 @@ func (rm *ImportSessionReadModel) Insert(ctx context.Context, dto ImportSessionD
 }
 
 func (rm *ImportSessionReadModel) UpdateStatus(ctx context.Context, id, status string) error {
-	return rm.execUpdate(ctx, id, "UPDATE import_sessions SET status = $1 WHERE tenant_id = $2 AND id = $3", status)
+	return rm.execQuery(ctx, id, "UPDATE import_sessions SET status = $1 WHERE tenant_id = $2 AND id = $3", status)
 }
 
 func (rm *ImportSessionReadModel) UpdateProgress(ctx context.Context, id string, progress ProgressDTO) error {
@@ -108,7 +103,7 @@ func (rm *ImportSessionReadModel) UpdateProgress(ctx context.Context, id string,
 	if err != nil {
 		return err
 	}
-	return rm.execUpdate(ctx, id, "UPDATE import_sessions SET progress = $1 WHERE tenant_id = $2 AND id = $3", progressJSON)
+	return rm.execQuery(ctx, id, "UPDATE import_sessions SET progress = $1 WHERE tenant_id = $2 AND id = $3", progressJSON)
 }
 
 func (rm *ImportSessionReadModel) MarkCompleted(ctx context.Context, id string, result ResultDTO, completedAt time.Time) error {
@@ -116,37 +111,18 @@ func (rm *ImportSessionReadModel) MarkCompleted(ctx context.Context, id string, 
 	if err != nil {
 		return err
 	}
-	return rm.execUpdateWithTime(ctx, id, "UPDATE import_sessions SET status = 'completed', result = $1, completed_at = $2 WHERE tenant_id = $3 AND id = $4", updatePayload{value: resultJSON, timestamp: &completedAt})
+	return rm.execQuery(ctx, id, "UPDATE import_sessions SET status = 'completed', result = $1, completed_at = $2 WHERE tenant_id = $3 AND id = $4", resultJSON, completedAt)
 }
 
 func (rm *ImportSessionReadModel) MarkFailed(ctx context.Context, id string, failedAt time.Time) error {
-	return rm.execUpdateWithTime(ctx, id, "UPDATE import_sessions SET status = 'failed', completed_at = $1 WHERE tenant_id = $2 AND id = $3", updatePayload{timestamp: &failedAt})
+	return rm.execQuery(ctx, id, "UPDATE import_sessions SET status = 'failed', completed_at = $1 WHERE tenant_id = $2 AND id = $3", failedAt)
 }
 
 func (rm *ImportSessionReadModel) MarkCancelled(ctx context.Context, id string) error {
-	return rm.execUpdate(ctx, id, "UPDATE import_sessions SET is_cancelled = TRUE WHERE tenant_id = $1 AND id = $2", nil)
+	return rm.execQuery(ctx, id, "UPDATE import_sessions SET is_cancelled = TRUE WHERE tenant_id = $1 AND id = $2")
 }
 
-func (rm *ImportSessionReadModel) execUpdate(ctx context.Context, id string, query string, value any) error {
-	return rm.execUpdateWithArgs(ctx, id, query, buildUpdateArgs(value, nil)...)
-}
-
-func (rm *ImportSessionReadModel) execUpdateWithTime(ctx context.Context, id string, query string, payload updatePayload) error {
-	return rm.execUpdateWithArgs(ctx, id, query, buildUpdateArgs(payload.value, payload.timestamp)...)
-}
-
-func buildUpdateArgs(value any, timestamp *time.Time) []any {
-	args := make([]any, 0, 3)
-	if value != nil {
-		args = append(args, value)
-	}
-	if timestamp != nil {
-		args = append(args, *timestamp)
-	}
-	return args
-}
-
-func (rm *ImportSessionReadModel) execUpdateWithArgs(ctx context.Context, id string, query string, args ...any) error {
+func (rm *ImportSessionReadModel) execQuery(ctx context.Context, id string, query string, args ...any) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err

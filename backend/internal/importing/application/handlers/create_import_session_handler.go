@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"easi/backend/internal/importing/application/commands"
+	"easi/backend/internal/importing/application/parsers"
 	"easi/backend/internal/importing/domain/aggregates"
 	"easi/backend/internal/importing/domain/valueobjects"
 	"easi/backend/internal/importing/infrastructure/repositories"
@@ -29,43 +30,12 @@ func (h *CreateImportSessionHandler) Handle(ctx context.Context, cmd cqrs.Comman
 		return cqrs.EmptyResult(), err
 	}
 
-	preview := command.Preview()
-
-	parsedData := aggregates.ParsedData{}
-	if command.ParseResult != nil {
-		for _, cap := range command.ParseResult.Capabilities {
-			parsedData.Capabilities = append(parsedData.Capabilities, aggregates.ParsedElement{
-				SourceID:    cap.SourceID,
-				Name:        cap.Name,
-				Description: cap.Description,
-				ParentID:    cap.ParentID,
-			})
-		}
-		for _, comp := range command.ParseResult.Components {
-			parsedData.Components = append(parsedData.Components, aggregates.ParsedElement{
-				SourceID:    comp.SourceID,
-				Name:        comp.Name,
-				Description: comp.Description,
-			})
-		}
-		for _, rel := range command.ParseResult.Relationships {
-			parsedData.Relationships = append(parsedData.Relationships, aggregates.ParsedRelationship{
-				SourceID:      rel.SourceID,
-				Type:          rel.Type,
-				SourceRef:     rel.SourceRef,
-				TargetRef:     rel.TargetRef,
-				Name:          rel.Name,
-				Documentation: rel.Documentation,
-			})
-		}
-	}
-
 	session, err := aggregates.NewImportSession(aggregates.ImportSessionConfig{
-		SourceFormat:       sourceFormat,
-		BusinessDomainID:   command.BusinessDomainID,
-		CapabilityEAOwner:  command.CapabilityEAOwner,
-		Preview:            preview,
-		ParsedData:         parsedData,
+		SourceFormat:      sourceFormat,
+		BusinessDomainID:  command.BusinessDomainID,
+		CapabilityEAOwner: command.CapabilityEAOwner,
+		Preview:           command.Preview(),
+		ParsedData:        toParsedData(command.ParseResult),
 	})
 	if err != nil {
 		return cqrs.EmptyResult(), err
@@ -76,4 +46,44 @@ func (h *CreateImportSessionHandler) Handle(ctx context.Context, cmd cqrs.Comman
 	}
 
 	return cqrs.NewResult(session.ID()), nil
+}
+
+func toParsedData(result *parsers.ParseResult) aggregates.ParsedData {
+	if result == nil {
+		return aggregates.ParsedData{}
+	}
+	return aggregates.ParsedData{
+		Capabilities:  toElements(result.Capabilities),
+		Components:    toElements(result.Components),
+		ValueStreams:  toElements(result.ValueStreams),
+		Relationships: toRelationships(result.Relationships),
+	}
+}
+
+func toElements(src []parsers.ParsedElement) []aggregates.ParsedElement {
+	elements := make([]aggregates.ParsedElement, len(src))
+	for i, e := range src {
+		elements[i] = aggregates.ParsedElement{
+			SourceID:    e.SourceID,
+			Name:        e.Name,
+			Description: e.Description,
+			ParentID:    e.ParentID,
+		}
+	}
+	return elements
+}
+
+func toRelationships(src []parsers.ParsedRelationship) []aggregates.ParsedRelationship {
+	rels := make([]aggregates.ParsedRelationship, len(src))
+	for i, r := range src {
+		rels[i] = aggregates.ParsedRelationship{
+			SourceID:      r.SourceID,
+			Type:          r.Type,
+			SourceRef:     r.SourceRef,
+			TargetRef:     r.TargetRef,
+			Name:          r.Name,
+			Documentation: r.Documentation,
+		}
+	}
+	return rels
 }
