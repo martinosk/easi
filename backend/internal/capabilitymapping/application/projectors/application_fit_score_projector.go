@@ -9,20 +9,20 @@ import (
 	"easi/backend/internal/capabilitymapping/domain/events"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
 	"easi/backend/internal/capabilitymapping/infrastructure/architecturemodeling"
-	"easi/backend/internal/capabilitymapping/infrastructure/metamodel"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 type ApplicationFitScoreProjector struct {
 	fitScoreReadModel *readmodels.ApplicationFitScoreReadModel
 	componentGateway  architecturemodeling.ComponentGateway
-	pillarsGateway    metamodel.StrategyPillarsGateway
+	pillarsGateway    mmPL.StrategyPillarsGateway
 }
 
 func NewApplicationFitScoreProjector(
 	fitScoreReadModel *readmodels.ApplicationFitScoreReadModel,
 	componentGateway architecturemodeling.ComponentGateway,
-	pillarsGateway metamodel.StrategyPillarsGateway,
+	pillarsGateway mmPL.StrategyPillarsGateway,
 ) *ApplicationFitScoreProjector {
 	return &ApplicationFitScoreProjector{
 		fitScoreReadModel: fitScoreReadModel,

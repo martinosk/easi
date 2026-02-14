@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"easi/backend/internal/capabilitymapping/infrastructure/metamodel"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	sharedcontext "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
@@ -27,18 +27,18 @@ type timeSuggestionTestFixture struct {
 }
 
 type mockPillarsGateway struct {
-	pillars *metamodel.StrategyPillarsConfigDTO
+	pillars *mmPL.StrategyPillarsConfigDTO
 	err     error
 }
 
-func (m *mockPillarsGateway) GetStrategyPillars(ctx context.Context) (*metamodel.StrategyPillarsConfigDTO, error) {
+func (m *mockPillarsGateway) GetStrategyPillars(ctx context.Context) (*mmPL.StrategyPillarsConfigDTO, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
 	return m.pillars, nil
 }
 
-func (m *mockPillarsGateway) GetActivePillar(ctx context.Context, pillarID string) (*metamodel.StrategyPillarDTO, error) {
+func (m *mockPillarsGateway) GetActivePillar(ctx context.Context, pillarID string) (*mmPL.StrategyPillarDTO, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -54,7 +54,7 @@ func (m *mockPillarsGateway) GetActivePillar(ctx context.Context, pillarID strin
 
 func (m *mockPillarsGateway) InvalidateCache(tenantID string) {}
 
-func newTimeSuggestionTestFixture(t *testing.T, pillars *metamodel.StrategyPillarsConfigDTO) *timeSuggestionTestFixture {
+func newTimeSuggestionTestFixture(t *testing.T, pillars *mmPL.StrategyPillarsConfigDTO) *timeSuggestionTestFixture {
 	db := setupTimeSuggestionTestDB(t)
 	tenantDB := database.NewTenantAwareDB(db)
 
@@ -150,8 +150,8 @@ func (f *timeSuggestionTestFixture) createApplicationFitScore(componentID, pilla
 }
 
 func TestTimeSuggestionReadModel_GetAllSuggestions_Empty(t *testing.T) {
-	pillars := &metamodel.StrategyPillarsConfigDTO{
-		Pillars: []metamodel.StrategyPillarDTO{
+	pillars := &mmPL.StrategyPillarsConfigDTO{
+		Pillars: []mmPL.StrategyPillarDTO{
 			{ID: "p1", Name: "Technical", FitScoringEnabled: true, FitType: "TECHNICAL"},
 		},
 	}
@@ -164,8 +164,8 @@ func TestTimeSuggestionReadModel_GetAllSuggestions_Empty(t *testing.T) {
 }
 
 func TestTimeSuggestionReadModel_GetAllSuggestions_WithData(t *testing.T) {
-	pillars := &metamodel.StrategyPillarsConfigDTO{
-		Pillars: []metamodel.StrategyPillarDTO{
+	pillars := &mmPL.StrategyPillarsConfigDTO{
+		Pillars: []mmPL.StrategyPillarDTO{
 			{ID: "pillar-tech", Name: "Technical Quality", FitScoringEnabled: true, FitType: "TECHNICAL"},
 			{ID: "pillar-func", Name: "Functional Fit", FitScoringEnabled: true, FitType: "FUNCTIONAL"},
 		},
@@ -226,8 +226,8 @@ func (f *timeSuggestionTestFixture) setupFilterTestData() filterTestData {
 }
 
 func newTechPillarFixture(t *testing.T) *timeSuggestionTestFixture {
-	return newTimeSuggestionTestFixture(t, &metamodel.StrategyPillarsConfigDTO{
-		Pillars: []metamodel.StrategyPillarDTO{
+	return newTimeSuggestionTestFixture(t, &mmPL.StrategyPillarsConfigDTO{
+		Pillars: []mmPL.StrategyPillarDTO{
 			{ID: "pillar-tech", Name: "Technical", FitScoringEnabled: true, FitType: "TECHNICAL"},
 		},
 	})
@@ -265,8 +265,8 @@ func TestTimeSuggestionReadModel_GetByComponent_FiltersCorrectly(t *testing.T) {
 }
 
 func TestTimeSuggestionReadModel_CalculatesInsufficientConfidenceWhenNoPillars(t *testing.T) {
-	pillars := &metamodel.StrategyPillarsConfigDTO{
-		Pillars: []metamodel.StrategyPillarDTO{},
+	pillars := &mmPL.StrategyPillarsConfigDTO{
+		Pillars: []mmPL.StrategyPillarDTO{},
 	}
 	f := newTimeSuggestionTestFixture(t, pillars)
 

@@ -76,3 +76,11 @@ func (m *SessionManager) ClearSession(ctx context.Context) error {
 func (m *SessionManager) RenewToken(ctx context.Context) error {
 	return m.scs.RenewToken(ctx)
 }
+
+func (m *SessionManager) GetCurrentUserEmail(ctx context.Context) (string, error) {
+	session, err := m.LoadAuthenticatedSession(ctx)
+	if err != nil {
+		return "", err
+	}
+	return session.UserEmail(), nil
+}

@@ -3,7 +3,7 @@ package metamodel
 import (
 	"context"
 
-	cmMetamodel "easi/backend/internal/capabilitymapping/infrastructure/metamodel"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
 )
 
@@ -11,23 +11,23 @@ type localStrategyPillarsGateway struct {
 	cacheReadModel *readmodels.StrategyPillarCacheReadModel
 }
 
-func NewLocalStrategyPillarsGateway(cacheReadModel *readmodels.StrategyPillarCacheReadModel) cmMetamodel.StrategyPillarsGateway {
+func NewLocalStrategyPillarsGateway(cacheReadModel *readmodels.StrategyPillarCacheReadModel) mmPL.StrategyPillarsGateway {
 	return &localStrategyPillarsGateway{cacheReadModel: cacheReadModel}
 }
 
-func (g *localStrategyPillarsGateway) GetStrategyPillars(ctx context.Context) (*cmMetamodel.StrategyPillarsConfigDTO, error) {
+func (g *localStrategyPillarsGateway) GetStrategyPillars(ctx context.Context) (*mmPL.StrategyPillarsConfigDTO, error) {
 	pillars, err := g.cacheReadModel.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(pillars) == 0 {
-		return cmMetamodel.DefaultStrategyPillarsConfig(), nil
+		return mmPL.DefaultStrategyPillarsConfig(), nil
 	}
 
-	dtos := make([]cmMetamodel.StrategyPillarDTO, len(pillars))
+	dtos := make([]mmPL.StrategyPillarDTO, len(pillars))
 	for i, pillar := range pillars {
-		dtos[i] = cmMetamodel.StrategyPillarDTO{
+		dtos[i] = mmPL.StrategyPillarDTO{
 			ID:                pillar.ID,
 			Name:              pillar.Name,
 			Description:       pillar.Description,
@@ -38,10 +38,10 @@ func (g *localStrategyPillarsGateway) GetStrategyPillars(ctx context.Context) (*
 		}
 	}
 
-	return &cmMetamodel.StrategyPillarsConfigDTO{Pillars: dtos}, nil
+	return &mmPL.StrategyPillarsConfigDTO{Pillars: dtos}, nil
 }
 
-func (g *localStrategyPillarsGateway) GetActivePillar(ctx context.Context, pillarID string) (*cmMetamodel.StrategyPillarDTO, error) {
+func (g *localStrategyPillarsGateway) GetActivePillar(ctx context.Context, pillarID string) (*mmPL.StrategyPillarDTO, error) {
 	pillar, err := g.cacheReadModel.GetActivePillar(ctx, pillarID)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (g *localStrategyPillarsGateway) GetActivePillar(ctx context.Context, pilla
 		return nil, nil
 	}
 
-	return &cmMetamodel.StrategyPillarDTO{
+	return &mmPL.StrategyPillarDTO{
 		ID:                pillar.ID,
 		Name:              pillar.Name,
 		Description:       pillar.Description,

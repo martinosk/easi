@@ -8,7 +8,7 @@ import (
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
-	"easi/backend/internal/capabilitymapping/infrastructure/metamodel"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
@@ -23,7 +23,7 @@ var (
 type ApplicationFitScoreDeps struct {
 	FitScoreRepo   *repositories.ApplicationFitScoreRepository
 	FitScoreReader *readmodels.ApplicationFitScoreReadModel
-	PillarsGateway metamodel.StrategyPillarsGateway
+	PillarsGateway mmPL.StrategyPillarsGateway
 }
 
 type SetApplicationFitScoreHandler struct {

@@ -3,8 +3,7 @@ package api
 import (
 	"net/http"
 
-	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
-	"easi/backend/internal/auth/infrastructure/session"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/enterprisearchitecture/application/handlers"
 	"easi/backend/internal/enterprisearchitecture/application/projectors"
@@ -28,7 +27,7 @@ func init() {
 }
 
 type AuthMiddleware interface {
-	RequirePermission(permission authValueObjects.Permission) func(http.Handler) http.Handler
+	RequirePermission(permission authPL.Permission) func(http.Handler) http.Handler
 }
 
 type routeRepositories struct {
@@ -53,13 +52,13 @@ type routeHTTPHandlers struct {
 }
 
 type EnterpriseArchRoutesDeps struct {
-	Router         chi.Router
-	CommandBus     *cqrs.InMemoryCommandBus
-	EventStore     eventstore.EventStore
-	EventBus       events.EventBus
-	DB             *database.TenantAwareDB
-	AuthMiddleware AuthMiddleware
-	SessionManager *session.SessionManager
+	Router          chi.Router
+	CommandBus      *cqrs.InMemoryCommandBus
+	EventStore      eventstore.EventStore
+	EventBus        events.EventBus
+	DB              *database.TenantAwareDB
+	AuthMiddleware  AuthMiddleware
+	SessionProvider authPL.SessionProvider
 }
 
 func SetupEnterpriseArchitectureRoutes(deps EnterpriseArchRoutesDeps) error {
@@ -69,7 +68,7 @@ func SetupEnterpriseArchitectureRoutes(deps EnterpriseArchRoutesDeps) error {
 	setupEventSubscriptions(deps.EventBus, rm)
 	setupCommandHandlers(deps.CommandBus, repos, rm)
 
-	httpHandlers := initializeHTTPHandlers(deps.CommandBus, rm, deps.SessionManager)
+	httpHandlers := initializeHTTPHandlers(deps.CommandBus, rm, deps.SessionProvider)
 	rateLimiter := platformAPI.NewRateLimiter(100, 60)
 	registerRoutes(deps.Router, httpHandlers, deps.AuthMiddleware, rateLimiter)
 
@@ -190,7 +189,7 @@ func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepos
 	commandBus.Register("RemoveEnterpriseStrategicImportance", handlers.NewRemoveEnterpriseStrategicImportanceHandler(repos.importance))
 }
 
-func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels, sessionManager *session.SessionManager) *routeHTTPHandlers {
+func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadModels, sessionProvider authPL.SessionProvider) *routeHTTPHandlers {
 	readModels := &EnterpriseCapabilityReadModels{
 		Capability:       rm.capability,
 		Link:             rm.link,
@@ -199,7 +198,7 @@ func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadMo
 	}
 	links := NewEnterpriseArchLinks(sharedAPI.NewHATEOASLinks(""))
 	return &routeHTTPHandlers{
-		enterpriseCapability: NewEnterpriseCapabilityHandlers(commandBus, readModels, sessionManager),
+		enterpriseCapability: NewEnterpriseCapabilityHandlers(commandBus, readModels, sessionProvider),
 		timeSuggestions:      NewTimeSuggestionsHandlers(rm.timeSuggestion, links),
 	}
 }
@@ -212,7 +211,7 @@ func registerRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddl
 func registerEnterpriseCapabilityRoutes(r chi.Router, h *EnterpriseCapabilityHandlers, authMiddleware AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
 	r.Route("/enterprise-capabilities", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermEnterpriseArchRead))
+			r.Use(authMiddleware.RequirePermission(authPL.PermEnterpriseArchRead))
 			r.Get("/", h.GetAllEnterpriseCapabilities)
 			r.Get("/maturity-analysis", h.GetMaturityAnalysisCandidates)
 			r.Get("/{id}", h.GetEnterpriseCapabilityByID)
@@ -222,7 +221,7 @@ func registerEnterpriseCapabilityRoutes(r chi.Router, h *EnterpriseCapabilityHan
 		})
 
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermEnterpriseArchWrite))
+			r.Use(authMiddleware.RequirePermission(authPL.PermEnterpriseArchWrite))
 			r.Use(platformAPI.RateLimitMiddleware(rateLimiter))
 			r.Post("/", h.CreateEnterpriseCapability)
 			r.Put("/{id}", h.UpdateEnterpriseCapability)
@@ -233,7 +232,7 @@ func registerEnterpriseCapabilityRoutes(r chi.Router, h *EnterpriseCapabilityHan
 		})
 
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermEnterpriseArchDelete))
+			r.Use(authMiddleware.RequirePermission(authPL.PermEnterpriseArchDelete))
 			r.Use(platformAPI.RateLimitMiddleware(rateLimiter))
 			r.Delete("/{id}", h.DeleteEnterpriseCapability)
 			r.Delete("/{id}/links/{linkId}", h.UnlinkCapability)
@@ -242,7 +241,7 @@ func registerEnterpriseCapabilityRoutes(r chi.Router, h *EnterpriseCapabilityHan
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(authMiddleware.RequirePermission(authValueObjects.PermEnterpriseArchRead))
+		r.Use(authMiddleware.RequirePermission(authPL.PermEnterpriseArchRead))
 		r.Get("/domain-capabilities/{domainCapabilityId}/enterprise-capability", h.GetEnterpriseCapabilityForDomainCapability)
 		r.Get("/domain-capabilities/{domainCapabilityId}/enterprise-link-status", h.GetCapabilityLinkStatus)
 		r.Get("/domain-capabilities/enterprise-link-status", h.GetBatchCapabilityLinkStatus)
@@ -251,7 +250,7 @@ func registerEnterpriseCapabilityRoutes(r chi.Router, h *EnterpriseCapabilityHan
 
 func registerTimeSuggestionsRoutes(r chi.Router, h *TimeSuggestionsHandlers, authMiddleware AuthMiddleware) {
 	r.Group(func(r chi.Router) {
-		r.Use(authMiddleware.RequirePermission(authValueObjects.PermEnterpriseArchRead))
+		r.Use(authMiddleware.RequirePermission(authPL.PermEnterpriseArchRead))
 		r.Get("/time-suggestions", h.GetTimeSuggestions)
 	})
 }

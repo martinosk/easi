@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"easi/backend/internal/auth/infrastructure/session"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -17,23 +17,23 @@ import (
 )
 
 type ApplicationFitScoreHandlers struct {
-	commandBus     cqrs.CommandBus
-	fitScoreRM     *readmodels.ApplicationFitScoreReadModel
-	hateoas        *CapabilityMappingLinks
-	sessionManager *session.SessionManager
+	commandBus      cqrs.CommandBus
+	fitScoreRM      *readmodels.ApplicationFitScoreReadModel
+	hateoas         *CapabilityMappingLinks
+	sessionProvider authPL.SessionProvider
 }
 
 func NewApplicationFitScoreHandlers(
 	commandBus cqrs.CommandBus,
 	fitScoreRM *readmodels.ApplicationFitScoreReadModel,
 	hateoas *CapabilityMappingLinks,
-	sessionManager *session.SessionManager,
+	sessionProvider authPL.SessionProvider,
 ) *ApplicationFitScoreHandlers {
 	return &ApplicationFitScoreHandlers{
-		commandBus:     commandBus,
-		fitScoreRM:     fitScoreRM,
-		hateoas:        hateoas,
-		sessionManager: sessionManager,
+		commandBus:      commandBus,
+		fitScoreRM:      fitScoreRM,
+		hateoas:         hateoas,
+		sessionProvider: sessionProvider,
 	}
 }
 
@@ -93,7 +93,7 @@ func (h *ApplicationFitScoreHandlers) GetFitScoresByComponent(w http.ResponseWri
 // @Security ApiKeyAuth
 // @Router /components/{id}/fit-scores/{pillarId} [put]
 func (h *ApplicationFitScoreHandlers) SetFitScore(w http.ResponseWriter, r *http.Request) {
-	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
+	email, err := h.sessionProvider.GetCurrentUserEmail(r.Context())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Authentication required")
 		return
@@ -121,7 +121,7 @@ func (h *ApplicationFitScoreHandlers) SetFitScore(w http.ResponseWriter, r *http
 		req:         req,
 		componentID: componentID,
 		pillarID:    pillarID,
-		userEmail:   authSession.UserEmail(),
+		userEmail:   email,
 	})
 	if err != nil {
 		httpStatus := sharedAPI.MapErrorToStatusCode(err, http.StatusBadRequest)
@@ -196,7 +196,7 @@ func (h *ApplicationFitScoreHandlers) dispatchFitScoreCommand(ctx context.Contex
 // @Security ApiKeyAuth
 // @Router /components/{id}/fit-scores/{pillarId} [delete]
 func (h *ApplicationFitScoreHandlers) RemoveFitScore(w http.ResponseWriter, r *http.Request) {
-	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
+	email, err := h.sessionProvider.GetCurrentUserEmail(r.Context())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Authentication required")
 		return
@@ -221,7 +221,7 @@ func (h *ApplicationFitScoreHandlers) RemoveFitScore(w http.ResponseWriter, r *h
 
 	cmd := &commands.RemoveApplicationFitScore{
 		FitScoreID: existing.ID,
-		RemovedBy:  authSession.UserEmail(),
+		RemovedBy:  email,
 	}
 
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {

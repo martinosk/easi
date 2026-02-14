@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"easi/backend/internal/auth/infrastructure/session"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/metamodel/application/commands"
 	"easi/backend/internal/metamodel/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -19,23 +19,23 @@ import (
 )
 
 type StrategyPillarsHandlers struct {
-	commandBus     cqrs.CommandBus
-	readModel      *readmodels.MetaModelConfigurationReadModel
-	hateoas        *MetaModelLinks
-	sessionManager *session.SessionManager
+	commandBus      cqrs.CommandBus
+	readModel       *readmodels.MetaModelConfigurationReadModel
+	hateoas         *MetaModelLinks
+	sessionProvider authPL.SessionProvider
 }
 
 func NewStrategyPillarsHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.MetaModelConfigurationReadModel,
 	hateoas *MetaModelLinks,
-	sessionManager *session.SessionManager,
+	sessionProvider authPL.SessionProvider,
 ) *StrategyPillarsHandlers {
 	return &StrategyPillarsHandlers{
-		commandBus:     commandBus,
-		readModel:      readModel,
-		hateoas:        hateoas,
-		sessionManager: sessionManager,
+		commandBus:      commandBus,
+		readModel:       readModel,
+		hateoas:         hateoas,
+		sessionProvider: sessionProvider,
 	}
 }
 
@@ -164,7 +164,7 @@ func findPillarByID(pillars []readmodels.StrategyPillarDTO, id string) (readmode
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /meta-model/strategy-pillars [post]
 func (h *StrategyPillarsHandlers) CreateStrategyPillar(w http.ResponseWriter, r *http.Request) {
-	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
+	email, err := h.sessionProvider.GetCurrentUserEmail(r.Context())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Authentication required")
 		return
@@ -175,7 +175,7 @@ func (h *StrategyPillarsHandlers) CreateStrategyPillar(w http.ResponseWriter, r 
 		return
 	}
 
-	result, ok := h.ensureConfigExists(w, r, authSession.UserEmail())
+	result, ok := h.ensureConfigExists(w, r, email)
 	if !ok {
 		return
 	}
@@ -184,7 +184,7 @@ func (h *StrategyPillarsHandlers) CreateStrategyPillar(w http.ResponseWriter, r 
 		ConfigID:    result.config.ID,
 		Name:        req.Name,
 		Description: req.Description,
-		ModifiedBy:  authSession.UserEmail(),
+		ModifiedBy:  email,
 	}
 
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
@@ -226,7 +226,7 @@ func (h *StrategyPillarsHandlers) CreateStrategyPillar(w http.ResponseWriter, r 
 func (h *StrategyPillarsHandlers) UpdateStrategyPillar(w http.ResponseWriter, r *http.Request) {
 	pillarID := chi.URLParam(r, "id")
 
-	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
+	email, err := h.sessionProvider.GetCurrentUserEmail(r.Context())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Authentication required")
 		return
@@ -258,7 +258,7 @@ func (h *StrategyPillarsHandlers) UpdateStrategyPillar(w http.ResponseWriter, r 
 		PillarID:        pillarID,
 		Name:            req.Name,
 		Description:     req.Description,
-		ModifiedBy:      authSession.UserEmail(),
+		ModifiedBy:      email,
 		ExpectedVersion: &expectedVersion,
 	}
 
@@ -296,7 +296,7 @@ func (h *StrategyPillarsHandlers) respondWithUpdatedPillar(w http.ResponseWriter
 func (h *StrategyPillarsHandlers) DeleteStrategyPillar(w http.ResponseWriter, r *http.Request) {
 	pillarID := chi.URLParam(r, "id")
 
-	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
+	email, err := h.sessionProvider.GetCurrentUserEmail(r.Context())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Authentication required")
 		return
@@ -316,7 +316,7 @@ func (h *StrategyPillarsHandlers) DeleteStrategyPillar(w http.ResponseWriter, r 
 	cmd := &commands.RemoveStrategyPillar{
 		ConfigID:   config.ID,
 		PillarID:   pillarID,
-		ModifiedBy: authSession.UserEmail(),
+		ModifiedBy: email,
 	}
 
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
@@ -363,7 +363,7 @@ type BatchUpdateStrategyPillarsResponse struct {
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /meta-model/strategy-pillars [patch]
 func (h *StrategyPillarsHandlers) BatchUpdateStrategyPillars(w http.ResponseWriter, r *http.Request) {
-	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
+	email, err := h.sessionProvider.GetCurrentUserEmail(r.Context())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Authentication required")
 		return
@@ -384,7 +384,7 @@ func (h *StrategyPillarsHandlers) BatchUpdateStrategyPillars(w http.ResponseWrit
 		return
 	}
 
-	result, ok := h.ensureConfigExists(w, r, authSession.UserEmail())
+	result, ok := h.ensureConfigExists(w, r, email)
 	if !ok {
 		return
 	}
@@ -393,7 +393,7 @@ func (h *StrategyPillarsHandlers) BatchUpdateStrategyPillars(w http.ResponseWrit
 		req:             req,
 		result:          result,
 		expectedVersion: expectedVersion,
-		userEmail:       authSession.UserEmail(),
+		userEmail:       email,
 	}); err != nil {
 		return
 	}
@@ -567,7 +567,7 @@ func (h *StrategyPillarsHandlers) buildPillarResponse(pillar readmodels.Strategy
 func (h *StrategyPillarsHandlers) UpdatePillarFitConfiguration(w http.ResponseWriter, r *http.Request) {
 	pillarID := chi.URLParam(r, "id")
 
-	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
+	email, err := h.sessionProvider.GetCurrentUserEmail(r.Context())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Authentication required")
 		return
@@ -600,7 +600,7 @@ func (h *StrategyPillarsHandlers) UpdatePillarFitConfiguration(w http.ResponseWr
 		FitScoringEnabled: req.FitScoringEnabled,
 		FitCriteria:       req.FitCriteria,
 		FitType:           req.FitType,
-		ModifiedBy:        authSession.UserEmail(),
+		ModifiedBy:        email,
 		ExpectedVersion:   &expectedVersion,
 	}
 

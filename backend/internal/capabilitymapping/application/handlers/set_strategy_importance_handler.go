@@ -8,7 +8,7 @@ import (
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
-	"easi/backend/internal/capabilitymapping/infrastructure/metamodel"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
@@ -25,7 +25,7 @@ type StrategyImportanceDeps struct {
 	DomainReader     *readmodels.BusinessDomainReadModel
 	CapabilityReader *readmodels.CapabilityReadModel
 	ImportanceReader *readmodels.StrategyImportanceReadModel
-	PillarsGateway   metamodel.StrategyPillarsGateway
+	PillarsGateway   mmPL.StrategyPillarsGateway
 }
 
 type SetStrategyImportanceHandler struct {

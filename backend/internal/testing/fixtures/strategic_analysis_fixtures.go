@@ -63,7 +63,7 @@ func NewStrategicAnalysisFixtures(tc *TestContext) *StrategicAnalysisFixtures {
 	hierarchyService := services.NewCapabilityHierarchyService(capabilityLookupAdapter)
 	ratingResolver := services.NewHierarchicalRatingResolver(hierarchyService, ratingLookupAdapter, capabilityLookupAdapter)
 
-	recomputer := projectors.NewEffectiveImportanceRecomputer(effectiveImportanceRM, ratingResolver, hierarchyService)
+	recomputer := projectors.NewEffectiveImportanceRecomputer(effectiveImportanceRM, ratingResolver, hierarchyService, nil)
 
 	importanceChangeProjector := projectors.NewImportanceChangeEffectiveProjector(recomputer, importanceRM)
 	tc.EventBus.Subscribe("StrategyImportanceSet", importanceChangeProjector)
@@ -74,7 +74,8 @@ func NewStrategicAnalysisFixtures(tc *TestContext) *StrategicAnalysisFixtures {
 	tc.EventBus.Subscribe("CapabilityParentChanged", hierarchyChangeProjector)
 	tc.EventBus.Subscribe("CapabilityDeleted", hierarchyChangeProjector)
 
-	domainAssignmentEffectiveProjector := projectors.NewDomainAssignmentEffectiveProjector(recomputer, effectiveImportanceRM, hierarchyService, domainAssignmentRM, pillarsGateway)
+	ancestryChecker := projectors.NewDomainAncestryChecker(hierarchyService, domainAssignmentRM)
+	domainAssignmentEffectiveProjector := projectors.NewDomainAssignmentEffectiveProjector(recomputer, ancestryChecker, pillarsGateway)
 	tc.EventBus.Subscribe("CapabilityAssignedToDomain", domainAssignmentEffectiveProjector)
 	tc.EventBus.Subscribe("CapabilityUnassignedFromDomain", domainAssignmentEffectiveProjector)
 

@@ -3,9 +3,9 @@ package api
 import (
 	"net/http"
 
-	"easi/backend/internal/auth/infrastructure/session"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
-	"easi/backend/internal/capabilitymapping/infrastructure/metamodel"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	sharedAPI "easi/backend/internal/shared/api"
 
 	"github.com/go-chi/chi/v5"
@@ -13,20 +13,20 @@ import (
 )
 
 type StrategicFitAnalysisHandlers struct {
-	analysisRM     *readmodels.StrategicFitAnalysisReadModel
-	pillarsGateway metamodel.StrategyPillarsGateway
-	sessionManager *session.SessionManager
+	analysisRM      *readmodels.StrategicFitAnalysisReadModel
+	pillarsGateway  mmPL.StrategyPillarsGateway
+	sessionProvider authPL.SessionProvider
 }
 
 func NewStrategicFitAnalysisHandlers(
 	analysisRM *readmodels.StrategicFitAnalysisReadModel,
-	pillarsGateway metamodel.StrategyPillarsGateway,
-	sessionManager *session.SessionManager,
+	pillarsGateway mmPL.StrategyPillarsGateway,
+	sessionProvider authPL.SessionProvider,
 ) *StrategicFitAnalysisHandlers {
 	return &StrategicFitAnalysisHandlers{
-		analysisRM:     analysisRM,
-		pillarsGateway: pillarsGateway,
-		sessionManager: sessionManager,
+		analysisRM:      analysisRM,
+		pillarsGateway:  pillarsGateway,
+		sessionProvider: sessionProvider,
 	}
 }
 
@@ -86,8 +86,7 @@ type StrategicFitAnalysisResponse struct {
 // @Security ApiKeyAuth
 // @Router /strategic-fit-analysis/{pillarId} [get]
 func (h *StrategicFitAnalysisHandlers) GetStrategicFitAnalysis(w http.ResponseWriter, r *http.Request) {
-	_, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
-	if err != nil {
+	if _, err := h.sessionProvider.GetCurrentUserEmail(r.Context()); err != nil {
 		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Authentication required")
 		return
 	}

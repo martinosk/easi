@@ -9,7 +9,7 @@ import (
 	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
 	authReadModels "easi/backend/internal/auth/application/readmodels"
-	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -20,7 +20,7 @@ import (
 )
 
 type AuthMiddleware interface {
-	RequirePermission(permission authValueObjects.Permission) func(http.Handler) http.Handler
+	RequirePermission(permission authPL.Permission) func(http.Handler) http.Handler
 }
 
 func SubscribeEvents(eventBus events.EventBus, commandBus *cqrs.InMemoryCommandBus, db *database.TenantAwareDB) {
@@ -86,12 +86,12 @@ func NewHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, db *database.TenantAwa
 func RegisterRoutes(r chi.Router, h *HTTPHandlers, authMiddleware AuthMiddleware) {
 	r.Route("/views", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermViewsRead))
+			r.Use(authMiddleware.RequirePermission(authPL.PermViewsRead))
 			r.Get("/", h.view.GetAllViews)
 			r.Get("/{id}", h.view.GetViewByID)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermViewsWrite))
+			r.Use(authMiddleware.RequirePermission(authPL.PermViewsWrite))
 			r.Post("/", h.view.CreateView)
 			r.Post("/{id}/components", h.component.AddComponentToView)
 			r.Post("/{id}/capabilities", h.element.AddCapabilityToView)
@@ -113,7 +113,7 @@ func RegisterRoutes(r chi.Router, h *HTTPHandlers, authMiddleware AuthMiddleware
 			r.Patch("/{id}/visibility", h.view.ChangeVisibility)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermViewsDelete))
+			r.Use(authMiddleware.RequirePermission(authPL.PermViewsDelete))
 			r.Delete("/{id}", h.view.DeleteView)
 			r.Delete("/{id}/components/{componentId}", h.component.RemoveComponentFromView)
 			r.Delete("/{id}/components/{componentId}/color", h.color.ClearComponentColor)

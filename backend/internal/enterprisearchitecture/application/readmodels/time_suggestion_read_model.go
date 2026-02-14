@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"easi/backend/internal/capabilitymapping/infrastructure/metamodel"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	"easi/backend/internal/enterprisearchitecture/domain/services"
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
@@ -23,13 +23,13 @@ type TimeSuggestionDTO struct {
 
 type TimeSuggestionReadModel struct {
 	db             *database.TenantAwareDB
-	pillarsGateway metamodel.StrategyPillarsGateway
+	pillarsGateway mmPL.StrategyPillarsGateway
 	calculator     *services.TimeSuggestionCalculator
 }
 
 func NewTimeSuggestionReadModel(
 	db *database.TenantAwareDB,
-	pillarsGateway metamodel.StrategyPillarsGateway,
+	pillarsGateway mmPL.StrategyPillarsGateway,
 ) *TimeSuggestionReadModel {
 	return &TimeSuggestionReadModel{
 		db:             db,
@@ -71,7 +71,7 @@ func (rm *TimeSuggestionReadModel) getSuggestions(ctx context.Context, filter ti
 	return rm.calculateSuggestions(realizationGaps, pillarFitTypes), nil
 }
 
-func (rm *TimeSuggestionReadModel) buildPillarFitTypeMap(pillars *metamodel.StrategyPillarsConfigDTO) map[string]string {
+func (rm *TimeSuggestionReadModel) buildPillarFitTypeMap(pillars *mmPL.StrategyPillarsConfigDTO) map[string]string {
 	result := make(map[string]string)
 	for _, pillar := range pillars.Pillars {
 		if pillar.FitType != "" && pillar.FitScoringEnabled {

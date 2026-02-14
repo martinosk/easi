@@ -3,8 +3,7 @@ package api
 import (
 	"net/http"
 
-	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
-	"easi/backend/internal/auth/infrastructure/session"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/metamodel/application/handlers"
@@ -19,7 +18,7 @@ import (
 )
 
 type AuthMiddleware interface {
-	RequirePermission(permission authValueObjects.Permission) func(http.Handler) http.Handler
+	RequirePermission(permission authPL.Permission) func(http.Handler) http.Handler
 }
 
 type MetaModelRoutesDeps struct {
@@ -30,7 +29,7 @@ type MetaModelRoutesDeps struct {
 	DB             *database.TenantAwareDB
 	Hateoas        *sharedAPI.HATEOASLinks
 	AuthMiddleware AuthMiddleware
-	SessionManager *session.SessionManager
+	SessionProvider authPL.SessionProvider
 }
 
 func SetupMetaModelRoutes(deps MetaModelRoutesDeps) error {
@@ -72,12 +71,12 @@ func SetupMetaModelRoutes(deps MetaModelRoutesDeps) error {
 	deps.EventBus.Subscribe("TenantCreated", tenantCreatedHandler)
 
 	links := NewMetaModelLinks(deps.Hateoas)
-	metaModelHandlers := NewMetaModelHandlers(deps.CommandBus, configReadModel, links, deps.SessionManager)
-	strategyPillarsHandlers := NewStrategyPillarsHandlers(deps.CommandBus, configReadModel, links, deps.SessionManager)
+	metaModelHandlers := NewMetaModelHandlers(deps.CommandBus, configReadModel, links, deps.SessionProvider)
+	strategyPillarsHandlers := NewStrategyPillarsHandlers(deps.CommandBus, configReadModel, links, deps.SessionProvider)
 
 	deps.Router.Route("/meta-model", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(deps.AuthMiddleware.RequirePermission(authValueObjects.PermMetaModelRead))
+			r.Use(deps.AuthMiddleware.RequirePermission(authPL.PermMetaModelRead))
 			r.Get("/maturity-scale", metaModelHandlers.GetMaturityScale)
 			r.Get("/configurations/{id}", metaModelHandlers.GetMaturityScaleByID)
 			r.Get("/strategy-pillars", strategyPillarsHandlers.GetStrategyPillars)
@@ -85,7 +84,7 @@ func SetupMetaModelRoutes(deps MetaModelRoutesDeps) error {
 		})
 
 		r.Group(func(r chi.Router) {
-			r.Use(deps.AuthMiddleware.RequirePermission(authValueObjects.PermMetaModelWrite))
+			r.Use(deps.AuthMiddleware.RequirePermission(authPL.PermMetaModelWrite))
 			r.Put("/maturity-scale", metaModelHandlers.UpdateMaturityScale)
 			r.Post("/maturity-scale/reset", metaModelHandlers.ResetMaturityScale)
 			r.Patch("/strategy-pillars", strategyPillarsHandlers.BatchUpdateStrategyPillars)

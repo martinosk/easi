@@ -24,33 +24,33 @@ var freeImportPackages = map[string]bool{
 }
 
 var allowedCrossBCImports = map[string]string{
-	"enterprisearchitecture -> capabilitymapping/infrastructure/metamodel": "spec-135",
-	"enterprisearchitecture -> auth/domain/valueobjects":                   "spec-135",
-	"enterprisearchitecture -> auth/infrastructure/session":                "spec-135",
-	"capabilitymapping -> auth/domain/valueobjects":                        "spec-135",
-	"capabilitymapping -> auth/infrastructure/session":                     "spec-135",
-	"architecturemodeling -> auth/domain/valueobjects":                     "spec-135",
-	"architectureviews -> auth/domain/valueobjects":                        "spec-135",
-	"architectureviews -> auth/application/readmodels":                     "spec-138",
-	"accessdelegation -> architecturemodeling/application/readmodels":      "spec-138",
-	"accessdelegation -> architectureviews/application/readmodels":         "spec-138",
-	"accessdelegation -> capabilitymapping/application/readmodels":         "spec-138",
-	"accessdelegation -> auth/application/readmodels":                      "spec-138",
-	"importing -> architecturemodeling/application/commands":               "spec-138",
-	"importing -> capabilitymapping/application/commands":                  "spec-138",
-	"importing -> valuestreams/application/commands":                       "spec-138",
-	"accessdelegation -> auth/infrastructure/api":                          "spec-135",
-	"metamodel -> auth/domain/valueobjects":                                "spec-135",
-	"metamodel -> auth/infrastructure/session":                             "spec-135",
-	"valuestreams -> auth/domain/valueobjects":                             "spec-135",
-	"viewlayouts -> auth/domain/valueobjects":                              "spec-135",
-	"platform -> auth/application/commands":                                "spec-135",
-	"platform -> auth/application/handlers":                                "spec-135",
-	"platform -> auth/infrastructure/repositories":                         "spec-135",
+	"architectureviews -> auth/application/readmodels":                "spec-138",
+	"accessdelegation -> architecturemodeling/application/readmodels": "spec-138",
+	"accessdelegation -> architectureviews/application/readmodels":    "spec-138",
+	"accessdelegation -> capabilitymapping/application/readmodels":    "spec-138",
+	"accessdelegation -> auth/application/readmodels":                 "spec-138",
+	"importing -> architecturemodeling/application/commands":          "spec-138",
+	"importing -> capabilitymapping/application/commands":             "spec-138",
+	"importing -> valuestreams/application/commands":                  "spec-138",
+	"platform -> auth/application/commands":                           "platform-internal",
+	"platform -> auth/application/handlers":                           "platform-internal",
+	"platform -> auth/infrastructure/repositories":                    "platform-internal",
+}
+
+func isGoSourceFile(info os.FileInfo, path string) bool {
+	return !info.IsDir() && strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go")
 }
 
 func isProductionGoFile(info os.FileInfo, path string) bool {
-	return !info.IsDir() && strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go")
+	if !isGoSourceFile(info, path) {
+		return false
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return true
+	}
+	firstLine := strings.SplitN(string(content), "\n", 2)[0]
+	return !strings.Contains(firstLine, "//go:build integration")
 }
 
 func isAllowedCrossBCImport(ownerBC, importSuffix string) bool {

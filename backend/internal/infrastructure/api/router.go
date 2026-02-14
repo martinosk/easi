@@ -197,14 +197,14 @@ func setupModelingRoutes(r chi.Router, deps routerDependencies) {
 	viewsAPI.RegisterRoutes(r, viewHandlers, deps.authDeps.AuthMiddleware)
 
 	mustSetup(capabilityAPI.SetupCapabilityMappingRoutes(&capabilityAPI.RouteConfig{
-		Router:         r,
-		CommandBus:     deps.commandBus,
-		EventStore:     deps.eventStore,
-		EventBus:       deps.eventBus,
-		DB:             deps.db,
-		HATEOAS:        deps.hateoas,
-		SessionManager: deps.authDeps.SessionManager,
-		AuthMiddleware: deps.authDeps.AuthMiddleware,
+		Router:          r,
+		CommandBus:      deps.commandBus,
+		EventStore:      deps.eventStore,
+		EventBus:        deps.eventBus,
+		DB:              deps.db,
+		HATEOAS:         deps.hateoas,
+		SessionProvider: deps.authDeps.SessionManager,
+		AuthMiddleware:  deps.authDeps.AuthMiddleware,
 	}), "capability mapping routes")
 }
 
@@ -222,27 +222,27 @@ func setupValueStreamsRoutes(r chi.Router, deps routerDependencies) {
 
 func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 	mustSetup(enterpriseArchAPI.SetupEnterpriseArchitectureRoutes(enterpriseArchAPI.EnterpriseArchRoutesDeps{
-		Router:         r,
-		CommandBus:     deps.commandBus,
-		EventStore:     deps.eventStore,
-		EventBus:       deps.eventBus,
-		DB:             deps.db,
-		AuthMiddleware: deps.authDeps.AuthMiddleware,
-		SessionManager: deps.authDeps.SessionManager,
+		Router:          r,
+		CommandBus:      deps.commandBus,
+		EventStore:      deps.eventStore,
+		EventBus:        deps.eventBus,
+		DB:              deps.db,
+		AuthMiddleware:  deps.authDeps.AuthMiddleware,
+		SessionProvider: deps.authDeps.SessionManager,
 	}), "enterprise architecture routes")
 
 	viewlayoutsAPI.SubscribeEvents(deps.eventBus, deps.db)
 	viewlayoutsAPI.RegisterRoutes(r, deps.db, deps.hateoas, deps.authDeps.AuthMiddleware)
 
 	mustSetup(metamodelAPI.SetupMetaModelRoutes(metamodelAPI.MetaModelRoutesDeps{
-		Router:         r,
-		CommandBus:     deps.commandBus,
-		EventStore:     deps.eventStore,
-		EventBus:       deps.eventBus,
-		DB:             deps.db,
-		Hateoas:        deps.hateoas,
-		AuthMiddleware: deps.authDeps.AuthMiddleware,
-		SessionManager: deps.authDeps.SessionManager,
+		Router:          r,
+		CommandBus:      deps.commandBus,
+		EventStore:      deps.eventStore,
+		EventBus:        deps.eventBus,
+		DB:              deps.db,
+		Hateoas:         deps.hateoas,
+		AuthMiddleware:  deps.authDeps.AuthMiddleware,
+		SessionProvider: deps.authDeps.SessionManager,
 	}), "metamodel routes")
 }
 

@@ -5,7 +5,7 @@ import (
 
 	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	avPL "easi/backend/internal/architectureviews/publishedlanguage"
-	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -17,7 +17,7 @@ import (
 )
 
 type AuthMiddleware interface {
-	RequirePermission(permission authValueObjects.Permission) func(http.Handler) http.Handler
+	RequirePermission(permission authPL.Permission) func(http.Handler) http.Handler
 }
 
 func SubscribeEvents(eventBus events.EventBus, db *database.TenantAwareDB) {
@@ -35,11 +35,11 @@ func RegisterRoutes(r chi.Router, db *database.TenantAwareDB, hateoas *sharedAPI
 
 	r.Route("/layouts/{contextType}/{contextRef}", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermViewsRead))
+			r.Use(authMiddleware.RequirePermission(authPL.PermViewsRead))
 			r.Get("/", layoutHandlers.GetLayout)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermViewsWrite))
+			r.Use(authMiddleware.RequirePermission(authPL.PermViewsWrite))
 			r.Put("/", layoutHandlers.UpsertLayout)
 			r.Patch("/preferences", layoutHandlers.UpdatePreferences)
 			r.Patch("/elements", layoutHandlers.BatchUpdateElements)
@@ -48,7 +48,7 @@ func RegisterRoutes(r chi.Router, db *database.TenantAwareDB, hateoas *sharedAPI
 			})
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermViewsDelete))
+			r.Use(authMiddleware.RequirePermission(authPL.PermViewsDelete))
 			r.Delete("/", layoutHandlers.DeleteLayout)
 			r.Delete("/elements/{elementId}", layoutHandlers.DeleteElementPosition)
 		})

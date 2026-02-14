@@ -7,7 +7,7 @@ import (
 	"easi/backend/internal/architecturemodeling/application/projectors"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
-	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -18,7 +18,7 @@ import (
 )
 
 type AuthMiddleware interface {
-	RequirePermission(permission authValueObjects.Permission) func(http.Handler) http.Handler
+	RequirePermission(permission authPL.Permission) func(http.Handler) http.Handler
 }
 
 type RouteConfig struct {
@@ -194,7 +194,7 @@ func registerRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddleware) {
 func registerComponentRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddleware) {
 	r.Route("/components", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsRead))
+			r.Use(auth.RequirePermission(authPL.PermComponentsRead))
 			r.Get("/", h.component.GetAllComponents)
 			r.Get("/expert-roles", h.expert.GetExpertRoles)
 			r.Get("/{id}", h.component.GetComponentByID)
@@ -204,7 +204,7 @@ func registerComponentRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddlewar
 			r.Get("/{componentId}/origin/built-by", h.originRelationship.GetBuiltByByComponent)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsWrite))
+			r.Use(auth.RequirePermission(authPL.PermComponentsWrite))
 			r.Post("/", h.component.CreateApplicationComponent)
 			r.Post("/{id}/experts", h.expert.AddComponentExpert)
 			r.Put("/{componentId}/origin/acquired-via", h.originRelationship.CreateAcquiredViaRelationship)
@@ -216,7 +216,7 @@ func registerComponentRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddlewar
 			r.Put("/{id}", h.component.UpdateApplicationComponent)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsDelete))
+			r.Use(auth.RequirePermission(authPL.PermComponentsDelete))
 			r.Delete("/{id}", h.component.DeleteApplicationComponent)
 			r.Delete("/{id}/experts", h.expert.RemoveComponentExpert)
 			r.Delete("/{componentId}/origin/acquired-via", h.originRelationship.DeleteAcquiredViaRelationship)
@@ -229,19 +229,19 @@ func registerComponentRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddlewar
 func registerRelationRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddleware) {
 	r.Route("/relations", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsRead))
+			r.Use(auth.RequirePermission(authPL.PermComponentsRead))
 			r.Get("/", h.relation.GetAllRelations)
 			r.Get("/{id}", h.relation.GetRelationByID)
 			r.Get("/from/{componentId}", h.relation.GetRelationsFromComponent)
 			r.Get("/to/{componentId}", h.relation.GetRelationsToComponent)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsWrite))
+			r.Use(auth.RequirePermission(authPL.PermComponentsWrite))
 			r.Post("/", h.relation.CreateComponentRelation)
 			r.Put("/{id}", h.relation.UpdateComponentRelation)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsDelete))
+			r.Use(auth.RequirePermission(authPL.PermComponentsDelete))
 			r.Delete("/{id}", h.relation.DeleteComponentRelation)
 		})
 	})
@@ -250,12 +250,12 @@ func registerRelationRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddleware
 func registerOriginEntityRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddleware) {
 	r.Route("/acquired-entities", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsRead))
+			r.Use(auth.RequirePermission(authPL.PermComponentsRead))
 			r.Get("/", h.acquiredEntity.GetAllAcquiredEntities)
 			r.Get("/{id}", h.acquiredEntity.GetAcquiredEntityByID)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsWrite))
+			r.Use(auth.RequirePermission(authPL.PermComponentsWrite))
 			r.Post("/", h.acquiredEntity.CreateAcquiredEntity)
 		})
 		r.Group(func(r chi.Router) {
@@ -263,19 +263,19 @@ func registerOriginEntityRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddle
 			r.Put("/{id}", h.acquiredEntity.UpdateAcquiredEntity)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsDelete))
+			r.Use(auth.RequirePermission(authPL.PermComponentsDelete))
 			r.Delete("/{id}", h.acquiredEntity.DeleteAcquiredEntity)
 		})
 	})
 
 	r.Route("/vendors", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsRead))
+			r.Use(auth.RequirePermission(authPL.PermComponentsRead))
 			r.Get("/", h.vendor.GetAllVendors)
 			r.Get("/{id}", h.vendor.GetVendorByID)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsWrite))
+			r.Use(auth.RequirePermission(authPL.PermComponentsWrite))
 			r.Post("/", h.vendor.CreateVendor)
 		})
 		r.Group(func(r chi.Router) {
@@ -283,19 +283,19 @@ func registerOriginEntityRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddle
 			r.Put("/{id}", h.vendor.UpdateVendor)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsDelete))
+			r.Use(auth.RequirePermission(authPL.PermComponentsDelete))
 			r.Delete("/{id}", h.vendor.DeleteVendor)
 		})
 	})
 
 	r.Route("/internal-teams", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsRead))
+			r.Use(auth.RequirePermission(authPL.PermComponentsRead))
 			r.Get("/", h.internalTeam.GetAllInternalTeams)
 			r.Get("/{id}", h.internalTeam.GetInternalTeamByID)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsWrite))
+			r.Use(auth.RequirePermission(authPL.PermComponentsWrite))
 			r.Post("/", h.internalTeam.CreateInternalTeam)
 		})
 		r.Group(func(r chi.Router) {
@@ -303,7 +303,7 @@ func registerOriginEntityRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddle
 			r.Put("/{id}", h.internalTeam.UpdateInternalTeam)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsDelete))
+			r.Use(auth.RequirePermission(authPL.PermComponentsDelete))
 			r.Delete("/{id}", h.internalTeam.DeleteInternalTeam)
 		})
 	})
@@ -312,7 +312,7 @@ func registerOriginEntityRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddle
 func registerOriginRelationshipRoutes(r chi.Router, h *httpHandlerSet, auth AuthMiddleware) {
 	r.Route("/origin-relationships", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(auth.RequirePermission(authValueObjects.PermComponentsRead))
+			r.Use(auth.RequirePermission(authPL.PermComponentsRead))
 			r.Get("/", h.originRelationship.GetAllOriginRelationships)
 		})
 	})

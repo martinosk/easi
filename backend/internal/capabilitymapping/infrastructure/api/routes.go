@@ -3,8 +3,7 @@ package api
 import (
 	"net/http"
 
-	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
-	"easi/backend/internal/auth/infrastructure/session"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/application/projectors"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
@@ -25,7 +24,7 @@ import (
 )
 
 type AuthMiddleware interface {
-	RequirePermission(permission authValueObjects.Permission) func(http.Handler) http.Handler
+	RequirePermission(permission authPL.Permission) func(http.Handler) http.Handler
 }
 
 type RouteConfig struct {
@@ -37,7 +36,7 @@ type RouteConfig struct {
 	HATEOAS                *sharedAPI.HATEOASLinks
 	MaturityScaleGateway   metamodel.MaturityScaleGateway
 	StrategyPillarsGateway metamodel.StrategyPillarsGateway
-	SessionManager         *session.SessionManager
+	SessionProvider        authPL.SessionProvider
 	AuthMiddleware         AuthMiddleware
 }
 
@@ -69,9 +68,9 @@ func SetupCapabilityMappingRoutes(config *RouteConfig) error {
 		maturityLevel:        NewMaturityLevelHandlers(config.MaturityScaleGateway),
 		businessDomain:       NewBusinessDomainHandlers(config.CommandBus, businessDomainReadModels, links),
 		strategyImportance:   NewStrategyImportanceHandlers(config.CommandBus, rm.strategyImportance, links),
-		applicationFitScore:  NewApplicationFitScoreHandlers(config.CommandBus, rm.applicationFitScore, links, config.SessionManager),
+		applicationFitScore:  NewApplicationFitScoreHandlers(config.CommandBus, rm.applicationFitScore, links, config.SessionProvider),
 		fitComparison:        NewFitComparisonHandlers(rm.componentFitComparison),
-		strategicFitAnalysis: NewStrategicFitAnalysisHandlers(rm.strategicFitAnalysis, config.StrategyPillarsGateway, config.SessionManager),
+		strategicFitAnalysis: NewStrategicFitAnalysisHandlers(rm.strategicFitAnalysis, config.StrategyPillarsGateway, config.SessionProvider),
 	}
 
 	rateLimiter := platformAPI.NewRateLimiter(100, 60)
@@ -178,10 +177,11 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pill
 	ratingLookupAdapter := adapters.NewRatingLookupAdapter(rm.strategyImportance)
 	hierarchyService := services.NewCapabilityHierarchyService(capabilityLookupAdapter)
 	ratingResolver := services.NewHierarchicalRatingResolver(hierarchyService, ratingLookupAdapter, capabilityLookupAdapter)
-	recomputer := projectors.NewEffectiveImportanceRecomputer(rm.effectiveCapabilityImportance, ratingResolver, hierarchyService)
+	recomputer := projectors.NewEffectiveImportanceRecomputer(rm.effectiveCapabilityImportance, ratingResolver, hierarchyService, eventBus)
 	importanceChangeProjector := projectors.NewImportanceChangeEffectiveProjector(recomputer, rm.strategyImportance)
 	hierarchyChangeProjector := projectors.NewHierarchyChangeEffectiveProjector(recomputer, rm.effectiveCapabilityImportance)
-	domainAssignmentEffectiveProjector := projectors.NewDomainAssignmentEffectiveProjector(recomputer, rm.effectiveCapabilityImportance, hierarchyService, rm.domainAssignment, pillarsGateway)
+	ancestryChecker := projectors.NewDomainAncestryChecker(hierarchyService, rm.domainAssignment)
+	domainAssignmentEffectiveProjector := projectors.NewDomainAssignmentEffectiveProjector(recomputer, ancestryChecker, pillarsGateway)
 
 	subscribeCapabilityEvents(eventBus, capabilityProjector)
 	subscribeDependencyEvents(eventBus, dependencyProjector)
@@ -379,7 +379,7 @@ func registerApplicationFitScoreCommands(commandBus *cqrs.InMemoryCommandBus, de
 func registerCapabilityRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware) {
 	r.Route("/capabilities", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesRead))
+			r.Use(authMiddleware.RequirePermission(authPL.PermCapabilitiesRead))
 			r.Get("/metadata", h.maturityLevel.GetMetadataIndex)
 			r.Get("/metadata/maturity-levels", h.maturityLevel.GetMaturityLevels)
 			r.Get("/metadata/statuses", h.maturityLevel.GetStatuses)
@@ -395,7 +395,7 @@ func registerCapabilityRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware
 			r.Get("/{id}/importance", h.strategyImportance.GetImportanceByCapability)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesWrite))
+			r.Use(authMiddleware.RequirePermission(authPL.PermCapabilitiesWrite))
 			r.Post("/", h.capability.CreateCapability)
 			r.Post("/{id}/systems", h.realization.LinkSystemToCapability)
 			r.Post("/{id}/experts", h.capability.AddCapabilityExpert)
@@ -409,7 +409,7 @@ func registerCapabilityRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware
 			r.Patch("/{id}/parent", h.capability.ChangeCapabilityParent)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesDelete))
+			r.Use(authMiddleware.RequirePermission(authPL.PermCapabilitiesDelete))
 			r.Delete("/{id}", h.capability.DeleteCapability)
 		})
 	})
@@ -418,15 +418,15 @@ func registerCapabilityRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware
 func registerDependencyRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware) {
 	r.Route("/capability-dependencies", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesRead))
+			r.Use(authMiddleware.RequirePermission(authPL.PermCapabilitiesRead))
 			r.Get("/", h.dependency.GetAllDependencies)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesWrite))
+			r.Use(authMiddleware.RequirePermission(authPL.PermCapabilitiesWrite))
 			r.Post("/", h.dependency.CreateDependency)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesDelete))
+			r.Use(authMiddleware.RequirePermission(authPL.PermCapabilitiesDelete))
 			r.Delete("/{id}", h.dependency.DeleteDependency)
 		})
 	})
@@ -435,15 +435,15 @@ func registerDependencyRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware
 func registerRealizationRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware) {
 	r.Route("/capability-realizations", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesRead))
+			r.Use(authMiddleware.RequirePermission(authPL.PermCapabilitiesRead))
 			r.Get("/by-component/{componentId}", h.realization.GetCapabilitiesByComponent)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesWrite))
+			r.Use(authMiddleware.RequirePermission(authPL.PermCapabilitiesWrite))
 			r.Put("/{id}", h.realization.UpdateRealization)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermCapabilitiesDelete))
+			r.Use(authMiddleware.RequirePermission(authPL.PermCapabilitiesDelete))
 			r.Delete("/{id}", h.realization.DeleteRealization)
 		})
 	})
@@ -452,7 +452,7 @@ func registerRealizationRoutes(r chi.Router, h *routeHTTPHandlers, authMiddlewar
 func registerBusinessDomainRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware) {
 	r.Route("/business-domains", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermDomainsRead))
+			r.Use(authMiddleware.RequirePermission(authPL.PermDomainsRead))
 			r.Get("/", h.businessDomain.GetAllBusinessDomains)
 			r.Get("/{id}", h.businessDomain.GetBusinessDomainByID)
 			r.Get("/{id}/capabilities", h.businessDomain.GetCapabilitiesInDomain)
@@ -460,7 +460,7 @@ func registerBusinessDomainRoutes(r chi.Router, h *routeHTTPHandlers, authMiddle
 			r.Get("/{id}/importance", h.strategyImportance.GetImportanceByDomain)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermDomainsWrite))
+			r.Use(authMiddleware.RequirePermission(authPL.PermDomainsWrite))
 			r.Post("/", h.businessDomain.CreateBusinessDomain)
 			r.Post("/{id}/capabilities", h.businessDomain.AssignCapabilityToDomain)
 		})
@@ -469,22 +469,22 @@ func registerBusinessDomainRoutes(r chi.Router, h *routeHTTPHandlers, authMiddle
 			r.Put("/{id}", h.businessDomain.UpdateBusinessDomain)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermDomainsDelete))
+			r.Use(authMiddleware.RequirePermission(authPL.PermDomainsDelete))
 			r.Delete("/{id}", h.businessDomain.DeleteBusinessDomain)
 			r.Delete("/{id}/capabilities/{capabilityId}", h.businessDomain.RemoveCapabilityFromDomain)
 		})
 		r.Route("/{id}/capabilities/{capabilityId}/importance", func(r chi.Router) {
 			r.Group(func(r chi.Router) {
-				r.Use(authMiddleware.RequirePermission(authValueObjects.PermDomainsRead))
+				r.Use(authMiddleware.RequirePermission(authPL.PermDomainsRead))
 				r.Get("/", h.strategyImportance.GetImportanceByDomainAndCapability)
 			})
 			r.Group(func(r chi.Router) {
-				r.Use(authMiddleware.RequirePermission(authValueObjects.PermDomainsWrite))
+				r.Use(authMiddleware.RequirePermission(authPL.PermDomainsWrite))
 				r.Post("/", h.strategyImportance.SetImportance)
 				r.Put("/{importanceId}", h.strategyImportance.UpdateImportance)
 			})
 			r.Group(func(r chi.Router) {
-				r.Use(authMiddleware.RequirePermission(authValueObjects.PermDomainsDelete))
+				r.Use(authMiddleware.RequirePermission(authPL.PermDomainsDelete))
 				r.Delete("/{importanceId}", h.strategyImportance.RemoveImportance)
 			})
 		})
@@ -497,22 +497,22 @@ func registerStrategyImportanceRoutes(r chi.Router, h *routeHTTPHandlers) {
 func registerApplicationFitScoreRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
 	r.Route("/components/{id}/fit-scores", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsRead))
+			r.Use(authMiddleware.RequirePermission(authPL.PermComponentsRead))
 			r.Get("/", h.applicationFitScore.GetFitScoresByComponent)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsWrite))
+			r.Use(authMiddleware.RequirePermission(authPL.PermComponentsWrite))
 			r.Use(platformAPI.RateLimitMiddleware(rateLimiter))
 			r.Put("/{pillarId}", h.applicationFitScore.SetFitScore)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsDelete))
+			r.Use(authMiddleware.RequirePermission(authPL.PermComponentsDelete))
 			r.Use(platformAPI.RateLimitMiddleware(rateLimiter))
 			r.Delete("/{pillarId}", h.applicationFitScore.RemoveFitScore)
 		})
 	})
 	r.Group(func(r chi.Router) {
-		r.Use(authMiddleware.RequirePermission(authValueObjects.PermComponentsRead))
+		r.Use(authMiddleware.RequirePermission(authPL.PermComponentsRead))
 		r.Get("/components/{id}/fit-comparisons", h.fitComparison.GetFitComparisons)
 		r.Get("/strategy-pillars/{pillarId}/fit-scores", h.applicationFitScore.GetFitScoresByPillar)
 	})
@@ -520,7 +520,7 @@ func registerApplicationFitScoreRoutes(r chi.Router, h *routeHTTPHandlers, authM
 
 func registerStrategicFitAnalysisRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware) {
 	r.Group(func(r chi.Router) {
-		r.Use(authMiddleware.RequirePermission(authValueObjects.PermEnterpriseArchRead))
+		r.Use(authMiddleware.RequirePermission(authPL.PermEnterpriseArchRead))
 		r.Get("/strategic-fit-analysis/{pillarId}", h.strategicFitAnalysis.GetStrategicFitAnalysis)
 	})
 }

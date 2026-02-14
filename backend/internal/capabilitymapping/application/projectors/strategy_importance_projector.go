@@ -8,7 +8,7 @@ import (
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/events"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
-	"easi/backend/internal/capabilitymapping/infrastructure/metamodel"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
@@ -16,14 +16,14 @@ type StrategyImportanceProjector struct {
 	importanceReadModel *readmodels.StrategyImportanceReadModel
 	domainReadModel     *readmodels.BusinessDomainReadModel
 	capabilityReadModel *readmodels.CapabilityReadModel
-	pillarsGateway      metamodel.StrategyPillarsGateway
+	pillarsGateway      mmPL.StrategyPillarsGateway
 }
 
 func NewStrategyImportanceProjector(
 	importanceReadModel *readmodels.StrategyImportanceReadModel,
 	domainReadModel *readmodels.BusinessDomainReadModel,
 	capabilityReadModel *readmodels.CapabilityReadModel,
-	pillarsGateway metamodel.StrategyPillarsGateway,
+	pillarsGateway mmPL.StrategyPillarsGateway,
 ) *StrategyImportanceProjector {
 	return &StrategyImportanceProjector{
 		importanceReadModel: importanceReadModel,

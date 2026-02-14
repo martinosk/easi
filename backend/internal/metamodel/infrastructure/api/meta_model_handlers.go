@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"easi/backend/internal/auth/infrastructure/session"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/metamodel/application/commands"
 	"easi/backend/internal/metamodel/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -22,23 +22,23 @@ func setMaturityScaleCacheHeaders(w http.ResponseWriter, version int) {
 }
 
 type MetaModelHandlers struct {
-	commandBus     cqrs.CommandBus
-	readModel      *readmodels.MetaModelConfigurationReadModel
-	hateoas        *MetaModelLinks
-	sessionManager *session.SessionManager
+	commandBus      cqrs.CommandBus
+	readModel       *readmodels.MetaModelConfigurationReadModel
+	hateoas         *MetaModelLinks
+	sessionProvider authPL.SessionProvider
 }
 
 func NewMetaModelHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.MetaModelConfigurationReadModel,
 	hateoas *MetaModelLinks,
-	sessionManager *session.SessionManager,
+	sessionProvider authPL.SessionProvider,
 ) *MetaModelHandlers {
 	return &MetaModelHandlers{
-		commandBus:     commandBus,
-		readModel:      readModel,
-		hateoas:        hateoas,
-		sessionManager: sessionManager,
+		commandBus:      commandBus,
+		readModel:       readModel,
+		hateoas:         hateoas,
+		sessionProvider: sessionProvider,
 	}
 }
 
@@ -193,7 +193,7 @@ func (h *MetaModelHandlers) GetMaturityScale(w http.ResponseWriter, r *http.Requ
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /meta-model/maturity-scale [put]
 func (h *MetaModelHandlers) UpdateMaturityScale(w http.ResponseWriter, r *http.Request) {
-	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
+	email, err := h.sessionProvider.GetCurrentUserEmail(r.Context())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Authentication required")
 		return
@@ -204,7 +204,7 @@ func (h *MetaModelHandlers) UpdateMaturityScale(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	config, ok := h.ensureConfigExists(w, r, authSession.UserEmail())
+	config, ok := h.ensureConfigExists(w, r, email)
 	if !ok {
 		return
 	}
@@ -217,7 +217,7 @@ func (h *MetaModelHandlers) UpdateMaturityScale(w http.ResponseWriter, r *http.R
 	cmd := &commands.UpdateMaturityScale{
 		ID:         config.ID,
 		Sections:   req.toCommandInput(),
-		ModifiedBy: authSession.UserEmail(),
+		ModifiedBy: email,
 	}
 
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
@@ -246,20 +246,20 @@ func (h *MetaModelHandlers) UpdateMaturityScale(w http.ResponseWriter, r *http.R
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /meta-model/maturity-scale/reset [post]
 func (h *MetaModelHandlers) ResetMaturityScale(w http.ResponseWriter, r *http.Request) {
-	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
+	email, err := h.sessionProvider.GetCurrentUserEmail(r.Context())
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusUnauthorized, err, "Authentication required")
 		return
 	}
 
-	config, ok := h.ensureConfigExists(w, r, authSession.UserEmail())
+	config, ok := h.ensureConfigExists(w, r, email)
 	if !ok {
 		return
 	}
 
 	cmd := &commands.ResetMaturityScale{
 		ID:         config.ID,
-		ModifiedBy: authSession.UserEmail(),
+		ModifiedBy: email,
 	}
 
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {

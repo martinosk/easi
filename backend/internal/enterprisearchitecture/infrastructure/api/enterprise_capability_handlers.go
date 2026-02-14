@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"easi/backend/internal/auth/infrastructure/session"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/enterprisearchitecture/application/commands"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -21,22 +21,22 @@ type EnterpriseCapabilityReadModels struct {
 }
 
 type EnterpriseCapabilityHandlers struct {
-	commandBus     cqrs.CommandBus
-	readModels     *EnterpriseCapabilityReadModels
-	sessionManager *session.SessionManager
-	hateoas        *EnterpriseArchLinks
+	commandBus      cqrs.CommandBus
+	readModels      *EnterpriseCapabilityReadModels
+	sessionProvider authPL.SessionProvider
+	hateoas         *EnterpriseArchLinks
 }
 
 func NewEnterpriseCapabilityHandlers(
 	commandBus cqrs.CommandBus,
 	readModels *EnterpriseCapabilityReadModels,
-	sessionManager *session.SessionManager,
+	sessionProvider authPL.SessionProvider,
 ) *EnterpriseCapabilityHandlers {
 	return &EnterpriseCapabilityHandlers{
-		commandBus:     commandBus,
-		readModels:     readModels,
-		sessionManager: sessionManager,
-		hateoas:        NewEnterpriseArchLinks(sharedAPI.NewHATEOASLinks("")),
+		commandBus:      commandBus,
+		readModels:      readModels,
+		sessionProvider: sessionProvider,
+		hateoas:         NewEnterpriseArchLinks(sharedAPI.NewHATEOASLinks("")),
 	}
 }
 
@@ -110,10 +110,7 @@ func (h *EnterpriseCapabilityHandlers) CreateEnterpriseCapability(w http.Respons
 		Category:    req.Category,
 	}
 
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	sharedAPI.HandleCommandResult(w, result, err, func(createdID string) {
-		h.respondWithCapability(w, r, createdID, http.StatusCreated)
-	})
+	h.dispatchAndRespondWithCapability(w, r, cmd, "")
 }
 
 // GetAllEnterpriseCapabilities godoc
@@ -190,10 +187,7 @@ func (h *EnterpriseCapabilityHandlers) UpdateEnterpriseCapability(w http.Respons
 		Category:    req.Category,
 	}
 
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
-		h.respondWithCapability(w, r, id, http.StatusOK)
-	})
+	h.dispatchAndRespondWithCapability(w, r, cmd, id)
 }
 
 // DeleteEnterpriseCapability godoc
@@ -224,24 +218,22 @@ func (h *EnterpriseCapabilityHandlers) DeleteEnterpriseCapability(w http.Respons
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id}/links [get]
 func (h *EnterpriseCapabilityHandlers) GetLinkedCapabilities(w http.ResponseWriter, r *http.Request) {
-	enterpriseCapabilityID := sharedAPI.GetPathParam(r, "id")
-
-	capability := h.getCapabilityOrNotFound(w, r, enterpriseCapabilityID)
-	if capability == nil {
+	ecID, ok := h.requireCapability(w, r)
+	if !ok {
 		return
 	}
 
-	links, err := h.readModels.Link.GetByEnterpriseCapabilityID(r.Context(), enterpriseCapabilityID)
+	links, err := h.readModels.Link.GetByEnterpriseCapabilityID(r.Context(), ecID)
 	if err != nil {
 		sharedAPI.HandleError(w, err)
 		return
 	}
 
 	for i := range links {
-		links[i].Links = h.hateoas.EnterpriseCapabilityLinkLinks(enterpriseCapabilityID, links[i].ID)
+		links[i].Links = h.hateoas.EnterpriseCapabilityLinkLinks(ecID, links[i].ID)
 	}
 
-	sharedAPI.RespondCollection(w, http.StatusOK, links, h.hateoas.EnterpriseCapabilityLinksCollectionLinks(enterpriseCapabilityID))
+	sharedAPI.RespondCollection(w, http.StatusOK, links, h.hateoas.EnterpriseCapabilityLinksCollectionLinks(ecID))
 }
 
 // LinkCapability godoc
@@ -320,14 +312,12 @@ func (h *EnterpriseCapabilityHandlers) UnlinkCapability(w http.ResponseWriter, r
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /enterprise-capabilities/{id}/strategic-importance [get]
 func (h *EnterpriseCapabilityHandlers) GetStrategicImportance(w http.ResponseWriter, r *http.Request) {
-	enterpriseCapabilityID := sharedAPI.GetPathParam(r, "id")
-
-	capability := h.getCapabilityOrNotFound(w, r, enterpriseCapabilityID)
-	if capability == nil {
+	ecID, ok := h.requireCapability(w, r)
+	if !ok {
 		return
 	}
 
-	ratings, err := h.readModels.Importance.GetByEnterpriseCapabilityID(r.Context(), enterpriseCapabilityID)
+	ratings, err := h.readModels.Importance.GetByEnterpriseCapabilityID(r.Context(), ecID)
 	if err != nil {
 		sharedAPI.HandleError(w, err)
 		return
@@ -335,10 +325,10 @@ func (h *EnterpriseCapabilityHandlers) GetStrategicImportance(w http.ResponseWri
 
 	actor, _ := sharedctx.GetActor(r.Context())
 	for i := range ratings {
-		ratings[i].Links = h.hateoas.EnterpriseStrategicImportanceLinksForActor(enterpriseCapabilityID, ratings[i].ID, actor)
+		ratings[i].Links = h.hateoas.EnterpriseStrategicImportanceLinksForActor(ecID, ratings[i].ID, actor)
 	}
 
-	sharedAPI.RespondCollection(w, http.StatusOK, ratings, h.hateoas.EnterpriseStrategicImportanceCollectionLinks(enterpriseCapabilityID))
+	sharedAPI.RespondCollection(w, http.StatusOK, ratings, h.hateoas.EnterpriseStrategicImportanceCollectionLinks(ecID))
 }
 
 // SetStrategicImportance godoc
@@ -506,6 +496,14 @@ func getOrNotFound[T any](w http.ResponseWriter, fetchFn func() (*T, error), res
 	return result
 }
 
+func (h *EnterpriseCapabilityHandlers) requireCapability(w http.ResponseWriter, r *http.Request) (string, bool) {
+	id := sharedAPI.GetPathParam(r, "id")
+	if h.getCapabilityOrNotFound(w, r, id) == nil {
+		return "", false
+	}
+	return id, true
+}
+
 func (h *EnterpriseCapabilityHandlers) getCapabilityOrNotFound(w http.ResponseWriter, r *http.Request, id string) *readmodels.EnterpriseCapabilityDTO {
 	return getOrNotFound(w, func() (*readmodels.EnterpriseCapabilityDTO, error) {
 		return h.readModels.Capability.GetByID(r.Context(), id)
@@ -551,6 +549,19 @@ func (h *EnterpriseCapabilityHandlers) respondWithCapability(w http.ResponseWrit
 	}
 }
 
+func (h *EnterpriseCapabilityHandlers) dispatchAndRespondWithCapability(w http.ResponseWriter, r *http.Request, cmd cqrs.Command, capabilityID string) {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(resultID string) {
+		id := capabilityID
+		statusCode := http.StatusOK
+		if id == "" {
+			id = resultID
+			statusCode = http.StatusCreated
+		}
+		h.respondWithCapability(w, r, id, statusCode)
+	})
+}
+
 func (h *EnterpriseCapabilityHandlers) dispatchDelete(w http.ResponseWriter, r *http.Request, cmd cqrs.Command) {
 	result, err := h.commandBus.Dispatch(r.Context(), cmd)
 	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
@@ -579,11 +590,7 @@ func (h *EnterpriseCapabilityHandlers) addLinkStatusLinks(status *readmodels.Cap
 }
 
 func (h *EnterpriseCapabilityHandlers) getCurrentUserEmail(r *http.Request) (string, error) {
-	authSession, err := h.sessionManager.LoadAuthenticatedSession(r.Context())
-	if err != nil {
-		return "", err
-	}
-	return authSession.UserEmail(), nil
+	return h.sessionProvider.GetCurrentUserEmail(r.Context())
 }
 
 // GetCapabilityLinkStatus godoc

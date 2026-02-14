@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -21,7 +21,7 @@ import (
 )
 
 type AuthMiddleware interface {
-	RequirePermission(permission authValueObjects.Permission) func(http.Handler) http.Handler
+	RequirePermission(permission authPL.Permission) func(http.Handler) http.Handler
 }
 
 type RouteConfig struct {
@@ -79,13 +79,13 @@ func SetupValueStreamsRoutes(config *RouteConfig) error {
 
 	config.Router.Route("/value-streams", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(config.AuthMiddleware.RequirePermission(authValueObjects.PermValueStreamsRead))
+			r.Use(config.AuthMiddleware.RequirePermission(authPL.PermValueStreamsRead))
 			r.Get("/", httpHandlers.GetAllValueStreams)
 			r.Get("/{id}", httpHandlers.GetValueStreamByID)
 			r.Get("/{id}/capabilities", stageHttpHandlers.GetValueStreamCapabilities)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(config.AuthMiddleware.RequirePermission(authValueObjects.PermValueStreamsWrite))
+			r.Use(config.AuthMiddleware.RequirePermission(authPL.PermValueStreamsWrite))
 			r.Post("/", httpHandlers.CreateValueStream)
 			r.Put("/{id}", httpHandlers.UpdateValueStream)
 			r.Post("/{id}/stages", stageHttpHandlers.CreateStage)
@@ -94,7 +94,7 @@ func SetupValueStreamsRoutes(config *RouteConfig) error {
 			r.Post("/{id}/stages/{stageId}/capabilities", stageHttpHandlers.AddStageCapability)
 		})
 		r.Group(func(r chi.Router) {
-			r.Use(config.AuthMiddleware.RequirePermission(authValueObjects.PermValueStreamsDelete))
+			r.Use(config.AuthMiddleware.RequirePermission(authPL.PermValueStreamsDelete))
 			r.Delete("/{id}", httpHandlers.DeleteValueStream)
 			r.Delete("/{id}/stages/{stageId}", stageHttpHandlers.DeleteStage)
 			r.Delete("/{id}/stages/{stageId}/capabilities/{capabilityId}", stageHttpHandlers.RemoveStageCapability)

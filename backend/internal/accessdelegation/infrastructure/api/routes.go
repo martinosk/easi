@@ -11,7 +11,7 @@ import (
 	viewsReadModels "easi/backend/internal/architectureviews/application/readmodels"
 	viewsPL "easi/backend/internal/architectureviews/publishedlanguage"
 	authReadModels "easi/backend/internal/auth/application/readmodels"
-	authAPI "easi/backend/internal/auth/infrastructure/api"
+	"net/http"
 	capReadModels "easi/backend/internal/capabilitymapping/application/readmodels"
 	capPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
@@ -24,13 +24,17 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+type AuthMiddleware interface {
+	RequireAuth() func(http.Handler) http.Handler
+}
+
 type AccessDelegationRoutesDeps struct {
 	CommandBus      *cqrs.InMemoryCommandBus
 	EventStore      eventstore.EventStore
 	EventBus        *events.InMemoryEventBus
 	DB              *database.TenantAwareDB
 	HATEOAS         *sharedAPI.HATEOASLinks
-	AuthMiddleware  *authAPI.AuthMiddleware
+	AuthMiddleware  AuthMiddleware
 	UserReadModel   *authReadModels.UserReadModel
 	InvReadModel    *authReadModels.InvitationReadModel
 	DomainChecker   *authReadModels.TenantDomainChecker
@@ -39,7 +43,7 @@ type AccessDelegationRoutesDeps struct {
 type AccessDelegationDependencies struct {
 	GrantResolver  *readmodels.EditGrantReadModel
 	handlers       *EditGrantHandlers
-	authMiddleware *authAPI.AuthMiddleware
+	authMiddleware AuthMiddleware
 	rateLimiter    *platformAPI.RateLimiter
 }
 
@@ -115,7 +119,7 @@ func registerArtifactDeletionSubscriptions(eventBus *events.InMemoryEventBus, re
 	eventBus.Subscribe(archPL.InternalTeamDeleted, internalTeamDeletionProjector)
 }
 
-func registerRoutes(r chi.Router, h *EditGrantHandlers, authMiddleware *authAPI.AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
+func registerRoutes(r chi.Router, h *EditGrantHandlers, authMiddleware AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
 	r.Route("/edit-grants", func(r chi.Router) {
 		r.Use(authMiddleware.RequireAuth())
 		r.Group(func(r chi.Router) {
