@@ -19,10 +19,10 @@ variables:
 
 stages:
 - stage: Test
-  displayName: 'Test'
+  displayName: 'Test & Verify Build'
   jobs:
   - job: Test
-    displayName: 'Run tests'
+    displayName: 'Run tests and verify build'
     steps:
     - task: Go@0
       name: BackendUnitTests
@@ -30,6 +30,14 @@ stages:
       inputs:
         command: 'test'
         arguments: '-v ./...'
+        workingDirectory: 'backend'
+
+    - task: Go@0
+      name: BackendBuild
+      displayName: 'Verify backend build'
+      inputs:
+        command: 'build'
+        arguments: '-o /dev/null ./cmd/api'
         workingDirectory: 'backend'
 
     - task: NodeTool@0
@@ -62,6 +70,12 @@ stages:
         mergeTestResults: true
         failTaskOnFailedTests: true
         testRunTitle: 'Frontend Unit Tests'
+
+    - script: |
+        cd frontend
+        npm run build
+      name: FrontendBuild
+      displayName: 'Verify frontend build'
 
 - stage: BuildAndPush
   displayName: 'Build & Push'
