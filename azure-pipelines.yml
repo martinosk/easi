@@ -25,14 +25,6 @@ stages:
     displayName: 'Run tests and verify build'
     steps:
     - task: Go@0
-      name: BackendUnitTests
-      displayName: 'Run backend unit tests'
-      inputs:
-        command: 'test'
-        arguments: '-v ./...'
-        workingDirectory: 'backend'
-
-    - task: Go@0
       name: BackendBuild
       displayName: 'Verify backend build'
       inputs:
@@ -55,6 +47,20 @@ stages:
 
     - script: |
         cd frontend
+        npm run build
+      name: FrontendBuild
+      displayName: 'Verify frontend build'
+
+    - task: Go@0
+      name: BackendUnitTests
+      displayName: 'Run backend unit tests'
+      inputs:
+        command: 'test'
+        arguments: '-v ./...'
+        workingDirectory: 'backend'
+
+    - script: |
+        cd frontend
         CI=true npm run test -- --run
       name: FrontendUnitTests
       displayName: 'Run frontend unit tests'
@@ -70,12 +76,6 @@ stages:
         mergeTestResults: true
         failTaskOnFailedTests: true
         testRunTitle: 'Frontend Unit Tests'
-
-    - script: |
-        cd frontend
-        npm run build
-      name: FrontendBuild
-      displayName: 'Verify frontend build'
 
 - stage: BuildAndPush
   displayName: 'Build & Push'
