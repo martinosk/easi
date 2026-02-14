@@ -174,7 +174,7 @@ func (v *ValueStream) validateReorderPositions(positions []StagePositionUpdate) 
 	return nil
 }
 
-func (v *ValueStream) AddCapabilityToStage(stageID valueobjects.StageID, capRef valueobjects.CapabilityRef) error {
+func (v *ValueStream) AddCapabilityToStage(stageID valueobjects.StageID, capRef valueobjects.CapabilityRef, capabilityName string) error {
 	stage, idx := v.findStage(stageID)
 	if idx < 0 {
 		return ErrStageNotFound
@@ -183,7 +183,7 @@ func (v *ValueStream) AddCapabilityToStage(stageID valueobjects.StageID, capRef 
 		return ErrCapabilityAlreadyMapped
 	}
 
-	event := events.NewValueStreamStageCapabilityAdded(v.ID(), stageID.Value(), capRef.Value())
+	event := events.NewValueStreamStageCapabilityAdded(v.ID(), stageID.Value(), capRef.Value(), capabilityName)
 	v.apply(event)
 	v.RaiseEvent(event)
 	return nil

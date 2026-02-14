@@ -177,9 +177,10 @@ type StageUpdate struct {
 }
 
 type StageCapabilityRef struct {
-	TenantID     string
-	StageID      string
-	CapabilityID string
+	TenantID       string
+	StageID        string
+	CapabilityID   string
+	CapabilityName string
 }
 
 type StageNameQuery struct {
@@ -294,8 +295,8 @@ func (rm *ValueStreamReadModel) AdjustStageCount(ctx context.Context, valueStrea
 
 func (rm *ValueStreamReadModel) InsertStageCapability(ctx context.Context, ref StageCapabilityRef) error {
 	_, err := rm.db.ExecContext(ctx,
-		"INSERT INTO value_stream_stage_capabilities (tenant_id, stage_id, capability_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
-		ref.TenantID, ref.StageID, ref.CapabilityID,
+		"INSERT INTO value_stream_stage_capabilities (tenant_id, stage_id, capability_id, capability_name) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+		ref.TenantID, ref.StageID, ref.CapabilityID, ref.CapabilityName,
 	)
 	return err
 }
@@ -346,7 +347,7 @@ func (rm *ValueStreamReadModel) GetCapabilitiesByValueStreamID(ctx context.Conte
 	var caps []StageCapabilityMappingDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			`SELECT sc.stage_id, sc.capability_id
+			`SELECT sc.stage_id, sc.capability_id, COALESCE(sc.capability_name, '')
 			 FROM value_stream_stage_capabilities sc
 			 INNER JOIN value_stream_stages s ON sc.tenant_id = s.tenant_id AND sc.stage_id = s.id
 			 WHERE sc.tenant_id = $1 AND s.value_stream_id = $2
@@ -360,7 +361,7 @@ func (rm *ValueStreamReadModel) GetCapabilitiesByValueStreamID(ctx context.Conte
 
 		for rows.Next() {
 			var dto StageCapabilityMappingDTO
-			if err := rows.Scan(&dto.StageID, &dto.CapabilityID); err != nil {
+			if err := rows.Scan(&dto.StageID, &dto.CapabilityID, &dto.CapabilityName); err != nil {
 				return err
 			}
 			caps = append(caps, dto)

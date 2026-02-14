@@ -43,6 +43,17 @@ function reorderStageIds(sortedStages: ValueStreamStage[], draggedId: string, ta
   return ordered;
 }
 
+function applyStageReorder(
+  draggedStageId: string | null,
+  targetStageId: string,
+  sortedStages: ValueStreamStage[],
+  onReorder: (orderedStageIds: string[]) => void,
+): void {
+  if (!draggedStageId || draggedStageId === targetStageId) return;
+  const ordered = reorderStageIds(sortedStages, draggedStageId, targetStageId);
+  if (ordered) onReorder(ordered);
+}
+
 function groupCapabilitiesByStage(stageCapabilities: StageCapabilityMapping[]) {
   const capsByStage = new Map<string, StageCapabilityMapping[]>();
   for (const cap of stageCapabilities) {
@@ -89,7 +100,7 @@ function EmptyStages({ canWrite, onAddStage }: { canWrite: boolean; onAddStage: 
       </svg>
       <h3>No stages yet</h3>
       <p>Add stages to model the flow of this value stream.</p>
-      {canWrite && <AddStageButton onClick={onAddStage} />}
+      {canWrite && <AddStageButton onClick={() => onAddStage()} />}
     </div>
   );
 }
@@ -117,18 +128,14 @@ export function StageFlowDiagram({
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = e.dataTransfer.effectAllowed === 'copy' ? 'copy' : 'move';
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent, targetStageId: string) => {
     e.preventDefault();
-    if (tryHandleCapabilityDrop(e, targetStageId, onAddCapability)) {
-      setDraggedStageId(null);
-      return;
+    if (!tryHandleCapabilityDrop(e, targetStageId, onAddCapability)) {
+      applyStageReorder(draggedStageId, targetStageId, sortedStages, onReorder);
     }
-    if (!draggedStageId || draggedStageId === targetStageId) { setDraggedStageId(null); return; }
-    const ordered = reorderStageIds(sortedStages, draggedStageId, targetStageId);
-    if (ordered) onReorder(ordered);
     setDraggedStageId(null);
   }, [draggedStageId, sortedStages, onReorder, onAddCapability]);
 

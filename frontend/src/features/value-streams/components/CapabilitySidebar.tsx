@@ -104,7 +104,7 @@ function TreeNode({ node, mappedCapabilityIds, onDragCapability, filter, matches
         onDragStart={handleDragStart}
         data-testid={`cap-tree-${node.capability.id}`}
       >
-        {hasChildren && (
+        {hasChildren ? (
           <button
             type="button"
             className="cap-tree-toggle"
@@ -114,6 +114,8 @@ function TreeNode({ node, mappedCapabilityIds, onDragCapability, filter, matches
               <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
+        ) : (
+          <span className="cap-tree-toggle" />
         )}
         <span className="cap-tree-level" style={{ color: LEVEL_COLORS[level] }}>{level}</span>
         <span className="cap-tree-name">{node.capability.name}</span>

@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS value_stream_stage_capabilities (
     tenant_id VARCHAR(50) NOT NULL,
     stage_id VARCHAR(255) NOT NULL,
     capability_id VARCHAR(255) NOT NULL,
+    capability_name VARCHAR(500) NOT NULL DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (tenant_id, stage_id, capability_id)
 );

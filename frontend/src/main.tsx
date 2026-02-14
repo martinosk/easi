@@ -87,7 +87,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path={ROUTES.CANVAS} element={<Navigate to={ROUTES.HOME} replace />} />
                   <Route path={ROUTES.BUSINESS_DOMAINS} element={<App view="business-domains" />} />
                   <Route path={ROUTES.BUSINESS_DOMAIN_DETAIL} element={<App view="business-domains" />} />
-                  <Route path={ROUTES.VALUE_STREAMS} element={<App view="value-streams" />} />
+                  <Route path={`${ROUTES.VALUE_STREAMS}/*`} element={<App view="value-streams" />} />
                   <Route path={ROUTES.ENTERPRISE_ARCHITECTURE} element={<App view="enterprise-architecture" />} />
                   <Route path={ROUTES.INVITATIONS} element={<App view="invitations" />} />
                   <Route path={ROUTES.USERS} element={<App view="users" />} />

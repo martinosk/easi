@@ -41,7 +41,7 @@ func (h *AddStageCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command
 		return cqrs.EmptyResult(), mapRepositoryError(err)
 	}
 
-	capRef, err := h.resolveCapability(ctx, command.CapabilityID)
+	capInfo, err := h.resolveCapability(ctx, command.CapabilityID)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
@@ -51,7 +51,7 @@ func (h *AddStageCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command
 		return cqrs.EmptyResult(), err
 	}
 
-	if err := vs.AddCapabilityToStage(stageID, capRef); err != nil {
+	if err := vs.AddCapabilityToStage(stageID, capInfo.Ref, capInfo.Name); err != nil {
 		return cqrs.EmptyResult(), mapStageError(err)
 	}
 
@@ -62,13 +62,22 @@ func (h *AddStageCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Command
 	return cqrs.EmptyResult(), nil
 }
 
-func (h *AddStageCapabilityHandler) resolveCapability(ctx context.Context, capabilityID string) (valueobjects.CapabilityRef, error) {
-	exists, err := h.capabilityGateway.CapabilityExists(ctx, capabilityID)
+type resolvedCapability struct {
+	Ref  valueobjects.CapabilityRef
+	Name string
+}
+
+func (h *AddStageCapabilityHandler) resolveCapability(ctx context.Context, capabilityID string) (resolvedCapability, error) {
+	info, err := h.capabilityGateway.GetCapability(ctx, capabilityID)
 	if err != nil {
-		return valueobjects.CapabilityRef{}, err
+		return resolvedCapability{}, err
 	}
-	if !exists {
-		return valueobjects.CapabilityRef{}, ErrCapabilityNotFound
+	if info == nil {
+		return resolvedCapability{}, ErrCapabilityNotFound
 	}
-	return valueobjects.NewCapabilityRef(capabilityID)
+	ref, err := valueobjects.NewCapabilityRef(capabilityID)
+	if err != nil {
+		return resolvedCapability{}, err
+	}
+	return resolvedCapability{Ref: ref, Name: info.Name}, nil
 }

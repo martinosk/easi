@@ -18,7 +18,7 @@ func TestRemoveStageCapabilityHandler_Success(t *testing.T) {
 	stageID, _ := vs.AddStage(name, desc, nil)
 
 	capRef, _ := valueobjects.NewCapabilityRef("cap-123")
-	vs.AddCapabilityToStage(stageID, capRef)
+	vs.AddCapabilityToStage(stageID, capRef, "Test Cap")
 	vs.MarkChangesAsCommitted()
 
 	repo := &mockStageRepository{stream: vs}

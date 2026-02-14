@@ -144,8 +144,9 @@ func (p *ValueStreamProjector) handleValueStreamStageCapabilityRemoved(ctx conte
 }
 
 type stageCapabilityFields struct {
-	StageID      string `json:"stageId"`
-	CapabilityID string `json:"capabilityId"`
+	StageID        string `json:"stageId"`
+	CapabilityID   string `json:"capabilityId"`
+	CapabilityName string `json:"capabilityName"`
 }
 
 func (p *ValueStreamProjector) handleStageCapabilityChange(ctx context.Context, eventData []byte, action func(context.Context, readmodels.StageCapabilityRef) error) error {
@@ -158,6 +159,6 @@ func (p *ValueStreamProjector) handleStageCapabilityChange(ctx context.Context, 
 		return err
 	}
 	return action(ctx, readmodels.StageCapabilityRef{
-		TenantID: tenantID.Value(), StageID: fields.StageID, CapabilityID: fields.CapabilityID,
+		TenantID: tenantID.Value(), StageID: fields.StageID, CapabilityID: fields.CapabilityID, CapabilityName: fields.CapabilityName,
 	})
 }

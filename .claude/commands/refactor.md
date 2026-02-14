@@ -1,9 +1,9 @@
 Refactor a file using CodeScene MCP to achieve a code health score of 10.0.
 
-**Usage**: `/refactor <file-path>`
+**Usage**: `/refactor <file(s)>`
 
 **Arguments**:
-- `file-path`: Path to the file to analyze and refactor. If not provided, prompt the user.
+- `file(s)`: Files to analyze and refactor. If not provided, prompt the user.
 
 ## Steps
 
@@ -52,6 +52,7 @@ Refactor a file using CodeScene MCP to achieve a code health score of 10.0.
 
 ## Rules
 
+- Never exclude files (tests etc) unless explicitly asked to do so by the user.
 - Preserve all existing behavior — refactoring only, no functional changes.
 - Respect the project's code style (no added comments, no over-engineering).
 - If a recommendation conflicts with project conventions (e.g., suggests adding comments), skip it and note why.

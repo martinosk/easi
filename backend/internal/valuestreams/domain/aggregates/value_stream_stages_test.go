@@ -213,7 +213,7 @@ func TestValueStream_AddCapabilityToStage(t *testing.T) {
 	vs.MarkChangesAsCommitted()
 
 	capRef, _ := valueobjects.NewCapabilityRef("cap-123")
-	err := vs.AddCapabilityToStage(stageID, capRef)
+	err := vs.AddCapabilityToStage(stageID, capRef, "Test Capability")
 	require.NoError(t, err)
 
 	stage := vs.Stages()[0]
@@ -230,10 +230,10 @@ func TestValueStream_AddCapabilityToStage_AlreadyMapped(t *testing.T) {
 	stageID := vs.Stages()[0].ID()
 
 	capRef, _ := valueobjects.NewCapabilityRef("cap-123")
-	vs.AddCapabilityToStage(stageID, capRef)
+	vs.AddCapabilityToStage(stageID, capRef, "Test Capability")
 	vs.MarkChangesAsCommitted()
 
-	err := vs.AddCapabilityToStage(stageID, capRef)
+	err := vs.AddCapabilityToStage(stageID, capRef, "Test Capability")
 	assert.ErrorIs(t, err, ErrCapabilityAlreadyMapped)
 }
 
@@ -244,7 +244,7 @@ func TestValueStream_AddCapabilityToStage_StageNotFound(t *testing.T) {
 	fakeID := valueobjects.NewStageID()
 	capRef, _ := valueobjects.NewCapabilityRef("cap-123")
 
-	err := vs.AddCapabilityToStage(fakeID, capRef)
+	err := vs.AddCapabilityToStage(fakeID, capRef, "Test Capability")
 	assert.ErrorIs(t, err, ErrStageNotFound)
 }
 
@@ -253,7 +253,7 @@ func TestValueStream_RemoveCapabilityFromStage(t *testing.T) {
 	stageID := vs.Stages()[0].ID()
 
 	capRef, _ := valueobjects.NewCapabilityRef("cap-123")
-	vs.AddCapabilityToStage(stageID, capRef)
+	vs.AddCapabilityToStage(stageID, capRef, "Test Capability")
 	vs.MarkChangesAsCommitted()
 
 	err := vs.RemoveCapabilityFromStage(stageID, capRef)
@@ -288,7 +288,7 @@ func TestValueStream_LoadFromHistory_WithStageEvents(t *testing.T) {
 
 	stageID := vs.Stages()[0].ID()
 	capRef, _ := valueobjects.NewCapabilityRef("cap-1")
-	vs.AddCapabilityToStage(stageID, capRef)
+	vs.AddCapabilityToStage(stageID, capRef, "Test Capability")
 
 	allEvents := vs.GetUncommittedChanges()
 

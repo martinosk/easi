@@ -6,17 +6,19 @@ import (
 
 type ValueStreamStageCapabilityAdded struct {
 	domain.BaseEvent
-	ID           string `json:"id"`
-	StageID      string `json:"stageId"`
-	CapabilityID string `json:"capabilityId"`
+	ID             string `json:"id"`
+	StageID        string `json:"stageId"`
+	CapabilityID   string `json:"capabilityId"`
+	CapabilityName string `json:"capabilityName"`
 }
 
-func NewValueStreamStageCapabilityAdded(id, stageID, capabilityID string) ValueStreamStageCapabilityAdded {
+func NewValueStreamStageCapabilityAdded(id, stageID, capabilityID, capabilityName string) ValueStreamStageCapabilityAdded {
 	return ValueStreamStageCapabilityAdded{
-		BaseEvent:    domain.NewBaseEvent(id),
-		ID:           id,
-		StageID:      stageID,
-		CapabilityID: capabilityID,
+		BaseEvent:      domain.NewBaseEvent(id),
+		ID:             id,
+		StageID:        stageID,
+		CapabilityID:   capabilityID,
+		CapabilityName: capabilityName,
 	}
 }
 
@@ -26,9 +28,10 @@ func (e ValueStreamStageCapabilityAdded) EventType() string {
 
 func (e ValueStreamStageCapabilityAdded) EventData() map[string]interface{} {
 	return map[string]interface{}{
-		"id":           e.ID,
-		"stageId":      e.StageID,
-		"capabilityId": e.CapabilityID,
+		"id":             e.ID,
+		"stageId":        e.StageID,
+		"capabilityId":   e.CapabilityID,
+		"capabilityName": e.CapabilityName,
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"easi/backend/internal/valuestreams/application/commands"
+	"easi/backend/internal/valuestreams/application/gateways"
 	"easi/backend/internal/valuestreams/domain/valueobjects"
 
 	"github.com/stretchr/testify/assert"
@@ -12,15 +13,22 @@ import (
 )
 
 type mockCapabilityGateway struct {
-	exists bool
-	err    error
+	info *gateways.CapabilityInfo
+	err  error
 }
 
 func (m *mockCapabilityGateway) CapabilityExists(ctx context.Context, capabilityID string) (bool, error) {
 	if m.err != nil {
 		return false, m.err
 	}
-	return m.exists, nil
+	return m.info != nil, nil
+}
+
+func (m *mockCapabilityGateway) GetCapability(ctx context.Context, capabilityID string) (*gateways.CapabilityInfo, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.info, nil
 }
 
 func TestAddStageCapabilityHandler_Success(t *testing.T) {
@@ -31,7 +39,7 @@ func TestAddStageCapabilityHandler_Success(t *testing.T) {
 	vs.MarkChangesAsCommitted()
 
 	repo := &mockStageRepository{stream: vs}
-	gateway := &mockCapabilityGateway{exists: true}
+	gateway := &mockCapabilityGateway{info: &gateways.CapabilityInfo{ID: "cap-123", Name: "Test Cap"}}
 	handler := NewAddStageCapabilityHandler(repo, gateway)
 
 	cmd := &commands.AddStageCapability{
@@ -53,7 +61,7 @@ func TestAddStageCapabilityHandler_CapabilityNotFound(t *testing.T) {
 	vs.MarkChangesAsCommitted()
 
 	repo := &mockStageRepository{stream: vs}
-	gateway := &mockCapabilityGateway{exists: false}
+	gateway := &mockCapabilityGateway{info: nil}
 	handler := NewAddStageCapabilityHandler(repo, gateway)
 
 	cmd := &commands.AddStageCapability{
@@ -73,11 +81,11 @@ func TestAddStageCapabilityHandler_AlreadyMapped(t *testing.T) {
 	stageID, _ := vs.AddStage(name, desc, nil)
 
 	capRef, _ := valueobjects.NewCapabilityRef("cap-123")
-	vs.AddCapabilityToStage(stageID, capRef)
+	vs.AddCapabilityToStage(stageID, capRef, "Test Cap")
 	vs.MarkChangesAsCommitted()
 
 	repo := &mockStageRepository{stream: vs}
-	gateway := &mockCapabilityGateway{exists: true}
+	gateway := &mockCapabilityGateway{info: &gateways.CapabilityInfo{ID: "cap-123", Name: "Test Cap"}}
 	handler := NewAddStageCapabilityHandler(repo, gateway)
 
 	cmd := &commands.AddStageCapability{
@@ -93,7 +101,7 @@ func TestAddStageCapabilityHandler_AlreadyMapped(t *testing.T) {
 func TestAddStageCapabilityHandler_StageNotFound(t *testing.T) {
 	vs := newTestValueStream(t)
 	repo := &mockStageRepository{stream: vs}
-	gateway := &mockCapabilityGateway{exists: true}
+	gateway := &mockCapabilityGateway{info: &gateways.CapabilityInfo{ID: "cap-123", Name: "Test Cap"}}
 	handler := NewAddStageCapabilityHandler(repo, gateway)
 
 	cmd := &commands.AddStageCapability{
