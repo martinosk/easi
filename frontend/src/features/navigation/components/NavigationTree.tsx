@@ -87,12 +87,12 @@ function useOriginEntityDialog(canCreateOriginEntity: boolean) {
 }
 
 function useMultiContextMenu(
-  multiSelectMenu: ReturnType<typeof useTreeMultiSelectMenu>,
+  handleMultiSelectContextMenu: ReturnType<typeof useTreeMultiSelectMenu>['handleMultiSelectContextMenu'],
   clearMultiSelection: () => void
 ) {
   return useCallback(
     (event: React.MouseEvent, itemId: string, selectedItems: TreeSelectedItem[]) => {
-      const handled = multiSelectMenu.handleMultiSelectContextMenu(event, itemId, selectedItems);
+      const handled = handleMultiSelectContextMenu(event, itemId, selectedItems);
       if (!handled && selectedItems.length >= 2) {
         const isInSelection = selectedItems.some((item) => item.id === itemId);
         if (!isInSelection) {
@@ -101,25 +101,26 @@ function useMultiContextMenu(
       }
       return handled;
     },
-    [multiSelectMenu, clearMultiSelection]
+    [handleMultiSelectContextMenu, clearMultiSelection]
   );
 }
 
 function useBulkOperations(
-  bulkDelete: ReturnType<typeof useTreeBulkDelete>,
+  requestBulkDelete: ReturnType<typeof useTreeBulkDelete>['requestBulkDelete'],
+  confirmBulkDelete: ReturnType<typeof useTreeBulkDelete>['handleConfirm'],
   clearMultiSelection: () => void
 ) {
   const handleBulkOperation = useCallback(
     (request: { type: 'deleteFromModel'; items: TreeSelectedItem[] }) => {
-      bulkDelete.requestBulkDelete(request.items);
+      requestBulkDelete(request.items);
     },
-    [bulkDelete]
+    [requestBulkDelete]
   );
 
   const handleBulkDeleteConfirm = useCallback(async () => {
-    await bulkDelete.handleConfirm();
+    await confirmBulkDelete();
     clearMultiSelection();
-  }, [bulkDelete, clearMultiSelection]);
+  }, [confirmBulkDelete, clearMultiSelection]);
 
   return { handleBulkOperation, handleBulkDeleteConfirm };
 }
@@ -158,14 +159,14 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
   useClearSingleSelectionOnMulti(multiSelect.selectionCount, selectNode, setSelectedCapabilityId);
   useEscapeToClearSelection(multiSelect.selectionCount, multiSelect.clearMultiSelection);
 
-  const { handleBulkOperation, handleBulkDeleteConfirm } = useBulkOperations(bulkDelete, multiSelect.clearMultiSelection);
+  const { handleBulkOperation, handleBulkDeleteConfirm } = useBulkOperations(bulkDelete.requestBulkDelete, bulkDelete.handleConfirm, multiSelect.clearMultiSelection);
 
   const selectedEntityIds = useMemo(
     () => extractSelectedEntityIds(selectedNodeId),
     [selectedNodeId]
   );
 
-  const handleMultiContextMenu = useMultiContextMenu(multiSelectMenu, multiSelect.clearMultiSelection);
+  const handleMultiContextMenu = useMultiContextMenu(multiSelectMenu.handleMultiSelectContextMenu, multiSelect.clearMultiSelection);
 
   const multiSelectProps = useMemo(
     () => ({
