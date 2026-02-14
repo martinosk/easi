@@ -226,6 +226,16 @@ Every event subscription that crosses a bounded context boundary is documented b
 |-------|---------|----------|---------|
 | `ViewDeleted` | `ViewDeletedHandler` | same | Remove layout container for deleted view |
 
+### Value Streams consumes from:
+
+**Capability Mapping** (`cmPL`):
+
+| Event | Projector/Handler | Wired In | Purpose |
+|-------|-------------------|----------|---------|
+| `CapabilityCreated` | `CapabilityProjector` | `valuestreams/infrastructure/api/routes.go` `SetupValueStreamsRoutes()` | Cache capability ID-to-name mapping |
+| `CapabilityUpdated` | `CapabilityProjector`, `CapabilityNameSyncProjector` | same | Update cached name; update denormalized capability name in stage mappings |
+| `CapabilityDeleted` | `CapabilityProjector`, `CapabilityDeletedHandler` | same | Remove cache entry; remove all stage-capability mappings referencing the deleted capability |
+
 ### Access Delegation consumes from:
 
 **Architecture Modeling** (`archPL`):
@@ -283,7 +293,6 @@ Some cross-context dependencies use synchronous queries rather than events:
 
 | Consumer | Provider | Mechanism | Purpose |
 |----------|----------|-----------|---------|
-| Value Streams | Capability Mapping | `CapabilityGateway` (reads `CapabilityReadModel`) | Verify capability existence before adding to stage |
 | Capability Mapping | Architecture Modeling | `ComponentGateway` (reads `ApplicationComponentReadModel`) | Look up component name during realization linking |
 | Access Delegation | Multiple contexts | `ArtifactNameResolver` (reads from multiple read models) | Resolve display names for edit grant artifacts |
 

@@ -5,6 +5,7 @@ import (
 
 	"easi/backend/internal/valuestreams/domain/aggregates"
 	"easi/backend/internal/valuestreams/domain/events"
+	"easi/backend/internal/valuestreams/publishedlanguage"
 	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/shared/infrastructure/repository"
 )
@@ -28,14 +29,14 @@ func NewValueStreamRepository(eventStore eventstore.EventStore) *ValueStreamRepo
 
 var valueStreamEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"ValueStreamCreated":                repository.JSONDeserializer[events.ValueStreamCreated],
-		"ValueStreamUpdated":                repository.JSONDeserializer[events.ValueStreamUpdated],
-		"ValueStreamDeleted":                repository.JSONDeserializer[events.ValueStreamDeleted],
-		"ValueStreamStageAdded":             repository.JSONDeserializer[events.ValueStreamStageAdded],
-		"ValueStreamStageUpdated":           repository.JSONDeserializer[events.ValueStreamStageUpdated],
-		"ValueStreamStageRemoved":           repository.JSONDeserializer[events.ValueStreamStageRemoved],
-		"ValueStreamStagesReordered":        repository.JSONDeserializer[events.ValueStreamStagesReordered],
-		"ValueStreamStageCapabilityAdded":   repository.JSONDeserializer[events.ValueStreamStageCapabilityAdded],
-		"ValueStreamStageCapabilityRemoved": repository.JSONDeserializer[events.ValueStreamStageCapabilityRemoved],
+		publishedlanguage.ValueStreamCreated:                repository.JSONDeserializer[events.ValueStreamCreated],
+		publishedlanguage.ValueStreamUpdated:                repository.JSONDeserializer[events.ValueStreamUpdated],
+		publishedlanguage.ValueStreamDeleted:                repository.JSONDeserializer[events.ValueStreamDeleted],
+		publishedlanguage.ValueStreamStageAdded:             repository.JSONDeserializer[events.ValueStreamStageAdded],
+		publishedlanguage.ValueStreamStageUpdated:           repository.JSONDeserializer[events.ValueStreamStageUpdated],
+		publishedlanguage.ValueStreamStageRemoved:           repository.JSONDeserializer[events.ValueStreamStageRemoved],
+		publishedlanguage.ValueStreamStagesReordered:        repository.JSONDeserializer[events.ValueStreamStagesReordered],
+		publishedlanguage.ValueStreamStageCapabilityAdded:   repository.JSONDeserializer[events.ValueStreamStageCapabilityAdded],
+		publishedlanguage.ValueStreamStageCapabilityRemoved: repository.JSONDeserializer[events.ValueStreamStageCapabilityRemoved],
 	},
 )

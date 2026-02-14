@@ -221,9 +221,9 @@ For implementation details and conventions, see [/docs/backend/cross-context-eve
 
 | Constant | Event Type String | Consumers |
 |----------|-------------------|-----------|
-| `CapabilityCreated` | `"CapabilityCreated"` | Enterprise Architecture (DomainCapabilityMetadataProjector) |
-| `CapabilityUpdated` | `"CapabilityUpdated"` | Enterprise Architecture (DomainCapabilityMetadataProjector) |
-| `CapabilityDeleted` | `"CapabilityDeleted"` | Enterprise Architecture (DomainCapabilityMetadataProjector), View Layouts, Access Delegation |
+| `CapabilityCreated` | `"CapabilityCreated"` | Enterprise Architecture (DomainCapabilityMetadataProjector), Value Streams (CapabilityProjector) |
+| `CapabilityUpdated` | `"CapabilityUpdated"` | Enterprise Architecture (DomainCapabilityMetadataProjector), Value Streams (CapabilityProjector, CapabilityNameSyncProjector) |
+| `CapabilityDeleted` | `"CapabilityDeleted"` | Enterprise Architecture (DomainCapabilityMetadataProjector), View Layouts, Access Delegation, Value Streams (CapabilityProjector, CapabilityDeletedHandler) |
 | `CapabilityParentChanged` | `"CapabilityParentChanged"` | Enterprise Architecture (DomainCapabilityMetadataProjector, EnterpriseCapabilityLinkProjector) |
 | `CapabilityAssignedToDomain` | `"CapabilityAssignedToDomain"` | Enterprise Architecture (DomainCapabilityMetadataProjector) |
 | `CapabilityUnassignedFromDomain` | `"CapabilityUnassignedFromDomain"` | Enterprise Architecture (DomainCapabilityMetadataProjector) |
@@ -286,10 +286,10 @@ For implementation details and conventions, see [/docs/backend/cross-context-eve
 | (Stage-Cap Mapping)  |    | (Views/Layouts)     |    | (Edit Grants)             |
 | [Core Domain]        |    | [Supporting Domain] |    | [Supporting Domain]       |
 └──────────────────────┘    └─────────┬───────────┘    └───────────────┬───────────┘
-        |                             | Events (ViewDeleted)           | Events
-        | Query                       v                                | (EditGrantForNonUserCreated)
-        | (CapabilityExists)  ┌──────────────────┐                    v
-        v                     | View Layouts     |           ┌────────────────┐
+        ^                             | Events (ViewDeleted)           | Events
+        | Events                      v                                | (EditGrantForNonUserCreated)
+        | (Capability lifecycle)┌──────────────────┐                   v
+        |                     | View Layouts     |           ┌────────────────┐
 ┌───────────────────────┐     | (Position/Style) |           | Auth           |
 | Capability Mapping    |◄────| [Supporting]     |           | (Users/Invites)|
 | (Cap-to-System Map)  |     └──────────────────┘           | [Supporting]   |
@@ -350,7 +350,7 @@ flowchart LR
 
     AD -->|EditGrantForNonUserCreated| AU
 
-    CM -.->|Query: CapabilityExists| VS
+    CM -->|CapabilityCreated/Updated/Deleted| VS
 ```
 
 ### Relationship Types
@@ -366,7 +366,7 @@ flowchart LR
 | Capability Mapping | Enterprise Architecture | Customer-Supplier | Event-driven (capability lifecycle, domain assignments) |
 | Capability Mapping | View Layouts | Customer-Supplier | Event-driven (capability/domain deletion cleanup) |
 | Capability Mapping | Access Delegation | Customer-Supplier | Event-driven (artifact deletion revokes grants) |
-| Capability Mapping | Value Streams | Conformist | Query (capability existence check via gateway) |
+| Capability Mapping | Value Streams | Customer-Supplier | Event-driven (capability lifecycle via local cache projector) |
 | Architecture Views | View Layouts | Customer-Supplier | Event-driven (view deletion cleanup) |
 | Architecture Views | Access Delegation | Customer-Supplier | Event-driven (artifact deletion revokes grants) |
 | Access Delegation | Auth | Customer-Supplier | Event-driven (auto-invite non-users) |
@@ -452,6 +452,13 @@ This section documents every event subscription that crosses a bounded context b
 |-------|-----------|---------|
 | `CapabilityDeleted` | `ArtifactDeletionProjector` (capability) | Revoke edit grants for deleted capabilities |
 | `BusinessDomainDeleted` | `ArtifactDeletionProjector` (domain) | Revoke edit grants for deleted domains |
+
+**Value Streams** (via `cmPL`):
+| Event | Projector/Handler | Purpose |
+|-------|-------------------|---------|
+| `CapabilityCreated` | `CapabilityProjector` | Cache capability name for existence check |
+| `CapabilityUpdated` | `CapabilityProjector`, `CapabilityNameSyncProjector` | Update cached name, update denormalized stage-capability names |
+| `CapabilityDeleted` | `CapabilityProjector`, `CapabilityDeletedHandler` | Remove cache entry, remove orphan capability references from stages |
 
 ### Architecture Views publishes to:
 
@@ -543,6 +550,7 @@ Each bounded context has:
 - `ComponentCacheProjector` in Capability Mapping caches component names from Architecture Modeling
 - `StrategyPillarCacheProjector` in both Capability Mapping and Enterprise Architecture caches pillar data from MetaModel
 - `DomainCapabilityMetadataProjector` in Enterprise Architecture caches capability metadata from Capability Mapping
+- `CapabilityProjector` in Value Streams caches capability names from Capability Mapping
 
 ---
 

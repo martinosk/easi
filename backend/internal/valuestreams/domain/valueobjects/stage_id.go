@@ -21,6 +21,14 @@ func NewStageIDFromString(value string) (StageID, error) {
 	return StageID{UUIDValue: uuidValue}, nil
 }
 
+func MustNewStageIDFromString(value string) StageID {
+	id, err := NewStageIDFromString(value)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 func (v StageID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(StageID); ok {
 		return v.UUIDValue.EqualsValue(otherID.UUIDValue)

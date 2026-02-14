@@ -169,10 +169,13 @@ func TestValueStream_ReorderStages(t *testing.T) {
 	secondID := findStageByName(vs, "Second")
 	thirdID := findStageByName(vs, "Third")
 
+	pos1 := valueobjects.MustNewStagePosition(1)
+	pos2 := valueobjects.MustNewStagePosition(2)
+	pos3 := valueobjects.MustNewStagePosition(3)
 	err := vs.ReorderStages([]StagePositionUpdate{
-		{StageID: thirdID.Value(), Position: 1},
-		{StageID: firstID.Value(), Position: 2},
-		{StageID: secondID.Value(), Position: 3},
+		{StageID: thirdID, Position: pos1},
+		{StageID: firstID, Position: pos2},
+		{StageID: secondID, Position: pos3},
 	})
 	require.NoError(t, err)
 
@@ -189,8 +192,9 @@ func TestValueStream_ReorderStages_InvalidPositions(t *testing.T) {
 	vs := createValueStreamWithStages(t, "Test VS", "First", "Second")
 	firstID := findStageByName(vs, "First")
 
+	pos1 := valueobjects.MustNewStagePosition(1)
 	err := vs.ReorderStages([]StagePositionUpdate{
-		{StageID: firstID.Value(), Position: 1},
+		{StageID: firstID, Position: pos1},
 	})
 	assert.ErrorIs(t, err, ErrInvalidStagePositions)
 }
@@ -200,9 +204,11 @@ func TestValueStream_ReorderStages_MissingStage(t *testing.T) {
 	firstID := findStageByName(vs, "First")
 	fakeID := valueobjects.NewStageID()
 
+	pos1 := valueobjects.MustNewStagePosition(1)
+	pos2 := valueobjects.MustNewStagePosition(2)
 	err := vs.ReorderStages([]StagePositionUpdate{
-		{StageID: firstID.Value(), Position: 1},
-		{StageID: fakeID.Value(), Position: 2},
+		{StageID: firstID, Position: pos1},
+		{StageID: fakeID, Position: pos2},
 	})
 	assert.ErrorIs(t, err, ErrInvalidStagePositions)
 }
@@ -212,7 +218,7 @@ func TestValueStream_AddCapabilityToStage(t *testing.T) {
 	stageID := vs.Stages()[0].ID()
 	vs.MarkChangesAsCommitted()
 
-	capRef, _ := valueobjects.NewCapabilityRef("cap-123")
+	capRef, _ := valueobjects.NewCapabilityRef("00000000-0000-0000-0000-000000000123")
 	err := vs.AddCapabilityToStage(stageID, capRef, "Test Capability")
 	require.NoError(t, err)
 
@@ -229,7 +235,7 @@ func TestValueStream_AddCapabilityToStage_AlreadyMapped(t *testing.T) {
 	vs := createValueStreamWithStage(t, "Test VS", "Discovery")
 	stageID := vs.Stages()[0].ID()
 
-	capRef, _ := valueobjects.NewCapabilityRef("cap-123")
+	capRef, _ := valueobjects.NewCapabilityRef("00000000-0000-0000-0000-000000000123")
 	vs.AddCapabilityToStage(stageID, capRef, "Test Capability")
 	vs.MarkChangesAsCommitted()
 
@@ -242,7 +248,7 @@ func TestValueStream_AddCapabilityToStage_StageNotFound(t *testing.T) {
 	vs.MarkChangesAsCommitted()
 
 	fakeID := valueobjects.NewStageID()
-	capRef, _ := valueobjects.NewCapabilityRef("cap-123")
+	capRef, _ := valueobjects.NewCapabilityRef("00000000-0000-0000-0000-000000000123")
 
 	err := vs.AddCapabilityToStage(fakeID, capRef, "Test Capability")
 	assert.ErrorIs(t, err, ErrStageNotFound)
@@ -252,7 +258,7 @@ func TestValueStream_RemoveCapabilityFromStage(t *testing.T) {
 	vs := createValueStreamWithStage(t, "Test VS", "Discovery")
 	stageID := vs.Stages()[0].ID()
 
-	capRef, _ := valueobjects.NewCapabilityRef("cap-123")
+	capRef, _ := valueobjects.NewCapabilityRef("00000000-0000-0000-0000-000000000123")
 	vs.AddCapabilityToStage(stageID, capRef, "Test Capability")
 	vs.MarkChangesAsCommitted()
 
@@ -271,7 +277,7 @@ func TestValueStream_RemoveCapabilityFromStage_NotMapped(t *testing.T) {
 	stageID := vs.Stages()[0].ID()
 	vs.MarkChangesAsCommitted()
 
-	capRef, _ := valueobjects.NewCapabilityRef("cap-123")
+	capRef, _ := valueobjects.NewCapabilityRef("00000000-0000-0000-0000-000000000123")
 	err := vs.RemoveCapabilityFromStage(stageID, capRef)
 	assert.ErrorIs(t, err, ErrCapabilityNotMapped)
 }
@@ -287,7 +293,7 @@ func TestValueStream_LoadFromHistory_WithStageEvents(t *testing.T) {
 	vs.AddStage(name2, desc, nil)
 
 	stageID := vs.Stages()[0].ID()
-	capRef, _ := valueobjects.NewCapabilityRef("cap-1")
+	capRef, _ := valueobjects.NewCapabilityRef("00000000-0000-0000-0000-000000000001")
 	vs.AddCapabilityToStage(stageID, capRef, "Test Capability")
 
 	allEvents := vs.GetUncommittedChanges()

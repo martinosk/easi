@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	authValueObjects "easi/backend/internal/auth/domain/valueobjects"
-	capReadModels "easi/backend/internal/capabilitymapping/application/readmodels"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/valuestreams/application/handlers"
@@ -12,6 +12,7 @@ import (
 	"easi/backend/internal/valuestreams/application/readmodels"
 	"easi/backend/internal/valuestreams/infrastructure/gateways"
 	"easi/backend/internal/valuestreams/infrastructure/repositories"
+	"easi/backend/internal/valuestreams/publishedlanguage"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
@@ -36,20 +37,28 @@ type RouteConfig struct {
 func SetupValueStreamsRoutes(config *RouteConfig) error {
 	repo := repositories.NewValueStreamRepository(config.EventStore)
 	rm := readmodels.NewValueStreamReadModel(config.DB)
+	capCache := readmodels.NewCapabilityCacheReadModel(config.DB)
 
 	projector := projectors.NewValueStreamProjector(rm)
-	config.EventBus.Subscribe("ValueStreamCreated", projector)
-	config.EventBus.Subscribe("ValueStreamUpdated", projector)
-	config.EventBus.Subscribe("ValueStreamDeleted", projector)
-	config.EventBus.Subscribe("ValueStreamStageAdded", projector)
-	config.EventBus.Subscribe("ValueStreamStageUpdated", projector)
-	config.EventBus.Subscribe("ValueStreamStageRemoved", projector)
-	config.EventBus.Subscribe("ValueStreamStagesReordered", projector)
-	config.EventBus.Subscribe("ValueStreamStageCapabilityAdded", projector)
-	config.EventBus.Subscribe("ValueStreamStageCapabilityRemoved", projector)
+	config.EventBus.Subscribe(publishedlanguage.ValueStreamCreated, projector)
+	config.EventBus.Subscribe(publishedlanguage.ValueStreamUpdated, projector)
+	config.EventBus.Subscribe(publishedlanguage.ValueStreamDeleted, projector)
+	config.EventBus.Subscribe(publishedlanguage.ValueStreamStageAdded, projector)
+	config.EventBus.Subscribe(publishedlanguage.ValueStreamStageUpdated, projector)
+	config.EventBus.Subscribe(publishedlanguage.ValueStreamStageRemoved, projector)
+	config.EventBus.Subscribe(publishedlanguage.ValueStreamStagesReordered, projector)
+	config.EventBus.Subscribe(publishedlanguage.ValueStreamStageCapabilityAdded, projector)
+	config.EventBus.Subscribe(publishedlanguage.ValueStreamStageCapabilityRemoved, projector)
 
-	capRM := capReadModels.NewCapabilityReadModel(config.DB)
-	capGateway := gateways.NewCapabilityGateway(capRM)
+	capProjector := projectors.NewCapabilityProjector(capCache)
+	config.EventBus.Subscribe(cmPL.CapabilityCreated, capProjector)
+	config.EventBus.Subscribe(cmPL.CapabilityUpdated, capProjector)
+	config.EventBus.Subscribe(cmPL.CapabilityDeleted, capProjector)
+
+	capNameProjector := projectors.NewCapabilityNameSyncProjector(rm)
+	config.EventBus.Subscribe(cmPL.CapabilityUpdated, capNameProjector)
+
+	capGateway := gateways.NewCapabilityGateway(capCache)
 
 	config.CommandBus.Register("CreateValueStream", handlers.NewCreateValueStreamHandler(repo, rm))
 	config.CommandBus.Register("UpdateValueStream", handlers.NewUpdateValueStreamHandler(repo, rm))
@@ -60,6 +69,9 @@ func SetupValueStreamsRoutes(config *RouteConfig) error {
 	config.CommandBus.Register("ReorderStages", handlers.NewReorderStagesHandler(repo))
 	config.CommandBus.Register("AddStageCapability", handlers.NewAddStageCapabilityHandler(repo, capGateway))
 	config.CommandBus.Register("RemoveStageCapability", handlers.NewRemoveStageCapabilityHandler(repo))
+	config.CommandBus.Register("RemoveDeletedCapability", handlers.NewRemoveDeletedCapabilityHandler(repo, rm))
+
+	config.EventBus.Subscribe(cmPL.CapabilityDeleted, handlers.NewCapabilityDeletedHandler(config.CommandBus))
 
 	links := NewValueStreamsLinks(config.HATEOAS)
 	httpHandlers := NewValueStreamHandlers(config.CommandBus, rm, links)

@@ -4,19 +4,19 @@ import (
 	"context"
 
 	appGateways "easi/backend/internal/valuestreams/application/gateways"
-	capReadModels "easi/backend/internal/capabilitymapping/application/readmodels"
+	"easi/backend/internal/valuestreams/application/readmodels"
 )
 
 type CapabilityGatewayImpl struct {
-	capabilityReadModel *capReadModels.CapabilityReadModel
+	cache *readmodels.CapabilityCacheReadModel
 }
 
-func NewCapabilityGateway(capabilityReadModel *capReadModels.CapabilityReadModel) *CapabilityGatewayImpl {
-	return &CapabilityGatewayImpl{capabilityReadModel: capabilityReadModel}
+func NewCapabilityGateway(cache *readmodels.CapabilityCacheReadModel) *CapabilityGatewayImpl {
+	return &CapabilityGatewayImpl{cache: cache}
 }
 
 func (g *CapabilityGatewayImpl) CapabilityExists(ctx context.Context, capabilityID string) (bool, error) {
-	dto, err := g.capabilityReadModel.GetByID(ctx, capabilityID)
+	dto, err := g.cache.GetByID(ctx, capabilityID)
 	if err != nil {
 		return false, err
 	}
@@ -24,7 +24,7 @@ func (g *CapabilityGatewayImpl) CapabilityExists(ctx context.Context, capability
 }
 
 func (g *CapabilityGatewayImpl) GetCapability(ctx context.Context, capabilityID string) (*appGateways.CapabilityInfo, error) {
-	dto, err := g.capabilityReadModel.GetByID(ctx, capabilityID)
+	dto, err := g.cache.GetByID(ctx, capabilityID)
 	if err != nil {
 		return nil, err
 	}

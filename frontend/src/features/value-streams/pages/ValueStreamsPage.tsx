@@ -181,7 +181,7 @@ function useValueStreamFormState(
 }
 
 function checkCanCreate(canWrite: boolean, collectionLinks: HATEOASLinks | undefined): boolean {
-  return canWrite && !!collectionLinks && hasLink({ _links: collectionLinks }, 'x-create');
+  return canWrite && !!collectionLinks && hasLink({ _links: collectionLinks }, 'create');
 }
 
 export function ValueStreamsPage() {

@@ -51,23 +51,12 @@ type UpdateValueStreamRequest struct {
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /value-streams [post]
 func (h *ValueStreamHandlers) CreateValueStream(w http.ResponseWriter, r *http.Request) {
-	req, ok := sharedAPI.DecodeRequestOrFail[CreateValueStreamRequest](w, r)
-	if !ok {
-		return
-	}
-
-	cmd := &commands.CreateValueStream{
-		Name:        req.Name,
-		Description: req.Description,
-	}
-
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "")
-		return
-	}
-
-	h.respondWithValueStream(w, r, result.CreatedID, http.StatusCreated)
+	decodeAndDispatchVS(h, w, r, func(req CreateValueStreamRequest) (int, cqrs.Command) {
+		return http.StatusCreated, &commands.CreateValueStream{
+			Name:        req.Name,
+			Description: req.Description,
+		}
+	})
 }
 
 // GetAllValueStreams godoc
@@ -144,22 +133,12 @@ func (h *ValueStreamHandlers) GetValueStreamByID(w http.ResponseWriter, r *http.
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /value-streams/{id} [put]
 func (h *ValueStreamHandlers) UpdateValueStream(w http.ResponseWriter, r *http.Request) {
-	id := sharedAPI.GetPathParam(r, "id")
-
-	req, ok := sharedAPI.DecodeRequestOrFail[UpdateValueStreamRequest](w, r)
-	if !ok {
-		return
-	}
-
-	cmd := &commands.UpdateValueStream{
-		ID:          id,
-		Name:        req.Name,
-		Description: req.Description,
-	}
-
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
-		h.respondWithValueStream(w, r, id, http.StatusOK)
+	decodeAndDispatchVS(h, w, r, func(req UpdateValueStreamRequest) (int, cqrs.Command) {
+		return http.StatusOK, &commands.UpdateValueStream{
+			ID:          sharedAPI.GetPathParam(r, "id"),
+			Name:        req.Name,
+			Description: req.Description,
+		}
 	})
 }
 
@@ -181,6 +160,26 @@ func (h *ValueStreamHandlers) DeleteValueStream(w http.ResponseWriter, r *http.R
 	result, err := h.commandBus.Dispatch(r.Context(), &commands.DeleteValueStream{ID: id})
 	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
 		sharedAPI.RespondDeleted(w)
+	})
+}
+
+func decodeAndDispatchVS[T any](h *ValueStreamHandlers, w http.ResponseWriter, r *http.Request, buildCmd func(T) (int, cqrs.Command)) {
+	req, ok := sharedAPI.DecodeRequestOrFail[T](w, r)
+	if !ok {
+		return
+	}
+	statusCode, cmd := buildCmd(req)
+	h.dispatchAndRespond(w, r, statusCode, cmd)
+}
+
+func (h *ValueStreamHandlers) dispatchAndRespond(w http.ResponseWriter, r *http.Request, statusCode int, cmd cqrs.Command) {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(resultID string) {
+		vsID := sharedAPI.GetPathParam(r, "id")
+		if vsID == "" {
+			vsID = resultID
+		}
+		h.respondWithValueStream(w, r, vsID, statusCode)
 	})
 }
 

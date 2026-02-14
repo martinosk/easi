@@ -247,7 +247,7 @@ export const handlers = [
       data: [],
       _links: {
         self: { href: '/api/v1/value-streams', method: 'GET' },
-        'x-create': { href: '/api/v1/value-streams', method: 'POST' },
+        'create': { href: '/api/v1/value-streams', method: 'POST' },
       },
     });
   }),

@@ -34,7 +34,7 @@ function tryHandleCapabilityDrop(
 }
 
 function reorderStageIds(sortedStages: ValueStreamStage[], draggedId: string, targetId: string): string[] | null {
-  const ordered = sortedStages.map(s => s.id as string);
+  const ordered: string[] = sortedStages.map(s => s.id);
   const fromIndex = ordered.indexOf(draggedId);
   const toIndex = ordered.indexOf(targetId);
   if (fromIndex < 0 || toIndex < 0) return null;

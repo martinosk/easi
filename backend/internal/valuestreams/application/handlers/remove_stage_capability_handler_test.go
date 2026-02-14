@@ -17,7 +17,7 @@ func TestRemoveStageCapabilityHandler_Success(t *testing.T) {
 	desc := valueobjects.MustNewDescription("")
 	stageID, _ := vs.AddStage(name, desc, nil)
 
-	capRef, _ := valueobjects.NewCapabilityRef("cap-123")
+	capRef, _ := valueobjects.NewCapabilityRef("00000000-0000-0000-0000-000000000123")
 	vs.AddCapabilityToStage(stageID, capRef, "Test Cap")
 	vs.MarkChangesAsCommitted()
 
@@ -27,7 +27,7 @@ func TestRemoveStageCapabilityHandler_Success(t *testing.T) {
 	cmd := &commands.RemoveStageCapability{
 		ValueStreamID: vs.ID(),
 		StageID:       stageID.Value(),
-		CapabilityID:  "cap-123",
+		CapabilityID:  "00000000-0000-0000-0000-000000000123",
 	}
 
 	_, err := handler.Handle(context.Background(), cmd)
@@ -48,7 +48,7 @@ func TestRemoveStageCapabilityHandler_NotMapped(t *testing.T) {
 	cmd := &commands.RemoveStageCapability{
 		ValueStreamID: vs.ID(),
 		StageID:       stageID.Value(),
-		CapabilityID:  "cap-123",
+		CapabilityID:  "00000000-0000-0000-0000-000000000123",
 	}
 
 	_, err := handler.Handle(context.Background(), cmd)

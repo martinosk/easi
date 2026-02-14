@@ -5,7 +5,7 @@ import type { Capability } from '../../../api/types';
 
 interface CapabilitySidebarProps {
   mappedCapabilityIds: Set<string>;
-  onDragCapability: (capability: Capability) => void;
+  onDragCapability?: (capability: Capability) => void;
 }
 
 export function CapabilitySidebar({ mappedCapabilityIds, onDragCapability }: CapabilitySidebarProps) {
@@ -70,7 +70,7 @@ export function CapabilitySidebar({ mappedCapabilityIds, onDragCapability }: Cap
 interface TreeNodeProps {
   node: CapabilityTreeNode;
   mappedCapabilityIds: Set<string>;
-  onDragCapability: (capability: Capability) => void;
+  onDragCapability?: (capability: Capability) => void;
   filter: string;
   matchesFilter: (node: CapabilityTreeNode) => boolean;
   depth?: number;
@@ -83,44 +83,63 @@ const LEVEL_COLORS: Record<string, string> = {
   L4: '#f97316',
 };
 
+interface TreeNodeItemProps {
+  node: CapabilityTreeNode;
+  isMapped: boolean;
+  hasChildren: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+  onDragStart: (e: React.DragEvent) => void;
+}
+
+function TreeNodeItem({ node, isMapped, hasChildren, expanded, onToggle, onDragStart }: TreeNodeItemProps) {
+  const level = node.capability.level || 'L1';
+
+  return (
+    <div
+      className={`cap-tree-item ${isMapped ? 'cap-tree-mapped' : ''}`}
+      draggable={!isMapped}
+      onDragStart={onDragStart}
+      data-testid={`cap-tree-${node.capability.id}`}
+    >
+      {hasChildren ? (
+        <button type="button" className="cap-tree-toggle" onClick={onToggle}>
+          <svg viewBox="0 0 24 24" fill="none" width="12" height="12" style={{ transform: expanded ? 'rotate(90deg)' : undefined, transition: 'transform 0.15s ease' }}>
+            <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+      ) : (
+        <span className="cap-tree-toggle" />
+      )}
+      <span className="cap-tree-level" style={{ color: LEVEL_COLORS[level] }}>{level}</span>
+      <span className="cap-tree-name">{node.capability.name}</span>
+      {isMapped && <span className="cap-tree-badge">Mapped</span>}
+    </div>
+  );
+}
+
 function TreeNode({ node, mappedCapabilityIds, onDragCapability, filter, matchesFilter, depth = 0 }: TreeNodeProps) {
   const [expanded, setExpanded] = useState(depth === 0);
   const isMapped = mappedCapabilityIds.has(node.capability.id);
   const hasChildren = node.children.length > 0;
   const visibleChildren = filter ? node.children.filter(child => matchesFilter(child)) : node.children;
-  const level = node.capability.level || 'L1';
 
   const handleDragStart = useCallback((e: React.DragEvent) => {
     e.dataTransfer.setData('application/json', JSON.stringify(node.capability));
     e.dataTransfer.effectAllowed = 'copy';
-    onDragCapability(node.capability);
+    onDragCapability?.(node.capability);
   }, [node.capability, onDragCapability]);
 
   return (
     <div className="cap-tree-node" style={{ paddingLeft: depth > 0 ? `${depth * 12}px` : undefined }}>
-      <div
-        className={`cap-tree-item ${isMapped ? 'cap-tree-mapped' : ''}`}
-        draggable={!isMapped}
+      <TreeNodeItem
+        node={node}
+        isMapped={isMapped}
+        hasChildren={hasChildren}
+        expanded={expanded}
+        onToggle={() => setExpanded(!expanded)}
         onDragStart={handleDragStart}
-        data-testid={`cap-tree-${node.capability.id}`}
-      >
-        {hasChildren ? (
-          <button
-            type="button"
-            className="cap-tree-toggle"
-            onClick={() => setExpanded(!expanded)}
-          >
-            <svg viewBox="0 0 24 24" fill="none" width="12" height="12" style={{ transform: expanded ? 'rotate(90deg)' : undefined, transition: 'transform 0.15s ease' }}>
-              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-        ) : (
-          <span className="cap-tree-toggle" />
-        )}
-        <span className="cap-tree-level" style={{ color: LEVEL_COLORS[level] }}>{level}</span>
-        <span className="cap-tree-name">{node.capability.name}</span>
-        {isMapped && <span className="cap-tree-badge">Mapped</span>}
-      </div>
+      />
       {expanded && hasChildren && visibleChildren.map((child) => (
         <TreeNode
           key={child.capability.id}

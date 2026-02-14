@@ -39,13 +39,13 @@ func TestAddStageCapabilityHandler_Success(t *testing.T) {
 	vs.MarkChangesAsCommitted()
 
 	repo := &mockStageRepository{stream: vs}
-	gateway := &mockCapabilityGateway{info: &gateways.CapabilityInfo{ID: "cap-123", Name: "Test Cap"}}
+	gateway := &mockCapabilityGateway{info: &gateways.CapabilityInfo{ID: "00000000-0000-0000-0000-000000000123", Name: "Test Cap"}}
 	handler := NewAddStageCapabilityHandler(repo, gateway)
 
 	cmd := &commands.AddStageCapability{
 		ValueStreamID: vs.ID(),
 		StageID:       stageID.Value(),
-		CapabilityID:  "cap-123",
+		CapabilityID:  "00000000-0000-0000-0000-000000000123",
 	}
 
 	_, err := handler.Handle(context.Background(), cmd)
@@ -67,7 +67,7 @@ func TestAddStageCapabilityHandler_CapabilityNotFound(t *testing.T) {
 	cmd := &commands.AddStageCapability{
 		ValueStreamID: vs.ID(),
 		StageID:       stageID.Value(),
-		CapabilityID:  "cap-nonexistent",
+		CapabilityID:  "00000000-0000-0000-0000-000000000999",
 	}
 
 	_, err := handler.Handle(context.Background(), cmd)
@@ -80,18 +80,18 @@ func TestAddStageCapabilityHandler_AlreadyMapped(t *testing.T) {
 	desc := valueobjects.MustNewDescription("")
 	stageID, _ := vs.AddStage(name, desc, nil)
 
-	capRef, _ := valueobjects.NewCapabilityRef("cap-123")
+	capRef, _ := valueobjects.NewCapabilityRef("00000000-0000-0000-0000-000000000123")
 	vs.AddCapabilityToStage(stageID, capRef, "Test Cap")
 	vs.MarkChangesAsCommitted()
 
 	repo := &mockStageRepository{stream: vs}
-	gateway := &mockCapabilityGateway{info: &gateways.CapabilityInfo{ID: "cap-123", Name: "Test Cap"}}
+	gateway := &mockCapabilityGateway{info: &gateways.CapabilityInfo{ID: "00000000-0000-0000-0000-000000000123", Name: "Test Cap"}}
 	handler := NewAddStageCapabilityHandler(repo, gateway)
 
 	cmd := &commands.AddStageCapability{
 		ValueStreamID: vs.ID(),
 		StageID:       stageID.Value(),
-		CapabilityID:  "cap-123",
+		CapabilityID:  "00000000-0000-0000-0000-000000000123",
 	}
 
 	_, err := handler.Handle(context.Background(), cmd)
@@ -101,13 +101,13 @@ func TestAddStageCapabilityHandler_AlreadyMapped(t *testing.T) {
 func TestAddStageCapabilityHandler_StageNotFound(t *testing.T) {
 	vs := newTestValueStream(t)
 	repo := &mockStageRepository{stream: vs}
-	gateway := &mockCapabilityGateway{info: &gateways.CapabilityInfo{ID: "cap-123", Name: "Test Cap"}}
+	gateway := &mockCapabilityGateway{info: &gateways.CapabilityInfo{ID: "00000000-0000-0000-0000-000000000123", Name: "Test Cap"}}
 	handler := NewAddStageCapabilityHandler(repo, gateway)
 
 	cmd := &commands.AddStageCapability{
 		ValueStreamID: vs.ID(),
 		StageID:       valueobjects.NewStageID().Value(),
-		CapabilityID:  "cap-123",
+		CapabilityID:  "00000000-0000-0000-0000-000000000123",
 	}
 
 	_, err := handler.Handle(context.Background(), cmd)

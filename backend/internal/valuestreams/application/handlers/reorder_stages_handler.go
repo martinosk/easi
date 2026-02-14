@@ -3,9 +3,10 @@ package handlers
 import (
 	"context"
 
+	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/valuestreams/application/commands"
 	"easi/backend/internal/valuestreams/domain/aggregates"
-	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/valuestreams/domain/valueobjects"
 )
 
 type ReorderStagesRepository interface {
@@ -34,9 +35,17 @@ func (h *ReorderStagesHandler) Handle(ctx context.Context, cmd cqrs.Command) (cq
 
 	positions := make([]aggregates.StagePositionUpdate, len(command.Positions))
 	for i, p := range command.Positions {
+		stageID, err := valueobjects.NewStageIDFromString(p.StageID)
+		if err != nil {
+			return cqrs.EmptyResult(), err
+		}
+		pos, err := valueobjects.NewStagePosition(p.Position)
+		if err != nil {
+			return cqrs.EmptyResult(), err
+		}
 		positions[i] = aggregates.StagePositionUpdate{
-			StageID:  p.StageID,
-			Position: p.Position,
+			StageID:  stageID,
+			Position: pos,
 		}
 	}
 

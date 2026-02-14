@@ -68,10 +68,15 @@ func (m *AuthMiddleware) RequirePermission(permission valueobjects.Permission) f
 				return
 			}
 
-			ctx, err := m.authenticateAndAuthorize(r.Context(), permission)
+			origCtx := r.Context()
+			ctx, err := m.authenticateAndAuthorize(origCtx, permission)
 			if err != nil {
 				err.Write(w)
 				return
+			}
+
+			if actor, ok := sharedctx.GetActor(origCtx); ok {
+				ctx = sharedctx.WithActor(ctx, actor)
 			}
 
 			next.ServeHTTP(w, r.WithContext(ctx))

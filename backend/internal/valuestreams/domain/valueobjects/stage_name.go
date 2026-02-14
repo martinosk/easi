@@ -29,6 +29,14 @@ func NewStageName(value string) (StageName, error) {
 	return StageName{value: trimmed}, nil
 }
 
+func MustNewStageName(value string) StageName {
+	name, err := NewStageName(value)
+	if err != nil {
+		panic(err)
+	}
+	return name
+}
+
 func (n StageName) Value() string {
 	return n.value
 }

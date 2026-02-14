@@ -89,7 +89,6 @@ function DetailContent({ detail, canWrite }: DetailContentProps) {
         {canWrite && (
           <CapabilitySidebar
             mappedCapabilityIds={mappedCapabilityIds}
-            onDragCapability={() => {}}
           />
         )}
       </div>

@@ -7797,7 +7797,7 @@ const docTemplate = `{
         },
         "/value-streams/{id}": {
             "get": {
-                "description": "Returns a single value stream with its details",
+                "description": "Returns a single value stream with its details including stages and capability mappings",
                 "produces": [
                     "application/json"
                 ],
@@ -7818,7 +7818,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/easi_backend_internal_valuestreams_application_readmodels.ValueStreamDTO"
+                            "$ref": "#/definitions/easi_backend_internal_valuestreams_application_readmodels.ValueStreamDetailDTO"
                         }
                     },
                     "404": {
@@ -7909,6 +7909,413 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Value Stream ID",
                         "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/value-streams/{id}/capabilities": {
+            "get": {
+                "description": "Returns all capability mappings across all stages",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "value-streams"
+                ],
+                "summary": "Get all capabilities mapped to a value stream",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Value Stream ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/easi_backend_internal_valuestreams_application_readmodels.StageCapabilityMappingDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/value-streams/{id}/stages": {
+            "post": {
+                "description": "Creates a new stage in the value stream",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "value-streams"
+                ],
+                "summary": "Add a stage to a value stream",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Value Stream ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Stage data",
+                        "name": "stage",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_valuestreams_infrastructure_api.CreateStageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_valuestreams_application_readmodels.ValueStreamDetailDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/value-streams/{id}/stages/positions": {
+            "put": {
+                "description": "Updates the positions of all stages in a value stream",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "value-streams"
+                ],
+                "summary": "Reorder stages",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Value Stream ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New positions",
+                        "name": "positions",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_valuestreams_infrastructure_api.ReorderStagesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_valuestreams_application_readmodels.ValueStreamDetailDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/value-streams/{id}/stages/{stageId}": {
+            "put": {
+                "description": "Updates a stage's name and description",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "value-streams"
+                ],
+                "summary": "Update a stage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Value Stream ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Stage ID",
+                        "name": "stageId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated stage data",
+                        "name": "stage",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_valuestreams_infrastructure_api.UpdateStageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_valuestreams_application_readmodels.ValueStreamDetailDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Removes a stage from the value stream",
+                "tags": [
+                    "value-streams"
+                ],
+                "summary": "Remove a stage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Value Stream ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Stage ID",
+                        "name": "stageId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/value-streams/{id}/stages/{stageId}/capabilities": {
+            "post": {
+                "description": "Adds a capability mapping to a stage",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "value-streams"
+                ],
+                "summary": "Map a capability to a stage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Value Stream ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Stage ID",
+                        "name": "stageId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Capability data",
+                        "name": "capability",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_valuestreams_infrastructure_api.AddStageCapabilityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_valuestreams_application_readmodels.ValueStreamDetailDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/value-streams/{id}/stages/{stageId}/capabilities/{capabilityId}": {
+            "delete": {
+                "description": "Removes a capability mapping from a stage",
+                "tags": [
+                    "value-streams"
+                ],
+                "summary": "Remove a capability from a stage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Value Stream ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Stage ID",
+                        "name": "stageId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "capabilityId",
                         "in": "path",
                         "required": true
                     }
@@ -10732,6 +11139,23 @@ const docTemplate = `{
                 "$ref": "#/definitions/easi_backend_internal_shared_types.Link"
             }
         },
+        "easi_backend_internal_valuestreams_application_readmodels.StageCapabilityMappingDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "capabilityId": {
+                    "type": "string"
+                },
+                "capabilityName": {
+                    "type": "string"
+                },
+                "stageId": {
+                    "type": "string"
+                }
+            }
+        },
         "easi_backend_internal_valuestreams_application_readmodels.ValueStreamDTO": {
             "type": "object",
             "properties": {
@@ -10754,6 +11178,67 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_valuestreams_application_readmodels.ValueStreamDetailDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "stageCapabilities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_valuestreams_application_readmodels.StageCapabilityMappingDTO"
+                    }
+                },
+                "stageCount": {
+                    "type": "integer"
+                },
+                "stages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_valuestreams_application_readmodels.ValueStreamStageDTO"
+                    }
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "easi_backend_internal_valuestreams_application_readmodels.ValueStreamStageDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_types.Links"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "position": {
+                    "type": "integer"
+                },
+                "valueStreamId": {
                     "type": "string"
                 }
             }
@@ -12398,7 +12883,62 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_valuestreams_infrastructure_api.AddStageCapabilityRequest": {
+            "type": "object",
+            "properties": {
+                "capabilityId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_valuestreams_infrastructure_api.CreateStageRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "position": {
+                    "type": "integer"
+                }
+            }
+        },
         "internal_valuestreams_infrastructure_api.CreateValueStreamRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_valuestreams_infrastructure_api.ReorderStagesRequest": {
+            "type": "object",
+            "properties": {
+                "positions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_valuestreams_infrastructure_api.StagePositionRequest"
+                    }
+                }
+            }
+        },
+        "internal_valuestreams_infrastructure_api.StagePositionRequest": {
+            "type": "object",
+            "properties": {
+                "position": {
+                    "type": "integer"
+                },
+                "stageId": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_valuestreams_infrastructure_api.UpdateStageRequest": {
             "type": "object",
             "properties": {
                 "description": {

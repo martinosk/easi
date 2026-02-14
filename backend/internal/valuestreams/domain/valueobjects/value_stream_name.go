@@ -28,6 +28,14 @@ func NewValueStreamName(value string) (ValueStreamName, error) {
 	return ValueStreamName{value: trimmed}, nil
 }
 
+func MustNewValueStreamName(value string) ValueStreamName {
+	name, err := NewValueStreamName(value)
+	if err != nil {
+		panic(err)
+	}
+	return name
+}
+
 func (n ValueStreamName) Value() string {
 	return n.value
 }

@@ -19,6 +19,14 @@ func NewStagePosition(value int) (StagePosition, error) {
 	return StagePosition{value: value}, nil
 }
 
+func MustNewStagePosition(value int) StagePosition {
+	pos, err := NewStagePosition(value)
+	if err != nil {
+		panic(err)
+	}
+	return pos
+}
+
 func (p StagePosition) Value() int {
 	return p.value
 }

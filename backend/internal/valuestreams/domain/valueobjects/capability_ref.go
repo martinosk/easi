@@ -1,35 +1,33 @@
 package valueobjects
 
 import (
-	"errors"
-
 	domain "easi/backend/internal/shared/eventsourcing"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
-var ErrCapabilityRefEmpty = errors.New("capability reference cannot be empty")
-
 type CapabilityRef struct {
-	value string
+	sharedvo.UUIDValue
 }
 
 func NewCapabilityRef(value string) (CapabilityRef, error) {
-	if value == "" {
-		return CapabilityRef{}, ErrCapabilityRefEmpty
+	uuidValue, err := sharedvo.NewUUIDValueFromString(value)
+	if err != nil {
+		return CapabilityRef{}, err
 	}
-	return CapabilityRef{value: value}, nil
+	return CapabilityRef{UUIDValue: uuidValue}, nil
 }
 
-func (c CapabilityRef) Value() string {
-	return c.value
+func MustNewCapabilityRef(value string) CapabilityRef {
+	ref, err := NewCapabilityRef(value)
+	if err != nil {
+		panic(err)
+	}
+	return ref
 }
 
 func (c CapabilityRef) Equals(other domain.ValueObject) bool {
 	if otherRef, ok := other.(CapabilityRef); ok {
-		return c.value == otherRef.value
+		return c.UUIDValue.EqualsValue(otherRef.UUIDValue)
 	}
 	return false
-}
-
-func (c CapabilityRef) String() string {
-	return c.value
 }

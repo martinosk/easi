@@ -7,6 +7,7 @@ import (
 
 	"easi/backend/internal/valuestreams/application/readmodels"
 	"easi/backend/internal/valuestreams/domain/events"
+	"easi/backend/internal/valuestreams/publishedlanguage"
 	sharedctx "easi/backend/internal/shared/context"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
@@ -32,15 +33,15 @@ func (p *ValueStreamProjector) Handle(ctx context.Context, event domain.DomainEv
 
 func (p *ValueStreamProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	handlers := map[string]func(context.Context, []byte) error{
-		"ValueStreamCreated":                p.handleValueStreamCreated,
-		"ValueStreamUpdated":                p.handleValueStreamUpdated,
-		"ValueStreamDeleted":                p.handleValueStreamDeleted,
-		"ValueStreamStageAdded":             p.handleValueStreamStageAdded,
-		"ValueStreamStageUpdated":           p.handleValueStreamStageUpdated,
-		"ValueStreamStageRemoved":           p.handleValueStreamStageRemoved,
-		"ValueStreamStagesReordered":        p.handleValueStreamStagesReordered,
-		"ValueStreamStageCapabilityAdded":   p.handleValueStreamStageCapabilityAdded,
-		"ValueStreamStageCapabilityRemoved": p.handleValueStreamStageCapabilityRemoved,
+		publishedlanguage.ValueStreamCreated:                p.handleValueStreamCreated,
+		publishedlanguage.ValueStreamUpdated:                p.handleValueStreamUpdated,
+		publishedlanguage.ValueStreamDeleted:                p.handleValueStreamDeleted,
+		publishedlanguage.ValueStreamStageAdded:             p.handleValueStreamStageAdded,
+		publishedlanguage.ValueStreamStageUpdated:           p.handleValueStreamStageUpdated,
+		publishedlanguage.ValueStreamStageRemoved:           p.handleValueStreamStageRemoved,
+		publishedlanguage.ValueStreamStagesReordered:        p.handleValueStreamStagesReordered,
+		publishedlanguage.ValueStreamStageCapabilityAdded:   p.handleValueStreamStageCapabilityAdded,
+		publishedlanguage.ValueStreamStageCapabilityRemoved: p.handleValueStreamStageCapabilityRemoved,
 	}
 
 	if handler, exists := handlers[eventType]; exists {

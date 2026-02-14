@@ -371,6 +371,56 @@ func (rm *ValueStreamReadModel) GetCapabilitiesByValueStreamID(ctx context.Conte
 	return caps, err
 }
 
+type StageCapabilityMapping struct {
+	ValueStreamID string
+	StageID       string
+}
+
+func (rm *ValueStreamReadModel) GetStagesByCapabilityID(ctx context.Context, capabilityID string) ([]StageCapabilityMapping, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var mappings []StageCapabilityMapping
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx,
+			`SELECT s.value_stream_id, sc.stage_id
+			 FROM value_stream_stage_capabilities sc
+			 INNER JOIN value_stream_stages s ON sc.tenant_id = s.tenant_id AND sc.stage_id = s.id
+			 WHERE sc.tenant_id = $1 AND sc.capability_id = $2`,
+			tenantID.Value(), capabilityID,
+		)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var m StageCapabilityMapping
+			if err := rows.Scan(&m.ValueStreamID, &m.StageID); err != nil {
+				return err
+			}
+			mappings = append(mappings, m)
+		}
+		return rows.Err()
+	})
+	return mappings, err
+}
+
+func (rm *ValueStreamReadModel) UpdateStageCapabilityName(ctx context.Context, capabilityID, name string) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"UPDATE value_stream_stage_capabilities SET capability_name = $1 WHERE tenant_id = $2 AND capability_id = $3",
+		name, tenantID.Value(), capabilityID,
+	)
+	return err
+}
+
 func (rm *ValueStreamReadModel) StageNameExists(ctx context.Context, query StageNameQuery) (bool, error) {
 	return rm.nameExistsForTenant(ctx,
 		"SELECT COUNT(*) FROM value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2 AND name = $3",

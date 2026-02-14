@@ -19,8 +19,8 @@ var (
 )
 
 type StagePositionUpdate struct {
-	StageID  string
-	Position int
+	StageID  valueobjects.StageID
+	Position valueobjects.StagePosition
 }
 
 type ValueStream struct {
@@ -141,7 +141,7 @@ func (v *ValueStream) ReorderStages(positions []StagePositionUpdate) error {
 
 	entries := make([]events.StagePositionEntry, len(positions))
 	for i, p := range positions {
-		entries[i] = events.StagePositionEntry{StageID: p.StageID, Position: p.Position}
+		entries[i] = events.StagePositionEntry{StageID: p.StageID.Value(), Position: p.Position.Value()}
 	}
 
 	event := events.NewValueStreamStagesReordered(v.ID(), entries)
@@ -158,16 +158,18 @@ func (v *ValueStream) validateReorderPositions(positions []StagePositionUpdate) 
 	positionSet := make(map[int]bool, len(positions))
 	stageSet := make(map[string]bool, len(positions))
 	for _, p := range positions {
-		if p.Position <= 0 || p.Position > len(v.stages) {
+		pos := p.Position.Value()
+		stageID := p.StageID.Value()
+		if pos <= 0 || pos > len(v.stages) {
 			return ErrInvalidStagePositions
 		}
-		if positionSet[p.Position] || stageSet[p.StageID] {
+		if positionSet[pos] || stageSet[stageID] {
 			return ErrInvalidStagePositions
 		}
-		positionSet[p.Position] = true
-		stageSet[p.StageID] = true
+		positionSet[pos] = true
+		stageSet[stageID] = true
 
-		if _, idx := v.findStageByStringID(p.StageID); idx < 0 {
+		if _, idx := v.findStage(p.StageID); idx < 0 {
 			return ErrInvalidStagePositions
 		}
 	}
@@ -237,7 +239,7 @@ func (v *ValueStream) apply(event domain.DomainEvent) {
 	case events.ValueStreamCreated:
 		v.applyCreated(e)
 	case events.ValueStreamUpdated:
-		v.name, _ = valueobjects.NewValueStreamName(e.Name)
+		v.name = valueobjects.MustNewValueStreamName(e.Name)
 		v.description = valueobjects.MustNewDescription(e.Description)
 	default:
 		v.applyStageEvent(event)
@@ -256,12 +258,12 @@ func (v *ValueStream) applyStageEvent(event domain.DomainEvent) {
 		v.applyStagesReordered(e)
 	case events.ValueStreamStageCapabilityAdded:
 		v.updateStageByID(e.StageID, func(s entities.Stage) entities.Stage {
-			ref, _ := valueobjects.NewCapabilityRef(e.CapabilityID)
+			ref := valueobjects.MustNewCapabilityRef(e.CapabilityID)
 			return s.WithAddedCapability(ref)
 		})
 	case events.ValueStreamStageCapabilityRemoved:
 		v.updateStageByID(e.StageID, func(s entities.Stage) entities.Stage {
-			ref, _ := valueobjects.NewCapabilityRef(e.CapabilityID)
+			ref := valueobjects.MustNewCapabilityRef(e.CapabilityID)
 			return s.WithRemovedCapability(ref)
 		})
 	}
@@ -269,17 +271,17 @@ func (v *ValueStream) applyStageEvent(event domain.DomainEvent) {
 
 func (v *ValueStream) applyCreated(e events.ValueStreamCreated) {
 	v.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
-	v.name, _ = valueobjects.NewValueStreamName(e.Name)
+	v.name = valueobjects.MustNewValueStreamName(e.Name)
 	v.description = valueobjects.MustNewDescription(e.Description)
 	v.createdAt = e.CreatedAt
 	v.stages = []entities.Stage{}
 }
 
 func (v *ValueStream) applyStageAdded(e events.ValueStreamStageAdded) {
-	stageID, _ := valueobjects.NewStageIDFromString(e.StageID)
-	stageName, _ := valueobjects.NewStageName(e.Name)
+	stageID := valueobjects.MustNewStageIDFromString(e.StageID)
+	stageName := valueobjects.MustNewStageName(e.Name)
 	desc := valueobjects.MustNewDescription(e.Description)
-	pos, _ := valueobjects.NewStagePosition(e.Position)
+	pos := valueobjects.MustNewStagePosition(e.Position)
 	stage := entities.NewStage(stageID, stageName, desc, pos)
 
 	v.shiftStagePositions(e.Position, 1)
@@ -288,7 +290,7 @@ func (v *ValueStream) applyStageAdded(e events.ValueStreamStageAdded) {
 
 func (v *ValueStream) applyStageUpdated(e events.ValueStreamStageUpdated) {
 	v.updateStageByID(e.StageID, func(s entities.Stage) entities.Stage {
-		name, _ := valueobjects.NewStageName(e.Name)
+		name := valueobjects.MustNewStageName(e.Name)
 		desc := valueobjects.MustNewDescription(e.Description)
 		return s.WithName(name).WithDescription(desc)
 	})
@@ -311,7 +313,7 @@ func (v *ValueStream) applyStageRemoved(e events.ValueStreamStageRemoved) {
 func (v *ValueStream) applyStagesReordered(e events.ValueStreamStagesReordered) {
 	for _, p := range e.Positions {
 		v.updateStageByID(p.StageID, func(s entities.Stage) entities.Stage {
-			newPos, _ := valueobjects.NewStagePosition(p.Position)
+			newPos := valueobjects.MustNewStagePosition(p.Position)
 			return s.WithPosition(newPos)
 		})
 	}
@@ -335,7 +337,7 @@ func (v *ValueStream) findStageByStringID(stageID string) (entities.Stage, int) 
 func (v *ValueStream) shiftStagePositions(fromPosition int, delta int) {
 	for i := range v.stages {
 		if v.stages[i].Position().Value() >= fromPosition {
-			newPos, _ := valueobjects.NewStagePosition(v.stages[i].Position().Value() + delta)
+			newPos := valueobjects.MustNewStagePosition(v.stages[i].Position().Value() + delta)
 			v.stages[i] = v.stages[i].WithPosition(newPos)
 		}
 	}

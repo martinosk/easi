@@ -48,7 +48,7 @@ func (h *ValueStreamsLinks) StageLinksForActor(vsID, stageID string, actor share
 
 func (h *ValueStreamsLinks) StageCapabilityLinksForActor(vsID, stageID, capID string, actor sharedctx.Actor) sharedAPI.Links {
 	links := sharedAPI.Links{}
-	if actor.CanWrite("valuestreams") {
+	if actor.CanDelete("valuestreams") {
 		links["delete"] = h.Del("/value-streams/" + vsID + "/stages/" + stageID + "/capabilities/" + capID)
 	}
 	return links
@@ -57,7 +57,14 @@ func (h *ValueStreamsLinks) StageCapabilityLinksForActor(vsID, stageID, capID st
 func (h *ValueStreamsLinks) ValueStreamCollectionLinksForActor(actor sharedctx.Actor) sharedAPI.Links {
 	links := sharedAPI.Links{"self": h.Get("/value-streams")}
 	if actor.CanWrite("valuestreams") {
-		links["x-create"] = h.Post("/value-streams")
+		links["create"] = h.Post("/value-streams")
 	}
 	return links
+}
+
+func (h *ValueStreamsLinks) CapabilitiesCollectionLinks(vsID string) sharedAPI.Links {
+	return sharedAPI.Links{
+		"self": h.Get("/value-streams/" + vsID + "/capabilities"),
+		"up":   h.Get("/value-streams/" + vsID),
+	}
 }

@@ -67,16 +67,13 @@ type AddStageCapabilityRequest struct {
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /value-streams/{id}/stages [post]
 func (h *StageHandlers) CreateStage(w http.ResponseWriter, r *http.Request) {
-	req, ok := sharedAPI.DecodeRequestOrFail[CreateStageRequest](w, r)
-	if !ok {
-		return
-	}
-
-	h.dispatchStageCommand(w, r, http.StatusCreated, &commands.AddStage{
-		ValueStreamID: sharedAPI.GetPathParam(r, "id"),
-		Name:          req.Name,
-		Description:   req.Description,
-		Position:      req.Position,
+	decodeAndDispatchStage(h, w, r, func(req CreateStageRequest) (int, cqrs.Command) {
+		return http.StatusCreated, &commands.AddStage{
+			ValueStreamID: sharedAPI.GetPathParam(r, "id"),
+			Name:          req.Name,
+			Description:   req.Description,
+			Position:      req.Position,
+		}
 	})
 }
 
@@ -96,16 +93,13 @@ func (h *StageHandlers) CreateStage(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /value-streams/{id}/stages/{stageId} [put]
 func (h *StageHandlers) UpdateStage(w http.ResponseWriter, r *http.Request) {
-	req, ok := sharedAPI.DecodeRequestOrFail[UpdateStageRequest](w, r)
-	if !ok {
-		return
-	}
-
-	h.dispatchStageCommand(w, r, http.StatusOK, &commands.UpdateStage{
-		ValueStreamID: sharedAPI.GetPathParam(r, "id"),
-		StageID:       sharedAPI.GetPathParam(r, "stageId"),
-		Name:          req.Name,
-		Description:   req.Description,
+	decodeAndDispatchStage(h, w, r, func(req UpdateStageRequest) (int, cqrs.Command) {
+		return http.StatusOK, &commands.UpdateStage{
+			ValueStreamID: sharedAPI.GetPathParam(r, "id"),
+			StageID:       sharedAPI.GetPathParam(r, "stageId"),
+			Name:          req.Name,
+			Description:   req.Description,
+		}
 	})
 }
 
@@ -115,12 +109,12 @@ func (h *StageHandlers) UpdateStage(w http.ResponseWriter, r *http.Request) {
 // @Tags value-streams
 // @Param id path string true "Value Stream ID"
 // @Param stageId path string true "Stage ID"
-// @Success 200 {object} readmodels.ValueStreamDetailDTO
+// @Success 204 "No Content"
 // @Failure 404 {object} sharedAPI.ErrorResponse
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /value-streams/{id}/stages/{stageId} [delete]
 func (h *StageHandlers) DeleteStage(w http.ResponseWriter, r *http.Request) {
-	h.dispatchStageCommand(w, r, http.StatusOK, &commands.RemoveStage{
+	h.dispatchDeleteCommand(w, r, &commands.RemoveStage{
 		ValueStreamID: sharedAPI.GetPathParam(r, "id"),
 		StageID:       sharedAPI.GetPathParam(r, "stageId"),
 	})
@@ -176,15 +170,12 @@ func (h *StageHandlers) ReorderStages(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /value-streams/{id}/stages/{stageId}/capabilities [post]
 func (h *StageHandlers) AddStageCapability(w http.ResponseWriter, r *http.Request) {
-	req, ok := sharedAPI.DecodeRequestOrFail[AddStageCapabilityRequest](w, r)
-	if !ok {
-		return
-	}
-
-	h.dispatchStageCommand(w, r, http.StatusOK, &commands.AddStageCapability{
-		ValueStreamID: sharedAPI.GetPathParam(r, "id"),
-		StageID:       sharedAPI.GetPathParam(r, "stageId"),
-		CapabilityID:  req.CapabilityID,
+	decodeAndDispatchStage(h, w, r, func(req AddStageCapabilityRequest) (int, cqrs.Command) {
+		return http.StatusOK, &commands.AddStageCapability{
+			ValueStreamID: sharedAPI.GetPathParam(r, "id"),
+			StageID:       sharedAPI.GetPathParam(r, "stageId"),
+			CapabilityID:  req.CapabilityID,
+		}
 	})
 }
 
@@ -195,12 +186,12 @@ func (h *StageHandlers) AddStageCapability(w http.ResponseWriter, r *http.Reques
 // @Param id path string true "Value Stream ID"
 // @Param stageId path string true "Stage ID"
 // @Param capabilityId path string true "Capability ID"
-// @Success 200 {object} readmodels.ValueStreamDetailDTO
+// @Success 204 "No Content"
 // @Failure 404 {object} sharedAPI.ErrorResponse
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /value-streams/{id}/stages/{stageId}/capabilities/{capabilityId} [delete]
 func (h *StageHandlers) RemoveStageCapability(w http.ResponseWriter, r *http.Request) {
-	h.dispatchStageCommand(w, r, http.StatusOK, &commands.RemoveStageCapability{
+	h.dispatchDeleteCommand(w, r, &commands.RemoveStageCapability{
 		ValueStreamID: sharedAPI.GetPathParam(r, "id"),
 		StageID:       sharedAPI.GetPathParam(r, "stageId"),
 		CapabilityID:  sharedAPI.GetPathParam(r, "capabilityId"),
@@ -213,7 +204,7 @@ func (h *StageHandlers) RemoveStageCapability(w http.ResponseWriter, r *http.Req
 // @Tags value-streams
 // @Produce json
 // @Param id path string true "Value Stream ID"
-// @Success 200 {array} readmodels.StageCapabilityMappingDTO
+// @Success 200 {object} sharedAPI.CollectionResponse{data=[]readmodels.StageCapabilityMappingDTO}
 // @Failure 404 {object} sharedAPI.ErrorResponse
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /value-streams/{id}/capabilities [get]
@@ -230,7 +221,23 @@ func (h *StageHandlers) GetValueStreamCapabilities(w http.ResponseWriter, r *htt
 		caps = []readmodels.StageCapabilityMappingDTO{}
 	}
 
-	sharedAPI.RespondJSON(w, http.StatusOK, caps)
+	sharedAPI.RespondCollection(w, http.StatusOK, caps, h.hateoas.CapabilitiesCollectionLinks(vsID))
+}
+
+func decodeAndDispatchStage[T any](h *StageHandlers, w http.ResponseWriter, r *http.Request, buildCmd func(T) (int, cqrs.Command)) {
+	req, ok := sharedAPI.DecodeRequestOrFail[T](w, r)
+	if !ok {
+		return
+	}
+	statusCode, cmd := buildCmd(req)
+	h.dispatchStageCommand(w, r, statusCode, cmd)
+}
+
+func (h *StageHandlers) dispatchDeleteCommand(w http.ResponseWriter, r *http.Request, cmd cqrs.Command) {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
+		sharedAPI.RespondDeleted(w)
+	})
 }
 
 func (h *StageHandlers) dispatchStageCommand(w http.ResponseWriter, r *http.Request, statusCode int, cmd cqrs.Command) {
