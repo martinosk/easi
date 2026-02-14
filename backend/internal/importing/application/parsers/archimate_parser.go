@@ -151,7 +151,7 @@ type archiMateElements struct {
 
 type archiMateElement struct {
 	Identifier    string `xml:"identifier,attr"`
-	Type          string `xml:"type,attr"`
+	Type          string `xml:"http://www.w3.org/2001/XMLSchema-instance type,attr"`
 	Name          string `xml:"name"`
 	Documentation string `xml:"documentation"`
 }
@@ -162,7 +162,7 @@ type archiMateRelationships struct {
 
 type archiMateRelationship struct {
 	Identifier    string `xml:"identifier,attr"`
-	Type          string `xml:"type,attr"`
+	Type          string `xml:"http://www.w3.org/2001/XMLSchema-instance type,attr"`
 	Source        string `xml:"source,attr"`
 	Target        string `xml:"target,attr"`
 	Name          string `xml:"name"`

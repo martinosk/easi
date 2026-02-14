@@ -3,6 +3,7 @@ package parsers
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 )
@@ -16,10 +17,23 @@ var (
 
 func parseSampleModel() (*ParseResult, error, string) {
 	sampleResultOnce.Do(func() {
-		sampleFilePath := filepath.Join("..", "..", "..", "..", "..", "docs", "sample-model.xml")
-		file, err := os.Open(sampleFilePath)
+		// Get the directory of this test file
+		_, testFile, _, ok := runtime.Caller(0)
+		if !ok {
+			sampleSkipMsg = "Failed to get test file location"
+			return
+		}
+
+		// Build path from test file location up to repo root and into docs
+		testDir := filepath.Dir(testFile)
+		// testDir is ...backend/internal/importing/application/parsers
+		// We need to go up 5 levels to get to repo root
+		repoRoot := filepath.Join(testDir, "..", "..", "..", "..", "..")
+		sampleFile := filepath.Join(repoRoot, "docs", "sample-model.xml")
+
+		file, err := os.Open(sampleFile)
 		if err != nil {
-			sampleSkipMsg = "Sample file not found at " + sampleFilePath + ": " + err.Error()
+			sampleSkipMsg = "Sample file not found at " + sampleFile + ": " + err.Error()
 			return
 		}
 		defer file.Close()
@@ -39,7 +53,7 @@ func loadSampleResult(t *testing.T) *ParseResult {
 	t.Helper()
 	result, err, skipMsg := parseSampleModel()
 	if skipMsg != "" {
-		t.Skip(skipMsg)
+		t.Fatalf("Test setup failed: %s", skipMsg)
 	}
 	if err != nil {
 		t.Fatalf("Failed to parse sample model: %v", err)

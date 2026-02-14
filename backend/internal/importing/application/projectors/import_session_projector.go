@@ -73,11 +73,13 @@ func (p *ImportSessionProjector) handleImportSessionCreated(ctx context.Context,
 	preview := readmodels.PreviewDTO{}
 	if supported, ok := data.Preview["supported"].(map[string]interface{}); ok {
 		preview.Supported = readmodels.SupportedCountsDTO{
-			Capabilities:             getIntFromMap(supported, "capabilities"),
-			Components:               getIntFromMap(supported, "components"),
-			ParentChildRelationships: getIntFromMap(supported, "parentChildRelationships"),
-			Realizations:             getIntFromMap(supported, "realizations"),
-			ComponentRelationships:   getIntFromMap(supported, "componentRelationships"),
+			Capabilities:                    getIntFromMap(supported, "capabilities"),
+			Components:                      getIntFromMap(supported, "components"),
+			ValueStreams:                    getIntFromMap(supported, "valueStreams"),
+			ParentChildRelationships:        getIntFromMap(supported, "parentChildRelationships"),
+			Realizations:                    getIntFromMap(supported, "realizations"),
+			ComponentRelationships:          getIntFromMap(supported, "componentRelationships"),
+			CapabilityToValueStreamMappings: getIntFromMap(supported, "capabilityToValueStreamMappings"),
 		}
 	}
 	if unsupported, ok := data.Preview["unsupported"].(map[string]interface{}); ok {

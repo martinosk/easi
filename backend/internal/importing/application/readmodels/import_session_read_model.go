@@ -17,11 +17,13 @@ type PreviewDTO struct {
 }
 
 type SupportedCountsDTO struct {
-	Capabilities             int `json:"capabilities"`
-	Components               int `json:"components"`
-	ParentChildRelationships int `json:"parentChildRelationships"`
-	Realizations             int `json:"realizations"`
-	ComponentRelationships   int `json:"componentRelationships"`
+	Capabilities                    int `json:"capabilities"`
+	Components                      int `json:"components"`
+	ValueStreams                    int `json:"valueStreams"`
+	ParentChildRelationships        int `json:"parentChildRelationships"`
+	Realizations                    int `json:"realizations"`
+	ComponentRelationships          int `json:"componentRelationships"`
+	CapabilityToValueStreamMappings int `json:"capabilityToValueStreamMappings"`
 }
 
 type UnsupportedCountsDTO struct {
