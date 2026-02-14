@@ -190,13 +190,13 @@ func TestArchiMateParser_ParseSampleModel_UnsupportedPreview(t *testing.T) {
 	unsupported := result.GetPreview().Unsupported()
 
 	totalElements := sumMapValues(unsupported.Elements)
-	if totalElements != 4 {
-		t.Errorf("expected 4 unsupported elements, got %d", totalElements)
+	if totalElements != 5 {
+		t.Errorf("expected 5 unsupported elements, got %d", totalElements)
 	}
 
 	totalRels := sumMapValues(unsupported.Relationships)
-	if totalRels != 3 {
-		t.Errorf("expected 3 unsupported relationships (invalid source/target types), got %d", totalRels)
+	if totalRels != 5 {
+		t.Errorf("expected 5 unsupported relationships (invalid source/target types), got %d", totalRels)
 	}
 }
 
