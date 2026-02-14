@@ -44,6 +44,9 @@ func (h *ConfirmImportHandler) Handle(ctx context.Context, cmd cqrs.Command) (cq
 
 	tenantID := sharedctx.GetTenantOrDefault(ctx)
 	bgCtx := sharedctx.WithTenant(context.Background(), tenantID)
+	if actor, ok := sharedctx.GetActor(ctx); ok {
+		bgCtx = sharedctx.WithActor(bgCtx, actor)
+	}
 	go h.executeImport(bgCtx, command.ID)
 
 	return cqrs.EmptyResult(), nil
