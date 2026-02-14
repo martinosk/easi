@@ -11,8 +11,11 @@ export interface ImportPreview {
   supported: {
     capabilities: number;
     components: number;
+    valueStreams: number;
     parentChildRelationships: number;
     realizations: number;
+    componentRelationships: number;
+    capabilityToValueStreamMappings: number;
   };
   unsupported: {
     elements: Record<string, number>;
@@ -36,7 +39,9 @@ export interface ImportError {
 export interface ImportResult {
   capabilitiesCreated: number;
   componentsCreated: number;
+  valueStreamsCreated: number;
   realizationsCreated: number;
+  capabilityMappings: number;
   domainAssignments: number;
   errors: ImportError[];
 }

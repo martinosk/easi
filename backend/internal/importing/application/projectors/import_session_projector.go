@@ -151,8 +151,10 @@ func (p *ImportSessionProjector) handleImportCompleted(ctx context.Context, even
 		ID                        string                   `json:"id"`
 		CapabilitiesCreated       int                      `json:"capabilitiesCreated"`
 		ComponentsCreated         int                      `json:"componentsCreated"`
+		ValueStreamsCreated       int                      `json:"valueStreamsCreated"`
 		RealizationsCreated       int                      `json:"realizationsCreated"`
 		ComponentRelationsCreated int                      `json:"componentRelationsCreated"`
+		CapabilityMappings        int                      `json:"capabilityMappings"`
 		DomainAssignments         int                      `json:"domainAssignments"`
 		Errors                    []map[string]interface{} `json:"errors"`
 		CompletedAt               time.Time                `json:"completedAt"`
@@ -175,8 +177,10 @@ func (p *ImportSessionProjector) handleImportCompleted(ctx context.Context, even
 	result := readmodels.ResultDTO{
 		CapabilitiesCreated:       data.CapabilitiesCreated,
 		ComponentsCreated:         data.ComponentsCreated,
+		ValueStreamsCreated:       data.ValueStreamsCreated,
 		RealizationsCreated:       data.RealizationsCreated,
 		ComponentRelationsCreated: data.ComponentRelationsCreated,
+		CapabilityMappings:        data.CapabilityMappings,
 		DomainAssignments:         data.DomainAssignments,
 		Errors:                    errors,
 	}

@@ -47,8 +47,10 @@ type ImportErrorDTO struct {
 type ResultDTO struct {
 	CapabilitiesCreated       int              `json:"capabilitiesCreated"`
 	ComponentsCreated         int              `json:"componentsCreated"`
+	ValueStreamsCreated       int              `json:"valueStreamsCreated"`
 	RealizationsCreated       int              `json:"realizationsCreated"`
 	ComponentRelationsCreated int              `json:"componentRelationsCreated"`
+	CapabilityMappings        int              `json:"capabilityMappings"`
 	DomainAssignments         int              `json:"domainAssignments"`
 	Errors                    []ImportErrorDTO `json:"errors"`
 }

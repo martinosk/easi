@@ -41,6 +41,32 @@ function createWrapper(queryClient: QueryClient) {
     React.createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
+function createPendingSession(linksOverride?: Partial<ImportSession['_links']>): ImportSession {
+  return {
+    id: 'import-123' as ImportSessionId,
+    status: 'pending',
+    sourceFormat: 'archimate-openexchange',
+    createdAt: '2025-01-15T10:00:00Z',
+    _links: {
+      self: { href: '/api/v1/imports/import-123' },
+      ...linksOverride,
+    },
+  };
+}
+
+async function renderAndCreateSession(queryClient: QueryClient) {
+  const { result } = renderHook(() => useImportSession(), {
+    wrapper: createWrapper(queryClient),
+  });
+
+  const file = new File(['test'], 'test.xml', { type: 'application/xml' });
+  await act(async () => {
+    await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
+  });
+
+  return result;
+}
+
 describe('useImportSession', () => {
   let queryClient: QueryClient;
 
@@ -66,8 +92,11 @@ describe('useImportSession', () => {
           supported: {
             capabilities: 10,
             components: 5,
+            valueStreams: 1,
             parentChildRelationships: 8,
             realizations: 3,
+            componentRelationships: 1,
+            capabilityToValueStreamMappings: 2,
           },
           unsupported: {
             elements: {},
@@ -133,13 +162,9 @@ describe('useImportSession', () => {
 
   describe('confirmSession', () => {
     it('should confirm import session and start importing', async () => {
-      const pendingSession: ImportSession = {
-        id: 'import-123' as ImportSessionId,
-        status: 'pending',
-        sourceFormat: 'archimate-openexchange',
-        createdAt: '2025-01-15T10:00:00Z',
-        _links: { self: { href: '/api/v1/imports/import-123' }, confirm: { href: '/api/v1/imports/import-123/confirm', method: 'POST' } },
-      };
+      const pendingSession = createPendingSession({
+        confirm: { href: '/api/v1/imports/import-123/confirm', method: 'POST' },
+      });
 
       const importingSession: ImportSession = {
         ...pendingSession,
@@ -155,14 +180,7 @@ describe('useImportSession', () => {
         .mockResolvedValueOnce({ data: pendingSession })
         .mockResolvedValueOnce({ data: importingSession });
 
-      const { result } = renderHook(() => useImportSession(), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      const file = new File(['test'], 'test.xml', { type: 'application/xml' });
-      await act(async () => {
-        await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
-      });
+      const result = await renderAndCreateSession(queryClient);
 
       await waitFor(() => {
         expect(result.current.session?.status).toBe('pending');
@@ -179,27 +197,16 @@ describe('useImportSession', () => {
     });
 
     it('should handle errors during confirmation', async () => {
-      const mockSession: ImportSession = {
-        id: 'import-123' as ImportSessionId,
-        status: 'pending',
-        sourceFormat: 'archimate-openexchange',
-        createdAt: '2025-01-15T10:00:00Z',
-        _links: { self: { href: '/api/v1/imports/import-123' }, confirm: { href: '/api/v1/imports/import-123/confirm', method: 'POST' } },
-      };
+      const pendingSession = createPendingSession({
+        confirm: { href: '/api/v1/imports/import-123/confirm', method: 'POST' },
+      });
 
       const errorMessage = 'Import already started';
       mockPost
-        .mockResolvedValueOnce({ data: mockSession })
+        .mockResolvedValueOnce({ data: pendingSession })
         .mockRejectedValueOnce(new Error(errorMessage));
 
-      const { result } = renderHook(() => useImportSession(), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      const file = new File(['test'], 'test.xml', { type: 'application/xml' });
-      await act(async () => {
-        await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
-      });
+      const result = await renderAndCreateSession(queryClient);
 
       await waitFor(() => {
         expect(result.current.session?.status).toBe('pending');
@@ -217,28 +224,14 @@ describe('useImportSession', () => {
 
   describe('cancelSession', () => {
     it('should cancel pending import session', async () => {
-      const mockSession: ImportSession = {
-        id: 'import-123' as ImportSessionId,
-        status: 'pending',
-        sourceFormat: 'archimate-openexchange',
-        createdAt: '2025-01-15T10:00:00Z',
-        _links: {
-          self: { href: '/api/v1/imports/import-123' },
-          delete: { href: '/api/v1/imports/import-123', method: 'DELETE' },
-        },
-      };
+      const pendingSession = createPendingSession({
+        delete: { href: '/api/v1/imports/import-123', method: 'DELETE' },
+      });
 
-      mockPost.mockResolvedValue({ data: mockSession });
+      mockPost.mockResolvedValue({ data: pendingSession });
       mockDelete.mockResolvedValue({});
 
-      const { result } = renderHook(() => useImportSession(), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      const file = new File(['test'], 'test.xml', { type: 'application/xml' });
-      await act(async () => {
-        await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
-      });
+      const result = await renderAndCreateSession(queryClient);
 
       await act(async () => {
         await result.current.cancelSession();
@@ -273,7 +266,9 @@ describe('useImportSession', () => {
         result: {
           capabilitiesCreated: 10,
           componentsCreated: 5,
+          valueStreamsCreated: 1,
           realizationsCreated: 3,
+          capabilityMappings: 2,
           domainAssignments: 0,
           errors: [],
         },
@@ -316,7 +311,9 @@ describe('useImportSession', () => {
         result: {
           capabilitiesCreated: 10,
           componentsCreated: 5,
+          valueStreamsCreated: 1,
           realizationsCreated: 3,
+          capabilityMappings: 2,
           domainAssignments: 0,
           errors: [],
         },
@@ -350,27 +347,13 @@ describe('useImportSession', () => {
 
   describe('reset', () => {
     it('should reset session state', async () => {
-      const mockSession: ImportSession = {
-        id: 'import-123' as ImportSessionId,
-        status: 'pending',
-        sourceFormat: 'archimate-openexchange',
-        createdAt: '2025-01-15T10:00:00Z',
-        _links: { self: { href: '/api/v1/imports/import-123' } },
-      };
+      const pendingSession = createPendingSession();
+      mockPost.mockResolvedValue({ data: pendingSession });
 
-      mockPost.mockResolvedValue({ data: mockSession });
-
-      const { result } = renderHook(() => useImportSession(), {
-        wrapper: createWrapper(queryClient),
-      });
-
-      const file = new File(['test'], 'test.xml', { type: 'application/xml' });
-      await act(async () => {
-        await result.current.createSession({ file, sourceFormat: 'archimate-openexchange' });
-      });
+      const result = await renderAndCreateSession(queryClient);
 
       await waitFor(() => {
-        expect(result.current.session).toEqual(mockSession);
+        expect(result.current.session).toEqual(pendingSession);
       });
 
       act(() => {

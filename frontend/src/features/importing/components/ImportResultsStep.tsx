@@ -10,7 +10,9 @@ export const ImportResultsStep: React.FC<ImportResultsStepProps> = ({ result, on
   const {
     capabilitiesCreated,
     componentsCreated,
+    valueStreamsCreated,
     realizationsCreated,
+    capabilityMappings,
     domainAssignments,
     errors,
   } = result;
@@ -33,8 +35,16 @@ export const ImportResultsStep: React.FC<ImportResultsStepProps> = ({ result, on
               <strong>{componentsCreated}</strong> Components created
             </li>
             <li>
+              <strong>{valueStreamsCreated}</strong> Value streams created
+            </li>
+            <li>
               <strong>{realizationsCreated}</strong> Realizations created
             </li>
+            {capabilityMappings > 0 && (
+              <li>
+                <strong>{capabilityMappings}</strong> Capability-to-value-stream mappings
+              </li>
+            )}
             {domainAssignments > 0 && (
               <li>
                 <strong>{domainAssignments}</strong> Domain assignments made

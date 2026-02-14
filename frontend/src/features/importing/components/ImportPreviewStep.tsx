@@ -39,10 +39,19 @@ export const ImportPreviewStep: React.FC<ImportPreviewStepProps> = ({
               <strong>{supported.components}</strong> Components
             </li>
             <li>
+              <strong>{supported.valueStreams}</strong> Value streams
+            </li>
+            <li>
               <strong>{supported.parentChildRelationships}</strong> Parent-child relationships
             </li>
             <li>
               <strong>{supported.realizations}</strong> Capability realizations
+            </li>
+            <li>
+              <strong>{supported.componentRelationships}</strong> Component relationships
+            </li>
+            <li>
+              <strong>{supported.capabilityToValueStreamMappings}</strong> Capability-to-value-stream mappings
             </li>
           </ul>
         </div>

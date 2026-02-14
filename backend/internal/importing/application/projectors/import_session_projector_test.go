@@ -146,11 +146,13 @@ func (p *testableImportSessionProjector) handleImportSessionCreated(ctx context.
 	preview := readmodels.PreviewDTO{}
 	if supported, ok := data.Preview["supported"].(map[string]interface{}); ok {
 		preview.Supported = readmodels.SupportedCountsDTO{
-			Capabilities:             getIntFromMap(supported, "capabilities"),
-			Components:               getIntFromMap(supported, "components"),
-			ParentChildRelationships: getIntFromMap(supported, "parentChildRelationships"),
-			Realizations:             getIntFromMap(supported, "realizations"),
-			ComponentRelationships:   getIntFromMap(supported, "componentRelationships"),
+			Capabilities:                    getIntFromMap(supported, "capabilities"),
+			Components:                      getIntFromMap(supported, "components"),
+			ValueStreams:                    getIntFromMap(supported, "valueStreams"),
+			ParentChildRelationships:        getIntFromMap(supported, "parentChildRelationships"),
+			Realizations:                    getIntFromMap(supported, "realizations"),
+			ComponentRelationships:          getIntFromMap(supported, "componentRelationships"),
+			CapabilityToValueStreamMappings: getIntFromMap(supported, "capabilityToValueStreamMappings"),
 		}
 	}
 	if unsupported, ok := data.Preview["unsupported"].(map[string]interface{}); ok {
@@ -219,8 +221,10 @@ func (p *testableImportSessionProjector) handleImportCompleted(ctx context.Conte
 		ID                        string                   `json:"id"`
 		CapabilitiesCreated       int                      `json:"capabilitiesCreated"`
 		ComponentsCreated         int                      `json:"componentsCreated"`
+		ValueStreamsCreated       int                      `json:"valueStreamsCreated"`
 		RealizationsCreated       int                      `json:"realizationsCreated"`
 		ComponentRelationsCreated int                      `json:"componentRelationsCreated"`
+		CapabilityMappings        int                      `json:"capabilityMappings"`
 		DomainAssignments         int                      `json:"domainAssignments"`
 		Errors                    []map[string]interface{} `json:"errors"`
 		CompletedAt               time.Time                `json:"completedAt"`
@@ -242,13 +246,25 @@ func (p *testableImportSessionProjector) handleImportCompleted(ctx context.Conte
 	result := readmodels.ResultDTO{
 		CapabilitiesCreated:       data.CapabilitiesCreated,
 		ComponentsCreated:         data.ComponentsCreated,
+		ValueStreamsCreated:       data.ValueStreamsCreated,
 		RealizationsCreated:       data.RealizationsCreated,
 		ComponentRelationsCreated: data.ComponentRelationsCreated,
+		CapabilityMappings:        data.CapabilityMappings,
 		DomainAssignments:         data.DomainAssignments,
 		Errors:                    errors,
 	}
 
 	return p.readModel.MarkCompleted(ctx, data.ID, result, data.CompletedAt)
+}
+
+func unmarshalEventID(eventData []byte) (string, error) {
+	var data struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(eventData, &data); err != nil {
+		return "", err
+	}
+	return data.ID, nil
 }
 
 func (p *testableImportSessionProjector) handleImportFailed(ctx context.Context, eventData []byte) error {
@@ -264,14 +280,11 @@ func (p *testableImportSessionProjector) handleImportFailed(ctx context.Context,
 }
 
 func (p *testableImportSessionProjector) handleImportSessionCancelled(ctx context.Context, eventData []byte) error {
-	var data struct {
-		ID string `json:"id"`
-	}
-	if err := json.Unmarshal(eventData, &data); err != nil {
+	id, err := unmarshalEventID(eventData)
+	if err != nil {
 		return err
 	}
-
-	return p.readModel.MarkCancelled(ctx, data.ID)
+	return p.readModel.MarkCancelled(ctx, id)
 }
 
 func TestImportSessionProjector_HandleImportCompleted_WithNoErrors_ReturnsEmptySlice(t *testing.T) {
@@ -283,8 +296,10 @@ func TestImportSessionProjector_HandleImportCompleted_WithNoErrors_ReturnsEmptyS
 		"id":                        "import-123",
 		"capabilitiesCreated":       10,
 		"componentsCreated":         5,
+		"valueStreamsCreated":       2,
 		"realizationsCreated":       3,
 		"componentRelationsCreated": 2,
+		"capabilityMappings":        4,
 		"domainAssignments":         1,
 		"errors":                    nil,
 		"completedAt":               completedAt,
@@ -299,8 +314,10 @@ func TestImportSessionProjector_HandleImportCompleted_WithNoErrors_ReturnsEmptyS
 
 	assert.Equal(t, 10, result.CapabilitiesCreated)
 	assert.Equal(t, 5, result.ComponentsCreated)
+	assert.Equal(t, 2, result.ValueStreamsCreated)
 	assert.Equal(t, 3, result.RealizationsCreated)
 	assert.Equal(t, 2, result.ComponentRelationsCreated)
+	assert.Equal(t, 4, result.CapabilityMappings)
 	assert.Equal(t, 1, result.DomainAssignments)
 
 	assert.NotNil(t, result.Errors, "Errors should never be nil")
@@ -367,11 +384,13 @@ func TestImportSessionProjector_HandleImportSessionCreated(t *testing.T) {
 		"businessDomainId": "domain-1",
 		"preview": map[string]interface{}{
 			"supported": map[string]interface{}{
-				"capabilities":             float64(10),
-				"components":               float64(5),
-				"parentChildRelationships": float64(8),
-				"realizations":             float64(3),
-				"componentRelationships":   float64(2),
+				"capabilities":                    float64(10),
+				"components":                      float64(5),
+				"valueStreams":                    float64(1),
+				"parentChildRelationships":        float64(8),
+				"realizations":                    float64(3),
+				"componentRelationships":          float64(2),
+				"capabilityToValueStreamMappings": float64(2),
 			},
 			"unsupported": map[string]interface{}{
 				"elements":      map[string]interface{}{"Location": float64(2)},
@@ -395,6 +414,8 @@ func TestImportSessionProjector_HandleImportSessionCreated(t *testing.T) {
 	require.NotNil(t, session.Preview)
 	assert.Equal(t, 10, session.Preview.Supported.Capabilities)
 	assert.Equal(t, 5, session.Preview.Supported.Components)
+	assert.Equal(t, 1, session.Preview.Supported.ValueStreams)
+	assert.Equal(t, 2, session.Preview.Supported.CapabilityToValueStreamMappings)
 }
 
 func TestImportSessionProjector_HandleImportStarted(t *testing.T) {
@@ -443,38 +464,52 @@ func TestImportSessionProjector_HandleImportProgressUpdated(t *testing.T) {
 	assert.Equal(t, 10, mockRM.progressUpdates[0].Progress.CompletedItems)
 }
 
-func TestImportSessionProjector_HandleImportFailed(t *testing.T) {
-	mockRM := &mockImportSessionReadModel{}
-	projector := newTestableImportSessionProjector(mockRM)
+func TestImportSessionProjector_HandleTerminalEvents(t *testing.T) {
+	tests := []struct {
+		name      string
+		eventType string
+		eventData map[string]interface{}
+		assertFn  func(t *testing.T, mockRM *mockImportSessionReadModel)
+	}{
+		{
+			name:      "ImportFailed marks session as failed",
+			eventType: "ImportFailed",
+			eventData: map[string]interface{}{
+				"id":       "import-failed",
+				"failedAt": time.Now(),
+			},
+			assertFn: func(t *testing.T, mockRM *mockImportSessionReadModel) {
+				require.Len(t, mockRM.failedCalls, 1)
+				assert.Equal(t, "import-failed", mockRM.failedCalls[0].ID)
+			},
+		},
+		{
+			name:      "ImportSessionCancelled marks session as cancelled",
+			eventType: "ImportSessionCancelled",
+			eventData: map[string]interface{}{
+				"id": "import-cancelled",
+			},
+			assertFn: func(t *testing.T, mockRM *mockImportSessionReadModel) {
+				require.Len(t, mockRM.cancelledIDs, 1)
+				assert.Equal(t, "import-cancelled", mockRM.cancelledIDs[0])
+			},
+		},
+	}
 
-	failedAt := time.Now()
-	eventData, err := json.Marshal(map[string]interface{}{
-		"id":       "import-failed",
-		"failedAt": failedAt,
-	})
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRM := &mockImportSessionReadModel{}
+			projector := newTestableImportSessionProjector(mockRM)
 
-	err = projector.ProjectEvent(context.Background(), "ImportFailed", eventData)
-	require.NoError(t, err)
+			eventData, err := json.Marshal(tt.eventData)
+			require.NoError(t, err)
 
-	require.Len(t, mockRM.failedCalls, 1)
-	assert.Equal(t, "import-failed", mockRM.failedCalls[0].ID)
-}
+			err = projector.ProjectEvent(context.Background(), tt.eventType, eventData)
+			require.NoError(t, err)
 
-func TestImportSessionProjector_HandleImportSessionCancelled(t *testing.T) {
-	mockRM := &mockImportSessionReadModel{}
-	projector := newTestableImportSessionProjector(mockRM)
-
-	eventData, err := json.Marshal(map[string]interface{}{
-		"id": "import-cancelled",
-	})
-	require.NoError(t, err)
-
-	err = projector.ProjectEvent(context.Background(), "ImportSessionCancelled", eventData)
-	require.NoError(t, err)
-
-	require.Len(t, mockRM.cancelledIDs, 1)
-	assert.Equal(t, "import-cancelled", mockRM.cancelledIDs[0])
+			tt.assertFn(t, mockRM)
+		})
+	}
 }
 
 func TestImportSessionProjector_UnknownEventType_NoOp(t *testing.T) {
