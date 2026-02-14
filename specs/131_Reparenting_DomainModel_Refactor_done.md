@@ -9,9 +9,9 @@ Break the refactor into focused implementation specs that move reparenting logic
 - Spec 131C: UI Invalidation for Inheritance Events
 
 ## Checklist
-- [ ] Specification ready
-- [ ] Implementation done
-- [ ] Unit tests implemented and passing
-- [ ] Integration tests implemented if relevant
-- [ ] Documentation updated if needed
-- [ ] User sign-off
+- [x] Specification ready
+- [x] Implementation done
+- [x] Unit tests implemented and passing
+- [x] Integration tests implemented if relevant
+- [x] Documentation updated if needed
+- [x] User sign-off
