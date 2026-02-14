@@ -51,29 +51,6 @@ spec:
           limits:
             memory: "128Mi"
             cpu: "200m"
-      - name: recompute-capability-inheritance
-        image: $(ECR_REPO)/easi-backend:$(Build.BuildNumber)
-        imagePullPolicy: Always
-        command: ["./recompute-capability-inheritance"]
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-        env:
-        - name: DB_CONN_STRING
-          valueFrom:
-            secretKeyRef:
-              name: easi-db-credentials
-              key: admin-conn-string
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
       containers:
       - name: easi-backend
         image: $(ECR_REPO)/easi-backend:$(Build.BuildNumber)

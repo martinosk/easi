@@ -18,9 +18,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux go build \
     -ldflags "-X 'easi/backend/internal/infrastructure/api.Version=${APP_VERSION}'" \
-    -o /app/api cmd/api/main.go && \
-    CGO_ENABLED=0 GOOS=linux go build \
-    -o /app/recompute-capability-inheritance cmd/recompute-capability-inheritance/main.go
+    -o /app/api cmd/api/main.go
 
 # Run stage
 FROM alpine:3.23
@@ -29,7 +27,6 @@ WORKDIR /app
 
 # Copy the binary from builder
 COPY --from=builder /app/api .
-COPY --from=builder /app/recompute-capability-inheritance .
 
 # Create non-root user
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
