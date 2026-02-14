@@ -1,6 +1,9 @@
 trigger:
   - main
 
+pr:
+  - main
+
 pool:
   vmImage: 'ubuntu-latest'
 
@@ -14,246 +17,361 @@ variables:
 - name: 'kubernetes-namespace'
   value: 'enterprisearchitecture-pnpbj'
 
-steps:
-- task: Go@0
-  name: BackendUnitTests
-  displayName: 'Run backend unit tests'
-  inputs:
-    command: 'test'
-    arguments: '-v ./...'
-    workingDirectory: 'backend'
+stages:
+- stage: Validate
+  displayName: 'Build & Test'
+  jobs:
+  - job: BuildAndTest
+    displayName: 'Build and test'
+    steps:
+    - task: Go@0
+      name: BackendUnitTests
+      displayName: 'Run backend unit tests'
+      inputs:
+        command: 'test'
+        arguments: '-v ./...'
+        workingDirectory: 'backend'
 
-- task: NodeTool@0
-  name: InstallNode
-  displayName: 'Install Node.js'
-  inputs:
-    versionSpec: '20.x'
+    - task: NodeTool@0
+      name: InstallNode
+      displayName: 'Install Node.js'
+      inputs:
+        versionSpec: '20.x'
 
-- task: Npm@1
-  name: FrontendInstall
-  displayName: 'Install frontend dependencies'
-  inputs:
-    command: 'ci'
-    workingDir: 'frontend'
+    - task: Npm@1
+      name: FrontendInstall
+      displayName: 'Install frontend dependencies'
+      inputs:
+        command: 'ci'
+        workingDir: 'frontend'
 
-- script: |
-    cd frontend
-    CI=true npm run test -- --run
-  name: FrontendUnitTests
-  displayName: 'Run frontend unit tests'
+    - script: |
+        cd frontend
+        CI=true npm run test -- --run
+      name: FrontendUnitTests
+      displayName: 'Run frontend unit tests'
 
-- task: PublishTestResults@2
-  name: PublishFrontendTestResults
-  displayName: 'Publish frontend test results'
-  condition: always()
-  inputs:
-    testResultsFormat: 'JUnit'
-    testResultsFiles: '**/junit.xml'
-    searchFolder: 'frontend/test-results'
-    mergeTestResults: true
-    failTaskOnFailedTests: true
-    testRunTitle: 'Frontend Unit Tests'
+    - task: PublishTestResults@2
+      name: PublishFrontendTestResults
+      displayName: 'Publish frontend test results'
+      condition: always()
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '**/junit.xml'
+        searchFolder: 'frontend/test-results'
+        mergeTestResults: true
+        failTaskOnFailedTests: true
+        testRunTitle: 'Frontend Unit Tests'
 
-# Get version from git tag
-- script: |
-    VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
-    VERSION=${VERSION#v}  # Remove 'v' prefix if present
-    echo "Detected version: $VERSION"
-    echo "##vso[task.setvariable variable=APP_VERSION]$VERSION"
-  name: GetVersion
-  displayName: 'Get version from git tag'
+    - script: |
+        VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+        VERSION=${VERSION#v}
+        echo "Detected version: $VERSION"
+        echo "##vso[task.setvariable variable=APP_VERSION]$VERSION"
+      name: GetVersion
+      displayName: 'Get version from git tag'
 
-# Build Docker images after tests pass
-- task: Docker@2
-  name: BuildMigrate
-  displayName: 'Build migrate docker image'
-  inputs:
-    command: 'build'
-    Dockerfile: 'backend/Dockerfile.migrate'
-    buildContext: 'backend'
-    arguments: '--tag easi-migrate:$(Build.BuildNumber)'
-    addPipelineData: false
+    - task: Docker@2
+      name: BuildMigrate
+      displayName: 'Build migrate docker image'
+      inputs:
+        command: 'build'
+        Dockerfile: 'backend/Dockerfile.migrate'
+        buildContext: 'backend'
+        arguments: '--tag easi-migrate:$(Build.BuildNumber)'
+        addPipelineData: false
 
-- task: Docker@2
-  name: BuildBackend
-  displayName: 'Build backend docker image'
-  inputs:
-    command: 'build'
-    Dockerfile: 'backend/Dockerfile'
-    buildContext: 'backend'
-    arguments: '--tag easi-backend:$(Build.BuildNumber) --build-arg APP_VERSION=$(APP_VERSION)'
-    addPipelineData: false
+    - task: Docker@2
+      name: BuildBackend
+      displayName: 'Build backend docker image'
+      inputs:
+        command: 'build'
+        Dockerfile: 'backend/Dockerfile'
+        buildContext: 'backend'
+        arguments: '--tag easi-backend:$(Build.BuildNumber) --build-arg APP_VERSION=$(APP_VERSION)'
+        addPipelineData: false
 
-- task: Docker@2
-  name: BuildFrontend
-  displayName: 'Build frontend docker image'
-  inputs:
-    command: 'build'
-    Dockerfile: 'frontend/Dockerfile'
-    buildContext: 'frontend'
-    arguments: '--tag easi-frontend:$(Build.BuildNumber) --build-arg VITE_API_URL='
-    addPipelineData: false
+    - task: Docker@2
+      name: BuildFrontend
+      displayName: 'Build frontend docker image'
+      inputs:
+        command: 'build'
+        Dockerfile: 'frontend/Dockerfile'
+        buildContext: 'frontend'
+        arguments: '--tag easi-frontend:$(Build.BuildNumber) --build-arg VITE_API_URL='
+        addPipelineData: false
 
-- task: ECRPushImage@1
-  name: PushMigrate
-  displayName: 'Push migrate image to AWS'
-  condition: succeeded()
-  inputs:
-    awsCredentials: 'EA ECR-PUSH SHARED'
-    regionName: 'eu-central-1'
-    imageSource: 'imagename'
-    sourceImageName: 'easi-migrate'
-    sourceImageTag: '$(Build.BuildNumber)'
-    repositoryName: 'architecture/easi-migrate'
-    pushTag: '$(Build.BuildNumber)'
+- stage: Deploy
+  displayName: 'Push & Deploy'
+  dependsOn: Validate
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - job: PushAndDeploy
+    displayName: 'Push images and deploy to Kubernetes'
+    steps:
+    - script: |
+        VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+        VERSION=${VERSION#v}
+        echo "Detected version: $VERSION"
+        echo "##vso[task.setvariable variable=APP_VERSION]$VERSION"
+      name: GetVersion
+      displayName: 'Get version from git tag'
 
-- task: ECRPushImage@1
-  name: PushBackend
-  displayName: 'Push backend image to AWS'
-  condition: succeeded()
-  inputs:
-    awsCredentials: 'EA ECR-PUSH SHARED'
-    regionName: 'eu-central-1'
-    imageSource: 'imagename'
-    sourceImageName: 'easi-backend'
-    sourceImageTag: '$(Build.BuildNumber)'
-    repositoryName: 'architecture/easi-backend'
-    pushTag: '$(Build.BuildNumber)' 
+    - task: Docker@2
+      name: BuildMigrate
+      displayName: 'Build migrate docker image'
+      inputs:
+        command: 'build'
+        Dockerfile: 'backend/Dockerfile.migrate'
+        buildContext: 'backend'
+        arguments: '--tag easi-migrate:$(Build.BuildNumber)'
+        addPipelineData: false
 
-- task: ECRPushImage@1
-  name: PushFrontend
-  displayName: 'Push frontend image to AWS'
-  condition: succeeded()
-  inputs:
-    awsCredentials: 'EA ECR-PUSH SHARED'
-    regionName: 'eu-central-1'
-    imageSource: 'imagename'
-    sourceImageName: 'easi-frontend'
-    sourceImageTag: '$(Build.BuildNumber)'
-    repositoryName: 'architecture/easi-frontend'
-    pushTag: '$(Build.BuildNumber)' 
-    
-- task: replacetokens@5
-  name: ReplaceTokens
-  displayName: 'replace tokens in k8s manifests'
-  condition: succeeded()
-  inputs:
-    targetFiles: '$(Build.SourcesDirectory)/k8s/*.yaml'
-    encoding: 'auto'
-    tokenPattern: 'azpipelines'
-    writeBOM: true
-    actionOnMissing: 'warn'
-    keepToken: false
-    actionOnNoFiles: 'fail'
-    enableTransforms: false
-    enableRecursion: false
-    useLegacyPattern: false
-    enableTelemetry: false
+    - task: Docker@2
+      name: BuildBackend
+      displayName: 'Build backend docker image'
+      inputs:
+        command: 'build'
+        Dockerfile: 'backend/Dockerfile'
+        buildContext: 'backend'
+        arguments: '--tag easi-backend:$(Build.BuildNumber) --build-arg APP_VERSION=$(APP_VERSION)'
+        addPipelineData: false
 
-- task: Kubernetes@1
-  name: DeleteDbCredentialsSecret
-  displayName: 'Delete easi-db-credentials secret if exists'
-  continueOnError: true
-  inputs:
-    connectionType: Kubernetes Service Connection
-    kubernetesServiceEndpoint: '$(k8s-service-connection)'
-    namespace: '$(kubernetes-namespace)'
-    command: delete
-    arguments: 'secret easi-db-credentials'
-    versionSpec: 1.22.9
+    - task: Docker@2
+      name: BuildFrontend
+      displayName: 'Build frontend docker image'
+      inputs:
+        command: 'build'
+        Dockerfile: 'frontend/Dockerfile'
+        buildContext: 'frontend'
+        arguments: '--tag easi-frontend:$(Build.BuildNumber) --build-arg VITE_API_URL='
+        addPipelineData: false
 
-- task: Kubernetes@1
-  name: CreateDbCredentialsSecret
-  displayName: 'Create easi-db-credentials secret'
-  condition: succeeded()
-  inputs:
-    connectionType: Kubernetes Service Connection
-    kubernetesServiceEndpoint: '$(k8s-service-connection)'
-    namespace: '$(kubernetes-namespace)'
-    command: create
-    arguments: 'secret generic easi-db-credentials --from-literal=admin-conn-string="$(DB_ADMIN_CONN_STRING)" --from-literal=easi-app-password="$(EASI_APP_PASSWORD)" --from-literal=easi-admin-password="$(EASI_ADMIN_PASSWORD)"'
-    versionSpec: 1.22.9
+    - task: ECRPushImage@1
+      name: PushMigrate
+      displayName: 'Push migrate image to AWS'
+      inputs:
+        awsCredentials: 'EA ECR-PUSH SHARED'
+        regionName: 'eu-central-1'
+        imageSource: 'imagename'
+        sourceImageName: 'easi-migrate'
+        sourceImageTag: '$(Build.BuildNumber)'
+        repositoryName: 'architecture/easi-migrate'
+        pushTag: '$(Build.BuildNumber)'
 
-- task: Kubernetes@1
-  name: DeleteAppDbSecret
-  displayName: 'Delete easi-prod-postgres secret if exists'
-  continueOnError: true
-  inputs:
-    connectionType: Kubernetes Service Connection
-    kubernetesServiceEndpoint: '$(k8s-service-connection)'
-    namespace: '$(kubernetes-namespace)'
-    command: delete
-    arguments: 'secret easi-prod-postgres'
-    versionSpec: 1.22.9
+    - task: ECRPushImage@1
+      name: PushBackend
+      displayName: 'Push backend image to AWS'
+      inputs:
+        awsCredentials: 'EA ECR-PUSH SHARED'
+        regionName: 'eu-central-1'
+        imageSource: 'imagename'
+        sourceImageName: 'easi-backend'
+        sourceImageTag: '$(Build.BuildNumber)'
+        repositoryName: 'architecture/easi-backend'
+        pushTag: '$(Build.BuildNumber)'
 
-- task: Kubernetes@1
-  name: CreateAppDbSecret
-  displayName: 'Create easi-prod-postgres secret'
-  condition: succeeded()
-  inputs:
-    connectionType: Kubernetes Service Connection
-    kubernetesServiceEndpoint: '$(k8s-service-connection)'
-    namespace: '$(kubernetes-namespace)'
-    command: create
-    arguments: 'secret generic easi-prod-postgres --from-literal=DB_CONN_STRING="$(DB_CONN_STRING)"'
-    versionSpec: 1.22.9
+    - task: ECRPushImage@1
+      name: PushFrontend
+      displayName: 'Push frontend image to AWS'
+      inputs:
+        awsCredentials: 'EA ECR-PUSH SHARED'
+        regionName: 'eu-central-1'
+        imageSource: 'imagename'
+        sourceImageName: 'easi-frontend'
+        sourceImageTag: '$(Build.BuildNumber)'
+        repositoryName: 'architecture/easi-frontend'
+        pushTag: '$(Build.BuildNumber)'
 
-- task: Kubernetes@1
-  name: DeleteOidcSecret
-  displayName: 'Delete easi-oidc-credentials secret if exists'
-  continueOnError: true
-  inputs:
-    connectionType: Kubernetes Service Connection
-    kubernetesServiceEndpoint: '$(k8s-service-connection)'
-    namespace: '$(kubernetes-namespace)'
-    command: delete
-    arguments: 'secret easi-oidc-credentials'
-    versionSpec: 1.22.9
+    - task: replacetokens@5
+      name: ReplaceTokens
+      displayName: 'Replace tokens in k8s manifests'
+      inputs:
+        targetFiles: '$(Build.SourcesDirectory)/k8s/*.yaml'
+        encoding: 'auto'
+        tokenPattern: 'azpipelines'
+        writeBOM: true
+        actionOnMissing: 'warn'
+        keepToken: false
+        actionOnNoFiles: 'fail'
+        enableTransforms: false
+        enableRecursion: false
+        useLegacyPattern: false
+        enableTelemetry: false
 
-- task: Kubernetes@1
-  name: CreateOidcSecret
-  displayName: 'Create easi-oidc-credentials secret'
-  condition: succeeded()
-  inputs:
-    connectionType: Kubernetes Service Connection
-    kubernetesServiceEndpoint: '$(k8s-service-connection)'
-    namespace: '$(kubernetes-namespace)'
-    command: create
-    arguments: 'secret generic easi-oidc-credentials --from-literal=client-secret="$(OIDC_CLIENT_SECRET)"'
-    versionSpec: 1.22.9
+    - task: Kubernetes@1
+      name: DeleteDbCredentialsSecret
+      displayName: 'Delete easi-db-credentials secret if exists'
+      continueOnError: true
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: delete
+        arguments: 'secret easi-db-credentials'
+        versionSpec: 1.22.9
 
-- task: Kubernetes@1
-  name: DeletePlatformSecret
-  displayName: 'Delete easi-platform-credentials secret if exists'
-  continueOnError: true
-  inputs:
-    connectionType: Kubernetes Service Connection
-    kubernetesServiceEndpoint: '$(k8s-service-connection)'
-    namespace: '$(kubernetes-namespace)'
-    command: delete
-    arguments: 'secret easi-platform-credentials'
-    versionSpec: 1.22.9
+    - task: Kubernetes@1
+      name: CreateDbCredentialsSecret
+      displayName: 'Create easi-db-credentials secret'
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: create
+        arguments: 'secret generic easi-db-credentials --from-literal=admin-conn-string="$(DB_ADMIN_CONN_STRING)" --from-literal=easi-app-password="$(EASI_APP_PASSWORD)" --from-literal=easi-admin-password="$(EASI_ADMIN_PASSWORD)"'
+        versionSpec: 1.22.9
 
-- task: Kubernetes@1
-  name: CreatePlatformSecret
-  displayName: 'Create easi-platform-credentials secret'
-  condition: succeeded()
-  inputs:
-    connectionType: Kubernetes Service Connection
-    kubernetesServiceEndpoint: '$(k8s-service-connection)'
-    namespace: '$(kubernetes-namespace)'
-    command: create
-    arguments: 'secret generic easi-platform-credentials --from-literal=admin-api-key="$(PLATFORM_ADMIN_API_KEY)"'
-    versionSpec: 1.22.9
+    - task: Kubernetes@1
+      name: DeleteAppDbSecret
+      displayName: 'Delete easi-prod-postgres secret if exists'
+      continueOnError: true
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: delete
+        arguments: 'secret easi-prod-postgres'
+        versionSpec: 1.22.9
 
-- task: Kubernetes@1
-  name: ApplyManifests
-  displayName: 'Apply manifests'
-  condition: succeeded()
-  inputs:
-    connectionType: Kubernetes Service Connection
-    kubernetesServiceEndpoint: '$(k8s-service-connection)'
-    namespace: '$(kubernetes-namespace)'
-    command: apply
-    arguments: '-f $(Build.SourcesDirectory)/k8s/backend-deployment.yaml -f $(Build.SourcesDirectory)/k8s/backend-service.yaml -f $(Build.SourcesDirectory)/k8s/frontend-deployment.yaml -f $(Build.SourcesDirectory)/k8s/frontend-service.yaml -f $(Build.SourcesDirectory)/k8s/ingress.yaml'
-    versionSpec: 1.22.9
+    - task: Kubernetes@1
+      name: CreateAppDbSecret
+      displayName: 'Create easi-prod-postgres secret'
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: create
+        arguments: 'secret generic easi-prod-postgres --from-literal=DB_CONN_STRING="$(DB_CONN_STRING)"'
+        versionSpec: 1.22.9
+
+    - task: Kubernetes@1
+      name: DeleteOidcSecret
+      displayName: 'Delete easi-oidc-credentials secret if exists'
+      continueOnError: true
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: delete
+        arguments: 'secret easi-oidc-credentials'
+        versionSpec: 1.22.9
+
+    - task: Kubernetes@1
+      name: CreateOidcSecret
+      displayName: 'Create easi-oidc-credentials secret'
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: create
+        arguments: 'secret generic easi-oidc-credentials --from-literal=client-secret="$(OIDC_CLIENT_SECRET)"'
+        versionSpec: 1.22.9
+
+    - task: Kubernetes@1
+      name: DeletePlatformSecret
+      displayName: 'Delete easi-platform-credentials secret if exists'
+      continueOnError: true
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: delete
+        arguments: 'secret easi-platform-credentials'
+        versionSpec: 1.22.9
+
+    - task: Kubernetes@1
+      name: CreatePlatformSecret
+      displayName: 'Create easi-platform-credentials secret'
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: create
+        arguments: 'secret generic easi-platform-credentials --from-literal=admin-api-key="$(PLATFORM_ADMIN_API_KEY)"'
+        versionSpec: 1.22.9
+
+    - task: Kubernetes@1
+      name: ApplyManifests
+      displayName: 'Apply manifests'
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: apply
+        arguments: '-f $(Build.SourcesDirectory)/k8s/backend-deployment.yaml -f $(Build.SourcesDirectory)/k8s/backend-service.yaml -f $(Build.SourcesDirectory)/k8s/frontend-deployment.yaml -f $(Build.SourcesDirectory)/k8s/frontend-service.yaml -f $(Build.SourcesDirectory)/k8s/ingress.yaml'
+        versionSpec: 1.22.9
+
+    - task: Kubernetes@1
+      name: WaitForBackendRollout
+      displayName: 'Wait for backend rollout'
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: rollout
+        arguments: 'status deployment/easi-backend --timeout=300s'
+        versionSpec: 1.22.9
+
+    - task: Kubernetes@1
+      name: WaitForFrontendRollout
+      displayName: 'Wait for frontend rollout'
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: rollout
+        arguments: 'status deployment/easi-frontend --timeout=300s'
+        versionSpec: 1.22.9
+
+    - task: Kubernetes@1
+      name: GetBackendImage
+      displayName: 'Get backend deployed image'
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: get
+        arguments: 'deployment easi-backend -o jsonpath={.spec.template.spec.containers[0].image}'
+        versionSpec: 1.22.9
+
+    - task: Kubernetes@1
+      name: GetFrontendImage
+      displayName: 'Get frontend deployed image'
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: get
+        arguments: 'deployment easi-frontend -o jsonpath={.spec.template.spec.containers[0].image}'
+        versionSpec: 1.22.9
+
+    - script: |
+        EXPECTED_TAG="$(Build.BuildNumber)"
+        BE_IMAGE="$(GetBackendImage.KubectlOutput)"
+        FE_IMAGE="$(GetFrontendImage.KubectlOutput)"
+
+        echo "Expected build number: $EXPECTED_TAG"
+        echo "Backend image:  $BE_IMAGE"
+        echo "Frontend image: $FE_IMAGE"
+
+        BE_TAG="${BE_IMAGE##*:}"
+        FE_TAG="${FE_IMAGE##*:}"
+
+        FAILED=0
+        if [ "$BE_TAG" != "$EXPECTED_TAG" ]; then
+          echo "##vso[task.logissue type=error]Backend version mismatch! Expected: $EXPECTED_TAG, Got: $BE_TAG"
+          FAILED=1
+        fi
+        if [ "$FE_TAG" != "$EXPECTED_TAG" ]; then
+          echo "##vso[task.logissue type=error]Frontend version mismatch! Expected: $EXPECTED_TAG, Got: $FE_TAG"
+          FAILED=1
+        fi
+
+        if [ $FAILED -eq 1 ]; then
+          exit 1
+        fi
+
+        echo "Both services verified running build $EXPECTED_TAG"
+      name: VerifyVersions
+      displayName: 'Verify deployed versions match build'
