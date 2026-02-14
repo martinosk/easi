@@ -154,6 +154,7 @@ func subscribeCapabilityMappingEvents(eventBus events.EventBus, projector *proje
 		cmPL.CapabilityUpdated,
 		cmPL.CapabilityDeleted,
 		cmPL.CapabilityParentChanged,
+		cmPL.CapabilityLevelChanged,
 		cmPL.CapabilityAssignedToDomain,
 		cmPL.CapabilityUnassignedFromDomain,
 	}

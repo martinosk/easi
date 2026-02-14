@@ -230,6 +230,19 @@ func (rm *CapabilityReadModel) UpdateParent(ctx context.Context, update ParentUp
 	return err
 }
 
+func (rm *CapabilityReadModel) UpdateLevel(ctx context.Context, id string, level string) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"UPDATE capabilities SET level = $1, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $2 AND id = $3",
+		level, tenantID.Value(), id,
+	)
+	return err
+}
+
 func (rm *CapabilityReadModel) Delete(ctx context.Context, id string) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {

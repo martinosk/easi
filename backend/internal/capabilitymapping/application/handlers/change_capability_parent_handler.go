@@ -278,7 +278,7 @@ func (h *ChangeCapabilityParentHandler) updateDescendantLevels(ctx context.Conte
 	}
 
 	for _, child := range children {
-		if err := h.updateChildLevel(ctx, child.ID, parentID, childLevel); err != nil {
+		if err := h.updateChildLevel(ctx, child.ID, childLevel); err != nil {
 			return err
 		}
 	}
@@ -286,18 +286,13 @@ func (h *ChangeCapabilityParentHandler) updateDescendantLevels(ctx context.Conte
 	return nil
 }
 
-func (h *ChangeCapabilityParentHandler) updateChildLevel(ctx context.Context, childID, parentID string, childLevel valueobjects.CapabilityLevel) error {
+func (h *ChangeCapabilityParentHandler) updateChildLevel(ctx context.Context, childID string, childLevel valueobjects.CapabilityLevel) error {
 	childCapability, err := h.repository.GetByID(ctx, childID)
 	if err != nil {
 		return err
 	}
 
-	childParentID, err := valueobjects.NewCapabilityIDFromString(parentID)
-	if err != nil {
-		return err
-	}
-
-	if err := childCapability.ChangeParent(childParentID, childLevel); err != nil {
+	if err := childCapability.ChangeLevel(childLevel); err != nil {
 		return err
 	}
 

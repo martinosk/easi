@@ -199,7 +199,7 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pill
 
 func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.CapabilityProjector) {
 	events := []string{"CapabilityCreated", "CapabilityUpdated", "CapabilityMetadataUpdated",
-		"CapabilityExpertAdded", "CapabilityExpertRemoved", "CapabilityTagAdded", "CapabilityParentChanged", "CapabilityDeleted"}
+		"CapabilityExpertAdded", "CapabilityExpertRemoved", "CapabilityTagAdded", "CapabilityParentChanged", "CapabilityLevelChanged", "CapabilityDeleted"}
 	for _, event := range events {
 		eventBus.Subscribe(event, projector)
 	}

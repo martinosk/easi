@@ -254,6 +254,21 @@ func (rm *DomainCapabilityMetadataReadModel) UpdateParentAndL1(ctx context.Conte
 	return err
 }
 
+func (rm *DomainCapabilityMetadataReadModel) UpdateLevel(ctx context.Context, capabilityID string, newLevel string) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`UPDATE domain_capability_metadata
+		 SET capability_level = $1
+		 WHERE tenant_id = $2 AND capability_id = $3`,
+		newLevel, tenantID.Value(), capabilityID,
+	)
+	return err
+}
+
 func (rm *DomainCapabilityMetadataReadModel) GetBusinessDomainForL1(ctx context.Context, l1CapabilityID string) (string, string, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
