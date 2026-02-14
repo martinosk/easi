@@ -18,11 +18,11 @@ variables:
   value: 'enterprisearchitecture-pnpbj'
 
 stages:
-- stage: Validate
-  displayName: 'Build & Test'
+- stage: Test
+  displayName: 'Test'
   jobs:
-  - job: BuildAndTest
-    displayName: 'Build and test'
+  - job: Test
+    displayName: 'Run tests'
     steps:
     - task: Go@0
       name: BackendUnitTests
@@ -63,51 +63,13 @@ stages:
         failTaskOnFailedTests: true
         testRunTitle: 'Frontend Unit Tests'
 
-    - script: |
-        VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
-        VERSION=${VERSION#v}
-        echo "Detected version: $VERSION"
-        echo "##vso[task.setvariable variable=APP_VERSION]$VERSION"
-      name: GetVersion
-      displayName: 'Get version from git tag'
-
-    - task: Docker@2
-      name: BuildMigrate
-      displayName: 'Build migrate docker image'
-      inputs:
-        command: 'build'
-        Dockerfile: 'backend/Dockerfile.migrate'
-        buildContext: 'backend'
-        arguments: '--tag easi-migrate:$(Build.BuildNumber)'
-        addPipelineData: false
-
-    - task: Docker@2
-      name: BuildBackend
-      displayName: 'Build backend docker image'
-      inputs:
-        command: 'build'
-        Dockerfile: 'backend/Dockerfile'
-        buildContext: 'backend'
-        arguments: '--tag easi-backend:$(Build.BuildNumber) --build-arg APP_VERSION=$(APP_VERSION)'
-        addPipelineData: false
-
-    - task: Docker@2
-      name: BuildFrontend
-      displayName: 'Build frontend docker image'
-      inputs:
-        command: 'build'
-        Dockerfile: 'frontend/Dockerfile'
-        buildContext: 'frontend'
-        arguments: '--tag easi-frontend:$(Build.BuildNumber) --build-arg VITE_API_URL='
-        addPipelineData: false
-
-- stage: Deploy
-  displayName: 'Push & Deploy'
-  dependsOn: Validate
+- stage: BuildAndPush
+  displayName: 'Build & Push'
+  dependsOn: Test
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
   jobs:
-  - job: PushAndDeploy
-    displayName: 'Push images and deploy to Kubernetes'
+  - job: BuildAndPush
+    displayName: 'Build and push images'
     steps:
     - script: |
         VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
@@ -183,6 +145,14 @@ stages:
         repositoryName: 'architecture/easi-frontend'
         pushTag: '$(Build.BuildNumber)'
 
+- stage: Deploy
+  displayName: 'Deploy'
+  dependsOn: BuildAndPush
+  condition: succeeded()
+  jobs:
+  - job: DeployToKubernetes
+    displayName: 'Deploy to Kubernetes'
+    steps:
     - task: replacetokens@5
       name: ReplaceTokens
       displayName: 'Replace tokens in k8s manifests'
@@ -332,7 +302,8 @@ stages:
         kubernetesServiceEndpoint: '$(k8s-service-connection)'
         namespace: '$(kubernetes-namespace)'
         command: get
-        arguments: 'deployment easi-backend -o jsonpath={.spec.template.spec.containers[0].image}'
+        arguments: 'deployment easi-backend'
+        outputFormat: 'jsonpath={.spec.template.spec.containers[0].image}'
         versionSpec: 1.22.9
 
     - task: Kubernetes@1
@@ -343,7 +314,8 @@ stages:
         kubernetesServiceEndpoint: '$(k8s-service-connection)'
         namespace: '$(kubernetes-namespace)'
         command: get
-        arguments: 'deployment easi-frontend -o jsonpath={.spec.template.spec.containers[0].image}'
+        arguments: 'deployment easi-frontend'
+        outputFormat: 'jsonpath={.spec.template.spec.containers[0].image}'
         versionSpec: 1.22.9
 
     - script: |
