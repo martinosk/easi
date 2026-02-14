@@ -311,7 +311,7 @@ func setupCascadingDeleteHandlers(eventBus events.EventBus, commandBus *cqrs.InM
 func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepositories, rm *routeReadModels, pillarsGateway metamodel.StrategyPillarsGateway) {
 	registerCapabilityCommands(commandBus, repos.capability, rm.capability, rm.realization)
 	registerDependencyCommands(commandBus, repos.dependency, repos.capability)
-	registerRealizationCommands(commandBus, repos.realization, repos.capability, rm.capability, rm.componentCache)
+	registerRealizationCommands(commandBus, repos, rm)
 	registerBusinessDomainCommands(commandBus, repos.businessDomain, rm.businessDomain, rm.domainAssignment)
 	commandBus.Register("AssignCapabilityToDomain", handlers.NewAssignCapabilityToDomainHandler(repos.domainAssignment, repos.capability, rm.businessDomain, rm.domainAssignment))
 	commandBus.Register("UnassignCapabilityFromDomain", handlers.NewUnassignCapabilityFromDomainHandler(repos.domainAssignment))
@@ -350,10 +350,10 @@ func registerDependencyCommands(commandBus *cqrs.InMemoryCommandBus, depRepo *re
 	commandBus.Register("DeleteCapabilityDependency", handlers.NewDeleteCapabilityDependencyHandler(depRepo))
 }
 
-func registerRealizationCommands(commandBus *cqrs.InMemoryCommandBus, realRepo *repositories.RealizationRepository, capRepo *repositories.CapabilityRepository, capabilityRM *readmodels.CapabilityReadModel, componentCache *readmodels.ComponentCacheReadModel) {
-	commandBus.Register("LinkSystemToCapability", handlers.NewLinkSystemToCapabilityHandler(realRepo, capRepo, capabilityRM, componentCache))
-	commandBus.Register("UpdateSystemRealization", handlers.NewUpdateSystemRealizationHandler(realRepo))
-	commandBus.Register("DeleteSystemRealization", handlers.NewDeleteSystemRealizationHandler(realRepo))
+func registerRealizationCommands(commandBus *cqrs.InMemoryCommandBus, repos *routeRepositories, rm *routeReadModels) {
+	commandBus.Register("LinkSystemToCapability", handlers.NewLinkSystemToCapabilityHandler(repos.realization, repos.capability, rm.capability, rm.componentCache))
+	commandBus.Register("UpdateSystemRealization", handlers.NewUpdateSystemRealizationHandler(repos.realization))
+	commandBus.Register("DeleteSystemRealization", handlers.NewDeleteSystemRealizationHandler(repos.realization))
 }
 
 func registerBusinessDomainCommands(commandBus *cqrs.InMemoryCommandBus, domainRepo *repositories.BusinessDomainRepository, domainRM *readmodels.BusinessDomainReadModel, assignmentRM *readmodels.DomainCapabilityAssignmentReadModel) {

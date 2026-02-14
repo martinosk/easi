@@ -63,78 +63,93 @@ func (h *RecomputeCapabilityInheritanceHandler) Handle(ctx context.Context, cmd 
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
-	desiredAncestorSet := make(map[string]struct{}, len(ancestorIDs))
-	for _, ancestorID := range ancestorIDs {
-		desiredAncestorSet[ancestorID] = struct{}{}
+
+	additions, removals, err := h.computeInheritanceDiff(ctx, capability, realizations, ancestorIDs)
+	if err != nil {
+		return cqrs.EmptyResult(), err
 	}
 
-	additions := []events.InheritedRealization{}
-	removals := []events.RealizationInheritanceRemoval{}
+	raiseInheritanceEvents(capability, additions, removals)
+
+	if len(capability.GetUncommittedChanges()) > 0 {
+		if err := h.repository.Save(ctx, capability); err != nil {
+			return cqrs.EmptyResult(), err
+		}
+	}
+
+	return cqrs.EmptyResult(), nil
+}
+
+func (h *RecomputeCapabilityInheritanceHandler) computeInheritanceDiff(ctx context.Context, capability *aggregates.Capability, realizations []readmodels.RealizationDTO, ancestorIDs []string) ([]events.InheritedRealization, []events.RealizationInheritanceRemoval, error) {
+	desiredAncestorSet := toSet(ancestorIDs)
+	var additions []events.InheritedRealization
+	var removals []events.RealizationInheritanceRemoval
 
 	for _, realization := range realizations {
 		if realization.Origin != "Direct" {
 			continue
 		}
 
-		sourceID := realization.ID
-		currentIDs, err := h.realizationReadModel.GetInheritedCapabilityIDsBySourceRealizationID(ctx, sourceID)
+		currentIDs, err := h.realizationReadModel.GetInheritedCapabilityIDsBySourceRealizationID(ctx, realization.ID)
 		if err != nil {
-			return cqrs.EmptyResult(), err
+			return nil, nil, err
 		}
-		currentSet := make(map[string]struct{}, len(currentIDs))
-		for _, id := range currentIDs {
-			currentSet[id] = struct{}{}
-		}
+		currentSet := toSet(currentIDs)
 
-		for _, ancestorID := range ancestorIDs {
-			if _, exists := currentSet[ancestorID]; exists {
-				continue
-			}
-			additions = append(additions, events.InheritedRealization{
-				CapabilityID:         ancestorID,
-				ComponentID:          realization.ComponentID,
-				ComponentName:        realization.ComponentName,
-				RealizationLevel:     "Full",
-				Notes:                "",
-				Origin:               "Inherited",
-				SourceRealizationID:  sourceID,
-				SourceCapabilityID:   capability.ID(),
-				SourceCapabilityName: capability.Name().Value(),
-				LinkedAt:             realization.LinkedAt,
-			})
-		}
-
-		toRemove := make([]string, 0)
-		for _, currentID := range currentIDs {
-			if _, keep := desiredAncestorSet[currentID]; !keep {
-				toRemove = append(toRemove, currentID)
-			}
-		}
-		if len(toRemove) > 0 {
-			sort.Strings(toRemove)
-			removals = append(removals, events.RealizationInheritanceRemoval{
-				SourceRealizationID: sourceID,
-				CapabilityIDs:       toRemove,
-			})
+		additions = append(additions, findMissingInheritances(ancestorIDs, currentSet, capability, realization)...)
+		if removal := findStaleInheritances(currentIDs, desiredAncestorSet, realization.ID); removal != nil {
+			removals = append(removals, *removal)
 		}
 	}
 
-	if len(additions) == 0 && len(removals) == 0 {
-		return cqrs.EmptyResult(), nil
-	}
+	return additions, removals, nil
+}
 
-	if len(additions) > 0 {
-		capability.RaiseEvent(events.NewCapabilityRealizationsInherited(capability.ID(), additions))
+func findMissingInheritances(ancestorIDs []string, currentSet map[string]struct{}, capability *aggregates.Capability, realization readmodels.RealizationDTO) []events.InheritedRealization {
+	var additions []events.InheritedRealization
+	for _, ancestorID := range ancestorIDs {
+		if _, exists := currentSet[ancestorID]; exists {
+			continue
+		}
+		additions = append(additions, events.InheritedRealization{
+			CapabilityID:         ancestorID,
+			ComponentID:          realization.ComponentID,
+			ComponentName:        realization.ComponentName,
+			RealizationLevel:     "Full",
+			Notes:                "",
+			Origin:               "Inherited",
+			SourceRealizationID:  realization.ID,
+			SourceCapabilityID:   capability.ID(),
+			SourceCapabilityName: capability.Name().Value(),
+			LinkedAt:             realization.LinkedAt,
+		})
 	}
-	if len(removals) > 0 {
-		capability.RaiseEvent(events.NewCapabilityRealizationsUninherited(capability.ID(), removals))
-	}
+	return additions
+}
 
-	if err := h.repository.Save(ctx, capability); err != nil {
-		return cqrs.EmptyResult(), err
+func findStaleInheritances(currentIDs []string, desiredAncestorSet map[string]struct{}, sourceRealizationID string) *events.RealizationInheritanceRemoval {
+	var toRemove []string
+	for _, currentID := range currentIDs {
+		if _, keep := desiredAncestorSet[currentID]; !keep {
+			toRemove = append(toRemove, currentID)
+		}
 	}
+	if len(toRemove) == 0 {
+		return nil
+	}
+	sort.Strings(toRemove)
+	return &events.RealizationInheritanceRemoval{
+		SourceRealizationID: sourceRealizationID,
+		CapabilityIDs:       toRemove,
+	}
+}
 
-	return cqrs.EmptyResult(), nil
+func toSet(ids []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		set[id] = struct{}{}
+	}
+	return set
 }
 
 func (h *RecomputeCapabilityInheritanceHandler) collectAncestorIDs(ctx context.Context, startID string) ([]string, error) {

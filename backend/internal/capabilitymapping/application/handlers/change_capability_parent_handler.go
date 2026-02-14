@@ -65,30 +65,12 @@ func (h *ChangeCapabilityParentHandler) Handle(ctx context.Context, cmd cqrs.Com
 		return cqrs.EmptyResult(), err
 	}
 
-	oldParentID := capability.ParentID().Value()
-
 	newParentID, newLevel, err := h.determineNewParentAndLevel(ctx, command)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
-	additions, removals, err := h.buildInheritanceChanges(ctx, capability.ID(), oldParentID, newParentID.Value())
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if err := capability.ChangeParent(newParentID, newLevel); err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	if len(additions) > 0 {
-		capability.RaiseEvent(events.NewCapabilityRealizationsInherited(capability.ID(), additions))
-	}
-	if len(removals) > 0 {
-		capability.RaiseEvent(events.NewCapabilityRealizationsUninherited(capability.ID(), removals))
-	}
-
-	if err := h.repository.Save(ctx, capability); err != nil {
+	if err := h.applyParentChange(ctx, capability, newParentID, newLevel); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
@@ -97,6 +79,32 @@ func (h *ChangeCapabilityParentHandler) Handle(ctx context.Context, cmd cqrs.Com
 	}
 
 	return cqrs.EmptyResult(), nil
+}
+
+func (h *ChangeCapabilityParentHandler) applyParentChange(ctx context.Context, capability *aggregates.Capability, newParentID valueobjects.CapabilityID, newLevel valueobjects.CapabilityLevel) error {
+	oldParentID := capability.ParentID().Value()
+
+	additions, removals, err := h.buildInheritanceChanges(ctx, capability.ID(), oldParentID, newParentID.Value())
+	if err != nil {
+		return err
+	}
+
+	if err := capability.ChangeParent(newParentID, newLevel); err != nil {
+		return err
+	}
+
+	raiseInheritanceEvents(capability, additions, removals)
+
+	return h.repository.Save(ctx, capability)
+}
+
+func raiseInheritanceEvents(capability *aggregates.Capability, additions []events.InheritedRealization, removals []events.RealizationInheritanceRemoval) {
+	if len(additions) > 0 {
+		capability.RaiseEvent(events.NewCapabilityRealizationsInherited(capability.ID(), additions))
+	}
+	if len(removals) > 0 {
+		capability.RaiseEvent(events.NewCapabilityRealizationsUninherited(capability.ID(), removals))
+	}
 }
 
 func (h *ChangeCapabilityParentHandler) determineNewParentAndLevel(ctx context.Context, command *commands.ChangeCapabilityParent) (valueobjects.CapabilityID, valueobjects.CapabilityLevel, error) {
@@ -152,7 +160,7 @@ func (h *ChangeCapabilityParentHandler) buildInheritanceChanges(ctx context.Cont
 		return nil, nil, nil
 	}
 
-	additions, err := h.buildInheritanceAdditions(ctx, newParentID, capabilityID, capability, realizations)
+	additions, err := h.buildInheritanceAdditions(ctx, newParentID, capability, realizations)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -165,7 +173,7 @@ func (h *ChangeCapabilityParentHandler) buildInheritanceChanges(ctx context.Cont
 	return additions, removals, nil
 }
 
-func (h *ChangeCapabilityParentHandler) buildInheritanceAdditions(ctx context.Context, newParentID, capabilityID string, capability *readmodels.CapabilityDTO, realizations []readmodels.RealizationDTO) ([]events.InheritedRealization, error) {
+func (h *ChangeCapabilityParentHandler) buildInheritanceAdditions(ctx context.Context, newParentID string, capability *readmodels.CapabilityDTO, realizations []readmodels.RealizationDTO) ([]events.InheritedRealization, error) {
 	if newParentID == "" {
 		return nil, nil
 	}
@@ -180,7 +188,7 @@ func (h *ChangeCapabilityParentHandler) buildInheritanceAdditions(ctx context.Co
 
 	additions := make([]events.InheritedRealization, 0, len(ancestorIDs)*len(realizations))
 	for _, realization := range realizations {
-		sourceID, sourceCapabilityID, sourceCapabilityName := buildInheritanceSource(realization, capabilityID, capability)
+		sourceID, sourceCapabilityID, sourceCapabilityName := buildInheritanceSource(realization, capability)
 		for _, ancestorID := range ancestorIDs {
 			additions = append(additions, events.InheritedRealization{
 				CapabilityID:         ancestorID,
@@ -250,21 +258,16 @@ func resolveSourceRealizationID(realization readmodels.RealizationDTO) string {
 	return realization.ID
 }
 
-func buildInheritanceSource(realization readmodels.RealizationDTO, capabilityID string, capability *readmodels.CapabilityDTO) (string, string, string) {
-	sourceID := realization.ID
-	sourceCapabilityID := capabilityID
-	sourceCapabilityName := ""
-	if capability != nil {
-		sourceCapabilityName = capability.Name
-	}
-
+func buildInheritanceSource(realization readmodels.RealizationDTO, capability *readmodels.CapabilityDTO) (string, string, string) {
 	if realization.Origin == "Inherited" && realization.SourceRealizationID != "" {
-		sourceID = realization.SourceRealizationID
-		sourceCapabilityID = realization.SourceCapabilityID
-		sourceCapabilityName = realization.SourceCapabilityName
+		return realization.SourceRealizationID, realization.SourceCapabilityID, realization.SourceCapabilityName
 	}
 
-	return sourceID, sourceCapabilityID, sourceCapabilityName
+	capabilityName := ""
+	if capability != nil {
+		capabilityName = capability.Name
+	}
+	return realization.ID, capability.ID, capabilityName
 }
 
 func (h *ChangeCapabilityParentHandler) updateDescendantLevels(ctx context.Context, parentID string, parentLevel valueobjects.CapabilityLevel) error {
@@ -279,27 +282,32 @@ func (h *ChangeCapabilityParentHandler) updateDescendantLevels(ctx context.Conte
 	}
 
 	for _, child := range children {
-		childCapability, err := h.repository.GetByID(ctx, child.ID)
-		if err != nil {
-			return err
-		}
-
-		childParentID, err := valueobjects.NewCapabilityIDFromString(parentID)
-		if err != nil {
-			return err
-		}
-		if err := childCapability.ChangeParent(childParentID, childLevel); err != nil {
-			return err
-		}
-
-		if err := h.repository.Save(ctx, childCapability); err != nil {
-			return err
-		}
-
-		if err := h.updateDescendantLevels(ctx, child.ID, childLevel); err != nil {
+		if err := h.updateChildLevel(ctx, child.ID, parentID, childLevel); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func (h *ChangeCapabilityParentHandler) updateChildLevel(ctx context.Context, childID, parentID string, childLevel valueobjects.CapabilityLevel) error {
+	childCapability, err := h.repository.GetByID(ctx, childID)
+	if err != nil {
+		return err
+	}
+
+	childParentID, err := valueobjects.NewCapabilityIDFromString(parentID)
+	if err != nil {
+		return err
+	}
+
+	if err := childCapability.ChangeParent(childParentID, childLevel); err != nil {
+		return err
+	}
+
+	if err := h.repository.Save(ctx, childCapability); err != nil {
+		return err
+	}
+
+	return h.updateDescendantLevels(ctx, childID, childLevel)
 }

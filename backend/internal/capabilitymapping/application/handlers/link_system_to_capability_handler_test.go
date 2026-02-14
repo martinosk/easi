@@ -104,123 +104,89 @@ func createTestCapabilityForLink(t *testing.T, level string, parentID string) *a
 	return capability
 }
 
+type linkTestFixture struct {
+	capRepo      *mockLinkSystemCapabilityRepository
+	realRepo     *mockLinkSystemRealizationRepository
+	capReadModel *mockLinkSystemCapabilityReadModel
+	compReadModel *mockLinkSystemComponentReadModel
+	handler      *LinkSystemToCapabilityHandler
+}
+
+func setupLinkTest(t *testing.T, capability *aggregates.Capability, component *architecturemodeling.ComponentDTO) *linkTestFixture {
+	t.Helper()
+	f := &linkTestFixture{
+		capRepo:       &mockLinkSystemCapabilityRepository{capability: capability},
+		realRepo:      &mockLinkSystemRealizationRepository{},
+		capReadModel:  &mockLinkSystemCapabilityReadModel{capabilities: map[string]*readmodels.CapabilityDTO{}},
+		compReadModel: &mockLinkSystemComponentReadModel{component: component},
+	}
+	f.handler = NewLinkSystemToCapabilityHandler(f.realRepo, f.capRepo, f.capReadModel, f.compReadModel)
+	return f
+}
+
 func TestLinkSystemToCapabilityHandler_CreatesRealization(t *testing.T) {
 	l1Capability := createTestCapabilityForLink(t, "L1", "")
-	l1CapabilityID := l1Capability.ID()
-
 	componentID := valueobjects.NewCapabilityID().Value()
-
-	mockCapRepo := &mockLinkSystemCapabilityRepository{
-		capability: l1Capability,
-	}
-	mockRealRepo := &mockLinkSystemRealizationRepository{}
-	mockCompReadModel := &mockLinkSystemComponentReadModel{
-		component: &architecturemodeling.ComponentDTO{
-			ID:   componentID,
-			Name: "Test Component",
-		},
-	}
-
-	mockCapReadModel := &mockLinkSystemCapabilityReadModel{capabilities: map[string]*readmodels.CapabilityDTO{}}
-	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCapReadModel, mockCompReadModel)
+	f := setupLinkTest(t, l1Capability, &architecturemodeling.ComponentDTO{ID: componentID, Name: "Test Component"})
 
 	cmd := &commands.LinkSystemToCapability{
-		CapabilityID:     l1CapabilityID,
+		CapabilityID:     l1Capability.ID(),
 		ComponentID:      componentID,
 		RealizationLevel: "Partial",
 		Notes:            "Partially implements capability",
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
+	_, err := f.handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
-	require.Len(t, mockRealRepo.savedRealizations, 1, "Handler should create exactly 1 realization")
+	require.Len(t, f.realRepo.savedRealizations, 1, "Handler should create exactly 1 realization")
 
-	realization := mockRealRepo.savedRealizations[0]
-	assert.Equal(t, l1CapabilityID, realization.CapabilityID().Value())
+	realization := f.realRepo.savedRealizations[0]
+	assert.Equal(t, l1Capability.ID(), realization.CapabilityID().Value())
 	assert.Equal(t, componentID, realization.ComponentID().Value())
 	assert.Equal(t, "Partial", realization.RealizationLevel().Value())
 }
 
 func TestLinkSystemToCapabilityHandler_ReturnsCreatedID(t *testing.T) {
 	l1Capability := createTestCapabilityForLink(t, "L1", "")
-	l1CapabilityID := l1Capability.ID()
-
 	componentID := valueobjects.NewCapabilityID().Value()
-
-	mockCapRepo := &mockLinkSystemCapabilityRepository{
-		capability: l1Capability,
-	}
-	mockRealRepo := &mockLinkSystemRealizationRepository{}
-	mockCompReadModel := &mockLinkSystemComponentReadModel{
-		component: &architecturemodeling.ComponentDTO{
-			ID:   componentID,
-			Name: "Test Component",
-		},
-	}
-
-	mockCapReadModel := &mockLinkSystemCapabilityReadModel{capabilities: map[string]*readmodels.CapabilityDTO{}}
-	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCapReadModel, mockCompReadModel)
+	f := setupLinkTest(t, l1Capability, &architecturemodeling.ComponentDTO{ID: componentID, Name: "Test Component"})
 
 	cmd := &commands.LinkSystemToCapability{
-		CapabilityID:     l1CapabilityID,
+		CapabilityID:     l1Capability.ID(),
 		ComponentID:      componentID,
 		RealizationLevel: "Full",
 		Notes:            "",
 	}
 
-	result, err := handler.Handle(context.Background(), cmd)
+	result, err := f.handler.Handle(context.Background(), cmd)
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, result.CreatedID, "Result CreatedID should be set after handling")
-	assert.Equal(t, mockRealRepo.savedRealizations[0].ID(), result.CreatedID)
+	assert.Equal(t, f.realRepo.savedRealizations[0].ID(), result.CreatedID)
 }
 
 func TestLinkSystemToCapabilityHandler_ComponentNotFound_ReturnsError(t *testing.T) {
 	l1Capability := createTestCapabilityForLink(t, "L1", "")
-	l1CapabilityID := l1Capability.ID()
-
 	componentID := valueobjects.NewCapabilityID().Value()
-
-	mockCapRepo := &mockLinkSystemCapabilityRepository{
-		capability: l1Capability,
-	}
-	mockRealRepo := &mockLinkSystemRealizationRepository{}
-	mockCompReadModel := &mockLinkSystemComponentReadModel{
-		component: nil,
-	}
-
-	mockCapReadModel := &mockLinkSystemCapabilityReadModel{capabilities: map[string]*readmodels.CapabilityDTO{}}
-	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCapReadModel, mockCompReadModel)
+	f := setupLinkTest(t, l1Capability, nil)
 
 	cmd := &commands.LinkSystemToCapability{
-		CapabilityID:     l1CapabilityID,
+		CapabilityID:     l1Capability.ID(),
 		ComponentID:      componentID,
 		RealizationLevel: "Full",
 		Notes:            "",
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
+	_, err := f.handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, ErrComponentNotFound)
 }
 
 func TestLinkSystemToCapabilityHandler_CapabilityNotFound_ReturnsError(t *testing.T) {
 	componentID := valueobjects.NewCapabilityID().Value()
 	capabilityID := valueobjects.NewCapabilityID().Value()
-
-	mockCapRepo := &mockLinkSystemCapabilityRepository{
-		getByIDErr: repositories.ErrCapabilityNotFound,
-	}
-	mockRealRepo := &mockLinkSystemRealizationRepository{}
-	mockCompReadModel := &mockLinkSystemComponentReadModel{
-		component: &architecturemodeling.ComponentDTO{
-			ID:   componentID,
-			Name: "Test Component",
-		},
-	}
-
-	mockCapReadModel := &mockLinkSystemCapabilityReadModel{capabilities: map[string]*readmodels.CapabilityDTO{}}
-	handler := NewLinkSystemToCapabilityHandler(mockRealRepo, mockCapRepo, mockCapReadModel, mockCompReadModel)
+	f := setupLinkTest(t, nil, &architecturemodeling.ComponentDTO{ID: componentID, Name: "Test Component"})
+	f.capRepo.getByIDErr = repositories.ErrCapabilityNotFound
 
 	cmd := &commands.LinkSystemToCapability{
 		CapabilityID:     capabilityID,
@@ -229,7 +195,7 @@ func TestLinkSystemToCapabilityHandler_CapabilityNotFound_ReturnsError(t *testin
 		Notes:            "",
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
+	_, err := f.handler.Handle(context.Background(), cmd)
 	assert.ErrorIs(t, err, ErrCapabilityNotFoundForRealization)
 }
 

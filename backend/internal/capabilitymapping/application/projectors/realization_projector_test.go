@@ -72,11 +72,11 @@ func (m *mockRealizationReadModel) InsertInherited(ctx context.Context, dto read
 	return nil
 }
 
-func (m *mockRealizationReadModel) Update(ctx context.Context, id, realizationLevel, notes string) error {
+func (m *mockRealizationReadModel) Update(ctx context.Context, update readmodels.RealizationUpdate) error {
 	if m.updateErr != nil {
 		return m.updateErr
 	}
-	m.updatedRealizations = append(m.updatedRealizations, updateCall{ID: id, RealizationLevel: realizationLevel, Notes: notes})
+	m.updatedRealizations = append(m.updatedRealizations, updateCall{ID: update.ID, RealizationLevel: update.RealizationLevel, Notes: update.Notes})
 	return nil
 }
 
@@ -104,35 +104,35 @@ func (m *mockRealizationReadModel) DeleteByComponentID(ctx context.Context, comp
 	return nil
 }
 
-func (m *mockRealizationReadModel) DeleteInheritedBySourceRealizationIDAndCapabilities(ctx context.Context, sourceRealizationID string, capabilityIDs []string) error {
+func (m *mockRealizationReadModel) DeleteInheritedBySourceRealizationIDAndCapabilities(ctx context.Context, deletion readmodels.InheritedRealizationDeletion) error {
 	if m.deleteInheritedBySourceCapsErr != nil {
 		return m.deleteInheritedBySourceCapsErr
 	}
 	m.deletedInheritedBySourceCaps = append(m.deletedInheritedBySourceCaps, deleteInheritedBySourceCapsCall{
-		SourceRealizationID: sourceRealizationID,
-		CapabilityIDs:       capabilityIDs,
+		SourceRealizationID: deletion.SourceRealizationID,
+		CapabilityIDs:       deletion.CapabilityIDs,
 	})
 	return nil
 }
 
-func (m *mockRealizationReadModel) UpdateSourceCapabilityName(ctx context.Context, capabilityID, capabilityName string) error {
+func (m *mockRealizationReadModel) UpdateSourceCapabilityName(ctx context.Context, update readmodels.NameUpdate) error {
 	if m.updateSourceCapNameErr != nil {
 		return m.updateSourceCapNameErr
 	}
 	m.updatedSourceCapabilityNames = append(m.updatedSourceCapabilityNames, updateSourceCapabilityNameCall{
-		CapabilityID:   capabilityID,
-		CapabilityName: capabilityName,
+		CapabilityID:   update.ID,
+		CapabilityName: update.Name,
 	})
 	return nil
 }
 
-func (m *mockRealizationReadModel) UpdateComponentName(ctx context.Context, componentID, componentName string) error {
+func (m *mockRealizationReadModel) UpdateComponentName(ctx context.Context, update readmodels.NameUpdate) error {
 	if m.updateCompNameErr != nil {
 		return m.updateCompNameErr
 	}
 	m.updatedComponentNames = append(m.updatedComponentNames, updateComponentNameCall{
-		ComponentID:   componentID,
-		ComponentName: componentName,
+		ComponentID:   update.ID,
+		ComponentName: update.Name,
 	})
 	return nil
 }

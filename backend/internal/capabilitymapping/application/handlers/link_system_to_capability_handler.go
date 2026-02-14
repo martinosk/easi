@@ -63,49 +63,12 @@ func (h *LinkSystemToCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Com
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
-	capabilityID, err := valueobjects.NewCapabilityIDFromString(command.CapabilityID)
+	capability, component, err := h.loadEntities(ctx, command)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
-	componentID, err := valueobjects.NewComponentIDFromString(command.ComponentID)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	capability, err := h.capabilityRepository.GetByID(ctx, capabilityID.Value())
-	if err != nil {
-		if errors.Is(err, repositories.ErrCapabilityNotFound) {
-			return cqrs.EmptyResult(), ErrCapabilityNotFoundForRealization
-		}
-		return cqrs.EmptyResult(), err
-	}
-
-	component, err := h.componentReadModel.GetByID(ctx, componentID.Value())
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-	if component == nil {
-		return cqrs.EmptyResult(), ErrComponentNotFound
-	}
-
-	realizationLevel, err := valueobjects.NewRealizationLevel(command.RealizationLevel)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	notes, err := valueobjects.NewDescription(command.Notes)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	realization, err := aggregates.NewCapabilityRealization(
-		capabilityID,
-		componentID,
-		component.Name,
-		realizationLevel,
-		notes,
-	)
+	realization, err := h.createRealization(command, component)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
@@ -114,19 +77,69 @@ func (h *LinkSystemToCapabilityHandler) Handle(ctx context.Context, cmd cqrs.Com
 		return cqrs.EmptyResult(), err
 	}
 
-	additions, err := h.buildInheritanceAdditions(ctx, capability, realization, component.Name)
-	if err != nil {
+	if err := h.propagateInheritance(ctx, capability, realization, component.Name); err != nil {
 		return cqrs.EmptyResult(), err
+	}
+
+	return cqrs.NewResult(realization.ID()), nil
+}
+
+func (h *LinkSystemToCapabilityHandler) loadEntities(ctx context.Context, command *commands.LinkSystemToCapability) (*aggregates.Capability, *architecturemodeling.ComponentDTO, error) {
+	capability, err := h.capabilityRepository.GetByID(ctx, command.CapabilityID)
+	if err != nil {
+		if errors.Is(err, repositories.ErrCapabilityNotFound) {
+			return nil, nil, ErrCapabilityNotFoundForRealization
+		}
+		return nil, nil, err
+	}
+
+	component, err := h.componentReadModel.GetByID(ctx, command.ComponentID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if component == nil {
+		return nil, nil, ErrComponentNotFound
+	}
+
+	return capability, component, nil
+}
+
+func (h *LinkSystemToCapabilityHandler) createRealization(command *commands.LinkSystemToCapability, component *architecturemodeling.ComponentDTO) (*aggregates.CapabilityRealization, error) {
+	capabilityID, err := valueobjects.NewCapabilityIDFromString(command.CapabilityID)
+	if err != nil {
+		return nil, err
+	}
+
+	componentID, err := valueobjects.NewComponentIDFromString(command.ComponentID)
+	if err != nil {
+		return nil, err
+	}
+
+	realizationLevel, err := valueobjects.NewRealizationLevel(command.RealizationLevel)
+	if err != nil {
+		return nil, err
+	}
+
+	notes, err := valueobjects.NewDescription(command.Notes)
+	if err != nil {
+		return nil, err
+	}
+
+	return aggregates.NewCapabilityRealization(capabilityID, componentID, component.Name, realizationLevel, notes)
+}
+
+func (h *LinkSystemToCapabilityHandler) propagateInheritance(ctx context.Context, capability *aggregates.Capability, realization *aggregates.CapabilityRealization, componentName string) error {
+	additions, err := h.buildInheritanceAdditions(ctx, capability, realization, componentName)
+	if err != nil {
+		return err
 	}
 
 	if len(additions) > 0 {
 		capability.RaiseEvent(events.NewCapabilityRealizationsInherited(capability.ID(), additions))
-		if err := h.capabilityRepository.Save(ctx, capability); err != nil {
-			return cqrs.EmptyResult(), err
-		}
+		return h.capabilityRepository.Save(ctx, capability)
 	}
 
-	return cqrs.NewResult(realization.ID()), nil
+	return nil
 }
 
 func (h *LinkSystemToCapabilityHandler) buildInheritanceAdditions(ctx context.Context, capability *aggregates.Capability, realization *aggregates.CapabilityRealization, componentName string) ([]events.InheritedRealization, error) {

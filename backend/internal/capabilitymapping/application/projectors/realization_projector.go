@@ -15,28 +15,42 @@ import (
 type RealizationProjectorReadModel interface {
 	Insert(ctx context.Context, dto readmodels.RealizationDTO) error
 	InsertInherited(ctx context.Context, dto readmodels.RealizationDTO) error
-	Update(ctx context.Context, id, realizationLevel, notes string) error
+	Update(ctx context.Context, update readmodels.RealizationUpdate) error
 	Delete(ctx context.Context, id string) error
 	DeleteBySourceRealizationID(ctx context.Context, sourceRealizationID string) error
-	DeleteInheritedBySourceRealizationIDAndCapabilities(ctx context.Context, sourceRealizationID string, capabilityIDs []string) error
+	DeleteInheritedBySourceRealizationIDAndCapabilities(ctx context.Context, deletion readmodels.InheritedRealizationDeletion) error
 	DeleteByComponentID(ctx context.Context, componentID string) error
-	UpdateSourceCapabilityName(ctx context.Context, capabilityID, capabilityName string) error
-	UpdateComponentName(ctx context.Context, componentID, componentName string) error
+	UpdateSourceCapabilityName(ctx context.Context, update readmodels.NameUpdate) error
+	UpdateComponentName(ctx context.Context, update readmodels.NameUpdate) error
 }
 
 type RealizationProjector struct {
 	readModel        RealizationProjectorReadModel
 	componentGateway architecturemodeling.ComponentGateway
+	handlers         map[string]eventHandlerFunc
 }
+
+type eventHandlerFunc func(ctx context.Context, eventData []byte) error
 
 func NewRealizationProjector(
 	readModel RealizationProjectorReadModel,
 	componentGateway architecturemodeling.ComponentGateway,
 ) *RealizationProjector {
-	return &RealizationProjector{
+	p := &RealizationProjector{
 		readModel:        readModel,
 		componentGateway: componentGateway,
 	}
+	p.handlers = map[string]eventHandlerFunc{
+		"SystemLinkedToCapability":           p.handleSystemLinked,
+		"SystemRealizationUpdated":           p.handleRealizationUpdated,
+		"SystemRealizationDeleted":           p.handleRealizationDeleted,
+		"CapabilityRealizationsInherited":    p.handleCapabilityRealizationsInherited,
+		"CapabilityRealizationsUninherited":  p.handleCapabilityRealizationsUninherited,
+		"CapabilityUpdated":                  p.handleCapabilityUpdated,
+		archPL.ApplicationComponentUpdated:   p.handleApplicationComponentUpdated,
+		archPL.ApplicationComponentDeleted:   p.handleApplicationComponentDeleted,
+	}
+	return p
 }
 
 func (p *RealizationProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
@@ -49,23 +63,8 @@ func (p *RealizationProjector) Handle(ctx context.Context, event domain.DomainEv
 }
 
 func (p *RealizationProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
-	switch eventType {
-	case "SystemLinkedToCapability":
-		return p.handleSystemLinked(ctx, eventData)
-	case "SystemRealizationUpdated":
-		return p.handleRealizationUpdated(ctx, eventData)
-	case "SystemRealizationDeleted":
-		return p.handleRealizationDeleted(ctx, eventData)
-	case "CapabilityRealizationsInherited":
-		return p.handleCapabilityRealizationsInherited(ctx, eventData)
-	case "CapabilityRealizationsUninherited":
-		return p.handleCapabilityRealizationsUninherited(ctx, eventData)
-	case "CapabilityUpdated":
-		return p.handleCapabilityUpdated(ctx, eventData)
-	case archPL.ApplicationComponentUpdated:
-		return p.handleApplicationComponentUpdated(ctx, eventData)
-	case archPL.ApplicationComponentDeleted:
-		return p.handleApplicationComponentDeleted(ctx, eventData)
+	if handler, ok := p.handlers[eventType]; ok {
+		return handler(ctx, eventData)
 	}
 	return nil
 }
@@ -112,7 +111,11 @@ func (p *RealizationProjector) handleRealizationUpdated(ctx context.Context, eve
 	if err := unmarshalEvent(eventData, &event, "SystemRealizationUpdated"); err != nil {
 		return err
 	}
-	return p.readModel.Update(ctx, event.ID, event.RealizationLevel, event.Notes)
+	return p.readModel.Update(ctx, readmodels.RealizationUpdate{
+		ID:               event.ID,
+		RealizationLevel: event.RealizationLevel,
+		Notes:            event.Notes,
+	})
 }
 
 func (p *RealizationProjector) handleRealizationDeleted(ctx context.Context, eventData []byte) error {
@@ -168,7 +171,10 @@ func (p *RealizationProjector) handleCapabilityRealizationsUninherited(ctx conte
 	}
 
 	for _, removal := range event.Removals {
-		if err := p.readModel.DeleteInheritedBySourceRealizationIDAndCapabilities(ctx, removal.SourceRealizationID, removal.CapabilityIDs); err != nil {
+		if err := p.readModel.DeleteInheritedBySourceRealizationIDAndCapabilities(ctx, readmodels.InheritedRealizationDeletion{
+			SourceRealizationID: removal.SourceRealizationID,
+			CapabilityIDs:       removal.CapabilityIDs,
+		}); err != nil {
 			return err
 		}
 	}
@@ -181,7 +187,7 @@ func (p *RealizationProjector) handleCapabilityUpdated(ctx context.Context, even
 	if err := unmarshalEvent(eventData, &event, "CapabilityUpdated"); err != nil {
 		return err
 	}
-	return p.readModel.UpdateSourceCapabilityName(ctx, event.ID, event.Name)
+	return p.readModel.UpdateSourceCapabilityName(ctx, readmodels.NameUpdate{ID: event.ID, Name: event.Name})
 }
 
 type applicationComponentUpdatedEvent struct {
@@ -198,7 +204,7 @@ func (p *RealizationProjector) handleApplicationComponentUpdated(ctx context.Con
 	if err := unmarshalEvent(eventData, &event, "ApplicationComponentUpdated"); err != nil {
 		return err
 	}
-	return p.readModel.UpdateComponentName(ctx, event.ID, event.Name)
+	return p.readModel.UpdateComponentName(ctx, readmodels.NameUpdate{ID: event.ID, Name: event.Name})
 }
 
 func (p *RealizationProjector) handleApplicationComponentDeleted(ctx context.Context, eventData []byte) error {

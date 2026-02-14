@@ -165,9 +165,6 @@ func (c *Capability) apply(event domain.DomainEvent) {
 		c.applyTagAdded(e)
 	case events.CapabilityParentChanged:
 		c.applyParentChanged(e)
-	case events.CapabilityDeleted:
-	case events.CapabilityRealizationsInherited:
-	case events.CapabilityRealizationsUninherited:
 	}
 }
 

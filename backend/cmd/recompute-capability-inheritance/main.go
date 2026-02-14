@@ -62,29 +62,37 @@ func run() error {
 
 	processed := 0
 	for _, tenant := range tenants {
-		ctx, err := tenantContext(tenant)
+		count, err := processTenant(tenant, capabilityRM, handler)
 		if err != nil {
 			return err
 		}
-
-		caps, err := capabilityRM.GetAll(ctx)
-		if err != nil {
-			return fmt.Errorf("load capabilities for tenant %s: %w", tenant, err)
-		}
-
-		for _, cap := range caps {
-			_, err := handler.Handle(ctx, &commands.RecomputeCapabilityInheritance{CapabilityID: cap.ID})
-			if err != nil {
-				return fmt.Errorf("recompute capability %s tenant %s: %w", cap.ID, tenant, err)
-			}
-			processed++
-		}
-
-		log.Printf("tenant %s processed %d capabilities", tenant, len(caps))
+		processed += count
 	}
 
 	log.Printf("recompute capability inheritance completed for %d capabilities", processed)
 	return nil
+}
+
+func processTenant(tenant string, capabilityRM *readmodels.CapabilityReadModel, handler *handlers.RecomputeCapabilityInheritanceHandler) (int, error) {
+	ctx, err := tenantContext(tenant)
+	if err != nil {
+		return 0, err
+	}
+
+	caps, err := capabilityRM.GetAll(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("load capabilities for tenant %s: %w", tenant, err)
+	}
+
+	for _, cap := range caps {
+		_, err := handler.Handle(ctx, &commands.RecomputeCapabilityInheritance{CapabilityID: cap.ID})
+		if err != nil {
+			return 0, fmt.Errorf("recompute capability %s tenant %s: %w", cap.ID, tenant, err)
+		}
+	}
+
+	log.Printf("tenant %s processed %d capabilities", tenant, len(caps))
+	return len(caps), nil
 }
 
 func loadTenants(db *sql.DB) ([]string, error) {
