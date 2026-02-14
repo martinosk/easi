@@ -105,7 +105,7 @@ The flow diagram is the primary modeling surface for value streams. It combines 
 **Acceptance Criteria — Stage Management:**
 - [x] Value stream detail page renders stages as columns in a horizontal left-to-right flow
 - [x] User can add a new stage via a "+" button at the end of the flow (appended at the end by default)
-- [ ] User can insert a stage between existing stages (via "+" insert point between columns)
+- [x] User can insert a stage between existing stages (via "+" insert point between columns)
 - [x] User can reorder stages via drag-and-drop of stage columns
 - [x] User can edit a stage name and description inline (click to edit) or via context menu
 - [x] User can delete a stage via context menu (with confirmation if it has capability mappings)

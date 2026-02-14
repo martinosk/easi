@@ -9,7 +9,7 @@ interface StageFlowDiagramProps {
   stages: ValueStreamStage[];
   stageCapabilities: StageCapabilityMapping[];
   canWrite: boolean;
-  onAddStage: () => void;
+  onAddStage: (position?: number) => void;
   onEditStage: (stage: ValueStreamStage) => void;
   onDeleteStage: (stage: ValueStreamStage) => void;
   onReorder: (orderedStageIds: string[]) => void;
@@ -98,7 +98,24 @@ export function StageFlowDiagram({
       <div className="stage-flow-scroll">
         {sortedStages.map((stage, i) => (
           <div key={stage.id} className="stage-flow-item">
-            {i > 0 && <div className="stage-connector" />}
+            {i > 0 && (
+              <div className="stage-connector-group">
+                <div className="stage-connector" />
+                {canWrite && (
+                  <button
+                    type="button"
+                    className="stage-insert-btn"
+                    data-testid={`insert-stage-btn-${i}`}
+                    onClick={() => onAddStage(stage.position)}
+                    title="Insert stage here"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" width="14" height="14">
+                      <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                )}
+              </div>
+            )}
             <StageColumn
               stage={stage}
               capabilities={capsByStage.get(stage.id) || []}
@@ -115,7 +132,7 @@ export function StageFlowDiagram({
         {canWrite && (
           <div className="stage-flow-item">
             <div className="stage-connector" />
-            <AddStageButton onClick={onAddStage} />
+            <AddStageButton onClick={() => onAddStage()} />
           </div>
         )}
       </div>

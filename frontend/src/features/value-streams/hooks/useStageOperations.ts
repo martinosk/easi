@@ -19,11 +19,13 @@ export function useStageOperations(detail: ValueStreamDetail | undefined) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingStage, setEditingStage] = useState<ValueStreamStage | null>(null);
   const [formData, setFormData] = useState<StageFormData>(EMPTY_FORM);
+  const [insertPosition, setInsertPosition] = useState<number | undefined>(undefined);
 
   const isFormOpen = showAddForm || editingStage !== null;
 
-  const openAddForm = useCallback(() => {
+  const openAddForm = useCallback((position?: number) => {
     setFormData(EMPTY_FORM);
+    setInsertPosition(position);
     setShowAddForm(true);
   }, []);
 
@@ -36,6 +38,7 @@ export function useStageOperations(detail: ValueStreamDetail | undefined) {
     setShowAddForm(false);
     setEditingStage(null);
     setFormData(EMPTY_FORM);
+    setInsertPosition(undefined);
   }, []);
 
   const submitForm = useCallback(async () => {
@@ -51,6 +54,7 @@ export function useStageOperations(detail: ValueStreamDetail | undefined) {
       const request: CreateStageRequest = {
         name: formData.name,
         description: formData.description || undefined,
+        position: insertPosition,
       };
       await addStageMutation.mutateAsync({ valueStream: detail, request });
     }
