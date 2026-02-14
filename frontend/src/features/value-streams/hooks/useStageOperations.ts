@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAddStage, useUpdateStage, useDeleteStage, useReorderStages, useAddStageCapability } from './useValueStreamStages';
-import type { ValueStreamStage, ValueStreamDetail, CreateStageRequest, UpdateStageRequest } from '../../../api/types';
+import type { ValueStreamStage, ValueStreamDetail } from '../../../api/types';
 
 interface StageFormData {
   name: string;
@@ -9,13 +9,7 @@ interface StageFormData {
 
 const EMPTY_FORM: StageFormData = { name: '', description: '' };
 
-export function useStageOperations(detail: ValueStreamDetail | undefined) {
-  const addStageMutation = useAddStage();
-  const updateStageMutation = useUpdateStage();
-  const deleteStageMutation = useDeleteStage();
-  const reorderStagesMutation = useReorderStages();
-  const addCapabilityMutation = useAddStageCapability();
-
+function useStageForm() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingStage, setEditingStage] = useState<ValueStreamStage | null>(null);
   const [formData, setFormData] = useState<StageFormData>(EMPTY_FORM);
@@ -41,25 +35,28 @@ export function useStageOperations(detail: ValueStreamDetail | undefined) {
     setInsertPosition(undefined);
   }, []);
 
-  const submitForm = useCallback(async () => {
-    if (!formData.name.trim()) return;
+  return { isFormOpen, editingStage, formData, setFormData, insertPosition, openAddForm, openEditForm, closeForm };
+}
 
-    if (editingStage) {
-      const request: UpdateStageRequest = {
-        name: formData.name,
-        description: formData.description || undefined,
-      };
-      await updateStageMutation.mutateAsync({ stage: editingStage, request });
-    } else if (detail) {
-      const request: CreateStageRequest = {
-        name: formData.name,
-        description: formData.description || undefined,
-        position: insertPosition,
-      };
-      await addStageMutation.mutateAsync({ valueStream: detail, request });
+export function useStageOperations(detail: ValueStreamDetail | undefined) {
+  const addStageMutation = useAddStage();
+  const updateStageMutation = useUpdateStage();
+  const deleteStageMutation = useDeleteStage();
+  const reorderStagesMutation = useReorderStages();
+  const addCapabilityMutation = useAddStageCapability();
+
+  const form = useStageForm();
+
+  const submitForm = useCallback(async () => {
+    if (!form.formData.name.trim() || !detail) return;
+    const desc = form.formData.description || undefined;
+    if (form.editingStage) {
+      await updateStageMutation.mutateAsync({ stage: form.editingStage, request: { name: form.formData.name, description: desc } });
+    } else {
+      await addStageMutation.mutateAsync({ valueStream: detail, request: { name: form.formData.name, description: desc, position: form.insertPosition } });
     }
-    closeForm();
-  }, [formData, editingStage, detail, updateStageMutation, addStageMutation, closeForm]);
+    form.closeForm();
+  }, [form, detail, updateStageMutation, addStageMutation]);
 
   const deleteStage = useCallback(async (stage: ValueStreamStage) => {
     await deleteStageMutation.mutateAsync(stage);
@@ -67,28 +64,18 @@ export function useStageOperations(detail: ValueStreamDetail | undefined) {
 
   const reorderStages = useCallback(async (orderedStageIds: string[]) => {
     if (!detail) return;
-    const positions = orderedStageIds.map((stageId, index) => ({
-      stageId,
-      position: index + 1,
-    }));
+    const positions = orderedStageIds.map((stageId, index) => ({ stageId, position: index + 1 }));
     await reorderStagesMutation.mutateAsync({ valueStream: detail, request: { positions } });
   }, [detail, reorderStagesMutation]);
 
   const addCapability = useCallback((stageId: string, capabilityId: string) => {
-    if (!detail) return;
-    const stage = detail.stages.find(s => s.id === stageId);
+    const stage = detail?.stages.find(s => s.id === stageId);
     if (!stage) return;
     addCapabilityMutation.mutate({ stage, capabilityId });
   }, [detail, addCapabilityMutation]);
 
   return {
-    isFormOpen,
-    editingStage,
-    formData,
-    setFormData,
-    openAddForm,
-    openEditForm,
-    closeForm,
+    ...form,
     submitForm,
     deleteStage,
     reorderStages,

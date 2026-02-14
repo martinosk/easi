@@ -38,7 +38,6 @@ func (rm *ValueStreamReadModel) Insert(ctx context.Context, dto ValueStreamDTO) 
 	if err != nil {
 		return err
 	}
-
 	_, err = rm.db.ExecContext(ctx,
 		"INSERT INTO value_streams (id, tenant_id, name, description, stage_count, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
 		dto.ID, tenantID.Value(), dto.Name, dto.Description, 0, dto.CreatedAt,
@@ -51,7 +50,6 @@ func (rm *ValueStreamReadModel) Update(ctx context.Context, id string, update Va
 	if err != nil {
 		return err
 	}
-
 	_, err = rm.db.ExecContext(ctx,
 		"UPDATE value_streams SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
 		update.Name, update.Description, tenantID.Value(), id,
@@ -150,30 +148,11 @@ func (rm *ValueStreamReadModel) getByCondition(ctx context.Context, whereClause 
 }
 
 func (rm *ValueStreamReadModel) NameExists(ctx context.Context, name, excludeID string) (bool, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	var count int
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		if excludeID != "" {
-			return tx.QueryRowContext(ctx,
-				"SELECT COUNT(*) FROM value_streams WHERE tenant_id = $1 AND name = $2 AND id != $3",
-				tenantID.Value(), name, excludeID,
-			).Scan(&count)
-		}
-		return tx.QueryRowContext(ctx,
-			"SELECT COUNT(*) FROM value_streams WHERE tenant_id = $1 AND name = $2",
-			tenantID.Value(), name,
-		).Scan(&count)
-	})
-
-	if err != nil {
-		return false, err
-	}
-
-	return count > 0, nil
+	return rm.nameExistsForTenant(ctx,
+		"SELECT COUNT(*) FROM value_streams WHERE tenant_id = $1 AND name = $2",
+		"SELECT COUNT(*) FROM value_streams WHERE tenant_id = $1 AND name = $2 AND id != $3",
+		excludeID, name,
+	)
 }
 
 type ValueStreamStageDTO struct {
@@ -250,18 +229,11 @@ func (rm *ValueStreamReadModel) DeleteStage(ctx context.Context, stageID string)
 	if err != nil {
 		return err
 	}
-	_, err = rm.db.ExecContext(ctx,
+	return rm.cascadeDeleteStages(ctx,
 		"DELETE FROM value_stream_stage_capabilities WHERE tenant_id = $1 AND stage_id = $2",
-		tenantID.Value(), stageID,
-	)
-	if err != nil {
-		return err
-	}
-	_, err = rm.db.ExecContext(ctx,
 		"DELETE FROM value_stream_stages WHERE tenant_id = $1 AND id = $2",
 		tenantID.Value(), stageID,
 	)
-	return err
 }
 
 func (rm *ValueStreamReadModel) DeleteStagesByValueStreamID(ctx context.Context, valueStreamID string) error {
@@ -269,17 +241,18 @@ func (rm *ValueStreamReadModel) DeleteStagesByValueStreamID(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	_, err = rm.db.ExecContext(ctx,
+	return rm.cascadeDeleteStages(ctx,
 		"DELETE FROM value_stream_stage_capabilities WHERE tenant_id = $1 AND stage_id IN (SELECT id FROM value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2)",
-		tenantID.Value(), valueStreamID,
-	)
-	if err != nil {
-		return err
-	}
-	_, err = rm.db.ExecContext(ctx,
 		"DELETE FROM value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2",
 		tenantID.Value(), valueStreamID,
 	)
+}
+
+func (rm *ValueStreamReadModel) cascadeDeleteStages(ctx context.Context, capQuery, stageQuery string, args ...interface{}) error {
+	if _, err := rm.db.ExecContext(ctx, capQuery, args...); err != nil {
+		return err
+	}
+	_, err := rm.db.ExecContext(ctx, stageQuery, args...)
 	return err
 }
 
@@ -420,23 +393,25 @@ func (rm *ValueStreamReadModel) GetCapabilitiesByValueStreamID(ctx context.Conte
 }
 
 func (rm *ValueStreamReadModel) StageNameExists(ctx context.Context, query StageNameQuery) (bool, error) {
+	return rm.nameExistsForTenant(ctx,
+		"SELECT COUNT(*) FROM value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2 AND name = $3",
+		"SELECT COUNT(*) FROM value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2 AND name = $3 AND id != $4",
+		query.ExcludeID, query.ValueStreamID, query.Name,
+	)
+}
+
+func (rm *ValueStreamReadModel) nameExistsForTenant(ctx context.Context, baseQuery, excludeQuery, excludeID string, extraArgs ...interface{}) (bool, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return false, err
 	}
-
+	args := append([]interface{}{tenantID.Value()}, extraArgs...)
 	var count int
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		if query.ExcludeID != "" {
-			return tx.QueryRowContext(ctx,
-				"SELECT COUNT(*) FROM value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2 AND name = $3 AND id != $4",
-				tenantID.Value(), query.ValueStreamID, query.Name, query.ExcludeID,
-			).Scan(&count)
+		if excludeID != "" {
+			return tx.QueryRowContext(ctx, excludeQuery, append(args, excludeID)...).Scan(&count)
 		}
-		return tx.QueryRowContext(ctx,
-			"SELECT COUNT(*) FROM value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2 AND name = $3",
-			tenantID.Value(), query.ValueStreamID, query.Name,
-		).Scan(&count)
+		return tx.QueryRowContext(ctx, baseQuery, args...).Scan(&count)
 	})
 	return count > 0, err
 }

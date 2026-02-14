@@ -23,79 +23,65 @@ export function useValueStreamDetail(id: ValueStreamId | undefined) {
   });
 }
 
-export function useAddStage() {
+function useStageMutation<TVariables>(
+  mutationFn: (vars: TVariables) => Promise<ValueStreamDetail>,
+  effectKey: keyof typeof valueStreamsMutationEffects,
+  successMsg?: string,
+  errorMsg?: string,
+) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ valueStream, request }: { valueStream: ValueStream; request: CreateStageRequest }) =>
-      valueStreamsApi.addStage(valueStream, request),
+    mutationFn,
     onSuccess: (result) => {
-      invalidateFor(queryClient, valueStreamsMutationEffects.addStage(result.id));
-      toast.success('Stage added');
+      invalidateFor(queryClient, valueStreamsMutationEffects[effectKey](result.id));
+      if (successMsg) toast.success(successMsg);
     },
-    onError: (error: Error) => toast.error(error.message || 'Failed to add stage'),
+    onError: (error: Error) => toast.error(error.message || errorMsg || 'Operation failed'),
   });
+}
+
+export function useAddStage() {
+  return useStageMutation(
+    ({ valueStream, request }: { valueStream: ValueStream; request: CreateStageRequest }) =>
+      valueStreamsApi.addStage(valueStream, request),
+    'addStage', 'Stage added', 'Failed to add stage',
+  );
 }
 
 export function useUpdateStage() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ stage, request }: { stage: ValueStreamStage; request: UpdateStageRequest }) =>
+  return useStageMutation(
+    ({ stage, request }: { stage: ValueStreamStage; request: UpdateStageRequest }) =>
       valueStreamsApi.updateStage(stage, request),
-    onSuccess: (result) => {
-      invalidateFor(queryClient, valueStreamsMutationEffects.updateStage(result.id));
-      toast.success('Stage updated');
-    },
-    onError: (error: Error) => toast.error(error.message || 'Failed to update stage'),
-  });
+    'updateStage', 'Stage updated', 'Failed to update stage',
+  );
 }
 
 export function useDeleteStage() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (stage: ValueStreamStage) =>
-      valueStreamsApi.deleteStage(stage),
-    onSuccess: (result) => {
-      invalidateFor(queryClient, valueStreamsMutationEffects.deleteStage(result.id));
-      toast.success('Stage removed');
-    },
-    onError: (error: Error) => toast.error(error.message || 'Failed to remove stage'),
-  });
+  return useStageMutation(
+    (stage: ValueStreamStage) => valueStreamsApi.deleteStage(stage),
+    'deleteStage', 'Stage removed', 'Failed to remove stage',
+  );
 }
 
 export function useReorderStages() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ valueStream, request }: { valueStream: ValueStream; request: ReorderStagesRequest }) =>
+  return useStageMutation(
+    ({ valueStream, request }: { valueStream: ValueStream; request: ReorderStagesRequest }) =>
       valueStreamsApi.reorderStages(valueStream, request),
-    onSuccess: (result) => {
-      invalidateFor(queryClient, valueStreamsMutationEffects.reorderStages(result.id));
-    },
-    onError: (error: Error) => toast.error(error.message || 'Failed to reorder stages'),
-  });
+    'reorderStages', undefined, 'Failed to reorder stages',
+  );
 }
 
 export function useAddStageCapability() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ stage, capabilityId }: { stage: ValueStreamStage; capabilityId: string }) =>
+  return useStageMutation(
+    ({ stage, capabilityId }: { stage: ValueStreamStage; capabilityId: string }) =>
       valueStreamsApi.addStageCapability(stage, capabilityId),
-    onSuccess: (result) => {
-      invalidateFor(queryClient, valueStreamsMutationEffects.addStageCapability(result.id));
-      toast.success('Capability mapped to stage');
-    },
-    onError: (error: Error) => toast.error(error.message || 'Failed to map capability'),
-  });
+    'addStageCapability', 'Capability mapped to stage', 'Failed to map capability',
+  );
 }
 
 export function useRemoveStageCapability() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (mapping: StageCapabilityMapping) =>
-      valueStreamsApi.removeStageCapability(mapping),
-    onSuccess: (result) => {
-      invalidateFor(queryClient, valueStreamsMutationEffects.removeStageCapability(result.id));
-      toast.success('Capability removed from stage');
-    },
-    onError: (error: Error) => toast.error(error.message || 'Failed to remove capability'),
-  });
+  return useStageMutation(
+    (mapping: StageCapabilityMapping) => valueStreamsApi.removeStageCapability(mapping),
+    'removeStageCapability', 'Capability removed from stage', 'Failed to remove capability',
+  );
 }

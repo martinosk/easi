@@ -16,6 +16,84 @@ interface StageFlowDiagramProps {
   onAddCapability?: (stageId: string, capabilityId: string) => void;
 }
 
+function tryHandleCapabilityDrop(
+  e: React.DragEvent,
+  targetStageId: string,
+  onAddCapability?: (stageId: string, capabilityId: string) => void,
+): boolean {
+  const json = e.dataTransfer.getData('application/json');
+  if (!json || !onAddCapability) return false;
+  try {
+    const capability = JSON.parse(json);
+    if (capability?.id) {
+      onAddCapability(targetStageId, capability.id);
+      return true;
+    }
+  } catch { /* not a capability drop */ }
+  return false;
+}
+
+function reorderStageIds(sortedStages: ValueStreamStage[], draggedId: string, targetId: string): string[] | null {
+  const ordered = sortedStages.map(s => s.id as string);
+  const fromIndex = ordered.indexOf(draggedId);
+  const toIndex = ordered.indexOf(targetId);
+  if (fromIndex < 0 || toIndex < 0) return null;
+  ordered.splice(fromIndex, 1);
+  ordered.splice(toIndex, 0, draggedId);
+  return ordered;
+}
+
+function groupCapabilitiesByStage(stageCapabilities: StageCapabilityMapping[]) {
+  const capsByStage = new Map<string, StageCapabilityMapping[]>();
+  for (const cap of stageCapabilities) {
+    const list = capsByStage.get(cap.stageId) || [];
+    list.push(cap);
+    capsByStage.set(cap.stageId, list);
+  }
+  return capsByStage;
+}
+
+interface StageConnectorProps {
+  canWrite: boolean;
+  position: number;
+  onInsert: (position: number) => void;
+  index: number;
+}
+
+function StageConnector({ canWrite, position, onInsert, index }: StageConnectorProps) {
+  return (
+    <div className="stage-connector-group">
+      <div className="stage-connector" />
+      {canWrite && (
+        <button
+          type="button"
+          className="stage-insert-btn"
+          data-testid={`insert-stage-btn-${index}`}
+          onClick={() => onInsert(position)}
+          title="Insert stage here"
+        >
+          <svg viewBox="0 0 24 24" fill="none" width="14" height="14">
+            <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+function EmptyStages({ canWrite, onAddStage }: { canWrite: boolean; onAddStage: (position?: number) => void }) {
+  return (
+    <div className="stage-flow-empty" data-testid="empty-stages">
+      <svg viewBox="0 0 24 24" fill="none" width="48" height="48">
+        <path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+      <h3>No stages yet</h3>
+      <p>Add stages to model the flow of this value stream.</p>
+      {canWrite && <AddStageButton onClick={onAddStage} />}
+    </div>
+  );
+}
+
 export function StageFlowDiagram({
   stages,
   stageCapabilities,
@@ -30,13 +108,7 @@ export function StageFlowDiagram({
   const [draggedStageId, setDraggedStageId] = useState<string | null>(null);
 
   const sortedStages = [...stages].sort((a, b) => a.position - b.position);
-
-  const capsByStage = new Map<string, StageCapabilityMapping[]>();
-  for (const cap of stageCapabilities) {
-    const list = capsByStage.get(cap.stageId) || [];
-    list.push(cap);
-    capsByStage.set(cap.stageId, list);
-  }
+  const capsByStage = groupCapabilitiesByStage(stageCapabilities);
 
   const handleDragStart = useCallback((e: React.DragEvent, stageId: string) => {
     setDraggedStageId(stageId);
@@ -50,29 +122,13 @@ export function StageFlowDiagram({
 
   const handleDrop = useCallback((e: React.DragEvent, targetStageId: string) => {
     e.preventDefault();
-
-    const json = e.dataTransfer.getData('application/json');
-    if (json && onAddCapability) {
-      try {
-        const capability = JSON.parse(json);
-        if (capability?.id) {
-          onAddCapability(targetStageId, capability.id);
-          setDraggedStageId(null);
-          return;
-        }
-      } catch { /* not a capability drop, continue with stage reorder */ }
+    if (tryHandleCapabilityDrop(e, targetStageId, onAddCapability)) {
+      setDraggedStageId(null);
+      return;
     }
-
-    if (!draggedStageId || draggedStageId === targetStageId) return;
-
-    const ordered = sortedStages.map(s => s.id as string);
-    const fromIndex = ordered.indexOf(draggedStageId);
-    const toIndex = ordered.indexOf(targetStageId);
-    if (fromIndex < 0 || toIndex < 0) return;
-
-    ordered.splice(fromIndex, 1);
-    ordered.splice(toIndex, 0, draggedStageId);
-    onReorder(ordered);
+    if (!draggedStageId || draggedStageId === targetStageId) { setDraggedStageId(null); return; }
+    const ordered = reorderStageIds(sortedStages, draggedStageId, targetStageId);
+    if (ordered) onReorder(ordered);
     setDraggedStageId(null);
   }, [draggedStageId, sortedStages, onReorder, onAddCapability]);
 
@@ -81,16 +137,7 @@ export function StageFlowDiagram({
   }, [removeCapMutation]);
 
   if (stages.length === 0) {
-    return (
-      <div className="stage-flow-empty" data-testid="empty-stages">
-        <svg viewBox="0 0 24 24" fill="none" width="48" height="48">
-          <path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        <h3>No stages yet</h3>
-        <p>Add stages to model the flow of this value stream.</p>
-        {canWrite && <AddStageButton onClick={onAddStage} />}
-      </div>
-    );
+    return <EmptyStages canWrite={canWrite} onAddStage={onAddStage} />;
   }
 
   return (
@@ -98,24 +145,7 @@ export function StageFlowDiagram({
       <div className="stage-flow-scroll">
         {sortedStages.map((stage, i) => (
           <div key={stage.id} className="stage-flow-item">
-            {i > 0 && (
-              <div className="stage-connector-group">
-                <div className="stage-connector" />
-                {canWrite && (
-                  <button
-                    type="button"
-                    className="stage-insert-btn"
-                    data-testid={`insert-stage-btn-${i}`}
-                    onClick={() => onAddStage(stage.position)}
-                    title="Insert stage here"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" width="14" height="14">
-                      <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </button>
-                )}
-              </div>
-            )}
+            {i > 0 && <StageConnector canWrite={canWrite} position={stage.position} onInsert={onAddStage} index={i} />}
             <StageColumn
               stage={stage}
               capabilities={capsByStage.get(stage.id) || []}

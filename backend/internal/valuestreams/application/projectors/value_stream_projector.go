@@ -58,78 +58,66 @@ func unmarshalEvent[T any](eventData []byte) (T, error) {
 	return event, nil
 }
 
-func (p *ValueStreamProjector) handleValueStreamCreated(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.ValueStreamCreated](eventData)
+func projectEvent[T any](eventData []byte, handler func(T) error) error {
+	event, err := unmarshalEvent[T](eventData)
 	if err != nil {
 		return err
 	}
-	return p.readModel.Insert(ctx, readmodels.ValueStreamDTO{
-		ID:          event.ID,
-		Name:        event.Name,
-		Description: event.Description,
-		CreatedAt:   event.CreatedAt,
+	return handler(event)
+}
+
+func (p *ValueStreamProjector) handleValueStreamCreated(ctx context.Context, eventData []byte) error {
+	return projectEvent(eventData, func(event events.ValueStreamCreated) error {
+		return p.readModel.Insert(ctx, readmodels.ValueStreamDTO{
+			ID: event.ID, Name: event.Name, Description: event.Description, CreatedAt: event.CreatedAt,
+		})
 	})
 }
 
 func (p *ValueStreamProjector) handleValueStreamUpdated(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.ValueStreamUpdated](eventData)
-	if err != nil {
-		return err
-	}
-	return p.readModel.Update(ctx, event.ID, readmodels.ValueStreamUpdate{
-		Name:        event.Name,
-		Description: event.Description,
+	return projectEvent(eventData, func(event events.ValueStreamUpdated) error {
+		return p.readModel.Update(ctx, event.ID, readmodels.ValueStreamUpdate{
+			Name: event.Name, Description: event.Description,
+		})
 	})
 }
 
 func (p *ValueStreamProjector) handleValueStreamDeleted(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.ValueStreamDeleted](eventData)
-	if err != nil {
-		return err
-	}
-	if err := p.readModel.DeleteStagesByValueStreamID(ctx, event.ID); err != nil {
-		log.Printf("Failed to delete stages for value stream %s: %v", event.ID, err)
-		return err
-	}
-	return p.readModel.Delete(ctx, event.ID)
+	return projectEvent(eventData, func(event events.ValueStreamDeleted) error {
+		if err := p.readModel.DeleteStagesByValueStreamID(ctx, event.ID); err != nil {
+			log.Printf("Failed to delete stages for value stream %s: %v", event.ID, err)
+			return err
+		}
+		return p.readModel.Delete(ctx, event.ID)
+	})
 }
 
 func (p *ValueStreamProjector) handleValueStreamStageAdded(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.ValueStreamStageAdded](eventData)
-	if err != nil {
-		return err
-	}
-	if err := p.readModel.InsertStage(ctx, readmodels.ValueStreamStageDTO{
-		ID:            event.StageID,
-		ValueStreamID: event.ID,
-		Name:          event.Name,
-		Description:   event.Description,
-		Position:      event.Position,
-	}); err != nil {
-		return err
-	}
-	return p.readModel.AdjustStageCount(ctx, event.ID, 1)
+	return projectEvent(eventData, func(event events.ValueStreamStageAdded) error {
+		if err := p.readModel.InsertStage(ctx, readmodels.ValueStreamStageDTO{
+			ID: event.StageID, ValueStreamID: event.ID, Name: event.Name, Description: event.Description, Position: event.Position,
+		}); err != nil {
+			return err
+		}
+		return p.readModel.AdjustStageCount(ctx, event.ID, 1)
+	})
 }
 
 func (p *ValueStreamProjector) handleValueStreamStageUpdated(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.ValueStreamStageUpdated](eventData)
-	if err != nil {
-		return err
-	}
-	return p.readModel.UpdateStage(ctx, readmodels.StageUpdate{
-		StageID: event.StageID, Name: event.Name, Description: event.Description,
+	return projectEvent(eventData, func(event events.ValueStreamStageUpdated) error {
+		return p.readModel.UpdateStage(ctx, readmodels.StageUpdate{
+			StageID: event.StageID, Name: event.Name, Description: event.Description,
+		})
 	})
 }
 
 func (p *ValueStreamProjector) handleValueStreamStageRemoved(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.ValueStreamStageRemoved](eventData)
-	if err != nil {
-		return err
-	}
-	if err := p.readModel.DeleteStage(ctx, event.StageID); err != nil {
-		return err
-	}
-	return p.readModel.AdjustStageCount(ctx, event.ID, -1)
+	return projectEvent(eventData, func(event events.ValueStreamStageRemoved) error {
+		if err := p.readModel.DeleteStage(ctx, event.StageID); err != nil {
+			return err
+		}
+		return p.readModel.AdjustStageCount(ctx, event.ID, -1)
+	})
 }
 
 func (p *ValueStreamProjector) handleValueStreamStagesReordered(ctx context.Context, eventData []byte) error {
@@ -148,21 +136,20 @@ func (p *ValueStreamProjector) handleValueStreamStagesReordered(ctx context.Cont
 }
 
 func (p *ValueStreamProjector) handleValueStreamStageCapabilityAdded(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.ValueStreamStageCapabilityAdded](eventData)
-	if err != nil {
-		return err
-	}
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-	return p.readModel.InsertStageCapability(ctx, readmodels.StageCapabilityRef{
-		TenantID: tenantID.Value(), StageID: event.StageID, CapabilityID: event.CapabilityID,
-	})
+	return p.handleStageCapabilityChange(ctx, eventData, p.readModel.InsertStageCapability)
 }
 
 func (p *ValueStreamProjector) handleValueStreamStageCapabilityRemoved(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.ValueStreamStageCapabilityRemoved](eventData)
+	return p.handleStageCapabilityChange(ctx, eventData, p.readModel.DeleteStageCapability)
+}
+
+type stageCapabilityFields struct {
+	StageID      string `json:"stageId"`
+	CapabilityID string `json:"capabilityId"`
+}
+
+func (p *ValueStreamProjector) handleStageCapabilityChange(ctx context.Context, eventData []byte, action func(context.Context, readmodels.StageCapabilityRef) error) error {
+	fields, err := unmarshalEvent[stageCapabilityFields](eventData)
 	if err != nil {
 		return err
 	}
@@ -170,7 +157,7 @@ func (p *ValueStreamProjector) handleValueStreamStageCapabilityRemoved(ctx conte
 	if err != nil {
 		return err
 	}
-	return p.readModel.DeleteStageCapability(ctx, readmodels.StageCapabilityRef{
-		TenantID: tenantID.Value(), StageID: event.StageID, CapabilityID: event.CapabilityID,
+	return action(ctx, readmodels.StageCapabilityRef{
+		TenantID: tenantID.Value(), StageID: fields.StageID, CapabilityID: fields.CapabilityID,
 	})
 }

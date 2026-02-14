@@ -74,16 +74,11 @@ func (h *StageHandlers) CreateStage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cmd := &commands.AddStage{
+	h.dispatchStageCommand(w, r, vsID, http.StatusCreated, &commands.AddStage{
 		ValueStreamID: vsID,
 		Name:          req.Name,
 		Description:   req.Description,
 		Position:      req.Position,
-	}
-
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
-		h.respondWithDetail(w, r, vsID, http.StatusCreated)
 	})
 }
 
@@ -111,16 +106,11 @@ func (h *StageHandlers) UpdateStage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cmd := &commands.UpdateStage{
+	h.dispatchStageCommand(w, r, vsID, http.StatusOK, &commands.UpdateStage{
 		ValueStreamID: vsID,
 		StageID:       stageID,
 		Name:          req.Name,
 		Description:   req.Description,
-	}
-
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
-		h.respondWithDetail(w, r, vsID, http.StatusOK)
 	})
 }
 
@@ -138,14 +128,9 @@ func (h *StageHandlers) DeleteStage(w http.ResponseWriter, r *http.Request) {
 	vsID := sharedAPI.GetPathParam(r, "id")
 	stageID := sharedAPI.GetPathParam(r, "stageId")
 
-	cmd := &commands.RemoveStage{
+	h.dispatchStageCommand(w, r, vsID, http.StatusOK, &commands.RemoveStage{
 		ValueStreamID: vsID,
 		StageID:       stageID,
-	}
-
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
-		h.respondWithDetail(w, r, vsID, http.StatusOK)
 	})
 }
 
@@ -178,14 +163,9 @@ func (h *StageHandlers) ReorderStages(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cmd := &commands.ReorderStages{
+	h.dispatchStageCommand(w, r, vsID, http.StatusOK, &commands.ReorderStages{
 		ValueStreamID: vsID,
 		Positions:     positions,
-	}
-
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
-		h.respondWithDetail(w, r, vsID, http.StatusOK)
 	})
 }
 
@@ -212,15 +192,10 @@ func (h *StageHandlers) AddStageCapability(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	cmd := &commands.AddStageCapability{
+	h.dispatchStageCommand(w, r, vsID, http.StatusOK, &commands.AddStageCapability{
 		ValueStreamID: vsID,
 		StageID:       stageID,
 		CapabilityID:  req.CapabilityID,
-	}
-
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
-		h.respondWithDetail(w, r, vsID, http.StatusOK)
 	})
 }
 
@@ -240,15 +215,10 @@ func (h *StageHandlers) RemoveStageCapability(w http.ResponseWriter, r *http.Req
 	stageID := sharedAPI.GetPathParam(r, "stageId")
 	capID := sharedAPI.GetPathParam(r, "capabilityId")
 
-	cmd := &commands.RemoveStageCapability{
+	h.dispatchStageCommand(w, r, vsID, http.StatusOK, &commands.RemoveStageCapability{
 		ValueStreamID: vsID,
 		StageID:       stageID,
 		CapabilityID:  capID,
-	}
-
-	result, err := h.commandBus.Dispatch(r.Context(), cmd)
-	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
-		h.respondWithDetail(w, r, vsID, http.StatusOK)
 	})
 }
 
@@ -276,6 +246,13 @@ func (h *StageHandlers) GetValueStreamCapabilities(w http.ResponseWriter, r *htt
 	}
 
 	sharedAPI.RespondJSON(w, http.StatusOK, caps)
+}
+
+func (h *StageHandlers) dispatchStageCommand(w http.ResponseWriter, r *http.Request, vsID string, statusCode int, cmd cqrs.Command) {
+	result, err := h.commandBus.Dispatch(r.Context(), cmd)
+	sharedAPI.HandleCommandResult(w, result, err, func(_ string) {
+		h.respondWithDetail(w, r, vsID, statusCode)
+	})
 }
 
 func (h *StageHandlers) respondWithDetail(w http.ResponseWriter, r *http.Request, vsID string, statusCode int) {

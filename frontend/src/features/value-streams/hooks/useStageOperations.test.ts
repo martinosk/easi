@@ -1,7 +1,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useStageOperations } from './useStageOperations';
-import type { ValueStreamDetail, ValueStreamId, StageId } from '../../../api/types';
+import type { ValueStreamDetail, ValueStreamId, StageId, HttpMethod } from '../../../api/types';
 
 const mockAddStageMutateAsync = vi.fn();
 const mockUpdateStageMutateAsync = vi.fn();
@@ -24,8 +24,8 @@ function createDetail(stageCount = 2): ValueStreamDetail {
     name: `Stage ${i + 1}`,
     position: i + 1,
     _links: {
-      edit: { href: `/api/v1/value-streams/vs-1/stages/stage-${i + 1}`, method: 'PUT' },
-      delete: { href: `/api/v1/value-streams/vs-1/stages/stage-${i + 1}`, method: 'DELETE' },
+      edit: { href: `/api/v1/value-streams/vs-1/stages/stage-${i + 1}`, method: 'PUT' as HttpMethod },
+      delete: { href: `/api/v1/value-streams/vs-1/stages/stage-${i + 1}`, method: 'DELETE' as HttpMethod },
     },
   }));
 
@@ -38,9 +38,9 @@ function createDetail(stageCount = 2): ValueStreamDetail {
     stages,
     stageCapabilities: [],
     _links: {
-      self: { href: '/api/v1/value-streams/vs-1', method: 'GET' },
-      'x-add-stage': { href: '/api/v1/value-streams/vs-1/stages', method: 'POST' },
-      'x-reorder-stages': { href: '/api/v1/value-streams/vs-1/stages/positions', method: 'PUT' },
+      self: { href: '/api/v1/value-streams/vs-1', method: 'GET' as HttpMethod },
+      'x-add-stage': { href: '/api/v1/value-streams/vs-1/stages', method: 'POST' as HttpMethod },
+      'x-reorder-stages': { href: '/api/v1/value-streams/vs-1/stages/positions', method: 'PUT' as HttpMethod },
     },
   };
 }
