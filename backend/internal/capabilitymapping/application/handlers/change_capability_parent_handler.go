@@ -263,11 +263,7 @@ func buildInheritanceSource(realization readmodels.RealizationDTO, capability *r
 		return realization.SourceRealizationID, realization.SourceCapabilityID, realization.SourceCapabilityName
 	}
 
-	capabilityName := ""
-	if capability != nil {
-		capabilityName = capability.Name
-	}
-	return realization.ID, capability.ID, capabilityName
+	return realization.ID, capability.ID, capability.Name
 }
 
 func (h *ChangeCapabilityParentHandler) updateDescendantLevels(ctx context.Context, parentID string, parentLevel valueobjects.CapabilityLevel) error {
