@@ -67,6 +67,11 @@ type ImportSessionDTO struct {
 	Links             map[string]sharedAPI.Link `json:"_links,omitempty"`
 }
 
+type updatePayload struct {
+	value     any
+	timestamp *time.Time
+}
+
 type ImportSessionReadModel struct {
 	db *database.TenantAwareDB
 }
@@ -111,11 +116,11 @@ func (rm *ImportSessionReadModel) MarkCompleted(ctx context.Context, id string, 
 	if err != nil {
 		return err
 	}
-	return rm.execUpdateWithTime(ctx, id, "UPDATE import_sessions SET status = 'completed', result = $1, completed_at = $2 WHERE tenant_id = $3 AND id = $4", resultJSON, completedAt)
+	return rm.execUpdateWithTime(ctx, id, "UPDATE import_sessions SET status = 'completed', result = $1, completed_at = $2 WHERE tenant_id = $3 AND id = $4", updatePayload{value: resultJSON, timestamp: &completedAt})
 }
 
 func (rm *ImportSessionReadModel) MarkFailed(ctx context.Context, id string, failedAt time.Time) error {
-	return rm.execUpdateWithTime(ctx, id, "UPDATE import_sessions SET status = 'failed', completed_at = $1 WHERE tenant_id = $2 AND id = $3", nil, failedAt)
+	return rm.execUpdateWithTime(ctx, id, "UPDATE import_sessions SET status = 'failed', completed_at = $1 WHERE tenant_id = $2 AND id = $3", updatePayload{timestamp: &failedAt})
 }
 
 func (rm *ImportSessionReadModel) MarkCancelled(ctx context.Context, id string) error {
@@ -123,28 +128,31 @@ func (rm *ImportSessionReadModel) MarkCancelled(ctx context.Context, id string) 
 }
 
 func (rm *ImportSessionReadModel) execUpdate(ctx context.Context, id string, query string, value any) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-	if value != nil {
-		_, err = rm.db.ExecContext(ctx, query, value, tenantID.Value(), id)
-	} else {
-		_, err = rm.db.ExecContext(ctx, query, tenantID.Value(), id)
-	}
-	return err
+	return rm.execUpdateWithArgs(ctx, id, query, buildUpdateArgs(value, nil)...)
 }
 
-func (rm *ImportSessionReadModel) execUpdateWithTime(ctx context.Context, id string, query string, value any, timestamp time.Time) error {
+func (rm *ImportSessionReadModel) execUpdateWithTime(ctx context.Context, id string, query string, payload updatePayload) error {
+	return rm.execUpdateWithArgs(ctx, id, query, buildUpdateArgs(payload.value, payload.timestamp)...)
+}
+
+func buildUpdateArgs(value any, timestamp *time.Time) []any {
+	args := make([]any, 0, 3)
+	if value != nil {
+		args = append(args, value)
+	}
+	if timestamp != nil {
+		args = append(args, *timestamp)
+	}
+	return args
+}
+
+func (rm *ImportSessionReadModel) execUpdateWithArgs(ctx context.Context, id string, query string, args ...any) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
 	}
-	if value != nil {
-		_, err = rm.db.ExecContext(ctx, query, value, timestamp, tenantID.Value(), id)
-	} else {
-		_, err = rm.db.ExecContext(ctx, query, timestamp, tenantID.Value(), id)
-	}
+	args = append(args, tenantID.Value(), id)
+	_, err = rm.db.ExecContext(ctx, query, args...)
 	return err
 }
 
