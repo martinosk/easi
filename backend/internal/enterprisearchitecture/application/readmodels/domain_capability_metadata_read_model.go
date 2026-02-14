@@ -27,11 +27,15 @@ type ParentL1Update struct {
 	NewL1CapabilityID string
 }
 
+type BusinessDomainRef struct {
+	ID   string
+	Name string
+}
+
 type L1BusinessDomainUpdate struct {
-	CapabilityID       string
-	L1CapabilityID     string
-	BusinessDomainID   string
-	BusinessDomainName string
+	CapabilityID   string
+	L1CapabilityID string
+	BusinessDomain BusinessDomainRef
 }
 
 type DomainCapabilityMetadataReadModel struct {
@@ -43,12 +47,7 @@ func NewDomainCapabilityMetadataReadModel(db *database.TenantAwareDB) *DomainCap
 }
 
 func (rm *DomainCapabilityMetadataReadModel) Insert(ctx context.Context, dto DomainCapabilityMetadataDTO) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
+	return rm.execForTenant(ctx,
 		`INSERT INTO domain_capability_metadata
 		 (tenant_id, capability_id, capability_name, capability_level, parent_id, l1_capability_id, business_domain_id, business_domain_name)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -59,24 +58,17 @@ func (rm *DomainCapabilityMetadataReadModel) Insert(ctx context.Context, dto Dom
 		 l1_capability_id = EXCLUDED.l1_capability_id,
 		 business_domain_id = EXCLUDED.business_domain_id,
 		 business_domain_name = EXCLUDED.business_domain_name`,
-		tenantID.Value(), dto.CapabilityID, dto.CapabilityName, dto.CapabilityLevel,
+		dto.CapabilityID, dto.CapabilityName, dto.CapabilityLevel,
 		nullIfEmpty(dto.ParentID), dto.L1CapabilityID,
 		nullIfEmpty(dto.BusinessDomainID), nullIfEmpty(dto.BusinessDomainName),
 	)
-	return err
 }
 
 func (rm *DomainCapabilityMetadataReadModel) Delete(ctx context.Context, capabilityID string) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
+	return rm.execForTenant(ctx,
 		"DELETE FROM domain_capability_metadata WHERE tenant_id = $1 AND capability_id = $2",
-		tenantID.Value(), capabilityID,
+		capabilityID,
 	)
-	return err
 }
 
 func (rm *DomainCapabilityMetadataReadModel) GetByID(ctx context.Context, capabilityID string) (*DomainCapabilityMetadataDTO, error) {
@@ -224,55 +216,37 @@ func (rm *DomainCapabilityMetadataReadModel) GetSubtreeCapabilityIDs(ctx context
 	return rm.queryHierarchy(ctx, rootID, metadataSubtree)
 }
 
-func (rm *DomainCapabilityMetadataReadModel) UpdateBusinessDomainForL1Subtree(ctx context.Context, l1CapabilityID, businessDomainID, businessDomainName string) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
+func (rm *DomainCapabilityMetadataReadModel) UpdateBusinessDomainForL1Subtree(ctx context.Context, l1CapabilityID string, bd BusinessDomainRef) error {
+	return rm.execForTenant(ctx,
 		`UPDATE domain_capability_metadata
-		 SET business_domain_id = $1, business_domain_name = $2
-		 WHERE tenant_id = $3 AND l1_capability_id = $4`,
-		nullIfEmpty(businessDomainID), nullIfEmpty(businessDomainName), tenantID.Value(), l1CapabilityID,
+		 SET business_domain_id = $2, business_domain_name = $3
+		 WHERE tenant_id = $1 AND l1_capability_id = $4`,
+		nullIfEmpty(bd.ID), nullIfEmpty(bd.Name), l1CapabilityID,
 	)
-	return err
 }
 
 func (rm *DomainCapabilityMetadataReadModel) UpdateParentAndL1(ctx context.Context, update ParentL1Update) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
+	return rm.execForTenant(ctx,
 		`UPDATE domain_capability_metadata
-		 SET parent_id = $1, capability_level = $2, l1_capability_id = $3
-		 WHERE tenant_id = $4 AND capability_id = $5`,
-		nullIfEmpty(update.NewParentID), update.NewLevel, update.NewL1CapabilityID, tenantID.Value(), update.CapabilityID,
+		 SET parent_id = $2, capability_level = $3, l1_capability_id = $4
+		 WHERE tenant_id = $1 AND capability_id = $5`,
+		nullIfEmpty(update.NewParentID), update.NewLevel, update.NewL1CapabilityID, update.CapabilityID,
 	)
-	return err
 }
 
 func (rm *DomainCapabilityMetadataReadModel) UpdateLevel(ctx context.Context, capabilityID string, newLevel string) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
+	return rm.execForTenant(ctx,
 		`UPDATE domain_capability_metadata
-		 SET capability_level = $1
-		 WHERE tenant_id = $2 AND capability_id = $3`,
-		newLevel, tenantID.Value(), capabilityID,
+		 SET capability_level = $2
+		 WHERE tenant_id = $1 AND capability_id = $3`,
+		newLevel, capabilityID,
 	)
-	return err
 }
 
-func (rm *DomainCapabilityMetadataReadModel) GetBusinessDomainForL1(ctx context.Context, l1CapabilityID string) (string, string, error) {
+func (rm *DomainCapabilityMetadataReadModel) GetBusinessDomainForL1(ctx context.Context, l1CapabilityID string) (BusinessDomainRef, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return "", "", err
+		return BusinessDomainRef{}, err
 	}
 
 	var businessDomainID, businessDomainName sql.NullString
@@ -286,13 +260,13 @@ func (rm *DomainCapabilityMetadataReadModel) GetBusinessDomainForL1(ctx context.
 	})
 
 	if err == sql.ErrNoRows {
-		return "", "", nil
+		return BusinessDomainRef{}, nil
 	}
 	if err != nil {
-		return "", "", err
+		return BusinessDomainRef{}, err
 	}
 
-	return businessDomainID.String, businessDomainName.String, nil
+	return BusinessDomainRef{ID: businessDomainID.String, Name: businessDomainName.String}, nil
 }
 
 func (rm *DomainCapabilityMetadataReadModel) GetEnterpriseCapabilitiesLinkedToCapabilities(ctx context.Context, capabilityIDs []string) ([]string, error) {
@@ -354,15 +328,14 @@ func (rm *DomainCapabilityMetadataReadModel) RecalculateL1ForSubtree(ctx context
 		return nil
 	}
 
-	newL1ID := rm.findL1Ancestor(ctx, capabilityID, root.CapabilityLevel)
-	businessDomainID, businessDomainName, _ := rm.GetBusinessDomainForL1(ctx, newL1ID)
+	newL1ID := rm.findL1Ancestor(ctx, root)
+	bdRef, _ := rm.GetBusinessDomainForL1(ctx, newL1ID)
 
 	for _, id := range subtreeIDs {
 		if err := rm.updateL1AndBusinessDomain(ctx, L1BusinessDomainUpdate{
-			CapabilityID:       id,
-			L1CapabilityID:     newL1ID,
-			BusinessDomainID:   businessDomainID,
-			BusinessDomainName: businessDomainName,
+			CapabilityID:   id,
+			L1CapabilityID: newL1ID,
+			BusinessDomain: bdRef,
 		}); err != nil {
 			return err
 		}
@@ -371,17 +344,14 @@ func (rm *DomainCapabilityMetadataReadModel) RecalculateL1ForSubtree(ctx context
 	return nil
 }
 
-func (rm *DomainCapabilityMetadataReadModel) findL1Ancestor(ctx context.Context, capabilityID, level string) string {
-	if level == "L1" {
-		return capabilityID
+func (rm *DomainCapabilityMetadataReadModel) findL1Ancestor(ctx context.Context, root *DomainCapabilityMetadataDTO) string {
+	if root.CapabilityLevel == "L1" {
+		return root.CapabilityID
 	}
-
-	current, err := rm.GetByID(ctx, capabilityID)
-	if !rm.canTraverseParent(current, err) {
-		return capabilityID
+	if root.ParentID == "" {
+		return root.CapabilityID
 	}
-
-	return rm.traverseToL1(ctx, current, capabilityID)
+	return rm.traverseToL1(ctx, root, root.CapabilityID)
 }
 
 func (rm *DomainCapabilityMetadataReadModel) canTraverseParent(dto *DomainCapabilityMetadataDTO, err error) bool {
@@ -403,18 +373,12 @@ func (rm *DomainCapabilityMetadataReadModel) traverseToL1(ctx context.Context, c
 }
 
 func (rm *DomainCapabilityMetadataReadModel) updateL1AndBusinessDomain(ctx context.Context, update L1BusinessDomainUpdate) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
+	return rm.execForTenant(ctx,
 		`UPDATE domain_capability_metadata
-		 SET l1_capability_id = $1, business_domain_id = $2, business_domain_name = $3
-		 WHERE tenant_id = $4 AND capability_id = $5`,
-		update.L1CapabilityID, nullIfEmpty(update.BusinessDomainID), nullIfEmpty(update.BusinessDomainName), tenantID.Value(), update.CapabilityID,
+		 SET l1_capability_id = $2, business_domain_id = $3, business_domain_name = $4
+		 WHERE tenant_id = $1 AND capability_id = $5`,
+		update.L1CapabilityID, nullIfEmpty(update.BusinessDomain.ID), nullIfEmpty(update.BusinessDomain.Name), update.CapabilityID,
 	)
-	return err
 }
 
 func (rm *DomainCapabilityMetadataReadModel) LookupBusinessDomainName(ctx context.Context, businessDomainID string) (string, error) {
@@ -443,6 +407,15 @@ func (rm *DomainCapabilityMetadataReadModel) LookupBusinessDomainName(ctx contex
 	}
 
 	return name, nil
+}
+
+func (rm *DomainCapabilityMetadataReadModel) execForTenant(ctx context.Context, query string, args ...any) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = rm.db.ExecContext(ctx, query, append([]any{tenantID.Value()}, args...)...)
+	return err
 }
 
 func nullIfEmpty(s string) any {

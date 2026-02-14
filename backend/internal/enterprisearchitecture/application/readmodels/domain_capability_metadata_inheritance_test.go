@@ -73,7 +73,7 @@ func TestDomainCapabilityMetadata_ChildInheritsFromParent(t *testing.T) {
 	assert.Equal(t, "", childMeta.BusinessDomainID)
 
 	// Step 3: Assign parent to business domain (simulating what projector does)
-	err = readModel.UpdateBusinessDomainForL1Subtree(ctx, "parent-l1-id", "domain-id", "Domain Name")
+	err = readModel.UpdateBusinessDomainForL1Subtree(ctx, "parent-l1-id", BusinessDomainRef{ID: "domain-id", Name: "Domain Name"})
 	require.NoError(t, err)
 
 	// Verify parent got domain
