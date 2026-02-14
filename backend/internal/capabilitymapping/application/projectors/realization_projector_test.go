@@ -22,6 +22,8 @@ type mockRealizationReadModel struct {
 	deletedBySourceIDs             []string
 	deletedInheritedBySourceCaps   []deleteInheritedBySourceCapsCall
 	deletedByComponentIDs          []string
+	updatedSourceCapabilityNames   []updateSourceCapabilityNameCall
+	updatedComponentNames          []updateComponentNameCall
 	insertErr                      error
 	insertInheritedErr             error
 	updateErr                      error
@@ -29,6 +31,8 @@ type mockRealizationReadModel struct {
 	deleteBySourceErr              error
 	deleteInheritedBySourceCapsErr error
 	deleteByComponentErr           error
+	updateSourceCapNameErr         error
+	updateCompNameErr              error
 }
 
 type updateCall struct {
@@ -40,6 +44,16 @@ type updateCall struct {
 type deleteInheritedBySourceCapsCall struct {
 	SourceRealizationID string
 	CapabilityIDs       []string
+}
+
+type updateSourceCapabilityNameCall struct {
+	CapabilityID   string
+	CapabilityName string
+}
+
+type updateComponentNameCall struct {
+	ComponentID   string
+	ComponentName string
 }
 
 func (m *mockRealizationReadModel) Insert(ctx context.Context, dto readmodels.RealizationDTO) error {
@@ -101,134 +115,35 @@ func (m *mockRealizationReadModel) DeleteInheritedBySourceRealizationIDAndCapabi
 	return nil
 }
 
-type realizationReadModelInterface interface {
-	Insert(ctx context.Context, dto readmodels.RealizationDTO) error
-	InsertInherited(ctx context.Context, dto readmodels.RealizationDTO) error
-	Update(ctx context.Context, id, realizationLevel, notes string) error
-	Delete(ctx context.Context, id string) error
-	DeleteBySourceRealizationID(ctx context.Context, sourceRealizationID string) error
-	DeleteInheritedBySourceRealizationIDAndCapabilities(ctx context.Context, sourceRealizationID string, capabilityIDs []string) error
-	DeleteByComponentID(ctx context.Context, componentID string) error
-}
-
-type testableRealizationProjector struct {
-	readModel realizationReadModelInterface
-}
-
-func newTestableRealizationProjector(readModel realizationReadModelInterface) *testableRealizationProjector {
-	return &testableRealizationProjector{readModel: readModel}
-}
-
-func (p *testableRealizationProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
-	switch eventType {
-	case "SystemLinkedToCapability":
-		return p.handleSystemLinked(ctx, eventData)
-	case "SystemRealizationUpdated":
-		return p.handleRealizationUpdated(ctx, eventData)
-	case "SystemRealizationDeleted":
-		return p.handleRealizationDeleted(ctx, eventData)
-	case "CapabilityRealizationsInherited":
-		return p.handleCapabilityRealizationsInherited(ctx, eventData)
-	case "CapabilityRealizationsUninherited":
-		return p.handleCapabilityRealizationsUninherited(ctx, eventData)
-	case "ApplicationComponentDeleted":
-		return p.handleApplicationComponentDeleted(ctx, eventData)
+func (m *mockRealizationReadModel) UpdateSourceCapabilityName(ctx context.Context, capabilityID, capabilityName string) error {
+	if m.updateSourceCapNameErr != nil {
+		return m.updateSourceCapNameErr
 	}
+	m.updatedSourceCapabilityNames = append(m.updatedSourceCapabilityNames, updateSourceCapabilityNameCall{
+		CapabilityID:   capabilityID,
+		CapabilityName: capabilityName,
+	})
 	return nil
 }
 
-func (p *testableRealizationProjector) handleApplicationComponentDeleted(ctx context.Context, eventData []byte) error {
-	var event applicationComponentDeletedEvent
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
+func (m *mockRealizationReadModel) UpdateComponentName(ctx context.Context, componentID, componentName string) error {
+	if m.updateCompNameErr != nil {
+		return m.updateCompNameErr
 	}
-	return p.readModel.DeleteByComponentID(ctx, event.ID)
-}
-
-func (p *testableRealizationProjector) handleSystemLinked(ctx context.Context, eventData []byte) error {
-	var event events.SystemLinkedToCapability
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-
-	dto := readmodels.RealizationDTO{
-		ID:               event.ID,
-		CapabilityID:     event.CapabilityID,
-		ComponentID:      event.ComponentID,
-		ComponentName:    event.ComponentName,
-		RealizationLevel: event.RealizationLevel,
-		Notes:            event.Notes,
-		Origin:           "Direct",
-		LinkedAt:         event.LinkedAt,
-	}
-
-	return p.readModel.Insert(ctx, dto)
-}
-
-func (p *testableRealizationProjector) handleRealizationUpdated(ctx context.Context, eventData []byte) error {
-	var event events.SystemRealizationUpdated
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	return p.readModel.Update(ctx, event.ID, event.RealizationLevel, event.Notes)
-}
-
-func (p *testableRealizationProjector) handleRealizationDeleted(ctx context.Context, eventData []byte) error {
-	var event events.SystemRealizationDeleted
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	if err := p.readModel.DeleteBySourceRealizationID(ctx, event.ID); err != nil {
-		return err
-	}
-	return p.readModel.Delete(ctx, event.ID)
-}
-
-func (p *testableRealizationProjector) handleCapabilityRealizationsInherited(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityRealizationsInherited
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-
-	for _, realization := range event.InheritedRealizations {
-		dto := readmodels.RealizationDTO{
-			CapabilityID:         realization.CapabilityID,
-			ComponentID:          realization.ComponentID,
-			ComponentName:        realization.ComponentName,
-			RealizationLevel:     realization.RealizationLevel,
-			Notes:                realization.Notes,
-			Origin:               realization.Origin,
-			SourceRealizationID:  realization.SourceRealizationID,
-			SourceCapabilityID:   realization.SourceCapabilityID,
-			SourceCapabilityName: realization.SourceCapabilityName,
-			LinkedAt:             realization.LinkedAt,
-		}
-		if err := p.readModel.InsertInherited(ctx, dto); err != nil {
-			return err
-		}
-	}
-
+	m.updatedComponentNames = append(m.updatedComponentNames, updateComponentNameCall{
+		ComponentID:   componentID,
+		ComponentName: componentName,
+	})
 	return nil
 }
 
-func (p *testableRealizationProjector) handleCapabilityRealizationsUninherited(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityRealizationsUninherited
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-
-	for _, removal := range event.Removals {
-		if err := p.readModel.DeleteInheritedBySourceRealizationIDAndCapabilities(ctx, removal.SourceRealizationID, removal.CapabilityIDs); err != nil {
-			return err
-		}
-	}
-
-	return nil
+func newProjector(mockRM *mockRealizationReadModel) *RealizationProjector {
+	return NewRealizationProjector(mockRM, nil)
 }
 
 func TestRealizationProjector_HandleSystemLinked_InsertsDirectOnly(t *testing.T) {
 	mockRealRM := &mockRealizationReadModel{}
-	projector := newTestableRealizationProjector(mockRealRM)
+	projector := newProjector(mockRealRM)
 
 	event := events.SystemLinkedToCapability{
 		ID:               "real-1",
@@ -252,9 +167,31 @@ func TestRealizationProjector_HandleSystemLinked_InsertsDirectOnly(t *testing.T)
 	assert.Empty(t, mockRealRM.insertedInheritedRealizations)
 }
 
+func TestRealizationProjector_HandleRealizationUpdated_UpdatesReadModel(t *testing.T) {
+	mockRealRM := &mockRealizationReadModel{}
+	projector := newProjector(mockRealRM)
+
+	event := events.SystemRealizationUpdated{
+		ID:               "real-1",
+		RealizationLevel: "Full",
+		Notes:            "updated notes",
+	}
+
+	eventData, err := json.Marshal(event)
+	require.NoError(t, err)
+
+	err = projector.ProjectEvent(context.Background(), "SystemRealizationUpdated", eventData)
+	require.NoError(t, err)
+
+	require.Len(t, mockRealRM.updatedRealizations, 1)
+	assert.Equal(t, "real-1", mockRealRM.updatedRealizations[0].ID)
+	assert.Equal(t, "Full", mockRealRM.updatedRealizations[0].RealizationLevel)
+	assert.Equal(t, "updated notes", mockRealRM.updatedRealizations[0].Notes)
+}
+
 func TestRealizationProjector_HandleCapabilityRealizationsInherited_AppliesAll(t *testing.T) {
 	mockRealRM := &mockRealizationReadModel{}
-	projector := newTestableRealizationProjector(mockRealRM)
+	projector := newProjector(mockRealRM)
 
 	event := events.CapabilityRealizationsInherited{
 		CapabilityID: "cap-a",
@@ -298,7 +235,7 @@ func TestRealizationProjector_HandleCapabilityRealizationsInherited_AppliesAll(t
 
 func TestRealizationProjector_HandleCapabilityRealizationsUninherited_AppliesRemovals(t *testing.T) {
 	mockRealRM := &mockRealizationReadModel{}
-	projector := newTestableRealizationProjector(mockRealRM)
+	projector := newProjector(mockRealRM)
 
 	event := events.CapabilityRealizationsUninherited{
 		CapabilityID: "cap-a",
@@ -322,7 +259,7 @@ func TestRealizationProjector_HandleCapabilityRealizationsUninherited_AppliesRem
 
 func TestRealizationProjector_HandleCapabilityRealizationsInherited_StopsOnError(t *testing.T) {
 	mockRealRM := &mockRealizationReadModel{insertInheritedErr: errors.New("insert failed")}
-	projector := newTestableRealizationProjector(mockRealRM)
+	projector := newProjector(mockRealRM)
 
 	event := events.CapabilityRealizationsInherited{
 		CapabilityID: "cap-a",
@@ -340,7 +277,7 @@ func TestRealizationProjector_HandleCapabilityRealizationsInherited_StopsOnError
 
 func TestRealizationProjector_HandleRealizationDeleted_CascadesInheritedDeletion(t *testing.T) {
 	mockRealRM := &mockRealizationReadModel{}
-	projector := newTestableRealizationProjector(mockRealRM)
+	projector := newProjector(mockRealRM)
 
 	event := events.SystemRealizationDeleted{ID: "real-1", DeletedAt: time.Now()}
 	eventData, err := json.Marshal(event)
@@ -355,9 +292,54 @@ func TestRealizationProjector_HandleRealizationDeleted_CascadesInheritedDeletion
 	assert.Equal(t, "real-1", mockRealRM.deletedIDs[0])
 }
 
+func TestRealizationProjector_HandleCapabilityUpdated_UpdatesSourceCapabilityName(t *testing.T) {
+	mockRealRM := &mockRealizationReadModel{}
+	projector := newProjector(mockRealRM)
+
+	event := events.CapabilityUpdated{ID: "cap-1", Name: "Renamed Capability"}
+	eventData, err := json.Marshal(event)
+	require.NoError(t, err)
+
+	err = projector.ProjectEvent(context.Background(), "CapabilityUpdated", eventData)
+	require.NoError(t, err)
+
+	require.Len(t, mockRealRM.updatedSourceCapabilityNames, 1)
+	assert.Equal(t, "cap-1", mockRealRM.updatedSourceCapabilityNames[0].CapabilityID)
+	assert.Equal(t, "Renamed Capability", mockRealRM.updatedSourceCapabilityNames[0].CapabilityName)
+}
+
+func TestRealizationProjector_HandleApplicationComponentUpdated_UpdatesComponentName(t *testing.T) {
+	mockRealRM := &mockRealizationReadModel{}
+	projector := newProjector(mockRealRM)
+
+	eventData, err := json.Marshal(map[string]string{"id": "comp-1", "name": "New Component Name"})
+	require.NoError(t, err)
+
+	err = projector.ProjectEvent(context.Background(), "ApplicationComponentUpdated", eventData)
+	require.NoError(t, err)
+
+	require.Len(t, mockRealRM.updatedComponentNames, 1)
+	assert.Equal(t, "comp-1", mockRealRM.updatedComponentNames[0].ComponentID)
+	assert.Equal(t, "New Component Name", mockRealRM.updatedComponentNames[0].ComponentName)
+}
+
+func TestRealizationProjector_HandleApplicationComponentDeleted_DeletesByComponentID(t *testing.T) {
+	mockRealRM := &mockRealizationReadModel{}
+	projector := newProjector(mockRealRM)
+
+	eventData, err := json.Marshal(map[string]string{"id": "comp-1"})
+	require.NoError(t, err)
+
+	err = projector.ProjectEvent(context.Background(), "ApplicationComponentDeleted", eventData)
+	require.NoError(t, err)
+
+	require.Len(t, mockRealRM.deletedByComponentIDs, 1)
+	assert.Equal(t, "comp-1", mockRealRM.deletedByComponentIDs[0])
+}
+
 func TestRealizationProjector_UnknownEventType_NoOp(t *testing.T) {
 	mockRealRM := &mockRealizationReadModel{}
-	projector := newTestableRealizationProjector(mockRealRM)
+	projector := newProjector(mockRealRM)
 
 	err := projector.ProjectEvent(context.Background(), "UnknownEvent", []byte(`{}`))
 	require.NoError(t, err)

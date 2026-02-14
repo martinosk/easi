@@ -148,6 +148,9 @@ func (h *ChangeCapabilityParentHandler) buildInheritanceChanges(ctx context.Cont
 	if err != nil {
 		return nil, nil, err
 	}
+	if capability == nil {
+		return nil, nil, nil
+	}
 
 	additions, err := h.buildInheritanceAdditions(ctx, newParentID, capabilityID, capability, realizations)
 	if err != nil {
@@ -237,32 +240,7 @@ func (h *ChangeCapabilityParentHandler) buildInheritanceRemovals(ctx context.Con
 }
 
 func (h *ChangeCapabilityParentHandler) collectAncestorIDs(ctx context.Context, startID string) ([]string, error) {
-	if startID == "" {
-		return nil, nil
-	}
-
-	ids := []string{}
-	visited := map[string]struct{}{}
-	currentID := startID
-
-	for currentID != "" {
-		if _, seen := visited[currentID]; seen {
-			break
-		}
-		visited[currentID] = struct{}{}
-		ids = append(ids, currentID)
-
-		capability, err := h.capabilityReadModel.GetByID(ctx, currentID)
-		if err != nil {
-			return nil, err
-		}
-		if capability == nil {
-			break
-		}
-		currentID = capability.ParentID
-	}
-
-	return ids, nil
+	return CollectAncestorIDs(ctx, h.capabilityReadModel, startID)
 }
 
 func resolveSourceRealizationID(realization readmodels.RealizationDTO) string {
@@ -297,7 +275,7 @@ func (h *ChangeCapabilityParentHandler) updateDescendantLevels(ctx context.Conte
 
 	childLevel, err := h.reparentingService.CalculateChildLevel(parentLevel)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	for _, child := range children {
@@ -306,7 +284,10 @@ func (h *ChangeCapabilityParentHandler) updateDescendantLevels(ctx context.Conte
 			return err
 		}
 
-		childParentID, _ := valueobjects.NewCapabilityIDFromString(parentID)
+		childParentID, err := valueobjects.NewCapabilityIDFromString(parentID)
+		if err != nil {
+			return err
+		}
 		if err := childCapability.ChangeParent(childParentID, childLevel); err != nil {
 			return err
 		}

@@ -138,30 +138,5 @@ func (h *RecomputeCapabilityInheritanceHandler) Handle(ctx context.Context, cmd 
 }
 
 func (h *RecomputeCapabilityInheritanceHandler) collectAncestorIDs(ctx context.Context, startID string) ([]string, error) {
-	if startID == "" {
-		return nil, nil
-	}
-
-	ids := []string{}
-	visited := map[string]struct{}{}
-	currentID := startID
-
-	for currentID != "" {
-		if _, seen := visited[currentID]; seen {
-			break
-		}
-		visited[currentID] = struct{}{}
-		ids = append(ids, currentID)
-
-		capability, err := h.capabilityReadModel.GetByID(ctx, currentID)
-		if err != nil {
-			return nil, err
-		}
-		if capability == nil {
-			break
-		}
-		currentID = capability.ParentID
-	}
-
-	return ids, nil
+	return CollectAncestorIDs(ctx, h.capabilityReadModel, startID)
 }

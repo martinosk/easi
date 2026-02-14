@@ -12,13 +12,25 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
+type RealizationProjectorReadModel interface {
+	Insert(ctx context.Context, dto readmodels.RealizationDTO) error
+	InsertInherited(ctx context.Context, dto readmodels.RealizationDTO) error
+	Update(ctx context.Context, id, realizationLevel, notes string) error
+	Delete(ctx context.Context, id string) error
+	DeleteBySourceRealizationID(ctx context.Context, sourceRealizationID string) error
+	DeleteInheritedBySourceRealizationIDAndCapabilities(ctx context.Context, sourceRealizationID string, capabilityIDs []string) error
+	DeleteByComponentID(ctx context.Context, componentID string) error
+	UpdateSourceCapabilityName(ctx context.Context, capabilityID, capabilityName string) error
+	UpdateComponentName(ctx context.Context, componentID, componentName string) error
+}
+
 type RealizationProjector struct {
-	readModel           *readmodels.RealizationReadModel
-	componentGateway    architecturemodeling.ComponentGateway
+	readModel        RealizationProjectorReadModel
+	componentGateway architecturemodeling.ComponentGateway
 }
 
 func NewRealizationProjector(
-	readModel *readmodels.RealizationReadModel,
+	readModel RealizationProjectorReadModel,
 	componentGateway architecturemodeling.ComponentGateway,
 ) *RealizationProjector {
 	return &RealizationProjector{

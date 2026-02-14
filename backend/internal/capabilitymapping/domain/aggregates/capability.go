@@ -166,6 +166,8 @@ func (c *Capability) apply(event domain.DomainEvent) {
 	case events.CapabilityParentChanged:
 		c.applyParentChanged(e)
 	case events.CapabilityDeleted:
+	case events.CapabilityRealizationsInherited:
+	case events.CapabilityRealizationsUninherited:
 	}
 }
 

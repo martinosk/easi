@@ -27,6 +27,7 @@ describe('mutationEffects', () => {
       const effects = capabilitiesMutationEffects.linkSystem({ capabilityId: 'cap-1', componentId: 'comp-1' });
 
       expect(effects).toContainEqual(capabilitiesQueryKeys.realizations('cap-1'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.details());
       expect(effects).toContainEqual(capabilitiesQueryKeys.byComponent('comp-1'));
       expect(effects).toContainEqual(capabilitiesQueryKeys.realizationsByComponents());
       expect(effects).toContainEqual(businessDomainsQueryKeys.details());
@@ -49,16 +50,17 @@ describe('mutationEffects', () => {
       const effects = capabilitiesMutationEffects.deleteRealization({ capabilityId: 'cap-1', componentId: 'comp-1' });
 
       expect(effects).toContainEqual(capabilitiesQueryKeys.realizations('cap-1'));
+      expect(effects).toContainEqual(capabilitiesQueryKeys.details());
       expect(effects).toContainEqual(capabilitiesQueryKeys.byComponent('comp-1'));
       expect(effects).toContainEqual(capabilitiesQueryKeys.realizationsByComponents());
       expect(effects).toContainEqual(businessDomainsQueryKeys.details());
     });
 
-    it('should invalidate domain views so deleted components no longer appear as realizing systems', () => {
+    it('should invalidate ancestor capability details so inherited realizations refresh after cascade deletion', () => {
       const effects = capabilitiesMutationEffects.deleteRealization({ capabilityId: 'any-cap', componentId: 'deleted-comp' });
 
-      const businessDomainDetailsKey = businessDomainsQueryKeys.details();
-      expect(effects).toContainEqual(businessDomainDetailsKey);
+      expect(effects).toContainEqual(capabilitiesQueryKeys.details());
+      expect(effects).toContainEqual(businessDomainsQueryKeys.details());
     });
   });
 

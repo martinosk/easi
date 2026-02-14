@@ -72,6 +72,7 @@ export const capabilitiesMutationEffects = {
 
   linkSystem: (context: { capabilityId: string; componentId: string }) => [
     capabilitiesQueryKeys.realizations(context.capabilityId),
+    capabilitiesQueryKeys.details(),
     capabilitiesQueryKeys.byComponent(context.componentId),
     capabilitiesQueryKeys.realizationsByComponents(),
     businessDomainsQueryKeys.details(),
@@ -86,6 +87,7 @@ export const capabilitiesMutationEffects = {
 
   deleteRealization: (context: { capabilityId: string; componentId: string }) => [
     capabilitiesQueryKeys.realizations(context.capabilityId),
+    capabilitiesQueryKeys.details(),
     capabilitiesQueryKeys.byComponent(context.componentId),
     capabilitiesQueryKeys.realizationsByComponents(),
     businessDomainsQueryKeys.details(),
