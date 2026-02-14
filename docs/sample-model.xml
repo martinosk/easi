@@ -29,6 +29,10 @@
     <element identifier="id-7ad6e8a768eb47e198dc6a451c48be9f" xsi:type="Capability">
       <name xml:lang="en">This is level 5</name>
     </element>
+    <element identifier="id-214c7b5df1a14861bc4928c31f297f62" xsi:type="ValueStream">
+      <name xml:lang="en">Order to cash</name>
+      <documentation xml:lang="en">It's about making money!</documentation>
+    </element>
     <element identifier="id-a3e12e633dd6445681b5ad9214592cb1" xsi:type="BusinessActor">
       <name xml:lang="en">Actor 1</name>
     </element>
@@ -57,6 +61,8 @@
     <relationship identifier="id-53d67efb701b4f6596af1ffcca98cc94" source="id-0478c311d0f24eef8c77b5f8b32eff83" target="id-fe98c4cd6c81485d9036dd9c6261eb81" xsi:type="Triggering" />
     <relationship identifier="id-32fc1021539644878a4d0babaab069e6" source="id-fe98c4cd6c81485d9036dd9c6261eb81" target="id-239fc03386c244b9af58c1341eff806f" xsi:type="Realization" />
     <relationship identifier="id-582bd67982fb469caedf645b21be19d5" source="id-0478c311d0f24eef8c77b5f8b32eff83" target="id-a676638a1b334ca4bc3a0ab76f211259" xsi:type="Realization" />
+    <relationship identifier="id-db1604dd094b46ada41f771c1e4bcce9" source="id-a676638a1b334ca4bc3a0ab76f211259" target="id-214c7b5df1a14861bc4928c31f297f62" xsi:type="Serving" />
+    <relationship identifier="id-d9794704e6a547e9b5b95b9f718dcc7a" source="id-214c7b5df1a14861bc4928c31f297f62" target="id-239fc03386c244b9af58c1341eff806f" xsi:type="Association" />
   </relationships>
   <organizations>
     <item>
@@ -70,6 +76,7 @@
       <item identifierRef="id-f5f0c1021e2e41bc876776313d219e77" />
       <item identifierRef="id-51618f0f0ba34c78953418892b01d4b1" />
       <item identifierRef="id-7ad6e8a768eb47e198dc6a451c48be9f" />
+      <item identifierRef="id-214c7b5df1a14861bc4928c31f297f62" />
     </item>
     <item>
       <label xml:lang="en">Business</label>
@@ -98,10 +105,13 @@
       <item identifierRef="id-53d67efb701b4f6596af1ffcca98cc94" />
       <item identifierRef="id-32fc1021539644878a4d0babaab069e6" />
       <item identifierRef="id-582bd67982fb469caedf645b21be19d5" />
+      <item identifierRef="id-db1604dd094b46ada41f771c1e4bcce9" />
+      <item identifierRef="id-d9794704e6a547e9b5b95b9f718dcc7a" />
     </item>
     <item>
       <label xml:lang="en">Views</label>
       <item identifierRef="id-f3c4d51572624e77a3c9cbc7a99cedc2" />
+      <item identifierRef="id-0e7ae7120d884b3bb65bcecc403446e1" />
     </item>
   </organizations>
   <views>
