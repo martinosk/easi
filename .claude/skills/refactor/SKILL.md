@@ -49,7 +49,7 @@ Run analysis appropriate to the mode. Use [codescene-refactoring.md](codescene-r
 #### Multi-file mode
 
 1. **Glob** for all source files in the directory.
-2. **CodeScene code health** on each file — note any below 9.0.
+2. **CodeScene code health** on each file — note any below 10.0.
 3. **Structural analysis**: Check for:
    - Layer violations (domain importing infrastructure, handler containing business logic)
    - Duplicated patterns across files that indicate a missing abstraction
@@ -71,11 +71,13 @@ Classify each finding into a priority:
 
 | Priority | Criteria | Action |
 |----------|----------|--------|
-| **Critical** | Breaks architectural boundaries, cross-context coupling, data integrity risk | Must fix |
-| **High** | Code health < 4.0, logic in wrong layer, missing domain concept | Should fix |
-| **Nice** | Code health 4.0–8.9, minor pattern violations, style inconsistencies | Fix if time allows |
-| **Polish** | Code health 9.0–9.9, minor duplication or string-heavy args in tests | Fix — aim for 10.0 using table-driven tests or shared helpers |
-| **Skip** | Inherent complexity (event-sourced type switches, domain event constructors with many args), already 10.0 | Leave as-is |
+| **Critical** | Breaks architectural boundaries, cross-context coupling, data integrity risk | Must fix immediately |
+| **High** | Code health < 4.0, logic in wrong layer, missing domain concept | Must fix |
+| **Normal** | Code health 4.0–8.9, minor pattern violations, style inconsistencies | Fix — iterate until resolved |
+| **Polish** | Code health 9.0–9.9, minor duplication or string-heavy args in tests | Fix — iterate until 10.0 using table-driven tests or shared helpers |
+| **Skip** | Inherent complexity (event-sourced type switches, domain event constructors with many args), already 10.0 | Leave as-is, document reason |
+
+**Goal: All files must reach 10.0 Code Health.** Only skip findings that are inherent to the domain model or architectural pattern (see codescene-refactoring.md for examples). For everything else, iterate until resolved.
 
 ### 4. Execute refactoring
 
