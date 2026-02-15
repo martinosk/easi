@@ -8,10 +8,10 @@ import (
 	"net/http"
 
 	"easi/backend/internal/accessdelegation/application/commands"
+	"easi/backend/internal/accessdelegation/application/ports"
 	"easi/backend/internal/accessdelegation/application/readmodels"
 	"easi/backend/internal/accessdelegation/application/services"
 	adPL "easi/backend/internal/accessdelegation/publishedlanguage"
-	authReadModels "easi/backend/internal/auth/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
@@ -26,9 +26,9 @@ type EditGrantHandlerDeps struct {
 	ReadModel     *readmodels.EditGrantReadModel
 	Hateoas       *EditGrantLinks
 	NameResolver  services.ArtifactNameResolver
-	UserReadModel *authReadModels.UserReadModel
-	InvReadModel  *authReadModels.InvitationReadModel
-	DomainChecker *authReadModels.TenantDomainChecker
+	UserLookup    ports.UserEmailLookup
+	InvChecker    ports.InvitationChecker
+	DomainChecker ports.DomainAllowlistChecker
 	EventBus      *events.InMemoryEventBus
 }
 
@@ -354,17 +354,17 @@ func (h *EditGrantHandlers) autoInviteIfNeeded(ctx context.Context, granteeEmail
 }
 
 func (h *EditGrantHandlers) canAutoInvite() bool {
-	return h.deps.UserReadModel != nil && h.deps.InvReadModel != nil && h.deps.EventBus != nil
+	return h.deps.UserLookup != nil && h.deps.InvChecker != nil && h.deps.EventBus != nil
 }
 
 func (h *EditGrantHandlers) granteeAlreadyExists(ctx context.Context, email string) bool {
-	user, err := h.deps.UserReadModel.GetByEmail(ctx, email)
-	if err == nil && user != nil {
+	exists, err := h.deps.UserLookup.ExistsByEmail(ctx, email)
+	if err == nil && exists {
 		return true
 	}
 
-	inv, err := h.deps.InvReadModel.GetAnyPendingByEmail(ctx, email)
-	return err == nil && inv != nil
+	hasPending, err := h.deps.InvChecker.HasPendingByEmail(ctx, email)
+	return err == nil && hasPending
 }
 
 func (h *EditGrantHandlers) isDomainAllowed(ctx context.Context, email string) bool {

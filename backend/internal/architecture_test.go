@@ -24,17 +24,9 @@ var freeImportPackages = map[string]bool{
 }
 
 var allowedCrossBCImports = map[string]string{
-	"architectureviews -> auth/application/readmodels":                "spec-138",
-	"accessdelegation -> architecturemodeling/application/readmodels": "spec-138",
-	"accessdelegation -> architectureviews/application/readmodels":    "spec-138",
-	"accessdelegation -> capabilitymapping/application/readmodels":    "spec-138",
-	"accessdelegation -> auth/application/readmodels":                 "spec-138",
-	"importing -> architecturemodeling/application/commands":          "spec-138",
-	"importing -> capabilitymapping/application/commands":             "spec-138",
-	"importing -> valuestreams/application/commands":                  "spec-138",
-	"platform -> auth/application/commands":                           "platform-internal",
-	"platform -> auth/application/handlers":                           "platform-internal",
-	"platform -> auth/infrastructure/repositories":                    "platform-internal",
+	"platform -> auth/application/commands":        "platform-internal",
+	"platform -> auth/application/handlers":        "platform-internal",
+	"platform -> auth/infrastructure/repositories": "platform-internal",
 }
 
 func isGoSourceFile(info os.FileInfo, path string) bool {

@@ -5,10 +5,10 @@ import (
 
 	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	"easi/backend/internal/architectureviews/application/handlers"
+	"easi/backend/internal/architectureviews/application/ports"
 	"easi/backend/internal/architectureviews/application/projectors"
 	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
-	authReadModels "easi/backend/internal/auth/application/readmodels"
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -42,11 +42,10 @@ func SubscribeEvents(eventBus events.EventBus, commandBus *cqrs.InMemoryCommandB
 	eventBus.Subscribe(archPL.ComponentRelationDeleted, relationDeletedHandler)
 }
 
-func RegisterCommands(commandBus *cqrs.InMemoryCommandBus, eventStore eventstore.EventStore, db *database.TenantAwareDB) {
+func RegisterCommands(commandBus *cqrs.InMemoryCommandBus, eventStore eventstore.EventStore, db *database.TenantAwareDB, userRoleChecker ports.UserRoleChecker) {
 	viewRepo := repositories.NewArchitectureViewRepository(eventStore)
 	layoutRepo := repositories.NewViewLayoutRepository(db)
 	viewReadModel := readmodels.NewArchitectureViewReadModel(db)
-	userReadModel := authReadModels.NewUserReadModel(db)
 
 	commandBus.Register("CreateView", handlers.NewCreateViewHandler(viewRepo, viewReadModel))
 	commandBus.Register("AddComponentToView", handlers.NewAddComponentToViewHandler(viewRepo, layoutRepo))
@@ -61,7 +60,7 @@ func RegisterCommands(commandBus *cqrs.InMemoryCommandBus, eventStore eventstore
 	commandBus.Register("UpdateViewColorScheme", handlers.NewUpdateViewColorSchemeHandler(layoutRepo))
 	commandBus.Register("UpdateElementColor", handlers.NewUpdateElementColorHandler(layoutRepo))
 	commandBus.Register("ClearElementColor", handlers.NewClearElementColorHandler(layoutRepo))
-	commandBus.Register("ChangeViewVisibility", handlers.NewChangeViewVisibilityHandler(viewRepo, userReadModel))
+	commandBus.Register("ChangeViewVisibility", handlers.NewChangeViewVisibilityHandler(viewRepo, userRoleChecker))
 }
 
 type HTTPHandlers struct {

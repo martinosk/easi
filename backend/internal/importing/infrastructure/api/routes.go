@@ -2,9 +2,10 @@ package api
 
 import (
 	"easi/backend/internal/importing/application/handlers"
-	"easi/backend/internal/importing/application/orchestrator"
+	"easi/backend/internal/importing/application/ports"
 	"easi/backend/internal/importing/application/projectors"
 	"easi/backend/internal/importing/application/readmodels"
+	"easi/backend/internal/importing/application/saga"
 	"easi/backend/internal/importing/infrastructure/repositories"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -14,36 +15,40 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func SetupImportingRoutes(
-	r chi.Router,
-	commandBus *cqrs.InMemoryCommandBus,
-	eventStore eventstore.EventStore,
-	eventBus events.EventBus,
-	db *database.TenantAwareDB,
-) error {
-	repository := repositories.NewImportSessionRepository(eventStore)
+type ImportingRoutesDeps struct {
+	CommandBus         *cqrs.InMemoryCommandBus
+	EventStore         eventstore.EventStore
+	EventBus           events.EventBus
+	DB                 *database.TenantAwareDB
+	ComponentGateway   ports.ComponentGateway
+	CapabilityGateway  ports.CapabilityGateway
+	ValueStreamGateway ports.ValueStreamGateway
+}
 
-	readModel := readmodels.NewImportSessionReadModel(db)
+func SetupImportingRoutes(r chi.Router, deps ImportingRoutesDeps) error {
+	repository := repositories.NewImportSessionRepository(deps.EventStore)
+
+	readModel := readmodels.NewImportSessionReadModel(deps.DB)
 
 	projector := projectors.NewImportSessionProjector(readModel)
-	eventBus.Subscribe("ImportSessionCreated", projector)
-	eventBus.Subscribe("ImportStarted", projector)
-	eventBus.Subscribe("ImportProgressUpdated", projector)
-	eventBus.Subscribe("ImportCompleted", projector)
-	eventBus.Subscribe("ImportFailed", projector)
-	eventBus.Subscribe("ImportSessionCancelled", projector)
+	deps.EventBus.Subscribe("ImportSessionCreated", projector)
+	deps.EventBus.Subscribe("ImportStarted", projector)
+	deps.EventBus.Subscribe("ImportProgressUpdated", projector)
+	deps.EventBus.Subscribe("ImportCompleted", projector)
+	deps.EventBus.Subscribe("ImportFailed", projector)
+	deps.EventBus.Subscribe("ImportSessionCancelled", projector)
 
-	importOrchestrator := orchestrator.NewImportOrchestrator(commandBus, repository)
+	importSaga := saga.New(deps.ComponentGateway, deps.CapabilityGateway, deps.ValueStreamGateway)
 
 	createHandler := handlers.NewCreateImportSessionHandler(repository)
-	confirmHandler := handlers.NewConfirmImportHandler(repository, importOrchestrator)
+	confirmHandler := handlers.NewConfirmImportHandler(repository, importSaga)
 	cancelHandler := handlers.NewCancelImportHandler(repository)
 
-	commandBus.Register("CreateImportSession", createHandler)
-	commandBus.Register("ConfirmImport", confirmHandler)
-	commandBus.Register("CancelImport", cancelHandler)
+	deps.CommandBus.Register("CreateImportSession", createHandler)
+	deps.CommandBus.Register("ConfirmImport", confirmHandler)
+	deps.CommandBus.Register("CancelImport", cancelHandler)
 
-	importHandlers := NewImportHandlers(commandBus, readModel)
+	importHandlers := NewImportHandlers(deps.CommandBus, readModel)
 
 	r.Route("/imports", func(r chi.Router) {
 		r.Post("/", importHandlers.CreateImportSession)

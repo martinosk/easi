@@ -8,12 +8,21 @@ import (
 	"easi/backend/docs"
 	adPL "easi/backend/internal/accessdelegation/publishedlanguage"
 	accessdelegationAPI "easi/backend/internal/accessdelegation/infrastructure/api"
+	adServices "easi/backend/internal/accessdelegation/infrastructure/services"
+	archAdapters "easi/backend/internal/architecturemodeling/infrastructure/adapters"
+	archReadModels "easi/backend/internal/architecturemodeling/application/readmodels"
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
+	viewAdapters "easi/backend/internal/architectureviews/infrastructure/adapters"
+	viewReadModels "easi/backend/internal/architectureviews/application/readmodels"
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
 	authProjectors "easi/backend/internal/auth/application/projectors"
-	authAPI "easi/backend/internal/auth/infrastructure/api"
 	authReadModels "easi/backend/internal/auth/application/readmodels"
+	authAdapters "easi/backend/internal/auth/infrastructure/adapters"
+	authAPI "easi/backend/internal/auth/infrastructure/api"
+	capReadModels "easi/backend/internal/capabilitymapping/application/readmodels"
+	capAdapters "easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
+	vsAdapters "easi/backend/internal/valuestreams/infrastructure/adapters"
 	valuestreamsAPI "easi/backend/internal/valuestreams/infrastructure/api"
 	enterpriseArchAPI "easi/backend/internal/enterprisearchitecture/infrastructure/api"
 	importingAPI "easi/backend/internal/importing/infrastructure/api"
@@ -162,9 +171,6 @@ func registerTenantRoutes(r chi.Router, deps routerDependencies) {
 }
 
 func setupAccessDelegation(deps routerDependencies) *accessdelegationAPI.AccessDelegationDependencies {
-	invReadModel := authReadModels.NewInvitationReadModel(deps.db)
-	domainChecker := authReadModels.NewTenantDomainChecker(deps.db)
-
 	adDeps, adErr := accessdelegationAPI.SetupAccessDelegationRoutes(accessdelegationAPI.AccessDelegationRoutesDeps{
 		CommandBus:     deps.commandBus,
 		EventStore:     deps.eventStore,
@@ -172,9 +178,18 @@ func setupAccessDelegation(deps routerDependencies) *accessdelegationAPI.AccessD
 		DB:             deps.db,
 		HATEOAS:        deps.hateoas,
 		AuthMiddleware: deps.authDeps.AuthMiddleware,
-		UserReadModel:  deps.userReadModel,
-		InvReadModel:   invReadModel,
-		DomainChecker:  domainChecker,
+		NameLookups: adServices.ArtifactNameResolverDeps{
+			Capabilities:     capAdapters.NewCapabilityNameAdapter(capReadModels.NewCapabilityReadModel(deps.db)),
+			Components:       archAdapters.NewComponentNameAdapter(archReadModels.NewApplicationComponentReadModel(deps.db)),
+			Views:            viewAdapters.NewViewNameAdapter(viewReadModels.NewArchitectureViewReadModel(deps.db)),
+			Domains:          capAdapters.NewDomainNameAdapter(capReadModels.NewBusinessDomainReadModel(deps.db)),
+			Vendors:          archAdapters.NewVendorNameAdapter(archReadModels.NewVendorReadModel(deps.db)),
+			AcquiredEntities: archAdapters.NewAcquiredEntityNameAdapter(archReadModels.NewAcquiredEntityReadModel(deps.db)),
+			InternalTeams:    archAdapters.NewInternalTeamNameAdapter(archReadModels.NewInternalTeamReadModel(deps.db)),
+		},
+		UserLookup:    authAdapters.NewUserEmailLookupAdapter(deps.userReadModel),
+		InvChecker:    authAdapters.NewInvitationCheckerAdapter(authReadModels.NewInvitationReadModel(deps.db)),
+		DomainChecker: authAdapters.NewDomainAllowlistCheckerAdapter(authReadModels.NewTenantDomainChecker(deps.db)),
 	})
 	mustSetup(adErr, "access delegation routes")
 	return adDeps
@@ -192,7 +207,8 @@ func setupModelingRoutes(r chi.Router, deps routerDependencies) {
 	}), "architecture modeling routes")
 
 	viewsAPI.SubscribeEvents(deps.eventBus, deps.commandBus, deps.db)
-	viewsAPI.RegisterCommands(deps.commandBus, deps.eventStore, deps.db)
+	userRoleChecker := authAdapters.NewUserRoleCheckerAdapter(deps.userReadModel)
+	viewsAPI.RegisterCommands(deps.commandBus, deps.eventStore, deps.db, userRoleChecker)
 	viewHandlers := viewsAPI.NewHTTPHandlers(deps.commandBus, deps.db, deps.hateoas)
 	viewsAPI.RegisterRoutes(r, viewHandlers, deps.authDeps.AuthMiddleware)
 
@@ -248,7 +264,15 @@ func setupDomainRoutes(r chi.Router, deps routerDependencies) {
 
 func setupSupportRoutes(r chi.Router, deps routerDependencies) {
 	mustSetup(releasesAPI.SetupReleasesRoutes(r, deps.db.DB()), "releases routes")
-	mustSetup(importingAPI.SetupImportingRoutes(r, deps.commandBus, deps.eventStore, deps.eventBus, deps.db), "importing routes")
+	mustSetup(importingAPI.SetupImportingRoutes(r, importingAPI.ImportingRoutesDeps{
+		CommandBus:         deps.commandBus,
+		EventStore:         deps.eventStore,
+		EventBus:           deps.eventBus,
+		DB:                 deps.db,
+		ComponentGateway:   archAdapters.NewImportComponentGateway(deps.commandBus),
+		CapabilityGateway:  capAdapters.NewImportCapabilityGateway(deps.commandBus),
+		ValueStreamGateway: vsAdapters.NewImportValueStreamGateway(deps.commandBus),
+	}), "importing routes")
 	sharedAPI.SetupReferenceRoutes(r)
 	mustSetup(audit.SetupAuditRoutes(audit.AuditRoutesDeps{
 		Router:         r,

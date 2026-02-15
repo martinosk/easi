@@ -5,21 +5,21 @@ import (
 	"log"
 
 	"easi/backend/internal/importing/application/commands"
-	"easi/backend/internal/importing/application/orchestrator"
+	"easi/backend/internal/importing/application/saga"
 	"easi/backend/internal/importing/infrastructure/repositories"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
 )
 
 type ConfirmImportHandler struct {
-	repository   *repositories.ImportSessionRepository
-	orchestrator *orchestrator.ImportOrchestrator
+	repository  *repositories.ImportSessionRepository
+	importSaga  *saga.ImportSaga
 }
 
-func NewConfirmImportHandler(repository *repositories.ImportSessionRepository, orch *orchestrator.ImportOrchestrator) *ConfirmImportHandler {
+func NewConfirmImportHandler(repository *repositories.ImportSessionRepository, importSaga *saga.ImportSaga) *ConfirmImportHandler {
 	return &ConfirmImportHandler{
-		repository:   repository,
-		orchestrator: orch,
+		repository: repository,
+		importSaga: importSaga,
 	}
 }
 
@@ -59,10 +59,10 @@ func (h *ConfirmImportHandler) executeImport(ctx context.Context, sessionID stri
 		return
 	}
 
-	_, err = h.orchestrator.Execute(ctx, session)
-	if err != nil {
-		log.Printf("Import execution failed for session %s: %v", sessionID, err)
-		_ = session.Fail(err.Error())
+	result := h.importSaga.Execute(ctx, session.ParsedData(), session.BusinessDomainID(), session.CapabilityEAOwner())
+
+	if err := session.Complete(result); err != nil {
+		log.Printf("Failed to mark import session %s complete: %v", sessionID, err)
 	}
 
 	if err := h.repository.Save(ctx, session); err != nil {

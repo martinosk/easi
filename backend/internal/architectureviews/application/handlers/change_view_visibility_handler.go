@@ -5,10 +5,10 @@ import (
 	"errors"
 
 	"easi/backend/internal/architectureviews/application/commands"
+	"easi/backend/internal/architectureviews/application/ports"
 	"easi/backend/internal/architectureviews/domain/aggregates"
 	"easi/backend/internal/architectureviews/domain/valueobjects"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
-	authReadModels "easi/backend/internal/auth/application/readmodels"
 	"easi/backend/internal/shared/cqrs"
 	sharedctx "easi/backend/internal/shared/context"
 )
@@ -16,17 +16,17 @@ import (
 var ErrNotAuthorizedToChangeVisibility = errors.New("not authorized to change view visibility")
 
 type ChangeViewVisibilityHandler struct {
-	viewRepository *repositories.ArchitectureViewRepository
-	userReadModel  *authReadModels.UserReadModel
+	viewRepository   *repositories.ArchitectureViewRepository
+	userRoleChecker  ports.UserRoleChecker
 }
 
 func NewChangeViewVisibilityHandler(
 	viewRepository *repositories.ArchitectureViewRepository,
-	userReadModel *authReadModels.UserReadModel,
+	userRoleChecker ports.UserRoleChecker,
 ) *ChangeViewVisibilityHandler {
 	return &ChangeViewVisibilityHandler{
-		viewRepository: viewRepository,
-		userReadModel:  userReadModel,
+		viewRepository:  viewRepository,
+		userRoleChecker: userRoleChecker,
 	}
 }
 
@@ -132,12 +132,5 @@ func (h *ChangeViewVisibilityHandler) makeViewPublic(view *aggregates.Architectu
 }
 
 func (h *ChangeViewVisibilityHandler) isActorAdmin(ctx context.Context, actorID string) (bool, error) {
-	user, err := h.userReadModel.GetByIDString(ctx, actorID)
-	if err != nil {
-		return false, err
-	}
-	if user == nil {
-		return false, nil
-	}
-	return user.Role == "admin", nil
+	return h.userRoleChecker.IsAdmin(ctx, actorID)
 }
