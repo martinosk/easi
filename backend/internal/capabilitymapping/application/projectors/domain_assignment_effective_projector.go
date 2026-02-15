@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"easi/backend/internal/capabilitymapping/domain/events"
@@ -25,28 +26,28 @@ func NewDomainAncestryChecker(hierarchy services.CapabilityHierarchyService, dom
 	return &DomainAncestryChecker{hierarchy: hierarchy, domainAssignment: domainAssignment}
 }
 
-func (c *DomainAncestryChecker) IsAncestorInDomain(ctx context.Context, capabilityID, businessDomainID string) bool {
+func (c *DomainAncestryChecker) IsAncestorInDomain(ctx context.Context, capabilityID, businessDomainID string) (bool, error) {
 	capID, err := valueobjects.NewCapabilityIDFromString(capabilityID)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("parse capability ID %s for ancestor domain check: %w", capabilityID, err)
 	}
 
 	l1AncestorID, err := c.hierarchy.FindL1Ancestor(ctx, capID)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("find L1 ancestor for capability %s: %w", capabilityID, err)
 	}
 
 	if l1AncestorID.Value() == "" || l1AncestorID.Value() == capabilityID {
-		return false
+		return false, nil
 	}
 
 	exists, err := c.domainAssignment.AssignmentExists(ctx, businessDomainID, l1AncestorID.Value())
 	if err != nil {
 		log.Printf("Failed to check domain assignment for L1 ancestor %s: %v", l1AncestorID.Value(), err)
-		return false
+		return false, fmt.Errorf("check L1 ancestor domain assignment for capability %s domain %s: %w", capabilityID, businessDomainID, err)
 	}
 
-	return exists
+	return exists, nil
 }
 
 type DomainAssignmentEffectiveProjector struct {
@@ -105,7 +106,12 @@ func (p *DomainAssignmentEffectiveProjector) handleCapabilityUnassignedFromDomai
 		return err
 	}
 
-	if p.ancestryChecker.IsAncestorInDomain(ctx, event.CapabilityID, event.BusinessDomainID) {
+	ancestorInDomain, err := p.ancestryChecker.IsAncestorInDomain(ctx, event.CapabilityID, event.BusinessDomainID)
+	if err != nil {
+		return fmt.Errorf("check ancestor domain assignment for capability %s domain %s: %w", event.CapabilityID, event.BusinessDomainID, err)
+	}
+
+	if ancestorInDomain {
 		return p.recomputeForAllActivePillars(ctx, event.CapabilityID, event.BusinessDomainID)
 	}
 
@@ -116,16 +122,21 @@ func (p *DomainAssignmentEffectiveProjector) recomputeForAllActivePillars(ctx co
 	pillars, err := p.pillarsGateway.GetStrategyPillars(ctx)
 	if err != nil {
 		log.Printf("Failed to get strategy pillars: %v", err)
-		return err
+		return fmt.Errorf("get strategy pillars while recomputing capability %s domain %s: %w", capabilityID, businessDomainID, err)
 	}
 
 	for _, pillar := range pillars.Pillars {
 		if !pillar.Active {
 			continue
 		}
-		if err := p.recomputer.RecomputeCapabilityAndDescendants(ctx, capabilityID, pillar.ID, businessDomainID); err != nil {
+		if err := p.recomputer.RecomputeCapabilityAndDescendants(ctx, ImportanceScope{
+			CapabilityID:     capabilityID,
+			PillarID:         pillar.ID,
+			BusinessDomainID: businessDomainID,
+		}); err != nil {
 			log.Printf("Failed to recompute capability %s for pillar %s domain %s: %v",
 				capabilityID, pillar.ID, businessDomainID, err)
+			return fmt.Errorf("recompute effective importance for capability %s pillar %s domain %s: %w", capabilityID, pillar.ID, businessDomainID, err)
 		}
 	}
 

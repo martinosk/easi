@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
@@ -117,6 +118,7 @@ func (p *EnterpriseCapabilityLinkProjector) recomputeBlockingForSubtree(ctx cont
 	for _, link := range links {
 		if err := p.computeBlocking(ctx, link.DomainCapabilityID, link.EnterpriseCapabilityID); err != nil {
 			log.Printf("Failed to recompute blocking for link %s: %v", link.ID, err)
+			return fmt.Errorf("recompute blocking for link %s (domain %s enterprise %s): %w", link.ID, link.DomainCapabilityID, link.EnterpriseCapabilityID, err)
 		}
 	}
 
@@ -131,25 +133,32 @@ type blockingContext struct {
 }
 
 func (p *EnterpriseCapabilityLinkProjector) computeBlocking(ctx context.Context, domainCapabilityID, enterpriseCapabilityID string) error {
-	bc := p.buildBlockingContext(ctx, domainCapabilityID, enterpriseCapabilityID)
+	bc, err := p.buildBlockingContext(ctx, domainCapabilityID, enterpriseCapabilityID)
+	if err != nil {
+		return err
+	}
 
-	p.insertBlockingForAncestors(ctx, bc)
-	p.insertBlockingForDescendants(ctx, bc)
+	if err := p.insertBlockingForAncestors(ctx, bc); err != nil {
+		return err
+	}
+	if err := p.insertBlockingForDescendants(ctx, bc); err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func (p *EnterpriseCapabilityLinkProjector) buildBlockingContext(ctx context.Context, domainCapabilityID, enterpriseCapabilityID string) blockingContext {
+func (p *EnterpriseCapabilityLinkProjector) buildBlockingContext(ctx context.Context, domainCapabilityID, enterpriseCapabilityID string) (blockingContext, error) {
 	capabilityName, err := p.readModel.GetCapabilityName(ctx, domainCapabilityID)
 	if err != nil {
 		log.Printf("Failed to get capability name for %s: %v", domainCapabilityID, err)
-		capabilityName = domainCapabilityID
+		return blockingContext{}, fmt.Errorf("build blocking context names for domain %s enterprise %s: %w", domainCapabilityID, enterpriseCapabilityID, err)
 	}
 
 	enterpriseName, err := p.readModel.GetEnterpriseCapabilityName(ctx, enterpriseCapabilityID)
 	if err != nil {
 		log.Printf("Failed to get enterprise capability name for %s: %v", enterpriseCapabilityID, err)
-		enterpriseName = enterpriseCapabilityID
+		return blockingContext{}, fmt.Errorf("build blocking context names for domain %s enterprise %s: %w", domainCapabilityID, enterpriseCapabilityID, err)
 	}
 
 	return blockingContext{
@@ -157,28 +166,28 @@ func (p *EnterpriseCapabilityLinkProjector) buildBlockingContext(ctx context.Con
 		enterpriseCapabilityID: enterpriseCapabilityID,
 		capabilityName:         capabilityName,
 		enterpriseName:         enterpriseName,
-	}
+	}, nil
 }
 
-func (p *EnterpriseCapabilityLinkProjector) insertBlockingForAncestors(ctx context.Context, bc blockingContext) {
+func (p *EnterpriseCapabilityLinkProjector) insertBlockingForAncestors(ctx context.Context, bc blockingContext) error {
 	ancestorIDs, err := p.readModel.GetAncestorIDs(ctx, bc.domainCapabilityID)
 	if err != nil {
 		log.Printf("Failed to get ancestors for capability %s: %v", bc.domainCapabilityID, err)
-		return
+		return fmt.Errorf("load ancestors for capability %s while computing blocking: %w", bc.domainCapabilityID, err)
 	}
-	p.insertBlockingRecords(ctx, bc, ancestorIDs, false)
+	return p.insertBlockingRecords(ctx, bc, ancestorIDs, false)
 }
 
-func (p *EnterpriseCapabilityLinkProjector) insertBlockingForDescendants(ctx context.Context, bc blockingContext) {
+func (p *EnterpriseCapabilityLinkProjector) insertBlockingForDescendants(ctx context.Context, bc blockingContext) error {
 	descendantIDs, err := p.readModel.GetDescendantIDs(ctx, bc.domainCapabilityID)
 	if err != nil {
 		log.Printf("Failed to get descendants for capability %s: %v", bc.domainCapabilityID, err)
-		return
+		return fmt.Errorf("load descendants for capability %s while computing blocking: %w", bc.domainCapabilityID, err)
 	}
-	p.insertBlockingRecords(ctx, bc, descendantIDs, true)
+	return p.insertBlockingRecords(ctx, bc, descendantIDs, true)
 }
 
-func (p *EnterpriseCapabilityLinkProjector) insertBlockingRecords(ctx context.Context, bc blockingContext, relativeIDs []string, isAncestor bool) {
+func (p *EnterpriseCapabilityLinkProjector) insertBlockingRecords(ctx context.Context, bc blockingContext, relativeIDs []string, isAncestor bool) error {
 	for _, relativeID := range relativeIDs {
 		blocking := readmodels.BlockingDTO{
 			DomainCapabilityID:      relativeID,
@@ -190,6 +199,9 @@ func (p *EnterpriseCapabilityLinkProjector) insertBlockingRecords(ctx context.Co
 		}
 		if err := p.readModel.InsertBlocking(ctx, blocking); err != nil {
 			log.Printf("Failed to insert blocking for %s: %v", relativeID, err)
+			return fmt.Errorf("insert blocking record for relative capability %s blocked by %s: %w", relativeID, bc.domainCapabilityID, err)
 		}
 	}
+
+	return nil
 }

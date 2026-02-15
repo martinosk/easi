@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"easi/backend/internal/capabilitymapping/application/readmodels"
@@ -65,9 +66,13 @@ func (m *mockEffectiveBDStore) UpdateBusinessDomainForL1Subtree(ctx context.Cont
 
 type mockBDNameProvider struct {
 	domains map[string]*readmodels.BusinessDomainDTO
+	err    error
 }
 
 func (m *mockBDNameProvider) GetByID(ctx context.Context, id string) (*readmodels.BusinessDomainDTO, error) {
+	if m != nil && m.err != nil {
+		return nil, m.err
+	}
 	if m == nil || m.domains == nil {
 		return nil, nil
 	}
@@ -80,13 +85,61 @@ func (m *mockBDNameProvider) GetByID(ctx context.Context, id string) (*readmodel
 
 type mockCapabilityChildProvider struct {
 	children map[string][]readmodels.CapabilityDTO
+	err      error
 }
 
 func (m *mockCapabilityChildProvider) GetChildren(ctx context.Context, parentID string) ([]readmodels.CapabilityDTO, error) {
+	if m != nil && m.err != nil {
+		return nil, m.err
+	}
 	if m == nil || m.children == nil {
 		return nil, nil
 	}
 	return m.children[parentID], nil
+}
+
+func TestEffectiveBusinessDomainProjector_CapabilityCreated_ParentLookupError_ReturnsError(t *testing.T) {
+	store := &mockEffectiveBDStore{}
+	store.rows = map[string]*readmodels.CMEffectiveBusinessDomainDTO{}
+	projector := NewEffectiveBusinessDomainProjector(store, nil, nil)
+
+	eventData, err := json.Marshal(events.NewCapabilityCreated("child-l2", "Sub-Payments", "", "parent-l1", "L2"))
+	require.NoError(t, err)
+
+	storeGetErr := errors.New("db read failed")
+	storeWithErr := &mockEffectiveBDStoreWithGetErr{mockEffectiveBDStore: *store, getErr: storeGetErr}
+	projector = NewEffectiveBusinessDomainProjector(storeWithErr, nil, nil)
+
+	err = projector.ProjectEvent(context.Background(), "CapabilityCreated", eventData)
+	assert.Error(t, err)
+}
+
+func TestEffectiveBusinessDomainProjector_CapabilityAssignedToDomain_BusinessDomainLookupError_ReturnsError(t *testing.T) {
+	store := &mockEffectiveBDStore{
+		rows: map[string]*readmodels.CMEffectiveBusinessDomainDTO{
+			"l1-root": {CapabilityID: "l1-root", L1CapabilityID: "l1-root", BusinessDomainID: "bd-99", BusinessDomainName: "Marketing"},
+		},
+	}
+	bdProvider := &mockBDNameProvider{err: errors.New("lookup failed")}
+	projector := NewEffectiveBusinessDomainProjector(store, bdProvider, nil)
+
+	eventData, err := json.Marshal(events.NewCapabilityAssignedToDomain("a-1", "bd-99", "l1-root"))
+	require.NoError(t, err)
+
+	err = projector.ProjectEvent(context.Background(), "CapabilityAssignedToDomain", eventData)
+	assert.Error(t, err)
+}
+
+type mockEffectiveBDStoreWithGetErr struct {
+	mockEffectiveBDStore
+	getErr error
+}
+
+func (m *mockEffectiveBDStoreWithGetErr) GetByCapabilityID(ctx context.Context, capabilityID string) (*readmodels.CMEffectiveBusinessDomainDTO, error) {
+	if m.getErr != nil {
+		return nil, m.getErr
+	}
+	return m.mockEffectiveBDStore.GetByCapabilityID(ctx, capabilityID)
 }
 
 func projectEvent(t *testing.T, p *EffectiveBusinessDomainProjector, eventType string, event any) {

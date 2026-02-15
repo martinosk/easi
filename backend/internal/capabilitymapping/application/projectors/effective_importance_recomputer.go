@@ -2,6 +2,7 @@ package projectors
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -9,9 +10,15 @@ import (
 	"easi/backend/internal/capabilitymapping/domain/events"
 	"easi/backend/internal/capabilitymapping/domain/services"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
-	domain "easi/backend/internal/shared/eventsourcing"
 	sharedEvents "easi/backend/internal/shared/events"
+	domain "easi/backend/internal/shared/eventsourcing"
 )
+
+type ImportanceScope struct {
+	CapabilityID     string
+	PillarID         string
+	BusinessDomainID string
+}
 
 type EffectiveImportanceRecomputer struct {
 	effectiveReadModel *readmodels.EffectiveCapabilityImportanceReadModel
@@ -34,19 +41,27 @@ func NewEffectiveImportanceRecomputer(
 	}
 }
 
-func (r *EffectiveImportanceRecomputer) RecomputeCapabilityAndDescendants(ctx context.Context, capabilityID, pillarID, businessDomainID string) error {
-	if err := r.recomputeSingleCapability(ctx, capabilityID, pillarID, businessDomainID); err != nil {
+func (r *EffectiveImportanceRecomputer) RecomputeCapabilityAndDescendants(ctx context.Context, scope ImportanceScope) error {
+	if err := r.recomputeSingleCapability(ctx, scope); err != nil {
 		return err
 	}
 
-	return r.ForEachDescendant(ctx, capabilityID, func(descendantID string) {
-		if err := r.recomputeSingleCapability(ctx, descendantID, pillarID, businessDomainID); err != nil {
-			log.Printf("Failed to recompute descendant %s: %v", descendantID, err)
+	return r.ForEachDescendant(ctx, scope.CapabilityID, func(descendantID string) error {
+		descendantScope := ImportanceScope{
+			CapabilityID:     descendantID,
+			PillarID:         scope.PillarID,
+			BusinessDomainID: scope.BusinessDomainID,
 		}
+		if err := r.recomputeSingleCapability(ctx, descendantScope); err != nil {
+			log.Printf("Failed to recompute descendant %s: %v", descendantID, err)
+			return fmt.Errorf("recompute descendant %s (root %s, pillar %s, domain %s): %w",
+				descendantID, scope.CapabilityID, scope.PillarID, scope.BusinessDomainID, err)
+		}
+		return nil
 	})
 }
 
-func (r *EffectiveImportanceRecomputer) ForEachDescendant(ctx context.Context, capabilityID string, fn func(descendantID string)) error {
+func (r *EffectiveImportanceRecomputer) ForEachDescendant(ctx context.Context, capabilityID string, fn func(descendantID string) error) error {
 	capID, err := valueobjects.NewCapabilityIDFromString(capabilityID)
 	if err != nil {
 		return err
@@ -59,60 +74,61 @@ func (r *EffectiveImportanceRecomputer) ForEachDescendant(ctx context.Context, c
 	}
 
 	for _, descendantID := range descendants {
-		fn(descendantID.Value())
+		if err := fn(descendantID.Value()); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (r *EffectiveImportanceRecomputer) recomputeSingleCapability(ctx context.Context, capabilityID, pillarID, businessDomainID string) error {
-	resolved, err := r.resolveImportance(ctx, capabilityID, pillarID, businessDomainID)
+func (r *EffectiveImportanceRecomputer) recomputeSingleCapability(ctx context.Context, scope ImportanceScope) error {
+	resolved, err := r.resolveImportance(ctx, scope)
 	if err != nil {
 		return err
 	}
 
 	if resolved == nil {
-		return r.effectiveReadModel.Delete(ctx, capabilityID, pillarID, businessDomainID)
+		return r.effectiveReadModel.Delete(ctx, scope.CapabilityID, scope.PillarID, scope.BusinessDomainID)
 	}
 
-	dto := r.buildDTO(capabilityID, pillarID, businessDomainID, resolved)
+	dto := r.buildDTO(scope, resolved)
 	if err := r.effectiveReadModel.Upsert(ctx, dto); err != nil {
 		return err
 	}
 
-	r.publishRecalculatedEvent(ctx, dto)
-	return nil
+	return r.publishRecalculatedEvent(ctx, dto)
 }
 
-func (r *EffectiveImportanceRecomputer) resolveImportance(ctx context.Context, capabilityID, pillarID, businessDomainID string) (*services.ResolvedRating, error) {
-	capID, err := valueobjects.NewCapabilityIDFromString(capabilityID)
+func (r *EffectiveImportanceRecomputer) resolveImportance(ctx context.Context, scope ImportanceScope) (*services.ResolvedRating, error) {
+	capID, err := valueobjects.NewCapabilityIDFromString(scope.CapabilityID)
 	if err != nil {
 		return nil, err
 	}
 
-	pillarVo, err := valueobjects.NewPillarIDFromString(pillarID)
+	pillarVo, err := valueobjects.NewPillarIDFromString(scope.PillarID)
 	if err != nil {
 		return nil, err
 	}
 
-	domainVo, err := valueobjects.NewBusinessDomainIDFromString(businessDomainID)
+	domainVo, err := valueobjects.NewBusinessDomainIDFromString(scope.BusinessDomainID)
 	if err != nil {
 		return nil, err
 	}
 
 	resolved, err := r.ratingResolver.ResolveEffectiveImportance(ctx, capID, pillarVo, domainVo)
 	if err != nil {
-		log.Printf("Failed to resolve effective importance for capability %s: %v", capabilityID, err)
+		log.Printf("Failed to resolve effective importance for capability %s: %v", scope.CapabilityID, err)
 		return nil, err
 	}
 	return resolved, nil
 }
 
-func (r *EffectiveImportanceRecomputer) buildDTO(capabilityID, pillarID, businessDomainID string, resolved *services.ResolvedRating) readmodels.EffectiveImportanceDTO {
+func (r *EffectiveImportanceRecomputer) buildDTO(scope ImportanceScope, resolved *services.ResolvedRating) readmodels.EffectiveImportanceDTO {
 	return readmodels.EffectiveImportanceDTO{
-		CapabilityID:         capabilityID,
-		PillarID:             pillarID,
-		BusinessDomainID:     businessDomainID,
+		CapabilityID:         scope.CapabilityID,
+		PillarID:             scope.PillarID,
+		BusinessDomainID:     scope.BusinessDomainID,
 		EffectiveImportance:  resolved.EffectiveImportance.Importance().Value(),
 		ImportanceLabel:      resolved.EffectiveImportance.Importance().Label(),
 		SourceCapabilityID:   resolved.EffectiveImportance.SourceCapabilityID().Value(),
@@ -126,23 +142,30 @@ func (r *EffectiveImportanceRecomputer) buildDTO(capabilityID, pillarID, busines
 func (r *EffectiveImportanceRecomputer) DeleteCapabilityAndDescendants(ctx context.Context, capabilityID, businessDomainID string) error {
 	if err := r.effectiveReadModel.Delete(ctx, capabilityID, "", businessDomainID); err != nil {
 		log.Printf("Failed to delete effective importance for capability %s: %v", capabilityID, err)
+		return fmt.Errorf("delete effective importance for capability %s domain %s: %w", capabilityID, businessDomainID, err)
 	}
 
-	return r.ForEachDescendant(ctx, capabilityID, func(descendantID string) {
+	return r.ForEachDescendant(ctx, capabilityID, func(descendantID string) error {
 		if err := r.effectiveReadModel.Delete(ctx, descendantID, "", businessDomainID); err != nil {
 			log.Printf("Failed to delete effective importance for descendant %s: %v", descendantID, err)
+			return fmt.Errorf("delete effective importance for descendant %s domain %s: %w", descendantID, businessDomainID, err)
 		}
+		return nil
 	})
 }
 
-func (r *EffectiveImportanceRecomputer) publishRecalculatedEvent(ctx context.Context, dto readmodels.EffectiveImportanceDTO) {
+func (r *EffectiveImportanceRecomputer) publishRecalculatedEvent(ctx context.Context, dto readmodels.EffectiveImportanceDTO) error {
 	if r.eventBus == nil {
-		return
+		return nil
 	}
 	recalcEvent := events.NewEffectiveImportanceRecalculated(
 		dto.CapabilityID, dto.BusinessDomainID, dto.PillarID, dto.EffectiveImportance,
 	)
 	if err := r.eventBus.Publish(ctx, []domain.DomainEvent{recalcEvent}); err != nil {
 		log.Printf("Failed to publish EffectiveImportanceRecalculated event for capability %s: %v", dto.CapabilityID, err)
+		return fmt.Errorf("publish EffectiveImportanceRecalculated for capability %s pillar %s domain %s: %w",
+			dto.CapabilityID, dto.PillarID, dto.BusinessDomainID, err)
 	}
+
+	return nil
 }

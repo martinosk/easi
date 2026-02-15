@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"easi/backend/internal/capabilitymapping/application/readmodels"
@@ -82,9 +83,14 @@ func (p *HierarchyChangeEffectiveProjector) recomputeFromEffectiveImportances(ct
 		}
 		seen[key] = true
 
-		if err := p.recomputer.RecomputeCapabilityAndDescendants(ctx, targetCapabilityID, ei.PillarID, ei.BusinessDomainID); err != nil {
+		if err := p.recomputer.RecomputeCapabilityAndDescendants(ctx, ImportanceScope{
+			CapabilityID:     targetCapabilityID,
+			PillarID:         ei.PillarID,
+			BusinessDomainID: ei.BusinessDomainID,
+		}); err != nil {
 			log.Printf("Failed to recompute capability %s for pillar %s domain %s: %v",
 				targetCapabilityID, ei.PillarID, ei.BusinessDomainID, err)
+			return fmt.Errorf("recompute from effective importance for target %s pillar %s domain %s: %w", targetCapabilityID, ei.PillarID, ei.BusinessDomainID, err)
 		}
 	}
 
@@ -104,7 +110,7 @@ func (p *HierarchyChangeEffectiveProjector) handleCapabilityDeleted(ctx context.
 	}
 	if capabilityID == "" {
 		log.Printf("CapabilityDeleted event missing capabilityId")
-		return nil
+		return fmt.Errorf("CapabilityDeleted payload missing capability identifier")
 	}
 
 	return p.effectiveReadModel.DeleteByCapability(ctx, capabilityID)

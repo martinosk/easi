@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"easi/backend/internal/capabilitymapping/application/readmodels"
@@ -87,6 +88,7 @@ func (p *EffectiveBusinessDomainProjector) handleCapabilityCreated(ctx context.C
 		parentBD, err := p.store.GetByCapabilityID(ctx, event.ParentID)
 		if err != nil {
 			log.Printf("Failed to get parent effective BD for %s: %v", event.ParentID, err)
+			return fmt.Errorf("load parent effective business domain for capability %s parent %s: %w", event.ID, event.ParentID, err)
 		} else if parentBD != nil {
 			l1CapabilityID = parentBD.L1CapabilityID
 			businessDomainID = parentBD.BusinessDomainID
@@ -146,23 +148,27 @@ func (p *EffectiveBusinessDomainProjector) resolveL1AndBD(ctx context.Context, c
 	return capabilityID, "", ""
 }
 
-func (p *EffectiveBusinessDomainProjector) collectSubtreeIDs(ctx context.Context, rootID string) []string {
+func (p *EffectiveBusinessDomainProjector) collectSubtreeIDs(ctx context.Context, rootID string) ([]string, error) {
 	result := []string{rootID}
 	if p.capProvider == nil {
-		return result
+		return result, nil
 	}
 
 	children, err := p.capProvider.GetChildren(ctx, rootID)
 	if err != nil {
 		log.Printf("Failed to get children for %s: %v", rootID, err)
-		return result
+		return nil, fmt.Errorf("collect subtree children for capability %s: %w", rootID, err)
 	}
 
 	for _, child := range children {
-		result = append(result, p.collectSubtreeIDs(ctx, child.ID)...)
+		childIDs, childErr := p.collectSubtreeIDs(ctx, child.ID)
+		if childErr != nil {
+			return nil, childErr
+		}
+		result = append(result, childIDs...)
 	}
 
-	return result
+	return result, nil
 }
 
 type capLevelChangedEvent struct {
@@ -187,8 +193,12 @@ func (p *EffectiveBusinessDomainProjector) handleCapabilityLevelChanged(ctx cont
 
 func (p *EffectiveBusinessDomainProjector) updateSubtreeEffectiveBD(ctx context.Context, capabilityID, parentID, newLevel string) error {
 	newL1, bdID, bdName := p.resolveL1AndBD(ctx, capabilityID, parentID, newLevel)
+	subtreeIDs, err := p.collectSubtreeIDs(ctx, capabilityID)
+	if err != nil {
+		return err
+	}
 
-	for _, id := range p.collectSubtreeIDs(ctx, capabilityID) {
+	for _, id := range subtreeIDs {
 		if err := p.store.Upsert(ctx, readmodels.CMEffectiveBusinessDomainDTO{
 			CapabilityID:       id,
 			L1CapabilityID:     newL1,
@@ -219,6 +229,7 @@ func (p *EffectiveBusinessDomainProjector) handleCapabilityAssignedToDomain(ctx 
 		bd, err := p.bdProvider.GetByID(ctx, event.BusinessDomainID)
 		if err != nil {
 			log.Printf("Failed to look up business domain %s: %v", event.BusinessDomainID, err)
+			return fmt.Errorf("lookup business domain %s for capability %s assignment: %w", event.BusinessDomainID, event.CapabilityID, err)
 		} else if bd != nil {
 			bdName = bd.Name
 		}

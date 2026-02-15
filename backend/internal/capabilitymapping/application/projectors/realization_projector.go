@@ -70,8 +70,8 @@ func (p *RealizationProjector) ProjectEvent(ctx context.Context, eventType strin
 }
 
 func (p *RealizationProjector) handleSystemLinked(ctx context.Context, eventData []byte) error {
-	var event events.SystemLinkedToCapability
-	if err := unmarshalEvent(eventData, &event, "SystemLinkedToCapability"); err != nil {
+	event, err := unmarshalEvent[events.SystemLinkedToCapability](eventData)
+	if err != nil {
 		return err
 	}
 
@@ -107,8 +107,8 @@ func (p *RealizationProjector) lookupComponentName(ctx context.Context, componen
 }
 
 func (p *RealizationProjector) handleRealizationUpdated(ctx context.Context, eventData []byte) error {
-	var event events.SystemRealizationUpdated
-	if err := unmarshalEvent(eventData, &event, "SystemRealizationUpdated"); err != nil {
+	event, err := unmarshalEvent[events.SystemRealizationUpdated](eventData)
+	if err != nil {
 		return err
 	}
 	return p.readModel.Update(ctx, readmodels.RealizationUpdate{
@@ -119,8 +119,8 @@ func (p *RealizationProjector) handleRealizationUpdated(ctx context.Context, eve
 }
 
 func (p *RealizationProjector) handleRealizationDeleted(ctx context.Context, eventData []byte) error {
-	var event events.SystemRealizationDeleted
-	if err := unmarshalEvent(eventData, &event, "SystemRealizationDeleted"); err != nil {
+	event, err := unmarshalEvent[events.SystemRealizationDeleted](eventData)
+	if err != nil {
 		return err
 	}
 	if err := p.readModel.DeleteBySourceRealizationID(ctx, event.ID); err != nil {
@@ -129,17 +129,9 @@ func (p *RealizationProjector) handleRealizationDeleted(ctx context.Context, eve
 	return p.readModel.Delete(ctx, event.ID)
 }
 
-func unmarshalEvent(data []byte, v interface{}, eventType string) error {
-	if err := json.Unmarshal(data, v); err != nil {
-		log.Printf("Failed to unmarshal %s event: %v", eventType, err)
-		return err
-	}
-	return nil
-}
-
 func (p *RealizationProjector) handleCapabilityRealizationsInherited(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityRealizationsInherited
-	if err := unmarshalEvent(eventData, &event, "CapabilityRealizationsInherited"); err != nil {
+	event, err := unmarshalEvent[events.CapabilityRealizationsInherited](eventData)
+	if err != nil {
 		return err
 	}
 
@@ -165,8 +157,8 @@ func (p *RealizationProjector) handleCapabilityRealizationsInherited(ctx context
 }
 
 func (p *RealizationProjector) handleCapabilityRealizationsUninherited(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityRealizationsUninherited
-	if err := unmarshalEvent(eventData, &event, "CapabilityRealizationsUninherited"); err != nil {
+	event, err := unmarshalEvent[events.CapabilityRealizationsUninherited](eventData)
+	if err != nil {
 		return err
 	}
 
@@ -183,8 +175,8 @@ func (p *RealizationProjector) handleCapabilityRealizationsUninherited(ctx conte
 }
 
 func (p *RealizationProjector) handleCapabilityUpdated(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityUpdated
-	if err := unmarshalEvent(eventData, &event, "CapabilityUpdated"); err != nil {
+	event, err := unmarshalEvent[events.CapabilityUpdated](eventData)
+	if err != nil {
 		return err
 	}
 	return p.readModel.UpdateSourceCapabilityName(ctx, readmodels.NameUpdate{ID: event.ID, Name: event.Name})
@@ -200,16 +192,16 @@ type applicationComponentDeletedEvent struct {
 }
 
 func (p *RealizationProjector) handleApplicationComponentUpdated(ctx context.Context, eventData []byte) error {
-	var event applicationComponentUpdatedEvent
-	if err := unmarshalEvent(eventData, &event, "ApplicationComponentUpdated"); err != nil {
+	event, err := unmarshalEvent[applicationComponentUpdatedEvent](eventData)
+	if err != nil {
 		return err
 	}
 	return p.readModel.UpdateComponentName(ctx, readmodels.NameUpdate{ID: event.ID, Name: event.Name})
 }
 
 func (p *RealizationProjector) handleApplicationComponentDeleted(ctx context.Context, eventData []byte) error {
-	var event applicationComponentDeletedEvent
-	if err := unmarshalEvent(eventData, &event, "ApplicationComponentDeleted"); err != nil {
+	event, err := unmarshalEvent[applicationComponentDeletedEvent](eventData)
+	if err != nil {
 		return err
 	}
 	return p.readModel.DeleteByComponentID(ctx, event.ID)

@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"easi/backend/internal/capabilitymapping/application/readmodels"
@@ -63,7 +64,7 @@ func (p *BusinessDomainAssignmentProjector) handleCapabilityAssignedToDomain(ctx
 	}
 	if domain == nil {
 		log.Printf("Business domain not found: %s", event.BusinessDomainID)
-		return nil
+		return fmt.Errorf("business domain %s not found while handling CapabilityAssignedToDomain", event.BusinessDomainID)
 	}
 
 	capability, err := p.capabilityReadModel.GetByID(ctx, event.CapabilityID)
@@ -73,7 +74,7 @@ func (p *BusinessDomainAssignmentProjector) handleCapabilityAssignedToDomain(ctx
 	}
 	if capability == nil {
 		log.Printf("Capability not found: %s", event.CapabilityID)
-		return nil
+		return fmt.Errorf("capability %s not found while handling CapabilityAssignedToDomain", event.CapabilityID)
 	}
 
 	dto := readmodels.AssignmentDTO{

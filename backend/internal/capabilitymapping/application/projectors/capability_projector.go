@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"easi/backend/internal/capabilitymapping/application/readmodels"
@@ -31,17 +32,23 @@ func (p *CapabilityProjector) Handle(ctx context.Context, event domain.DomainEve
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
 
+func projectionHandler[T any](project func(context.Context, T) error) func(context.Context, []byte) error {
+	return func(ctx context.Context, eventData []byte) error {
+		return handleProjection(ctx, eventData, project)
+	}
+}
+
 func (p *CapabilityProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	handlers := map[string]func(context.Context, []byte) error{
-		"CapabilityCreated":         p.handleCapabilityCreated,
+		"CapabilityCreated":         projectionHandler(p.projectCreated),
 		"CapabilityUpdated":         p.handleCapabilityUpdated,
-		"CapabilityMetadataUpdated": p.handleCapabilityMetadataUpdated,
-		"CapabilityExpertAdded":     p.handleCapabilityExpertAdded,
-		"CapabilityExpertRemoved":   p.handleCapabilityExpertRemoved,
-		"CapabilityTagAdded":        p.handleCapabilityTagAdded,
-		"CapabilityParentChanged":   p.handleCapabilityParentChanged,
-		"CapabilityLevelChanged":    p.handleCapabilityLevelChanged,
-		"CapabilityDeleted":         p.handleCapabilityDeleted,
+		"CapabilityMetadataUpdated": projectionHandler(p.projectMetadataUpdated),
+		"CapabilityExpertAdded":     projectionHandler(p.projectExpertAdded),
+		"CapabilityExpertRemoved":   projectionHandler(p.projectExpertRemoved),
+		"CapabilityTagAdded":        projectionHandler(p.projectTagAdded),
+		"CapabilityParentChanged":   projectionHandler(p.projectParentChanged),
+		"CapabilityLevelChanged":    projectionHandler(p.projectLevelChanged),
+		"CapabilityDeleted":         projectionHandler(p.projectDeleted),
 	}
 
 	if handler, exists := handlers[eventType]; exists {
@@ -50,28 +57,36 @@ func (p *CapabilityProjector) ProjectEvent(ctx context.Context, eventType string
 	return nil
 }
 
-func (p *CapabilityProjector) handleCapabilityCreated(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityCreated
+func unmarshalEvent[T any](eventData []byte) (T, error) {
+	var event T
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityCreated event: %v", err)
+		return event, fmt.Errorf("unmarshal %T: %w", event, err)
+	}
+	return event, nil
+}
+
+func handleProjection[T any](ctx context.Context, eventData []byte, project func(context.Context, T) error) error {
+	event, err := unmarshalEvent[T](eventData)
+	if err != nil {
 		return err
 	}
+	return project(ctx, event)
+}
 
-	dto := readmodels.CapabilityDTO{
+func (p *CapabilityProjector) projectCreated(ctx context.Context, event events.CapabilityCreated) error {
+	return p.readModel.Insert(ctx, readmodels.CapabilityDTO{
 		ID:          event.ID,
 		Name:        event.Name,
 		Description: event.Description,
 		ParentID:    event.ParentID,
 		Level:       event.Level,
 		CreatedAt:   event.CreatedAt,
-	}
-	return p.readModel.Insert(ctx, dto)
+	})
 }
 
 func (p *CapabilityProjector) handleCapabilityUpdated(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityUpdated
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityUpdated event: %v", err)
+	event, err := unmarshalEvent[events.CapabilityUpdated](eventData)
+	if err != nil {
 		return err
 	}
 
@@ -90,7 +105,7 @@ func (p *CapabilityProjector) handleCapabilityUpdated(ctx context.Context, event
 	}
 	if capability == nil {
 		log.Printf("Capability not found after update: %s", event.ID)
-		return nil
+		return fmt.Errorf("capability %s not found after update in capability projector", event.ID)
 	}
 
 	if err := p.assignmentReadModel.UpdateCapabilityInfo(ctx, event.ID, capability.Name, capability.Description, capability.Level); err != nil {
@@ -101,13 +116,7 @@ func (p *CapabilityProjector) handleCapabilityUpdated(ctx context.Context, event
 	return nil
 }
 
-func (p *CapabilityProjector) handleCapabilityMetadataUpdated(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityMetadataUpdated
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityMetadataUpdated event: %v", err)
-		return err
-	}
-
+func (p *CapabilityProjector) projectMetadataUpdated(ctx context.Context, event events.CapabilityMetadataUpdated) error {
 	return p.readModel.UpdateMetadata(ctx, event.ID, readmodels.CapabilityMetadataUpdate{
 		MaturityValue:  event.MaturityValue,
 		OwnershipModel: event.OwnershipModel,
@@ -117,12 +126,7 @@ func (p *CapabilityProjector) handleCapabilityMetadataUpdated(ctx context.Contex
 	})
 }
 
-func (p *CapabilityProjector) handleCapabilityExpertAdded(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityExpertAdded
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityExpertAdded event: %v", err)
-		return err
-	}
+func (p *CapabilityProjector) projectExpertAdded(ctx context.Context, event events.CapabilityExpertAdded) error {
 	return p.readModel.AddExpert(ctx, readmodels.ExpertInfo{
 		CapabilityID: event.CapabilityID,
 		Name:         event.ExpertName,
@@ -132,12 +136,7 @@ func (p *CapabilityProjector) handleCapabilityExpertAdded(ctx context.Context, e
 	})
 }
 
-func (p *CapabilityProjector) handleCapabilityExpertRemoved(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityExpertRemoved
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityExpertRemoved event: %v", err)
-		return err
-	}
+func (p *CapabilityProjector) projectExpertRemoved(ctx context.Context, event events.CapabilityExpertRemoved) error {
 	return p.readModel.RemoveExpert(ctx, readmodels.ExpertInfo{
 		CapabilityID: event.CapabilityID,
 		Name:         event.ExpertName,
@@ -146,12 +145,7 @@ func (p *CapabilityProjector) handleCapabilityExpertRemoved(ctx context.Context,
 	})
 }
 
-func (p *CapabilityProjector) handleCapabilityTagAdded(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityTagAdded
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityTagAdded event: %v", err)
-		return err
-	}
+func (p *CapabilityProjector) projectTagAdded(ctx context.Context, event events.CapabilityTagAdded) error {
 	return p.readModel.AddTag(ctx, readmodels.TagInfo{
 		CapabilityID: event.CapabilityID,
 		Tag:          event.Tag,
@@ -159,12 +153,7 @@ func (p *CapabilityProjector) handleCapabilityTagAdded(ctx context.Context, even
 	})
 }
 
-func (p *CapabilityProjector) handleCapabilityParentChanged(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityParentChanged
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityParentChanged event: %v", err)
-		return err
-	}
+func (p *CapabilityProjector) projectParentChanged(ctx context.Context, event events.CapabilityParentChanged) error {
 	return p.readModel.UpdateParent(ctx, readmodels.ParentUpdate{
 		ID:       event.CapabilityID,
 		ParentID: event.NewParentID,
@@ -172,20 +161,10 @@ func (p *CapabilityProjector) handleCapabilityParentChanged(ctx context.Context,
 	})
 }
 
-func (p *CapabilityProjector) handleCapabilityLevelChanged(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityLevelChanged
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityLevelChanged event: %v", err)
-		return err
-	}
+func (p *CapabilityProjector) projectLevelChanged(ctx context.Context, event events.CapabilityLevelChanged) error {
 	return p.readModel.UpdateLevel(ctx, event.CapabilityID, event.NewLevel)
 }
 
-func (p *CapabilityProjector) handleCapabilityDeleted(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityDeleted
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityDeleted event: %v", err)
-		return err
-	}
+func (p *CapabilityProjector) projectDeleted(ctx context.Context, event events.CapabilityDeleted) error {
 	return p.readModel.Delete(ctx, event.ID)
 }

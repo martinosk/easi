@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -104,6 +105,7 @@ func (p *DomainCapabilityMetadataProjector) handleCapabilityCreated(ctx context.
 		parentMeta, err := p.metadataReadModel.GetByID(ctx, event.ParentID)
 		if err != nil {
 			log.Printf("Failed to get parent metadata for %s: %v", event.ParentID, err)
+			return fmt.Errorf("load parent metadata for capability %s parent %s: %w", event.ID, event.ParentID, err)
 		} else if parentMeta != nil {
 			l1CapabilityID = parentMeta.L1CapabilityID
 			businessDomainID = parentMeta.BusinessDomainID
@@ -162,33 +164,41 @@ func (p *DomainCapabilityMetadataProjector) handleCapabilityDeleted(ctx context.
 		return err
 	}
 
-	p.cleanupLinksForDeletedCapability(ctx, event.ID)
+	if err := p.cleanupLinksForDeletedCapability(ctx, event.ID); err != nil {
+		return err
+	}
 
 	return p.metadataReadModel.Delete(ctx, event.ID)
 }
 
-func (p *DomainCapabilityMetadataProjector) cleanupLinksForDeletedCapability(ctx context.Context, capabilityID string) {
+func (p *DomainCapabilityMetadataProjector) cleanupLinksForDeletedCapability(ctx context.Context, capabilityID string) error {
 	link, err := p.linkReadModel.GetByDomainCapabilityID(ctx, capabilityID)
 	if err != nil {
 		log.Printf("Failed to check link for deleted capability %s: %v", capabilityID, err)
-		return
+		return fmt.Errorf("cleanup enterprise links/counts for deleted capability %s: %w", capabilityID, err)
 	}
 	if link == nil {
-		return
+		return nil
 	}
 
 	if err := p.linkReadModel.Delete(ctx, link.ID); err != nil {
 		log.Printf("Failed to delete link for capability %s: %v", capabilityID, err)
+		return fmt.Errorf("cleanup enterprise links/counts for deleted capability %s: %w", capabilityID, err)
 	}
 	if err := p.linkReadModel.DeleteBlockingByBlocker(ctx, capabilityID); err != nil {
 		log.Printf("Failed to delete blocking records for capability %s: %v", capabilityID, err)
+		return fmt.Errorf("cleanup enterprise links/counts for deleted capability %s: %w", capabilityID, err)
 	}
 	if err := p.capabilityReadModel.DecrementLinkCount(ctx, link.EnterpriseCapabilityID); err != nil {
 		log.Printf("Failed to decrement link count: %v", err)
+		return fmt.Errorf("cleanup enterprise links/counts for deleted capability %s: %w", capabilityID, err)
 	}
 	if err := p.capabilityReadModel.RecalculateDomainCount(ctx, link.EnterpriseCapabilityID); err != nil {
 		log.Printf("Failed to recalculate domain count: %v", err)
+		return fmt.Errorf("cleanup enterprise links/counts for deleted capability %s: %w", capabilityID, err)
 	}
+
+	return nil
 }
 
 type capabilityParentChangedEvent struct {
@@ -249,7 +259,10 @@ func (p *DomainCapabilityMetadataProjector) handleCapabilityAssignedToDomain(ctx
 		return err
 	}
 
-	domainName := p.lookupBusinessDomainName(ctx, event.BusinessDomainID)
+	domainName, err := p.lookupBusinessDomainName(ctx, event.BusinessDomainID)
+	if err != nil {
+		return err
+	}
 	return p.updateBusinessDomainAndRecalculate(ctx, event.CapabilityID, readmodels.BusinessDomainRef{ID: event.BusinessDomainID, Name: domainName})
 }
 
@@ -311,19 +324,20 @@ func (p *DomainCapabilityMetadataProjector) recalculateDomainCountsForLinkedCapa
 	for _, enterpriseCapID := range enterpriseCapIDs {
 		if err := p.capabilityReadModel.RecalculateDomainCount(ctx, enterpriseCapID); err != nil {
 			log.Printf("Failed to recalculate domain count for enterprise capability %s: %v", enterpriseCapID, err)
+			return fmt.Errorf("recalculate domain count for enterprise capability %s: %w", enterpriseCapID, err)
 		}
 	}
 
 	return nil
 }
 
-func (p *DomainCapabilityMetadataProjector) lookupBusinessDomainName(ctx context.Context, businessDomainID string) string {
+func (p *DomainCapabilityMetadataProjector) lookupBusinessDomainName(ctx context.Context, businessDomainID string) (string, error) {
 	name, err := p.metadataReadModel.LookupBusinessDomainName(ctx, businessDomainID)
 	if err != nil {
 		log.Printf("Failed to lookup business domain name for %s: %v", businessDomainID, err)
-		return businessDomainID
+		return "", fmt.Errorf("lookup business domain name %s: %w", businessDomainID, err)
 	}
-	return name
+	return name, nil
 }
 
 type capabilityMetadataUpdatedEvent struct {

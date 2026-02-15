@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"easi/backend/internal/capabilitymapping/application/readmodels"
@@ -54,7 +55,11 @@ func (p *ImportanceChangeEffectiveProjector) handleStrategyImportanceSet(ctx con
 		return err
 	}
 
-	return p.recomputer.RecomputeCapabilityAndDescendants(ctx, event.CapabilityID, event.PillarID, event.BusinessDomainID)
+	return p.recomputer.RecomputeCapabilityAndDescendants(ctx, ImportanceScope{
+		CapabilityID:     event.CapabilityID,
+		PillarID:         event.PillarID,
+		BusinessDomainID: event.BusinessDomainID,
+	})
 }
 
 func (p *ImportanceChangeEffectiveProjector) handleStrategyImportanceUpdated(ctx context.Context, eventData []byte) error {
@@ -71,10 +76,14 @@ func (p *ImportanceChangeEffectiveProjector) handleStrategyImportanceUpdated(ctx
 	}
 	if importance == nil {
 		log.Printf("Strategy importance %s not found for recomputation", event.ID)
-		return nil
+		return fmt.Errorf("strategy importance %s not found for recomputation", event.ID)
 	}
 
-	return p.recomputer.RecomputeCapabilityAndDescendants(ctx, importance.CapabilityID, importance.PillarID, importance.BusinessDomainID)
+	return p.recomputer.RecomputeCapabilityAndDescendants(ctx, ImportanceScope{
+		CapabilityID:     importance.CapabilityID,
+		PillarID:         importance.PillarID,
+		BusinessDomainID: importance.BusinessDomainID,
+	})
 }
 
 func (p *ImportanceChangeEffectiveProjector) handleStrategyImportanceRemoved(ctx context.Context, eventData []byte) error {
@@ -84,5 +93,9 @@ func (p *ImportanceChangeEffectiveProjector) handleStrategyImportanceRemoved(ctx
 		return err
 	}
 
-	return p.recomputer.RecomputeCapabilityAndDescendants(ctx, event.CapabilityID, event.PillarID, event.BusinessDomainID)
+	return p.recomputer.RecomputeCapabilityAndDescendants(ctx, ImportanceScope{
+		CapabilityID:     event.CapabilityID,
+		PillarID:         event.PillarID,
+		BusinessDomainID: event.BusinessDomainID,
+	})
 }
