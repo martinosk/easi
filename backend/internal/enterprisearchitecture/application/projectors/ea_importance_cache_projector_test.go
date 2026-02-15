@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
 
 	"github.com/google/uuid"
@@ -26,44 +27,9 @@ func (m *mockImportanceCacheReadModel) Upsert(ctx context.Context, entry readmod
 	return nil
 }
 
-type importanceCacheWriter interface {
-	Upsert(ctx context.Context, entry readmodels.ImportanceEntry) error
-}
-
-type testableImportanceCacheProjector struct {
-	readModel importanceCacheWriter
-}
-
-func newTestableImportanceCacheProjector(rm importanceCacheWriter) *testableImportanceCacheProjector {
-	return &testableImportanceCacheProjector{readModel: rm}
-}
-
-func (p *testableImportanceCacheProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
-	handlers := map[string]func(context.Context, []byte) error{
-		"EffectiveImportanceRecalculated": p.handleEffectiveImportanceRecalculated,
-	}
-	if handler, exists := handlers[eventType]; exists {
-		return handler(ctx, eventData)
-	}
-	return nil
-}
-
-func (p *testableImportanceCacheProjector) handleEffectiveImportanceRecalculated(ctx context.Context, eventData []byte) error {
-	var event effectiveImportanceRecalculatedEvent
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	return p.readModel.Upsert(ctx, readmodels.ImportanceEntry{
-		CapabilityID:        event.CapabilityID,
-		BusinessDomainID:    event.BusinessDomainID,
-		PillarID:            event.PillarID,
-		EffectiveImportance: event.Importance,
-	})
-}
-
 func TestImportanceCache_Recalculated_UpsertsEntry(t *testing.T) {
 	mock := &mockImportanceCacheReadModel{}
-	projector := newTestableImportanceCacheProjector(mock)
+	projector := NewEAImportanceCacheProjector(mock)
 
 	capabilityID := uuid.New().String()
 	domainID := uuid.New().String()
@@ -76,7 +42,7 @@ func TestImportanceCache_Recalculated_UpsertsEntry(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = projector.ProjectEvent(context.Background(), "EffectiveImportanceRecalculated", eventData)
+	err = projector.ProjectEvent(context.Background(), cmPL.EffectiveImportanceRecalculated, eventData)
 	require.NoError(t, err)
 
 	require.Len(t, mock.upsertedEntries, 1)
@@ -89,7 +55,7 @@ func TestImportanceCache_Recalculated_UpsertsEntry(t *testing.T) {
 
 func TestImportanceCache_UnknownEvent_Ignored(t *testing.T) {
 	mock := &mockImportanceCacheReadModel{}
-	projector := newTestableImportanceCacheProjector(mock)
+	projector := NewEAImportanceCacheProjector(mock)
 
 	err := projector.ProjectEvent(context.Background(), "UnknownEvent", []byte("{}"))
 	require.NoError(t, err)
@@ -99,15 +65,15 @@ func TestImportanceCache_UnknownEvent_Ignored(t *testing.T) {
 
 func TestImportanceCache_InvalidJSON_ReturnsError(t *testing.T) {
 	mock := &mockImportanceCacheReadModel{}
-	projector := newTestableImportanceCacheProjector(mock)
+	projector := NewEAImportanceCacheProjector(mock)
 
-	err := projector.ProjectEvent(context.Background(), "EffectiveImportanceRecalculated", []byte("invalid"))
+	err := projector.ProjectEvent(context.Background(), cmPL.EffectiveImportanceRecalculated, []byte("invalid"))
 	assert.Error(t, err)
 }
 
 func TestImportanceCache_ReadModelError_ReturnsError(t *testing.T) {
 	mock := &mockImportanceCacheReadModel{upsertErr: errors.New("db error")}
-	projector := newTestableImportanceCacheProjector(mock)
+	projector := NewEAImportanceCacheProjector(mock)
 
 	eventData, _ := json.Marshal(effectiveImportanceRecalculatedEvent{
 		CapabilityID:     uuid.New().String(),
@@ -116,6 +82,6 @@ func TestImportanceCache_ReadModelError_ReturnsError(t *testing.T) {
 		Importance:       50,
 	})
 
-	err := projector.ProjectEvent(context.Background(), "EffectiveImportanceRecalculated", eventData)
+	err := projector.ProjectEvent(context.Background(), cmPL.EffectiveImportanceRecalculated, eventData)
 	assert.Error(t, err)
 }

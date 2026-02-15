@@ -11,16 +11,41 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
+type MetadataStore interface {
+	GetByID(ctx context.Context, capabilityID string) (*readmodels.DomainCapabilityMetadataDTO, error)
+	Insert(ctx context.Context, dto readmodels.DomainCapabilityMetadataDTO) error
+	Delete(ctx context.Context, capabilityID string) error
+	UpdateParentAndL1(ctx context.Context, update readmodels.ParentL1Update) error
+	UpdateLevel(ctx context.Context, capabilityID string, newLevel string) error
+	UpdateBusinessDomainForL1Subtree(ctx context.Context, l1CapabilityID string, bd readmodels.BusinessDomainRef) error
+	RecalculateL1ForSubtree(ctx context.Context, capabilityID string) error
+	GetSubtreeCapabilityIDs(ctx context.Context, rootID string) ([]string, error)
+	GetEnterpriseCapabilitiesLinkedToCapabilities(ctx context.Context, capabilityIDs []string) ([]string, error)
+	LookupBusinessDomainName(ctx context.Context, businessDomainID string) (string, error)
+	UpdateMaturityValue(ctx context.Context, capabilityID string, maturityValue int) error
+}
+
+type CapabilityCountUpdater interface {
+	DecrementLinkCount(ctx context.Context, id string) error
+	RecalculateDomainCount(ctx context.Context, enterpriseCapabilityID string) error
+}
+
+type CapabilityLinkStore interface {
+	GetByDomainCapabilityID(ctx context.Context, domainCapabilityID string) (*readmodels.EnterpriseCapabilityLinkDTO, error)
+	Delete(ctx context.Context, id string) error
+	DeleteBlockingByBlocker(ctx context.Context, blockedByCapabilityID string) error
+}
+
 type DomainCapabilityMetadataProjector struct {
-	metadataReadModel    *readmodels.DomainCapabilityMetadataReadModel
-	capabilityReadModel  *readmodels.EnterpriseCapabilityReadModel
-	linkReadModel        *readmodels.EnterpriseCapabilityLinkReadModel
+	metadataReadModel   MetadataStore
+	capabilityReadModel CapabilityCountUpdater
+	linkReadModel       CapabilityLinkStore
 }
 
 func NewDomainCapabilityMetadataProjector(
-	metadataReadModel *readmodels.DomainCapabilityMetadataReadModel,
-	capabilityReadModel *readmodels.EnterpriseCapabilityReadModel,
-	linkReadModel *readmodels.EnterpriseCapabilityLinkReadModel,
+	metadataReadModel MetadataStore,
+	capabilityReadModel CapabilityCountUpdater,
+	linkReadModel CapabilityLinkStore,
 ) *DomainCapabilityMetadataProjector {
 	return &DomainCapabilityMetadataProjector{
 		metadataReadModel:   metadataReadModel,

@@ -10,11 +10,16 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
-type EAFitScoreCacheProjector struct {
-	readModel *readmodels.EAFitScoreCacheReadModel
+type FitScoreCacheWriter interface {
+	Upsert(ctx context.Context, entry readmodels.FitScoreEntry) error
+	Delete(ctx context.Context, componentID, pillarID string) error
 }
 
-func NewEAFitScoreCacheProjector(readModel *readmodels.EAFitScoreCacheReadModel) *EAFitScoreCacheProjector {
+type EAFitScoreCacheProjector struct {
+	readModel FitScoreCacheWriter
+}
+
+func NewEAFitScoreCacheProjector(readModel FitScoreCacheWriter) *EAFitScoreCacheProjector {
 	return &EAFitScoreCacheProjector{readModel: readModel}
 }
 

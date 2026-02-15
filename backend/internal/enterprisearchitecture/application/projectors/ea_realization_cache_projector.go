@@ -11,11 +11,18 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
-type EARealizationCacheProjector struct {
-	readModel *readmodels.EARealizationCacheReadModel
+type RealizationCacheWriter interface {
+	Upsert(ctx context.Context, entry readmodels.RealizationEntry) error
+	Delete(ctx context.Context, realizationID string) error
+	DeleteByCapabilityID(ctx context.Context, capabilityID string) error
+	UpdateComponentName(ctx context.Context, componentID, componentName string) error
 }
 
-func NewEARealizationCacheProjector(readModel *readmodels.EARealizationCacheReadModel) *EARealizationCacheProjector {
+type EARealizationCacheProjector struct {
+	readModel RealizationCacheWriter
+}
+
+func NewEARealizationCacheProjector(readModel RealizationCacheWriter) *EARealizationCacheProjector {
 	return &EARealizationCacheProjector{readModel: readModel}
 }
 

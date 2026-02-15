@@ -10,11 +10,15 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
-type EAImportanceCacheProjector struct {
-	readModel *readmodels.EAImportanceCacheReadModel
+type ImportanceCacheWriter interface {
+	Upsert(ctx context.Context, entry readmodels.ImportanceEntry) error
 }
 
-func NewEAImportanceCacheProjector(readModel *readmodels.EAImportanceCacheReadModel) *EAImportanceCacheProjector {
+type EAImportanceCacheProjector struct {
+	readModel ImportanceCacheWriter
+}
+
+func NewEAImportanceCacheProjector(readModel ImportanceCacheWriter) *EAImportanceCacheProjector {
 	return &EAImportanceCacheProjector{readModel: readModel}
 }
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
 
 	"github.com/google/uuid"
@@ -41,54 +42,9 @@ func (m *mockFitScoreCacheReadModel) Delete(ctx context.Context, componentID, pi
 	return nil
 }
 
-type fitScoreCacheWriter interface {
-	Upsert(ctx context.Context, entry readmodels.FitScoreEntry) error
-	Delete(ctx context.Context, componentID, pillarID string) error
-}
-
-type testableFitScoreCacheProjector struct {
-	readModel fitScoreCacheWriter
-}
-
-func newTestableFitScoreCacheProjector(rm fitScoreCacheWriter) *testableFitScoreCacheProjector {
-	return &testableFitScoreCacheProjector{readModel: rm}
-}
-
-func (p *testableFitScoreCacheProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
-	handlers := map[string]func(context.Context, []byte) error{
-		"ApplicationFitScoreSet":     p.handleApplicationFitScoreSet,
-		"ApplicationFitScoreRemoved": p.handleApplicationFitScoreRemoved,
-	}
-	if handler, exists := handlers[eventType]; exists {
-		return handler(ctx, eventData)
-	}
-	return nil
-}
-
-func (p *testableFitScoreCacheProjector) handleApplicationFitScoreSet(ctx context.Context, eventData []byte) error {
-	var event applicationFitScoreSetEvent
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	return p.readModel.Upsert(ctx, readmodels.FitScoreEntry{
-		ComponentID: event.ComponentID,
-		PillarID:    event.PillarID,
-		Score:       event.Score,
-		Rationale:   event.Rationale,
-	})
-}
-
-func (p *testableFitScoreCacheProjector) handleApplicationFitScoreRemoved(ctx context.Context, eventData []byte) error {
-	var event applicationFitScoreRemovedEvent
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	return p.readModel.Delete(ctx, event.ComponentID, event.PillarID)
-}
-
 func TestFitScoreCache_FitScoreSet_UpsertsEntry(t *testing.T) {
 	mock := &mockFitScoreCacheReadModel{}
-	projector := newTestableFitScoreCacheProjector(mock)
+	projector := NewEAFitScoreCacheProjector(mock)
 
 	componentID := uuid.New().String()
 	pillarID := uuid.New().String()
@@ -100,7 +56,7 @@ func TestFitScoreCache_FitScoreSet_UpsertsEntry(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = projector.ProjectEvent(context.Background(), "ApplicationFitScoreSet", eventData)
+	err = projector.ProjectEvent(context.Background(), cmPL.ApplicationFitScoreSet, eventData)
 	require.NoError(t, err)
 
 	require.Len(t, mock.upsertedEntries, 1)
@@ -113,7 +69,7 @@ func TestFitScoreCache_FitScoreSet_UpsertsEntry(t *testing.T) {
 
 func TestFitScoreCache_FitScoreRemoved_DeletesEntry(t *testing.T) {
 	mock := &mockFitScoreCacheReadModel{}
-	projector := newTestableFitScoreCacheProjector(mock)
+	projector := NewEAFitScoreCacheProjector(mock)
 
 	componentID := uuid.New().String()
 	pillarID := uuid.New().String()
@@ -123,7 +79,7 @@ func TestFitScoreCache_FitScoreRemoved_DeletesEntry(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = projector.ProjectEvent(context.Background(), "ApplicationFitScoreRemoved", eventData)
+	err = projector.ProjectEvent(context.Background(), cmPL.ApplicationFitScoreRemoved, eventData)
 	require.NoError(t, err)
 
 	require.Len(t, mock.deletedKeys, 1)
@@ -133,7 +89,7 @@ func TestFitScoreCache_FitScoreRemoved_DeletesEntry(t *testing.T) {
 
 func TestFitScoreCache_UnknownEvent_Ignored(t *testing.T) {
 	mock := &mockFitScoreCacheReadModel{}
-	projector := newTestableFitScoreCacheProjector(mock)
+	projector := NewEAFitScoreCacheProjector(mock)
 
 	err := projector.ProjectEvent(context.Background(), "UnknownEvent", []byte("{}"))
 	require.NoError(t, err)
@@ -144,9 +100,9 @@ func TestFitScoreCache_UnknownEvent_Ignored(t *testing.T) {
 
 func TestFitScoreCache_InvalidJSON_ReturnsError(t *testing.T) {
 	mock := &mockFitScoreCacheReadModel{}
-	projector := newTestableFitScoreCacheProjector(mock)
+	projector := NewEAFitScoreCacheProjector(mock)
 
-	err := projector.ProjectEvent(context.Background(), "ApplicationFitScoreSet", []byte("invalid"))
+	err := projector.ProjectEvent(context.Background(), cmPL.ApplicationFitScoreSet, []byte("invalid"))
 	assert.Error(t, err)
 }
 
@@ -160,20 +116,20 @@ func TestFitScoreCache_ErrorPropagation(t *testing.T) {
 		{
 			"upsert error",
 			&mockFitScoreCacheReadModel{upsertErr: errors.New("db error")},
-			"ApplicationFitScoreSet",
+			cmPL.ApplicationFitScoreSet,
 			applicationFitScoreSetEvent{ComponentID: uuid.New().String(), PillarID: uuid.New().String(), Score: 50},
 		},
 		{
 			"delete error",
 			&mockFitScoreCacheReadModel{deleteErr: errors.New("db error")},
-			"ApplicationFitScoreRemoved",
+			cmPL.ApplicationFitScoreRemoved,
 			applicationFitScoreRemovedEvent{ComponentID: uuid.New().String(), PillarID: uuid.New().String()},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			projector := newTestableFitScoreCacheProjector(tt.mock)
+			projector := NewEAFitScoreCacheProjector(tt.mock)
 			eventData, _ := json.Marshal(tt.eventData)
 			err := projector.ProjectEvent(context.Background(), tt.eventType, eventData)
 			assert.Error(t, err)

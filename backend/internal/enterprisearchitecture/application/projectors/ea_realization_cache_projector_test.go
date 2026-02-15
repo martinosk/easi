@@ -6,6 +6,8 @@ import (
 	"errors"
 	"testing"
 
+	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
 
 	"github.com/google/uuid"
@@ -61,75 +63,9 @@ func (m *mockRealizationCacheReadModel) UpdateComponentName(ctx context.Context,
 	return nil
 }
 
-type realizationCacheWriter interface {
-	Upsert(ctx context.Context, entry readmodels.RealizationEntry) error
-	Delete(ctx context.Context, realizationID string) error
-	DeleteByCapabilityID(ctx context.Context, capabilityID string) error
-	UpdateComponentName(ctx context.Context, componentID, componentName string) error
-}
-
-type testableRealizationCacheProjector struct {
-	readModel realizationCacheWriter
-}
-
-func newTestableRealizationCacheProjector(rm realizationCacheWriter) *testableRealizationCacheProjector {
-	return &testableRealizationCacheProjector{readModel: rm}
-}
-
-func (p *testableRealizationCacheProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
-	handlers := map[string]func(context.Context, []byte) error{
-		"SystemLinkedToCapability":    p.handleSystemLinkedToCapability,
-		"SystemRealizationDeleted":    p.handleSystemRealizationDeleted,
-		"CapabilityDeleted":           p.handleCapabilityDeleted,
-		"ApplicationComponentUpdated": p.handleApplicationComponentUpdated,
-	}
-	if handler, exists := handlers[eventType]; exists {
-		return handler(ctx, eventData)
-	}
-	return nil
-}
-
-func (p *testableRealizationCacheProjector) handleSystemLinkedToCapability(ctx context.Context, eventData []byte) error {
-	var event systemLinkedToCapabilityEvent
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	return p.readModel.Upsert(ctx, readmodels.RealizationEntry{
-		RealizationID: event.ID,
-		CapabilityID:  event.CapabilityID,
-		ComponentID:   event.ComponentID,
-		ComponentName: event.ComponentName,
-		Origin:        event.RealizationLevel,
-	})
-}
-
-func (p *testableRealizationCacheProjector) handleSystemRealizationDeleted(ctx context.Context, eventData []byte) error {
-	var event systemRealizationDeletedEvent
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	return p.readModel.Delete(ctx, event.ID)
-}
-
-func (p *testableRealizationCacheProjector) handleCapabilityDeleted(ctx context.Context, eventData []byte) error {
-	var event realizationCapabilityDeletedEvent
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	return p.readModel.DeleteByCapabilityID(ctx, event.ID)
-}
-
-func (p *testableRealizationCacheProjector) handleApplicationComponentUpdated(ctx context.Context, eventData []byte) error {
-	var event applicationComponentUpdatedEvent
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		return err
-	}
-	return p.readModel.UpdateComponentName(ctx, event.ID, event.Name)
-}
-
 func TestRealizationCache_SystemLinked_UpsertsEntry(t *testing.T) {
 	mock := &mockRealizationCacheReadModel{}
-	projector := newTestableRealizationCacheProjector(mock)
+	projector := NewEARealizationCacheProjector(mock)
 
 	realizationID := uuid.New().String()
 	capabilityID := uuid.New().String()
@@ -143,7 +79,7 @@ func TestRealizationCache_SystemLinked_UpsertsEntry(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = projector.ProjectEvent(context.Background(), "SystemLinkedToCapability", eventData)
+	err = projector.ProjectEvent(context.Background(), cmPL.SystemLinkedToCapability, eventData)
 	require.NoError(t, err)
 
 	require.Len(t, mock.upsertedEntries, 1)
@@ -164,7 +100,7 @@ func TestRealizationCache_DeleteEvents(t *testing.T) {
 	}{
 		{
 			"realization deleted removes by ID",
-			"SystemRealizationDeleted",
+			cmPL.SystemRealizationDeleted,
 			systemRealizationDeletedEvent{},
 			func(t *testing.T, m *mockRealizationCacheReadModel, id string) {
 				require.Len(t, m.deletedIDs, 1)
@@ -173,7 +109,7 @@ func TestRealizationCache_DeleteEvents(t *testing.T) {
 		},
 		{
 			"capability deleted removes by capability ID",
-			"CapabilityDeleted",
+			cmPL.CapabilityDeleted,
 			realizationCapabilityDeletedEvent{},
 			func(t *testing.T, m *mockRealizationCacheReadModel, id string) {
 				require.Len(t, m.deletedCapabilityIDs, 1)
@@ -185,7 +121,7 @@ func TestRealizationCache_DeleteEvents(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mock := &mockRealizationCacheReadModel{}
-			projector := newTestableRealizationCacheProjector(mock)
+			projector := NewEARealizationCacheProjector(mock)
 
 			id := uuid.New().String()
 			eventData, err := json.Marshal(map[string]string{"id": id})
@@ -201,7 +137,7 @@ func TestRealizationCache_DeleteEvents(t *testing.T) {
 
 func TestRealizationCache_ComponentUpdated_UpdatesName(t *testing.T) {
 	mock := &mockRealizationCacheReadModel{}
-	projector := newTestableRealizationCacheProjector(mock)
+	projector := NewEARealizationCacheProjector(mock)
 
 	componentID := uuid.New().String()
 	eventData, err := json.Marshal(applicationComponentUpdatedEvent{
@@ -210,7 +146,7 @@ func TestRealizationCache_ComponentUpdated_UpdatesName(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = projector.ProjectEvent(context.Background(), "ApplicationComponentUpdated", eventData)
+	err = projector.ProjectEvent(context.Background(), amPL.ApplicationComponentUpdated, eventData)
 	require.NoError(t, err)
 
 	require.Len(t, mock.updatedNames, 1)
@@ -220,7 +156,7 @@ func TestRealizationCache_ComponentUpdated_UpdatesName(t *testing.T) {
 
 func TestRealizationCache_UnknownEvent_Ignored(t *testing.T) {
 	mock := &mockRealizationCacheReadModel{}
-	projector := newTestableRealizationCacheProjector(mock)
+	projector := NewEARealizationCacheProjector(mock)
 
 	err := projector.ProjectEvent(context.Background(), "UnknownEvent", []byte("{}"))
 	require.NoError(t, err)
@@ -233,9 +169,9 @@ func TestRealizationCache_UnknownEvent_Ignored(t *testing.T) {
 
 func TestRealizationCache_InvalidJSON_ReturnsError(t *testing.T) {
 	mock := &mockRealizationCacheReadModel{}
-	projector := newTestableRealizationCacheProjector(mock)
+	projector := NewEARealizationCacheProjector(mock)
 
-	err := projector.ProjectEvent(context.Background(), "SystemLinkedToCapability", []byte("invalid"))
+	err := projector.ProjectEvent(context.Background(), cmPL.SystemLinkedToCapability, []byte("invalid"))
 	assert.Error(t, err)
 }
 
@@ -249,32 +185,32 @@ func TestRealizationCache_ErrorPropagation(t *testing.T) {
 		{
 			"upsert error",
 			&mockRealizationCacheReadModel{upsertErr: errors.New("db error")},
-			"SystemLinkedToCapability",
+			cmPL.SystemLinkedToCapability,
 			systemLinkedToCapabilityEvent{ID: uuid.New().String(), CapabilityID: uuid.New().String(), ComponentID: uuid.New().String(), ComponentName: "C", RealizationLevel: "Direct"},
 		},
 		{
 			"delete error",
 			&mockRealizationCacheReadModel{deleteErr: errors.New("db error")},
-			"SystemRealizationDeleted",
+			cmPL.SystemRealizationDeleted,
 			systemRealizationDeletedEvent{ID: uuid.New().String()},
 		},
 		{
 			"delete by capability error",
 			&mockRealizationCacheReadModel{deleteByCapErr: errors.New("db error")},
-			"CapabilityDeleted",
+			cmPL.CapabilityDeleted,
 			realizationCapabilityDeletedEvent{ID: uuid.New().String()},
 		},
 		{
 			"update name error",
 			&mockRealizationCacheReadModel{updateNameErr: errors.New("db error")},
-			"ApplicationComponentUpdated",
+			amPL.ApplicationComponentUpdated,
 			applicationComponentUpdatedEvent{ID: uuid.New().String(), Name: "N"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			projector := newTestableRealizationCacheProjector(tt.mock)
+			projector := NewEARealizationCacheProjector(tt.mock)
 			eventData, _ := json.Marshal(tt.eventData)
 			err := projector.ProjectEvent(context.Background(), tt.eventType, eventData)
 			assert.Error(t, err)
