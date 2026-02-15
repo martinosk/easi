@@ -6,6 +6,8 @@ argument-hint: <file-or-directory | --scope=architecture>
 
 Refactor code in the EASI codebase — from single-file code health improvements to multi-file architectural changes.
 
+**Philosophy**: Always pursue optimal code health (10.0). Refactoring is not optional — every file should reach 10.0 unless the complexity is inherent to the domain model or architectural pattern.
+
 **Usage**: `/refactor <file-or-directory>` or `/refactor --scope=architecture`
 
 **Arguments**:
@@ -49,7 +51,7 @@ Run analysis appropriate to the mode. Use [codescene-refactoring.md](codescene-r
 #### Multi-file mode
 
 1. **Glob** for all source files in the directory.
-2. **CodeScene code health** on each file — note any below 10.0.
+2. **CodeScene code health** on each file — **all files below 10.0 must be refactored**.
 3. **Structural analysis**: Check for:
    - Layer violations (domain importing infrastructure, handler containing business logic)
    - Duplicated patterns across files that indicate a missing abstraction
@@ -88,7 +90,8 @@ Follow these rules:
 - Respect project code style (no added comments, no over-engineering)
 
 **CodeScene-driven:**
-- Re-check with `mcp__codescene__code_health_score` after changes — iterate up to 3 times
+- Re-check with `mcp__codescene__code_health_score` after changes
+- **Iterate until all files reach 10.0** or until only inherent domain/architectural complexity remains
 
 **Domain/Architectural:**
 - When moving code between files, ensure all references are updated
@@ -120,8 +123,8 @@ Follow these rules:
 Before: <original-score(s)>
 After:  <final-score(s)>
 
-### Remaining Items
-- <any findings that were skipped or couldn't be addressed, with reasons>
+### Remaining Items (only if inherent to architecture)
+- <any findings classified as Skip with detailed justification>
 
 ### Checklist
 - [ ] All changes are behavior-preserving
@@ -130,11 +133,10 @@ After:  <final-score(s)>
 - [ ] No new cross-context coupling introduced
 ```
 
-## When NOT to Refactor
+## Handling Inherent Complexity
 
 Stop and discuss with the user if:
 - The refactoring would require **changing public API contracts** (breaking change)
-- The "smell" is **inherent to the pattern** (event-sourced type switches, domain event constructors) — see Skip priority
 
 ## Rules
 

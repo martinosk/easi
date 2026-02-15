@@ -23,10 +23,12 @@ For Go files or unsupported smells, apply fixes manually using the patterns belo
 ### Iterative Loop
 
 ```
-check score → review → fix → re-check (up to 3 iterations)
+check score → review → fix → re-check → repeat until 10.0
 ```
 
-If score is 10.0, stop. If below 10.0 after 3 iterations, report remaining issues for manual attention.
+**Goal: Always reach 10.0 Code Health.** Iterate as many times as needed. Only stop iterating if:
+- Score is 10.0 (success)
+- Remaining findings are inherent to domain/architectural patterns (see "Domain Model Limits" below)
 
 ## What Works — Proven Patterns
 
@@ -62,13 +64,15 @@ Both React patterns reliably bring scores from ~9.3 to 10.0.
 
 ## Domain Model Limits — Don't Fight These
 
-These patterns score below 10.0 but are inherent to the architecture:
+These patterns score below 10.0 but are inherent to the architecture and should NOT be refactored:
 
 - **Event-sourced aggregate `apply()` with type switch** (cc=15 for 14 event types): Splitting worsens duplication. Leave as-is.
 - **Domain event constructors with 5-6 args**: Explicit event types require explicit fields. Parameter structs just add indirection.
 - **Projector methods handling different DTO types**: Can't generalize without Go generics complexity that isn't worth it.
 
-When these are the only remaining findings, classify as **Skip** and note they're inherent.
+When these are the only remaining findings, classify as **Skip**, document the reason, and stop iterating.
+
+**For everything else: iterate until 10.0.** No exceptions.
 
 ## Fixing "Excess Number of Function Arguments"
 
