@@ -359,7 +359,7 @@ func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repos
 	commandBus.Register("RemoveCapabilityExpert", handlers.NewRemoveCapabilityExpertHandler(repo))
 	commandBus.Register("AddCapabilityTag", handlers.NewAddCapabilityTagHandler(repo))
 	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(repo, capabilityRM, realizationRM, reparentingService))
-	commandBus.Register("DeleteCapability", handlers.NewDeleteCapabilityHandler(repo, deletionService))
+	commandBus.Register("DeleteCapability", handlers.NewDeleteCapabilityHandler(repo, deletionService, realizationRM, capabilityRM))
 }
 
 func registerDependencyCommands(commandBus *cqrs.InMemoryCommandBus, depRepo *repositories.DependencyRepository, capRepo *repositories.CapabilityRepository) {

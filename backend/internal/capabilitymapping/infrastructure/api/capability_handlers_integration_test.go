@@ -115,6 +115,8 @@ func setupHandlers(db *sql.DB) *CapabilityHandlers {
 	eventBus.Subscribe("CapabilityTagAdded", projector)
 	eventBus.Subscribe("CapabilityDeleted", projector)
 
+	realizationReadModel := readmodels.NewRealizationReadModel(tenantDB)
+
 	capabilityRepo := repositories.NewCapabilityRepository(eventStore)
 	childrenChecker := adapters.NewCapabilityChildrenCheckerAdapter(readModel)
 	deletionService := services.NewCapabilityDeletionService(childrenChecker)
@@ -124,7 +126,7 @@ func setupHandlers(db *sql.DB) *CapabilityHandlers {
 	updateMetadataHandler := handlers.NewUpdateCapabilityMetadataHandler(capabilityRepo)
 	addExpertHandler := handlers.NewAddCapabilityExpertHandler(capabilityRepo)
 	addTagHandler := handlers.NewAddCapabilityTagHandler(capabilityRepo)
-	deleteHandler := handlers.NewDeleteCapabilityHandler(capabilityRepo, deletionService)
+	deleteHandler := handlers.NewDeleteCapabilityHandler(capabilityRepo, deletionService, realizationReadModel, readModel)
 
 	commandBus.Register("CreateCapability", createHandler)
 	commandBus.Register("UpdateCapability", updateHandler)

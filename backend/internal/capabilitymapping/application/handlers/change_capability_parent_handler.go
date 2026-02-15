@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"errors"
-	"sort"
 
 	"easi/backend/internal/capabilitymapping/application/commands"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
@@ -221,30 +220,7 @@ func (h *ChangeCapabilityParentHandler) buildInheritanceRemovals(ctx context.Con
 		return nil, nil
 	}
 
-	sourceIDs := make(map[string]struct{})
-	for _, realization := range realizations {
-		sourceID := resolveSourceRealizationID(realization)
-		if sourceID == "" {
-			continue
-		}
-		sourceIDs[sourceID] = struct{}{}
-	}
-
-	keys := make([]string, 0, len(sourceIDs))
-	for sourceID := range sourceIDs {
-		keys = append(keys, sourceID)
-	}
-	sort.Strings(keys)
-
-	removals := make([]events.RealizationInheritanceRemoval, 0, len(keys))
-	for _, sourceID := range keys {
-		removals = append(removals, events.RealizationInheritanceRemoval{
-			SourceRealizationID: sourceID,
-			CapabilityIDs:       ancestorIDs,
-		})
-	}
-
-	return removals, nil
+	return BuildRealizationRemovals(realizations, ancestorIDs), nil
 }
 
 func (h *ChangeCapabilityParentHandler) collectAncestorIDs(ctx context.Context, startID string) ([]string, error) {
