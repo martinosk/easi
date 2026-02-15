@@ -48,7 +48,7 @@ func NewDomainCapabilityMetadataReadModel(db *database.TenantAwareDB) *DomainCap
 
 func (rm *DomainCapabilityMetadataReadModel) Insert(ctx context.Context, dto DomainCapabilityMetadataDTO) error {
 	return rm.execForTenant(ctx,
-		`INSERT INTO domain_capability_metadata
+		`INSERT INTO enterprisearchitecture.domain_capability_metadata
 		 (tenant_id, capability_id, capability_name, capability_level, parent_id, l1_capability_id, business_domain_id, business_domain_name)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		 ON CONFLICT (tenant_id, capability_id) DO UPDATE SET
@@ -66,7 +66,7 @@ func (rm *DomainCapabilityMetadataReadModel) Insert(ctx context.Context, dto Dom
 
 func (rm *DomainCapabilityMetadataReadModel) Delete(ctx context.Context, capabilityID string) error {
 	return rm.execForTenant(ctx,
-		"DELETE FROM domain_capability_metadata WHERE tenant_id = $1 AND capability_id = $2",
+		"DELETE FROM enterprisearchitecture.domain_capability_metadata WHERE tenant_id = $1 AND capability_id = $2",
 		capabilityID,
 	)
 }
@@ -84,7 +84,7 @@ func (rm *DomainCapabilityMetadataReadModel) GetByID(ctx context.Context, capabi
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
 			`SELECT capability_id, capability_name, capability_level, parent_id, l1_capability_id, business_domain_id, business_domain_name
-			 FROM domain_capability_metadata WHERE tenant_id = $1 AND capability_id = $2`,
+			 FROM enterprisearchitecture.domain_capability_metadata WHERE tenant_id = $1 AND capability_id = $2`,
 			tenantID.Value(), capabilityID,
 		).Scan(&dto.CapabilityID, &dto.CapabilityName, &dto.CapabilityLevel, &parentID, &dto.L1CapabilityID, &businessDomainID, &businessDomainName)
 
@@ -118,7 +118,7 @@ func (rm *DomainCapabilityMetadataReadModel) GetCapabilityName(ctx context.Conte
 	var name string
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
-			"SELECT capability_name FROM domain_capability_metadata WHERE tenant_id = $1 AND capability_id = $2",
+			"SELECT capability_name FROM enterprisearchitecture.domain_capability_metadata WHERE tenant_id = $1 AND capability_id = $2",
 			tenantID.Value(), capabilityID,
 		).Scan(&name)
 	})
@@ -146,11 +146,11 @@ func (rm *DomainCapabilityMetadataReadModel) queryHierarchy(ctx context.Context,
 		query = `
 		WITH RECURSIVE cte AS (
 			SELECT capability_id, parent_id, 1 as depth
-			FROM domain_capability_metadata
+			FROM enterprisearchitecture.domain_capability_metadata
 			WHERE tenant_id = $1 AND capability_id = $2
 			UNION ALL
 			SELECT m.capability_id, m.parent_id, c.depth + 1
-			FROM domain_capability_metadata m
+			FROM enterprisearchitecture.domain_capability_metadata m
 			INNER JOIN cte c ON m.capability_id = c.parent_id AND m.tenant_id = $1
 			WHERE c.depth < 10
 		)
@@ -159,11 +159,11 @@ func (rm *DomainCapabilityMetadataReadModel) queryHierarchy(ctx context.Context,
 		query = `
 		WITH RECURSIVE cte AS (
 			SELECT capability_id, 1 as depth
-			FROM domain_capability_metadata
+			FROM enterprisearchitecture.domain_capability_metadata
 			WHERE tenant_id = $1 AND capability_id = $2
 			UNION ALL
 			SELECT m.capability_id, c.depth + 1
-			FROM domain_capability_metadata m
+			FROM enterprisearchitecture.domain_capability_metadata m
 			INNER JOIN cte c ON m.parent_id = c.capability_id AND m.tenant_id = $1
 			WHERE c.depth < 10
 		)
@@ -172,11 +172,11 @@ func (rm *DomainCapabilityMetadataReadModel) queryHierarchy(ctx context.Context,
 		query = `
 		WITH RECURSIVE cte AS (
 			SELECT capability_id, 1 as depth
-			FROM domain_capability_metadata
+			FROM enterprisearchitecture.domain_capability_metadata
 			WHERE tenant_id = $1 AND capability_id = $2
 			UNION ALL
 			SELECT m.capability_id, c.depth + 1
-			FROM domain_capability_metadata m
+			FROM enterprisearchitecture.domain_capability_metadata m
 			INNER JOIN cte c ON m.parent_id = c.capability_id AND m.tenant_id = $1
 			WHERE c.depth < 10
 		)
@@ -218,7 +218,7 @@ func (rm *DomainCapabilityMetadataReadModel) GetSubtreeCapabilityIDs(ctx context
 
 func (rm *DomainCapabilityMetadataReadModel) UpdateBusinessDomainForL1Subtree(ctx context.Context, l1CapabilityID string, bd BusinessDomainRef) error {
 	return rm.execForTenant(ctx,
-		`UPDATE domain_capability_metadata
+		`UPDATE enterprisearchitecture.domain_capability_metadata
 		 SET business_domain_id = $2, business_domain_name = $3
 		 WHERE tenant_id = $1 AND l1_capability_id = $4`,
 		nullIfEmpty(bd.ID), nullIfEmpty(bd.Name), l1CapabilityID,
@@ -227,7 +227,7 @@ func (rm *DomainCapabilityMetadataReadModel) UpdateBusinessDomainForL1Subtree(ct
 
 func (rm *DomainCapabilityMetadataReadModel) UpdateParentAndL1(ctx context.Context, update ParentL1Update) error {
 	return rm.execForTenant(ctx,
-		`UPDATE domain_capability_metadata
+		`UPDATE enterprisearchitecture.domain_capability_metadata
 		 SET parent_id = $2, capability_level = $3, l1_capability_id = $4
 		 WHERE tenant_id = $1 AND capability_id = $5`,
 		nullIfEmpty(update.NewParentID), update.NewLevel, update.NewL1CapabilityID, update.CapabilityID,
@@ -236,7 +236,7 @@ func (rm *DomainCapabilityMetadataReadModel) UpdateParentAndL1(ctx context.Conte
 
 func (rm *DomainCapabilityMetadataReadModel) UpdateLevel(ctx context.Context, capabilityID string, newLevel string) error {
 	return rm.execForTenant(ctx,
-		`UPDATE domain_capability_metadata
+		`UPDATE enterprisearchitecture.domain_capability_metadata
 		 SET capability_level = $2
 		 WHERE tenant_id = $1 AND capability_id = $3`,
 		newLevel, capabilityID,
@@ -253,7 +253,7 @@ func (rm *DomainCapabilityMetadataReadModel) GetBusinessDomainForL1(ctx context.
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
 			`SELECT business_domain_id, business_domain_name
-			 FROM domain_capability_metadata
+			 FROM enterprisearchitecture.domain_capability_metadata
 			 WHERE tenant_id = $1 AND capability_id = $2`,
 			tenantID.Value(), l1CapabilityID,
 		).Scan(&businessDomainID, &businessDomainName)
@@ -291,7 +291,7 @@ func (rm *DomainCapabilityMetadataReadModel) GetEnterpriseCapabilitiesLinkedToCa
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		query := fmt.Sprintf(`
 			SELECT DISTINCT enterprise_capability_id
-			FROM enterprise_capability_links
+			FROM enterprisearchitecture.enterprise_capability_links
 			WHERE tenant_id = $1 AND domain_capability_id IN (%s)`,
 			strings.Join(placeholders, ", "))
 
@@ -374,7 +374,7 @@ func (rm *DomainCapabilityMetadataReadModel) traverseToL1(ctx context.Context, c
 
 func (rm *DomainCapabilityMetadataReadModel) updateL1AndBusinessDomain(ctx context.Context, update L1BusinessDomainUpdate) error {
 	return rm.execForTenant(ctx,
-		`UPDATE domain_capability_metadata
+		`UPDATE enterprisearchitecture.domain_capability_metadata
 		 SET l1_capability_id = $2, business_domain_id = $3, business_domain_name = $4
 		 WHERE tenant_id = $1 AND capability_id = $5`,
 		update.L1CapabilityID, nullIfEmpty(update.BusinessDomain.ID), nullIfEmpty(update.BusinessDomain.Name), update.CapabilityID,
@@ -383,7 +383,7 @@ func (rm *DomainCapabilityMetadataReadModel) updateL1AndBusinessDomain(ctx conte
 
 func (rm *DomainCapabilityMetadataReadModel) UpdateMaturityValue(ctx context.Context, capabilityID string, maturityValue int) error {
 	return rm.execForTenant(ctx,
-		`UPDATE domain_capability_metadata
+		`UPDATE enterprisearchitecture.domain_capability_metadata
 		 SET maturity_value = $2
 		 WHERE tenant_id = $1 AND capability_id = $3`,
 		maturityValue, capabilityID,
@@ -403,7 +403,7 @@ func (rm *DomainCapabilityMetadataReadModel) LookupBusinessDomainName(ctx contex
 	var name string
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
-			"SELECT business_domain_name FROM domain_capability_metadata WHERE tenant_id = $1 AND business_domain_id = $2 LIMIT 1",
+			"SELECT business_domain_name FROM enterprisearchitecture.domain_capability_metadata WHERE tenant_id = $1 AND business_domain_id = $2 LIMIT 1",
 			tenantID.Value(), businessDomainID,
 		).Scan(&name)
 	})

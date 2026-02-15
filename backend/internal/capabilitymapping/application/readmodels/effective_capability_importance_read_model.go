@@ -40,7 +40,7 @@ func NewEffectiveCapabilityImportanceReadModel(db *database.TenantAwareDB) *Effe
 
 func (rm *EffectiveCapabilityImportanceReadModel) Upsert(ctx context.Context, dto EffectiveImportanceDTO) error {
 	return rm.execTenantQuery(ctx,
-		`INSERT INTO effective_capability_importance
+		`INSERT INTO capabilitymapping.effective_capability_importance
 		(tenant_id, capability_id, pillar_id, business_domain_id, effective_importance, importance_label,
 		source_capability_id, source_capability_name, is_inherited, rationale, computed_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -62,40 +62,40 @@ func (rm *EffectiveCapabilityImportanceReadModel) Upsert(ctx context.Context, dt
 func (rm *EffectiveCapabilityImportanceReadModel) Delete(ctx context.Context, capabilityID, pillarID, businessDomainID string) error {
 	if pillarID == "" {
 		return rm.execTenantQuery(ctx,
-			"DELETE FROM effective_capability_importance WHERE tenant_id = $1 AND capability_id = $2 AND business_domain_id = $3",
+			"DELETE FROM capabilitymapping.effective_capability_importance WHERE tenant_id = $1 AND capability_id = $2 AND business_domain_id = $3",
 			capabilityID, businessDomainID,
 		)
 	}
 	return rm.execTenantQuery(ctx,
-		"DELETE FROM effective_capability_importance WHERE tenant_id = $1 AND capability_id = $2 AND pillar_id = $3 AND business_domain_id = $4",
+		"DELETE FROM capabilitymapping.effective_capability_importance WHERE tenant_id = $1 AND capability_id = $2 AND pillar_id = $3 AND business_domain_id = $4",
 		capabilityID, pillarID, businessDomainID,
 	)
 }
 
 func (rm *EffectiveCapabilityImportanceReadModel) DeleteByCapability(ctx context.Context, capabilityID string) error {
 	return rm.execTenantQuery(ctx,
-		"DELETE FROM effective_capability_importance WHERE tenant_id = $1 AND capability_id = $2",
+		"DELETE FROM capabilitymapping.effective_capability_importance WHERE tenant_id = $1 AND capability_id = $2",
 		capabilityID,
 	)
 }
 
 func (rm *EffectiveCapabilityImportanceReadModel) DeleteBySourceCapability(ctx context.Context, sourceCapabilityID string) error {
 	return rm.execTenantQuery(ctx,
-		"DELETE FROM effective_capability_importance WHERE tenant_id = $1 AND source_capability_id = $2",
+		"DELETE FROM capabilitymapping.effective_capability_importance WHERE tenant_id = $1 AND source_capability_id = $2",
 		sourceCapabilityID,
 	)
 }
 
 func (rm *EffectiveCapabilityImportanceReadModel) DeleteByBusinessDomain(ctx context.Context, domainID string) error {
 	return rm.execTenantQuery(ctx,
-		"DELETE FROM effective_capability_importance WHERE tenant_id = $1 AND business_domain_id = $2",
+		"DELETE FROM capabilitymapping.effective_capability_importance WHERE tenant_id = $1 AND business_domain_id = $2",
 		domainID,
 	)
 }
 
 func (rm *EffectiveCapabilityImportanceReadModel) DeleteByPillarAndDomain(ctx context.Context, pillarID, businessDomainID string) error {
 	return rm.execTenantQuery(ctx,
-		"DELETE FROM effective_capability_importance WHERE tenant_id = $1 AND pillar_id = $2 AND business_domain_id = $3",
+		"DELETE FROM capabilitymapping.effective_capability_importance WHERE tenant_id = $1 AND pillar_id = $2 AND business_domain_id = $3",
 		pillarID, businessDomainID,
 	)
 }
@@ -111,7 +111,7 @@ func (rm *EffectiveCapabilityImportanceReadModel) GetByCapabilityPillarDomain(ct
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		row := tx.QueryRowContext(ctx,
-			fmt.Sprintf(`SELECT %s FROM effective_capability_importance
+			fmt.Sprintf(`SELECT %s FROM capabilitymapping.effective_capability_importance
 			WHERE tenant_id = $1 AND capability_id = $2 AND pillar_id = $3 AND business_domain_id = $4`, effectiveImportanceSelectColumns),
 			tenantID.Value(), capabilityID, pillarID, businessDomainID,
 		)
@@ -136,7 +136,7 @@ func (rm *EffectiveCapabilityImportanceReadModel) GetByCapabilityPillarDomain(ct
 
 func (rm *EffectiveCapabilityImportanceReadModel) GetByCapability(ctx context.Context, capabilityID string) ([]EffectiveImportanceDTO, error) {
 	return rm.queryEffectiveImportanceList(ctx,
-		fmt.Sprintf(`SELECT %s FROM effective_capability_importance
+		fmt.Sprintf(`SELECT %s FROM capabilitymapping.effective_capability_importance
 		WHERE tenant_id = $1 AND capability_id = $2
 		ORDER BY pillar_id, business_domain_id`, effectiveImportanceSelectColumns),
 		capabilityID,
@@ -145,7 +145,7 @@ func (rm *EffectiveCapabilityImportanceReadModel) GetByCapability(ctx context.Co
 
 func (rm *EffectiveCapabilityImportanceReadModel) GetBySourceCapabilityAndPillarAndDomain(ctx context.Context, sourceCapabilityID, pillarID, businessDomainID string) ([]EffectiveImportanceDTO, error) {
 	return rm.queryEffectiveImportanceList(ctx,
-		fmt.Sprintf(`SELECT %s FROM effective_capability_importance
+		fmt.Sprintf(`SELECT %s FROM capabilitymapping.effective_capability_importance
 		WHERE tenant_id = $1 AND source_capability_id = $2 AND pillar_id = $3 AND business_domain_id = $4
 		ORDER BY capability_id`, effectiveImportanceSelectColumns),
 		sourceCapabilityID, pillarID, businessDomainID,

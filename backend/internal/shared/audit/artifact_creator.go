@@ -42,7 +42,7 @@ func (rm *ArtifactCreatorReadModel) GetArtifactCreators(ctx context.Context) ([]
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, `
 			SELECT DISTINCT aggregate_id, actor_id
-			FROM events
+			FROM infrastructure.events
 			WHERE tenant_id = $1
 			  AND version = 1
 			  AND event_type IN (

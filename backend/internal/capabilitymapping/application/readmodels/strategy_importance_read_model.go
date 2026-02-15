@@ -41,7 +41,7 @@ func (rm *StrategyImportanceReadModel) Insert(ctx context.Context, dto StrategyI
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO strategy_importance
+		`INSERT INTO capabilitymapping.strategy_importance
 		(id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name,
 		pillar_id, pillar_name, importance, importance_label, rationale, set_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
@@ -59,7 +59,7 @@ func (rm *StrategyImportanceReadModel) Update(ctx context.Context, dto StrategyI
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`UPDATE strategy_importance
+		`UPDATE capabilitymapping.strategy_importance
 		SET importance = $1, importance_label = $2, rationale = $3, updated_at = $4
 		WHERE tenant_id = $5 AND id = $6`,
 		dto.Importance, dto.ImportanceLabel, dto.Rationale, time.Now().UTC(), tenantID.Value(), dto.ID,
@@ -85,7 +85,7 @@ func (rm *StrategyImportanceReadModel) deleteByColumn(ctx context.Context, colum
 		return err
 	}
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM strategy_importance WHERE tenant_id = $1 AND "+column+" = $2",
+		"DELETE FROM capabilitymapping.strategy_importance WHERE tenant_id = $1 AND "+column+" = $2",
 		tenantID.Value(), value,
 	)
 	return err
@@ -104,7 +104,7 @@ func (rm *StrategyImportanceReadModel) GetByID(ctx context.Context, id string) (
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := "SELECT " + importanceSelectColumns + " FROM strategy_importance WHERE tenant_id = $1 AND id = $2"
+		query := "SELECT " + importanceSelectColumns + " FROM capabilitymapping.strategy_importance WHERE tenant_id = $1 AND id = $2"
 		row := tx.QueryRowContext(ctx, query, tenantID.Value(), id)
 
 		var scanErr error
@@ -127,17 +127,17 @@ func (rm *StrategyImportanceReadModel) GetByID(ctx context.Context, id string) (
 }
 
 func (rm *StrategyImportanceReadModel) GetByDomainAndCapability(ctx context.Context, domainID, capabilityID string) ([]StrategyImportanceDTO, error) {
-	query := "SELECT " + importanceSelectColumns + " FROM strategy_importance WHERE tenant_id = $1 AND business_domain_id = $2 AND capability_id = $3 ORDER BY pillar_name"
+	query := "SELECT " + importanceSelectColumns + " FROM capabilitymapping.strategy_importance WHERE tenant_id = $1 AND business_domain_id = $2 AND capability_id = $3 ORDER BY pillar_name"
 	return rm.queryImportanceList(ctx, query, domainID, capabilityID)
 }
 
 func (rm *StrategyImportanceReadModel) GetByDomain(ctx context.Context, domainID string) ([]StrategyImportanceDTO, error) {
-	query := "SELECT " + importanceSelectColumns + " FROM strategy_importance WHERE tenant_id = $1 AND business_domain_id = $2 ORDER BY capability_name, pillar_name"
+	query := "SELECT " + importanceSelectColumns + " FROM capabilitymapping.strategy_importance WHERE tenant_id = $1 AND business_domain_id = $2 ORDER BY capability_name, pillar_name"
 	return rm.queryImportanceList(ctx, query, domainID)
 }
 
 func (rm *StrategyImportanceReadModel) GetByCapability(ctx context.Context, capabilityID string) ([]StrategyImportanceDTO, error) {
-	query := "SELECT " + importanceSelectColumns + " FROM strategy_importance WHERE tenant_id = $1 AND capability_id = $2 ORDER BY business_domain_name, pillar_name"
+	query := "SELECT " + importanceSelectColumns + " FROM capabilitymapping.strategy_importance WHERE tenant_id = $1 AND capability_id = $2 ORDER BY business_domain_name, pillar_name"
 	return rm.queryImportanceList(ctx, query, capabilityID)
 }
 
@@ -150,7 +150,7 @@ func (rm *StrategyImportanceReadModel) Exists(ctx context.Context, domainID, cap
 	var count int
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
-			"SELECT COUNT(*) FROM strategy_importance WHERE tenant_id = $1 AND business_domain_id = $2 AND capability_id = $3 AND pillar_id = $4",
+			"SELECT COUNT(*) FROM capabilitymapping.strategy_importance WHERE tenant_id = $1 AND business_domain_id = $2 AND capability_id = $3 AND pillar_id = $4",
 			tenantID.Value(), domainID, capabilityID, pillarID,
 		).Scan(&count)
 	})

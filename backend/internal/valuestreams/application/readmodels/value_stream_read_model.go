@@ -35,21 +35,21 @@ func NewValueStreamReadModel(db *database.TenantAwareDB) *ValueStreamReadModel {
 
 func (rm *ValueStreamReadModel) Insert(ctx context.Context, dto ValueStreamDTO) error {
 	return rm.execTenantQuery(ctx,
-		"INSERT INTO value_streams (id, tenant_id, name, description, stage_count, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+		"INSERT INTO valuestreams.value_streams (id, tenant_id, name, description, stage_count, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
 		func(tid string) []interface{} { return []interface{}{dto.ID, tid, dto.Name, dto.Description, 0, dto.CreatedAt} },
 	)
 }
 
 func (rm *ValueStreamReadModel) Update(ctx context.Context, id string, update ValueStreamUpdate) error {
 	return rm.execTenantQuery(ctx,
-		"UPDATE value_streams SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
+		"UPDATE valuestreams.value_streams SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
 		func(tid string) []interface{} { return []interface{}{update.Name, update.Description, tid, id} },
 	)
 }
 
 func (rm *ValueStreamReadModel) Delete(ctx context.Context, id string) error {
 	return rm.execTenantQuery(ctx,
-		"DELETE FROM value_streams WHERE tenant_id = $1 AND id = $2",
+		"DELETE FROM valuestreams.value_streams WHERE tenant_id = $1 AND id = $2",
 		func(tid string) []interface{} { return []interface{}{tid, id} },
 	)
 }
@@ -63,7 +63,7 @@ func (rm *ValueStreamReadModel) GetAll(ctx context.Context) ([]ValueStreamDTO, e
 	var streams []ValueStreamDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, description, stage_count, created_at, updated_at FROM value_streams WHERE tenant_id = $1 ORDER BY name",
+			"SELECT id, name, description, stage_count, created_at, updated_at FROM valuestreams.value_streams WHERE tenant_id = $1 ORDER BY name",
 			tenantID.Value(),
 		)
 		if err != nil {
@@ -117,7 +117,7 @@ func (rm *ValueStreamReadModel) getByCondition(ctx context.Context, whereClause 
 	var dto *ValueStreamDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		row := tx.QueryRowContext(ctx,
-			"SELECT id, name, description, stage_count, created_at, updated_at FROM value_streams WHERE tenant_id = $1 AND "+whereClause,
+			"SELECT id, name, description, stage_count, created_at, updated_at FROM valuestreams.value_streams WHERE tenant_id = $1 AND "+whereClause,
 			tenantID.Value(), arg,
 		)
 
@@ -137,8 +137,8 @@ func (rm *ValueStreamReadModel) getByCondition(ctx context.Context, whereClause 
 
 func (rm *ValueStreamReadModel) NameExists(ctx context.Context, name, excludeID string) (bool, error) {
 	return rm.nameExistsForTenant(ctx,
-		"SELECT COUNT(*) FROM value_streams WHERE tenant_id = $1 AND name = $2",
-		"SELECT COUNT(*) FROM value_streams WHERE tenant_id = $1 AND name = $2 AND id != $3",
+		"SELECT COUNT(*) FROM valuestreams.value_streams WHERE tenant_id = $1 AND name = $2",
+		"SELECT COUNT(*) FROM valuestreams.value_streams WHERE tenant_id = $1 AND name = $2 AND id != $3",
 		excludeID, name,
 	)
 }
@@ -191,14 +191,14 @@ type StageNameQuery struct {
 
 func (rm *ValueStreamReadModel) InsertStage(ctx context.Context, dto ValueStreamStageDTO) error {
 	return rm.execTenantQuery(ctx,
-		"INSERT INTO value_stream_stages (id, tenant_id, value_stream_id, name, description, position) VALUES ($1, $2, $3, $4, $5, $6)",
+		"INSERT INTO valuestreams.value_stream_stages (id, tenant_id, value_stream_id, name, description, position) VALUES ($1, $2, $3, $4, $5, $6)",
 		func(tid string) []interface{} { return []interface{}{dto.ID, tid, dto.ValueStreamID, dto.Name, dto.Description, dto.Position} },
 	)
 }
 
 func (rm *ValueStreamReadModel) UpdateStage(ctx context.Context, update StageUpdate) error {
 	return rm.execTenantQuery(ctx,
-		"UPDATE value_stream_stages SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
+		"UPDATE valuestreams.value_stream_stages SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
 		func(tid string) []interface{} { return []interface{}{update.Name, update.Description, tid, update.StageID} },
 	)
 }
@@ -209,8 +209,8 @@ func (rm *ValueStreamReadModel) DeleteStage(ctx context.Context, stageID string)
 		return err
 	}
 	return rm.cascadeDeleteStages(ctx,
-		"DELETE FROM value_stream_stage_capabilities WHERE tenant_id = $1 AND stage_id = $2",
-		"DELETE FROM value_stream_stages WHERE tenant_id = $1 AND id = $2",
+		"DELETE FROM valuestreams.value_stream_stage_capabilities WHERE tenant_id = $1 AND stage_id = $2",
+		"DELETE FROM valuestreams.value_stream_stages WHERE tenant_id = $1 AND id = $2",
 		tenantID.Value(), stageID,
 	)
 }
@@ -221,8 +221,8 @@ func (rm *ValueStreamReadModel) DeleteStagesByValueStreamID(ctx context.Context,
 		return err
 	}
 	return rm.cascadeDeleteStages(ctx,
-		"DELETE FROM value_stream_stage_capabilities WHERE tenant_id = $1 AND stage_id IN (SELECT id FROM value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2)",
-		"DELETE FROM value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2",
+		"DELETE FROM valuestreams.value_stream_stage_capabilities WHERE tenant_id = $1 AND stage_id IN (SELECT id FROM valuestreams.value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2)",
+		"DELETE FROM valuestreams.value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2",
 		tenantID.Value(), valueStreamID,
 	)
 }
@@ -242,7 +242,7 @@ func (rm *ValueStreamReadModel) UpdateStagePositions(ctx context.Context, update
 	}
 	for _, u := range updates {
 		_, err = rm.db.ExecContext(ctx,
-			"UPDATE value_stream_stages SET position = $1, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $2 AND id = $3",
+			"UPDATE valuestreams.value_stream_stages SET position = $1, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $2 AND id = $3",
 			u.Position, tenantID.Value(), u.StageID,
 		)
 		if err != nil {
@@ -261,7 +261,7 @@ func (rm *ValueStreamReadModel) GetStagesByValueStreamID(ctx context.Context, va
 	var stages []ValueStreamStageDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, value_stream_id, name, COALESCE(description, ''), position FROM value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2 ORDER BY position",
+			"SELECT id, value_stream_id, name, COALESCE(description, ''), position FROM valuestreams.value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2 ORDER BY position",
 			tenantID.Value(), valueStreamID,
 		)
 		if err != nil {
@@ -287,7 +287,7 @@ func (rm *ValueStreamReadModel) AdjustStageCount(ctx context.Context, valueStrea
 		return err
 	}
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE value_streams SET stage_count = GREATEST(stage_count + $1, 0) WHERE tenant_id = $2 AND id = $3",
+		"UPDATE valuestreams.value_streams SET stage_count = GREATEST(stage_count + $1, 0) WHERE tenant_id = $2 AND id = $3",
 		delta, tenantID.Value(), valueStreamID,
 	)
 	return err
@@ -295,7 +295,7 @@ func (rm *ValueStreamReadModel) AdjustStageCount(ctx context.Context, valueStrea
 
 func (rm *ValueStreamReadModel) InsertStageCapability(ctx context.Context, ref StageCapabilityRef) error {
 	_, err := rm.db.ExecContext(ctx,
-		"INSERT INTO value_stream_stage_capabilities (tenant_id, stage_id, capability_id, capability_name) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+		"INSERT INTO valuestreams.value_stream_stage_capabilities (tenant_id, stage_id, capability_id, capability_name) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
 		ref.TenantID, ref.StageID, ref.CapabilityID, ref.CapabilityName,
 	)
 	return err
@@ -303,7 +303,7 @@ func (rm *ValueStreamReadModel) InsertStageCapability(ctx context.Context, ref S
 
 func (rm *ValueStreamReadModel) DeleteStageCapability(ctx context.Context, ref StageCapabilityRef) error {
 	_, err := rm.db.ExecContext(ctx,
-		"DELETE FROM value_stream_stage_capabilities WHERE tenant_id = $1 AND stage_id = $2 AND capability_id = $3",
+		"DELETE FROM valuestreams.value_stream_stage_capabilities WHERE tenant_id = $1 AND stage_id = $2 AND capability_id = $3",
 		ref.TenantID, ref.StageID, ref.CapabilityID,
 	)
 	return err
@@ -348,8 +348,8 @@ func (rm *ValueStreamReadModel) GetCapabilitiesByValueStreamID(ctx context.Conte
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			`SELECT sc.stage_id, sc.capability_id, COALESCE(sc.capability_name, '')
-			 FROM value_stream_stage_capabilities sc
-			 INNER JOIN value_stream_stages s ON sc.tenant_id = s.tenant_id AND sc.stage_id = s.id
+			 FROM valuestreams.value_stream_stage_capabilities sc
+			 INNER JOIN valuestreams.value_stream_stages s ON sc.tenant_id = s.tenant_id AND sc.stage_id = s.id
 			 WHERE sc.tenant_id = $1 AND s.value_stream_id = $2
 			 ORDER BY s.position, sc.capability_id`,
 			tenantID.Value(), valueStreamID,
@@ -386,8 +386,8 @@ func (rm *ValueStreamReadModel) GetStagesByCapabilityID(ctx context.Context, cap
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			`SELECT s.value_stream_id, sc.stage_id
-			 FROM value_stream_stage_capabilities sc
-			 INNER JOIN value_stream_stages s ON sc.tenant_id = s.tenant_id AND sc.stage_id = s.id
+			 FROM valuestreams.value_stream_stage_capabilities sc
+			 INNER JOIN valuestreams.value_stream_stages s ON sc.tenant_id = s.tenant_id AND sc.stage_id = s.id
 			 WHERE sc.tenant_id = $1 AND sc.capability_id = $2`,
 			tenantID.Value(), capabilityID,
 		)
@@ -415,7 +415,7 @@ func (rm *ValueStreamReadModel) UpdateStageCapabilityName(ctx context.Context, c
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE value_stream_stage_capabilities SET capability_name = $1 WHERE tenant_id = $2 AND capability_id = $3",
+		"UPDATE valuestreams.value_stream_stage_capabilities SET capability_name = $1 WHERE tenant_id = $2 AND capability_id = $3",
 		name, tenantID.Value(), capabilityID,
 	)
 	return err
@@ -423,8 +423,8 @@ func (rm *ValueStreamReadModel) UpdateStageCapabilityName(ctx context.Context, c
 
 func (rm *ValueStreamReadModel) StageNameExists(ctx context.Context, query StageNameQuery) (bool, error) {
 	return rm.nameExistsForTenant(ctx,
-		"SELECT COUNT(*) FROM value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2 AND name = $3",
-		"SELECT COUNT(*) FROM value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2 AND name = $3 AND id != $4",
+		"SELECT COUNT(*) FROM valuestreams.value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2 AND name = $3",
+		"SELECT COUNT(*) FROM valuestreams.value_stream_stages WHERE tenant_id = $1 AND value_stream_id = $2 AND name = $3 AND id != $4",
 		query.ExcludeID, query.ValueStreamID, query.Name,
 	)
 }

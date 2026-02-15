@@ -38,7 +38,7 @@ func (rm *EnterpriseStrategicImportanceReadModel) Insert(ctx context.Context, dt
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO enterprise_strategic_importance (id, tenant_id, enterprise_capability_id, pillar_id, pillar_name, importance, rationale, set_at)
+		`INSERT INTO enterprisearchitecture.enterprise_strategic_importance (id, tenant_id, enterprise_capability_id, pillar_id, pillar_name, importance, rationale, set_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		dto.ID, tenantID.Value(), dto.EnterpriseCapabilityID, dto.PillarID, dto.PillarName, dto.Importance, dto.Rationale, dto.SetAt,
 	)
@@ -52,7 +52,7 @@ func (rm *EnterpriseStrategicImportanceReadModel) Update(ctx context.Context, id
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`UPDATE enterprise_strategic_importance SET importance = $1, rationale = $2, updated_at = CURRENT_TIMESTAMP
+		`UPDATE enterprisearchitecture.enterprise_strategic_importance SET importance = $1, rationale = $2, updated_at = CURRENT_TIMESTAMP
 		 WHERE tenant_id = $3 AND id = $4`,
 		importance, rationale, tenantID.Value(), id,
 	)
@@ -66,7 +66,7 @@ func (rm *EnterpriseStrategicImportanceReadModel) Delete(ctx context.Context, id
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM enterprise_strategic_importance WHERE tenant_id = $1 AND id = $2",
+		"DELETE FROM enterprisearchitecture.enterprise_strategic_importance WHERE tenant_id = $1 AND id = $2",
 		tenantID.Value(), id,
 	)
 	return err
@@ -82,7 +82,7 @@ func (rm *EnterpriseStrategicImportanceReadModel) GetByEnterpriseCapabilityID(ct
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
 			`SELECT id, enterprise_capability_id, pillar_id, pillar_name, importance, rationale, set_at, updated_at
-			 FROM enterprise_strategic_importance
+			 FROM enterprisearchitecture.enterprise_strategic_importance
 			 WHERE tenant_id = $1 AND enterprise_capability_id = $2
 			 ORDER BY pillar_name`,
 			tenantID.Value(), enterpriseCapabilityID,
@@ -118,7 +118,7 @@ func (rm *EnterpriseStrategicImportanceReadModel) GetByEnterpriseCapabilityID(ct
 func (rm *EnterpriseStrategicImportanceReadModel) GetByCapabilityAndPillar(ctx context.Context, enterpriseCapabilityID, pillarID string) (*EnterpriseStrategicImportanceDTO, error) {
 	return rm.querySingle(ctx,
 		`SELECT id, enterprise_capability_id, pillar_id, pillar_name, importance, rationale, set_at, updated_at
-		 FROM enterprise_strategic_importance
+		 FROM enterprisearchitecture.enterprise_strategic_importance
 		 WHERE tenant_id = $1 AND enterprise_capability_id = $2 AND pillar_id = $3`,
 		enterpriseCapabilityID, pillarID,
 	)
@@ -127,7 +127,7 @@ func (rm *EnterpriseStrategicImportanceReadModel) GetByCapabilityAndPillar(ctx c
 func (rm *EnterpriseStrategicImportanceReadModel) GetByID(ctx context.Context, id string) (*EnterpriseStrategicImportanceDTO, error) {
 	return rm.querySingle(ctx,
 		`SELECT id, enterprise_capability_id, pillar_id, pillar_name, importance, rationale, set_at, updated_at
-		 FROM enterprise_strategic_importance
+		 FROM enterprisearchitecture.enterprise_strategic_importance
 		 WHERE tenant_id = $1 AND id = $2`,
 		id,
 	)

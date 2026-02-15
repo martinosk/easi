@@ -57,7 +57,7 @@ func (rm *ApplicationComponentReadModel) Insert(ctx context.Context, dto Applica
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
+		"INSERT INTO architecturemodeling.application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
 		dto.ID, tenantID.Value(), dto.Name, dto.Description, dto.CreatedAt,
 	)
 	return err
@@ -73,7 +73,7 @@ func (rm *ApplicationComponentReadModel) Update(ctx context.Context, id, name, d
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE application_components SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
+		"UPDATE architecturemodeling.application_components SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
 		name, description, tenantID.Value(), id,
 	)
 	return err
@@ -86,7 +86,7 @@ func (rm *ApplicationComponentReadModel) MarkAsDeleted(ctx context.Context, id s
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE application_components SET is_deleted = TRUE, deleted_at = $1 WHERE tenant_id = $2 AND id = $3",
+		"UPDATE architecturemodeling.application_components SET is_deleted = TRUE, deleted_at = $1 WHERE tenant_id = $2 AND id = $3",
 		deletedAt, tenantID.Value(), id,
 	)
 	return err
@@ -105,7 +105,7 @@ func (rm *ApplicationComponentReadModel) GetByID(ctx context.Context, id string)
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
+			"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
 			tenantID.Value(), id,
 		).Scan(&dto.ID, &dto.Name, &dto.Description, &dto.CreatedAt)
 
@@ -142,7 +142,7 @@ func (rm *ApplicationComponentReadModel) GetAll(ctx context.Context) ([]Applicat
 	var components []ApplicationComponentDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC",
+			"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC",
 			tenantID.Value(),
 		)
 		if err != nil {
@@ -210,12 +210,12 @@ func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, li
 func (rm *ApplicationComponentReadModel) queryPaginatedComponents(ctx context.Context, tx *sql.Tx, query paginationQuery) (*sql.Rows, error) {
 	if query.afterCursor == "" {
 		return tx.QueryContext(ctx,
-			"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
+			"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
 			query.tenantID, query.limit,
 		)
 	}
 	return tx.QueryContext(ctx,
-		"SELECT id, name, description, created_at FROM application_components WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
+		"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
 		query.tenantID, query.afterName, query.afterCursor, query.limit,
 	)
 }
@@ -247,7 +247,7 @@ func (rm *ApplicationComponentReadModel) AddExpert(ctx context.Context, info Exp
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO application_component_experts (component_id, tenant_id, expert_name, expert_role, contact_info, added_at) VALUES ($1, $2, $3, $4, $5, $6)",
+		"INSERT INTO architecturemodeling.application_component_experts (component_id, tenant_id, expert_name, expert_role, contact_info, added_at) VALUES ($1, $2, $3, $4, $5, $6)",
 		info.ComponentID, tenantID.Value(), info.Name, info.Role, info.Contact, info.AddedAt,
 	)
 	return err
@@ -260,7 +260,7 @@ func (rm *ApplicationComponentReadModel) RemoveExpert(ctx context.Context, info 
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM application_component_experts WHERE tenant_id = $1 AND component_id = $2 AND expert_name = $3 AND expert_role = $4 AND contact_info = $5",
+		"DELETE FROM architecturemodeling.application_component_experts WHERE tenant_id = $1 AND component_id = $2 AND expert_name = $3 AND expert_role = $4 AND contact_info = $5",
 		tenantID.Value(), info.ComponentID, info.Name, info.Role, info.Contact,
 	)
 	return err
@@ -275,7 +275,7 @@ func (rm *ApplicationComponentReadModel) GetDistinctExpertRoles(ctx context.Cont
 	var roles []string
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT DISTINCT expert_role FROM application_component_experts WHERE tenant_id = $1 ORDER BY expert_role",
+			"SELECT DISTINCT expert_role FROM architecturemodeling.application_component_experts WHERE tenant_id = $1 ORDER BY expert_role",
 			tenantID.Value(),
 		)
 		if err != nil {
@@ -297,7 +297,7 @@ func (rm *ApplicationComponentReadModel) GetDistinctExpertRoles(ctx context.Cont
 
 func (rm *ApplicationComponentReadModel) fetchExperts(ctx context.Context, tx *sql.Tx, tenantID, componentID string) ([]ExpertDTO, error) {
 	rows, err := tx.QueryContext(ctx,
-		"SELECT expert_name, expert_role, contact_info, added_at FROM application_component_experts WHERE tenant_id = $1 AND component_id = $2",
+		"SELECT expert_name, expert_role, contact_info, added_at FROM architecturemodeling.application_component_experts WHERE tenant_id = $1 AND component_id = $2",
 		tenantID, componentID,
 	)
 	if err != nil {
@@ -329,7 +329,7 @@ func (rm *ApplicationComponentReadModel) loadExpertsForComponents(ctx context.Co
 	}
 
 	rows, err := tx.QueryContext(ctx,
-		"SELECT component_id, expert_name, expert_role, contact_info, added_at FROM application_component_experts WHERE tenant_id = $1 AND component_id = ANY($2)",
+		"SELECT component_id, expert_name, expert_role, contact_info, added_at FROM architecturemodeling.application_component_experts WHERE tenant_id = $1 AND component_id = ANY($2)",
 		tenantID, pq.Array(componentIDs),
 	)
 	if err != nil {

@@ -47,7 +47,7 @@ func (r *ViewLayoutRepository) upsertElementPosition(ctx context.Context, viewID
 	}
 
 	_, err = r.db.ExecContext(ctx,
-		`INSERT INTO view_element_positions (view_id, tenant_id, element_id, element_type, x, y, created_at, updated_at)
+		`INSERT INTO architectureviews.view_element_positions (view_id, tenant_id, element_id, element_type, x, y, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
 		ON CONFLICT (tenant_id, view_id, element_id, element_type)
 		DO UPDATE SET x = $5, y = $6, updated_at = $7`,
@@ -75,7 +75,7 @@ func (r *ViewLayoutRepository) UpdateMultiplePositions(ctx context.Context, view
 	now := time.Now().UTC()
 	for _, pos := range positions {
 		_, err := tx.ExecContext(ctx,
-			`INSERT INTO view_element_positions (view_id, tenant_id, element_id, element_type, x, y, created_at, updated_at)
+			`INSERT INTO architectureviews.view_element_positions (view_id, tenant_id, element_id, element_type, x, y, created_at, updated_at)
 			VALUES ($1, $2, $3, 'component', $4, $5, $6, $6)
 			ON CONFLICT (tenant_id, view_id, element_id, element_type)
 			DO UPDATE SET x = $4, y = $5, updated_at = $6`,
@@ -99,7 +99,7 @@ func (r *ViewLayoutRepository) GetLayout(ctx context.Context, viewID string) ([]
 
 	err = r.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT element_id, x, y FROM view_element_positions WHERE tenant_id = $1 AND view_id = $2 AND element_type = 'component'",
+			"SELECT element_id, x, y FROM architectureviews.view_element_positions WHERE tenant_id = $1 AND view_id = $2 AND element_type = 'component'",
 			tenantID.Value(), viewID,
 		)
 		if err != nil {
@@ -132,7 +132,7 @@ func (r *ViewLayoutRepository) DeleteLayout(ctx context.Context, viewID string) 
 	}
 
 	_, err = r.db.ExecContext(ctx,
-		"DELETE FROM view_element_positions WHERE tenant_id = $1 AND view_id = $2",
+		"DELETE FROM architectureviews.view_element_positions WHERE tenant_id = $1 AND view_id = $2",
 		tenantID.Value(), viewID,
 	)
 	return err
@@ -145,7 +145,7 @@ func (r *ViewLayoutRepository) deleteElementPosition(ctx context.Context, viewID
 	}
 
 	_, err = r.db.ExecContext(ctx,
-		"DELETE FROM view_element_positions WHERE tenant_id = $1 AND view_id = $2 AND element_id = $3 AND element_type = $4",
+		"DELETE FROM architectureviews.view_element_positions WHERE tenant_id = $1 AND view_id = $2 AND element_id = $3 AND element_type = $4",
 		tenantID.Value(), viewID, elementID, string(elementType),
 	)
 	return err
@@ -169,7 +169,7 @@ func (r *ViewLayoutRepository) updateViewPreference(ctx context.Context, viewID,
 		return err
 	}
 
-	query := `INSERT INTO view_preferences (tenant_id, view_id, ` + column + `, updated_at)
+	query := `INSERT INTO architectureviews.view_preferences (tenant_id, view_id, ` + column + `, updated_at)
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (tenant_id, view_id)
 		DO UPDATE SET ` + column + ` = $3, updated_at = $4`
@@ -183,7 +183,7 @@ func (r *ViewLayoutRepository) UpdateElementColor(ctx context.Context, viewID, e
 		return err
 	}
 
-	query := `UPDATE view_element_positions
+	query := `UPDATE architectureviews.view_element_positions
 		SET custom_color = $1, updated_at = $2
 		WHERE tenant_id = $3 AND view_id = $4 AND element_id = $5 AND element_type = $6`
 	_, err = r.db.ExecContext(ctx, query, color, time.Now().UTC(), tenantID.Value(), viewID, elementID, string(elementType))
@@ -196,7 +196,7 @@ func (r *ViewLayoutRepository) ClearElementColor(ctx context.Context, viewID, el
 		return err
 	}
 
-	query := `UPDATE view_element_positions
+	query := `UPDATE architectureviews.view_element_positions
 		SET custom_color = NULL, updated_at = $1
 		WHERE tenant_id = $2 AND view_id = $3 AND element_id = $4 AND element_type = $5`
 	_, err = r.db.ExecContext(ctx, query, time.Now().UTC(), tenantID.Value(), viewID, elementID, string(elementType))
@@ -212,7 +212,7 @@ func (r *ViewLayoutRepository) GetPreferences(ctx context.Context, viewID string
 	var et, ld sql.NullString
 	err = r.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
-			"SELECT edge_type, layout_direction FROM view_preferences WHERE tenant_id = $1 AND view_id = $2",
+			"SELECT edge_type, layout_direction FROM architectureviews.view_preferences WHERE tenant_id = $1 AND view_id = $2",
 			tenantID.Value(), viewID,
 		).Scan(&et, &ld)
 	})

@@ -30,7 +30,7 @@ func (rm *CMEffectiveBusinessDomainReadModel) Upsert(ctx context.Context, dto CM
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO cm_effective_business_domain
+		`INSERT INTO capabilitymapping.cm_effective_business_domain
 		 (tenant_id, capability_id, business_domain_id, business_domain_name, l1_capability_id)
 		 VALUES ($1, $2, $3, $4, $5)
 		 ON CONFLICT (tenant_id, capability_id) DO UPDATE SET
@@ -51,7 +51,7 @@ func (rm *CMEffectiveBusinessDomainReadModel) Delete(ctx context.Context, capabi
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM cm_effective_business_domain WHERE tenant_id = $1 AND capability_id = $2",
+		"DELETE FROM capabilitymapping.cm_effective_business_domain WHERE tenant_id = $1 AND capability_id = $2",
 		tenantID.Value(), capabilityID,
 	)
 	return err
@@ -70,7 +70,7 @@ func (rm *CMEffectiveBusinessDomainReadModel) GetByCapabilityID(ctx context.Cont
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
 			`SELECT capability_id, business_domain_id, business_domain_name, l1_capability_id
-			 FROM cm_effective_business_domain WHERE tenant_id = $1 AND capability_id = $2`,
+			 FROM capabilitymapping.cm_effective_business_domain WHERE tenant_id = $1 AND capability_id = $2`,
 			tenantID.Value(), capabilityID,
 		).Scan(&dto.CapabilityID, &businessDomainID, &businessDomainName, &dto.L1CapabilityID)
 
@@ -101,7 +101,7 @@ func (rm *CMEffectiveBusinessDomainReadModel) UpdateBusinessDomainForL1Subtree(c
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`UPDATE cm_effective_business_domain
+		`UPDATE capabilitymapping.cm_effective_business_domain
 		 SET business_domain_id = $2, business_domain_name = $3
 		 WHERE tenant_id = $1 AND l1_capability_id = $4`,
 		tenantID.Value(), cmNullIfEmpty(bdID), cmNullIfEmpty(bdName), l1CapabilityID,

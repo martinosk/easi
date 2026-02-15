@@ -36,9 +36,9 @@ func (r *TenantOIDCRepository) GetByEmailDomain(ctx context.Context, emailDomain
 
 	err := r.db.QueryRowContext(ctx,
 		`SELECT t.id, t.status, oc.discovery_url, oc.issuer_url, oc.client_id, oc.auth_method, oc.scopes
-		 FROM tenant_domains td
-		 JOIN tenants t ON td.tenant_id = t.id
-		 JOIN tenant_oidc_configs oc ON t.id = oc.tenant_id
+		 FROM platform.tenant_domains td
+		 JOIN platform.tenants t ON td.tenant_id = t.id
+		 JOIN platform.tenant_oidc_configs oc ON t.id = oc.tenant_id
 		 WHERE td.domain = $1`,
 		emailDomain,
 	).Scan(&config.TenantID, &status, &config.DiscoveryURL, &issuerURL, &config.ClientID, &config.AuthMethod, &config.Scopes)
@@ -68,8 +68,8 @@ func (r *TenantOIDCRepository) GetByTenantID(ctx context.Context, tenantID strin
 
 	err := r.db.QueryRowContext(ctx,
 		`SELECT t.id, t.status, oc.discovery_url, oc.issuer_url, oc.client_id, oc.auth_method, oc.scopes
-		 FROM tenants t
-		 JOIN tenant_oidc_configs oc ON t.id = oc.tenant_id
+		 FROM platform.tenants t
+		 JOIN platform.tenant_oidc_configs oc ON t.id = oc.tenant_id
 		 WHERE t.id = $1`,
 		tenantID,
 	).Scan(&config.TenantID, &status, &config.DiscoveryURL, &issuerURL, &config.ClientID, &config.AuthMethod, &config.Scopes)

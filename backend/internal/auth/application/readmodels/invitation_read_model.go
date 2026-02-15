@@ -58,7 +58,7 @@ func (rm *InvitationReadModel) Insert(ctx context.Context, dto InvitationDTO) er
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO invitations (id, tenant_id, email, role, status, invited_by, created_at, expires_at)
+		`INSERT INTO auth.invitations (id, tenant_id, email, role, status, invited_by, created_at, expires_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		dto.ID, tenantID, dto.Email, dto.Role, dto.Status, dto.InvitedBy, dto.CreatedAt, dto.ExpiresAt,
 	)
@@ -72,7 +72,7 @@ func (rm *InvitationReadModel) UpdateStatus(ctx context.Context, update StatusUp
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`UPDATE invitations SET status = $1, accepted_at = $2, revoked_at = $3 WHERE tenant_id = $4 AND id = $5`,
+		`UPDATE auth.invitations SET status = $1, accepted_at = $2, revoked_at = $3 WHERE tenant_id = $4 AND id = $5`,
 		update.Status, update.AcceptedAt, update.RevokedAt, tenantID, update.ID,
 	)
 	return err
@@ -81,13 +81,13 @@ func (rm *InvitationReadModel) UpdateStatus(ctx context.Context, update StatusUp
 func (rm *InvitationReadModel) GetByID(ctx context.Context, id string) (*InvitationDTO, error) {
 	return rm.queryOneWithTenant(ctx,
 		`SELECT id, email, role, status, invited_by, created_at, expires_at, accepted_at, revoked_at
-		 FROM invitations WHERE tenant_id = $1 AND id = $2`, id)
+		 FROM auth.invitations WHERE tenant_id = $1 AND id = $2`, id)
 }
 
 func (rm *InvitationReadModel) GetPendingByEmail(ctx context.Context, email string) (*InvitationDTO, error) {
 	return rm.queryOneWithTenant(ctx,
 		`SELECT id, email, role, status, invited_by, created_at, expires_at, accepted_at, revoked_at
-		 FROM invitations
+		 FROM auth.invitations
 		 WHERE tenant_id = $1 AND email = $2 AND status = 'pending' AND expires_at > NOW()
 		 ORDER BY created_at DESC
 		 LIMIT 1`, email)
@@ -96,7 +96,7 @@ func (rm *InvitationReadModel) GetPendingByEmail(ctx context.Context, email stri
 func (rm *InvitationReadModel) GetAnyPendingByEmail(ctx context.Context, email string) (*InvitationDTO, error) {
 	return rm.queryOneWithTenant(ctx,
 		`SELECT id, email, role, status, invited_by, created_at, expires_at, accepted_at, revoked_at
-		 FROM invitations
+		 FROM auth.invitations
 		 WHERE tenant_id = $1 AND email = $2 AND status = 'pending'
 		 ORDER BY created_at DESC
 		 LIMIT 1`, email)
@@ -139,7 +139,7 @@ func (rm *InvitationReadModel) queryOne(ctx context.Context, query string, args 
 func (rm *InvitationReadModel) GetAll(ctx context.Context) ([]InvitationDTO, error) {
 	return rm.queryManyWithTenant(ctx,
 		`SELECT id, email, role, status, invited_by, created_at, expires_at, accepted_at, revoked_at
-		 FROM invitations WHERE tenant_id = $1
+		 FROM auth.invitations WHERE tenant_id = $1
 		 ORDER BY created_at DESC`)
 }
 
@@ -168,7 +168,7 @@ func (rm *InvitationReadModel) queryPaginated(ctx context.Context, tenantID stri
 	if pq.afterCursor == "" {
 		return rm.queryMany(ctx,
 			`SELECT id, email, role, status, invited_by, created_at, expires_at, accepted_at, revoked_at
-			 FROM invitations WHERE tenant_id = $1
+			 FROM auth.invitations WHERE tenant_id = $1
 			 ORDER BY created_at DESC, id DESC
 			 LIMIT $2`,
 			tenantID, pq.limit,
@@ -177,7 +177,7 @@ func (rm *InvitationReadModel) queryPaginated(ctx context.Context, tenantID stri
 
 	return rm.queryMany(ctx,
 		`SELECT id, email, role, status, invited_by, created_at, expires_at, accepted_at, revoked_at
-		 FROM invitations
+		 FROM auth.invitations
 		 WHERE tenant_id = $1
 		 AND (created_at < to_timestamp($2) OR (created_at = to_timestamp($2) AND id < $3))
 		 ORDER BY created_at DESC, id DESC
@@ -230,7 +230,7 @@ func (rm *InvitationReadModel) ExistsPendingForEmail(ctx context.Context, email 
 	var exists bool
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
-			`SELECT EXISTS(SELECT 1 FROM invitations WHERE tenant_id = $1 AND email = $2 AND status = 'pending' AND expires_at > NOW())`,
+			`SELECT EXISTS(SELECT 1 FROM auth.invitations WHERE tenant_id = $1 AND email = $2 AND status = 'pending' AND expires_at > NOW())`,
 			tenantID, email,
 		).Scan(&exists)
 	})

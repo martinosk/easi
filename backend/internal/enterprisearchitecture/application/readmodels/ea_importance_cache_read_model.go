@@ -24,7 +24,7 @@ func NewEAImportanceCacheReadModel(db *database.TenantAwareDB) *EAImportanceCach
 
 func (rm *EAImportanceCacheReadModel) Upsert(ctx context.Context, entry ImportanceEntry) error {
 	return rm.execForTenant(ctx,
-		`INSERT INTO ea_importance_cache (tenant_id, capability_id, business_domain_id, pillar_id, effective_importance)
+		`INSERT INTO enterprisearchitecture.ea_importance_cache (tenant_id, capability_id, business_domain_id, pillar_id, effective_importance)
 		 VALUES ($1, $2, $3, $4, $5)
 		 ON CONFLICT (tenant_id, capability_id, business_domain_id, pillar_id) DO UPDATE SET
 		 effective_importance = EXCLUDED.effective_importance`,

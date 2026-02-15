@@ -28,11 +28,11 @@ func NewStrategyPillarCacheReadModel(db *database.TenantAwareDB) *StrategyPillar
 
 func (rm *StrategyPillarCacheReadModel) Insert(ctx context.Context, dto StrategyPillarCacheDTO) error {
 	query := `
-		INSERT INTO ea_strategy_pillar_cache (
+		INSERT INTO enterprisearchitecture.ea_strategy_pillar_cache (
 			id, tenant_id, name, description, active,
 			fit_scoring_enabled, fit_criteria, fit_type
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		ON CONFLICT (id, tenant_id) 
+		ON CONFLICT (id, tenant_id)
 		DO UPDATE SET
 			name = EXCLUDED.name,
 			description = EXCLUDED.description,
@@ -50,7 +50,7 @@ func (rm *StrategyPillarCacheReadModel) Insert(ctx context.Context, dto Strategy
 }
 
 func (rm *StrategyPillarCacheReadModel) Delete(ctx context.Context, pillarID string) error {
-	query := `DELETE FROM ea_strategy_pillar_cache WHERE id = $1`
+	query := `DELETE FROM enterprisearchitecture.ea_strategy_pillar_cache WHERE id = $1`
 
 	_, err := rm.db.ExecContext(ctx, query, pillarID)
 	return err
@@ -60,7 +60,7 @@ func (rm *StrategyPillarCacheReadModel) GetAll(ctx context.Context) ([]StrategyP
 	query := `
 		SELECT id, tenant_id, name, description, active,
 		       fit_scoring_enabled, fit_criteria, fit_type
-		FROM ea_strategy_pillar_cache
+		FROM enterprisearchitecture.ea_strategy_pillar_cache
 		ORDER BY name
 	`
 
@@ -104,7 +104,7 @@ func (rm *StrategyPillarCacheReadModel) GetActivePillar(ctx context.Context, pil
 	query := `
 		SELECT id, tenant_id, name, description, active,
 		       fit_scoring_enabled, fit_criteria, fit_type
-		FROM ea_strategy_pillar_cache
+		FROM enterprisearchitecture.ea_strategy_pillar_cache
 		WHERE id = $1 AND active = true
 	`
 

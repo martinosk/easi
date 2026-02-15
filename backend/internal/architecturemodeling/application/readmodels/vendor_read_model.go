@@ -35,7 +35,7 @@ func (rm *VendorReadModel) Insert(ctx context.Context, dto VendorDTO) error {
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO vendors (id, tenant_id, name, implementation_partner, notes, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+		"INSERT INTO architecturemodeling.vendors (id, tenant_id, name, implementation_partner, notes, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
 		dto.ID, tenantID.Value(), dto.Name, dto.ImplementationPartner, dto.Notes, dto.CreatedAt,
 	)
 	return err
@@ -48,7 +48,7 @@ func (rm *VendorReadModel) Update(ctx context.Context, id, name, implementationP
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE vendors SET name = $1, implementation_partner = $2, notes = $3, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $4 AND id = $5",
+		"UPDATE architecturemodeling.vendors SET name = $1, implementation_partner = $2, notes = $3, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $4 AND id = $5",
 		name, implementationPartner, notes, tenantID.Value(), id,
 	)
 	return err
@@ -61,7 +61,7 @@ func (rm *VendorReadModel) MarkAsDeleted(ctx context.Context, id string, deleted
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE vendors SET is_deleted = TRUE, deleted_at = $1 WHERE tenant_id = $2 AND id = $3",
+		"UPDATE architecturemodeling.vendors SET is_deleted = TRUE, deleted_at = $1 WHERE tenant_id = $2 AND id = $3",
 		deletedAt, tenantID.Value(), id,
 	)
 	return err
@@ -78,7 +78,7 @@ func (rm *VendorReadModel) GetByID(ctx context.Context, id string) (*VendorDTO, 
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, implementation_partner, notes, created_at, updated_at FROM vendors WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
+			"SELECT id, name, implementation_partner, notes, created_at, updated_at FROM architecturemodeling.vendors WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
 			tenantID.Value(), id,
 		).Scan(&dto.ID, &dto.Name, &dto.ImplementationPartner, &dto.Notes, &dto.CreatedAt, &dto.UpdatedAt)
 
@@ -108,7 +108,7 @@ func (rm *VendorReadModel) GetAll(ctx context.Context) ([]VendorDTO, error) {
 	vendors := make([]VendorDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, implementation_partner, notes, created_at, updated_at FROM vendors WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC",
+			"SELECT id, name, implementation_partner, notes, created_at, updated_at FROM architecturemodeling.vendors WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC",
 			tenantID.Value(),
 		)
 		if err != nil {
@@ -145,12 +145,12 @@ func (rm *VendorReadModel) GetAllPaginated(ctx context.Context, limit int, after
 
 		if afterCursor == "" {
 			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, implementation_partner, notes, created_at, updated_at FROM vendors WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
+				"SELECT id, name, implementation_partner, notes, created_at, updated_at FROM architecturemodeling.vendors WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
 				tenantID.Value(), queryLimit,
 			)
 		} else {
 			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, implementation_partner, notes, created_at, updated_at FROM vendors WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
+				"SELECT id, name, implementation_partner, notes, created_at, updated_at FROM architecturemodeling.vendors WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
 				tenantID.Value(), afterName, afterCursor, queryLimit,
 			)
 		}

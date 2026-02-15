@@ -37,7 +37,7 @@ func (rm *DomainCapabilityAssignmentReadModel) Insert(ctx context.Context, dto A
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_description, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+		"INSERT INTO capabilitymapping.domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_description, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
 		dto.AssignmentID, tenantID.Value(), dto.BusinessDomainID, dto.BusinessDomainName, dto.CapabilityID, dto.CapabilityName, dto.CapabilityDescription, dto.CapabilityLevel, dto.AssignedAt,
 	)
 	return err
@@ -50,7 +50,7 @@ func (rm *DomainCapabilityAssignmentReadModel) Delete(ctx context.Context, assig
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM domain_capability_assignments WHERE tenant_id = $1 AND assignment_id = $2",
+		"DELETE FROM capabilitymapping.domain_capability_assignments WHERE tenant_id = $1 AND assignment_id = $2",
 		tenantID.Value(), assignmentID,
 	)
 	return err
@@ -63,7 +63,7 @@ func (rm *DomainCapabilityAssignmentReadModel) UpdateCapabilityInfo(ctx context.
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE domain_capability_assignments SET capability_name = $1, capability_description = $2, capability_level = $3 WHERE tenant_id = $4 AND capability_id = $5",
+		"UPDATE capabilitymapping.domain_capability_assignments SET capability_name = $1, capability_description = $2, capability_level = $3 WHERE tenant_id = $4 AND capability_id = $5",
 		name, description, level, tenantID.Value(), capabilityID,
 	)
 	return err
@@ -72,12 +72,12 @@ func (rm *DomainCapabilityAssignmentReadModel) UpdateCapabilityInfo(ctx context.
 const assignmentSelectColumns = "assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_description, capability_level, assigned_at"
 
 func (rm *DomainCapabilityAssignmentReadModel) GetByDomainID(ctx context.Context, domainID string) ([]AssignmentDTO, error) {
-	query := "SELECT " + assignmentSelectColumns + " FROM domain_capability_assignments WHERE tenant_id = $1 AND business_domain_id = $2 ORDER BY capability_name"
+	query := "SELECT " + assignmentSelectColumns + " FROM capabilitymapping.domain_capability_assignments WHERE tenant_id = $1 AND business_domain_id = $2 ORDER BY capability_name"
 	return rm.queryAssignments(ctx, query, domainID)
 }
 
 func (rm *DomainCapabilityAssignmentReadModel) GetByCapabilityID(ctx context.Context, capabilityID string) ([]AssignmentDTO, error) {
-	query := "SELECT " + assignmentSelectColumns + " FROM domain_capability_assignments WHERE tenant_id = $1 AND capability_id = $2 ORDER BY business_domain_name"
+	query := "SELECT " + assignmentSelectColumns + " FROM capabilitymapping.domain_capability_assignments WHERE tenant_id = $1 AND capability_id = $2 ORDER BY business_domain_name"
 	return rm.queryAssignments(ctx, query, capabilityID)
 }
 
@@ -119,7 +119,7 @@ func (rm *DomainCapabilityAssignmentReadModel) GetByDomainAndCapability(ctx cont
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := "SELECT " + assignmentSelectColumns + " FROM domain_capability_assignments WHERE tenant_id = $1 AND business_domain_id = $2 AND capability_id = $3"
+		query := "SELECT " + assignmentSelectColumns + " FROM capabilitymapping.domain_capability_assignments WHERE tenant_id = $1 AND business_domain_id = $2 AND capability_id = $3"
 		err := tx.QueryRowContext(ctx, query, tenantID.Value(), domainID, capabilityID).Scan(
 			&dto.AssignmentID, &dto.BusinessDomainID, &dto.BusinessDomainName, &dto.CapabilityID, &dto.CapabilityName, &dto.CapabilityDescription, &dto.CapabilityLevel, &dto.AssignedAt,
 		)
@@ -150,7 +150,7 @@ func (rm *DomainCapabilityAssignmentReadModel) AssignmentExists(ctx context.Cont
 	var count int
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
-			"SELECT COUNT(*) FROM domain_capability_assignments WHERE tenant_id = $1 AND business_domain_id = $2 AND capability_id = $3",
+			"SELECT COUNT(*) FROM capabilitymapping.domain_capability_assignments WHERE tenant_id = $1 AND business_domain_id = $2 AND capability_id = $3",
 			tenantID.Value(), domainID, capabilityID,
 		).Scan(&count)
 	})

@@ -36,7 +36,7 @@ func (rm *AcquiredEntityReadModel) Insert(ctx context.Context, dto AcquiredEntit
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO acquired_entities (id, tenant_id, name, acquisition_date, integration_status, notes, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		"INSERT INTO architecturemodeling.acquired_entities (id, tenant_id, name, acquisition_date, integration_status, notes, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
 		dto.ID, tenantID.Value(), dto.Name, dto.AcquisitionDate, dto.IntegrationStatus, dto.Notes, dto.CreatedAt,
 	)
 	return err
@@ -49,7 +49,7 @@ func (rm *AcquiredEntityReadModel) Update(ctx context.Context, id, name string, 
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE acquired_entities SET name = $1, acquisition_date = $2, integration_status = $3, notes = $4, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $5 AND id = $6",
+		"UPDATE architecturemodeling.acquired_entities SET name = $1, acquisition_date = $2, integration_status = $3, notes = $4, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $5 AND id = $6",
 		name, acquisitionDate, integrationStatus, notes, tenantID.Value(), id,
 	)
 	return err
@@ -62,7 +62,7 @@ func (rm *AcquiredEntityReadModel) MarkAsDeleted(ctx context.Context, id string,
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE acquired_entities SET is_deleted = TRUE, deleted_at = $1 WHERE tenant_id = $2 AND id = $3",
+		"UPDATE architecturemodeling.acquired_entities SET is_deleted = TRUE, deleted_at = $1 WHERE tenant_id = $2 AND id = $3",
 		deletedAt, tenantID.Value(), id,
 	)
 	return err
@@ -79,7 +79,7 @@ func (rm *AcquiredEntityReadModel) GetByID(ctx context.Context, id string) (*Acq
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, acquisition_date, integration_status, notes, created_at, updated_at FROM acquired_entities WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
+			"SELECT id, name, acquisition_date, integration_status, notes, created_at, updated_at FROM architecturemodeling.acquired_entities WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
 			tenantID.Value(), id,
 		).Scan(&dto.ID, &dto.Name, &dto.AcquisitionDate, &dto.IntegrationStatus, &dto.Notes, &dto.CreatedAt, &dto.UpdatedAt)
 
@@ -109,7 +109,7 @@ func (rm *AcquiredEntityReadModel) GetAll(ctx context.Context) ([]AcquiredEntity
 	entities := make([]AcquiredEntityDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, acquisition_date, integration_status, notes, created_at, updated_at FROM acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC",
+			"SELECT id, name, acquisition_date, integration_status, notes, created_at, updated_at FROM architecturemodeling.acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC",
 			tenantID.Value(),
 		)
 		if err != nil {
@@ -146,12 +146,12 @@ func (rm *AcquiredEntityReadModel) GetAllPaginated(ctx context.Context, limit in
 
 		if afterCursor == "" {
 			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, acquisition_date, integration_status, notes, created_at, updated_at FROM acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
+				"SELECT id, name, acquisition_date, integration_status, notes, created_at, updated_at FROM architecturemodeling.acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
 				tenantID.Value(), queryLimit,
 			)
 		} else {
 			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, acquisition_date, integration_status, notes, created_at, updated_at FROM acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
+				"SELECT id, name, acquisition_date, integration_status, notes, created_at, updated_at FROM architecturemodeling.acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
 				tenantID.Value(), afterName, afterCursor, queryLimit,
 			)
 		}

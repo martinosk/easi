@@ -89,7 +89,7 @@ func (rm *ImportSessionReadModel) Insert(ctx context.Context, dto ImportSessionD
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO import_sessions (id, tenant_id, source_format, business_domain_id, capability_ea_owner, status, preview, created_at)
+		`INSERT INTO importing.import_sessions (id, tenant_id, source_format, business_domain_id, capability_ea_owner, status, preview, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		dto.ID, tenantID.Value(), dto.SourceFormat, nullString(dto.BusinessDomainID), nullString(dto.CapabilityEAOwner), dto.Status, previewJSON, dto.CreatedAt,
 	)
@@ -97,7 +97,7 @@ func (rm *ImportSessionReadModel) Insert(ctx context.Context, dto ImportSessionD
 }
 
 func (rm *ImportSessionReadModel) UpdateStatus(ctx context.Context, id, status string) error {
-	return rm.execQuery(ctx, id, "UPDATE import_sessions SET status = $1 WHERE tenant_id = $2 AND id = $3", status)
+	return rm.execQuery(ctx, id, "UPDATE importing.import_sessions SET status = $1 WHERE tenant_id = $2 AND id = $3", status)
 }
 
 func (rm *ImportSessionReadModel) UpdateProgress(ctx context.Context, id string, progress ProgressDTO) error {
@@ -105,7 +105,7 @@ func (rm *ImportSessionReadModel) UpdateProgress(ctx context.Context, id string,
 	if err != nil {
 		return err
 	}
-	return rm.execQuery(ctx, id, "UPDATE import_sessions SET progress = $1 WHERE tenant_id = $2 AND id = $3", progressJSON)
+	return rm.execQuery(ctx, id, "UPDATE importing.import_sessions SET progress = $1 WHERE tenant_id = $2 AND id = $3", progressJSON)
 }
 
 func (rm *ImportSessionReadModel) MarkCompleted(ctx context.Context, id string, result ResultDTO, completedAt time.Time) error {
@@ -113,15 +113,15 @@ func (rm *ImportSessionReadModel) MarkCompleted(ctx context.Context, id string, 
 	if err != nil {
 		return err
 	}
-	return rm.execQuery(ctx, id, "UPDATE import_sessions SET status = 'completed', result = $1, completed_at = $2 WHERE tenant_id = $3 AND id = $4", resultJSON, completedAt)
+	return rm.execQuery(ctx, id, "UPDATE importing.import_sessions SET status = 'completed', result = $1, completed_at = $2 WHERE tenant_id = $3 AND id = $4", resultJSON, completedAt)
 }
 
 func (rm *ImportSessionReadModel) MarkFailed(ctx context.Context, id string, failedAt time.Time) error {
-	return rm.execQuery(ctx, id, "UPDATE import_sessions SET status = 'failed', completed_at = $1 WHERE tenant_id = $2 AND id = $3", failedAt)
+	return rm.execQuery(ctx, id, "UPDATE importing.import_sessions SET status = 'failed', completed_at = $1 WHERE tenant_id = $2 AND id = $3", failedAt)
 }
 
 func (rm *ImportSessionReadModel) MarkCancelled(ctx context.Context, id string) error {
-	return rm.execQuery(ctx, id, "UPDATE import_sessions SET is_cancelled = TRUE WHERE tenant_id = $1 AND id = $2")
+	return rm.execQuery(ctx, id, "UPDATE importing.import_sessions SET is_cancelled = TRUE WHERE tenant_id = $1 AND id = $2")
 }
 
 func (rm *ImportSessionReadModel) execQuery(ctx context.Context, id string, query string, args ...any) error {
@@ -187,7 +187,7 @@ func (rm *ImportSessionReadModel) GetByID(ctx context.Context, id string) (*Impo
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
 			`SELECT id, source_format, business_domain_id, capability_ea_owner, status, preview, progress, result, created_at, completed_at
-			 FROM import_sessions
+			 FROM importing.import_sessions
 			 WHERE tenant_id = $1 AND id = $2 AND is_cancelled = FALSE`,
 			tenantID.Value(), id,
 		).Scan(row.scanTargets()...)

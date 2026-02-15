@@ -22,7 +22,7 @@ func (r *TenantRepository) GetByID(ctx context.Context, tenantID string) (*Tenan
 	var tenant Tenant
 
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, name FROM tenants WHERE id = $1`,
+		`SELECT id, name FROM platform.tenants WHERE id = $1`,
 		tenantID,
 	).Scan(&tenant.ID, &tenant.Name)
 
@@ -38,7 +38,7 @@ func (r *TenantRepository) GetByID(ctx context.Context, tenantID string) (*Tenan
 
 func (r *TenantRepository) GetDomains(ctx context.Context, tenantID string) ([]string, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT domain FROM tenant_domains WHERE tenant_id = $1 ORDER BY domain`,
+		`SELECT domain FROM platform.tenant_domains WHERE tenant_id = $1 ORDER BY domain`,
 		tenantID,
 	)
 	if err != nil {

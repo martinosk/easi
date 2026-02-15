@@ -36,7 +36,7 @@ func (rm *InternalTeamReadModel) Insert(ctx context.Context, dto InternalTeamDTO
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO internal_teams (id, tenant_id, name, department, contact_person, notes, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		"INSERT INTO architecturemodeling.internal_teams (id, tenant_id, name, department, contact_person, notes, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
 		dto.ID, tenantID.Value(), dto.Name, dto.Department, dto.ContactPerson, dto.Notes, dto.CreatedAt,
 	)
 	return err
@@ -49,7 +49,7 @@ func (rm *InternalTeamReadModel) Update(ctx context.Context, id, name, departmen
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE internal_teams SET name = $1, department = $2, contact_person = $3, notes = $4, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $5 AND id = $6",
+		"UPDATE architecturemodeling.internal_teams SET name = $1, department = $2, contact_person = $3, notes = $4, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $5 AND id = $6",
 		name, department, contactPerson, notes, tenantID.Value(), id,
 	)
 	return err
@@ -62,7 +62,7 @@ func (rm *InternalTeamReadModel) MarkAsDeleted(ctx context.Context, id string, d
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE internal_teams SET is_deleted = TRUE, deleted_at = $1 WHERE tenant_id = $2 AND id = $3",
+		"UPDATE architecturemodeling.internal_teams SET is_deleted = TRUE, deleted_at = $1 WHERE tenant_id = $2 AND id = $3",
 		deletedAt, tenantID.Value(), id,
 	)
 	return err
@@ -79,7 +79,7 @@ func (rm *InternalTeamReadModel) GetByID(ctx context.Context, id string) (*Inter
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, name, department, contact_person, notes, created_at, updated_at FROM internal_teams WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
+			"SELECT id, name, department, contact_person, notes, created_at, updated_at FROM architecturemodeling.internal_teams WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
 			tenantID.Value(), id,
 		).Scan(&dto.ID, &dto.Name, &dto.Department, &dto.ContactPerson, &dto.Notes, &dto.CreatedAt, &dto.UpdatedAt)
 
@@ -109,7 +109,7 @@ func (rm *InternalTeamReadModel) GetAll(ctx context.Context) ([]InternalTeamDTO,
 	teams := make([]InternalTeamDTO, 0)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, department, contact_person, notes, created_at, updated_at FROM internal_teams WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC",
+			"SELECT id, name, department, contact_person, notes, created_at, updated_at FROM architecturemodeling.internal_teams WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC",
 			tenantID.Value(),
 		)
 		if err != nil {
@@ -146,12 +146,12 @@ func (rm *InternalTeamReadModel) GetAllPaginated(ctx context.Context, limit int,
 
 		if afterCursor == "" {
 			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, department, contact_person, notes, created_at, updated_at FROM internal_teams WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
+				"SELECT id, name, department, contact_person, notes, created_at, updated_at FROM architecturemodeling.internal_teams WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
 				tenantID.Value(), queryLimit,
 			)
 		} else {
 			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, department, contact_person, notes, created_at, updated_at FROM internal_teams WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
+				"SELECT id, name, department, contact_person, notes, created_at, updated_at FROM architecturemodeling.internal_teams WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
 				tenantID.Value(), afterName, afterCursor, queryLimit,
 			)
 		}

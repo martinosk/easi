@@ -86,7 +86,7 @@ func (rm *CapabilityReadModel) Insert(ctx context.Context, dto CapabilityDTO) er
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO capabilities (id, tenant_id, name, description, parent_id, level, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+		"INSERT INTO capabilitymapping.capabilities (id, tenant_id, name, description, parent_id, level, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
 		dto.ID, tenantID.Value(), dto.Name, dto.Description, parentIDValue, dto.Level, "Initial", "Active", dto.CreatedAt,
 	)
 	return err
@@ -99,7 +99,7 @@ func (rm *CapabilityReadModel) UpdateMetadata(ctx context.Context, id string, me
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE capabilities SET maturity_value = $1, ownership_model = $2, primary_owner = $3, ea_owner = $4, status = $5, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $6 AND id = $7",
+		"UPDATE capabilitymapping.capabilities SET maturity_value = $1, ownership_model = $2, primary_owner = $3, ea_owner = $4, status = $5, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $6 AND id = $7",
 		metadata.MaturityValue, metadata.OwnershipModel, metadata.PrimaryOwner, metadata.EAOwner, metadata.Status, tenantID.Value(), id,
 	)
 	return err
@@ -120,7 +120,7 @@ func (rm *CapabilityReadModel) AddExpert(ctx context.Context, info ExpertInfo) e
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO capability_experts (capability_id, tenant_id, expert_name, expert_role, contact_info, added_at) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (tenant_id, capability_id, expert_name) DO NOTHING",
+		"INSERT INTO capabilitymapping.capability_experts (capability_id, tenant_id, expert_name, expert_role, contact_info, added_at) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (tenant_id, capability_id, expert_name) DO NOTHING",
 		info.CapabilityID, tenantID.Value(), info.Name, info.Role, info.Contact, info.AddedAt,
 	)
 	return err
@@ -133,7 +133,7 @@ func (rm *CapabilityReadModel) RemoveExpert(ctx context.Context, info ExpertInfo
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM capability_experts WHERE tenant_id = $1 AND capability_id = $2 AND expert_name = $3 AND expert_role = $4 AND contact_info = $5",
+		"DELETE FROM capabilitymapping.capability_experts WHERE tenant_id = $1 AND capability_id = $2 AND expert_name = $3 AND expert_role = $4 AND contact_info = $5",
 		tenantID.Value(), info.CapabilityID, info.Name, info.Role, info.Contact,
 	)
 	return err
@@ -148,7 +148,7 @@ func (rm *CapabilityReadModel) GetDistinctExpertRoles(ctx context.Context) ([]st
 	var roles []string
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT DISTINCT expert_role FROM capability_experts WHERE tenant_id = $1 ORDER BY expert_role",
+			"SELECT DISTINCT expert_role FROM capabilitymapping.capability_experts WHERE tenant_id = $1 ORDER BY expert_role",
 			tenantID.Value(),
 		)
 		if err != nil {
@@ -181,7 +181,7 @@ func (rm *CapabilityReadModel) AddTag(ctx context.Context, info TagInfo) error {
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO capability_tags (capability_id, tenant_id, tag, added_at) VALUES ($1, $2, $3, $4) ON CONFLICT (tenant_id, capability_id, tag) DO NOTHING",
+		"INSERT INTO capabilitymapping.capability_tags (capability_id, tenant_id, tag, added_at) VALUES ($1, $2, $3, $4) ON CONFLICT (tenant_id, capability_id, tag) DO NOTHING",
 		info.CapabilityID, tenantID.Value(), info.Tag, info.AddedAt,
 	)
 	return err
@@ -200,7 +200,7 @@ func (rm *CapabilityReadModel) Update(ctx context.Context, update CapabilityUpda
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE capabilities SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
+		"UPDATE capabilitymapping.capabilities SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
 		update.Name, update.Description, tenantID.Value(), update.ID,
 	)
 	return err
@@ -224,7 +224,7 @@ func (rm *CapabilityReadModel) UpdateParent(ctx context.Context, update ParentUp
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE capabilities SET parent_id = $1, level = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
+		"UPDATE capabilitymapping.capabilities SET parent_id = $1, level = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
 		parentIDValue, update.Level, tenantID.Value(), update.ID,
 	)
 	return err
@@ -237,7 +237,7 @@ func (rm *CapabilityReadModel) UpdateLevel(ctx context.Context, id string, level
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE capabilities SET level = $1, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $2 AND id = $3",
+		"UPDATE capabilitymapping.capabilities SET level = $1, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $2 AND id = $3",
 		level, tenantID.Value(), id,
 	)
 	return err
@@ -250,7 +250,7 @@ func (rm *CapabilityReadModel) Delete(ctx context.Context, id string) error {
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM capability_tags WHERE tenant_id = $1 AND capability_id = $2",
+		"DELETE FROM capabilitymapping.capability_tags WHERE tenant_id = $1 AND capability_id = $2",
 		tenantID.Value(), id,
 	)
 	if err != nil {
@@ -258,7 +258,7 @@ func (rm *CapabilityReadModel) Delete(ctx context.Context, id string) error {
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM capability_experts WHERE tenant_id = $1 AND capability_id = $2",
+		"DELETE FROM capabilitymapping.capability_experts WHERE tenant_id = $1 AND capability_id = $2",
 		tenantID.Value(), id,
 	)
 	if err != nil {
@@ -266,7 +266,7 @@ func (rm *CapabilityReadModel) Delete(ctx context.Context, id string) error {
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM capabilities WHERE tenant_id = $1 AND id = $2",
+		"DELETE FROM capabilitymapping.capabilities WHERE tenant_id = $1 AND id = $2",
 		tenantID.Value(), id,
 	)
 	return err
@@ -303,7 +303,7 @@ func (rm *CapabilityReadModel) GetByID(ctx context.Context, id string) (*Capabil
 func scanCapabilityRow(ctx context.Context, tx *sql.Tx, tenantID, id string) (*capabilityScanResult, bool, error) {
 	var result capabilityScanResult
 	err := tx.QueryRowContext(ctx,
-		"SELECT id, name, description, parent_id, level, maturity_value, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilities WHERE tenant_id = $1 AND id = $2",
+		"SELECT id, name, description, parent_id, level, maturity_value, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilitymapping.capabilities WHERE tenant_id = $1 AND id = $2",
 		tenantID, id,
 	).Scan(&result.dto.ID, &result.dto.Name, &result.dto.Description, &result.parentID, &result.dto.Level, &result.maturityValue, &result.ownershipModel, &result.primaryOwner, &result.eaOwner, &result.dto.Status, &result.dto.CreatedAt)
 
@@ -318,7 +318,7 @@ func scanCapabilityRow(ctx context.Context, tx *sql.Tx, tenantID, id string) (*c
 
 func (rm *CapabilityReadModel) fetchExperts(ctx context.Context, tx *sql.Tx, tenantID, capabilityID string) ([]ExpertDTO, error) {
 	rows, err := tx.QueryContext(ctx,
-		"SELECT expert_name, expert_role, contact_info, added_at FROM capability_experts WHERE tenant_id = $1 AND capability_id = $2",
+		"SELECT expert_name, expert_role, contact_info, added_at FROM capabilitymapping.capability_experts WHERE tenant_id = $1 AND capability_id = $2",
 		tenantID, capabilityID,
 	)
 	if err != nil {
@@ -339,7 +339,7 @@ func (rm *CapabilityReadModel) fetchExperts(ctx context.Context, tx *sql.Tx, ten
 
 func (rm *CapabilityReadModel) fetchTags(ctx context.Context, tx *sql.Tx, tenantID, capabilityID string) ([]string, error) {
 	rows, err := tx.QueryContext(ctx,
-		"SELECT tag FROM capability_tags WHERE tenant_id = $1 AND capability_id = $2 ORDER BY tag",
+		"SELECT tag FROM capabilitymapping.capability_tags WHERE tenant_id = $1 AND capability_id = $2 ORDER BY tag",
 		tenantID, capabilityID,
 	)
 	if err != nil {
@@ -419,13 +419,13 @@ func (rm *CapabilityReadModel) queryForTenant(ctx context.Context, query string,
 
 func (rm *CapabilityReadModel) GetAll(ctx context.Context) ([]CapabilityDTO, error) {
 	return rm.queryForTenant(ctx,
-		"SELECT id, name, description, parent_id, level, maturity_value, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilities WHERE tenant_id = $1 ORDER BY level, name",
+		"SELECT id, name, description, parent_id, level, maturity_value, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilitymapping.capabilities WHERE tenant_id = $1 ORDER BY level, name",
 	)
 }
 
 func (rm *CapabilityReadModel) GetChildren(ctx context.Context, parentID string) ([]CapabilityDTO, error) {
 	return rm.queryForTenant(ctx,
-		"SELECT id, name, description, parent_id, level, maturity_value, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilities WHERE tenant_id = $1 AND parent_id = $2 ORDER BY name",
+		"SELECT id, name, description, parent_id, level, maturity_value, ownership_model, primary_owner, ea_owner, status, created_at FROM capabilitymapping.capabilities WHERE tenant_id = $1 AND parent_id = $2 ORDER BY name",
 		parentID,
 	)
 }
@@ -523,7 +523,7 @@ func (rm *CapabilityReadModel) fetchRelatedBatch(ctx context.Context, tx *sql.Tx
 
 func (rm *CapabilityReadModel) fetchExpertsBatch(ctx context.Context, tx *sql.Tx, tenantID string, capabilityMap map[string]*CapabilityDTO) error {
 	return rm.fetchRelatedBatch(ctx, tx, tenantID, capabilityMap,
-		"SELECT capability_id, expert_name, expert_role, contact_info, added_at FROM capability_experts WHERE tenant_id = $1 AND capability_id IN (%s)",
+		"SELECT capability_id, expert_name, expert_role, contact_info, added_at FROM capabilitymapping.capability_experts WHERE tenant_id = $1 AND capability_id IN (%s)",
 		func(rows *sql.Rows, m map[string]*CapabilityDTO) error {
 			var capabilityID string
 			var expert ExpertDTO
@@ -539,7 +539,7 @@ func (rm *CapabilityReadModel) fetchExpertsBatch(ctx context.Context, tx *sql.Tx
 
 func (rm *CapabilityReadModel) fetchTagsBatch(ctx context.Context, tx *sql.Tx, tenantID string, capabilityMap map[string]*CapabilityDTO) error {
 	return rm.fetchRelatedBatch(ctx, tx, tenantID, capabilityMap,
-		"SELECT capability_id, tag FROM capability_tags WHERE tenant_id = $1 AND capability_id IN (%s) ORDER BY tag",
+		"SELECT capability_id, tag FROM capabilitymapping.capability_tags WHERE tenant_id = $1 AND capability_id IN (%s) ORDER BY tag",
 		func(rows *sql.Rows, m map[string]*CapabilityDTO) error {
 			var capabilityID, tag string
 			if err := rows.Scan(&capabilityID, &tag); err != nil {

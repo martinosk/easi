@@ -57,7 +57,7 @@ func (rm *EditGrantReadModel) Insert(ctx context.Context, dto EditGrantDTO) erro
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO edit_grants (id, tenant_id, grantor_id, grantor_email, grantee_email, artifact_type, artifact_id, scope, status, reason, created_at, expires_at)
+		`INSERT INTO accessdelegation.edit_grants (id, tenant_id, grantor_id, grantor_email, grantee_email, artifact_type, artifact_id, scope, status, reason, created_at, expires_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
 		dto.ID, tenantID, dto.GrantorID, dto.GrantorEmail, dto.GranteeEmail,
 		dto.ArtifactType, dto.ArtifactID, dto.Scope, dto.Status, dto.Reason,
@@ -73,7 +73,7 @@ func (rm *EditGrantReadModel) UpdateStatus(ctx context.Context, update EditGrant
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`UPDATE edit_grants SET status = $1, revoked_at = $2 WHERE tenant_id = $3 AND id = $4`,
+		`UPDATE accessdelegation.edit_grants SET status = $1, revoked_at = $2 WHERE tenant_id = $3 AND id = $4`,
 		update.Status, update.RevokedAt, tenantID, update.ID,
 	)
 	return err
@@ -82,27 +82,27 @@ func (rm *EditGrantReadModel) UpdateStatus(ctx context.Context, update EditGrant
 func (rm *EditGrantReadModel) GetByID(ctx context.Context, id string) (*EditGrantDTO, error) {
 	return rm.queryOneWithTenant(ctx,
 		`SELECT id, grantor_id, grantor_email, grantee_email, artifact_type, artifact_id, scope, status, reason, created_at, expires_at, revoked_at
-		 FROM edit_grants WHERE tenant_id = $1 AND id = $2`, id)
+		 FROM accessdelegation.edit_grants WHERE tenant_id = $1 AND id = $2`, id)
 }
 
 func (rm *EditGrantReadModel) GetByGrantorID(ctx context.Context, grantorID string) ([]EditGrantDTO, error) {
 	return rm.queryManyWithTenant(ctx,
 		`SELECT id, grantor_id, grantor_email, grantee_email, artifact_type, artifact_id, scope, status, reason, created_at, expires_at, revoked_at
-		 FROM edit_grants WHERE tenant_id = $1 AND grantor_id = $2
+		 FROM accessdelegation.edit_grants WHERE tenant_id = $1 AND grantor_id = $2
 		 ORDER BY created_at DESC`, grantorID)
 }
 
 func (rm *EditGrantReadModel) GetByGranteeEmail(ctx context.Context, email string) ([]EditGrantDTO, error) {
 	return rm.queryManyWithTenant(ctx,
 		`SELECT id, grantor_id, grantor_email, grantee_email, artifact_type, artifact_id, scope, status, reason, created_at, expires_at, revoked_at
-		 FROM edit_grants WHERE tenant_id = $1 AND grantee_email = $2 AND status = 'active' AND expires_at > NOW()
+		 FROM accessdelegation.edit_grants WHERE tenant_id = $1 AND grantee_email = $2 AND status = 'active' AND expires_at > NOW()
 		 ORDER BY created_at DESC`, email)
 }
 
 func (rm *EditGrantReadModel) GetActiveForArtifact(ctx context.Context, artifactType, artifactID string) ([]EditGrantDTO, error) {
 	return rm.queryManyWithTenant(ctx,
 		`SELECT id, grantor_id, grantor_email, grantee_email, artifact_type, artifact_id, scope, status, reason, created_at, expires_at, revoked_at
-		 FROM edit_grants WHERE tenant_id = $1 AND artifact_type = $2 AND artifact_id = $3 AND status = 'active' AND expires_at > NOW()
+		 FROM accessdelegation.edit_grants WHERE tenant_id = $1 AND artifact_type = $2 AND artifact_id = $3 AND status = 'active' AND expires_at > NOW()
 		 ORDER BY created_at DESC`, artifactType, artifactID)
 }
 
@@ -115,7 +115,7 @@ func (rm *EditGrantReadModel) HasActiveGrant(ctx context.Context, granteeEmail, 
 	var exists bool
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
-			`SELECT EXISTS(SELECT 1 FROM edit_grants WHERE tenant_id = $1 AND grantee_email = $2 AND artifact_type = $3 AND artifact_id = $4 AND status = 'active' AND expires_at > NOW())`,
+			`SELECT EXISTS(SELECT 1 FROM accessdelegation.edit_grants WHERE tenant_id = $1 AND grantee_email = $2 AND artifact_type = $3 AND artifact_id = $4 AND status = 'active' AND expires_at > NOW())`,
 			tenantID, granteeEmail, artifactType, artifactID,
 		).Scan(&exists)
 	})
@@ -125,7 +125,7 @@ func (rm *EditGrantReadModel) HasActiveGrant(ctx context.Context, granteeEmail, 
 
 func (rm *EditGrantReadModel) GetGrantedArtifactIDs(ctx context.Context, granteeEmail, artifactType string) (map[string]bool, error) {
 	ids, err := rm.queryStringColumn(ctx,
-		`SELECT artifact_id FROM edit_grants WHERE tenant_id = $1 AND grantee_email = $2 AND artifact_type = $3 AND status = 'active' AND expires_at > NOW()`,
+		`SELECT artifact_id FROM accessdelegation.edit_grants WHERE tenant_id = $1 AND grantee_email = $2 AND artifact_type = $3 AND status = 'active' AND expires_at > NOW()`,
 		granteeEmail, artifactType,
 	)
 	if err != nil {
@@ -148,7 +148,7 @@ func (rm *EditGrantReadModel) ResolveEditGrants(ctx context.Context, email strin
 	result := make(map[string]map[string]bool)
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			`SELECT artifact_type, artifact_id FROM edit_grants WHERE tenant_id = $1 AND grantee_email = $2 AND status = 'active' AND expires_at > NOW()`,
+			`SELECT artifact_type, artifact_id FROM accessdelegation.edit_grants WHERE tenant_id = $1 AND grantee_email = $2 AND status = 'active' AND expires_at > NOW()`,
 			tenantID, email,
 		)
 		if err != nil {
@@ -174,7 +174,7 @@ func (rm *EditGrantReadModel) ResolveEditGrants(ctx context.Context, email strin
 
 func (rm *EditGrantReadModel) GetActiveGrantIDsForArtifact(ctx context.Context, artifactType, artifactID string) ([]string, error) {
 	return rm.queryStringColumn(ctx,
-		`SELECT id FROM edit_grants WHERE tenant_id = $1 AND artifact_type = $2 AND artifact_id = $3 AND status = 'active'`,
+		`SELECT id FROM accessdelegation.edit_grants WHERE tenant_id = $1 AND artifact_type = $2 AND artifact_id = $3 AND status = 'active'`,
 		artifactType, artifactID,
 	)
 }

@@ -141,7 +141,7 @@ func (rm *ArchitectureViewReadModel) InsertView(ctx context.Context, dto Archite
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO architecture_views (id, tenant_id, name, description, is_default, is_private, owner_user_id, owner_email, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+		"INSERT INTO architectureviews.architecture_views (id, tenant_id, name, description, is_default, is_private, owner_user_id, owner_email, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
 		dto.ID, tenantID, dto.Name, dto.Description, dto.IsDefault, dto.IsPrivate, dto.OwnerUserID, dto.OwnerEmail, dto.CreatedAt,
 	)
 	return err
@@ -182,7 +182,7 @@ func (rm *ArchitectureViewReadModel) addElement(ctx context.Context, elem Elemen
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO view_element_positions (view_id, tenant_id, element_id, element_type, x, y, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		"INSERT INTO architectureviews.view_element_positions (view_id, tenant_id, element_id, element_type, x, y, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
 		string(elem.ViewID), tenantID, elem.ElementID, string(elem.ElementType), elem.Position.X, elem.Position.Y, time.Now().UTC(),
 	)
 	return err
@@ -195,7 +195,7 @@ func (rm *ArchitectureViewReadModel) updateElementPosition(ctx context.Context, 
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE view_element_positions SET x = $1, y = $2, updated_at = $3 WHERE tenant_id = $4 AND view_id = $5 AND element_id = $6 AND element_type = $7",
+		"UPDATE architectureviews.view_element_positions SET x = $1, y = $2, updated_at = $3 WHERE tenant_id = $4 AND view_id = $5 AND element_id = $6 AND element_type = $7",
 		elem.Position.X, elem.Position.Y, time.Now().UTC(), tenantID, string(elem.ViewID), elem.ElementID, string(elem.ElementType),
 	)
 	return err
@@ -208,7 +208,7 @@ func (rm *ArchitectureViewReadModel) removeElement(ctx context.Context, viewID V
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM view_element_positions WHERE tenant_id = $1 AND view_id = $2 AND element_id = $3 AND element_type = $4",
+		"DELETE FROM architectureviews.view_element_positions WHERE tenant_id = $1 AND view_id = $2 AND element_id = $3 AND element_type = $4",
 		tenantID, string(viewID), elementID, string(elementType),
 	)
 	return err
@@ -249,7 +249,7 @@ func (rm *ArchitectureViewReadModel) UpdateVisibility(ctx context.Context, updat
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE architecture_views SET is_private = $1, owner_user_id = $2, owner_email = $3, updated_at = $4 WHERE tenant_id = $5 AND id = $6",
+		"UPDATE architectureviews.architecture_views SET is_private = $1, owner_user_id = $2, owner_email = $3, updated_at = $4 WHERE tenant_id = $5 AND id = $6",
 		update.IsPrivate, update.OwnerUserID, update.OwnerEmail, time.Now().UTC(), tenantID, update.ViewID,
 	)
 	return err
@@ -261,7 +261,7 @@ func (rm *ArchitectureViewReadModel) updateViewField(ctx context.Context, update
 		return err
 	}
 
-	query := "UPDATE architecture_views SET " + update.Field + " = $1, updated_at = $2 WHERE tenant_id = $3 AND id = $4"
+	query := "UPDATE architectureviews.architecture_views SET " + update.Field + " = $1, updated_at = $2 WHERE tenant_id = $3 AND id = $4"
 	_, err = rm.db.ExecContext(ctx, query, update.Value, time.Now().UTC(), tenantID, string(update.ViewID))
 	return err
 }
@@ -270,8 +270,8 @@ func (rm *ArchitectureViewReadModel) updateViewField(ctx context.Context, update
 func (rm *ArchitectureViewReadModel) GetDefaultView(ctx context.Context) (*ArchitectureViewDTO, error) {
 	return rm.getViewByQuery(ctx,
 		`SELECT av.id, av.name, av.description, av.is_default, av.is_private, av.owner_user_id, av.owner_email, av.created_at, vp.edge_type, vp.layout_direction, vp.color_scheme
-		FROM architecture_views av
-		LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
+		FROM architectureviews.architecture_views av
+		LEFT JOIN architectureviews.view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
 		WHERE av.tenant_id = $1 AND av.is_default = true AND av.is_deleted = false LIMIT 1`,
 		func(tenantID string) []interface{} { return []interface{}{tenantID} },
 	)
@@ -281,8 +281,8 @@ func (rm *ArchitectureViewReadModel) GetDefaultView(ctx context.Context) (*Archi
 func (rm *ArchitectureViewReadModel) GetByID(ctx context.Context, id string) (*ArchitectureViewDTO, error) {
 	return rm.getViewByQuery(ctx,
 		`SELECT av.id, av.name, av.description, av.is_default, av.is_private, av.owner_user_id, av.owner_email, av.created_at, vp.edge_type, vp.layout_direction, vp.color_scheme
-		FROM architecture_views av
-		LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
+		FROM architectureviews.architecture_views av
+		LEFT JOIN architectureviews.view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
 		WHERE av.tenant_id = $1 AND av.id = $2 AND av.is_deleted = false`,
 		func(tenantID string) []interface{} { return []interface{}{tenantID, id} },
 	)
@@ -396,8 +396,8 @@ func (rm *ArchitectureViewReadModel) GetAll(ctx context.Context) ([]Architecture
 func (rm *ArchitectureViewReadModel) queryViews(ctx context.Context, tx *sql.Tx, tenantID string) ([]ArchitectureViewDTO, error) {
 	rows, err := tx.QueryContext(ctx,
 		`SELECT av.id, av.name, av.description, av.is_default, av.is_private, av.owner_user_id, av.owner_email, av.created_at, vp.edge_type, vp.layout_direction, vp.color_scheme
-		FROM architecture_views av
-		LEFT JOIN view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
+		FROM architectureviews.architecture_views av
+		LEFT JOIN architectureviews.view_preferences vp ON av.id = vp.view_id AND av.tenant_id = vp.tenant_id
 		WHERE av.tenant_id = $1 AND av.is_deleted = false ORDER BY av.is_default DESC, av.created_at DESC`,
 		tenantID,
 	)
@@ -489,7 +489,7 @@ func (rm *ArchitectureViewReadModel) getOriginEntitiesForViewTx(ctx context.Cont
 
 func getElementsForViewTx[T any](ctx context.Context, tx *sql.Tx, tenantID, viewID string, elementType ElementType, scan func(*sql.Rows) (T, error)) ([]T, error) {
 	rows, err := tx.QueryContext(ctx,
-		"SELECT element_id, x, y, custom_color FROM view_element_positions WHERE tenant_id = $1 AND view_id = $2 AND element_type = $3",
+		"SELECT element_id, x, y, custom_color FROM architectureviews.view_element_positions WHERE tenant_id = $1 AND view_id = $2 AND element_type = $3",
 		tenantID, viewID, string(elementType),
 	)
 	if err != nil {
@@ -526,7 +526,7 @@ func (rm *ArchitectureViewReadModel) GetAuthInfo(ctx context.Context, viewID str
 		var isPrivate bool
 
 		err := tx.QueryRowContext(ctx,
-			"SELECT is_private, owner_user_id FROM architecture_views WHERE tenant_id = $1 AND id = $2 AND is_deleted = false",
+			"SELECT is_private, owner_user_id FROM architectureviews.architecture_views WHERE tenant_id = $1 AND id = $2 AND is_deleted = false",
 			tenantID, viewID,
 		).Scan(&isPrivate, &ownerUserID)
 
@@ -557,7 +557,7 @@ func (rm *ArchitectureViewReadModel) GetViewsContainingComponent(ctx context.Con
 	var viewIDs []string
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT DISTINCT view_id FROM view_element_positions WHERE tenant_id = $1 AND element_id = $2 AND element_type = 'component'",
+			"SELECT DISTINCT view_id FROM architectureviews.view_element_positions WHERE tenant_id = $1 AND element_id = $2 AND element_type = 'component'",
 			tenantID, componentID,
 		)
 		if err != nil {

@@ -24,7 +24,7 @@ func NewEAFitScoreCacheReadModel(db *database.TenantAwareDB) *EAFitScoreCacheRea
 
 func (rm *EAFitScoreCacheReadModel) Upsert(ctx context.Context, entry FitScoreEntry) error {
 	return rm.execForTenant(ctx,
-		`INSERT INTO ea_fit_score_cache (tenant_id, component_id, pillar_id, score, rationale)
+		`INSERT INTO enterprisearchitecture.ea_fit_score_cache (tenant_id, component_id, pillar_id, score, rationale)
 		 VALUES ($1, $2, $3, $4, $5)
 		 ON CONFLICT (tenant_id, component_id, pillar_id) DO UPDATE SET
 		 score = EXCLUDED.score,
@@ -35,7 +35,7 @@ func (rm *EAFitScoreCacheReadModel) Upsert(ctx context.Context, entry FitScoreEn
 
 func (rm *EAFitScoreCacheReadModel) Delete(ctx context.Context, componentID, pillarID string) error {
 	return rm.execForTenant(ctx,
-		"DELETE FROM ea_fit_score_cache WHERE tenant_id = $1 AND component_id = $2 AND pillar_id = $3",
+		"DELETE FROM enterprisearchitecture.ea_fit_score_cache WHERE tenant_id = $1 AND component_id = $2 AND pillar_id = $3",
 		componentID, pillarID,
 	)
 }

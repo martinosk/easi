@@ -41,7 +41,7 @@ func (rm *ComponentRelationReadModel) Insert(ctx context.Context, dto ComponentR
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO component_relations (id, tenant_id, source_component_id, target_component_id, relation_type, name, description, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		"INSERT INTO architecturemodeling.component_relations (id, tenant_id, source_component_id, target_component_id, relation_type, name, description, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 		dto.ID, tenantID.Value(), dto.SourceComponentID, dto.TargetComponentID, dto.RelationType, dto.Name, dto.Description, dto.CreatedAt,
 	)
 	return err
@@ -57,7 +57,7 @@ func (rm *ComponentRelationReadModel) Update(ctx context.Context, id, name, desc
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE component_relations SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
+		"UPDATE architecturemodeling.component_relations SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
 		name, description, tenantID.Value(), id,
 	)
 	return err
@@ -70,7 +70,7 @@ func (rm *ComponentRelationReadModel) MarkAsDeleted(ctx context.Context, id stri
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE component_relations SET is_deleted = TRUE, deleted_at = $1 WHERE tenant_id = $2 AND id = $3",
+		"UPDATE architecturemodeling.component_relations SET is_deleted = TRUE, deleted_at = $1 WHERE tenant_id = $2 AND id = $3",
 		deletedAt, tenantID.Value(), id,
 	)
 	return err
@@ -90,7 +90,7 @@ func (rm *ComponentRelationReadModel) GetByID(ctx context.Context, id string) (*
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		var name, description sql.NullString
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
+			"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM architecturemodeling.component_relations WHERE tenant_id = $1 AND id = $2 AND is_deleted = FALSE",
 			tenantID.Value(), id,
 		).Scan(&dto.ID, &dto.SourceComponentID, &dto.TargetComponentID, &dto.RelationType, &name, &description, &dto.CreatedAt)
 
@@ -118,7 +118,7 @@ func (rm *ComponentRelationReadModel) GetByID(ctx context.Context, id string) (*
 // GetAll retrieves all relations for the current tenant
 // RLS policies automatically filter, but we add explicit filter for defense-in-depth
 func (rm *ComponentRelationReadModel) GetAll(ctx context.Context) ([]ComponentRelationDTO, error) {
-	return rm.queryRelations(ctx, "SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY created_at DESC")
+	return rm.queryRelations(ctx, "SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM architecturemodeling.component_relations WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY created_at DESC")
 }
 
 type paginationParams struct {
@@ -164,12 +164,12 @@ func (rm *ComponentRelationReadModel) GetAllPaginated(ctx context.Context, limit
 func (rm *ComponentRelationReadModel) selectPaginatedRows(ctx context.Context, tx *sql.Tx, params paginationParams) (*sql.Rows, error) {
 	if params.afterCursor == "" {
 		return tx.QueryContext(ctx,
-			"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY created_at DESC, id DESC LIMIT $2",
+			"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM architecturemodeling.component_relations WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY created_at DESC, id DESC LIMIT $2",
 			params.tenantID, params.limit,
 		)
 	}
 	return tx.QueryContext(ctx,
-		"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND is_deleted = FALSE AND (created_at < to_timestamp($2) OR (created_at = to_timestamp($2) AND id < $3)) ORDER BY created_at DESC, id DESC LIMIT $4",
+		"SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM architecturemodeling.component_relations WHERE tenant_id = $1 AND is_deleted = FALSE AND (created_at < to_timestamp($2) OR (created_at = to_timestamp($2) AND id < $3)) ORDER BY created_at DESC, id DESC LIMIT $4",
 		params.tenantID, params.afterTimestamp, params.afterCursor, params.limit,
 	)
 }
@@ -184,12 +184,12 @@ func (rm *ComponentRelationReadModel) extractPageResults(relations []ComponentRe
 
 // GetBySourceID retrieves all relations where component is the source for the current tenant
 func (rm *ComponentRelationReadModel) GetBySourceID(ctx context.Context, componentID string) ([]ComponentRelationDTO, error) {
-	return rm.queryRelationsWithParam(ctx, "SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND source_component_id = $2 AND is_deleted = FALSE ORDER BY created_at DESC", componentID)
+	return rm.queryRelationsWithParam(ctx, "SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM architecturemodeling.component_relations WHERE tenant_id = $1 AND source_component_id = $2 AND is_deleted = FALSE ORDER BY created_at DESC", componentID)
 }
 
 // GetByTargetID retrieves all relations where component is the target for the current tenant
 func (rm *ComponentRelationReadModel) GetByTargetID(ctx context.Context, componentID string) ([]ComponentRelationDTO, error) {
-	return rm.queryRelationsWithParam(ctx, "SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM component_relations WHERE tenant_id = $1 AND target_component_id = $2 AND is_deleted = FALSE ORDER BY created_at DESC", componentID)
+	return rm.queryRelationsWithParam(ctx, "SELECT id, source_component_id, target_component_id, relation_type, name, description, created_at FROM architecturemodeling.component_relations WHERE tenant_id = $1 AND target_component_id = $2 AND is_deleted = FALSE ORDER BY created_at DESC", componentID)
 }
 
 func (rm *ComponentRelationReadModel) queryRelations(ctx context.Context, query string) ([]ComponentRelationDTO, error) {

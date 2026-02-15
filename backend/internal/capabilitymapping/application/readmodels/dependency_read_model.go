@@ -35,7 +35,7 @@ func (rm *DependencyReadModel) Insert(ctx context.Context, dto DependencyDTO) er
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO capability_dependencies (id, tenant_id, source_capability_id, target_capability_id, dependency_type, description, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		"INSERT INTO capabilitymapping.capability_dependencies (id, tenant_id, source_capability_id, target_capability_id, dependency_type, description, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
 		dto.ID, tenantID.Value(), dto.SourceCapabilityID, dto.TargetCapabilityID, dto.DependencyType, dto.Description, dto.CreatedAt,
 	)
 	return err
@@ -48,22 +48,22 @@ func (rm *DependencyReadModel) Delete(ctx context.Context, id string) error {
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM capability_dependencies WHERE tenant_id = $1 AND id = $2",
+		"DELETE FROM capabilitymapping.capability_dependencies WHERE tenant_id = $1 AND id = $2",
 		tenantID.Value(), id,
 	)
 	return err
 }
 
 func (rm *DependencyReadModel) GetAll(ctx context.Context) ([]DependencyDTO, error) {
-	return rm.queryDependencies(ctx, "SELECT id, source_capability_id, target_capability_id, dependency_type, description, created_at FROM capability_dependencies WHERE tenant_id = $1 ORDER BY created_at DESC")
+	return rm.queryDependencies(ctx, "SELECT id, source_capability_id, target_capability_id, dependency_type, description, created_at FROM capabilitymapping.capability_dependencies WHERE tenant_id = $1 ORDER BY created_at DESC")
 }
 
 func (rm *DependencyReadModel) GetOutgoing(ctx context.Context, capabilityID string) ([]DependencyDTO, error) {
-	return rm.queryDependenciesWithParam(ctx, "SELECT id, source_capability_id, target_capability_id, dependency_type, description, created_at FROM capability_dependencies WHERE tenant_id = $1 AND source_capability_id = $2 ORDER BY created_at DESC", capabilityID)
+	return rm.queryDependenciesWithParam(ctx, "SELECT id, source_capability_id, target_capability_id, dependency_type, description, created_at FROM capabilitymapping.capability_dependencies WHERE tenant_id = $1 AND source_capability_id = $2 ORDER BY created_at DESC", capabilityID)
 }
 
 func (rm *DependencyReadModel) GetIncoming(ctx context.Context, capabilityID string) ([]DependencyDTO, error) {
-	return rm.queryDependenciesWithParam(ctx, "SELECT id, source_capability_id, target_capability_id, dependency_type, description, created_at FROM capability_dependencies WHERE tenant_id = $1 AND target_capability_id = $2 ORDER BY created_at DESC", capabilityID)
+	return rm.queryDependenciesWithParam(ctx, "SELECT id, source_capability_id, target_capability_id, dependency_type, description, created_at FROM capabilitymapping.capability_dependencies WHERE tenant_id = $1 AND target_capability_id = $2 ORDER BY created_at DESC", capabilityID)
 }
 
 func (rm *DependencyReadModel) queryDependencies(ctx context.Context, query string) ([]DependencyDTO, error) {
@@ -124,7 +124,7 @@ func (rm *DependencyReadModel) GetByID(ctx context.Context, id string) (*Depende
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, source_capability_id, target_capability_id, dependency_type, description, created_at FROM capability_dependencies WHERE tenant_id = $1 AND id = $2",
+			"SELECT id, source_capability_id, target_capability_id, dependency_type, description, created_at FROM capabilitymapping.capability_dependencies WHERE tenant_id = $1 AND id = $2",
 			tenantID.Value(), id,
 		).Scan(&dto.ID, &dto.SourceCapabilityID, &dto.TargetCapabilityID, &dto.DependencyType, &dto.Description, &dto.CreatedAt)
 

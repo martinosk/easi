@@ -40,7 +40,7 @@ func (rm *ApplicationFitScoreReadModel) Insert(ctx context.Context, dto Applicat
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO application_fit_scores
+		`INSERT INTO capabilitymapping.application_fit_scores
 		(id, tenant_id, component_id, component_name, pillar_id, pillar_name,
 		score, score_label, rationale, scored_at, scored_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
@@ -58,7 +58,7 @@ func (rm *ApplicationFitScoreReadModel) Update(ctx context.Context, dto Applicat
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`UPDATE application_fit_scores
+		`UPDATE capabilitymapping.application_fit_scores
 		SET score = $1, score_label = $2, rationale = $3, updated_at = $4
 		WHERE tenant_id = $5 AND id = $6`,
 		dto.Score, dto.ScoreLabel, dto.Rationale, time.Now().UTC(), tenantID.Value(), dto.ID,
@@ -72,7 +72,7 @@ func (rm *ApplicationFitScoreReadModel) Delete(ctx context.Context, id string) e
 		return err
 	}
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM application_fit_scores WHERE tenant_id = $1 AND id = $2",
+		"DELETE FROM capabilitymapping.application_fit_scores WHERE tenant_id = $1 AND id = $2",
 		tenantID.Value(), id,
 	)
 	return err
@@ -84,7 +84,7 @@ func (rm *ApplicationFitScoreReadModel) DeleteByComponent(ctx context.Context, c
 		return err
 	}
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM application_fit_scores WHERE tenant_id = $1 AND component_id = $2",
+		"DELETE FROM capabilitymapping.application_fit_scores WHERE tenant_id = $1 AND component_id = $2",
 		tenantID.Value(), componentID,
 	)
 	return err
@@ -103,7 +103,7 @@ func (rm *ApplicationFitScoreReadModel) GetByID(ctx context.Context, id string) 
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := "SELECT " + fitScoreSelectColumns + " FROM application_fit_scores WHERE tenant_id = $1 AND id = $2"
+		query := "SELECT " + fitScoreSelectColumns + " FROM capabilitymapping.application_fit_scores WHERE tenant_id = $1 AND id = $2"
 		row := tx.QueryRowContext(ctx, query, tenantID.Value(), id)
 
 		var scanErr error
@@ -126,7 +126,7 @@ func (rm *ApplicationFitScoreReadModel) GetByID(ctx context.Context, id string) 
 }
 
 func (rm *ApplicationFitScoreReadModel) GetByComponentID(ctx context.Context, componentID string) ([]ApplicationFitScoreDTO, error) {
-	query := "SELECT " + fitScoreSelectColumns + " FROM application_fit_scores WHERE tenant_id = $1 AND component_id = $2 ORDER BY pillar_name"
+	query := "SELECT " + fitScoreSelectColumns + " FROM capabilitymapping.application_fit_scores WHERE tenant_id = $1 AND component_id = $2 ORDER BY pillar_name"
 	return rm.queryFitScoreList(ctx, query, componentID)
 }
 
@@ -140,7 +140,7 @@ func (rm *ApplicationFitScoreReadModel) GetByComponentAndPillar(ctx context.Cont
 	var notFound bool
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := "SELECT " + fitScoreSelectColumns + " FROM application_fit_scores WHERE tenant_id = $1 AND component_id = $2 AND pillar_id = $3"
+		query := "SELECT " + fitScoreSelectColumns + " FROM capabilitymapping.application_fit_scores WHERE tenant_id = $1 AND component_id = $2 AND pillar_id = $3"
 		row := tx.QueryRowContext(ctx, query, tenantID.Value(), componentID, pillarID)
 
 		var scanErr error
@@ -171,7 +171,7 @@ func (rm *ApplicationFitScoreReadModel) Exists(ctx context.Context, componentID,
 	var count int
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
-			"SELECT COUNT(*) FROM application_fit_scores WHERE tenant_id = $1 AND component_id = $2 AND pillar_id = $3",
+			"SELECT COUNT(*) FROM capabilitymapping.application_fit_scores WHERE tenant_id = $1 AND component_id = $2 AND pillar_id = $3",
 			tenantID.Value(), componentID, pillarID,
 		).Scan(&count)
 	})
@@ -184,7 +184,7 @@ func (rm *ApplicationFitScoreReadModel) Exists(ctx context.Context, componentID,
 }
 
 func (rm *ApplicationFitScoreReadModel) GetByPillarID(ctx context.Context, pillarID string) ([]ApplicationFitScoreDTO, error) {
-	query := "SELECT " + fitScoreSelectColumns + " FROM application_fit_scores WHERE tenant_id = $1 AND pillar_id = $2 ORDER BY component_name"
+	query := "SELECT " + fitScoreSelectColumns + " FROM capabilitymapping.application_fit_scores WHERE tenant_id = $1 AND pillar_id = $2 ORDER BY component_name"
 	return rm.queryFitScoreList(ctx, query, pillarID)
 }
 

@@ -36,7 +36,7 @@ func (rm *PurchasedFromRelationshipReadModel) Upsert(ctx context.Context, dto Pu
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO purchased_from_relationships (id, tenant_id, vendor_id, component_id, notes, created_at)
+		`INSERT INTO architecturemodeling.purchased_from_relationships (id, tenant_id, vendor_id, component_id, notes, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6)
 		 ON CONFLICT (tenant_id, component_id) WHERE is_deleted = FALSE
 		 DO UPDATE SET vendor_id = $3, notes = $5, created_at = $6, is_deleted = FALSE, deleted_at = NULL`,
@@ -47,14 +47,14 @@ func (rm *PurchasedFromRelationshipReadModel) Upsert(ctx context.Context, dto Pu
 
 func (rm *PurchasedFromRelationshipReadModel) UpdateNotesByComponentID(ctx context.Context, componentID string, notes string) error {
 	return rm.execWithTenant(ctx,
-		`UPDATE purchased_from_relationships SET notes = $1 WHERE tenant_id = $2 AND component_id = $3`,
+		`UPDATE architecturemodeling.purchased_from_relationships SET notes = $1 WHERE tenant_id = $2 AND component_id = $3`,
 		func(tenantID string) []interface{} { return []interface{}{notes, tenantID, componentID} },
 	)
 }
 
 func (rm *PurchasedFromRelationshipReadModel) DeleteByComponentID(ctx context.Context, componentID string) error {
 	return rm.execWithTenant(ctx,
-		`DELETE FROM purchased_from_relationships WHERE tenant_id = $1 AND component_id = $2`,
+		`DELETE FROM architecturemodeling.purchased_from_relationships WHERE tenant_id = $1 AND component_id = $2`,
 		func(tenantID string) []interface{} { return []interface{}{tenantID, componentID} },
 	)
 }
@@ -75,7 +75,7 @@ func (rm *PurchasedFromRelationshipReadModel) MarkAsDeleted(ctx context.Context,
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE purchased_from_relationships SET is_deleted = TRUE, deleted_at = $1 WHERE tenant_id = $2 AND id = $3",
+		"UPDATE architecturemodeling.purchased_from_relationships SET is_deleted = TRUE, deleted_at = $1 WHERE tenant_id = $2 AND id = $3",
 		deletedAt, tenantID.Value(), id,
 	)
 	return err
@@ -94,9 +94,9 @@ func (rm *PurchasedFromRelationshipReadModel) GetByID(ctx context.Context, id st
 		err := tx.QueryRowContext(ctx,
 			`SELECT r.id, r.vendor_id, COALESCE(v.name, '') as vendor_name,
 			        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
-			 FROM purchased_from_relationships r
-			 LEFT JOIN vendors v ON v.tenant_id = r.tenant_id AND v.id = r.vendor_id AND v.is_deleted = FALSE
-			 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
+			 FROM architecturemodeling.purchased_from_relationships r
+			 LEFT JOIN architecturemodeling.vendors v ON v.tenant_id = r.tenant_id AND v.id = r.vendor_id AND v.is_deleted = FALSE
+			 LEFT JOIN architecturemodeling.application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
 			 WHERE r.tenant_id = $1 AND r.id = $2 AND r.is_deleted = FALSE`,
 			tenantID.Value(), id,
 		).Scan(&dto.ID, &dto.VendorID, &dto.VendorName, &dto.ComponentID, &dto.ComponentName, &dto.Notes, &dto.CreatedAt)
@@ -147,9 +147,9 @@ func (rm *PurchasedFromRelationshipReadModel) queryList(ctx context.Context, whe
 
 	query := `SELECT r.id, r.vendor_id, COALESCE(v.name, '') as vendor_name,
 		        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
-		 FROM purchased_from_relationships r
-		 LEFT JOIN vendors v ON v.tenant_id = r.tenant_id AND v.id = r.vendor_id AND v.is_deleted = FALSE
-		 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
+		 FROM architecturemodeling.purchased_from_relationships r
+		 LEFT JOIN architecturemodeling.vendors v ON v.tenant_id = r.tenant_id AND v.id = r.vendor_id AND v.is_deleted = FALSE
+		 LEFT JOIN architecturemodeling.application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
 		 ` + whereClause
 
 	relationships := make([]PurchasedFromRelationshipDTO, 0)

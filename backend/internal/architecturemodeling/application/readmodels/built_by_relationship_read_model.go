@@ -36,7 +36,7 @@ func (rm *BuiltByRelationshipReadModel) Upsert(ctx context.Context, dto BuiltByR
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO built_by_relationships (id, tenant_id, internal_team_id, component_id, notes, created_at)
+		`INSERT INTO architecturemodeling.built_by_relationships (id, tenant_id, internal_team_id, component_id, notes, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6)
 		 ON CONFLICT (tenant_id, component_id) WHERE is_deleted = FALSE
 		 DO UPDATE SET internal_team_id = $3, notes = $5, created_at = $6, is_deleted = FALSE, deleted_at = NULL`,
@@ -47,14 +47,14 @@ func (rm *BuiltByRelationshipReadModel) Upsert(ctx context.Context, dto BuiltByR
 
 func (rm *BuiltByRelationshipReadModel) UpdateNotesByComponentID(ctx context.Context, componentID string, notes string) error {
 	return rm.execWithTenant(ctx,
-		`UPDATE built_by_relationships SET notes = $1 WHERE tenant_id = $2 AND component_id = $3`,
+		`UPDATE architecturemodeling.built_by_relationships SET notes = $1 WHERE tenant_id = $2 AND component_id = $3`,
 		func(tenantID string) []interface{} { return []interface{}{notes, tenantID, componentID} },
 	)
 }
 
 func (rm *BuiltByRelationshipReadModel) DeleteByComponentID(ctx context.Context, componentID string) error {
 	return rm.execWithTenant(ctx,
-		`DELETE FROM built_by_relationships WHERE tenant_id = $1 AND component_id = $2`,
+		`DELETE FROM architecturemodeling.built_by_relationships WHERE tenant_id = $1 AND component_id = $2`,
 		func(tenantID string) []interface{} { return []interface{}{tenantID, componentID} },
 	)
 }
@@ -75,7 +75,7 @@ func (rm *BuiltByRelationshipReadModel) MarkAsDeleted(ctx context.Context, id st
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE built_by_relationships SET is_deleted = TRUE, deleted_at = $1 WHERE tenant_id = $2 AND id = $3",
+		"UPDATE architecturemodeling.built_by_relationships SET is_deleted = TRUE, deleted_at = $1 WHERE tenant_id = $2 AND id = $3",
 		deletedAt, tenantID.Value(), id,
 	)
 	return err
@@ -94,9 +94,9 @@ func (rm *BuiltByRelationshipReadModel) GetByID(ctx context.Context, id string) 
 		err := tx.QueryRowContext(ctx,
 			`SELECT r.id, r.internal_team_id, COALESCE(t.name, '') as internal_team_name,
 			        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
-			 FROM built_by_relationships r
-			 LEFT JOIN internal_teams t ON t.tenant_id = r.tenant_id AND t.id = r.internal_team_id AND t.is_deleted = FALSE
-			 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
+			 FROM architecturemodeling.built_by_relationships r
+			 LEFT JOIN architecturemodeling.internal_teams t ON t.tenant_id = r.tenant_id AND t.id = r.internal_team_id AND t.is_deleted = FALSE
+			 LEFT JOIN architecturemodeling.application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
 			 WHERE r.tenant_id = $1 AND r.id = $2 AND r.is_deleted = FALSE`,
 			tenantID.Value(), id,
 		).Scan(&dto.ID, &dto.InternalTeamID, &dto.InternalTeamName, &dto.ComponentID, &dto.ComponentName, &dto.Notes, &dto.CreatedAt)
@@ -147,9 +147,9 @@ func (rm *BuiltByRelationshipReadModel) queryList(ctx context.Context, whereClau
 
 	query := `SELECT r.id, r.internal_team_id, COALESCE(t.name, '') as internal_team_name,
 		        r.component_id, COALESCE(c.name, '') as component_name, r.notes, r.created_at
-		 FROM built_by_relationships r
-		 LEFT JOIN internal_teams t ON t.tenant_id = r.tenant_id AND t.id = r.internal_team_id AND t.is_deleted = FALSE
-		 LEFT JOIN application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
+		 FROM architecturemodeling.built_by_relationships r
+		 LEFT JOIN architecturemodeling.internal_teams t ON t.tenant_id = r.tenant_id AND t.id = r.internal_team_id AND t.is_deleted = FALSE
+		 LEFT JOIN architecturemodeling.application_components c ON c.tenant_id = r.tenant_id AND c.id = r.component_id AND c.is_deleted = FALSE
 		 ` + whereClause
 
 	relationships := make([]BuiltByRelationshipDTO, 0)

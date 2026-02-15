@@ -91,7 +91,7 @@ func (rm *UserReadModel) getByField(ctx context.Context, field string, value int
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		query := `SELECT id, email, name, role, status, external_id, invitation_id, created_at, last_login_at
-			 FROM users WHERE tenant_id = $1 AND ` + field + ` = $2`
+			 FROM auth.users WHERE tenant_id = $1 AND ` + field + ` = $2`
 
 		err := tx.QueryRowContext(ctx, query, tenantID.Value(), value).
 			Scan(&dto.ID, &dto.Email, &dto.Name, &dto.Role, &dto.Status,
@@ -121,7 +121,7 @@ func (rm *UserReadModel) Insert(ctx context.Context, dto UserDTO) error {
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO users (id, tenant_id, email, name, role, status, external_id, invitation_id, created_at)
+		`INSERT INTO auth.users (id, tenant_id, email, name, role, status, external_id, invitation_id, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		dto.ID, tenantID.Value(), dto.Email, dto.Name, dto.Role, dto.Status, dto.ExternalID, dto.InvitationID, dto.CreatedAt,
 	)
@@ -150,7 +150,7 @@ func (rm *UserReadModel) InsertFromEvent(ctx context.Context, data UserEventData
 
 	now := time.Now().UTC()
 	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO users (id, tenant_id, email, name, role, status, external_id, invitation_id, created_at, last_login_at)
+		`INSERT INTO auth.users (id, tenant_id, email, name, role, status, external_id, invitation_id, created_at, last_login_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 		userID, tenantID.Value(), data.Email, namePtr, data.Role, data.Status, externalIDPtr, invitationIDPtr, createdAt, now,
 	)
@@ -195,7 +195,7 @@ func (rm *UserReadModel) CountActiveAdmins(ctx context.Context) (int, error) {
 	var count int
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM users WHERE tenant_id = $1 AND role = 'admin' AND status = 'active'`,
+			`SELECT COUNT(*) FROM auth.users WHERE tenant_id = $1 AND role = 'admin' AND status = 'active'`,
 			tenantID.Value(),
 		).Scan(&count)
 	})
@@ -269,7 +269,7 @@ func (rm *UserReadModel) GetAllPaginated(ctx context.Context, filter UserPaginat
 
 func (rm *UserReadModel) buildPaginatedQuery(tenantID string, filter UserPaginationFilter) (string, []interface{}) {
 	baseQuery := `SELECT id, email, name, role, status, external_id, invitation_id, created_at, last_login_at
-		FROM users WHERE tenant_id = $1`
+		FROM auth.users WHERE tenant_id = $1`
 	args := []interface{}{tenantID}
 	argIndex := 2
 
@@ -316,7 +316,7 @@ func (rm *UserReadModel) updateField(ctx context.Context, id string, field strin
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`UPDATE users SET `+field+` = $1, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $2 AND id = $3`,
+		`UPDATE auth.users SET `+field+` = $1, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $2 AND id = $3`,
 		value, tenantID.Value(), id,
 	)
 	return err

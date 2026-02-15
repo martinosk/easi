@@ -46,7 +46,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, tenantID, email string)
 
 	err = conn.QueryRowContext(ctx,
 		`SELECT id, email, name, role, status
-		 FROM users
+		 FROM auth.users
 		 WHERE tenant_id = $1 AND email = $2`,
 		tenantID, email,
 	).Scan(&user.ID, &user.Email, &name, &user.Role, &user.Status)

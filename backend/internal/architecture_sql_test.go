@@ -12,86 +12,27 @@ import (
 	"testing"
 )
 
-var tableOwnership = map[string]string{
-	"events":    "infrastructure",
-	"snapshots": "infrastructure",
-
-	"sessions": "shared",
-
-	"application_components":        "architecturemodeling",
-	"component_relations":           "architecturemodeling",
-	"application_component_experts": "architecturemodeling",
-	"acquired_entities":             "architecturemodeling",
-	"vendors":                       "architecturemodeling",
-	"internal_teams":                "architecturemodeling",
-	"acquired_via_relationships":    "architecturemodeling",
-	"purchased_from_relationships":  "architecturemodeling",
-	"built_by_relationships":        "architecturemodeling",
-
-	"architecture_views":       "architectureviews",
-	"view_element_positions":   "architectureviews",
-	"view_component_positions": "architectureviews",
-	"view_preferences":         "architectureviews",
-
-	"capabilities":                   "capabilitymapping",
-	"capability_dependencies":        "capabilitymapping",
-	"capability_realizations":        "capabilitymapping",
-	"capability_experts":             "capabilitymapping",
-	"capability_tags":                "capabilitymapping",
-	"capability_component_cache":     "capabilitymapping",
-	"domain_capability_assignments":  "capabilitymapping",
-	"effective_capability_importance": "capabilitymapping",
-	"application_fit_scores":         "capabilitymapping",
-	"cm_strategy_pillar_cache":       "capabilitymapping",
-	"strategy_importance":            "capabilitymapping",
-	"domain_composition_view":          "capabilitymapping",
-	"business_domains":                 "capabilitymapping",
-	"cm_effective_business_domain":     "capabilitymapping",
-
-	"enterprise_capabilities":        "enterprisearchitecture",
-	"enterprise_capability_links":    "enterprisearchitecture",
-	"enterprise_strategic_importance": "enterprisearchitecture",
-	"domain_capability_metadata":     "enterprisearchitecture",
-	"capability_link_blocking":       "enterprisearchitecture",
-	"ea_strategy_pillar_cache":       "enterprisearchitecture",
-	"ea_realization_cache":           "enterprisearchitecture",
-	"ea_importance_cache":            "enterprisearchitecture",
-	"ea_fit_score_cache":             "enterprisearchitecture",
-
-	"layout_containers": "viewlayouts",
-	"element_positions": "viewlayouts",
-
-	"import_sessions": "importing",
-
-	"tenants":             "platform",
-	"tenant_domains":      "platform",
-	"tenant_oidc_configs": "platform",
-	"users":               "auth",
-	"invitations":         "auth",
-
-	"edit_grants": "accessdelegation",
-
-	"meta_model_configurations": "metamodel",
-
-	"releases": "releases",
-
-	"value_streams":                   "valuestreams",
-	"value_stream_stages":             "valuestreams",
-	"value_stream_stage_capabilities": "valuestreams",
-	"value_stream_capability_cache":   "valuestreams",
+var allowedSchemaAccess = map[string]string{
+	"auth -> platform": "tenant domain checking for authentication",
 }
 
-var allowedSQLCrossAccess = map[string]string{
-	"auth/tenant_domain_checker.go -> tenant_domains": "spec-138",
+var schemaQualifiedPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)\bFROM\s+(\w+)\.(\w+)`),
+	regexp.MustCompile(`(?i)\bJOIN\s+(\w+)\.(\w+)`),
+	regexp.MustCompile(`(?i)\bINSERT\s+INTO\s+(\w+)\.(\w+)`),
+	regexp.MustCompile(`(?i)\bUPDATE\s+(\w+)\.(\w+)`),
+	regexp.MustCompile(`(?i)\bDELETE\s+FROM\s+(\w+)\.(\w+)`),
 }
 
-var sqlTablePatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)\bFROM\s+(\w+)`),
-	regexp.MustCompile(`(?i)\bJOIN\s+(\w+)`),
-	regexp.MustCompile(`(?i)\bINSERT\s+INTO\s+(\w+)`),
-	regexp.MustCompile(`(?i)\bUPDATE\s+(\w+)`),
-	regexp.MustCompile(`(?i)\bDELETE\s+FROM\s+(\w+)`),
+var unqualifiedPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)\bFROM\s+([a-zA-Z_]\w*)`),
+	regexp.MustCompile(`(?i)\bJOIN\s+([a-zA-Z_]\w*)`),
+	regexp.MustCompile(`(?i)\bINSERT\s+INTO\s+([a-zA-Z_]\w*)`),
+	regexp.MustCompile(`(?i)\bUPDATE\s+([a-zA-Z_]\w*)`),
+	regexp.MustCompile(`(?i)\bDELETE\s+FROM\s+([a-zA-Z_]\w*)`),
 }
+
+var ctePattern = regexp.MustCompile(`(?i)\bWITH\s+(?:RECURSIVE\s+)?(\w+)\s+AS\s*\(`)
 
 var sqlKeywords = map[string]bool{
 	"select": true, "set": true, "where": true, "values": true,
@@ -99,17 +40,63 @@ var sqlKeywords = map[string]bool{
 	"table": true, "index": true, "if": true, "as": true,
 }
 
-func extractTablesFromSQL(sql string) map[string]bool {
-	tables := make(map[string]bool)
-	for _, re := range sqlTablePatterns {
-		for _, match := range re.FindAllStringSubmatch(sql, -1) {
+type schemaTableRef struct {
+	schema string
+	table  string
+}
+
+type fileContext struct {
+	relPath string
+	ownerBC string
+}
+
+type sqlAnalyzer struct {
+	sql string
+}
+
+func (a sqlAnalyzer) qualifiedTables() []schemaTableRef {
+	var refs []schemaTableRef
+	for _, re := range schemaQualifiedPatterns {
+		for _, match := range re.FindAllStringSubmatch(a.sql, -1) {
+			refs = append(refs, schemaTableRef{
+				schema: strings.ToLower(match[1]),
+				table:  strings.ToLower(match[2]),
+			})
+		}
+	}
+	return refs
+}
+
+func (a sqlAnalyzer) knownIdentifiers() map[string]bool {
+	known := make(map[string]bool)
+	for _, re := range schemaQualifiedPatterns {
+		for _, match := range re.FindAllStringSubmatch(a.sql, -1) {
+			known[strings.ToLower(match[1])] = true
+			known[strings.ToLower(match[2])] = true
+		}
+	}
+	for _, match := range ctePattern.FindAllStringSubmatch(a.sql, -1) {
+		known[strings.ToLower(match[1])] = true
+	}
+	return known
+}
+
+func (a sqlAnalyzer) unqualifiedTables() []string {
+	known := a.knownIdentifiers()
+	if len(known) == 0 {
+		return nil
+	}
+
+	var unqualified []string
+	for _, re := range unqualifiedPatterns {
+		for _, match := range re.FindAllStringSubmatch(a.sql, -1) {
 			table := strings.ToLower(match[1])
-			if !sqlKeywords[table] {
-				tables[table] = true
+			if !sqlKeywords[table] && !known[table] {
+				unqualified = append(unqualified, table)
 			}
 		}
 	}
-	return tables
+	return unqualified
 }
 
 func extractStringLiterals(node ast.Node) []string {
@@ -134,10 +121,8 @@ func extractStringLiterals(node ast.Node) []string {
 }
 
 type sqlViolation struct {
-	relPath    string
-	table      string
-	tableOwner string
-	ownerBC    string
+	relPath string
+	message string
 }
 
 type sqlScanResult struct {
@@ -146,14 +131,17 @@ type sqlScanResult struct {
 	errors               []string
 }
 
-type tableOwnershipScanner struct {
+type schemaOwnershipScanner struct {
 	internalDir string
 }
 
-func (s *tableOwnershipScanner) collectFiles() ([]string, error) {
+func (s *schemaOwnershipScanner) collectFiles() ([]string, error) {
 	patterns := []string{
 		"*/application/readmodels/*.go",
 		"*/application/projectors/*.go",
+		"*/infrastructure/repositories/*.go",
+		"*/infrastructure/repository/*.go",
+		"*/infrastructure/eventstore/*.go",
 	}
 	var files []string
 	for _, pattern := range patterns {
@@ -176,15 +164,17 @@ func filterProductionFiles(paths []string) []string {
 	return result
 }
 
-func (s *tableOwnershipScanner) checkFile(path string) ([]sqlViolation, map[string]bool, error) {
+func (s *schemaOwnershipScanner) checkFile(path string) ([]sqlViolation, map[string]bool, error) {
 	relPath, err := filepath.Rel(s.internalDir, path)
 	if err != nil {
 		return nil, nil, err
 	}
-	relPath = filepath.ToSlash(relPath)
 
-	ownerBC := strings.SplitN(relPath, "/", 2)[0]
-	if sharedPackages[ownerBC] {
+	fc := fileContext{
+		relPath: filepath.ToSlash(relPath),
+		ownerBC: strings.SplitN(filepath.ToSlash(relPath), "/", 2)[0],
+	}
+	if sharedPackages[fc.ownerBC] {
 		return nil, nil, nil
 	}
 
@@ -194,45 +184,59 @@ func (s *tableOwnershipScanner) checkFile(path string) ([]sqlViolation, map[stri
 		return nil, nil, err
 	}
 
-	return s.findTableViolations(node, relPath, ownerBC)
+	return s.findSchemaViolations(node, fc)
 }
 
-func (s *tableOwnershipScanner) findTableViolations(node *ast.File, relPath, ownerBC string) ([]sqlViolation, map[string]bool, error) {
-	fileName := filepath.Base(relPath)
+func (s *schemaOwnershipScanner) findSchemaViolations(node *ast.File, fc fileContext) ([]sqlViolation, map[string]bool, error) {
 	var violations []sqlViolation
 	usedEntries := make(map[string]bool)
 
 	for _, literal := range extractStringLiterals(node) {
-		for table := range extractTablesFromSQL(literal) {
-			if !isCrossBCTableAccess(table, ownerBC) {
-				continue
-			}
+		analyzer := sqlAnalyzer{sql: literal}
 
-			allowlistKey := ownerBC + "/" + fileName + " -> " + table
-			if _, ok := allowedSQLCrossAccess[allowlistKey]; ok {
-				usedEntries[allowlistKey] = true
-				continue
-			}
+		for _, name := range analyzer.unqualifiedTables() {
+			violations = append(violations, sqlViolation{
+				relPath: fc.relPath,
+				message: "unqualified table reference '" + name + "' — must use schema.table format",
+			})
+		}
 
-			violations = append(violations, sqlViolation{relPath, table, tableOwnership[table], ownerBC})
+		v, used := checkCrossBCAccess(analyzer.qualifiedTables(), fc)
+		violations = append(violations, v...)
+		for k := range used {
+			usedEntries[k] = true
 		}
 	}
 
 	return violations, usedEntries, nil
 }
 
-func isCrossBCTableAccess(table, ownerBC string) bool {
-	tableOwner, known := tableOwnership[table]
-	if !known {
-		return false
+func checkCrossBCAccess(refs []schemaTableRef, fc fileContext) ([]sqlViolation, map[string]bool) {
+	var violations []sqlViolation
+	usedEntries := make(map[string]bool)
+	ownedSchemas := map[string]bool{"infrastructure": true, "shared": true, fc.ownerBC: true}
+
+	for _, ref := range refs {
+		if ownedSchemas[ref.schema] {
+			continue
+		}
+
+		allowlistKey := fc.ownerBC + " -> " + ref.schema
+		if _, ok := allowedSchemaAccess[allowlistKey]; ok {
+			usedEntries[allowlistKey] = true
+			continue
+		}
+
+		violations = append(violations, sqlViolation{
+			relPath: fc.relPath,
+			message: "cross-BC schema access: references " + ref.schema + "." + ref.table + " (file is in " + fc.ownerBC + ")",
+		})
 	}
-	if tableOwner == "infrastructure" || tableOwner == "shared" {
-		return false
-	}
-	return tableOwner != ownerBC
+
+	return violations, usedEntries
 }
 
-func (s *tableOwnershipScanner) scan(files []string) sqlScanResult {
+func (s *schemaOwnershipScanner) scan(files []string) sqlScanResult {
 	result := sqlScanResult{usedAllowlistEntries: make(map[string]bool)}
 	for _, path := range files {
 		violations, usedEntries, err := s.checkFile(path)
@@ -254,11 +258,11 @@ func TestReadModelsOnlyReferenceOwnedTables(t *testing.T) {
 		t.Fatalf("failed to get absolute path: %v", err)
 	}
 
-	scanner := &tableOwnershipScanner{internalDir: internalDir}
+	scanner := &schemaOwnershipScanner{internalDir: internalDir}
 
 	files, err := scanner.collectFiles()
 	if err != nil {
-		t.Fatalf("failed to collect read model files: %v", err)
+		t.Fatalf("failed to collect files: %v", err)
 	}
 
 	scan := scanner.scan(files)
@@ -267,13 +271,13 @@ func TestReadModelsOnlyReferenceOwnedTables(t *testing.T) {
 		t.Errorf("failed to check: %s", e)
 	}
 	for _, v := range scan.violations {
-		t.Errorf("SQL CROSS-BC VIOLATION: %s references table %s (owned by %s, file is in %s)", v.relPath, v.table, v.tableOwner, v.ownerBC)
+		t.Errorf("SQL OWNERSHIP VIOLATION: %s — %s", v.relPath, v.message)
 	}
 
-	t.Run("NoStaleSQLAllowlistEntries", func(t *testing.T) {
-		for entry, spec := range allowedSQLCrossAccess {
+	t.Run("NoStaleSchemaAllowlistEntries", func(t *testing.T) {
+		for entry, reason := range allowedSchemaAccess {
 			if !scan.usedAllowlistEntries[entry] {
-				t.Errorf("STALE SQL ALLOWLIST ENTRY: %q (was for %s) — violation no longer exists, remove this entry", entry, spec)
+				t.Errorf("STALE SCHEMA ALLOWLIST ENTRY: %q (reason: %s) — violation no longer exists, remove this entry", entry, reason)
 			}
 		}
 	})

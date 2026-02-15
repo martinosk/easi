@@ -21,7 +21,7 @@ func NewPostgresReleaseRepository(db *sql.DB) domain.ReleaseRepository {
 
 func (r *PostgresReleaseRepository) Save(ctx context.Context, release *aggregates.Release) error {
 	query := `
-		INSERT INTO releases (version, release_date, notes, created_at)
+		INSERT INTO releases.releases (version, release_date, notes, created_at)
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (version) DO UPDATE SET
 			release_date = EXCLUDED.release_date,
@@ -37,19 +37,19 @@ func (r *PostgresReleaseRepository) Save(ctx context.Context, release *aggregate
 }
 
 func (r *PostgresReleaseRepository) FindByVersion(ctx context.Context, version valueobjects.Version) (*aggregates.Release, error) {
-	query := `SELECT version, release_date, notes, created_at FROM releases WHERE version = $1`
+	query := `SELECT version, release_date, notes, created_at FROM releases.releases WHERE version = $1`
 	row := r.db.QueryRowContext(ctx, query, version.Value())
 	return r.scanRelease(row)
 }
 
 func (r *PostgresReleaseRepository) FindLatest(ctx context.Context) (*aggregates.Release, error) {
-	query := `SELECT version, release_date, notes, created_at FROM releases ORDER BY release_date DESC LIMIT 1`
+	query := `SELECT version, release_date, notes, created_at FROM releases.releases ORDER BY release_date DESC LIMIT 1`
 	row := r.db.QueryRowContext(ctx, query)
 	return r.scanRelease(row)
 }
 
 func (r *PostgresReleaseRepository) FindAll(ctx context.Context) ([]*aggregates.Release, error) {
-	query := `SELECT version, release_date, notes, created_at FROM releases ORDER BY release_date DESC`
+	query := `SELECT version, release_date, notes, created_at FROM releases.releases ORDER BY release_date DESC`
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err

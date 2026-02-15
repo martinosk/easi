@@ -39,7 +39,7 @@ func (rm *AuditHistoryReadModel) GetHistoryByAggregateID(ctx context.Context, ag
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		query := `
 			SELECT id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email
-			FROM events
+			FROM infrastructure.events
 			WHERE tenant_id = $1 AND (aggregate_id = $2 OR event_data->>'componentId' = $2)
 		`
 		args := []any{tenantID.Value(), aggregateID}

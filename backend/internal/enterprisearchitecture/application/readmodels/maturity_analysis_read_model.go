@@ -108,9 +108,9 @@ func (rm *MaturityAnalysisReadModel) buildCandidatesQuery(sortBy string) string 
 			COALESCE(MIN(dcm.maturity_value), 0) as min_maturity,
 			COALESCE(AVG(dcm.maturity_value)::int, 0) as avg_maturity,
 			GREATEST(0, COALESCE(ec.target_maturity, COALESCE(MAX(dcm.maturity_value), 0)) - COALESCE(MIN(dcm.maturity_value), 0)) as max_gap
-		FROM enterprise_capabilities ec
-		LEFT JOIN enterprise_capability_links ecl ON ec.id = ecl.enterprise_capability_id AND ec.tenant_id = ecl.tenant_id
-		LEFT JOIN domain_capability_metadata dcm ON ecl.domain_capability_id = dcm.capability_id AND ecl.tenant_id = dcm.tenant_id
+		FROM enterprisearchitecture.enterprise_capabilities ec
+		LEFT JOIN enterprisearchitecture.enterprise_capability_links ecl ON ec.id = ecl.enterprise_capability_id AND ec.tenant_id = ecl.tenant_id
+		LEFT JOIN enterprisearchitecture.domain_capability_metadata dcm ON ecl.domain_capability_id = dcm.capability_id AND ecl.tenant_id = dcm.tenant_id
 		WHERE ec.tenant_id = $1 AND ec.active = true
 		GROUP BY ec.id, ec.name, ec.category, ec.target_maturity
 		ORDER BY ` + orderBy
@@ -202,8 +202,8 @@ func (rm *MaturityAnalysisReadModel) getMaturityDistribution(ctx context.Context
 			COUNT(*) FILTER (WHERE dcm.maturity_value > 24 AND dcm.maturity_value <= 49) as custom_build,
 			COUNT(*) FILTER (WHERE dcm.maturity_value > 49 AND dcm.maturity_value <= 74) as product,
 			COUNT(*) FILTER (WHERE dcm.maturity_value > 74) as commodity
-		FROM enterprise_capability_links ecl
-		JOIN domain_capability_metadata dcm ON ecl.domain_capability_id = dcm.capability_id AND ecl.tenant_id = dcm.tenant_id
+		FROM enterprisearchitecture.enterprise_capability_links ecl
+		JOIN enterprisearchitecture.domain_capability_metadata dcm ON ecl.domain_capability_id = dcm.capability_id AND ecl.tenant_id = dcm.tenant_id
 		WHERE ecl.tenant_id = $1 AND ecl.enterprise_capability_id = $2`
 
 	var dist MaturityDistributionDTO
@@ -256,10 +256,10 @@ func (rm *MaturityAnalysisReadModel) fetchGapDetailHeader(ctx context.Context, e
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
 			`SELECT ec.id, ec.name, ec.category, ec.target_maturity,
-			        (SELECT MAX(dcm.maturity_value) FROM enterprise_capability_links ecl
-			         JOIN domain_capability_metadata dcm ON ecl.domain_capability_id = dcm.capability_id AND ecl.tenant_id = dcm.tenant_id
+			        (SELECT MAX(dcm.maturity_value) FROM enterprisearchitecture.enterprise_capability_links ecl
+			         JOIN enterprisearchitecture.domain_capability_metadata dcm ON ecl.domain_capability_id = dcm.capability_id AND ecl.tenant_id = dcm.tenant_id
 			         WHERE ecl.enterprise_capability_id = ec.id AND ecl.tenant_id = ec.tenant_id) as max_mat
-			 FROM enterprise_capabilities ec
+			 FROM enterprisearchitecture.enterprise_capabilities ec
 			 WHERE ec.tenant_id = $1 AND ec.id = $2 AND ec.active = true`,
 			tenantID.Value(), enterpriseCapabilityID,
 		).Scan(&dto.EnterpriseCapabilityID, &dto.EnterpriseCapabilityName, &category, &targetMaturity, &maxMaturity)
@@ -300,8 +300,8 @@ func (rm *MaturityAnalysisReadModel) getImplementations(ctx context.Context, ent
 		SELECT ecl.domain_capability_id, dcm.capability_name,
 		       dcm.business_domain_id, dcm.business_domain_name,
 		       dcm.maturity_value
-		FROM enterprise_capability_links ecl
-		JOIN domain_capability_metadata dcm ON ecl.domain_capability_id = dcm.capability_id AND ecl.tenant_id = dcm.tenant_id
+		FROM enterprisearchitecture.enterprise_capability_links ecl
+		JOIN enterprisearchitecture.domain_capability_metadata dcm ON ecl.domain_capability_id = dcm.capability_id AND ecl.tenant_id = dcm.tenant_id
 		WHERE ecl.tenant_id = $1 AND ecl.enterprise_capability_id = $2
 		ORDER BY dcm.maturity_value ASC`
 

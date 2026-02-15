@@ -56,7 +56,7 @@ func (rm *BusinessDomainReadModel) Insert(ctx context.Context, dto BusinessDomai
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO business_domains (id, tenant_id, name, description, domain_architect_id, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		"INSERT INTO capabilitymapping.business_domains (id, tenant_id, name, description, domain_architect_id, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
 		dto.ID, tenantID.Value(), dto.Name, dto.Description, domainArchitectID, 0, dto.CreatedAt,
 	)
 	return err
@@ -74,22 +74,22 @@ func (rm *BusinessDomainReadModel) Update(ctx context.Context, id string, update
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"UPDATE business_domains SET name = $1, description = $2, domain_architect_id = $3, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $4 AND id = $5",
+		"UPDATE capabilitymapping.business_domains SET name = $1, description = $2, domain_architect_id = $3, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $4 AND id = $5",
 		update.Name, update.Description, archID, tenantID.Value(), id,
 	)
 	return err
 }
 
 func (rm *BusinessDomainReadModel) Delete(ctx context.Context, id string) error {
-	return rm.execTenantQuery(ctx, "DELETE FROM business_domains WHERE tenant_id = $1 AND id = $2", id)
+	return rm.execTenantQuery(ctx, "DELETE FROM capabilitymapping.business_domains WHERE tenant_id = $1 AND id = $2", id)
 }
 
 func (rm *BusinessDomainReadModel) IncrementCapabilityCount(ctx context.Context, id string) error {
-	return rm.execTenantQuery(ctx, "UPDATE business_domains SET capability_count = capability_count + 1 WHERE tenant_id = $1 AND id = $2", id)
+	return rm.execTenantQuery(ctx, "UPDATE capabilitymapping.business_domains SET capability_count = capability_count + 1 WHERE tenant_id = $1 AND id = $2", id)
 }
 
 func (rm *BusinessDomainReadModel) DecrementCapabilityCount(ctx context.Context, id string) error {
-	return rm.execTenantQuery(ctx, "UPDATE business_domains SET capability_count = GREATEST(0, capability_count - 1) WHERE tenant_id = $1 AND id = $2", id)
+	return rm.execTenantQuery(ctx, "UPDATE capabilitymapping.business_domains SET capability_count = GREATEST(0, capability_count - 1) WHERE tenant_id = $1 AND id = $2", id)
 }
 
 func (rm *BusinessDomainReadModel) GetAll(ctx context.Context) ([]BusinessDomainDTO, error) {
@@ -101,7 +101,7 @@ func (rm *BusinessDomainReadModel) GetAll(ctx context.Context) ([]BusinessDomain
 	var domains []BusinessDomainDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, name, description, domain_architect_id, capability_count, created_at, updated_at FROM business_domains WHERE tenant_id = $1 ORDER BY name",
+			"SELECT id, name, description, domain_architect_id, capability_count, created_at, updated_at FROM capabilitymapping.business_domains WHERE tenant_id = $1 ORDER BY name",
 			tenantID.Value(),
 		)
 		if err != nil {
@@ -155,7 +155,7 @@ func (rm *BusinessDomainReadModel) getByCondition(ctx context.Context, whereClau
 	var dto *BusinessDomainDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		row := tx.QueryRowContext(ctx,
-			"SELECT id, name, description, domain_architect_id, capability_count, created_at, updated_at FROM business_domains WHERE tenant_id = $1 AND "+whereClause,
+			"SELECT id, name, description, domain_architect_id, capability_count, created_at, updated_at FROM capabilitymapping.business_domains WHERE tenant_id = $1 AND "+whereClause,
 			tenantID.Value(), arg,
 		)
 
@@ -191,12 +191,12 @@ func (rm *BusinessDomainReadModel) NameExists(ctx context.Context, name, exclude
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		if excludeID != "" {
 			return tx.QueryRowContext(ctx,
-				"SELECT COUNT(*) FROM business_domains WHERE tenant_id = $1 AND name = $2 AND id != $3",
+				"SELECT COUNT(*) FROM capabilitymapping.business_domains WHERE tenant_id = $1 AND name = $2 AND id != $3",
 				tenantID.Value(), name, excludeID,
 			).Scan(&count)
 		}
 		return tx.QueryRowContext(ctx,
-			"SELECT COUNT(*) FROM business_domains WHERE tenant_id = $1 AND name = $2",
+			"SELECT COUNT(*) FROM capabilitymapping.business_domains WHERE tenant_id = $1 AND name = $2",
 			tenantID.Value(), name,
 		).Scan(&count)
 	})

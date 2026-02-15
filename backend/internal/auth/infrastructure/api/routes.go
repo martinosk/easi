@@ -39,7 +39,10 @@ const (
 
 func SetupAuthDependencies(db *sql.DB) (*AuthDependencies, error) {
 	scsManager := scs.New()
-	scsManager.Store = postgresstore.New(db)
+	scsManager.Store = postgresstore.NewWithConfig(db, postgresstore.Config{
+		CleanUpInterval: 5 * time.Minute,
+		TableName:       "shared.sessions",
+	})
 	scsManager.Lifetime = SessionLifetime
 	scsManager.Cookie.Name = "easi_session"
 	scsManager.Cookie.HttpOnly = true

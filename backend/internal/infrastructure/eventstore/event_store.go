@@ -90,7 +90,7 @@ func (s *PostgresEventStore) SaveEvents(ctx context.Context, aggregateID string,
 func (s *PostgresEventStore) checkVersionConflict(ctx context.Context, tx *sql.Tx, tenantID sharedvo.TenantID, aggregateID string, expectedVersion int) error {
 	var currentVersion int
 	err := tx.QueryRowContext(ctx,
-		"SELECT COALESCE(MAX(version), 0) FROM events WHERE tenant_id = $1 AND aggregate_id = $2",
+		"SELECT COALESCE(MAX(version), 0) FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2",
 		tenantID.Value(),
 		aggregateID,
 	).Scan(&currentVersion)
@@ -109,7 +109,7 @@ func (s *PostgresEventStore) insertEvents(ctx context.Context, tx *sql.Tx, tenan
 	actor, hasActor := sharedctx.GetActor(ctx)
 
 	stmt, err := tx.PrepareContext(ctx,
-		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		"INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 	)
 	if err != nil {
 		return fmt.Errorf("failed to prepare statement: %w", err)
@@ -169,7 +169,7 @@ func (s *PostgresEventStore) GetEvents(ctx context.Context, aggregateID string) 
 	var storedEvents []StoredEvent
 	err = s.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			"SELECT id, aggregate_id, event_type, event_data, version, occurred_at, created_at FROM events WHERE tenant_id = $1 AND aggregate_id = $2 ORDER BY version ASC",
+			"SELECT id, aggregate_id, event_type, event_data, version, occurred_at, created_at FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2 ORDER BY version ASC",
 			tenantID.Value(),
 			aggregateID,
 		)

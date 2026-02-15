@@ -31,7 +31,7 @@ func (c *TenantDomainChecker) IsDomainAllowed(ctx context.Context, email string)
 	var exists bool
 	err = c.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
-			`SELECT EXISTS(SELECT 1 FROM tenant_domains WHERE tenant_id = $1 AND domain = $2)`,
+			`SELECT EXISTS(SELECT 1 FROM platform.tenant_domains WHERE tenant_id = $1 AND domain = $2)`,
 			tenantID.Value(), domain,
 		).Scan(&exists)
 	})

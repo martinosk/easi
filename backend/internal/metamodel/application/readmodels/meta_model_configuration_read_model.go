@@ -76,7 +76,7 @@ func (rm *MetaModelConfigurationReadModel) Insert(ctx context.Context, dto MetaM
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO meta_model_configurations
+		`INSERT INTO metamodel.meta_model_configurations
 		(id, tenant_id, sections, strategy_pillars, version, is_default, created_at, modified_at, modified_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		dto.ID, tenantID.Value(), sectionsJSON, pillarsJSON, dto.Version, dto.IsDefault, dto.CreatedAt, dto.ModifiedAt, dto.ModifiedBy,
@@ -101,7 +101,7 @@ func (rm *MetaModelConfigurationReadModel) Update(ctx context.Context, params Up
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`UPDATE meta_model_configurations
+		`UPDATE metamodel.meta_model_configurations
 		SET sections = $1, strategy_pillars = $2, version = $3, is_default = $4, modified_at = $5, modified_by = $6
 		WHERE tenant_id = $7 AND id = $8`,
 		sectionsJSON, pillarsJSON, params.Version, params.IsDefault, params.ModifiedAt, params.ModifiedBy, tenantID.Value(), params.ID,
@@ -123,7 +123,7 @@ func (rm *MetaModelConfigurationReadModel) GetByID(ctx context.Context, id strin
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
 			`SELECT id, tenant_id, sections, strategy_pillars, version, is_default, created_at, modified_at, modified_by
-			FROM meta_model_configurations
+			FROM metamodel.meta_model_configurations
 			WHERE tenant_id = $1 AND id = $2`,
 			tenantID.Value(), id,
 		).Scan(&dto.ID, &dto.TenantID, &sectionsJSON, &pillarsJSON, &dto.Version, &dto.IsDefault, &dto.CreatedAt, &dto.ModifiedAt, &dto.ModifiedBy)
@@ -169,7 +169,7 @@ func (rm *MetaModelConfigurationReadModel) GetByTenantID(ctx context.Context) (*
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
 			`SELECT id, tenant_id, sections, strategy_pillars, version, is_default, created_at, modified_at, modified_by
-			FROM meta_model_configurations
+			FROM metamodel.meta_model_configurations
 			WHERE tenant_id = $1`,
 			tenantID.Value(),
 		).Scan(&dto.ID, &dto.TenantID, &sectionsJSON, &pillarsJSON, &dto.Version, &dto.IsDefault, &dto.CreatedAt, &dto.ModifiedAt, &dto.ModifiedBy)
@@ -207,7 +207,7 @@ func (rm *MetaModelConfigurationReadModel) GetConfigIDByTenantID(ctx context.Con
 
 	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			`SELECT id FROM meta_model_configurations WHERE tenant_id = $1`,
+			`SELECT id FROM metamodel.meta_model_configurations WHERE tenant_id = $1`,
 			tenantID,
 		).Scan(&id)
 

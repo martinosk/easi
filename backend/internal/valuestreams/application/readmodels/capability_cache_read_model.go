@@ -32,7 +32,7 @@ func (rm *CapabilityCacheReadModel) GetByID(ctx context.Context, id string) (*Ca
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, name FROM value_stream_capability_cache WHERE tenant_id = $1 AND id = $2",
+			"SELECT id, name FROM valuestreams.value_stream_capability_cache WHERE tenant_id = $1 AND id = $2",
 			tenantID.Value(), id,
 		).Scan(&dto.ID, &dto.Name)
 
@@ -60,7 +60,7 @@ func (rm *CapabilityCacheReadModel) Upsert(ctx context.Context, id, name string)
 	}
 
 	_, err = rm.db.ExecContext(ctx, `
-		INSERT INTO value_stream_capability_cache (tenant_id, id, name)
+		INSERT INTO valuestreams.value_stream_capability_cache (tenant_id, id, name)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (tenant_id, id) DO UPDATE SET name = EXCLUDED.name
 	`, tenantID.Value(), id, name)
@@ -74,7 +74,7 @@ func (rm *CapabilityCacheReadModel) Delete(ctx context.Context, id string) error
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM value_stream_capability_cache WHERE tenant_id = $1 AND id = $2",
+		"DELETE FROM valuestreams.value_stream_capability_cache WHERE tenant_id = $1 AND id = $2",
 		tenantID.Value(), id,
 	)
 	return err

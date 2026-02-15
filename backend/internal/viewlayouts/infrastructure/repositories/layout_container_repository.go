@@ -92,7 +92,7 @@ func (r *LayoutContainerRepository) GetByContext(
 		var row containerRow
 		err := tx.QueryRowContext(ctx,
 			`SELECT id, context_type, context_ref, preferences, version, created_at, updated_at
-			FROM layout_containers
+			FROM viewlayouts.layout_containers
 			WHERE tenant_id = $1 AND context_type = $2 AND context_ref = $3`,
 			tenantID.Value(), contextType.Value(), contextRef.Value(),
 		).Scan(&row.id, &row.contextType, &row.contextRef, &row.prefsJSON, &row.version, &row.createdAt, &row.updatedAt)
@@ -135,7 +135,7 @@ func (r *LayoutContainerRepository) GetByID(
 		row := containerRow{id: id.Value()}
 		err := tx.QueryRowContext(ctx,
 			`SELECT context_type, context_ref, preferences, version, created_at, updated_at
-			FROM layout_containers
+			FROM viewlayouts.layout_containers
 			WHERE tenant_id = $1 AND id = $2`,
 			tenantID.Value(), id.Value(),
 		).Scan(&row.contextType, &row.contextRef, &row.prefsJSON, &row.version, &row.createdAt, &row.updatedAt)
@@ -205,7 +205,7 @@ func (r *LayoutContainerRepository) loadElements(ctx context.Context, tx *sql.Tx
 
 	rows, err := tx.QueryContext(ctx,
 		`SELECT element_id, x, y, width, height, custom_color, sort_order
-		FROM element_positions
+		FROM viewlayouts.element_positions
 		WHERE tenant_id = $1 AND container_id = $2`,
 		tenantID.Value(), containerID.Value(),
 	)
@@ -244,10 +244,10 @@ func (r *LayoutContainerRepository) Save(ctx context.Context, container *aggrega
 
 	now := time.Now().UTC()
 	_, err = r.db.ExecContext(ctx,
-		`INSERT INTO layout_containers (id, tenant_id, context_type, context_ref, preferences, version, created_at, updated_at)
+		`INSERT INTO viewlayouts.layout_containers (id, tenant_id, context_type, context_ref, preferences, version, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (tenant_id, context_type, context_ref)
-		DO UPDATE SET preferences = $5, version = layout_containers.version + 1, updated_at = $8`,
+		DO UPDATE SET preferences = $5, version = viewlayouts.layout_containers.version + 1, updated_at = $8`,
 		container.ID().Value(),
 		tenantID.Value(),
 		container.ContextType().Value(),
@@ -274,7 +274,7 @@ func (r *LayoutContainerRepository) Delete(ctx context.Context, id valueobjects.
 	defer func() { _ = tx.Rollback() }()
 
 	_, err = tx.ExecContext(ctx,
-		"DELETE FROM element_positions WHERE tenant_id = $1 AND container_id = $2",
+		"DELETE FROM viewlayouts.element_positions WHERE tenant_id = $1 AND container_id = $2",
 		tenantID.Value(), id.Value(),
 	)
 	if err != nil {
@@ -282,7 +282,7 @@ func (r *LayoutContainerRepository) Delete(ctx context.Context, id valueobjects.
 	}
 
 	_, err = tx.ExecContext(ctx,
-		"DELETE FROM layout_containers WHERE tenant_id = $1 AND id = $2",
+		"DELETE FROM viewlayouts.layout_containers WHERE tenant_id = $1 AND id = $2",
 		tenantID.Value(), id.Value(),
 	)
 	if err != nil {
@@ -330,7 +330,7 @@ func (r *LayoutContainerRepository) UpsertElementPosition(
 	now := time.Now().UTC()
 
 	_, err = r.db.ExecContext(ctx,
-		`INSERT INTO element_positions (container_id, tenant_id, element_id, x, y, width, height, custom_color, sort_order, updated_at)
+		`INSERT INTO viewlayouts.element_positions (container_id, tenant_id, element_id, x, y, width, height, custom_color, sort_order, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT (tenant_id, container_id, element_id)
 		DO UPDATE SET x = $4, y = $5, width = $6, height = $7, custom_color = $8, sort_order = $9, updated_at = $10`,
@@ -360,7 +360,7 @@ func (r *LayoutContainerRepository) DeleteElementPosition(
 	}
 
 	_, err = r.db.ExecContext(ctx,
-		"DELETE FROM element_positions WHERE tenant_id = $1 AND container_id = $2 AND element_id = $3",
+		"DELETE FROM viewlayouts.element_positions WHERE tenant_id = $1 AND container_id = $2 AND element_id = $3",
 		tenantID.Value(), containerID.Value(), elementID.Value(),
 	)
 
@@ -391,7 +391,7 @@ func (r *LayoutContainerRepository) BatchUpdatePositions(
 	for _, position := range positions {
 		params := buildPositionParams(position)
 		_, err := tx.ExecContext(ctx,
-			`INSERT INTO element_positions (container_id, tenant_id, element_id, x, y, width, height, custom_color, sort_order, updated_at)
+			`INSERT INTO viewlayouts.element_positions (container_id, tenant_id, element_id, x, y, width, height, custom_color, sort_order, updated_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 			ON CONFLICT (tenant_id, container_id, element_id)
 			DO UPDATE SET x = $4, y = $5, width = $6, height = $7, custom_color = $8, sort_order = $9, updated_at = $10`,
@@ -432,7 +432,7 @@ func (r *LayoutContainerRepository) DeleteByContextRef(
 
 	var containerID string
 	err = tx.QueryRowContext(ctx,
-		"SELECT id FROM layout_containers WHERE tenant_id = $1 AND context_type = $2 AND context_ref = $3",
+		"SELECT id FROM viewlayouts.layout_containers WHERE tenant_id = $1 AND context_type = $2 AND context_ref = $3",
 		tenantID.Value(), contextType.Value(), contextRef.Value(),
 	).Scan(&containerID)
 
@@ -444,7 +444,7 @@ func (r *LayoutContainerRepository) DeleteByContextRef(
 	}
 
 	_, err = tx.ExecContext(ctx,
-		"DELETE FROM element_positions WHERE tenant_id = $1 AND container_id = $2",
+		"DELETE FROM viewlayouts.element_positions WHERE tenant_id = $1 AND container_id = $2",
 		tenantID.Value(), containerID,
 	)
 	if err != nil {
@@ -452,7 +452,7 @@ func (r *LayoutContainerRepository) DeleteByContextRef(
 	}
 
 	_, err = tx.ExecContext(ctx,
-		"DELETE FROM layout_containers WHERE tenant_id = $1 AND id = $2",
+		"DELETE FROM viewlayouts.layout_containers WHERE tenant_id = $1 AND id = $2",
 		tenantID.Value(), containerID,
 	)
 	if err != nil {
@@ -472,7 +472,7 @@ func (r *LayoutContainerRepository) DeleteElementFromAllLayouts(
 	}
 
 	_, err = r.db.ExecContext(ctx,
-		"DELETE FROM element_positions WHERE tenant_id = $1 AND element_id = $2",
+		"DELETE FROM viewlayouts.element_positions WHERE tenant_id = $1 AND element_id = $2",
 		tenantID.Value(), elementID.Value(),
 	)
 

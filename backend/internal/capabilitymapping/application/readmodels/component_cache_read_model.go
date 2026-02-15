@@ -28,7 +28,7 @@ func (rm *ComponentCacheReadModel) GetByID(ctx context.Context, id string) (*arc
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		err := tx.QueryRowContext(ctx,
-			"SELECT id, name FROM capability_component_cache WHERE tenant_id = $1 AND id = $2",
+			"SELECT id, name FROM capabilitymapping.capability_component_cache WHERE tenant_id = $1 AND id = $2",
 			tenantID.Value(), id,
 		).Scan(&dto.ID, &dto.Name)
 
@@ -56,7 +56,7 @@ func (rm *ComponentCacheReadModel) Upsert(ctx context.Context, id, name string) 
 	}
 
 	_, err = rm.db.ExecContext(ctx, `
-		INSERT INTO capability_component_cache (tenant_id, id, name)
+		INSERT INTO capabilitymapping.capability_component_cache (tenant_id, id, name)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (tenant_id, id) DO UPDATE SET name = EXCLUDED.name
 	`, tenantID.Value(), id, name)
@@ -70,7 +70,7 @@ func (rm *ComponentCacheReadModel) Delete(ctx context.Context, id string) error 
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM capability_component_cache WHERE tenant_id = $1 AND id = $2",
+		"DELETE FROM capabilitymapping.capability_component_cache WHERE tenant_id = $1 AND id = $2",
 		tenantID.Value(), id,
 	)
 	return err

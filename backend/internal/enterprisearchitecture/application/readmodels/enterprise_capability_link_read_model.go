@@ -60,7 +60,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) Insert(ctx context.Context, dto Ent
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at)
+		`INSERT INTO enterprisearchitecture.enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at)
 		 VALUES ($1, $2, $3, $4, $5, $6)`,
 		dto.ID, tenantID.Value(), dto.EnterpriseCapabilityID, dto.DomainCapabilityID, dto.LinkedBy, dto.LinkedAt,
 	)
@@ -68,11 +68,11 @@ func (rm *EnterpriseCapabilityLinkReadModel) Insert(ctx context.Context, dto Ent
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) Delete(ctx context.Context, id string) error {
-	return rm.execByID(ctx, "DELETE FROM enterprise_capability_links WHERE tenant_id = $1 AND id = $2", id)
+	return rm.execByID(ctx, "DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE tenant_id = $1 AND id = $2", id)
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) DeleteByDomainCapabilityID(ctx context.Context, domainCapabilityID string) error {
-	return rm.execByID(ctx, "DELETE FROM enterprise_capability_links WHERE tenant_id = $1 AND domain_capability_id = $2", domainCapabilityID)
+	return rm.execByID(ctx, "DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE tenant_id = $1 AND domain_capability_id = $2", domainCapabilityID)
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) CountByEnterpriseCapabilityID(ctx context.Context, enterpriseCapabilityID string) (int, error) {
@@ -84,7 +84,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) CountByEnterpriseCapabilityID(ctx c
 	var count int
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM enterprise_capability_links WHERE tenant_id = $1 AND enterprise_capability_id = $2`,
+			`SELECT COUNT(*) FROM enterprisearchitecture.enterprise_capability_links WHERE tenant_id = $1 AND enterprise_capability_id = $2`,
 			tenantID.Value(), enterpriseCapabilityID,
 		).Scan(&count)
 	})
@@ -102,8 +102,8 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetByEnterpriseCapabilityID(ctx con
 		rows, err := tx.QueryContext(ctx,
 			`SELECT ecl.id, ecl.enterprise_capability_id, ecl.domain_capability_id, ecl.linked_by, ecl.linked_at,
 			        dcm.capability_name, dcm.business_domain_id, dcm.business_domain_name
-			 FROM enterprise_capability_links ecl
-			 JOIN domain_capability_metadata dcm
+			 FROM enterprisearchitecture.enterprise_capability_links ecl
+			 JOIN enterprisearchitecture.domain_capability_metadata dcm
 			     ON dcm.capability_id = ecl.domain_capability_id
 			     AND dcm.tenant_id = ecl.tenant_id
 			 WHERE ecl.tenant_id = $1 AND ecl.enterprise_capability_id = $2
@@ -179,7 +179,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) querySingle(ctx context.Context, qu
 func (rm *EnterpriseCapabilityLinkReadModel) GetByDomainCapabilityID(ctx context.Context, domainCapabilityID string) (*EnterpriseCapabilityLinkDTO, error) {
 	return rm.querySingle(ctx,
 		`SELECT id, enterprise_capability_id, domain_capability_id, linked_by, linked_at
-		 FROM enterprise_capability_links WHERE tenant_id = $1 AND domain_capability_id = $2`,
+		 FROM enterprisearchitecture.enterprise_capability_links WHERE tenant_id = $1 AND domain_capability_id = $2`,
 		domainCapabilityID,
 	)
 }
@@ -187,7 +187,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetByDomainCapabilityID(ctx context
 func (rm *EnterpriseCapabilityLinkReadModel) GetByID(ctx context.Context, id string) (*EnterpriseCapabilityLinkDTO, error) {
 	return rm.querySingle(ctx,
 		`SELECT id, enterprise_capability_id, domain_capability_id, linked_by, linked_at
-		 FROM enterprise_capability_links WHERE tenant_id = $1 AND id = $2`,
+		 FROM enterprisearchitecture.enterprise_capability_links WHERE tenant_id = $1 AND id = $2`,
 		id,
 	)
 }
@@ -234,7 +234,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) CheckHierarchyConflict(ctx context.
 		query := `
 		SELECT blocked_by_capability_id, blocked_by_capability_name, is_ancestor,
 		       blocked_by_enterprise_id, blocked_by_enterprise_name
-		FROM capability_link_blocking
+		FROM enterprisearchitecture.capability_link_blocking
 		WHERE tenant_id = $1 AND domain_capability_id = $2
 		  AND blocked_by_enterprise_id != $3
 		LIMIT 1`
@@ -280,8 +280,8 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetLinkStatus(ctx context.Context, 
 		var enterpriseCapID, enterpriseCapName string
 		err := tx.QueryRowContext(ctx,
 			`SELECT ecl.enterprise_capability_id, ec.name
-			 FROM enterprise_capability_links ecl
-			 JOIN enterprise_capabilities ec ON ec.id = ecl.enterprise_capability_id AND ec.tenant_id = $1
+			 FROM enterprisearchitecture.enterprise_capability_links ecl
+			 JOIN enterprisearchitecture.enterprise_capabilities ec ON ec.id = ecl.enterprise_capability_id AND ec.tenant_id = $1
 			 WHERE ecl.tenant_id = $1 AND ecl.domain_capability_id = $2`,
 			tenantID.Value(), domainCapabilityID,
 		).Scan(&enterpriseCapID, &enterpriseCapName)
@@ -298,7 +298,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetLinkStatus(ctx context.Context, 
 		blockingQuery := `
 		SELECT blocked_by_capability_id, blocked_by_capability_name, is_ancestor,
 		       blocked_by_enterprise_id, blocked_by_enterprise_name
-		FROM capability_link_blocking
+		FROM enterprisearchitecture.capability_link_blocking
 		WHERE tenant_id = $1 AND domain_capability_id = $2
 		LIMIT 1`
 
@@ -370,8 +370,8 @@ func initializeStatusMap(ids []string) map[string]*CapabilityLinkStatusDTO {
 func (rm *EnterpriseCapabilityLinkReadModel) populateLinkedStatus(ctx context.Context, tx *sql.Tx, inClause string, args []any, statusMap map[string]*CapabilityLinkStatusDTO) error {
 	query := fmt.Sprintf(`
 		SELECT ecl.domain_capability_id, ecl.enterprise_capability_id, ec.name
-		FROM enterprise_capability_links ecl
-		JOIN enterprise_capabilities ec ON ec.id = ecl.enterprise_capability_id AND ec.tenant_id = $1
+		FROM enterprisearchitecture.enterprise_capability_links ecl
+		JOIN enterprisearchitecture.enterprise_capabilities ec ON ec.id = ecl.enterprise_capability_id AND ec.tenant_id = $1
 		WHERE ecl.tenant_id = $1 AND ecl.domain_capability_id IN (%s)`, inClause)
 
 	rows, err := tx.QueryContext(ctx, query, args...)
@@ -397,7 +397,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) populateBlockingStatus(ctx context.
 	query := fmt.Sprintf(`
 		SELECT domain_capability_id, blocked_by_capability_id, blocked_by_capability_name,
 		       is_ancestor, blocked_by_enterprise_id, blocked_by_enterprise_name
-		FROM capability_link_blocking
+		FROM enterprisearchitecture.capability_link_blocking
 		WHERE tenant_id = $1 AND domain_capability_id IN (%s)`, inClause)
 
 	rows, err := tx.QueryContext(ctx, query, args...)
@@ -451,7 +451,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) InsertBlocking(ctx context.Context,
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO capability_link_blocking
+		`INSERT INTO enterprisearchitecture.capability_link_blocking
 		 (tenant_id, domain_capability_id, blocked_by_capability_id, blocked_by_enterprise_id,
 		  blocked_by_capability_name, blocked_by_enterprise_name, is_ancestor)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -470,7 +470,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) DeleteBlockingByBlocker(ctx context
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`DELETE FROM capability_link_blocking WHERE tenant_id = $1 AND blocked_by_capability_id = $2`,
+		`DELETE FROM enterprisearchitecture.capability_link_blocking WHERE tenant_id = $1 AND blocked_by_capability_id = $2`,
 		tenantID.Value(), blockedByCapabilityID,
 	)
 	return err
@@ -487,7 +487,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) DeleteBlockingForCapabilities(ctx c
 	}
 
 	inClause, args := buildInClauseArgs(tenantID.Value(), capabilityIDs)
-	query := fmt.Sprintf(`DELETE FROM capability_link_blocking WHERE tenant_id = $1 AND blocked_by_capability_id IN (%s)`, inClause)
+	query := fmt.Sprintf(`DELETE FROM enterprisearchitecture.capability_link_blocking WHERE tenant_id = $1 AND blocked_by_capability_id IN (%s)`, inClause)
 	_, err = rm.db.ExecContext(ctx, query, args...)
 	return err
 }
@@ -512,11 +512,11 @@ func (rm *EnterpriseCapabilityLinkReadModel) queryHierarchy(ctx context.Context,
 		query = `
 		WITH RECURSIVE cte AS (
 			SELECT capability_id, parent_id, 1 as depth
-			FROM domain_capability_metadata
+			FROM enterprisearchitecture.domain_capability_metadata
 			WHERE tenant_id = $1 AND capability_id = $2
 			UNION ALL
 			SELECT m.capability_id, m.parent_id, c.depth + 1
-			FROM domain_capability_metadata m
+			FROM enterprisearchitecture.domain_capability_metadata m
 			INNER JOIN cte c ON m.capability_id = c.parent_id AND m.tenant_id = $1
 			WHERE c.depth < 10
 		)
@@ -525,11 +525,11 @@ func (rm *EnterpriseCapabilityLinkReadModel) queryHierarchy(ctx context.Context,
 		query = `
 		WITH RECURSIVE cte AS (
 			SELECT capability_id, 1 as depth
-			FROM domain_capability_metadata
+			FROM enterprisearchitecture.domain_capability_metadata
 			WHERE tenant_id = $1 AND capability_id = $2
 			UNION ALL
 			SELECT m.capability_id, c.depth + 1
-			FROM domain_capability_metadata m
+			FROM enterprisearchitecture.domain_capability_metadata m
 			INNER JOIN cte c ON m.parent_id = c.capability_id AND m.tenant_id = $1
 			WHERE c.depth < 10
 		)
@@ -538,11 +538,11 @@ func (rm *EnterpriseCapabilityLinkReadModel) queryHierarchy(ctx context.Context,
 		query = `
 		WITH RECURSIVE cte AS (
 			SELECT capability_id, 1 as depth
-			FROM domain_capability_metadata
+			FROM enterprisearchitecture.domain_capability_metadata
 			WHERE tenant_id = $1 AND capability_id = $2
 			UNION ALL
 			SELECT m.capability_id, c.depth + 1
-			FROM domain_capability_metadata m
+			FROM enterprisearchitecture.domain_capability_metadata m
 			INNER JOIN cte c ON m.parent_id = c.capability_id AND m.tenant_id = $1
 			WHERE c.depth < 10
 		)
@@ -596,11 +596,11 @@ func (rm *EnterpriseCapabilityLinkReadModel) queryName(ctx context.Context, quer
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) GetCapabilityName(ctx context.Context, capabilityID string) (string, error) {
-	return rm.queryName(ctx, `SELECT capability_name FROM domain_capability_metadata WHERE tenant_id = $1 AND capability_id = $2`, capabilityID)
+	return rm.queryName(ctx, `SELECT capability_name FROM enterprisearchitecture.domain_capability_metadata WHERE tenant_id = $1 AND capability_id = $2`, capabilityID)
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) GetEnterpriseCapabilityName(ctx context.Context, enterpriseCapabilityID string) (string, error) {
-	return rm.queryName(ctx, `SELECT name FROM enterprise_capabilities WHERE tenant_id = $1 AND id = $2`, enterpriseCapabilityID)
+	return rm.queryName(ctx, `SELECT name FROM enterprisearchitecture.enterprise_capabilities WHERE tenant_id = $1 AND id = $2`, enterpriseCapabilityID)
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) GetLinksForCapabilities(ctx context.Context, capabilityIDs []string) ([]EnterpriseCapabilityLinkDTO, error) {
@@ -618,7 +618,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetLinksForCapabilities(ctx context
 	var links []EnterpriseCapabilityLinkDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		query := fmt.Sprintf(`SELECT id, enterprise_capability_id, domain_capability_id, linked_by, linked_at
-				  FROM enterprise_capability_links
+				  FROM enterprisearchitecture.enterprise_capability_links
 				  WHERE tenant_id = $1 AND domain_capability_id IN (%s)`, inClause)
 
 		rows, err := tx.QueryContext(ctx, query, args...)

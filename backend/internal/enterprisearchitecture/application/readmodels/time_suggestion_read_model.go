@@ -162,12 +162,12 @@ func (rm *TimeSuggestionReadModel) buildGapsQuery(capabilityID, componentID stri
 			ic.pillar_id,
 			ic.effective_importance as importance,
 			fs.score as fit_score
-		FROM ea_realization_cache rc
-		JOIN domain_capability_metadata dcm ON dcm.capability_id = rc.capability_id AND dcm.tenant_id = rc.tenant_id
-		JOIN ea_importance_cache ic ON ic.capability_id = rc.capability_id
+		FROM enterprisearchitecture.ea_realization_cache rc
+		JOIN enterprisearchitecture.domain_capability_metadata dcm ON dcm.capability_id = rc.capability_id AND dcm.tenant_id = rc.tenant_id
+		JOIN enterprisearchitecture.ea_importance_cache ic ON ic.capability_id = rc.capability_id
 			AND ic.tenant_id = rc.tenant_id
 			AND ic.business_domain_id = dcm.business_domain_id
-		JOIN ea_fit_score_cache fs ON fs.component_id = rc.component_id
+		JOIN enterprisearchitecture.ea_fit_score_cache fs ON fs.component_id = rc.component_id
 			AND fs.tenant_id = rc.tenant_id
 			AND fs.pillar_id = ic.pillar_id
 		WHERE rc.tenant_id = $1

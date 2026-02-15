@@ -89,14 +89,14 @@ func (rm *StrategicFitAnalysisReadModel) queryRealizationFits(ctx context.Contex
 			COALESCE(afs.score, 0) as fit_score,
 			COALESCE(afs.score_label, '') as fit_score_label,
 			COALESCE(afs.rationale, '') as fit_rationale
-		FROM capability_realizations r
-		JOIN capabilities c ON r.tenant_id = c.tenant_id AND r.capability_id = c.id
-		LEFT JOIN cm_effective_business_domain cmbd ON r.tenant_id = cmbd.tenant_id AND r.capability_id = cmbd.capability_id
-		LEFT JOIN effective_capability_importance eci ON r.tenant_id = eci.tenant_id
+		FROM capabilitymapping.capability_realizations r
+		JOIN capabilitymapping.capabilities c ON r.tenant_id = c.tenant_id AND r.capability_id = c.id
+		LEFT JOIN capabilitymapping.cm_effective_business_domain cmbd ON r.tenant_id = cmbd.tenant_id AND r.capability_id = cmbd.capability_id
+		LEFT JOIN capabilitymapping.effective_capability_importance eci ON r.tenant_id = eci.tenant_id
 			AND r.capability_id = eci.capability_id
 			AND cmbd.business_domain_id = eci.business_domain_id
 			AND eci.pillar_id = $2
-		LEFT JOIN application_fit_scores afs ON r.tenant_id = afs.tenant_id
+		LEFT JOIN capabilitymapping.application_fit_scores afs ON r.tenant_id = afs.tenant_id
 			AND r.component_id = afs.component_id
 			AND afs.pillar_id = $2
 		WHERE r.tenant_id = $1
