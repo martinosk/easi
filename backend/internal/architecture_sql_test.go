@@ -44,8 +44,9 @@ var tableOwnership = map[string]string{
 	"application_fit_scores":         "capabilitymapping",
 	"cm_strategy_pillar_cache":       "capabilitymapping",
 	"strategy_importance":            "capabilitymapping",
-	"domain_composition_view":        "capabilitymapping",
-	"business_domains":               "capabilitymapping",
+	"domain_composition_view":          "capabilitymapping",
+	"business_domains":                 "capabilitymapping",
+	"cm_effective_business_domain":     "capabilitymapping",
 
 	"enterprise_capabilities":        "enterprisearchitecture",
 	"enterprise_capability_links":    "enterprisearchitecture",
@@ -81,8 +82,7 @@ var tableOwnership = map[string]string{
 }
 
 var allowedSQLCrossAccess = map[string]string{
-	"capabilitymapping/strategic_fit_analysis_read_model.go -> domain_capability_metadata": "spec-137",
-	"auth/tenant_domain_checker.go -> tenant_domains":                                     "spec-138",
+	"auth/tenant_domain_checker.go -> tenant_domains": "spec-138",
 }
 
 var sqlTablePatterns = []*regexp.Regexp{

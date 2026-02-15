@@ -107,6 +107,7 @@ func setupStrategicFitTestDB(t *testing.T) (*strategicFitTestContext, func()) {
 			db.Exec("DELETE FROM strategy_importance WHERE id = $1 OR capability_id = $1", id)
 			db.Exec("DELETE FROM capability_realizations WHERE id = $1 OR capability_id = $1 OR component_id = $1", id)
 			db.Exec("DELETE FROM domain_capability_assignments WHERE capability_id = $1 OR business_domain_id = $1", id)
+			db.Exec("DELETE FROM cm_effective_business_domain WHERE capability_id = $1", id)
 			db.Exec("DELETE FROM domain_capability_metadata WHERE capability_id = $1 OR business_domain_id = $1", id)
 			db.Exec("DELETE FROM capabilities WHERE id = $1", id)
 			db.Exec("DELETE FROM business_domains WHERE id = $1", id)
@@ -173,10 +174,8 @@ type applicationFitScoreData struct {
 	score         int
 }
 
-type domainCapabilityMetadataData struct {
+type cmEffectiveBusinessDomainData struct {
 	capabilityID   string
-	capabilityName string
-	level          string
 	l1CapabilityID string
 	domainID       string
 	domainName     string
@@ -202,7 +201,7 @@ type testDataBuilder struct {
 	domainAssignments         []domainAssignmentData
 	strategyImportances       []strategyImportanceData
 	applicationFitScores      []applicationFitScoreData
-	domainCapabilityMetadatas []domainCapabilityMetadataData
+	cmEffectiveBusinessDomains []cmEffectiveBusinessDomainData
 	effectiveImportances      []effectiveImportanceData
 }
 
@@ -245,8 +244,8 @@ func (b *testDataBuilder) withApplicationFitScore(afs applicationFitScoreData) *
 	return b
 }
 
-func (b *testDataBuilder) withDomainCapabilityMetadata(dcm domainCapabilityMetadataData) *testDataBuilder {
-	b.domainCapabilityMetadatas = append(b.domainCapabilityMetadatas, dcm)
+func (b *testDataBuilder) withCMEffectiveBusinessDomain(ebd cmEffectiveBusinessDomainData) *testDataBuilder {
+	b.cmEffectiveBusinessDomains = append(b.cmEffectiveBusinessDomains, ebd)
 	return b
 }
 
@@ -280,8 +279,8 @@ func (b *testDataBuilder) buildRelationships() {
 	for _, da := range b.domainAssignments {
 		b.createDomainAssignment(da)
 	}
-	for _, dcm := range b.domainCapabilityMetadatas {
-		b.createDomainCapabilityMetadata(dcm)
+	for _, ebd := range b.cmEffectiveBusinessDomains {
+		b.createCMEffectiveBusinessDomain(ebd)
 	}
 }
 
@@ -377,14 +376,13 @@ func (b *testDataBuilder) createApplicationFitScore(afs applicationFitScoreData)
 	b.ctx.trackID(afs.id)
 }
 
-func (b *testDataBuilder) createDomainCapabilityMetadata(dcm domainCapabilityMetadataData) {
+func (b *testDataBuilder) createCMEffectiveBusinessDomain(ebd cmEffectiveBusinessDomainData) {
 	b.ctx.setTenantContext(b.t)
 	_, err := b.ctx.db.Exec(
-		"INSERT INTO domain_capability_metadata (tenant_id, capability_id, capability_name, capability_level, l1_capability_id, business_domain_id, business_domain_name) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-		testTenantID(), dcm.capabilityID, dcm.capabilityName, dcm.level, dcm.l1CapabilityID, dcm.domainID, dcm.domainName,
+		"INSERT INTO cm_effective_business_domain (tenant_id, capability_id, business_domain_id, business_domain_name, l1_capability_id) VALUES ($1, $2, $3, $4, $5)",
+		testTenantID(), ebd.capabilityID, ebd.domainID, ebd.domainName, ebd.l1CapabilityID,
 	)
 	require.NoError(b.t, err)
-	b.ctx.trackID(dcm.capabilityID)
 }
 
 func (b *testDataBuilder) createEffectiveImportance(ei effectiveImportanceData) {
@@ -531,7 +529,7 @@ func TestGetStrategicFitAnalysis_WithDirectRating_Integration(t *testing.T) {
 		withComponent(componentData{id: componentID, name: "CRM System"}).
 		withRealization(realizationData{id: uuid.New().String(), capabilityID: capabilityID, componentID: componentID}).
 		withDomainAssignment(domainAssignmentData{id: uuid.New().String(), domainID: domainID, domainName: "Customer Management", capabilityID: capabilityID, capabilityName: "Customer Onboarding"}).
-		withDomainCapabilityMetadata(domainCapabilityMetadataData{capabilityID: capabilityID, capabilityName: "Customer Onboarding", level: "L1", l1CapabilityID: capabilityID, domainID: domainID, domainName: "Customer Management"}).
+		withCMEffectiveBusinessDomain(cmEffectiveBusinessDomainData{capabilityID: capabilityID, l1CapabilityID: capabilityID, domainID: domainID, domainName: "Customer Management"}).
 		withStrategyImportance(strategyImportanceData{id: uuid.New().String(), domainID: domainID, domainName: "Customer Management", capabilityID: capabilityID, capabilityName: "Customer Onboarding", pillarID: pillarID, pillarName: pillarName, importance: 5}).
 		withEffectiveImportance(effectiveImportanceData{capabilityID: capabilityID, pillarID: pillarID, domainID: domainID, importance: 5, sourceCapabilityID: capabilityID, sourceCapabilityName: "Customer Onboarding", isInherited: false}).
 		withApplicationFitScore(applicationFitScoreData{id: uuid.New().String(), componentID: componentID, componentName: "CRM System", pillarID: pillarID, pillarName: pillarName, score: 2}).
@@ -578,7 +576,7 @@ func TestGetStrategicFitAnalysis_InheritedFromParent_Integration(t *testing.T) {
 		withComponent(componentData{id: componentID, name: "Payment Gateway"}).
 		withRealization(realizationData{id: uuid.New().String(), capabilityID: l2CapabilityID, componentID: componentID}).
 		withDomainAssignment(domainAssignmentData{id: uuid.New().String(), domainID: domainID, domainName: "Finance", capabilityID: l1CapabilityID, capabilityName: "Payment Processing"}).
-		withDomainCapabilityMetadata(domainCapabilityMetadataData{capabilityID: l2CapabilityID, capabilityName: "Card Payments", level: "L2", l1CapabilityID: l1CapabilityID, domainID: domainID, domainName: "Finance"}).
+		withCMEffectiveBusinessDomain(cmEffectiveBusinessDomainData{capabilityID: l2CapabilityID, l1CapabilityID: l1CapabilityID, domainID: domainID, domainName: "Finance"}).
 		withStrategyImportance(strategyImportanceData{id: uuid.New().String(), domainID: domainID, domainName: "Finance", capabilityID: l1CapabilityID, capabilityName: "Payment Processing", pillarID: pillarID, pillarName: pillarName, importance: 4}).
 		withEffectiveImportance(effectiveImportanceData{capabilityID: l2CapabilityID, pillarID: pillarID, domainID: domainID, importance: 4, sourceCapabilityID: l1CapabilityID, sourceCapabilityName: "Payment Processing", isInherited: true}).
 		withApplicationFitScore(applicationFitScoreData{id: uuid.New().String(), componentID: componentID, componentName: "Payment Gateway", pillarID: pillarID, pillarName: pillarName, score: 2}).
@@ -622,8 +620,8 @@ func TestGetStrategicFitAnalysis_MultipleCapabilitiesInSameChain_Integration(t *
 		withRealization(realizationData{id: uuid.New().String(), capabilityID: l1CapabilityID, componentID: componentID}).
 		withRealization(realizationData{id: uuid.New().String(), capabilityID: l2CapabilityID, componentID: componentID}).
 		withDomainAssignment(domainAssignmentData{id: uuid.New().String(), domainID: domainID, domainName: "Finance", capabilityID: l1CapabilityID, capabilityName: "Payment Processing"}).
-		withDomainCapabilityMetadata(domainCapabilityMetadataData{capabilityID: l1CapabilityID, capabilityName: "Payment Processing", level: "L1", l1CapabilityID: l1CapabilityID, domainID: domainID, domainName: "Finance"}).
-		withDomainCapabilityMetadata(domainCapabilityMetadataData{capabilityID: l2CapabilityID, capabilityName: "Card Payments", level: "L2", l1CapabilityID: l1CapabilityID, domainID: domainID, domainName: "Finance"}).
+		withCMEffectiveBusinessDomain(cmEffectiveBusinessDomainData{capabilityID: l1CapabilityID, l1CapabilityID: l1CapabilityID, domainID: domainID, domainName: "Finance"}).
+		withCMEffectiveBusinessDomain(cmEffectiveBusinessDomainData{capabilityID: l2CapabilityID, l1CapabilityID: l1CapabilityID, domainID: domainID, domainName: "Finance"}).
 		withStrategyImportance(strategyImportanceData{id: uuid.New().String(), domainID: domainID, domainName: "Finance", capabilityID: l1CapabilityID, capabilityName: "Payment Processing", pillarID: pillarID, pillarName: pillarName, importance: 4}).
 		withStrategyImportance(strategyImportanceData{id: uuid.New().String(), domainID: domainID, domainName: "Finance", capabilityID: l2CapabilityID, capabilityName: "Card Payments", pillarID: pillarID, pillarName: pillarName, importance: 5}).
 		withEffectiveImportance(effectiveImportanceData{capabilityID: l1CapabilityID, pillarID: pillarID, domainID: domainID, importance: 4, sourceCapabilityID: l1CapabilityID, sourceCapabilityName: "Payment Processing", isInherited: false}).
@@ -675,7 +673,7 @@ func TestGetStrategicFitAnalysis_NoRatingInHierarchy_NoGapEntry_Integration(t *t
 		withComponent(componentData{id: componentID, name: "Helpdesk System"}).
 		withRealization(realizationData{id: uuid.New().String(), capabilityID: l2CapabilityID, componentID: componentID}).
 		withDomainAssignment(domainAssignmentData{id: uuid.New().String(), domainID: domainID, domainName: "Operations", capabilityID: l1CapabilityID, capabilityName: "Support Operations"}).
-		withDomainCapabilityMetadata(domainCapabilityMetadataData{capabilityID: l2CapabilityID, capabilityName: "Ticket Management", level: "L2", l1CapabilityID: l1CapabilityID, domainID: domainID, domainName: "Operations"}).
+		withCMEffectiveBusinessDomain(cmEffectiveBusinessDomainData{capabilityID: l2CapabilityID, l1CapabilityID: l1CapabilityID, domainID: domainID, domainName: "Operations"}).
 		withApplicationFitScore(applicationFitScoreData{id: uuid.New().String(), componentID: componentID, componentName: "Helpdesk System", pillarID: pillarID, pillarName: pillarName, score: 4}).
 		build()
 

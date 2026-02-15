@@ -62,49 +62,57 @@ func (rm *StrategicFitAnalysisReadModel) GetStrategicFitAnalysis(ctx context.Con
 		return nil, err
 	}
 
+	results, err := rm.queryRealizationFits(ctx, tenantID.Value(), pillarID)
+	if err != nil {
+		return nil, err
+	}
+
+	return rm.categorizeResults(pillarID, pillarName, results), nil
+}
+
+func (rm *StrategicFitAnalysisReadModel) queryRealizationFits(ctx context.Context, tenantID, pillarID string) ([]RealizationFitDTO, error) {
+	query := `
+		SELECT
+			r.id as realization_id,
+			r.component_id,
+			r.component_name,
+			r.capability_id,
+			c.name as capability_name,
+			COALESCE(cmbd.business_domain_id, '') as business_domain_id,
+			COALESCE(cmbd.business_domain_name, '') as business_domain_name,
+			COALESCE(eci.effective_importance, 0) as importance,
+			COALESCE(eci.importance_label, '') as importance_label,
+			COALESCE(eci.source_capability_id, '') as source_capability_id,
+			COALESCE(eci.source_capability_name, '') as source_capability_name,
+			COALESCE(eci.is_inherited, false) as is_inherited,
+			COALESCE(eci.rationale, '') as importance_rationale,
+			COALESCE(afs.score, 0) as fit_score,
+			COALESCE(afs.score_label, '') as fit_score_label,
+			COALESCE(afs.rationale, '') as fit_rationale
+		FROM capability_realizations r
+		JOIN capabilities c ON r.tenant_id = c.tenant_id AND r.capability_id = c.id
+		LEFT JOIN cm_effective_business_domain cmbd ON r.tenant_id = cmbd.tenant_id AND r.capability_id = cmbd.capability_id
+		LEFT JOIN effective_capability_importance eci ON r.tenant_id = eci.tenant_id
+			AND r.capability_id = eci.capability_id
+			AND cmbd.business_domain_id = eci.business_domain_id
+			AND eci.pillar_id = $2
+		LEFT JOIN application_fit_scores afs ON r.tenant_id = afs.tenant_id
+			AND r.component_id = afs.component_id
+			AND afs.pillar_id = $2
+		WHERE r.tenant_id = $1
+			AND r.origin = 'Direct'
+			AND (eci.pillar_id = $2 OR afs.pillar_id = $2)
+		ORDER BY
+			CASE WHEN eci.effective_importance IS NOT NULL AND afs.score IS NOT NULL
+				THEN eci.effective_importance - afs.score
+				ELSE 0
+			END DESC,
+			c.name ASC
+	`
+
 	var results []RealizationFitDTO
-
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := `
-			SELECT
-				r.id as realization_id,
-				r.component_id,
-				r.component_name,
-				r.capability_id,
-				c.name as capability_name,
-				COALESCE(dcm.business_domain_id, '') as business_domain_id,
-				COALESCE(dcm.business_domain_name, '') as business_domain_name,
-				COALESCE(eci.effective_importance, 0) as importance,
-				COALESCE(eci.importance_label, '') as importance_label,
-				COALESCE(eci.source_capability_id, '') as source_capability_id,
-				COALESCE(eci.source_capability_name, '') as source_capability_name,
-				COALESCE(eci.is_inherited, false) as is_inherited,
-				COALESCE(eci.rationale, '') as importance_rationale,
-				COALESCE(afs.score, 0) as fit_score,
-				COALESCE(afs.score_label, '') as fit_score_label,
-				COALESCE(afs.rationale, '') as fit_rationale
-			FROM capability_realizations r
-			JOIN capabilities c ON r.tenant_id = c.tenant_id AND r.capability_id = c.id
-			LEFT JOIN domain_capability_metadata dcm ON r.tenant_id = dcm.tenant_id AND r.capability_id = dcm.capability_id
-			LEFT JOIN effective_capability_importance eci ON r.tenant_id = eci.tenant_id
-				AND r.capability_id = eci.capability_id
-				AND dcm.business_domain_id = eci.business_domain_id
-				AND eci.pillar_id = $2
-			LEFT JOIN application_fit_scores afs ON r.tenant_id = afs.tenant_id
-				AND r.component_id = afs.component_id
-				AND afs.pillar_id = $2
-			WHERE r.tenant_id = $1
-				AND r.origin = 'Direct'
-				AND (eci.pillar_id = $2 OR afs.pillar_id = $2)
-			ORDER BY
-				CASE WHEN eci.effective_importance IS NOT NULL AND afs.score IS NOT NULL
-					THEN eci.effective_importance - afs.score
-					ELSE 0
-				END DESC,
-				c.name ASC
-		`
-
-		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), pillarID)
+	err := rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, query, tenantID, pillarID)
 		if err != nil {
 			return err
 		}
@@ -137,11 +145,7 @@ func (rm *StrategicFitAnalysisReadModel) GetStrategicFitAnalysis(ctx context.Con
 		return rows.Err()
 	})
 
-	if err != nil {
-		return nil, err
-	}
-
-	return rm.categorizeResults(pillarID, pillarName, results), nil
+	return results, err
 }
 
 func (rm *StrategicFitAnalysisReadModel) categorizeResults(pillarID, pillarName string, results []RealizationFitDTO) *StrategicFitAnalysisDTO {

@@ -119,6 +119,7 @@ type routeReadModels struct {
 	componentCache                *readmodels.ComponentCacheReadModel
 	effectiveCapabilityImportance *readmodels.EffectiveCapabilityImportanceReadModel
 	strategyPillarCache           *readmodels.StrategyPillarCacheReadModel
+	effectiveBusinessDomain       *readmodels.CMEffectiveBusinessDomainReadModel
 }
 
 type routeHTTPHandlers struct {
@@ -159,6 +160,7 @@ func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 		componentCache:                readmodels.NewComponentCacheReadModel(db),
 		effectiveCapabilityImportance: readmodels.NewEffectiveCapabilityImportanceReadModel(db),
 		strategyPillarCache:           readmodels.NewStrategyPillarCacheReadModel(db),
+		effectiveBusinessDomain:       readmodels.NewCMEffectiveBusinessDomainReadModel(db),
 	}
 }
 
@@ -183,7 +185,10 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pill
 	ancestryChecker := projectors.NewDomainAncestryChecker(hierarchyService, rm.domainAssignment)
 	domainAssignmentEffectiveProjector := projectors.NewDomainAssignmentEffectiveProjector(recomputer, ancestryChecker, pillarsGateway)
 
+	effectiveBDProjector := projectors.NewEffectiveBusinessDomainProjector(rm.effectiveBusinessDomain, rm.businessDomain, rm.capability)
+
 	subscribeCapabilityEvents(eventBus, capabilityProjector)
+	subscribeEffectiveBusinessDomainEvents(eventBus, effectiveBDProjector)
 	subscribeDependencyEvents(eventBus, dependencyProjector)
 	subscribeRealizationEvents(eventBus, realizationProjector)
 	subscribeBusinessDomainEvents(eventBus, businessDomainProjector)
@@ -201,6 +206,19 @@ func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.C
 	events := []string{"CapabilityCreated", "CapabilityUpdated", "CapabilityMetadataUpdated",
 		"CapabilityExpertAdded", "CapabilityExpertRemoved", "CapabilityTagAdded", "CapabilityParentChanged", "CapabilityLevelChanged", "CapabilityDeleted"}
 	for _, event := range events {
+		eventBus.Subscribe(event, projector)
+	}
+}
+
+func subscribeEffectiveBusinessDomainEvents(eventBus events.EventBus, projector *projectors.EffectiveBusinessDomainProjector) {
+	for _, event := range []string{
+		"CapabilityCreated",
+		"CapabilityDeleted",
+		"CapabilityParentChanged",
+		"CapabilityLevelChanged",
+		"CapabilityAssignedToDomain",
+		"CapabilityUnassignedFromDomain",
+	} {
 		eventBus.Subscribe(event, projector)
 	}
 }
