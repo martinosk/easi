@@ -1,19 +1,20 @@
 package api
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
 
 	"easi/backend/docs"
-	adPL "easi/backend/internal/accessdelegation/publishedlanguage"
 	accessdelegationAPI "easi/backend/internal/accessdelegation/infrastructure/api"
 	adServices "easi/backend/internal/accessdelegation/infrastructure/services"
-	archAdapters "easi/backend/internal/architecturemodeling/infrastructure/adapters"
+	adPL "easi/backend/internal/accessdelegation/publishedlanguage"
 	archReadModels "easi/backend/internal/architecturemodeling/application/readmodels"
+	archAdapters "easi/backend/internal/architecturemodeling/infrastructure/adapters"
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
-	viewAdapters "easi/backend/internal/architectureviews/infrastructure/adapters"
 	viewReadModels "easi/backend/internal/architectureviews/application/readmodels"
+	viewAdapters "easi/backend/internal/architectureviews/infrastructure/adapters"
 	viewsAPI "easi/backend/internal/architectureviews/infrastructure/api"
 	authProjectors "easi/backend/internal/auth/application/projectors"
 	authReadModels "easi/backend/internal/auth/application/readmodels"
@@ -22,8 +23,6 @@ import (
 	capReadModels "easi/backend/internal/capabilitymapping/application/readmodels"
 	capAdapters "easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
-	vsAdapters "easi/backend/internal/valuestreams/infrastructure/adapters"
-	valuestreamsAPI "easi/backend/internal/valuestreams/infrastructure/api"
 	enterpriseArchAPI "easi/backend/internal/enterprisearchitecture/infrastructure/api"
 	importingAPI "easi/backend/internal/importing/infrastructure/api"
 	"easi/backend/internal/infrastructure/api/middleware"
@@ -36,6 +35,8 @@ import (
 	"easi/backend/internal/shared/audit"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
+	vsAdapters "easi/backend/internal/valuestreams/infrastructure/adapters"
+	valuestreamsAPI "easi/backend/internal/valuestreams/infrastructure/api"
 	viewlayoutsAPI "easi/backend/internal/viewlayouts/infrastructure/api"
 
 	"github.com/go-chi/chi/v5"
@@ -63,13 +64,14 @@ type routerDependencies struct {
 	eventBus      *events.InMemoryEventBus
 	hateoas       *sharedAPI.HATEOASLinks
 	userReadModel *authReadModels.UserReadModel
+	appContext    context.Context
 }
 
 // NewRouter creates and configures the HTTP router
-func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) http.Handler {
+func NewRouter(appContext context.Context, eventStore eventstore.EventStore, db *database.TenantAwareDB) http.Handler {
 	r := chi.NewRouter()
 
-	deps := initializeDependencies(eventStore, db)
+	deps := initializeDependencies(appContext, eventStore, db)
 	configureMiddleware(r, deps.authDeps)
 	registerRootRoutes(r)
 	registerAPIRoutes(r, deps)
@@ -77,7 +79,11 @@ func NewRouter(eventStore eventstore.EventStore, db *database.TenantAwareDB) htt
 	return r
 }
 
-func initializeDependencies(eventStore eventstore.EventStore, db *database.TenantAwareDB) routerDependencies {
+func initializeDependencies(appContext context.Context, eventStore eventstore.EventStore, db *database.TenantAwareDB) routerDependencies {
+	if appContext == nil {
+		appContext = context.Background()
+	}
+
 	authDeps, err := authAPI.SetupAuthDependencies(db.DB())
 	if err != nil {
 		log.Fatalf("Failed to setup auth dependencies: %v", err)
@@ -99,6 +105,7 @@ func initializeDependencies(eventStore eventstore.EventStore, db *database.Tenan
 		eventBus:      eventBus,
 		hateoas:       sharedAPI.NewHATEOASLinks("/api/v1"),
 		userReadModel: userReadModel,
+		appContext:    appContext,
 	}
 }
 
@@ -272,6 +279,7 @@ func setupSupportRoutes(r chi.Router, deps routerDependencies) {
 		ComponentGateway:   archAdapters.NewImportComponentGateway(deps.commandBus),
 		CapabilityGateway:  capAdapters.NewImportCapabilityGateway(deps.commandBus),
 		ValueStreamGateway: vsAdapters.NewImportValueStreamGateway(deps.commandBus),
+		ExecutionContext:   deps.appContext,
 	}), "importing routes")
 	sharedAPI.SetupReferenceRoutes(r)
 	mustSetup(audit.SetupAuditRoutes(audit.AuditRoutesDeps{

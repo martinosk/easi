@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+
 	"easi/backend/internal/importing/application/handlers"
 	"easi/backend/internal/importing/application/ports"
 	"easi/backend/internal/importing/application/projectors"
@@ -23,6 +25,7 @@ type ImportingRoutesDeps struct {
 	ComponentGateway   ports.ComponentGateway
 	CapabilityGateway  ports.CapabilityGateway
 	ValueStreamGateway ports.ValueStreamGateway
+	ExecutionContext   context.Context
 }
 
 func SetupImportingRoutes(r chi.Router, deps ImportingRoutesDeps) error {
@@ -41,7 +44,12 @@ func SetupImportingRoutes(r chi.Router, deps ImportingRoutesDeps) error {
 	importSaga := saga.New(deps.ComponentGateway, deps.CapabilityGateway, deps.ValueStreamGateway)
 
 	createHandler := handlers.NewCreateImportSessionHandler(repository)
-	confirmHandler := handlers.NewConfirmImportHandler(repository, importSaga)
+	confirmHandler := handlers.NewConfirmImportHandlerWithExecutionContext(
+		repository,
+		importSaga,
+		deps.ExecutionContext,
+		handlers.DefaultImportExecutionTimeout,
+	)
 	cancelHandler := handlers.NewCancelImportHandler(repository)
 
 	deps.CommandBus.Register("CreateImportSession", createHandler)

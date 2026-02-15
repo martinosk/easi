@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	_ "easi/backend/docs"
 	"easi/backend/internal/infrastructure/api"
@@ -61,15 +65,30 @@ func run() error {
 
 	// Initialize event store with tenant-aware DB
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
+	appContext, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	// Create HTTP server with tenant-aware DB
-	router := api.NewRouter(eventStore, tenantDB)
+	router := api.NewRouter(appContext, eventStore, tenantDB)
 
 	port := getEnv("PORT", "8080")
 	addr := fmt.Sprintf(":%s", port)
+	server := &http.Server{
+		Addr:    addr,
+		Handler: router,
+	}
+
+	go func() {
+		<-appContext.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Server shutdown failed: %v", err)
+		}
+	}()
 
 	log.Printf("Server starting on %s", addr)
-	if err := http.ListenAndServe(addr, router); err != nil {
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("server failed to start: %w", err)
 	}
 
