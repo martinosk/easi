@@ -155,38 +155,37 @@ func (rm *TimeSuggestionReadModel) queryRealizationGaps(ctx context.Context, cap
 func (rm *TimeSuggestionReadModel) buildGapsQuery(capabilityID, componentID string) string {
 	baseQuery := `
 		SELECT
-			c.id as capability_id,
-			c.name as capability_name,
-			cr.component_id,
-			cr.component_name,
-			eci.pillar_id,
-			eci.effective_importance as importance,
-			afs.score as fit_score
-		FROM capability_realizations cr
-		JOIN capabilities c ON c.id = cr.capability_id AND c.tenant_id = cr.tenant_id
-		JOIN domain_capability_metadata dcm ON dcm.capability_id = cr.capability_id AND dcm.tenant_id = cr.tenant_id
-		JOIN effective_capability_importance eci ON eci.capability_id = cr.capability_id
-			AND eci.tenant_id = cr.tenant_id
-			AND eci.business_domain_id = dcm.business_domain_id
-		JOIN application_fit_scores afs ON afs.component_id = cr.component_id
-			AND afs.tenant_id = cr.tenant_id
-			AND afs.pillar_id = eci.pillar_id
-		WHERE cr.tenant_id = $1
-			AND cr.origin = 'Direct'
-			AND eci.effective_importance > 0
-			AND afs.score > 0
+			rc.capability_id,
+			dcm.capability_name,
+			rc.component_id,
+			rc.component_name,
+			ic.pillar_id,
+			ic.effective_importance as importance,
+			fs.score as fit_score
+		FROM ea_realization_cache rc
+		JOIN domain_capability_metadata dcm ON dcm.capability_id = rc.capability_id AND dcm.tenant_id = rc.tenant_id
+		JOIN ea_importance_cache ic ON ic.capability_id = rc.capability_id
+			AND ic.tenant_id = rc.tenant_id
+			AND ic.business_domain_id = dcm.business_domain_id
+		JOIN ea_fit_score_cache fs ON fs.component_id = rc.component_id
+			AND fs.tenant_id = rc.tenant_id
+			AND fs.pillar_id = ic.pillar_id
+		WHERE rc.tenant_id = $1
+			AND rc.origin = 'Direct'
+			AND ic.effective_importance > 0
+			AND fs.score > 0
 	`
 
 	argIndex := 2
 	if capabilityID != "" {
-		baseQuery += " AND c.id = $" + string(rune('0'+argIndex))
+		baseQuery += " AND rc.capability_id = $" + string(rune('0'+argIndex))
 		argIndex++
 	}
 	if componentID != "" {
-		baseQuery += " AND cr.component_id = $" + string(rune('0'+argIndex))
+		baseQuery += " AND rc.component_id = $" + string(rune('0'+argIndex))
 	}
 
-	return baseQuery + " ORDER BY c.name, cr.component_name"
+	return baseQuery + " ORDER BY dcm.capability_name, rc.component_name"
 }
 
 func (rm *TimeSuggestionReadModel) buildQueryArgs(tenantID, capabilityID, componentID string) []any {

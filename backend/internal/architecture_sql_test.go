@@ -53,6 +53,9 @@ var tableOwnership = map[string]string{
 	"domain_capability_metadata":     "enterprisearchitecture",
 	"capability_link_blocking":       "enterprisearchitecture",
 	"ea_strategy_pillar_cache":       "enterprisearchitecture",
+	"ea_realization_cache":           "enterprisearchitecture",
+	"ea_importance_cache":            "enterprisearchitecture",
+	"ea_fit_score_cache":             "enterprisearchitecture",
 
 	"layout_containers": "viewlayouts",
 	"element_positions": "viewlayouts",
@@ -78,14 +81,8 @@ var tableOwnership = map[string]string{
 }
 
 var allowedSQLCrossAccess = map[string]string{
-	"enterprisearchitecture/maturity_analysis_read_model.go -> capabilities":                           "spec-136",
-	"enterprisearchitecture/time_suggestion_read_model.go -> capability_realizations":                  "spec-136",
-	"enterprisearchitecture/time_suggestion_read_model.go -> capabilities":                             "spec-136",
-	"enterprisearchitecture/time_suggestion_read_model.go -> effective_capability_importance":           "spec-136",
-	"enterprisearchitecture/time_suggestion_read_model.go -> application_fit_scores":                   "spec-136",
-	"enterprisearchitecture/domain_capability_metadata_read_model.go -> domain_capability_assignments": "spec-136",
-	"capabilitymapping/strategic_fit_analysis_read_model.go -> domain_capability_metadata":             "spec-137",
-	"auth/tenant_domain_checker.go -> tenant_domains":                                                 "spec-138",
+	"capabilitymapping/strategic_fit_analysis_read_model.go -> domain_capability_metadata": "spec-137",
+	"auth/tenant_domain_checker.go -> tenant_domains":                                     "spec-138",
 }
 
 var sqlTablePatterns = []*regexp.Regexp{

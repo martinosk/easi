@@ -104,14 +104,13 @@ func (rm *MaturityAnalysisReadModel) buildCandidatesQuery(sortBy string) string 
 			ec.id, ec.name, ec.category, ec.target_maturity,
 			COUNT(DISTINCT ecl.domain_capability_id) as impl_count,
 			COUNT(DISTINCT dcm.business_domain_id) as domain_count,
-			COALESCE(MAX(c.maturity_value), 0) as max_maturity,
-			COALESCE(MIN(c.maturity_value), 0) as min_maturity,
-			COALESCE(AVG(c.maturity_value)::int, 0) as avg_maturity,
-			GREATEST(0, COALESCE(ec.target_maturity, COALESCE(MAX(c.maturity_value), 0)) - COALESCE(MIN(c.maturity_value), 0)) as max_gap
+			COALESCE(MAX(dcm.maturity_value), 0) as max_maturity,
+			COALESCE(MIN(dcm.maturity_value), 0) as min_maturity,
+			COALESCE(AVG(dcm.maturity_value)::int, 0) as avg_maturity,
+			GREATEST(0, COALESCE(ec.target_maturity, COALESCE(MAX(dcm.maturity_value), 0)) - COALESCE(MIN(dcm.maturity_value), 0)) as max_gap
 		FROM enterprise_capabilities ec
 		LEFT JOIN enterprise_capability_links ecl ON ec.id = ecl.enterprise_capability_id AND ec.tenant_id = ecl.tenant_id
 		LEFT JOIN domain_capability_metadata dcm ON ecl.domain_capability_id = dcm.capability_id AND ecl.tenant_id = dcm.tenant_id
-		LEFT JOIN capabilities c ON ecl.domain_capability_id = c.id AND ecl.tenant_id = c.tenant_id
 		WHERE ec.tenant_id = $1 AND ec.active = true
 		GROUP BY ec.id, ec.name, ec.category, ec.target_maturity
 		ORDER BY ` + orderBy
@@ -199,12 +198,12 @@ func (rm *MaturityAnalysisReadModel) getMaturityDistribution(ctx context.Context
 
 	query := `
 		SELECT
-			COUNT(*) FILTER (WHERE c.maturity_value <= 24) as genesis,
-			COUNT(*) FILTER (WHERE c.maturity_value > 24 AND c.maturity_value <= 49) as custom_build,
-			COUNT(*) FILTER (WHERE c.maturity_value > 49 AND c.maturity_value <= 74) as product,
-			COUNT(*) FILTER (WHERE c.maturity_value > 74) as commodity
+			COUNT(*) FILTER (WHERE dcm.maturity_value <= 24) as genesis,
+			COUNT(*) FILTER (WHERE dcm.maturity_value > 24 AND dcm.maturity_value <= 49) as custom_build,
+			COUNT(*) FILTER (WHERE dcm.maturity_value > 49 AND dcm.maturity_value <= 74) as product,
+			COUNT(*) FILTER (WHERE dcm.maturity_value > 74) as commodity
 		FROM enterprise_capability_links ecl
-		JOIN capabilities c ON ecl.domain_capability_id = c.id AND ecl.tenant_id = c.tenant_id
+		JOIN domain_capability_metadata dcm ON ecl.domain_capability_id = dcm.capability_id AND ecl.tenant_id = dcm.tenant_id
 		WHERE ecl.tenant_id = $1 AND ecl.enterprise_capability_id = $2`
 
 	var dist MaturityDistributionDTO
@@ -218,49 +217,12 @@ func (rm *MaturityAnalysisReadModel) getMaturityDistribution(ctx context.Context
 }
 
 func (rm *MaturityAnalysisReadModel) GetMaturityGapDetail(ctx context.Context, enterpriseCapabilityID string) (*MaturityGapDetailDTO, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
+	dto, maxMaturity, err := rm.fetchGapDetailHeader(ctx, enterpriseCapabilityID)
 	if err != nil {
 		return nil, err
 	}
-
-	var dto MaturityGapDetailDTO
-	var category sql.NullString
-	var targetMaturity sql.NullInt64
-	var maxMaturity int
-	var notFound bool
-
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		err := tx.QueryRowContext(ctx,
-			`SELECT ec.id, ec.name, ec.category, ec.target_maturity,
-			        (SELECT MAX(c.maturity_value) FROM enterprise_capability_links ecl
-			         JOIN capabilities c ON ecl.domain_capability_id = c.id AND ecl.tenant_id = c.tenant_id
-			         WHERE ecl.enterprise_capability_id = ec.id AND ecl.tenant_id = ec.tenant_id) as max_mat
-			 FROM enterprise_capabilities ec
-			 WHERE ec.tenant_id = $1 AND ec.id = $2 AND ec.active = true`,
-			tenantID.Value(), enterpriseCapabilityID,
-		).Scan(&dto.EnterpriseCapabilityID, &dto.EnterpriseCapabilityName, &category, &targetMaturity, &maxMaturity)
-
-		if err == sql.ErrNoRows {
-			notFound = true
-			return nil
-		}
-		return err
-	})
-
-	if err != nil {
-		return nil, err
-	}
-	if notFound {
+	if dto == nil {
 		return nil, nil
-	}
-
-	if category.Valid {
-		dto.Category = category.String
-	}
-	if targetMaturity.Valid {
-		tm := int(targetMaturity.Int64)
-		dto.TargetMaturity = &tm
-		dto.TargetMaturitySection = getMaturitySection(tm)
 	}
 
 	target := maxMaturity
@@ -276,7 +238,56 @@ func (rm *MaturityAnalysisReadModel) GetMaturityGapDetail(ctx context.Context, e
 	dto.Implementations = implementations
 	dto.InvestmentPriorities = categorizeByPriority(implementations)
 
-	return &dto, nil
+	return dto, nil
+}
+
+func (rm *MaturityAnalysisReadModel) fetchGapDetailHeader(ctx context.Context, enterpriseCapabilityID string) (*MaturityGapDetailDTO, int, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var dto MaturityGapDetailDTO
+	var category sql.NullString
+	var targetMaturity sql.NullInt64
+	var maxMaturity int
+	var notFound bool
+
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		err := tx.QueryRowContext(ctx,
+			`SELECT ec.id, ec.name, ec.category, ec.target_maturity,
+			        (SELECT MAX(dcm.maturity_value) FROM enterprise_capability_links ecl
+			         JOIN domain_capability_metadata dcm ON ecl.domain_capability_id = dcm.capability_id AND ecl.tenant_id = dcm.tenant_id
+			         WHERE ecl.enterprise_capability_id = ec.id AND ecl.tenant_id = ec.tenant_id) as max_mat
+			 FROM enterprise_capabilities ec
+			 WHERE ec.tenant_id = $1 AND ec.id = $2 AND ec.active = true`,
+			tenantID.Value(), enterpriseCapabilityID,
+		).Scan(&dto.EnterpriseCapabilityID, &dto.EnterpriseCapabilityName, &category, &targetMaturity, &maxMaturity)
+
+		if err == sql.ErrNoRows {
+			notFound = true
+			return nil
+		}
+		return err
+	})
+
+	if err != nil {
+		return nil, 0, err
+	}
+	if notFound {
+		return nil, 0, nil
+	}
+
+	if category.Valid {
+		dto.Category = category.String
+	}
+	if targetMaturity.Valid {
+		tm := int(targetMaturity.Int64)
+		dto.TargetMaturity = &tm
+		dto.TargetMaturitySection = getMaturitySection(tm)
+	}
+
+	return &dto, maxMaturity, nil
 }
 
 func (rm *MaturityAnalysisReadModel) getImplementations(ctx context.Context, enterpriseCapabilityID string, target int) ([]ImplementationDetailDTO, error) {
@@ -288,12 +299,11 @@ func (rm *MaturityAnalysisReadModel) getImplementations(ctx context.Context, ent
 	query := `
 		SELECT ecl.domain_capability_id, dcm.capability_name,
 		       dcm.business_domain_id, dcm.business_domain_name,
-		       c.maturity_value
+		       dcm.maturity_value
 		FROM enterprise_capability_links ecl
-		JOIN capabilities c ON ecl.domain_capability_id = c.id AND ecl.tenant_id = c.tenant_id
-		LEFT JOIN domain_capability_metadata dcm ON ecl.domain_capability_id = dcm.capability_id AND ecl.tenant_id = dcm.tenant_id
+		JOIN domain_capability_metadata dcm ON ecl.domain_capability_id = dcm.capability_id AND ecl.tenant_id = dcm.tenant_id
 		WHERE ecl.tenant_id = $1 AND ecl.enterprise_capability_id = $2
-		ORDER BY c.maturity_value ASC`
+		ORDER BY dcm.maturity_value ASC`
 
 	var implementations []ImplementationDetailDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
@@ -304,34 +314,10 @@ func (rm *MaturityAnalysisReadModel) getImplementations(ctx context.Context, ent
 		defer rows.Close()
 
 		for rows.Next() {
-			var impl ImplementationDetailDTO
-			var capabilityName, businessDomainID, businessDomainName sql.NullString
-
-			if err := rows.Scan(
-				&impl.DomainCapabilityID, &capabilityName,
-				&businessDomainID, &businessDomainName,
-				&impl.MaturityValue,
-			); err != nil {
+			impl, err := rm.scanImplementation(rows, target)
+			if err != nil {
 				return err
 			}
-
-			if capabilityName.Valid {
-				impl.DomainCapabilityName = capabilityName.String
-			}
-			if businessDomainID.Valid {
-				impl.BusinessDomainID = businessDomainID.String
-			}
-			if businessDomainName.Valid {
-				impl.BusinessDomainName = businessDomainName.String
-			}
-
-			impl.MaturitySection = getMaturitySection(impl.MaturityValue)
-			impl.Gap = target - impl.MaturityValue
-			if impl.Gap < 0 {
-				impl.Gap = 0
-			}
-			impl.Priority = getPriority(impl.Gap)
-
 			implementations = append(implementations, impl)
 		}
 
@@ -339,6 +325,38 @@ func (rm *MaturityAnalysisReadModel) getImplementations(ctx context.Context, ent
 	})
 
 	return implementations, err
+}
+
+func (rm *MaturityAnalysisReadModel) scanImplementation(rows *sql.Rows, target int) (ImplementationDetailDTO, error) {
+	var impl ImplementationDetailDTO
+	var capabilityName, businessDomainID, businessDomainName sql.NullString
+
+	if err := rows.Scan(
+		&impl.DomainCapabilityID, &capabilityName,
+		&businessDomainID, &businessDomainName,
+		&impl.MaturityValue,
+	); err != nil {
+		return impl, err
+	}
+
+	if capabilityName.Valid {
+		impl.DomainCapabilityName = capabilityName.String
+	}
+	if businessDomainID.Valid {
+		impl.BusinessDomainID = businessDomainID.String
+	}
+	if businessDomainName.Valid {
+		impl.BusinessDomainName = businessDomainName.String
+	}
+
+	impl.MaturitySection = getMaturitySection(impl.MaturityValue)
+	impl.Gap = target - impl.MaturityValue
+	if impl.Gap < 0 {
+		impl.Gap = 0
+	}
+	impl.Priority = getPriority(impl.Gap)
+
+	return impl, nil
 }
 
 func getMaturitySection(value int) string {

@@ -381,6 +381,15 @@ func (rm *DomainCapabilityMetadataReadModel) updateL1AndBusinessDomain(ctx conte
 	)
 }
 
+func (rm *DomainCapabilityMetadataReadModel) UpdateMaturityValue(ctx context.Context, capabilityID string, maturityValue int) error {
+	return rm.execForTenant(ctx,
+		`UPDATE domain_capability_metadata
+		 SET maturity_value = $2
+		 WHERE tenant_id = $1 AND capability_id = $3`,
+		maturityValue, capabilityID,
+	)
+}
+
 func (rm *DomainCapabilityMetadataReadModel) LookupBusinessDomainName(ctx context.Context, businessDomainID string) (string, error) {
 	if businessDomainID == "" {
 		return "", nil
@@ -394,7 +403,7 @@ func (rm *DomainCapabilityMetadataReadModel) LookupBusinessDomainName(ctx contex
 	var name string
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctx,
-			"SELECT business_domain_name FROM domain_capability_assignments WHERE tenant_id = $1 AND business_domain_id = $2 LIMIT 1",
+			"SELECT business_domain_name FROM domain_capability_metadata WHERE tenant_id = $1 AND business_domain_id = $2 LIMIT 1",
 			tenantID.Value(), businessDomainID,
 		).Scan(&name)
 	})

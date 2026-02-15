@@ -7,13 +7,13 @@ import (
 	"database/sql"
 	"fmt"
 	"testing"
-	"time"
 
-	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	sharedcontext "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -81,72 +81,60 @@ func setupTimeSuggestionTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
-func (f *timeSuggestionTestFixture) uniqueID(prefix string) string {
-	return fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano())
+type pillarTestScore struct {
+	PillarID   string
+	Importance int
+	FitScore   int
 }
 
-func (f *timeSuggestionTestFixture) createComponent(id, name string) {
-	_, err := f.db.Exec(`INSERT INTO components (id, tenant_id, name, status, created_at)
-		VALUES ($1, 'default', $2, 'Active', NOW()) ON CONFLICT (id, tenant_id) DO NOTHING`, id, name)
-	require.NoError(f.t, err)
-	f.t.Cleanup(func() { f.db.Exec("DELETE FROM components WHERE id = $1 AND tenant_id = 'default'", id) })
+type suggestionSeedData struct {
+	CapabilityID  string
+	ComponentID   string
+	ComponentName string
+	DomainID      string
+	PillarScores  []pillarTestScore
 }
 
-func (f *timeSuggestionTestFixture) createCapability(id, name string) {
-	_, err := f.db.Exec(`INSERT INTO capabilities (id, tenant_id, name, level, status, created_at)
-		VALUES ($1, 'default', $2, 'L1', 'Active', NOW()) ON CONFLICT (id, tenant_id) DO NOTHING`, id, name)
-	require.NoError(f.t, err)
-	f.t.Cleanup(func() { f.db.Exec("DELETE FROM capabilities WHERE id = $1 AND tenant_id = 'default'", id) })
-}
+func (f *timeSuggestionTestFixture) seedSuggestionData(data suggestionSeedData) {
+	f.t.Helper()
 
-func (f *timeSuggestionTestFixture) createEnterpriseCapability(id, name string) {
-	_, err := f.db.Exec(`INSERT INTO enterprise_capabilities (id, tenant_id, name, description, category, active, link_count, domain_count, created_at)
-		VALUES ($1, 'default', $2, '', '', true, 0, 0, NOW()) ON CONFLICT (id, tenant_id) DO NOTHING`, id, name)
-	require.NoError(f.t, err)
-	f.t.Cleanup(func() { f.db.Exec("DELETE FROM enterprise_capabilities WHERE id = $1 AND tenant_id = 'default'", id) })
-}
-
-func (f *timeSuggestionTestFixture) createEnterpriseCapabilityLink(id, enterpriseCapID, domainCapID string) {
-	_, err := f.db.Exec(`INSERT INTO enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at)
-		VALUES ($1, 'default', $2, $3, 'test@example.com', NOW()) ON CONFLICT (id, tenant_id) DO NOTHING`, id, enterpriseCapID, domainCapID)
-	require.NoError(f.t, err)
-	f.t.Cleanup(func() { f.db.Exec("DELETE FROM enterprise_capability_links WHERE id = $1 AND tenant_id = 'default'", id) })
-}
-
-func (f *timeSuggestionTestFixture) createRealization(capabilityID, componentID, componentName string) {
-	_, err := f.db.Exec(`INSERT INTO capability_realizations (tenant_id, capability_id, component_id, component_name, origin)
-		VALUES ('default', $1, $2, $3, 'Direct') ON CONFLICT DO NOTHING`, capabilityID, componentID, componentName)
+	realizationID := uuid.New().String()
+	_, err := f.db.Exec(`INSERT INTO ea_realization_cache (tenant_id, realization_id, capability_id, component_id, component_name, origin)
+		VALUES ('default', $1, $2, $3, $4, 'Direct') ON CONFLICT DO NOTHING`,
+		realizationID, data.CapabilityID, data.ComponentID, data.ComponentName)
 	require.NoError(f.t, err)
 	f.t.Cleanup(func() {
-		f.db.Exec("DELETE FROM capability_realizations WHERE tenant_id = 'default' AND capability_id = $1 AND component_id = $2", capabilityID, componentID)
+		f.db.Exec("DELETE FROM ea_realization_cache WHERE tenant_id = 'default' AND realization_id = $1", realizationID)
 	})
-}
 
-func (f *timeSuggestionTestFixture) createDomainCapabilityMetadata(capabilityID, domainID string) {
-	_, err := f.db.Exec(`INSERT INTO domain_capability_metadata (tenant_id, capability_id, capability_name, capability_level, l1_capability_id, business_domain_id, business_domain_name)
-		VALUES ('default', $1, 'Cap Name', 'L1', $1, $2, 'Domain Name') ON CONFLICT DO NOTHING`, capabilityID, domainID)
+	_, err = f.db.Exec(`INSERT INTO domain_capability_metadata (tenant_id, capability_id, capability_name, capability_level, l1_capability_id, business_domain_id, business_domain_name)
+		VALUES ('default', $1, 'Cap Name', 'L1', $1, $2, 'Domain Name') ON CONFLICT DO NOTHING`,
+		data.CapabilityID, data.DomainID)
 	require.NoError(f.t, err)
 	f.t.Cleanup(func() {
-		f.db.Exec("DELETE FROM domain_capability_metadata WHERE tenant_id = 'default' AND capability_id = $1", capabilityID)
+		f.db.Exec("DELETE FROM domain_capability_metadata WHERE tenant_id = 'default' AND capability_id = $1", data.CapabilityID)
 	})
-}
 
-func (f *timeSuggestionTestFixture) createEffectiveCapabilityImportance(capabilityID, domainID, pillarID string, importance int) {
-	_, err := f.db.Exec(`INSERT INTO effective_capability_importance (tenant_id, capability_id, business_domain_id, pillar_id, effective_importance)
-		VALUES ('default', $1, $2, $3, $4) ON CONFLICT DO NOTHING`, capabilityID, domainID, pillarID, importance)
-	require.NoError(f.t, err)
-	f.t.Cleanup(func() {
-		f.db.Exec("DELETE FROM effective_capability_importance WHERE tenant_id = 'default' AND capability_id = $1 AND pillar_id = $2", capabilityID, pillarID)
-	})
-}
+	for _, ps := range data.PillarScores {
+		ps := ps
+		_, err = f.db.Exec(`INSERT INTO ea_importance_cache (tenant_id, capability_id, business_domain_id, pillar_id, effective_importance)
+			VALUES ('default', $1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+			data.CapabilityID, data.DomainID, ps.PillarID, ps.Importance)
+		require.NoError(f.t, err)
+		f.t.Cleanup(func() {
+			f.db.Exec("DELETE FROM ea_importance_cache WHERE tenant_id = 'default' AND capability_id = $1 AND pillar_id = $2",
+				data.CapabilityID, ps.PillarID)
+		})
 
-func (f *timeSuggestionTestFixture) createApplicationFitScore(componentID, pillarID string, score int) {
-	_, err := f.db.Exec(`INSERT INTO application_fit_scores (tenant_id, component_id, pillar_id, score)
-		VALUES ('default', $1, $2, $3) ON CONFLICT DO NOTHING`, componentID, pillarID, score)
-	require.NoError(f.t, err)
-	f.t.Cleanup(func() {
-		f.db.Exec("DELETE FROM application_fit_scores WHERE tenant_id = 'default' AND component_id = $1 AND pillar_id = $2", componentID, pillarID)
-	})
+		_, err = f.db.Exec(`INSERT INTO ea_fit_score_cache (tenant_id, component_id, pillar_id, score, rationale)
+			VALUES ('default', $1, $2, $3, '') ON CONFLICT DO NOTHING`,
+			data.ComponentID, ps.PillarID, ps.FitScore)
+		require.NoError(f.t, err)
+		f.t.Cleanup(func() {
+			f.db.Exec("DELETE FROM ea_fit_score_cache WHERE tenant_id = 'default' AND component_id = $1 AND pillar_id = $2",
+				data.ComponentID, ps.PillarID)
+		})
+	}
 }
 
 func TestTimeSuggestionReadModel_GetAllSuggestions_Empty(t *testing.T) {
@@ -172,18 +160,20 @@ func TestTimeSuggestionReadModel_GetAllSuggestions_WithData(t *testing.T) {
 	}
 	f := newTimeSuggestionTestFixture(t, pillars)
 
-	componentID := f.uniqueID("comp")
-	capabilityID := f.uniqueID("cap")
-	domainID := f.uniqueID("domain")
+	componentID := uuid.New().String()
+	capabilityID := uuid.New().String()
+	domainID := uuid.New().String()
 
-	f.createComponent(componentID, "Test Component")
-	f.createCapability(capabilityID, "Test Capability")
-	f.createRealization(capabilityID, componentID, "Test Component")
-	f.createDomainCapabilityMetadata(capabilityID, domainID)
-	f.createEffectiveCapabilityImportance(capabilityID, domainID, "pillar-tech", 80)
-	f.createEffectiveCapabilityImportance(capabilityID, domainID, "pillar-func", 70)
-	f.createApplicationFitScore(componentID, "pillar-tech", 60)
-	f.createApplicationFitScore(componentID, "pillar-func", 50)
+	f.seedSuggestionData(suggestionSeedData{
+		CapabilityID:  capabilityID,
+		ComponentID:   componentID,
+		ComponentName: "Test Component",
+		DomainID:      domainID,
+		PillarScores: []pillarTestScore{
+			{PillarID: "pillar-tech", Importance: 80, FitScore: 60},
+			{PillarID: "pillar-func", Importance: 70, FitScore: 50},
+		},
+	})
 
 	suggestions, err := f.readModel.GetAllSuggestions(f.ctx)
 
@@ -192,7 +182,7 @@ func TestTimeSuggestionReadModel_GetAllSuggestions_WithData(t *testing.T) {
 
 	suggestion := suggestions[0]
 	assert.Equal(t, capabilityID, suggestion.CapabilityID)
-	assert.Equal(t, "Test Capability", suggestion.CapabilityName)
+	assert.Equal(t, "Cap Name", suggestion.CapabilityName)
 	assert.Equal(t, componentID, suggestion.ComponentID)
 	assert.Equal(t, "Test Component", suggestion.ComponentName)
 	assert.NotNil(t, suggestion.TechnicalGap)
@@ -200,68 +190,50 @@ func TestTimeSuggestionReadModel_GetAllSuggestions_WithData(t *testing.T) {
 	assert.Equal(t, 20.0, *suggestion.TechnicalGap)
 	assert.Equal(t, 20.0, *suggestion.FunctionalGap)
 	assert.NotNil(t, suggestion.SuggestedTime)
-	assert.Equal(t, "Eliminate", *suggestion.SuggestedTime)
-	assert.Equal(t, "High", suggestion.Confidence)
+	assert.Equal(t, "ELIMINATE", *suggestion.SuggestedTime)
+	assert.Equal(t, "MEDIUM", suggestion.Confidence)
 }
 
-type filterTestData struct {
-	componentID  string
-	capabilityID string
-	domainID     string
-}
-
-func (f *timeSuggestionTestFixture) setupFilterTestData() filterTestData {
-	data := filterTestData{
-		componentID:  f.uniqueID("comp"),
-		capabilityID: f.uniqueID("cap"),
-		domainID:     f.uniqueID("domain"),
-	}
-	f.createComponent(data.componentID, "Test Component")
-	f.createCapability(data.capabilityID, "Test Capability")
-	f.createRealization(data.capabilityID, data.componentID, "Test Component")
-	f.createDomainCapabilityMetadata(data.capabilityID, data.domainID)
-	f.createEffectiveCapabilityImportance(data.capabilityID, data.domainID, "pillar-tech", 80)
-	f.createApplicationFitScore(data.componentID, "pillar-tech", 70)
-	return data
-}
-
-func newTechPillarFixture(t *testing.T) *timeSuggestionTestFixture {
-	return newTimeSuggestionTestFixture(t, &mmPL.StrategyPillarsConfigDTO{
+func TestTimeSuggestionReadModel_FilterMethods(t *testing.T) {
+	pillars := &mmPL.StrategyPillarsConfigDTO{
 		Pillars: []mmPL.StrategyPillarDTO{
 			{ID: "pillar-tech", Name: "Technical", FitScoringEnabled: true, FitType: "TECHNICAL"},
 		},
+	}
+	f := newTimeSuggestionTestFixture(t, pillars)
+
+	capabilityID := uuid.New().String()
+	componentID := uuid.New().String()
+	domainID := uuid.New().String()
+
+	f.seedSuggestionData(suggestionSeedData{
+		CapabilityID:  capabilityID,
+		ComponentID:   componentID,
+		ComponentName: "Test Component",
+		DomainID:      domainID,
+		PillarScores:  []pillarTestScore{{PillarID: "pillar-tech", Importance: 80, FitScore: 70}},
 	})
-}
 
-func TestTimeSuggestionReadModel_GetByCapability_FiltersCorrectly(t *testing.T) {
-	f := newTechPillarFixture(t)
-	data := f.setupFilterTestData()
-	unlinkedCapID := f.uniqueID("cap-unlinked")
-	f.createCapability(unlinkedCapID, "Unlinked Capability")
+	tests := []struct {
+		name     string
+		query    func(context.Context, string) ([]TimeSuggestionDTO, error)
+		linkedID string
+	}{
+		{"GetByCapability", f.readModel.GetByCapability, capabilityID},
+		{"GetByComponent", f.readModel.GetByComponent, componentID},
+	}
 
-	suggestionsCap1, err := f.readModel.GetByCapability(f.ctx, data.capabilityID)
-	require.NoError(t, err)
-	assert.Len(t, suggestionsCap1, 1)
+	for _, tt := range tests {
+		t.Run(tt.name+" filters correctly", func(t *testing.T) {
+			linked, err := tt.query(f.ctx, tt.linkedID)
+			require.NoError(t, err)
+			assert.Len(t, linked, 1)
 
-	suggestionsCap2, err := f.readModel.GetByCapability(f.ctx, unlinkedCapID)
-	require.NoError(t, err)
-	assert.Empty(t, suggestionsCap2)
-}
-
-func TestTimeSuggestionReadModel_GetByComponent_FiltersCorrectly(t *testing.T) {
-	f := newTechPillarFixture(t)
-	data := f.setupFilterTestData()
-	unlinkedCompID := f.uniqueID("comp-unlinked")
-	f.createComponent(unlinkedCompID, "Unlinked Component")
-	f.createApplicationFitScore(unlinkedCompID, "pillar-tech", 60)
-
-	suggestionsComp1, err := f.readModel.GetByComponent(f.ctx, data.componentID)
-	require.NoError(t, err)
-	assert.Len(t, suggestionsComp1, 1)
-
-	suggestionsComp2, err := f.readModel.GetByComponent(f.ctx, unlinkedCompID)
-	require.NoError(t, err)
-	assert.Empty(t, suggestionsComp2)
+			unlinked, err := tt.query(f.ctx, uuid.New().String())
+			require.NoError(t, err)
+			assert.Empty(t, unlinked)
+		})
+	}
 }
 
 func TestTimeSuggestionReadModel_CalculatesInsufficientConfidenceWhenNoPillars(t *testing.T) {
@@ -270,22 +242,23 @@ func TestTimeSuggestionReadModel_CalculatesInsufficientConfidenceWhenNoPillars(t
 	}
 	f := newTimeSuggestionTestFixture(t, pillars)
 
-	componentID := f.uniqueID("comp")
-	capabilityID := f.uniqueID("cap")
-	domainID := f.uniqueID("domain")
+	capabilityID := uuid.New().String()
+	componentID := uuid.New().String()
+	domainID := uuid.New().String()
 
-	f.createComponent(componentID, "Test Component")
-	f.createCapability(capabilityID, "Test Capability")
-	f.createRealization(capabilityID, componentID, "Test Component")
-	f.createDomainCapabilityMetadata(capabilityID, domainID)
-	f.createEffectiveCapabilityImportance(capabilityID, domainID, "pillar-unknown", 80)
-	f.createApplicationFitScore(componentID, "pillar-unknown", 70)
+	f.seedSuggestionData(suggestionSeedData{
+		CapabilityID:  capabilityID,
+		ComponentID:   componentID,
+		ComponentName: "Test Component",
+		DomainID:      domainID,
+		PillarScores:  []pillarTestScore{{PillarID: "pillar-unknown", Importance: 80, FitScore: 70}},
+	})
 
 	suggestions, err := f.readModel.GetAllSuggestions(f.ctx)
 
 	require.NoError(t, err)
 	if len(suggestions) > 0 {
-		assert.Equal(t, "Insufficient", suggestions[0].Confidence)
+		assert.Equal(t, "LOW", suggestions[0].Confidence)
 		assert.Nil(t, suggestions[0].SuggestedTime)
 	}
 }

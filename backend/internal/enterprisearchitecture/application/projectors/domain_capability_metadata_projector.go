@@ -47,6 +47,7 @@ func (p *DomainCapabilityMetadataProjector) ProjectEvent(ctx context.Context, ev
 		cmPL.CapabilityLevelChanged:         p.handleCapabilityLevelChanged,
 		cmPL.CapabilityAssignedToDomain:     p.handleCapabilityAssignedToDomain,
 		cmPL.CapabilityUnassignedFromDomain: p.handleCapabilityUnassignedFromDomain,
+		cmPL.CapabilityMetadataUpdated:      p.handleCapabilityMetadataUpdated,
 	}
 
 	if handler, exists := handlers[eventType]; exists {
@@ -298,4 +299,19 @@ func (p *DomainCapabilityMetadataProjector) lookupBusinessDomainName(ctx context
 		return businessDomainID
 	}
 	return name
+}
+
+type capabilityMetadataUpdatedEvent struct {
+	ID            string `json:"id"`
+	MaturityValue int    `json:"maturityValue"`
+}
+
+func (p *DomainCapabilityMetadataProjector) handleCapabilityMetadataUpdated(ctx context.Context, eventData []byte) error {
+	var event capabilityMetadataUpdatedEvent
+	if err := json.Unmarshal(eventData, &event); err != nil {
+		log.Printf("Failed to unmarshal CapabilityMetadataUpdated event: %v", err)
+		return err
+	}
+
+	return p.metadataReadModel.UpdateMaturityValue(ctx, event.ID, event.MaturityValue)
 }

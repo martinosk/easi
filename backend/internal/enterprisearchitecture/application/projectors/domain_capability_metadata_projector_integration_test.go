@@ -7,7 +7,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"testing"
-	"time"
 
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
 	"easi/backend/internal/infrastructure/database"
@@ -38,7 +37,6 @@ func setupProjectorTest(t *testing.T) (context.Context, *DomainCapabilityMetadat
 
 	t.Cleanup(func() {
 		_, _ = db.Exec("DELETE FROM domain_capability_metadata WHERE tenant_id = $1", testTenant)
-		_, _ = db.Exec("DELETE FROM domain_capability_assignments WHERE tenant_id = $1", testTenant)
 		db.Close()
 	})
 
@@ -46,7 +44,7 @@ func setupProjectorTest(t *testing.T) (context.Context, *DomainCapabilityMetadat
 }
 
 func TestMetadataProjector_AssignToDomain_SetsBusinessDomainOnMetadata(t *testing.T) {
-	ctx, projector, metadataRM, db := setupProjectorTest(t)
+	ctx, projector, metadataRM, _ := setupProjectorTest(t)
 
 	l1ID := uuid.New().String()
 	l2ID := uuid.New().String()
@@ -69,19 +67,22 @@ func TestMetadataProjector_AssignToDomain_SetsBusinessDomainOnMetadata(t *testin
 	})
 	require.NoError(t, err)
 
-	_, err = db.Exec(
-		`INSERT INTO domain_capability_assignments
-		 (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, assigned_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		uuid.New().String(), testTenant, domainID, "Test Domain", l1ID, "L1 Capability", "L1", time.Now().UTC(),
-	)
+	seedCapID := uuid.New().String()
+	err = metadataRM.Insert(ctx, readmodels.DomainCapabilityMetadataDTO{
+		CapabilityID:       seedCapID,
+		CapabilityName:     "Seed Capability",
+		CapabilityLevel:    "L1",
+		L1CapabilityID:     seedCapID,
+		BusinessDomainID:   domainID,
+		BusinessDomainName: "Test Domain",
+	})
 	require.NoError(t, err)
 
 	eventData, err := json.Marshal(map[string]interface{}{
 		"id":               uuid.New().String(),
 		"businessDomainId": domainID,
 		"capabilityId":     l1ID,
-		"assignedAt":       time.Now().UTC(),
+		"assignedAt":       "2024-01-15T10:00:00Z",
 	})
 	require.NoError(t, err)
 
@@ -131,7 +132,7 @@ func TestMetadataProjector_UnassignFromDomain_ClearsBusinessDomainOnMetadata(t *
 		"id":               uuid.New().String(),
 		"businessDomainId": domainID,
 		"capabilityId":     l1ID,
-		"unassignedAt":     time.Now().UTC(),
+		"unassignedAt":     "2024-01-15T10:00:00Z",
 	})
 	require.NoError(t, err)
 

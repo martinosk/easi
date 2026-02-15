@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/enterprisearchitecture/application/handlers"
@@ -44,6 +45,9 @@ type routeReadModels struct {
 	maturityAnalysis *readmodels.MaturityAnalysisReadModel
 	timeSuggestion   *readmodels.TimeSuggestionReadModel
 	pillarCache      *readmodels.StrategyPillarCacheReadModel
+	realizationCache *readmodels.EARealizationCacheReadModel
+	importanceCache  *readmodels.EAImportanceCacheReadModel
+	fitScoreCache    *readmodels.EAFitScoreCacheReadModel
 }
 
 type routeHTTPHandlers struct {
@@ -94,6 +98,9 @@ func initializeReadModels(db *database.TenantAwareDB) *routeReadModels {
 		maturityAnalysis: readmodels.NewMaturityAnalysisReadModel(db),
 		timeSuggestion:   readmodels.NewTimeSuggestionReadModel(db, pillarsGateway),
 		pillarCache:      pillarCache,
+		realizationCache: readmodels.NewEARealizationCacheReadModel(db),
+		importanceCache:  readmodels.NewEAImportanceCacheReadModel(db),
+		fitScoreCache:    readmodels.NewEAFitScoreCacheReadModel(db),
 	}
 }
 
@@ -103,12 +110,18 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels) {
 	importanceProjector := projectors.NewEnterpriseStrategicImportanceProjector(rm.importance)
 	metadataProjector := projectors.NewDomainCapabilityMetadataProjector(rm.metadata, rm.capability, rm.link)
 	pillarCacheProjector := projectors.NewStrategyPillarCacheProjector(rm.pillarCache)
+	realizationCacheProjector := projectors.NewEARealizationCacheProjector(rm.realizationCache)
+	importanceCacheProjector := projectors.NewEAImportanceCacheProjector(rm.importanceCache)
+	fitScoreCacheProjector := projectors.NewEAFitScoreCacheProjector(rm.fitScoreCache)
 
 	subscribeCapabilityEvents(eventBus, capabilityProjector)
 	subscribeLinkEvents(eventBus, linkProjector)
 	subscribeImportanceEvents(eventBus, importanceProjector)
 	subscribeCapabilityMappingEvents(eventBus, metadataProjector)
 	subscribePillarCacheEvents(eventBus, pillarCacheProjector)
+	subscribeRealizationCacheEvents(eventBus, realizationCacheProjector)
+	subscribeImportanceCacheEvents(eventBus, importanceCacheProjector)
+	subscribeFitScoreCacheEvents(eventBus, fitScoreCacheProjector)
 }
 
 func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.EnterpriseCapabilityProjector) {
@@ -156,6 +169,7 @@ func subscribeCapabilityMappingEvents(eventBus events.EventBus, projector *proje
 		cmPL.CapabilityLevelChanged,
 		cmPL.CapabilityAssignedToDomain,
 		cmPL.CapabilityUnassignedFromDomain,
+		cmPL.CapabilityMetadataUpdated,
 	}
 	for _, eventType := range eventTypes {
 		eventBus.Subscribe(eventType, projector)
@@ -169,6 +183,32 @@ func subscribePillarCacheEvents(eventBus events.EventBus, projector *projectors.
 		mmPL.StrategyPillarUpdated,
 		mmPL.StrategyPillarRemoved,
 		mmPL.PillarFitConfigurationUpdated,
+	}
+	for _, eventType := range eventTypes {
+		eventBus.Subscribe(eventType, projector)
+	}
+}
+
+func subscribeRealizationCacheEvents(eventBus events.EventBus, projector *projectors.EARealizationCacheProjector) {
+	eventTypes := []string{
+		cmPL.SystemLinkedToCapability,
+		cmPL.SystemRealizationDeleted,
+		cmPL.CapabilityDeleted,
+		amPL.ApplicationComponentUpdated,
+	}
+	for _, eventType := range eventTypes {
+		eventBus.Subscribe(eventType, projector)
+	}
+}
+
+func subscribeImportanceCacheEvents(eventBus events.EventBus, projector *projectors.EAImportanceCacheProjector) {
+	eventBus.Subscribe(cmPL.EffectiveImportanceRecalculated, projector)
+}
+
+func subscribeFitScoreCacheEvents(eventBus events.EventBus, projector *projectors.EAFitScoreCacheProjector) {
+	eventTypes := []string{
+		cmPL.ApplicationFitScoreSet,
+		cmPL.ApplicationFitScoreRemoved,
 	}
 	for _, eventType := range eventTypes {
 		eventBus.Subscribe(eventType, projector)
