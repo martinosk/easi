@@ -74,7 +74,8 @@ Classify each finding into a priority:
 | **Critical** | Breaks architectural boundaries, cross-context coupling, data integrity risk | Must fix |
 | **High** | Code health < 4.0, logic in wrong layer, missing domain concept | Should fix |
 | **Nice** | Code health 4.0–8.9, minor pattern violations, style inconsistencies | Fix if time allows |
-| **Skip** | Inherent complexity (event-sourced type switches, domain event constructors with many args), score already 9.0+ | Leave as-is |
+| **Polish** | Code health 9.0–9.9, minor duplication or string-heavy args in tests | Fix — aim for 10.0 using table-driven tests or shared helpers |
+| **Skip** | Inherent complexity (event-sourced type switches, domain event constructors with many args), already 10.0 | Leave as-is |
 
 ### 4. Execute refactoring
 
