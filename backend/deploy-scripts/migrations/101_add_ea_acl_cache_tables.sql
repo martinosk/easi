@@ -12,12 +12,11 @@ CREATE TABLE IF NOT EXISTS ea_realization_cache (
 
 ALTER TABLE ea_realization_cache ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY ea_realization_cache_tenant_isolation ON ea_realization_cache
-    USING (tenant_id = current_setting('app.current_tenant', TRUE)::TEXT);
-
-CREATE POLICY ea_realization_cache_tenant_insert ON ea_realization_cache
-    FOR INSERT
-    WITH CHECK (tenant_id = current_setting('app.current_tenant', TRUE)::TEXT);
+CREATE POLICY tenant_isolation_policy ON ea_realization_cache
+    FOR ALL
+    TO easi_app
+    USING (tenant_id = current_setting('app.current_tenant', true))
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true));
 
 CREATE INDEX idx_ea_realization_cache_tenant ON ea_realization_cache(tenant_id);
 CREATE INDEX idx_ea_realization_cache_capability ON ea_realization_cache(tenant_id, capability_id);
@@ -34,12 +33,11 @@ CREATE TABLE IF NOT EXISTS ea_importance_cache (
 
 ALTER TABLE ea_importance_cache ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY ea_importance_cache_tenant_isolation ON ea_importance_cache
-    USING (tenant_id = current_setting('app.current_tenant', TRUE)::TEXT);
-
-CREATE POLICY ea_importance_cache_tenant_insert ON ea_importance_cache
-    FOR INSERT
-    WITH CHECK (tenant_id = current_setting('app.current_tenant', TRUE)::TEXT);
+CREATE POLICY tenant_isolation_policy ON ea_importance_cache
+    FOR ALL
+    TO easi_app
+    USING (tenant_id = current_setting('app.current_tenant', true))
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true));
 
 CREATE INDEX idx_ea_importance_cache_tenant ON ea_importance_cache(tenant_id);
 
@@ -54,12 +52,11 @@ CREATE TABLE IF NOT EXISTS ea_fit_score_cache (
 
 ALTER TABLE ea_fit_score_cache ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY ea_fit_score_cache_tenant_isolation ON ea_fit_score_cache
-    USING (tenant_id = current_setting('app.current_tenant', TRUE)::TEXT);
-
-CREATE POLICY ea_fit_score_cache_tenant_insert ON ea_fit_score_cache
-    FOR INSERT
-    WITH CHECK (tenant_id = current_setting('app.current_tenant', TRUE)::TEXT);
+CREATE POLICY tenant_isolation_policy ON ea_fit_score_cache
+    FOR ALL
+    TO easi_app
+    USING (tenant_id = current_setting('app.current_tenant', true))
+    WITH CHECK (tenant_id = current_setting('app.current_tenant', true));
 
 CREATE INDEX idx_ea_fit_score_cache_tenant ON ea_fit_score_cache(tenant_id);
 

@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS cm_effective_business_domain (
-    tenant_id VARCHAR(50) NOT NULL,
+    tenant_id VARCHAR(255) NOT NULL,
     capability_id VARCHAR(255) NOT NULL,
     business_domain_id VARCHAR(255),
     business_domain_name VARCHAR(500),
@@ -7,12 +7,9 @@ CREATE TABLE IF NOT EXISTS cm_effective_business_domain (
     PRIMARY KEY (tenant_id, capability_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_cm_eff_bd_tenant_cap
-    ON cm_effective_business_domain(tenant_id, capability_id);
-
 ALTER TABLE cm_effective_business_domain ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY cm_effective_business_domain_tenant_isolation ON cm_effective_business_domain
+CREATE POLICY tenant_isolation_policy ON cm_effective_business_domain
     FOR ALL TO easi_app
     USING (tenant_id = current_setting('app.current_tenant', true))
     WITH CHECK (tenant_id = current_setting('app.current_tenant', true));
