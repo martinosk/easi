@@ -61,7 +61,10 @@ func (p *VendorProjector) projectUpdated(ctx context.Context, eventData []byte) 
 	if err != nil {
 		return err
 	}
-	return p.readModel.Update(ctx, event.ID, event.Name, event.ImplementationPartner, event.Notes)
+	return p.readModel.Update(ctx, readmodels.VendorUpdate{
+		ID: event.ID, Name: event.Name,
+		ImplementationPartner: event.ImplementationPartner, Notes: event.Notes,
+	})
 }
 
 func (p *VendorProjector) projectDeleted(ctx context.Context, eventData []byte) error {

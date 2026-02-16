@@ -35,13 +35,30 @@ func (rm *VendorReadModel) Insert(ctx context.Context, dto VendorDTO) error {
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO architecturemodeling.vendors (id, tenant_id, name, implementation_partner, notes, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+		"DELETE FROM architecturemodeling.vendors WHERE tenant_id = $1 AND id = $2",
+		tenantID.Value(), dto.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`INSERT INTO architecturemodeling.vendors
+		(id, tenant_id, name, implementation_partner, notes, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)`,
 		dto.ID, tenantID.Value(), dto.Name, dto.ImplementationPartner, dto.Notes, dto.CreatedAt,
 	)
 	return err
 }
 
-func (rm *VendorReadModel) Update(ctx context.Context, id, name, implementationPartner, notes string) error {
+type VendorUpdate struct {
+	ID                    string
+	Name                  string
+	ImplementationPartner string
+	Notes                 string
+}
+
+func (rm *VendorReadModel) Update(ctx context.Context, update VendorUpdate) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -49,7 +66,7 @@ func (rm *VendorReadModel) Update(ctx context.Context, id, name, implementationP
 
 	_, err = rm.db.ExecContext(ctx,
 		"UPDATE architecturemodeling.vendors SET name = $1, implementation_partner = $2, notes = $3, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $4 AND id = $5",
-		name, implementationPartner, notes, tenantID.Value(), id,
+		update.Name, update.ImplementationPartner, update.Notes, tenantID.Value(), update.ID,
 	)
 	return err
 }
@@ -138,22 +155,10 @@ func (rm *VendorReadModel) GetAllPaginated(ctx context.Context, limit int, after
 
 	queryLimit := limit + 1
 	vendors := make([]VendorDTO, 0)
+	query, args := vendorPageQuery(tenantID.Value(), queryLimit, afterCursor, afterName)
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		var rows *sql.Rows
-		var err error
-
-		if afterCursor == "" {
-			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, implementation_partner, notes, created_at, updated_at FROM architecturemodeling.vendors WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
-				tenantID.Value(), queryLimit,
-			)
-		} else {
-			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, implementation_partner, notes, created_at, updated_at FROM architecturemodeling.vendors WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
-				tenantID.Value(), afterName, afterCursor, queryLimit,
-			)
-		}
+		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
 			return err
 		}
@@ -180,4 +185,15 @@ func (rm *VendorReadModel) GetAllPaginated(ctx context.Context, limit int, after
 	}
 
 	return vendors, hasMore, nil
+}
+
+func vendorPageQuery(tenantID string, queryLimit int, afterCursor, afterName string) (string, []any) {
+	const selectCols = "id, name, implementation_partner, notes, created_at, updated_at"
+	const base = "SELECT " + selectCols + " FROM architecturemodeling.vendors WHERE tenant_id = $1 AND is_deleted = FALSE"
+	const order = " ORDER BY LOWER(name) ASC, id ASC"
+	if afterCursor == "" {
+		return base + order + " LIMIT $2", []any{tenantID, queryLimit}
+	}
+	return base + " AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3))" + order + " LIMIT $4",
+		[]any{tenantID, afterName, afterCursor, queryLimit}
 }

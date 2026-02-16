@@ -60,7 +60,16 @@ func (rm *EnterpriseCapabilityLinkReadModel) Insert(ctx context.Context, dto Ent
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO enterprisearchitecture.enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at)
+		"DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE tenant_id = $1 AND id = $2",
+		tenantID.Value(), dto.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`INSERT INTO enterprisearchitecture.enterprise_capability_links
+		 (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at)
 		 VALUES ($1, $2, $3, $4, $5, $6)`,
 		dto.ID, tenantID.Value(), dto.EnterpriseCapabilityID, dto.DomainCapabilityID, dto.LinkedBy, dto.LinkedAt,
 	)
@@ -436,12 +445,12 @@ func collectResults(ids []string, statusMap map[string]*CapabilityLinkStatusDTO)
 }
 
 type BlockingDTO struct {
-	DomainCapabilityID        string
-	BlockedByCapabilityID     string
-	BlockedByEnterpriseID     string
-	BlockedByCapabilityName   string
-	BlockedByEnterpriseName   string
-	IsAncestor                bool
+	DomainCapabilityID      string
+	BlockedByCapabilityID   string
+	BlockedByEnterpriseID   string
+	BlockedByCapabilityName string
+	BlockedByEnterpriseName string
+	IsAncestor              bool
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) InsertBlocking(ctx context.Context, blocking BlockingDTO) error {

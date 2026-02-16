@@ -41,6 +41,14 @@ func (rm *StrategyImportanceReadModel) Insert(ctx context.Context, dto StrategyI
 	}
 
 	_, err = rm.db.ExecContext(ctx,
+		"DELETE FROM capabilitymapping.strategy_importance WHERE tenant_id = $1 AND id = $2",
+		tenantID.Value(), dto.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
 		`INSERT INTO capabilitymapping.strategy_importance
 		(id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name,
 		pillar_id, pillar_name, importance, importance_label, rationale, set_at)

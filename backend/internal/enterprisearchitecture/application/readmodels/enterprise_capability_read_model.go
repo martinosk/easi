@@ -54,10 +54,21 @@ func (rm *EnterpriseCapabilityReadModel) execTenantQuery(ctx context.Context, qu
 }
 
 func (rm *EnterpriseCapabilityReadModel) Insert(ctx context.Context, dto EnterpriseCapabilityDTO) error {
+	err := rm.execByID(ctx,
+		"DELETE FROM enterprisearchitecture.enterprise_capabilities WHERE tenant_id = $1 AND id = $2",
+		dto.ID,
+	)
+	if err != nil {
+		return err
+	}
+
 	return rm.execTenantQuery(ctx,
-		`INSERT INTO enterprisearchitecture.enterprise_capabilities (id, tenant_id, name, description, category, active, link_count, domain_count, created_at)
+		`INSERT INTO enterprisearchitecture.enterprise_capabilities
+		 (id, tenant_id, name, description, category, active, link_count, domain_count, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-		func(tid string) []interface{} { return []interface{}{dto.ID, tid, dto.Name, dto.Description, dto.Category, dto.Active, 0, 0, dto.CreatedAt} },
+		func(tid string) []interface{} {
+			return []interface{}{dto.ID, tid, dto.Name, dto.Description, dto.Category, dto.Active, 0, 0, dto.CreatedAt}
+		},
 	)
 }
 
@@ -65,7 +76,9 @@ func (rm *EnterpriseCapabilityReadModel) Update(ctx context.Context, params Upda
 	return rm.execTenantQuery(ctx,
 		`UPDATE enterprisearchitecture.enterprise_capabilities SET name = $1, description = $2, category = $3, updated_at = CURRENT_TIMESTAMP
 		 WHERE tenant_id = $4 AND id = $5`,
-		func(tid string) []interface{} { return []interface{}{params.Name, params.Description, params.Category, tid, params.ID} },
+		func(tid string) []interface{} {
+			return []interface{}{params.Name, params.Description, params.Category, tid, params.ID}
+		},
 	)
 }
 
@@ -80,7 +93,6 @@ func (rm *EnterpriseCapabilityReadModel) IncrementLinkCount(ctx context.Context,
 func (rm *EnterpriseCapabilityReadModel) DecrementLinkCount(ctx context.Context, id string) error {
 	return rm.execByID(ctx, "UPDATE enterprisearchitecture.enterprise_capabilities SET link_count = GREATEST(0, link_count - 1) WHERE tenant_id = $1 AND id = $2", id)
 }
-
 
 func (rm *EnterpriseCapabilityReadModel) RecalculateDomainCount(ctx context.Context, enterpriseCapabilityID string) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
@@ -114,8 +126,7 @@ func (rm *EnterpriseCapabilityReadModel) GetAll(ctx context.Context) ([]Enterpri
 	var capabilities []EnterpriseCapabilityDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx,
-			`SELECT id, name, description, category, active, target_maturity, link_count, domain_count, created_at, updated_at
-			 FROM enterprisearchitecture.enterprise_capabilities WHERE tenant_id = $1 AND active = true ORDER BY name`,
+			"SELECT "+ecSelectColumns+" FROM enterprisearchitecture.enterprise_capabilities WHERE tenant_id = $1 AND active = true ORDER BY name",
 			tenantID.Value(),
 		)
 		if err != nil {
@@ -124,25 +135,9 @@ func (rm *EnterpriseCapabilityReadModel) GetAll(ctx context.Context) ([]Enterpri
 		defer rows.Close()
 
 		for rows.Next() {
-			var dto EnterpriseCapabilityDTO
-			var updatedAt sql.NullTime
-			var targetMaturity sql.NullInt64
-			var description, category sql.NullString
-			if err := rows.Scan(&dto.ID, &dto.Name, &description, &category, &dto.Active, &targetMaturity, &dto.LinkCount, &dto.DomainCount, &dto.CreatedAt, &updatedAt); err != nil {
-				return err
-			}
-			if updatedAt.Valid {
-				dto.UpdatedAt = &updatedAt.Time
-			}
-			if targetMaturity.Valid {
-				tm := int(targetMaturity.Int64)
-				dto.TargetMaturity = &tm
-			}
-			if description.Valid {
-				dto.Description = description.String
-			}
-			if category.Valid {
-				dto.Category = category.String
+			dto, scanErr := scanEnterpriseCapability(rows)
+			if scanErr != nil {
+				return scanErr
 			}
 			capabilities = append(capabilities, dto)
 		}
@@ -159,31 +154,40 @@ func (rm *EnterpriseCapabilityReadModel) GetByID(ctx context.Context, id string)
 		return nil, err
 	}
 
+	var result *EnterpriseCapabilityDTO
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		dto, scanErr := scanEnterpriseCapability(tx.QueryRowContext(ctx,
+			"SELECT "+ecSelectColumns+" FROM enterprisearchitecture.enterprise_capabilities WHERE tenant_id = $1 AND id = $2",
+			tenantID.Value(), id,
+		))
+		if scanErr == sql.ErrNoRows {
+			return nil
+		}
+		if scanErr != nil {
+			return scanErr
+		}
+		result = &dto
+		return nil
+	})
+
+	return result, err
+}
+
+const ecSelectColumns = "id, name, description, category, active, target_maturity, link_count, domain_count, created_at, updated_at"
+
+type ecRowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanEnterpriseCapability(row ecRowScanner) (EnterpriseCapabilityDTO, error) {
 	var dto EnterpriseCapabilityDTO
 	var updatedAt sql.NullTime
 	var targetMaturity sql.NullInt64
 	var description, category sql.NullString
-	var notFound bool
 
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		err := tx.QueryRowContext(ctx,
-			`SELECT id, name, description, category, active, target_maturity, link_count, domain_count, created_at, updated_at
-			 FROM enterprisearchitecture.enterprise_capabilities WHERE tenant_id = $1 AND id = $2`,
-			tenantID.Value(), id,
-		).Scan(&dto.ID, &dto.Name, &description, &category, &dto.Active, &targetMaturity, &dto.LinkCount, &dto.DomainCount, &dto.CreatedAt, &updatedAt)
-
-		if err == sql.ErrNoRows {
-			notFound = true
-			return nil
-		}
-		return err
-	})
-
+	err := row.Scan(&dto.ID, &dto.Name, &description, &category, &dto.Active, &targetMaturity, &dto.LinkCount, &dto.DomainCount, &dto.CreatedAt, &updatedAt)
 	if err != nil {
-		return nil, err
-	}
-	if notFound {
-		return nil, nil
+		return dto, err
 	}
 
 	if updatedAt.Valid {
@@ -199,8 +203,7 @@ func (rm *EnterpriseCapabilityReadModel) GetByID(ctx context.Context, id string)
 	if category.Valid {
 		dto.Category = category.String
 	}
-
-	return &dto, nil
+	return dto, nil
 }
 
 func (rm *EnterpriseCapabilityReadModel) NameExists(ctx context.Context, name, excludeID string) (bool, error) {

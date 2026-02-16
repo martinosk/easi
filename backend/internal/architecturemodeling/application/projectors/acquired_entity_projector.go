@@ -62,7 +62,10 @@ func (p *AcquiredEntityProjector) projectUpdated(ctx context.Context, eventData 
 	if err != nil {
 		return err
 	}
-	return p.readModel.Update(ctx, event.ID, event.Name, event.AcquisitionDate, event.IntegrationStatus, event.Notes)
+	return p.readModel.Update(ctx, readmodels.AcquiredEntityUpdate{
+		ID: event.ID, Name: event.Name, AcquisitionDate: event.AcquisitionDate,
+		IntegrationStatus: event.IntegrationStatus, Notes: event.Notes,
+	})
 }
 
 func (p *AcquiredEntityProjector) projectDeleted(ctx context.Context, eventData []byte) error {

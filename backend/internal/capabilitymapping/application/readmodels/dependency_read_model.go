@@ -35,7 +35,17 @@ func (rm *DependencyReadModel) Insert(ctx context.Context, dto DependencyDTO) er
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO capabilitymapping.capability_dependencies (id, tenant_id, source_capability_id, target_capability_id, dependency_type, description, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		"DELETE FROM capabilitymapping.capability_dependencies WHERE tenant_id = $1 AND id = $2",
+		tenantID.Value(), dto.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`INSERT INTO capabilitymapping.capability_dependencies
+		(id, tenant_id, source_capability_id, target_capability_id, dependency_type, description, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		dto.ID, tenantID.Value(), dto.SourceCapabilityID, dto.TargetCapabilityID, dto.DependencyType, dto.Description, dto.CreatedAt,
 	)
 	return err

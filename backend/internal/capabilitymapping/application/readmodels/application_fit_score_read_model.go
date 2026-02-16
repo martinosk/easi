@@ -40,6 +40,14 @@ func (rm *ApplicationFitScoreReadModel) Insert(ctx context.Context, dto Applicat
 	}
 
 	_, err = rm.db.ExecContext(ctx,
+		"DELETE FROM capabilitymapping.application_fit_scores WHERE tenant_id = $1 AND id = $2",
+		tenantID.Value(), dto.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
 		`INSERT INTO capabilitymapping.application_fit_scores
 		(id, tenant_id, component_id, component_name, pillar_id, pillar_name,
 		score, score_label, rationale, scored_at, scored_by)
@@ -67,25 +75,21 @@ func (rm *ApplicationFitScoreReadModel) Update(ctx context.Context, dto Applicat
 }
 
 func (rm *ApplicationFitScoreReadModel) Delete(ctx context.Context, id string) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM capabilitymapping.application_fit_scores WHERE tenant_id = $1 AND id = $2",
-		tenantID.Value(), id,
-	)
-	return err
+	return rm.deleteByColumn(ctx, "id", id)
 }
 
 func (rm *ApplicationFitScoreReadModel) DeleteByComponent(ctx context.Context, componentID string) error {
+	return rm.deleteByColumn(ctx, "component_id", componentID)
+}
+
+func (rm *ApplicationFitScoreReadModel) deleteByColumn(ctx context.Context, column, value string) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
 	}
 	_, err = rm.db.ExecContext(ctx,
-		"DELETE FROM capabilitymapping.application_fit_scores WHERE tenant_id = $1 AND component_id = $2",
-		tenantID.Value(), componentID,
+		"DELETE FROM capabilitymapping.application_fit_scores WHERE tenant_id = $1 AND "+column+" = $2",
+		tenantID.Value(), value,
 	)
 	return err
 }
@@ -94,35 +98,10 @@ const fitScoreSelectColumns = `id, component_id, component_name, pillar_id, pill
 score, score_label, rationale, scored_at, scored_by, updated_at`
 
 func (rm *ApplicationFitScoreReadModel) GetByID(ctx context.Context, id string) (*ApplicationFitScoreDTO, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var dto ApplicationFitScoreDTO
-	var notFound bool
-
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := "SELECT " + fitScoreSelectColumns + " FROM capabilitymapping.application_fit_scores WHERE tenant_id = $1 AND id = $2"
-		row := tx.QueryRowContext(ctx, query, tenantID.Value(), id)
-
-		var scanErr error
-		dto, scanErr = rm.scanFitScoreRow(row)
-		if scanErr == sql.ErrNoRows {
-			notFound = true
-			return nil
-		}
-		return scanErr
-	})
-
-	if err != nil {
-		return nil, err
-	}
-	if notFound {
-		return nil, nil
-	}
-
-	return &dto, nil
+	return rm.querySingleFitScore(ctx,
+		"SELECT "+fitScoreSelectColumns+" FROM capabilitymapping.application_fit_scores WHERE tenant_id = $1 AND id = $2",
+		id,
+	)
 }
 
 func (rm *ApplicationFitScoreReadModel) GetByComponentID(ctx context.Context, componentID string) ([]ApplicationFitScoreDTO, error) {
@@ -131,35 +110,45 @@ func (rm *ApplicationFitScoreReadModel) GetByComponentID(ctx context.Context, co
 }
 
 func (rm *ApplicationFitScoreReadModel) GetByComponentAndPillar(ctx context.Context, componentID, pillarID string) (*ApplicationFitScoreDTO, error) {
+	return rm.querySingleFitScore(ctx,
+		"SELECT "+fitScoreSelectColumns+" FROM capabilitymapping.application_fit_scores WHERE tenant_id = $1 AND component_id = $2 AND pillar_id = $3",
+		componentID, pillarID,
+	)
+}
+
+func (rm *ApplicationFitScoreReadModel) buildTenantArgs(ctx context.Context, params ...string) ([]any, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, err
 	}
+	args := make([]any, 0, len(params)+1)
+	args = append(args, tenantID.Value())
+	for _, p := range params {
+		args = append(args, p)
+	}
+	return args, nil
+}
 
-	var dto ApplicationFitScoreDTO
-	var notFound bool
-
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := "SELECT " + fitScoreSelectColumns + " FROM capabilitymapping.application_fit_scores WHERE tenant_id = $1 AND component_id = $2 AND pillar_id = $3"
-		row := tx.QueryRowContext(ctx, query, tenantID.Value(), componentID, pillarID)
-
-		var scanErr error
-		dto, scanErr = rm.scanFitScoreRow(row)
-		if scanErr == sql.ErrNoRows {
-			notFound = true
-			return nil
-		}
-		return scanErr
-	})
-
+func (rm *ApplicationFitScoreReadModel) querySingleFitScore(ctx context.Context, query string, params ...string) (*ApplicationFitScoreDTO, error) {
+	args, err := rm.buildTenantArgs(ctx, params...)
 	if err != nil {
 		return nil, err
 	}
-	if notFound {
-		return nil, nil
-	}
 
-	return &dto, nil
+	var result *ApplicationFitScoreDTO
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		dto, scanErr := rm.scanFitScoreRow(tx.QueryRowContext(ctx, query, args...))
+		if scanErr == sql.ErrNoRows {
+			return nil
+		}
+		if scanErr != nil {
+			return scanErr
+		}
+		result = &dto
+		return nil
+	})
+
+	return result, err
 }
 
 func (rm *ApplicationFitScoreReadModel) Exists(ctx context.Context, componentID, pillarID string) (bool, error) {
@@ -189,15 +178,9 @@ func (rm *ApplicationFitScoreReadModel) GetByPillarID(ctx context.Context, pilla
 }
 
 func (rm *ApplicationFitScoreReadModel) queryFitScoreList(ctx context.Context, query string, params ...string) ([]ApplicationFitScoreDTO, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
+	args, err := rm.buildTenantArgs(ctx, params...)
 	if err != nil {
 		return nil, err
-	}
-
-	args := make([]any, 0, len(params)+1)
-	args = append(args, tenantID.Value())
-	for _, p := range params {
-		args = append(args, p)
 	}
 
 	var results []ApplicationFitScoreDTO

@@ -128,6 +128,46 @@ func TestBusinessDomainReadModel_Insert(t *testing.T) {
 	assert.WithinDuration(t, now, createdAt, time.Second)
 }
 
+func TestBusinessDomainReadModel_Insert_IdempotentReplay(t *testing.T) {
+	f := newBusinessDomainTestFixture(t)
+	domainID := f.uniqueID("bd-replay")
+	now := time.Now().UTC()
+	dto := BusinessDomainDTO{
+		ID:          domainID,
+		Name:        "Finance-" + domainID,
+		Description: "Financial operations and planning",
+		CreatedAt:   now,
+	}
+
+	err := f.readModel.Insert(f.ctx, dto)
+	require.NoError(t, err)
+	t.Cleanup(func() { f.db.Exec("DELETE FROM business_domains WHERE id = $1", domainID) })
+
+	err = f.readModel.Insert(f.ctx, dto)
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, f.queryRowCount(domainID))
+}
+
+func TestBusinessDomainReadModel_Insert_ReplayConvergence(t *testing.T) {
+	f := newBusinessDomainTestFixture(t)
+	domainID := f.uniqueID("bd-converge")
+	dto := BusinessDomainDTO{
+		ID:          domainID,
+		Name:        "Original Name",
+		Description: "Original description",
+		CreatedAt:   time.Now().UTC(),
+	}
+
+	require.NoError(t, f.readModel.Insert(f.ctx, dto))
+	t.Cleanup(func() { f.db.Exec("DELETE FROM business_domains WHERE id = $1", domainID) })
+
+	dto.Name = "Updated Name"
+	require.NoError(t, f.readModel.Insert(f.ctx, dto))
+
+	assert.Equal(t, "Updated Name", f.queryName(domainID))
+}
+
 func TestBusinessDomainReadModel_Update(t *testing.T) {
 	f := newBusinessDomainTestFixture(t)
 	domainID := f.uniqueID("bd-test")

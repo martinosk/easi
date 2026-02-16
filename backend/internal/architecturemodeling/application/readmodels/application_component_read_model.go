@@ -57,7 +57,17 @@ func (rm *ApplicationComponentReadModel) Insert(ctx context.Context, dto Applica
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO architecturemodeling.application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
+		"DELETE FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
+		tenantID.Value(), dto.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`INSERT INTO architecturemodeling.application_components
+		(id, tenant_id, name, description, created_at)
+		VALUES ($1, $2, $3, $4, $5)`,
 		dto.ID, tenantID.Value(), dto.Name, dto.Description, dto.CreatedAt,
 	)
 	return err
@@ -242,6 +252,14 @@ func (rm *ApplicationComponentReadModel) trimAndCheckMore(components []Applicati
 
 func (rm *ApplicationComponentReadModel) AddExpert(ctx context.Context, info ExpertInfo) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"DELETE FROM architecturemodeling.application_component_experts WHERE tenant_id = $1 AND component_id = $2 AND expert_name = $3 AND expert_role = $4",
+		tenantID.Value(), info.ComponentID, info.Name, info.Role,
+	)
 	if err != nil {
 		return err
 	}

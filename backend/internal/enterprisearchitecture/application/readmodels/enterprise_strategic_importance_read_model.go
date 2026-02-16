@@ -38,7 +38,16 @@ func (rm *EnterpriseStrategicImportanceReadModel) Insert(ctx context.Context, dt
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO enterprisearchitecture.enterprise_strategic_importance (id, tenant_id, enterprise_capability_id, pillar_id, pillar_name, importance, rationale, set_at)
+		"DELETE FROM enterprisearchitecture.enterprise_strategic_importance WHERE tenant_id = $1 AND id = $2",
+		tenantID.Value(), dto.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`INSERT INTO enterprisearchitecture.enterprise_strategic_importance
+		 (id, tenant_id, enterprise_capability_id, pillar_id, pillar_name, importance, rationale, set_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		dto.ID, tenantID.Value(), dto.EnterpriseCapabilityID, dto.PillarID, dto.PillarName, dto.Importance, dto.Rationale, dto.SetAt,
 	)

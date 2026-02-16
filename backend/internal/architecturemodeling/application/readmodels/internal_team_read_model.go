@@ -36,13 +36,31 @@ func (rm *InternalTeamReadModel) Insert(ctx context.Context, dto InternalTeamDTO
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO architecturemodeling.internal_teams (id, tenant_id, name, department, contact_person, notes, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		"DELETE FROM architecturemodeling.internal_teams WHERE tenant_id = $1 AND id = $2",
+		tenantID.Value(), dto.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`INSERT INTO architecturemodeling.internal_teams
+		(id, tenant_id, name, department, contact_person, notes, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		dto.ID, tenantID.Value(), dto.Name, dto.Department, dto.ContactPerson, dto.Notes, dto.CreatedAt,
 	)
 	return err
 }
 
-func (rm *InternalTeamReadModel) Update(ctx context.Context, id, name, department, contactPerson, notes string) error {
+type InternalTeamUpdate struct {
+	ID            string
+	Name          string
+	Department    string
+	ContactPerson string
+	Notes         string
+}
+
+func (rm *InternalTeamReadModel) Update(ctx context.Context, update InternalTeamUpdate) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -50,7 +68,7 @@ func (rm *InternalTeamReadModel) Update(ctx context.Context, id, name, departmen
 
 	_, err = rm.db.ExecContext(ctx,
 		"UPDATE architecturemodeling.internal_teams SET name = $1, department = $2, contact_person = $3, notes = $4, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $5 AND id = $6",
-		name, department, contactPerson, notes, tenantID.Value(), id,
+		update.Name, update.Department, update.ContactPerson, update.Notes, tenantID.Value(), update.ID,
 	)
 	return err
 }
@@ -139,22 +157,10 @@ func (rm *InternalTeamReadModel) GetAllPaginated(ctx context.Context, limit int,
 
 	queryLimit := limit + 1
 	teams := make([]InternalTeamDTO, 0)
+	query, args := internalTeamPageQuery(tenantID.Value(), queryLimit, afterCursor, afterName)
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		var rows *sql.Rows
-		var err error
-
-		if afterCursor == "" {
-			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, department, contact_person, notes, created_at, updated_at FROM architecturemodeling.internal_teams WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
-				tenantID.Value(), queryLimit,
-			)
-		} else {
-			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, department, contact_person, notes, created_at, updated_at FROM architecturemodeling.internal_teams WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
-				tenantID.Value(), afterName, afterCursor, queryLimit,
-			)
-		}
+		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
 			return err
 		}
@@ -181,4 +187,15 @@ func (rm *InternalTeamReadModel) GetAllPaginated(ctx context.Context, limit int,
 	}
 
 	return teams, hasMore, nil
+}
+
+func internalTeamPageQuery(tenantID string, queryLimit int, afterCursor, afterName string) (string, []any) {
+	const selectCols = "id, name, department, contact_person, notes, created_at, updated_at"
+	const base = "SELECT " + selectCols + " FROM architecturemodeling.internal_teams WHERE tenant_id = $1 AND is_deleted = FALSE"
+	const order = " ORDER BY LOWER(name) ASC, id ASC"
+	if afterCursor == "" {
+		return base + order + " LIMIT $2", []any{tenantID, queryLimit}
+	}
+	return base + " AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3))" + order + " LIMIT $4",
+		[]any{tenantID, afterName, afterCursor, queryLimit}
 }

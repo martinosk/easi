@@ -108,7 +108,9 @@ func (p *CapabilityProjector) handleCapabilityUpdated(ctx context.Context, event
 		return fmt.Errorf("capability %s not found after update in capability projector", event.ID)
 	}
 
-	if err := p.assignmentReadModel.UpdateCapabilityInfo(ctx, event.ID, capability.Name, capability.Description, capability.Level); err != nil {
+	if err := p.assignmentReadModel.UpdateCapabilityInfo(ctx, readmodels.CapabilityInfoUpdate{
+		CapabilityID: event.ID, Name: capability.Name, Description: capability.Description, Level: capability.Level,
+	}); err != nil {
 		log.Printf("Failed to update assignments for capability %s: %v", event.ID, err)
 		return err
 	}

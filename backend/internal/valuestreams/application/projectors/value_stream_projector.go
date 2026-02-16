@@ -8,7 +8,6 @@ import (
 	"easi/backend/internal/valuestreams/application/readmodels"
 	"easi/backend/internal/valuestreams/domain/events"
 	"easi/backend/internal/valuestreams/publishedlanguage"
-	sharedctx "easi/backend/internal/shared/context"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
@@ -155,11 +154,7 @@ func (p *ValueStreamProjector) handleStageCapabilityChange(ctx context.Context, 
 	if err != nil {
 		return err
 	}
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
 	return action(ctx, readmodels.StageCapabilityRef{
-		TenantID: tenantID.Value(), StageID: fields.StageID, CapabilityID: fields.CapabilityID, CapabilityName: fields.CapabilityName,
+		StageID: fields.StageID, CapabilityID: fields.CapabilityID, CapabilityName: fields.CapabilityName,
 	})
 }

@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"time"
 
-	"strings"
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
+	"strings"
 
 	"github.com/lib/pq"
 )
@@ -63,6 +63,7 @@ func (rm *RealizationReadModel) GetInheritedCapabilityIDsBySourceRealizationID(c
 
 	return ids, nil
 }
+
 type RealizationReadModel struct {
 	db *database.TenantAwareDB
 }
@@ -72,7 +73,24 @@ func NewRealizationReadModel(db *database.TenantAwareDB) *RealizationReadModel {
 }
 
 func (rm *RealizationReadModel) Insert(ctx context.Context, dto RealizationDTO) error {
-	return rm.insertRealization(ctx, dto, "INSERT INTO capabilitymapping.capability_realizations (id, tenant_id, capability_id, component_id, realization_level, notes, origin, source_realization_id, source_capability_id, linked_at, component_name, source_capability_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)", true)
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		"DELETE FROM capabilitymapping.capability_realizations WHERE tenant_id = $1 AND id = $2",
+		tenantID.Value(), dto.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	return rm.insertRealization(ctx, dto, `INSERT INTO capabilitymapping.capability_realizations
+		(id, tenant_id, capability_id, component_id, realization_level, notes,
+		origin, source_realization_id, source_capability_id, linked_at,
+		component_name, source_capability_name)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`, true)
 }
 
 type RealizationUpdate struct {

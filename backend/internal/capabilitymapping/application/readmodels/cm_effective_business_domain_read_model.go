@@ -30,13 +30,17 @@ func (rm *CMEffectiveBusinessDomainReadModel) Upsert(ctx context.Context, dto CM
 	}
 
 	_, err = rm.db.ExecContext(ctx,
+		"DELETE FROM capabilitymapping.cm_effective_business_domain WHERE tenant_id = $1 AND capability_id = $2",
+		tenantID.Value(), dto.CapabilityID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
 		`INSERT INTO capabilitymapping.cm_effective_business_domain
 		 (tenant_id, capability_id, business_domain_id, business_domain_name, l1_capability_id)
-		 VALUES ($1, $2, $3, $4, $5)
-		 ON CONFLICT (tenant_id, capability_id) DO UPDATE SET
-		 business_domain_id = EXCLUDED.business_domain_id,
-		 business_domain_name = EXCLUDED.business_domain_name,
-		 l1_capability_id = EXCLUDED.l1_capability_id`,
+		 VALUES ($1, $2, $3, $4, $5)`,
 		tenantID.Value(), dto.CapabilityID,
 		cmNullIfEmpty(dto.BusinessDomainID), cmNullIfEmpty(dto.BusinessDomainName),
 		dto.L1CapabilityID,

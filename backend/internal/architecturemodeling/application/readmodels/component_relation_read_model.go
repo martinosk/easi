@@ -41,7 +41,17 @@ func (rm *ComponentRelationReadModel) Insert(ctx context.Context, dto ComponentR
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO architecturemodeling.component_relations (id, tenant_id, source_component_id, target_component_id, relation_type, name, description, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		"DELETE FROM architecturemodeling.component_relations WHERE tenant_id = $1 AND id = $2",
+		tenantID.Value(), dto.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`INSERT INTO architecturemodeling.component_relations
+		(id, tenant_id, source_component_id, target_component_id, relation_type, name, description, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		dto.ID, tenantID.Value(), dto.SourceComponentID, dto.TargetComponentID, dto.RelationType, dto.Name, dto.Description, dto.CreatedAt,
 	)
 	return err

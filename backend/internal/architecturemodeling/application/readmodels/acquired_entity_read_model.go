@@ -36,13 +36,31 @@ func (rm *AcquiredEntityReadModel) Insert(ctx context.Context, dto AcquiredEntit
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO architecturemodeling.acquired_entities (id, tenant_id, name, acquisition_date, integration_status, notes, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		"DELETE FROM architecturemodeling.acquired_entities WHERE tenant_id = $1 AND id = $2",
+		tenantID.Value(), dto.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`INSERT INTO architecturemodeling.acquired_entities
+		(id, tenant_id, name, acquisition_date, integration_status, notes, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		dto.ID, tenantID.Value(), dto.Name, dto.AcquisitionDate, dto.IntegrationStatus, dto.Notes, dto.CreatedAt,
 	)
 	return err
 }
 
-func (rm *AcquiredEntityReadModel) Update(ctx context.Context, id, name string, acquisitionDate *time.Time, integrationStatus, notes string) error {
+type AcquiredEntityUpdate struct {
+	ID                string
+	Name              string
+	AcquisitionDate   *time.Time
+	IntegrationStatus string
+	Notes             string
+}
+
+func (rm *AcquiredEntityReadModel) Update(ctx context.Context, update AcquiredEntityUpdate) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -50,7 +68,7 @@ func (rm *AcquiredEntityReadModel) Update(ctx context.Context, id, name string, 
 
 	_, err = rm.db.ExecContext(ctx,
 		"UPDATE architecturemodeling.acquired_entities SET name = $1, acquisition_date = $2, integration_status = $3, notes = $4, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $5 AND id = $6",
-		name, acquisitionDate, integrationStatus, notes, tenantID.Value(), id,
+		update.Name, update.AcquisitionDate, update.IntegrationStatus, update.Notes, tenantID.Value(), update.ID,
 	)
 	return err
 }
@@ -139,22 +157,10 @@ func (rm *AcquiredEntityReadModel) GetAllPaginated(ctx context.Context, limit in
 
 	queryLimit := limit + 1
 	entities := make([]AcquiredEntityDTO, 0)
+	query, args := acquiredEntityPageQuery(tenantID.Value(), queryLimit, afterCursor, afterName)
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		var rows *sql.Rows
-		var err error
-
-		if afterCursor == "" {
-			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, acquisition_date, integration_status, notes, created_at, updated_at FROM architecturemodeling.acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",
-				tenantID.Value(), queryLimit,
-			)
-		} else {
-			rows, err = tx.QueryContext(ctx,
-				"SELECT id, name, acquisition_date, integration_status, notes, created_at, updated_at FROM architecturemodeling.acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3)) ORDER BY LOWER(name) ASC, id ASC LIMIT $4",
-				tenantID.Value(), afterName, afterCursor, queryLimit,
-			)
-		}
+		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
 			return err
 		}
@@ -181,4 +187,15 @@ func (rm *AcquiredEntityReadModel) GetAllPaginated(ctx context.Context, limit in
 	}
 
 	return entities, hasMore, nil
+}
+
+func acquiredEntityPageQuery(tenantID string, queryLimit int, afterCursor, afterName string) (string, []any) {
+	const selectCols = "id, name, acquisition_date, integration_status, notes, created_at, updated_at"
+	const base = "SELECT " + selectCols + " FROM architecturemodeling.acquired_entities WHERE tenant_id = $1 AND is_deleted = FALSE"
+	const order = " ORDER BY LOWER(name) ASC, id ASC"
+	if afterCursor == "" {
+		return base + order + " LIMIT $2", []any{tenantID, queryLimit}
+	}
+	return base + " AND (LOWER(name) > LOWER($2) OR (LOWER(name) = LOWER($2) AND id > $3))" + order + " LIMIT $4",
+		[]any{tenantID, afterName, afterCursor, queryLimit}
 }

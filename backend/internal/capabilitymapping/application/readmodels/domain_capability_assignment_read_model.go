@@ -37,7 +37,18 @@ func (rm *DomainCapabilityAssignmentReadModel) Insert(ctx context.Context, dto A
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO capabilitymapping.domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_description, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+		"DELETE FROM capabilitymapping.domain_capability_assignments WHERE tenant_id = $1 AND assignment_id = $2",
+		tenantID.Value(), dto.AssignmentID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`INSERT INTO capabilitymapping.domain_capability_assignments
+		(assignment_id, tenant_id, business_domain_id, business_domain_name,
+		capability_id, capability_name, capability_description, capability_level, assigned_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		dto.AssignmentID, tenantID.Value(), dto.BusinessDomainID, dto.BusinessDomainName, dto.CapabilityID, dto.CapabilityName, dto.CapabilityDescription, dto.CapabilityLevel, dto.AssignedAt,
 	)
 	return err
@@ -56,7 +67,14 @@ func (rm *DomainCapabilityAssignmentReadModel) Delete(ctx context.Context, assig
 	return err
 }
 
-func (rm *DomainCapabilityAssignmentReadModel) UpdateCapabilityInfo(ctx context.Context, capabilityID, name, description, level string) error {
+type CapabilityInfoUpdate struct {
+	CapabilityID string
+	Name         string
+	Description  string
+	Level        string
+}
+
+func (rm *DomainCapabilityAssignmentReadModel) UpdateCapabilityInfo(ctx context.Context, update CapabilityInfoUpdate) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -64,7 +82,7 @@ func (rm *DomainCapabilityAssignmentReadModel) UpdateCapabilityInfo(ctx context.
 
 	_, err = rm.db.ExecContext(ctx,
 		"UPDATE capabilitymapping.domain_capability_assignments SET capability_name = $1, capability_description = $2, capability_level = $3 WHERE tenant_id = $4 AND capability_id = $5",
-		name, description, level, tenantID.Value(), capabilityID,
+		update.Name, update.Description, update.Level, tenantID.Value(), update.CapabilityID,
 	)
 	return err
 }

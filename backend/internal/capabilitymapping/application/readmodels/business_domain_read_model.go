@@ -56,7 +56,17 @@ func (rm *BusinessDomainReadModel) Insert(ctx context.Context, dto BusinessDomai
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO capabilitymapping.business_domains (id, tenant_id, name, description, domain_architect_id, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		"DELETE FROM capabilitymapping.business_domains WHERE tenant_id = $1 AND id = $2",
+		tenantID.Value(), dto.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`INSERT INTO capabilitymapping.business_domains
+		(id, tenant_id, name, description, domain_architect_id, capability_count, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		dto.ID, tenantID.Value(), dto.Name, dto.Description, domainArchitectID, 0, dto.CreatedAt,
 	)
 	return err

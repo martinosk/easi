@@ -74,6 +74,15 @@ func NewCapabilityReadModel(db *database.TenantAwareDB) *CapabilityReadModel {
 	return &CapabilityReadModel{db: db}
 }
 
+func (rm *CapabilityReadModel) execWithTenant(ctx context.Context, query string, buildArgs func(tid string) []any) error {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = rm.db.ExecContext(ctx, query, buildArgs(tenantID.Value())...)
+	return err
+}
+
 func (rm *CapabilityReadModel) Insert(ctx context.Context, dto CapabilityDTO) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
@@ -86,23 +95,29 @@ func (rm *CapabilityReadModel) Insert(ctx context.Context, dto CapabilityDTO) er
 	}
 
 	_, err = rm.db.ExecContext(ctx,
-		"INSERT INTO capabilitymapping.capabilities (id, tenant_id, name, description, parent_id, level, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+		"DELETE FROM capabilitymapping.capabilities WHERE tenant_id = $1 AND id = $2",
+		tenantID.Value(), dto.ID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rm.db.ExecContext(ctx,
+		`INSERT INTO capabilitymapping.capabilities
+		(id, tenant_id, name, description, parent_id, level, maturity_level, status, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		dto.ID, tenantID.Value(), dto.Name, dto.Description, parentIDValue, dto.Level, "Initial", "Active", dto.CreatedAt,
 	)
 	return err
 }
 
 func (rm *CapabilityReadModel) UpdateMetadata(ctx context.Context, id string, metadata CapabilityMetadataUpdate) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
+	return rm.execWithTenant(ctx,
 		"UPDATE capabilitymapping.capabilities SET maturity_value = $1, ownership_model = $2, primary_owner = $3, ea_owner = $4, status = $5, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $6 AND id = $7",
-		metadata.MaturityValue, metadata.OwnershipModel, metadata.PrimaryOwner, metadata.EAOwner, metadata.Status, tenantID.Value(), id,
+		func(tid string) []any {
+			return []any{metadata.MaturityValue, metadata.OwnershipModel, metadata.PrimaryOwner, metadata.EAOwner, metadata.Status, tid, id}
+		},
 	)
-	return err
 }
 
 type ExpertInfo struct {
@@ -114,29 +129,17 @@ type ExpertInfo struct {
 }
 
 func (rm *CapabilityReadModel) AddExpert(ctx context.Context, info ExpertInfo) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
+	return rm.execWithTenant(ctx,
 		"INSERT INTO capabilitymapping.capability_experts (capability_id, tenant_id, expert_name, expert_role, contact_info, added_at) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (tenant_id, capability_id, expert_name) DO NOTHING",
-		info.CapabilityID, tenantID.Value(), info.Name, info.Role, info.Contact, info.AddedAt,
+		func(tid string) []any { return []any{info.CapabilityID, tid, info.Name, info.Role, info.Contact, info.AddedAt} },
 	)
-	return err
 }
 
 func (rm *CapabilityReadModel) RemoveExpert(ctx context.Context, info ExpertInfo) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
+	return rm.execWithTenant(ctx,
 		"DELETE FROM capabilitymapping.capability_experts WHERE tenant_id = $1 AND capability_id = $2 AND expert_name = $3 AND expert_role = $4 AND contact_info = $5",
-		tenantID.Value(), info.CapabilityID, info.Name, info.Role, info.Contact,
+		func(tid string) []any { return []any{tid, info.CapabilityID, info.Name, info.Role, info.Contact} },
 	)
-	return err
 }
 
 func (rm *CapabilityReadModel) GetDistinctExpertRoles(ctx context.Context) ([]string, error) {
@@ -175,16 +178,10 @@ type TagInfo struct {
 }
 
 func (rm *CapabilityReadModel) AddTag(ctx context.Context, info TagInfo) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
+	return rm.execWithTenant(ctx,
 		"INSERT INTO capabilitymapping.capability_tags (capability_id, tenant_id, tag, added_at) VALUES ($1, $2, $3, $4) ON CONFLICT (tenant_id, capability_id, tag) DO NOTHING",
-		info.CapabilityID, tenantID.Value(), info.Tag, info.AddedAt,
+		func(tid string) []any { return []any{info.CapabilityID, tid, info.Tag, info.AddedAt} },
 	)
-	return err
 }
 
 type CapabilityUpdate struct {
@@ -194,16 +191,10 @@ type CapabilityUpdate struct {
 }
 
 func (rm *CapabilityReadModel) Update(ctx context.Context, update CapabilityUpdate) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
+	return rm.execWithTenant(ctx,
 		"UPDATE capabilitymapping.capabilities SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
-		update.Name, update.Description, tenantID.Value(), update.ID,
+		func(tid string) []any { return []any{update.Name, update.Description, tid, update.ID} },
 	)
-	return err
 }
 
 type ParentUpdate struct {
@@ -231,16 +222,10 @@ func (rm *CapabilityReadModel) UpdateParent(ctx context.Context, update ParentUp
 }
 
 func (rm *CapabilityReadModel) UpdateLevel(ctx context.Context, id string, level string) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
+	return rm.execWithTenant(ctx,
 		"UPDATE capabilitymapping.capabilities SET level = $1, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $2 AND id = $3",
-		level, tenantID.Value(), id,
+		func(tid string) []any { return []any{level, tid, id} },
 	)
-	return err
 }
 
 func (rm *CapabilityReadModel) Delete(ctx context.Context, id string) error {

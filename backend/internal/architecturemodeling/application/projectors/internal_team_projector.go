@@ -62,7 +62,10 @@ func (p *InternalTeamProjector) projectUpdated(ctx context.Context, eventData []
 	if err != nil {
 		return err
 	}
-	return p.readModel.Update(ctx, event.ID, event.Name, event.Department, event.ContactPerson, event.Notes)
+	return p.readModel.Update(ctx, readmodels.InternalTeamUpdate{
+		ID: event.ID, Name: event.Name, Department: event.Department,
+		ContactPerson: event.ContactPerson, Notes: event.Notes,
+	})
 }
 
 func (p *InternalTeamProjector) projectDeleted(ctx context.Context, eventData []byte) error {
