@@ -3,13 +3,13 @@ package readmodels
 import (
 	"context"
 	"database/sql"
-	"fmt"
-	"strings"
 	"time"
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
+
+	"github.com/lib/pq"
 )
 
 type EnterpriseCapabilityLinkDTO struct {
@@ -33,15 +33,8 @@ func NewEnterpriseCapabilityLinkReadModel(db *database.TenantAwareDB) *Enterpris
 	return &EnterpriseCapabilityLinkReadModel{db: db}
 }
 
-func buildInClauseArgs(tenantID any, ids []string) (placeholders string, args []any) {
-	placeholderList := make([]string, len(ids))
-	args = make([]any, len(ids)+1)
-	args[0] = tenantID
-	for i, id := range ids {
-		placeholderList[i] = fmt.Sprintf("$%d", i+2)
-		args[i+1] = id
-	}
-	return strings.Join(placeholderList, ", "), args
+func buildAnyClauseArgs(tenantID any, ids []string) []any {
+	return []any{tenantID, pq.Array(ids)}
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) execByID(ctx context.Context, query string, id string) error {
@@ -349,14 +342,14 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetBatchLinkStatus(ctx context.Cont
 		return nil, err
 	}
 
-	inClause, args := buildInClauseArgs(tenantID.Value(), domainCapabilityIDs)
+	args := buildAnyClauseArgs(tenantID.Value(), domainCapabilityIDs)
 	statusMap := initializeStatusMap(domainCapabilityIDs)
 
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		if err := rm.populateLinkedStatus(ctx, tx, inClause, args, statusMap); err != nil {
+		if err := rm.populateLinkedStatus(ctx, tx, args, statusMap); err != nil {
 			return err
 		}
-		return rm.populateBlockingStatus(ctx, tx, inClause, args, statusMap)
+		return rm.populateBlockingStatus(ctx, tx, args, statusMap)
 	})
 
 	if err != nil {
@@ -376,12 +369,12 @@ func initializeStatusMap(ids []string) map[string]*CapabilityLinkStatusDTO {
 	return statusMap
 }
 
-func (rm *EnterpriseCapabilityLinkReadModel) populateLinkedStatus(ctx context.Context, tx *sql.Tx, inClause string, args []any, statusMap map[string]*CapabilityLinkStatusDTO) error {
-	query := fmt.Sprintf(`
+func (rm *EnterpriseCapabilityLinkReadModel) populateLinkedStatus(ctx context.Context, tx *sql.Tx, args []any, statusMap map[string]*CapabilityLinkStatusDTO) error {
+	query := `
 		SELECT ecl.domain_capability_id, ecl.enterprise_capability_id, ec.name
 		FROM enterprisearchitecture.enterprise_capability_links ecl
 		JOIN enterprisearchitecture.enterprise_capabilities ec ON ec.id = ecl.enterprise_capability_id AND ec.tenant_id = $1
-		WHERE ecl.tenant_id = $1 AND ecl.domain_capability_id IN (%s)`, inClause)
+		WHERE ecl.tenant_id = $1 AND ecl.domain_capability_id = ANY($2)`
 
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -402,12 +395,12 @@ func (rm *EnterpriseCapabilityLinkReadModel) populateLinkedStatus(ctx context.Co
 	return rows.Err()
 }
 
-func (rm *EnterpriseCapabilityLinkReadModel) populateBlockingStatus(ctx context.Context, tx *sql.Tx, inClause string, args []any, statusMap map[string]*CapabilityLinkStatusDTO) error {
-	query := fmt.Sprintf(`
+func (rm *EnterpriseCapabilityLinkReadModel) populateBlockingStatus(ctx context.Context, tx *sql.Tx, args []any, statusMap map[string]*CapabilityLinkStatusDTO) error {
+	query := `
 		SELECT domain_capability_id, blocked_by_capability_id, blocked_by_capability_name,
 		       is_ancestor, blocked_by_enterprise_id, blocked_by_enterprise_name
 		FROM enterprisearchitecture.capability_link_blocking
-		WHERE tenant_id = $1 AND domain_capability_id IN (%s)`, inClause)
+		WHERE tenant_id = $1 AND domain_capability_id = ANY($2)`
 
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -495,8 +488,8 @@ func (rm *EnterpriseCapabilityLinkReadModel) DeleteBlockingForCapabilities(ctx c
 		return err
 	}
 
-	inClause, args := buildInClauseArgs(tenantID.Value(), capabilityIDs)
-	query := fmt.Sprintf(`DELETE FROM enterprisearchitecture.capability_link_blocking WHERE tenant_id = $1 AND blocked_by_capability_id IN (%s)`, inClause)
+	args := buildAnyClauseArgs(tenantID.Value(), capabilityIDs)
+	query := `DELETE FROM enterprisearchitecture.capability_link_blocking WHERE tenant_id = $1 AND blocked_by_capability_id = ANY($2)`
 	_, err = rm.db.ExecContext(ctx, query, args...)
 	return err
 }
@@ -622,13 +615,13 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetLinksForCapabilities(ctx context
 		return nil, err
 	}
 
-	inClause, args := buildInClauseArgs(tenantID.Value(), capabilityIDs)
+	args := buildAnyClauseArgs(tenantID.Value(), capabilityIDs)
 
 	var links []EnterpriseCapabilityLinkDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := fmt.Sprintf(`SELECT id, enterprise_capability_id, domain_capability_id, linked_by, linked_at
+		query := `SELECT id, enterprise_capability_id, domain_capability_id, linked_by, linked_at
 				  FROM enterprisearchitecture.enterprise_capability_links
-				  WHERE tenant_id = $1 AND domain_capability_id IN (%s)`, inClause)
+				  WHERE tenant_id = $1 AND domain_capability_id = ANY($2)`
 
 		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {

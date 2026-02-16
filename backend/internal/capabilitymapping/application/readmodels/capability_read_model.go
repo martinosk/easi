@@ -3,13 +3,13 @@ package readmodels
 import (
 	"context"
 	"database/sql"
-	"fmt"
-	"strings"
 	"time"
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
+
+	"github.com/lib/pq"
 )
 
 type MaturitySectionDTO struct {
@@ -131,7 +131,9 @@ type ExpertInfo struct {
 func (rm *CapabilityReadModel) AddExpert(ctx context.Context, info ExpertInfo) error {
 	return rm.execWithTenant(ctx,
 		"INSERT INTO capabilitymapping.capability_experts (capability_id, tenant_id, expert_name, expert_role, contact_info, added_at) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (tenant_id, capability_id, expert_name) DO NOTHING",
-		func(tid string) []any { return []any{info.CapabilityID, tid, info.Name, info.Role, info.Contact, info.AddedAt} },
+		func(tid string) []any {
+			return []any{info.CapabilityID, tid, info.Name, info.Role, info.Contact, info.AddedAt}
+		},
 	)
 }
 
@@ -467,19 +469,9 @@ func buildCapabilityMap(capabilities []CapabilityDTO) map[string]*CapabilityDTO 
 	return capabilityMap
 }
 
-func buildInClause(ids []string) (placeholders string, args []any) {
-	args = make([]any, len(ids))
-	ph := make([]string, len(ids))
-	for i, id := range ids {
-		ph[i] = fmt.Sprintf("$%d", i+2)
-		args[i] = id
-	}
-	return strings.Join(ph, ", "), args
-}
-
 type batchRowProcessor func(rows *sql.Rows, capabilityMap map[string]*CapabilityDTO) error
 
-func (rm *CapabilityReadModel) fetchRelatedBatch(ctx context.Context, tx *sql.Tx, tenantID string, capabilityMap map[string]*CapabilityDTO, queryTemplate string, processor batchRowProcessor) error {
+func (rm *CapabilityReadModel) fetchRelatedBatch(ctx context.Context, tx *sql.Tx, tenantID string, capabilityMap map[string]*CapabilityDTO, query string, processor batchRowProcessor) error {
 	if len(capabilityMap) == 0 {
 		return nil
 	}
@@ -489,10 +481,7 @@ func (rm *CapabilityReadModel) fetchRelatedBatch(ctx context.Context, tx *sql.Tx
 		ids = append(ids, id)
 	}
 
-	placeholders, idArgs := buildInClause(ids)
-	query := fmt.Sprintf(queryTemplate, placeholders)
-
-	rows, err := tx.QueryContext(ctx, query, append([]any{tenantID}, idArgs...)...)
+	rows, err := tx.QueryContext(ctx, query, tenantID, pq.Array(ids))
 	if err != nil {
 		return err
 	}
@@ -508,7 +497,7 @@ func (rm *CapabilityReadModel) fetchRelatedBatch(ctx context.Context, tx *sql.Tx
 
 func (rm *CapabilityReadModel) fetchExpertsBatch(ctx context.Context, tx *sql.Tx, tenantID string, capabilityMap map[string]*CapabilityDTO) error {
 	return rm.fetchRelatedBatch(ctx, tx, tenantID, capabilityMap,
-		"SELECT capability_id, expert_name, expert_role, contact_info, added_at FROM capabilitymapping.capability_experts WHERE tenant_id = $1 AND capability_id IN (%s)",
+		"SELECT capability_id, expert_name, expert_role, contact_info, added_at FROM capabilitymapping.capability_experts WHERE tenant_id = $1 AND capability_id = ANY($2)",
 		func(rows *sql.Rows, m map[string]*CapabilityDTO) error {
 			var capabilityID string
 			var expert ExpertDTO
@@ -524,7 +513,7 @@ func (rm *CapabilityReadModel) fetchExpertsBatch(ctx context.Context, tx *sql.Tx
 
 func (rm *CapabilityReadModel) fetchTagsBatch(ctx context.Context, tx *sql.Tx, tenantID string, capabilityMap map[string]*CapabilityDTO) error {
 	return rm.fetchRelatedBatch(ctx, tx, tenantID, capabilityMap,
-		"SELECT capability_id, tag FROM capabilitymapping.capability_tags WHERE tenant_id = $1 AND capability_id IN (%s) ORDER BY tag",
+		"SELECT capability_id, tag FROM capabilitymapping.capability_tags WHERE tenant_id = $1 AND capability_id = ANY($2) ORDER BY tag",
 		func(rows *sql.Rows, m map[string]*CapabilityDTO) error {
 			var capabilityID, tag string
 			if err := rows.Scan(&capabilityID, &tag); err != nil {

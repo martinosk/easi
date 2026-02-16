@@ -3,11 +3,11 @@ package readmodels
 import (
 	"context"
 	"database/sql"
-	"fmt"
-	"strings"
 
 	"easi/backend/internal/infrastructure/database"
 	sharedctx "easi/backend/internal/shared/context"
+
+	"github.com/lib/pq"
 )
 
 type DomainCapabilityMetadataDTO struct {
@@ -21,9 +21,9 @@ type DomainCapabilityMetadataDTO struct {
 }
 
 type ParentL1Update struct {
-	CapabilityID     string
-	NewParentID      string
-	NewLevel         string
+	CapabilityID      string
+	NewParentID       string
+	NewLevel          string
 	NewL1CapabilityID string
 }
 
@@ -279,21 +279,14 @@ func (rm *DomainCapabilityMetadataReadModel) GetEnterpriseCapabilitiesLinkedToCa
 		return nil, err
 	}
 
-	placeholders := make([]string, len(capabilityIDs))
-	args := make([]any, len(capabilityIDs)+1)
-	args[0] = tenantID.Value()
-	for i, id := range capabilityIDs {
-		placeholders[i] = fmt.Sprintf("$%d", i+2)
-		args[i+1] = id
-	}
+	args := []any{tenantID.Value(), pq.Array(capabilityIDs)}
 
 	var enterpriseCapabilityIDs []string
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := fmt.Sprintf(`
+		query := `
 			SELECT DISTINCT enterprise_capability_id
 			FROM enterprisearchitecture.enterprise_capability_links
-			WHERE tenant_id = $1 AND domain_capability_id IN (%s)`,
-			strings.Join(placeholders, ", "))
+			WHERE tenant_id = $1 AND domain_capability_id = ANY($2)`
 
 		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
