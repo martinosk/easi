@@ -45,8 +45,9 @@ func NewOriginRelationshipProjector(
 func (p *OriginRelationshipProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -74,17 +75,19 @@ func (p *OriginRelationshipProjector) projectOriginLinkReplaced(ctx context.Cont
 func unmarshalAndUpsert[T any](p *OriginRelationshipProjector, ctx context.Context, eventData []byte, name string, extract func(*T) upsertParams) error {
 	event, err := unmarshalEvent[T](eventData, name)
 	if err != nil {
-		return err
+		return fmt.Errorf("decode %s event payload in origin relationship projector: %w", name, err)
 	}
-	return p.upsertRelationship(ctx, extract(event))
+	params := extract(event)
+	if err := p.upsertRelationship(ctx, params); err != nil {
+		return fmt.Errorf("project %s for component %s origin type %s: %w", name, params.componentID, params.originType, err)
+	}
+	return nil
 }
 
 func (p *OriginRelationshipProjector) projectOriginLinkNotesUpdated(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.OriginLinkNotesUpdated](eventData, "OriginLinkNotesUpdated")
-	if err != nil {
-		return err
-	}
-	return p.updateNotes(ctx, event.OriginType, event.ComponentID, event.NewNotes)
+	return projectEvent(ctx, eventData, "OriginLinkNotesUpdated", func(ctx context.Context, event *events.OriginLinkNotesUpdated) error {
+		return p.updateNotes(ctx, event.OriginType, event.ComponentID, event.NewNotes)
+	})
 }
 
 type upsertParams struct {
@@ -125,19 +128,15 @@ func (p *OriginRelationshipProjector) updateNotes(ctx context.Context, originTyp
 }
 
 func (p *OriginRelationshipProjector) projectOriginLinkCleared(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.OriginLinkCleared](eventData, "OriginLinkCleared")
-	if err != nil {
-		return err
-	}
-	return p.deleteByComponentID(ctx, event.OriginType, event.ComponentID)
+	return projectEvent(ctx, eventData, "OriginLinkCleared", func(ctx context.Context, event *events.OriginLinkCleared) error {
+		return p.deleteByComponentID(ctx, event.OriginType, event.ComponentID)
+	})
 }
 
 func (p *OriginRelationshipProjector) projectOriginLinkDeleted(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.OriginLinkDeleted](eventData, "OriginLinkDeleted")
-	if err != nil {
-		return err
-	}
-	return p.deleteByComponentID(ctx, event.OriginType, event.ComponentID)
+	return projectEvent(ctx, eventData, "OriginLinkDeleted", func(ctx context.Context, event *events.OriginLinkDeleted) error {
+		return p.deleteByComponentID(ctx, event.OriginType, event.ComponentID)
+	})
 }
 
 func (p *OriginRelationshipProjector) deleteByComponentID(ctx context.Context, originType, componentID string) error {

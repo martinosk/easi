@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"easi/backend/internal/capabilitymapping/application/readmodels"
@@ -23,8 +24,9 @@ func NewBusinessDomainProjector(readModel *readmodels.BusinessDomainReadModel) *
 func (p *BusinessDomainProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -45,28 +47,24 @@ func (p *BusinessDomainProjector) ProjectEvent(ctx context.Context, eventType st
 }
 
 func (p *BusinessDomainProjector) handleBusinessDomainCreated(ctx context.Context, eventData []byte) error {
-	var event events.BusinessDomainCreated
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal BusinessDomainCreated event: %v", err)
-		return err
-	}
+	return handleProjection(ctx, eventData, p.projectBusinessDomainCreated)
+}
 
-	dto := readmodels.BusinessDomainDTO{
+func (p *BusinessDomainProjector) projectBusinessDomainCreated(ctx context.Context, event events.BusinessDomainCreated) error {
+	return p.readModel.Insert(ctx, readmodels.BusinessDomainDTO{
 		ID:                event.ID,
 		Name:              event.Name,
 		Description:       event.Description,
 		DomainArchitectID: event.DomainArchitectID,
 		CreatedAt:         event.CreatedAt,
-	}
-	return p.readModel.Insert(ctx, dto)
+	})
 }
 
 func (p *BusinessDomainProjector) handleBusinessDomainUpdated(ctx context.Context, eventData []byte) error {
-	var event events.BusinessDomainUpdated
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal BusinessDomainUpdated event: %v", err)
-		return err
-	}
+	return handleProjection(ctx, eventData, p.projectBusinessDomainUpdated)
+}
+
+func (p *BusinessDomainProjector) projectBusinessDomainUpdated(ctx context.Context, event events.BusinessDomainUpdated) error {
 	return p.readModel.Update(ctx, event.ID, readmodels.BusinessDomainUpdate{
 		Name:              event.Name,
 		Description:       event.Description,
@@ -75,28 +73,19 @@ func (p *BusinessDomainProjector) handleBusinessDomainUpdated(ctx context.Contex
 }
 
 func (p *BusinessDomainProjector) handleBusinessDomainDeleted(ctx context.Context, eventData []byte) error {
-	var event events.BusinessDomainDeleted
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal BusinessDomainDeleted event: %v", err)
-		return err
-	}
-	return p.readModel.Delete(ctx, event.ID)
+	return handleProjection(ctx, eventData, func(ctx context.Context, event events.BusinessDomainDeleted) error {
+		return p.readModel.Delete(ctx, event.ID)
+	})
 }
 
 func (p *BusinessDomainProjector) handleCapabilityAssignedToDomain(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityAssignedToDomain
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityAssignedToDomain event: %v", err)
-		return err
-	}
-	return p.readModel.IncrementCapabilityCount(ctx, event.BusinessDomainID)
+	return handleProjection(ctx, eventData, func(ctx context.Context, event events.CapabilityAssignedToDomain) error {
+		return p.readModel.IncrementCapabilityCount(ctx, event.BusinessDomainID)
+	})
 }
 
 func (p *BusinessDomainProjector) handleCapabilityUnassignedFromDomain(ctx context.Context, eventData []byte) error {
-	var event events.CapabilityUnassignedFromDomain
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityUnassignedFromDomain event: %v", err)
-		return err
-	}
-	return p.readModel.DecrementCapabilityCount(ctx, event.BusinessDomainID)
+	return handleProjection(ctx, eventData, func(ctx context.Context, event events.CapabilityUnassignedFromDomain) error {
+		return p.readModel.DecrementCapabilityCount(ctx, event.BusinessDomainID)
+	})
 }

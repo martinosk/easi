@@ -3,6 +3,7 @@ package readmodels
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"easi/backend/internal/infrastructure/database"
@@ -33,7 +34,7 @@ func NewDomainCapabilityAssignmentReadModel(db *database.TenantAwareDB) *DomainC
 func (rm *DomainCapabilityAssignmentReadModel) Insert(ctx context.Context, dto AssignmentDTO) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve tenant for insert domain capability assignment %s: %w", dto.AssignmentID, err)
 	}
 
 	_, err = rm.db.ExecContext(ctx,
@@ -41,7 +42,7 @@ func (rm *DomainCapabilityAssignmentReadModel) Insert(ctx context.Context, dto A
 		tenantID.Value(), dto.AssignmentID,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete existing domain capability assignment %s before insert: %w", dto.AssignmentID, err)
 	}
 
 	_, err = rm.db.ExecContext(ctx,
@@ -51,20 +52,26 @@ func (rm *DomainCapabilityAssignmentReadModel) Insert(ctx context.Context, dto A
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		dto.AssignmentID, tenantID.Value(), dto.BusinessDomainID, dto.BusinessDomainName, dto.CapabilityID, dto.CapabilityName, dto.CapabilityDescription, dto.CapabilityLevel, dto.AssignedAt,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("insert domain capability assignment %s for tenant %s: %w", dto.AssignmentID, tenantID.Value(), err)
+	}
+	return nil
 }
 
 func (rm *DomainCapabilityAssignmentReadModel) Delete(ctx context.Context, assignmentID string) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve tenant for delete domain capability assignment %s: %w", assignmentID, err)
 	}
 
 	_, err = rm.db.ExecContext(ctx,
 		"DELETE FROM capabilitymapping.domain_capability_assignments WHERE tenant_id = $1 AND assignment_id = $2",
 		tenantID.Value(), assignmentID,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("delete domain capability assignment %s for tenant %s: %w", assignmentID, tenantID.Value(), err)
+	}
+	return nil
 }
 
 type CapabilityInfoUpdate struct {
@@ -77,14 +84,17 @@ type CapabilityInfoUpdate struct {
 func (rm *DomainCapabilityAssignmentReadModel) UpdateCapabilityInfo(ctx context.Context, update CapabilityInfoUpdate) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve tenant for update assignment capability info %s: %w", update.CapabilityID, err)
 	}
 
 	_, err = rm.db.ExecContext(ctx,
 		"UPDATE capabilitymapping.domain_capability_assignments SET capability_name = $1, capability_description = $2, capability_level = $3 WHERE tenant_id = $4 AND capability_id = $5",
 		update.Name, update.Description, update.Level, tenantID.Value(), update.CapabilityID,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("update assignment capability info for capability %s tenant %s: %w", update.CapabilityID, tenantID.Value(), err)
+	}
+	return nil
 }
 
 const assignmentSelectColumns = "assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_description, capability_level, assigned_at"
@@ -102,26 +112,28 @@ func (rm *DomainCapabilityAssignmentReadModel) GetByCapabilityID(ctx context.Con
 func (rm *DomainCapabilityAssignmentReadModel) queryAssignments(ctx context.Context, query, param string) ([]AssignmentDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve tenant for query assignments: %w", err)
 	}
 
 	var assignments []AssignmentDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), param)
 		if err != nil {
-			return err
+			return fmt.Errorf("query assignments for tenant %s parameter %s: %w", tenantID.Value(), param, err)
 		}
 		defer rows.Close()
 
 		for rows.Next() {
 			var dto AssignmentDTO
 			if err := rows.Scan(&dto.AssignmentID, &dto.BusinessDomainID, &dto.BusinessDomainName, &dto.CapabilityID, &dto.CapabilityName, &dto.CapabilityDescription, &dto.CapabilityLevel, &dto.AssignedAt); err != nil {
-				return err
+				return fmt.Errorf("scan assignment row for tenant %s parameter %s: %w", tenantID.Value(), param, err)
 			}
 			assignments = append(assignments, dto)
 		}
-
-		return rows.Err()
+		if err := rows.Err(); err != nil {
+			return fmt.Errorf("iterate assignment rows for tenant %s parameter %s: %w", tenantID.Value(), param, err)
+		}
+		return nil
 	})
 
 	return assignments, err
@@ -130,7 +142,7 @@ func (rm *DomainCapabilityAssignmentReadModel) queryAssignments(ctx context.Cont
 func (rm *DomainCapabilityAssignmentReadModel) GetByDomainAndCapability(ctx context.Context, domainID, capabilityID string) (*AssignmentDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve tenant for lookup assignment domain %s capability %s: %w", domainID, capabilityID, err)
 	}
 
 	var dto AssignmentDTO
@@ -146,7 +158,10 @@ func (rm *DomainCapabilityAssignmentReadModel) GetByDomainAndCapability(ctx cont
 			notFound = true
 			return nil
 		}
-		return err
+		if err != nil {
+			return fmt.Errorf("scan assignment for domain %s capability %s tenant %s: %w", domainID, capabilityID, tenantID.Value(), err)
+		}
+		return nil
 	})
 
 	if err != nil {
@@ -162,7 +177,7 @@ func (rm *DomainCapabilityAssignmentReadModel) GetByDomainAndCapability(ctx cont
 func (rm *DomainCapabilityAssignmentReadModel) AssignmentExists(ctx context.Context, domainID, capabilityID string) (bool, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("resolve tenant for assignment exists domain %s capability %s: %w", domainID, capabilityID, err)
 	}
 
 	var count int
@@ -174,7 +189,7 @@ func (rm *DomainCapabilityAssignmentReadModel) AssignmentExists(ctx context.Cont
 	})
 
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("query assignment exists domain %s capability %s tenant %s: %w", domainID, capabilityID, tenantID.Value(), err)
 	}
 
 	return count > 0, nil

@@ -86,36 +86,15 @@ func (h *ImportHandlers) CreateImportSession(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	businessDomainID := r.FormValue("businessDomainId")
-	capabilityEAOwner := r.FormValue("capabilityEAOwner")
-
-	file, header, err := r.FormFile("file")
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusBadRequest, err, "file is required")
-		return
-	}
-	defer file.Close()
-
-	if !hasXMLExtension(header.Filename) {
-		sharedAPI.RespondError(w, http.StatusUnsupportedMediaType, nil, "File must be an XML file")
-		return
-	}
-
-	if !isValidXMLContentType(header.Header.Get("Content-Type")) {
-		sharedAPI.RespondError(w, http.StatusUnsupportedMediaType, nil, "File must be an XML file")
-		return
-	}
-
-	parseResult, err := h.parser.Parse(file)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusUnprocessableEntity, err, "Invalid ArchiMate Open Exchange format")
+	parseResult, ok := h.parseUploadedFile(w, r)
+	if !ok {
 		return
 	}
 
 	cmd := &commands.CreateImportSession{
 		SourceFormat:      sourceFormat,
-		BusinessDomainID:  businessDomainID,
-		CapabilityEAOwner: capabilityEAOwner,
+		BusinessDomainID:  r.FormValue("businessDomainId"),
+		CapabilityEAOwner: r.FormValue("capabilityEAOwner"),
 		ParseResult:       parseResult,
 	}
 
@@ -138,6 +117,33 @@ func (h *ImportHandlers) CreateImportSession(w http.ResponseWriter, r *http.Requ
 	sharedAPI.RespondJSON(w, http.StatusCreated, session)
 }
 
+func (h *ImportHandlers) parseUploadedFile(w http.ResponseWriter, r *http.Request) (*parsers.ParseResult, bool) {
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusBadRequest, err, "file is required")
+		return nil, false
+	}
+	defer file.Close()
+
+	if !hasXMLExtension(header.Filename) {
+		sharedAPI.RespondError(w, http.StatusUnsupportedMediaType, nil, "File must be an XML file")
+		return nil, false
+	}
+
+	if !isValidXMLContentType(header.Header.Get("Content-Type")) {
+		sharedAPI.RespondError(w, http.StatusUnsupportedMediaType, nil, "File must be an XML file")
+		return nil, false
+	}
+
+	parseResult, err := h.parser.Parse(file)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusUnprocessableEntity, err, "Invalid ArchiMate Open Exchange format")
+		return nil, false
+	}
+
+	return parseResult, true
+}
+
 // GetImportSession godoc
 // @Summary Get an import session
 // @Description Retrieves the details of an import session by ID
@@ -158,7 +164,7 @@ func (h *ImportHandlers) GetImportSession(w http.ResponseWriter, r *http.Request
 
 	session, err := h.readModel.GetByID(r.Context(), id)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve import session")
+		sharedAPI.RespondError(w, http.StatusInternalServerError, fmt.Errorf("load import session %s: %w", id, err), "Failed to retrieve import session")
 		return
 	}
 
@@ -222,17 +228,18 @@ func (h *ImportHandlers) ConfirmImport(w http.ResponseWriter, r *http.Request) {
 
 	cmd := &commands.ConfirmImport{ID: id}
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
+		wrappedErr := fmt.Errorf("dispatch confirm import command for session %s: %w", id, err)
 		if errors.Is(err, aggregates.ErrImportAlreadyStarted) {
-			sharedAPI.RespondError(w, http.StatusConflict, err, "Import session has already been started")
+			sharedAPI.RespondError(w, http.StatusConflict, wrappedErr, "Import session has already been started")
 			return
 		}
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to confirm import")
+		sharedAPI.RespondError(w, http.StatusInternalServerError, wrappedErr, "Failed to confirm import")
 		return
 	}
 
 	session, err = h.readModel.GetByID(r.Context(), id)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve import session")
+		sharedAPI.RespondError(w, http.StatusInternalServerError, fmt.Errorf("reload import session %s after confirm: %w", id, err), "Failed to retrieve import session")
 		return
 	}
 

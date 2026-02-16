@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -19,7 +20,9 @@ type expertEvent interface {
 	getAddedAt() time.Time
 }
 
-type expertAddedAdapter struct{ e events.ApplicationComponentExpertAdded }
+type expertAddedAdapter struct {
+	e events.ApplicationComponentExpertAdded
+}
 
 func (a expertAddedAdapter) getComponentID() string { return a.e.ComponentID }
 func (a expertAddedAdapter) getExpertName() string  { return a.e.ExpertName }
@@ -27,7 +30,9 @@ func (a expertAddedAdapter) getExpertRole() string  { return a.e.ExpertRole }
 func (a expertAddedAdapter) getContactInfo() string { return a.e.ContactInfo }
 func (a expertAddedAdapter) getAddedAt() time.Time  { return a.e.AddedAt }
 
-type expertRemovedAdapter struct{ e events.ApplicationComponentExpertRemoved }
+type expertRemovedAdapter struct {
+	e events.ApplicationComponentExpertRemoved
+}
 
 func (a expertRemovedAdapter) getComponentID() string { return a.e.ComponentID }
 func (a expertRemovedAdapter) getExpertName() string  { return a.e.ExpertName }
@@ -58,17 +63,27 @@ func NewApplicationComponentProjector(readModel *readmodels.ApplicationComponent
 func unmarshalEvent[T any](eventData []byte, eventName string) (*T, error) {
 	var event T
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal %s event: %v", eventName, err)
-		return nil, err
+		wrappedErr := fmt.Errorf("unmarshal %s event data: %w", eventName, err)
+		log.Printf("failed to unmarshal %s event: %v", eventName, wrappedErr)
+		return nil, wrappedErr
 	}
 	return &event, nil
+}
+
+func projectEvent[T any](ctx context.Context, eventData []byte, eventName string, fn func(context.Context, *T) error) error {
+	event, err := unmarshalEvent[T](eventData, eventName)
+	if err != nil {
+		return err
+	}
+	return fn(ctx, event)
 }
 
 func (p *ApplicationComponentProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -90,47 +105,33 @@ func (p *ApplicationComponentProjector) ProjectEvent(ctx context.Context, eventT
 }
 
 func (p *ApplicationComponentProjector) projectCreated(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.ApplicationComponentCreated](eventData, "ApplicationComponentCreated")
-	if err != nil {
-		return err
-	}
-
-	return p.readModel.Insert(ctx, readmodels.ApplicationComponentDTO{
-		ID:          event.ID,
-		Name:        event.Name,
-		Description: event.Description,
-		CreatedAt:   event.CreatedAt,
+	return projectEvent(ctx, eventData, "ApplicationComponentCreated", func(ctx context.Context, event *events.ApplicationComponentCreated) error {
+		return p.readModel.Insert(ctx, readmodels.ApplicationComponentDTO{
+			ID: event.ID, Name: event.Name, Description: event.Description, CreatedAt: event.CreatedAt,
+		})
 	})
 }
 
 func (p *ApplicationComponentProjector) projectUpdated(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.ApplicationComponentUpdated](eventData, "ApplicationComponentUpdated")
-	if err != nil {
-		return err
-	}
-	return p.readModel.Update(ctx, event.ID, event.Name, event.Description)
+	return projectEvent(ctx, eventData, "ApplicationComponentUpdated", func(ctx context.Context, event *events.ApplicationComponentUpdated) error {
+		return p.readModel.Update(ctx, event.ID, event.Name, event.Description)
+	})
 }
 
 func (p *ApplicationComponentProjector) projectDeleted(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.ApplicationComponentDeleted](eventData, "ApplicationComponentDeleted")
-	if err != nil {
-		return err
-	}
-	return p.readModel.MarkAsDeleted(ctx, event.ID, event.DeletedAt)
+	return projectEvent(ctx, eventData, "ApplicationComponentDeleted", func(ctx context.Context, event *events.ApplicationComponentDeleted) error {
+		return p.readModel.MarkAsDeleted(ctx, event.ID, event.DeletedAt)
+	})
 }
 
 func (p *ApplicationComponentProjector) projectExpertAdded(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.ApplicationComponentExpertAdded](eventData, "ApplicationComponentExpertAdded")
-	if err != nil {
-		return err
-	}
-	return p.readModel.AddExpert(ctx, toExpertInfo(expertAddedAdapter{*event}))
+	return projectEvent(ctx, eventData, "ApplicationComponentExpertAdded", func(ctx context.Context, event *events.ApplicationComponentExpertAdded) error {
+		return p.readModel.AddExpert(ctx, toExpertInfo(expertAddedAdapter{*event}))
+	})
 }
 
 func (p *ApplicationComponentProjector) projectExpertRemoved(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.ApplicationComponentExpertRemoved](eventData, "ApplicationComponentExpertRemoved")
-	if err != nil {
-		return err
-	}
-	return p.readModel.RemoveExpert(ctx, toExpertInfo(expertRemovedAdapter{*event}))
+	return projectEvent(ctx, eventData, "ApplicationComponentExpertRemoved", func(ctx context.Context, event *events.ApplicationComponentExpertRemoved) error {
+		return p.readModel.RemoveExpert(ctx, toExpertInfo(expertRemovedAdapter{*event}))
+	})
 }

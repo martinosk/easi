@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"easi/backend/internal/capabilitymapping/application/readmodels"
@@ -36,8 +37,9 @@ func NewStrategyImportanceProjector(
 func (p *StrategyImportanceProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -58,18 +60,19 @@ func (p *StrategyImportanceProjector) ProjectEvent(ctx context.Context, eventTyp
 func (p *StrategyImportanceProjector) handleStrategyImportanceSet(ctx context.Context, eventData []byte) error {
 	var event events.StrategyImportanceSet
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal StrategyImportanceSet event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal StrategyImportanceSet event data: %w", err)
+		log.Printf("failed to unmarshal StrategyImportanceSet event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	domainName, err := p.fetchDomainName(ctx, event.BusinessDomainID)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve domain name for strategy importance %s domain %s: %w", event.ID, event.BusinessDomainID, err)
 	}
 
 	capabilityName, err := p.fetchCapabilityName(ctx, event.CapabilityID)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve capability name for strategy importance %s capability %s: %w", event.ID, event.CapabilityID, err)
 	}
 
 	pillarName := p.resolvePillarName(ctx, event.PillarID, event.PillarName)
@@ -89,7 +92,10 @@ func (p *StrategyImportanceProjector) handleStrategyImportanceSet(ctx context.Co
 		SetAt:              event.SetAt,
 	}
 
-	return p.importanceReadModel.Insert(ctx, dto)
+	if err := p.importanceReadModel.Insert(ctx, dto); err != nil {
+		return fmt.Errorf("project StrategyImportanceSet for strategy importance %s: %w", event.ID, err)
+	}
+	return nil
 }
 
 type namedEntity interface {
@@ -156,8 +162,9 @@ func (p *StrategyImportanceProjector) resolvePillarName(ctx context.Context, pil
 func (p *StrategyImportanceProjector) handleStrategyImportanceUpdated(ctx context.Context, eventData []byte) error {
 	var event events.StrategyImportanceUpdated
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal StrategyImportanceUpdated event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal StrategyImportanceUpdated event data: %w", err)
+		log.Printf("failed to unmarshal StrategyImportanceUpdated event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	importance, _ := valueobjects.NewImportance(event.Importance)
@@ -169,15 +176,21 @@ func (p *StrategyImportanceProjector) handleStrategyImportanceUpdated(ctx contex
 		Rationale:       event.Rationale,
 	}
 
-	return p.importanceReadModel.Update(ctx, dto)
+	if err := p.importanceReadModel.Update(ctx, dto); err != nil {
+		return fmt.Errorf("project StrategyImportanceUpdated for strategy importance %s: %w", event.ID, err)
+	}
+	return nil
 }
 
 func (p *StrategyImportanceProjector) handleStrategyImportanceRemoved(ctx context.Context, eventData []byte) error {
 	var event events.StrategyImportanceRemoved
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal StrategyImportanceRemoved event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal StrategyImportanceRemoved event data: %w", err)
+		log.Printf("failed to unmarshal StrategyImportanceRemoved event: %v", wrappedErr)
+		return wrappedErr
 	}
-
-	return p.importanceReadModel.Delete(ctx, event.ID)
+	if err := p.importanceReadModel.Delete(ctx, event.ID); err != nil {
+		return fmt.Errorf("project StrategyImportanceRemoved for strategy importance %s: %w", event.ID, err)
+	}
+	return nil
 }

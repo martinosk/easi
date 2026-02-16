@@ -3,6 +3,7 @@ package readmodels
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"easi/backend/internal/infrastructure/database"
@@ -37,19 +38,34 @@ func buildAnyClauseArgs(tenantID any, ids []string) []any {
 	return []any{tenantID, pq.Array(ids)}
 }
 
-func (rm *EnterpriseCapabilityLinkReadModel) execByID(ctx context.Context, query string, id string) error {
+type linkMutation int
+
+const (
+	linkMutationDeleteByID linkMutation = iota
+	linkMutationDeleteByDomainCapability
+)
+
+var linkMutationQueries = map[linkMutation]string{
+	linkMutationDeleteByID:               "DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE tenant_id = $1 AND id = $2",
+	linkMutationDeleteByDomainCapability: "DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE tenant_id = $1 AND domain_capability_id = $2",
+}
+
+func (rm *EnterpriseCapabilityLinkReadModel) execByID(ctx context.Context, id string, mutation linkMutation) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve tenant for enterprise capability link mutation on %s: %w", id, err)
 	}
-	_, err = rm.db.ExecContext(ctx, query, tenantID.Value(), id)
-	return err
+	_, err = rm.db.ExecContext(ctx, linkMutationQueries[mutation], tenantID.Value(), id)
+	if err != nil {
+		return fmt.Errorf("execute enterprise capability link mutation on %s for tenant %s: %w", id, tenantID.Value(), err)
+	}
+	return nil
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) Insert(ctx context.Context, dto EnterpriseCapabilityLinkDTO) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve tenant for insert enterprise capability link %s: %w", dto.ID, err)
 	}
 
 	_, err = rm.db.ExecContext(ctx,
@@ -57,7 +73,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) Insert(ctx context.Context, dto Ent
 		tenantID.Value(), dto.ID,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete existing enterprise capability link %s before insert: %w", dto.ID, err)
 	}
 
 	_, err = rm.db.ExecContext(ctx,
@@ -66,15 +82,18 @@ func (rm *EnterpriseCapabilityLinkReadModel) Insert(ctx context.Context, dto Ent
 		 VALUES ($1, $2, $3, $4, $5, $6)`,
 		dto.ID, tenantID.Value(), dto.EnterpriseCapabilityID, dto.DomainCapabilityID, dto.LinkedBy, dto.LinkedAt,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("insert enterprise capability link %s for tenant %s: %w", dto.ID, tenantID.Value(), err)
+	}
+	return nil
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) Delete(ctx context.Context, id string) error {
-	return rm.execByID(ctx, "DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE tenant_id = $1 AND id = $2", id)
+	return rm.execByID(ctx, id, linkMutationDeleteByID)
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) DeleteByDomainCapabilityID(ctx context.Context, domainCapabilityID string) error {
-	return rm.execByID(ctx, "DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE tenant_id = $1 AND domain_capability_id = $2", domainCapabilityID)
+	return rm.execByID(ctx, domainCapabilityID, linkMutationDeleteByDomainCapability)
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) CountByEnterpriseCapabilityID(ctx context.Context, enterpriseCapabilityID string) (int, error) {
@@ -91,6 +110,58 @@ func (rm *EnterpriseCapabilityLinkReadModel) CountByEnterpriseCapabilityID(ctx c
 		).Scan(&count)
 	})
 	return count, err
+}
+
+type LinkQueryKind int
+
+const (
+	LinkQueryByID LinkQueryKind = iota
+	LinkQueryByDomainCapabilityID
+)
+
+var linkSingleQueries = map[LinkQueryKind]string{
+	LinkQueryByID: `SELECT id, enterprise_capability_id, domain_capability_id, linked_by, linked_at
+		 FROM enterprisearchitecture.enterprise_capability_links WHERE tenant_id = $1 AND id = $2`,
+	LinkQueryByDomainCapabilityID: `SELECT id, enterprise_capability_id, domain_capability_id, linked_by, linked_at
+		 FROM enterprisearchitecture.enterprise_capability_links WHERE tenant_id = $1 AND domain_capability_id = $2`,
+}
+
+func (rm *EnterpriseCapabilityLinkReadModel) querySingle(ctx context.Context, id string, kind LinkQueryKind) (*EnterpriseCapabilityLinkDTO, error) {
+	tenantID, err := sharedctx.GetTenant(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var dto EnterpriseCapabilityLinkDTO
+	var notFound bool
+
+	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		err := tx.QueryRowContext(ctx, linkSingleQueries[kind], tenantID.Value(), id).Scan(
+			&dto.ID, &dto.EnterpriseCapabilityID, &dto.DomainCapabilityID, &dto.LinkedBy, &dto.LinkedAt,
+		)
+		if err == sql.ErrNoRows {
+			notFound = true
+			return nil
+		}
+		return err
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	if notFound {
+		return nil, nil
+	}
+
+	return &dto, nil
+}
+
+func (rm *EnterpriseCapabilityLinkReadModel) GetByDomainCapabilityID(ctx context.Context, domainCapabilityID string) (*EnterpriseCapabilityLinkDTO, error) {
+	return rm.querySingle(ctx, domainCapabilityID, LinkQueryByDomainCapabilityID)
+}
+
+func (rm *EnterpriseCapabilityLinkReadModel) GetByID(ctx context.Context, id string) (*EnterpriseCapabilityLinkDTO, error) {
+	return rm.querySingle(ctx, id, LinkQueryByID)
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) GetByEnterpriseCapabilityID(ctx context.Context, enterpriseCapabilityID string) ([]EnterpriseCapabilityLinkDTO, error) {
@@ -144,465 +215,6 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetByEnterpriseCapabilityID(ctx con
 	})
 
 	return links, err
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) querySingle(ctx context.Context, query string, args ...any) (*EnterpriseCapabilityLinkDTO, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var dto EnterpriseCapabilityLinkDTO
-	var notFound bool
-
-	queryArgs := append([]any{tenantID.Value()}, args...)
-
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		err := tx.QueryRowContext(ctx, query, queryArgs...).Scan(
-			&dto.ID, &dto.EnterpriseCapabilityID, &dto.DomainCapabilityID, &dto.LinkedBy, &dto.LinkedAt,
-		)
-		if err == sql.ErrNoRows {
-			notFound = true
-			return nil
-		}
-		return err
-	})
-
-	if err != nil {
-		return nil, err
-	}
-	if notFound {
-		return nil, nil
-	}
-
-	return &dto, nil
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) GetByDomainCapabilityID(ctx context.Context, domainCapabilityID string) (*EnterpriseCapabilityLinkDTO, error) {
-	return rm.querySingle(ctx,
-		`SELECT id, enterprise_capability_id, domain_capability_id, linked_by, linked_at
-		 FROM enterprisearchitecture.enterprise_capability_links WHERE tenant_id = $1 AND domain_capability_id = $2`,
-		domainCapabilityID,
-	)
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) GetByID(ctx context.Context, id string) (*EnterpriseCapabilityLinkDTO, error) {
-	return rm.querySingle(ctx,
-		`SELECT id, enterprise_capability_id, domain_capability_id, linked_by, linked_at
-		 FROM enterprisearchitecture.enterprise_capability_links WHERE tenant_id = $1 AND id = $2`,
-		id,
-	)
-}
-
-type HierarchyConflict struct {
-	ConflictingCapabilityID   string
-	ConflictingCapabilityName string
-	LinkedToCapabilityID      string
-	LinkedToCapabilityName    string
-	IsAncestor                bool
-}
-
-type LinkStatus string
-
-const (
-	LinkStatusAvailable       LinkStatus = "available"
-	LinkStatusLinked          LinkStatus = "linked"
-	LinkStatusBlockedByParent LinkStatus = "blocked_by_parent"
-	LinkStatusBlockedByChild  LinkStatus = "blocked_by_child"
-)
-
-type CapabilityLinkStatusDTO struct {
-	CapabilityID            string            `json:"capabilityId"`
-	Status                  LinkStatus        `json:"status"`
-	LinkedTo                *LinkedCapability `json:"linkedTo,omitempty"`
-	BlockingCapability      *LinkedCapability `json:"blockingCapability,omitempty"`
-	BlockingEnterpriseCapID *string           `json:"blockingEnterpriseCapabilityId,omitempty"`
-	Links                   types.Links       `json:"_links,omitempty"`
-}
-
-type LinkedCapability struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) CheckHierarchyConflict(ctx context.Context, domainCapabilityID string, targetEnterpriseCapabilityID string) (*HierarchyConflict, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var conflict *HierarchyConflict
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		query := `
-		SELECT blocked_by_capability_id, blocked_by_capability_name, is_ancestor,
-		       blocked_by_enterprise_id, blocked_by_enterprise_name
-		FROM enterprisearchitecture.capability_link_blocking
-		WHERE tenant_id = $1 AND domain_capability_id = $2
-		  AND blocked_by_enterprise_id != $3
-		LIMIT 1`
-
-		var conflictingID, conflictingName, linkedToID, linkedToName string
-		var isAncestor bool
-
-		err := tx.QueryRowContext(ctx, query, tenantID.Value(), domainCapabilityID, targetEnterpriseCapabilityID).Scan(
-			&conflictingID, &conflictingName, &isAncestor, &linkedToID, &linkedToName,
-		)
-		if err == sql.ErrNoRows {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-
-		conflict = &HierarchyConflict{
-			ConflictingCapabilityID:   conflictingID,
-			ConflictingCapabilityName: conflictingName,
-			LinkedToCapabilityID:      linkedToID,
-			LinkedToCapabilityName:    linkedToName,
-			IsAncestor:                isAncestor,
-		}
-		return nil
-	})
-
-	return conflict, err
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) GetLinkStatus(ctx context.Context, domainCapabilityID string) (*CapabilityLinkStatusDTO, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	result := &CapabilityLinkStatusDTO{
-		CapabilityID: domainCapabilityID,
-		Status:       LinkStatusAvailable,
-	}
-
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		var enterpriseCapID, enterpriseCapName string
-		err := tx.QueryRowContext(ctx,
-			`SELECT ecl.enterprise_capability_id, ec.name
-			 FROM enterprisearchitecture.enterprise_capability_links ecl
-			 JOIN enterprisearchitecture.enterprise_capabilities ec ON ec.id = ecl.enterprise_capability_id AND ec.tenant_id = $1
-			 WHERE ecl.tenant_id = $1 AND ecl.domain_capability_id = $2`,
-			tenantID.Value(), domainCapabilityID,
-		).Scan(&enterpriseCapID, &enterpriseCapName)
-
-		if err == nil {
-			result.Status = LinkStatusLinked
-			result.LinkedTo = &LinkedCapability{ID: enterpriseCapID, Name: enterpriseCapName}
-			return nil
-		}
-		if err != sql.ErrNoRows {
-			return err
-		}
-
-		blockingQuery := `
-		SELECT blocked_by_capability_id, blocked_by_capability_name, is_ancestor,
-		       blocked_by_enterprise_id, blocked_by_enterprise_name
-		FROM enterprisearchitecture.capability_link_blocking
-		WHERE tenant_id = $1 AND domain_capability_id = $2
-		LIMIT 1`
-
-		var conflictingID, conflictingName, linkedToID, linkedToName string
-		var isAncestor bool
-
-		err = tx.QueryRowContext(ctx, blockingQuery, tenantID.Value(), domainCapabilityID).Scan(
-			&conflictingID, &conflictingName, &isAncestor, &linkedToID, &linkedToName,
-		)
-
-		if err == sql.ErrNoRows {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-
-		if isAncestor {
-			result.Status = LinkStatusBlockedByParent
-		} else {
-			result.Status = LinkStatusBlockedByChild
-		}
-		result.BlockingCapability = &LinkedCapability{ID: conflictingID, Name: conflictingName}
-		result.BlockingEnterpriseCapID = &linkedToID
-
-		return nil
-	})
-
-	return result, err
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) GetBatchLinkStatus(ctx context.Context, domainCapabilityIDs []string) ([]CapabilityLinkStatusDTO, error) {
-	if len(domainCapabilityIDs) == 0 {
-		return nil, nil
-	}
-
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	args := buildAnyClauseArgs(tenantID.Value(), domainCapabilityIDs)
-	statusMap := initializeStatusMap(domainCapabilityIDs)
-
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		if err := rm.populateLinkedStatus(ctx, tx, args, statusMap); err != nil {
-			return err
-		}
-		return rm.populateBlockingStatus(ctx, tx, args, statusMap)
-	})
-
-	if err != nil {
-		return nil, err
-	}
-	return collectResults(domainCapabilityIDs, statusMap), nil
-}
-
-func initializeStatusMap(ids []string) map[string]*CapabilityLinkStatusDTO {
-	statusMap := make(map[string]*CapabilityLinkStatusDTO, len(ids))
-	for _, id := range ids {
-		statusMap[id] = &CapabilityLinkStatusDTO{
-			CapabilityID: id,
-			Status:       LinkStatusAvailable,
-		}
-	}
-	return statusMap
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) populateLinkedStatus(ctx context.Context, tx *sql.Tx, args []any, statusMap map[string]*CapabilityLinkStatusDTO) error {
-	query := `
-		SELECT ecl.domain_capability_id, ecl.enterprise_capability_id, ec.name
-		FROM enterprisearchitecture.enterprise_capability_links ecl
-		JOIN enterprisearchitecture.enterprise_capabilities ec ON ec.id = ecl.enterprise_capability_id AND ec.tenant_id = $1
-		WHERE ecl.tenant_id = $1 AND ecl.domain_capability_id = ANY($2)`
-
-	rows, err := tx.QueryContext(ctx, query, args...)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var domainCapID, enterpriseCapID, enterpriseCapName string
-		if err := rows.Scan(&domainCapID, &enterpriseCapID, &enterpriseCapName); err != nil {
-			return err
-		}
-		if status, ok := statusMap[domainCapID]; ok {
-			status.Status = LinkStatusLinked
-			status.LinkedTo = &LinkedCapability{ID: enterpriseCapID, Name: enterpriseCapName}
-		}
-	}
-	return rows.Err()
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) populateBlockingStatus(ctx context.Context, tx *sql.Tx, args []any, statusMap map[string]*CapabilityLinkStatusDTO) error {
-	query := `
-		SELECT domain_capability_id, blocked_by_capability_id, blocked_by_capability_name,
-		       is_ancestor, blocked_by_enterprise_id, blocked_by_enterprise_name
-		FROM enterprisearchitecture.capability_link_blocking
-		WHERE tenant_id = $1 AND domain_capability_id = ANY($2)`
-
-	rows, err := tx.QueryContext(ctx, query, args...)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var domainCapID, blockingCapID, blockingCapName, enterpriseCapID, enterpriseCapName string
-		var isAncestor bool
-		if err := rows.Scan(&domainCapID, &blockingCapID, &blockingCapName, &isAncestor, &enterpriseCapID, &enterpriseCapName); err != nil {
-			return err
-		}
-		status, ok := statusMap[domainCapID]
-		if !ok || status.Status == LinkStatusLinked {
-			continue
-		}
-		if isAncestor {
-			status.Status = LinkStatusBlockedByParent
-		} else {
-			status.Status = LinkStatusBlockedByChild
-		}
-		status.BlockingCapability = &LinkedCapability{ID: blockingCapID, Name: blockingCapName}
-		status.BlockingEnterpriseCapID = &enterpriseCapID
-	}
-	return rows.Err()
-}
-
-func collectResults(ids []string, statusMap map[string]*CapabilityLinkStatusDTO) []CapabilityLinkStatusDTO {
-	results := make([]CapabilityLinkStatusDTO, 0, len(ids))
-	for _, id := range ids {
-		results = append(results, *statusMap[id])
-	}
-	return results
-}
-
-type BlockingDTO struct {
-	DomainCapabilityID      string
-	BlockedByCapabilityID   string
-	BlockedByEnterpriseID   string
-	BlockedByCapabilityName string
-	BlockedByEnterpriseName string
-	IsAncestor              bool
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) InsertBlocking(ctx context.Context, blocking BlockingDTO) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
-		`INSERT INTO enterprisearchitecture.capability_link_blocking
-		 (tenant_id, domain_capability_id, blocked_by_capability_id, blocked_by_enterprise_id,
-		  blocked_by_capability_name, blocked_by_enterprise_name, is_ancestor)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)
-		 ON CONFLICT (tenant_id, domain_capability_id, blocked_by_capability_id) DO NOTHING`,
-		tenantID.Value(), blocking.DomainCapabilityID, blocking.BlockedByCapabilityID,
-		blocking.BlockedByEnterpriseID, blocking.BlockedByCapabilityName, blocking.BlockedByEnterpriseName,
-		blocking.IsAncestor,
-	)
-	return err
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) DeleteBlockingByBlocker(ctx context.Context, blockedByCapabilityID string) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
-		`DELETE FROM enterprisearchitecture.capability_link_blocking WHERE tenant_id = $1 AND blocked_by_capability_id = $2`,
-		tenantID.Value(), blockedByCapabilityID,
-	)
-	return err
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) DeleteBlockingForCapabilities(ctx context.Context, capabilityIDs []string) error {
-	if len(capabilityIDs) == 0 {
-		return nil
-	}
-
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	args := buildAnyClauseArgs(tenantID.Value(), capabilityIDs)
-	query := `DELETE FROM enterprisearchitecture.capability_link_blocking WHERE tenant_id = $1 AND blocked_by_capability_id = ANY($2)`
-	_, err = rm.db.ExecContext(ctx, query, args...)
-	return err
-}
-
-type hierarchyDirection int
-
-const (
-	hierarchyAncestors hierarchyDirection = iota
-	hierarchyDescendants
-	hierarchySubtree
-)
-
-func (rm *EnterpriseCapabilityLinkReadModel) queryHierarchy(ctx context.Context, capabilityID string, direction hierarchyDirection) ([]string, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var query string
-	switch direction {
-	case hierarchyAncestors:
-		query = `
-		WITH RECURSIVE cte AS (
-			SELECT capability_id, parent_id, 1 as depth
-			FROM enterprisearchitecture.domain_capability_metadata
-			WHERE tenant_id = $1 AND capability_id = $2
-			UNION ALL
-			SELECT m.capability_id, m.parent_id, c.depth + 1
-			FROM enterprisearchitecture.domain_capability_metadata m
-			INNER JOIN cte c ON m.capability_id = c.parent_id AND m.tenant_id = $1
-			WHERE c.depth < 10
-		)
-		SELECT capability_id FROM cte WHERE capability_id != $2`
-	case hierarchyDescendants:
-		query = `
-		WITH RECURSIVE cte AS (
-			SELECT capability_id, 1 as depth
-			FROM enterprisearchitecture.domain_capability_metadata
-			WHERE tenant_id = $1 AND capability_id = $2
-			UNION ALL
-			SELECT m.capability_id, c.depth + 1
-			FROM enterprisearchitecture.domain_capability_metadata m
-			INNER JOIN cte c ON m.parent_id = c.capability_id AND m.tenant_id = $1
-			WHERE c.depth < 10
-		)
-		SELECT capability_id FROM cte WHERE capability_id != $2`
-	case hierarchySubtree:
-		query = `
-		WITH RECURSIVE cte AS (
-			SELECT capability_id, 1 as depth
-			FROM enterprisearchitecture.domain_capability_metadata
-			WHERE tenant_id = $1 AND capability_id = $2
-			UNION ALL
-			SELECT m.capability_id, c.depth + 1
-			FROM enterprisearchitecture.domain_capability_metadata m
-			INNER JOIN cte c ON m.parent_id = c.capability_id AND m.tenant_id = $1
-			WHERE c.depth < 10
-		)
-		SELECT capability_id FROM cte`
-	}
-
-	var result []string
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), capabilityID)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				return err
-			}
-			result = append(result, id)
-		}
-		return rows.Err()
-	})
-
-	return result, err
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) GetAncestorIDs(ctx context.Context, capabilityID string) ([]string, error) {
-	return rm.queryHierarchy(ctx, capabilityID, hierarchyAncestors)
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) GetDescendantIDs(ctx context.Context, capabilityID string) ([]string, error) {
-	return rm.queryHierarchy(ctx, capabilityID, hierarchyDescendants)
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) GetSubtreeCapabilityIDs(ctx context.Context, rootID string) ([]string, error) {
-	return rm.queryHierarchy(ctx, rootID, hierarchySubtree)
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) queryName(ctx context.Context, query string, id string) (string, error) {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	var name string
-	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctx, query, tenantID.Value(), id).Scan(&name)
-	})
-	return name, err
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) GetCapabilityName(ctx context.Context, capabilityID string) (string, error) {
-	return rm.queryName(ctx, `SELECT capability_name FROM enterprisearchitecture.domain_capability_metadata WHERE tenant_id = $1 AND capability_id = $2`, capabilityID)
-}
-
-func (rm *EnterpriseCapabilityLinkReadModel) GetEnterpriseCapabilityName(ctx context.Context, enterpriseCapabilityID string) (string, error) {
-	return rm.queryName(ctx, `SELECT name FROM enterprisearchitecture.enterprise_capabilities WHERE tenant_id = $1 AND id = $2`, enterpriseCapabilityID)
 }
 
 func (rm *EnterpriseCapabilityLinkReadModel) GetLinksForCapabilities(ctx context.Context, capabilityIDs []string) ([]EnterpriseCapabilityLinkDTO, error) {

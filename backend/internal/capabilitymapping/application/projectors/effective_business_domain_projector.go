@@ -46,8 +46,9 @@ func NewEffectiveBusinessDomainProjector(
 func (p *EffectiveBusinessDomainProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -77,8 +78,9 @@ type capCreatedEvent struct {
 func (p *EffectiveBusinessDomainProjector) handleCapabilityCreated(ctx context.Context, eventData []byte) error {
 	var event capCreatedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityCreated event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal CapabilityCreated event data: %w", err)
+		log.Printf("failed to unmarshal CapabilityCreated event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	l1CapabilityID := event.ID
@@ -96,12 +98,15 @@ func (p *EffectiveBusinessDomainProjector) handleCapabilityCreated(ctx context.C
 		}
 	}
 
-	return p.store.Upsert(ctx, readmodels.CMEffectiveBusinessDomainDTO{
+	if err := p.store.Upsert(ctx, readmodels.CMEffectiveBusinessDomainDTO{
 		CapabilityID:       event.ID,
 		L1CapabilityID:     l1CapabilityID,
 		BusinessDomainID:   businessDomainID,
 		BusinessDomainName: businessDomainName,
-	})
+	}); err != nil {
+		return fmt.Errorf("project CapabilityCreated effective business domain upsert for capability %s: %w", event.ID, err)
+	}
+	return nil
 }
 
 type capDeletedEvent struct {
@@ -111,10 +116,14 @@ type capDeletedEvent struct {
 func (p *EffectiveBusinessDomainProjector) handleCapabilityDeleted(ctx context.Context, eventData []byte) error {
 	var event capDeletedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityDeleted event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal CapabilityDeleted event data: %w", err)
+		log.Printf("failed to unmarshal CapabilityDeleted event: %v", wrappedErr)
+		return wrappedErr
 	}
-	return p.store.Delete(ctx, event.ID)
+	if err := p.store.Delete(ctx, event.ID); err != nil {
+		return fmt.Errorf("project CapabilityDeleted effective business domain delete for capability %s: %w", event.ID, err)
+	}
+	return nil
 }
 
 type capParentChangedEvent struct {
@@ -126,8 +135,9 @@ type capParentChangedEvent struct {
 func (p *EffectiveBusinessDomainProjector) handleCapabilityParentChanged(ctx context.Context, eventData []byte) error {
 	var event capParentChangedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityParentChanged event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal CapabilityParentChanged event data: %w", err)
+		log.Printf("failed to unmarshal CapabilityParentChanged event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	return p.updateSubtreeEffectiveBD(ctx, event.CapabilityID, event.NewParentID, event.NewLevel)
@@ -179,13 +189,17 @@ type capLevelChangedEvent struct {
 func (p *EffectiveBusinessDomainProjector) handleCapabilityLevelChanged(ctx context.Context, eventData []byte) error {
 	var event capLevelChangedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityLevelChanged event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal CapabilityLevelChanged event data: %w", err)
+		log.Printf("failed to unmarshal CapabilityLevelChanged event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	existing, err := p.store.GetByCapabilityID(ctx, event.CapabilityID)
 	if err != nil || existing == nil {
-		return err
+		if err != nil {
+			return fmt.Errorf("load effective business domain for capability %s level change: %w", event.CapabilityID, err)
+		}
+		return nil
 	}
 
 	return p.updateSubtreeEffectiveBD(ctx, event.CapabilityID, "", event.NewLevel)
@@ -195,7 +209,7 @@ func (p *EffectiveBusinessDomainProjector) updateSubtreeEffectiveBD(ctx context.
 	newL1, bdID, bdName := p.resolveL1AndBD(ctx, capabilityID, parentID, newLevel)
 	subtreeIDs, err := p.collectSubtreeIDs(ctx, capabilityID)
 	if err != nil {
-		return err
+		return fmt.Errorf("collect subtree for capability %s effective business domain update: %w", capabilityID, err)
 	}
 
 	for _, id := range subtreeIDs {
@@ -205,7 +219,7 @@ func (p *EffectiveBusinessDomainProjector) updateSubtreeEffectiveBD(ctx context.
 			BusinessDomainID:   bdID,
 			BusinessDomainName: bdName,
 		}); err != nil {
-			return err
+			return fmt.Errorf("upsert effective business domain for capability %s in subtree rooted at %s: %w", id, capabilityID, err)
 		}
 	}
 
@@ -220,31 +234,42 @@ type capAssignedToDomainEvent struct {
 func (p *EffectiveBusinessDomainProjector) handleCapabilityAssignedToDomain(ctx context.Context, eventData []byte) error {
 	var event capAssignedToDomainEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityAssignedToDomain event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal CapabilityAssignedToDomain event data: %w", err)
+		log.Printf("failed to unmarshal CapabilityAssignedToDomain event: %v", wrappedErr)
+		return wrappedErr
 	}
 
-	var bdName string
-	if p.bdProvider != nil {
-		bd, err := p.bdProvider.GetByID(ctx, event.BusinessDomainID)
-		if err != nil {
-			log.Printf("Failed to look up business domain %s: %v", event.BusinessDomainID, err)
-			return fmt.Errorf("lookup business domain %s for capability %s assignment: %w", event.BusinessDomainID, event.CapabilityID, err)
-		} else if bd != nil {
-			bdName = bd.Name
-		}
-	}
-
-	existing, err := p.store.GetByCapabilityID(ctx, event.CapabilityID)
+	bdName, err := p.lookupBusinessDomainName(ctx, event.BusinessDomainID)
 	if err != nil {
-		log.Printf("Failed to get effective BD for %s: %v", event.CapabilityID, err)
-		return err
+		return fmt.Errorf("lookup business domain %s for capability %s assignment: %w", event.BusinessDomainID, event.CapabilityID, err)
+	}
+
+	return p.updateL1SubtreeBusinessDomain(ctx, event.CapabilityID, event.BusinessDomainID, bdName)
+}
+
+func (p *EffectiveBusinessDomainProjector) lookupBusinessDomainName(ctx context.Context, businessDomainID string) (string, error) {
+	if p.bdProvider == nil {
+		return "", nil
+	}
+	bd, err := p.bdProvider.GetByID(ctx, businessDomainID)
+	if err != nil {
+		return "", fmt.Errorf("load business domain %s: %w", businessDomainID, err)
+	}
+	if bd != nil {
+		return bd.Name, nil
+	}
+	return "", nil
+}
+
+func (p *EffectiveBusinessDomainProjector) updateL1SubtreeBusinessDomain(ctx context.Context, capabilityID, bdID, bdName string) error {
+	existing, err := p.store.GetByCapabilityID(ctx, capabilityID)
+	if err != nil {
+		return fmt.Errorf("load effective business domain for capability %s: %w", capabilityID, err)
 	}
 	if existing == nil {
 		return nil
 	}
-
-	return p.store.UpdateBusinessDomainForL1Subtree(ctx, existing.L1CapabilityID, event.BusinessDomainID, bdName)
+	return p.store.UpdateBusinessDomainForL1Subtree(ctx, existing.L1CapabilityID, bdID, bdName)
 }
 
 type capUnassignedFromDomainEvent struct {
@@ -254,18 +279,9 @@ type capUnassignedFromDomainEvent struct {
 func (p *EffectiveBusinessDomainProjector) handleCapabilityUnassignedFromDomain(ctx context.Context, eventData []byte) error {
 	var event capUnassignedFromDomainEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityUnassignedFromDomain event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal CapabilityUnassignedFromDomain event data: %w", err)
+		log.Printf("failed to unmarshal CapabilityUnassignedFromDomain event: %v", wrappedErr)
+		return wrappedErr
 	}
-
-	existing, err := p.store.GetByCapabilityID(ctx, event.CapabilityID)
-	if err != nil {
-		log.Printf("Failed to get effective BD for %s: %v", event.CapabilityID, err)
-		return err
-	}
-	if existing == nil {
-		return nil
-	}
-
-	return p.store.UpdateBusinessDomainForL1Subtree(ctx, existing.L1CapabilityID, "", "")
+	return p.updateL1SubtreeBusinessDomain(ctx, event.CapabilityID, "", "")
 }

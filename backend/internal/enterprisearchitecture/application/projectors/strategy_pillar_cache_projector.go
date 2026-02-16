@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
@@ -21,8 +22,9 @@ func NewStrategyPillarCacheProjector(readModel *readmodels.StrategyPillarCacheRe
 func (p *StrategyPillarCacheProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -60,8 +62,9 @@ type configurationCreatedEvent struct {
 func (p *StrategyPillarCacheProjector) handleConfigurationCreated(ctx context.Context, eventData []byte) error {
 	var event configurationCreatedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal MetaModelConfigurationCreated event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal MetaModelConfigurationCreated event data in enterprise strategy pillar cache projector: %w", err)
+		log.Printf("failed to unmarshal MetaModelConfigurationCreated event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	for _, pillar := range event.Pillars {
@@ -76,7 +79,7 @@ func (p *StrategyPillarCacheProjector) handleConfigurationCreated(ctx context.Co
 			FitType:           pillar.FitType,
 		}
 		if err := p.readModel.Insert(ctx, dto); err != nil {
-			return err
+			return fmt.Errorf("project MetaModelConfigurationCreated enterprise strategy pillar cache insert for pillar %s: %w", pillar.ID, err)
 		}
 	}
 
@@ -94,8 +97,9 @@ type pillarAddedEvent struct {
 func (p *StrategyPillarCacheProjector) handlePillarAdded(ctx context.Context, eventData []byte) error {
 	var event pillarAddedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal StrategyPillarAdded event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal StrategyPillarAdded event data: %w", err)
+		log.Printf("failed to unmarshal StrategyPillarAdded event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	dto := readmodels.StrategyPillarCacheDTO{
@@ -109,7 +113,10 @@ func (p *StrategyPillarCacheProjector) handlePillarAdded(ctx context.Context, ev
 		FitType:           "",
 	}
 
-	return p.readModel.Insert(ctx, dto)
+	if err := p.readModel.Insert(ctx, dto); err != nil {
+		return fmt.Errorf("project StrategyPillarAdded enterprise strategy pillar cache insert for pillar %s: %w", event.PillarID, err)
+	}
+	return nil
 }
 
 type pillarEvent struct {
@@ -133,11 +140,14 @@ func (p *StrategyPillarCacheProjector) handlePillarUpdated(ctx context.Context, 
 func (p *StrategyPillarCacheProjector) handlePillarRemoved(ctx context.Context, eventData []byte) error {
 	var event pillarEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal StrategyPillarRemoved event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal StrategyPillarRemoved event data: %w", err)
+		log.Printf("failed to unmarshal StrategyPillarRemoved event: %v", wrappedErr)
+		return wrappedErr
 	}
-
-	return p.readModel.Delete(ctx, event.PillarID)
+	if err := p.readModel.Delete(ctx, event.PillarID); err != nil {
+		return fmt.Errorf("project StrategyPillarRemoved enterprise strategy pillar cache delete for pillar %s: %w", event.PillarID, err)
+	}
+	return nil
 }
 
 func (p *StrategyPillarCacheProjector) handleFitConfigurationUpdated(ctx context.Context, eventData []byte) error {
@@ -151,14 +161,15 @@ func (p *StrategyPillarCacheProjector) handleFitConfigurationUpdated(ctx context
 func (p *StrategyPillarCacheProjector) unmarshalAndUpdate(ctx context.Context, eventData []byte, mutate func(pillarEvent, *readmodels.StrategyPillarCacheDTO)) error {
 	var event pillarEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal pillar event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal strategy pillar event data in enterprise cache projector: %w", err)
+		log.Printf("failed to unmarshal pillar event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	existing, err := p.readModel.GetActivePillar(ctx, event.PillarID)
 	if err != nil {
 		log.Printf("Failed to get existing pillar %s: %v", event.PillarID, err)
-		return err
+		return fmt.Errorf("load active enterprise strategy pillar %s for cache mutation: %w", event.PillarID, err)
 	}
 
 	if existing == nil {
@@ -170,5 +181,8 @@ func (p *StrategyPillarCacheProjector) unmarshalAndUpdate(ctx context.Context, e
 	}
 
 	mutate(event, existing)
-	return p.readModel.Insert(ctx, *existing)
+	if err := p.readModel.Insert(ctx, *existing); err != nil {
+		return fmt.Errorf("upsert enterprise strategy pillar cache entry for pillar %s: %w", event.PillarID, err)
+	}
+	return nil
 }

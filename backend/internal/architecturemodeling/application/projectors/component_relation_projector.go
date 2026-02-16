@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"easi/backend/internal/architecturemodeling/application/readmodels"
@@ -26,23 +27,28 @@ func NewComponentRelationProjector(readModel *readmodels.ComponentRelationReadMo
 func (p *ComponentRelationProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
 
-// ProjectEvent projects a domain event to the read model
 func (p *ComponentRelationProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	switch eventType {
 	case "ComponentRelationCreated":
-		var event events.ComponentRelationCreated
-		if err := json.Unmarshal(eventData, &event); err != nil {
-			log.Printf("Failed to unmarshal ComponentRelationCreated event: %v", err)
-			return err
-		}
+		return p.projectCreated(ctx, eventData)
+	case "ComponentRelationUpdated":
+		return p.projectUpdated(ctx, eventData)
+	case "ComponentRelationDeleted":
+		return p.projectDeleted(ctx, eventData)
+	}
+	return nil
+}
 
-		dto := readmodels.ComponentRelationDTO{
+func (p *ComponentRelationProjector) projectCreated(ctx context.Context, eventData []byte) error {
+	return projectEvent(ctx, eventData, "ComponentRelationCreated", func(ctx context.Context, event *events.ComponentRelationCreated) error {
+		return p.readModel.Insert(ctx, readmodels.ComponentRelationDTO{
 			ID:                event.ID,
 			SourceComponentID: event.SourceComponentID,
 			TargetComponentID: event.TargetComponentID,
@@ -50,26 +56,18 @@ func (p *ComponentRelationProjector) ProjectEvent(ctx context.Context, eventType
 			Name:              event.Name,
 			Description:       event.Description,
 			CreatedAt:         event.CreatedAt,
-		}
+		})
+	})
+}
 
-		return p.readModel.Insert(ctx, dto)
-	case "ComponentRelationUpdated":
-		var event events.ComponentRelationUpdated
-		if err := json.Unmarshal(eventData, &event); err != nil {
-			log.Printf("Failed to unmarshal ComponentRelationUpdated event: %v", err)
-			return err
-		}
-
+func (p *ComponentRelationProjector) projectUpdated(ctx context.Context, eventData []byte) error {
+	return projectEvent(ctx, eventData, "ComponentRelationUpdated", func(ctx context.Context, event *events.ComponentRelationUpdated) error {
 		return p.readModel.Update(ctx, event.ID, event.Name, event.Description)
-	case "ComponentRelationDeleted":
-		var event events.ComponentRelationDeleted
-		if err := json.Unmarshal(eventData, &event); err != nil {
-			log.Printf("Failed to unmarshal ComponentRelationDeleted event: %v", err)
-			return err
-		}
+	})
+}
 
+func (p *ComponentRelationProjector) projectDeleted(ctx context.Context, eventData []byte) error {
+	return projectEvent(ctx, eventData, "ComponentRelationDeleted", func(ctx context.Context, event *events.ComponentRelationDeleted) error {
 		return p.readModel.MarkAsDeleted(ctx, event.ID, event.DeletedAt)
-	}
-
-	return nil
+	})
 }

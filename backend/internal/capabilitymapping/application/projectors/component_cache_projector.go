@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
@@ -25,8 +26,9 @@ func NewComponentCacheProjector(cache ComponentCacheWriter) *ComponentCacheProje
 func (p *ComponentCacheProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -60,26 +62,38 @@ type componentDeletedEvent struct {
 func (p *ComponentCacheProjector) handleComponentCreated(ctx context.Context, eventData []byte) error {
 	var event componentCreatedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal ApplicationComponentCreated event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal ApplicationComponentCreated event data: %w", err)
+		log.Printf("failed to unmarshal ApplicationComponentCreated event: %v", wrappedErr)
+		return wrappedErr
 	}
-	return p.cache.Upsert(ctx, event.ID, event.Name)
+	if err := p.cache.Upsert(ctx, event.ID, event.Name); err != nil {
+		return fmt.Errorf("project ApplicationComponentCreated cache upsert for component %s: %w", event.ID, err)
+	}
+	return nil
 }
 
 func (p *ComponentCacheProjector) handleComponentUpdated(ctx context.Context, eventData []byte) error {
 	var event componentUpdatedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal ApplicationComponentUpdated event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal ApplicationComponentUpdated event data: %w", err)
+		log.Printf("failed to unmarshal ApplicationComponentUpdated event: %v", wrappedErr)
+		return wrappedErr
 	}
-	return p.cache.Upsert(ctx, event.ID, event.Name)
+	if err := p.cache.Upsert(ctx, event.ID, event.Name); err != nil {
+		return fmt.Errorf("project ApplicationComponentUpdated cache upsert for component %s: %w", event.ID, err)
+	}
+	return nil
 }
 
 func (p *ComponentCacheProjector) handleComponentDeleted(ctx context.Context, eventData []byte) error {
 	var event componentDeletedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal ApplicationComponentDeleted event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal ApplicationComponentDeleted event data: %w", err)
+		log.Printf("failed to unmarshal ApplicationComponentDeleted event: %v", wrappedErr)
+		return wrappedErr
 	}
-	return p.cache.Delete(ctx, event.ID)
+	if err := p.cache.Delete(ctx, event.ID); err != nil {
+		return fmt.Errorf("project ApplicationComponentDeleted cache delete for component %s: %w", event.ID, err)
+	}
+	return nil
 }

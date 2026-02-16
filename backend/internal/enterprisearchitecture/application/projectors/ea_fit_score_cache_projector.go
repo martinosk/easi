@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
@@ -26,8 +27,9 @@ func NewEAFitScoreCacheProjector(readModel FitScoreCacheWriter) *EAFitScoreCache
 func (p *EAFitScoreCacheProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -54,16 +56,19 @@ type applicationFitScoreSetEvent struct {
 func (p *EAFitScoreCacheProjector) handleApplicationFitScoreSet(ctx context.Context, eventData []byte) error {
 	var event applicationFitScoreSetEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal ApplicationFitScoreSet event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal ApplicationFitScoreSet event data: %w", err)
+		log.Printf("failed to unmarshal ApplicationFitScoreSet event: %v", wrappedErr)
+		return wrappedErr
 	}
-
-	return p.readModel.Upsert(ctx, readmodels.FitScoreEntry{
+	if err := p.readModel.Upsert(ctx, readmodels.FitScoreEntry{
 		ComponentID: event.ComponentID,
 		PillarID:    event.PillarID,
 		Score:       event.Score,
 		Rationale:   event.Rationale,
-	})
+	}); err != nil {
+		return fmt.Errorf("project ApplicationFitScoreSet cache upsert for component %s pillar %s: %w", event.ComponentID, event.PillarID, err)
+	}
+	return nil
 }
 
 type applicationFitScoreRemovedEvent struct {
@@ -74,9 +79,12 @@ type applicationFitScoreRemovedEvent struct {
 func (p *EAFitScoreCacheProjector) handleApplicationFitScoreRemoved(ctx context.Context, eventData []byte) error {
 	var event applicationFitScoreRemovedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal ApplicationFitScoreRemoved event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal ApplicationFitScoreRemoved event data: %w", err)
+		log.Printf("failed to unmarshal ApplicationFitScoreRemoved event: %v", wrappedErr)
+		return wrappedErr
 	}
-
-	return p.readModel.Delete(ctx, event.ComponentID, event.PillarID)
+	if err := p.readModel.Delete(ctx, event.ComponentID, event.PillarID); err != nil {
+		return fmt.Errorf("project ApplicationFitScoreRemoved cache delete for component %s pillar %s: %w", event.ComponentID, event.PillarID, err)
+	}
+	return nil
 }

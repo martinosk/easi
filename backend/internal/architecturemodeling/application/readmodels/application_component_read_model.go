@@ -3,6 +3,7 @@ package readmodels
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/lib/pq"
@@ -53,7 +54,7 @@ func (rm *ApplicationComponentReadModel) Insert(ctx context.Context, dto Applica
 	// Extract tenant from context - infrastructure concern
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve tenant for insert application component %s: %w", dto.ID, err)
 	}
 
 	_, err = rm.db.ExecContext(ctx,
@@ -61,7 +62,7 @@ func (rm *ApplicationComponentReadModel) Insert(ctx context.Context, dto Applica
 		tenantID.Value(), dto.ID,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete existing application component %s before insert: %w", dto.ID, err)
 	}
 
 	_, err = rm.db.ExecContext(ctx,
@@ -70,36 +71,37 @@ func (rm *ApplicationComponentReadModel) Insert(ctx context.Context, dto Applica
 		VALUES ($1, $2, $3, $4, $5)`,
 		dto.ID, tenantID.Value(), dto.Name, dto.Description, dto.CreatedAt,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("insert application component %s for tenant %s: %w", dto.ID, tenantID.Value(), err)
+	}
+	return nil
 }
 
-// Update updates an existing component in the read model
-// RLS policies ensure we can only update our tenant's rows
-func (rm *ApplicationComponentReadModel) Update(ctx context.Context, id, name, description string) error {
-	// Extract tenant for defense-in-depth filtering
+func (rm *ApplicationComponentReadModel) execByID(ctx context.Context, query string, id string, extraArgs ...any) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve tenant for application component %s: %w", id, err)
 	}
+	args := append([]any{tenantID.Value(), id}, extraArgs...)
+	_, err = rm.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("application component %s mutation for tenant %s: %w", id, tenantID.Value(), err)
+	}
+	return nil
+}
 
-	_, err = rm.db.ExecContext(ctx,
-		"UPDATE architecturemodeling.application_components SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
-		name, description, tenantID.Value(), id,
+func (rm *ApplicationComponentReadModel) Update(ctx context.Context, id, name, description string) error {
+	return rm.execByID(ctx,
+		"UPDATE architecturemodeling.application_components SET name = $3, description = $4, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $1 AND id = $2",
+		id, name, description,
 	)
-	return err
 }
 
 func (rm *ApplicationComponentReadModel) MarkAsDeleted(ctx context.Context, id string, deletedAt time.Time) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.db.ExecContext(ctx,
-		"UPDATE architecturemodeling.application_components SET is_deleted = TRUE, deleted_at = $1 WHERE tenant_id = $2 AND id = $3",
-		deletedAt, tenantID.Value(), id,
+	return rm.execByID(ctx,
+		"UPDATE architecturemodeling.application_components SET is_deleted = TRUE, deleted_at = $3 WHERE tenant_id = $1 AND id = $2",
+		id, deletedAt,
 	)
-	return err
 }
 
 // GetByID retrieves a component by ID
@@ -253,7 +255,7 @@ func (rm *ApplicationComponentReadModel) trimAndCheckMore(components []Applicati
 func (rm *ApplicationComponentReadModel) AddExpert(ctx context.Context, info ExpertInfo) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve tenant for add expert to application component %s: %w", info.ComponentID, err)
 	}
 
 	_, err = rm.db.ExecContext(ctx,
@@ -261,27 +263,33 @@ func (rm *ApplicationComponentReadModel) AddExpert(ctx context.Context, info Exp
 		tenantID.Value(), info.ComponentID, info.Name, info.Role,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete existing expert %s/%s for application component %s: %w", info.Name, info.Role, info.ComponentID, err)
 	}
 
 	_, err = rm.db.ExecContext(ctx,
 		"INSERT INTO architecturemodeling.application_component_experts (component_id, tenant_id, expert_name, expert_role, contact_info, added_at) VALUES ($1, $2, $3, $4, $5, $6)",
 		info.ComponentID, tenantID.Value(), info.Name, info.Role, info.Contact, info.AddedAt,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("insert expert %s/%s for application component %s tenant %s: %w", info.Name, info.Role, info.ComponentID, tenantID.Value(), err)
+	}
+	return nil
 }
 
 func (rm *ApplicationComponentReadModel) RemoveExpert(ctx context.Context, info ExpertInfo) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve tenant for remove expert from application component %s: %w", info.ComponentID, err)
 	}
 
 	_, err = rm.db.ExecContext(ctx,
 		"DELETE FROM architecturemodeling.application_component_experts WHERE tenant_id = $1 AND component_id = $2 AND expert_name = $3 AND expert_role = $4 AND contact_info = $5",
 		tenantID.Value(), info.ComponentID, info.Name, info.Role, info.Contact,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("remove expert %s/%s from application component %s tenant %s: %w", info.Name, info.Role, info.ComponentID, tenantID.Value(), err)
+	}
+	return nil
 }
 
 func (rm *ApplicationComponentReadModel) GetDistinctExpertRoles(ctx context.Context) ([]string, error) {

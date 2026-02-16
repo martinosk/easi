@@ -71,8 +71,9 @@ func NewDomainAssignmentEffectiveProjector(
 func (p *DomainAssignmentEffectiveProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -92,8 +93,9 @@ func (p *DomainAssignmentEffectiveProjector) ProjectEvent(ctx context.Context, e
 func (p *DomainAssignmentEffectiveProjector) handleCapabilityAssignedToDomain(ctx context.Context, eventData []byte) error {
 	var event events.CapabilityAssignedToDomain
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityAssignedToDomain event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal CapabilityAssignedToDomain event data: %w", err)
+		log.Printf("failed to unmarshal CapabilityAssignedToDomain event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	return p.recomputeForAllActivePillars(ctx, event.CapabilityID, event.BusinessDomainID)
@@ -102,8 +104,9 @@ func (p *DomainAssignmentEffectiveProjector) handleCapabilityAssignedToDomain(ct
 func (p *DomainAssignmentEffectiveProjector) handleCapabilityUnassignedFromDomain(ctx context.Context, eventData []byte) error {
 	var event events.CapabilityUnassignedFromDomain
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityUnassignedFromDomain event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal CapabilityUnassignedFromDomain event data: %w", err)
+		log.Printf("failed to unmarshal CapabilityUnassignedFromDomain event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	ancestorInDomain, err := p.ancestryChecker.IsAncestorInDomain(ctx, event.CapabilityID, event.BusinessDomainID)

@@ -32,8 +32,9 @@ func NewBusinessDomainAssignmentProjector(
 func (p *BusinessDomainAssignmentProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -53,14 +54,15 @@ func (p *BusinessDomainAssignmentProjector) ProjectEvent(ctx context.Context, ev
 func (p *BusinessDomainAssignmentProjector) handleCapabilityAssignedToDomain(ctx context.Context, eventData []byte) error {
 	var event events.CapabilityAssignedToDomain
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityAssignedToDomain event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal CapabilityAssignedToDomain event data: %w", err)
+		log.Printf("failed to unmarshal CapabilityAssignedToDomain event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	domain, err := p.domainReadModel.GetByID(ctx, event.BusinessDomainID)
 	if err != nil {
 		log.Printf("Failed to get business domain %s: %v", event.BusinessDomainID, err)
-		return err
+		return fmt.Errorf("load business domain %s for assignment %s: %w", event.BusinessDomainID, event.ID, err)
 	}
 	if domain == nil {
 		log.Printf("Business domain not found: %s", event.BusinessDomainID)
@@ -70,7 +72,7 @@ func (p *BusinessDomainAssignmentProjector) handleCapabilityAssignedToDomain(ctx
 	capability, err := p.capabilityReadModel.GetByID(ctx, event.CapabilityID)
 	if err != nil {
 		log.Printf("Failed to get capability %s: %v", event.CapabilityID, err)
-		return err
+		return fmt.Errorf("load capability %s for assignment %s: %w", event.CapabilityID, event.ID, err)
 	}
 	if capability == nil {
 		log.Printf("Capability not found: %s", event.CapabilityID)
@@ -87,14 +89,21 @@ func (p *BusinessDomainAssignmentProjector) handleCapabilityAssignedToDomain(ctx
 		CapabilityLevel:       capability.Level,
 		AssignedAt:            event.AssignedAt,
 	}
-	return p.assignmentReadModel.Insert(ctx, dto)
+	if err := p.assignmentReadModel.Insert(ctx, dto); err != nil {
+		return fmt.Errorf("project CapabilityAssignedToDomain assignment insert for assignment %s: %w", event.ID, err)
+	}
+	return nil
 }
 
 func (p *BusinessDomainAssignmentProjector) handleCapabilityUnassignedFromDomain(ctx context.Context, eventData []byte) error {
 	var event events.CapabilityUnassignedFromDomain
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityUnassignedFromDomain event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal CapabilityUnassignedFromDomain event data: %w", err)
+		log.Printf("failed to unmarshal CapabilityUnassignedFromDomain event: %v", wrappedErr)
+		return wrappedErr
 	}
-	return p.assignmentReadModel.Delete(ctx, event.ID)
+	if err := p.assignmentReadModel.Delete(ctx, event.ID); err != nil {
+		return fmt.Errorf("project CapabilityUnassignedFromDomain assignment delete for assignment %s: %w", event.ID, err)
+	}
+	return nil
 }

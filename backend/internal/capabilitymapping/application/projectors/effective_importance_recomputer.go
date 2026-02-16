@@ -43,7 +43,7 @@ func NewEffectiveImportanceRecomputer(
 
 func (r *EffectiveImportanceRecomputer) RecomputeCapabilityAndDescendants(ctx context.Context, scope ImportanceScope) error {
 	if err := r.recomputeSingleCapability(ctx, scope); err != nil {
-		return err
+		return fmt.Errorf("recompute effective importance for capability %s pillar %s domain %s: %w", scope.CapabilityID, scope.PillarID, scope.BusinessDomainID, err)
 	}
 
 	return r.ForEachDescendant(ctx, scope.CapabilityID, func(descendantID string) error {
@@ -64,18 +64,18 @@ func (r *EffectiveImportanceRecomputer) RecomputeCapabilityAndDescendants(ctx co
 func (r *EffectiveImportanceRecomputer) ForEachDescendant(ctx context.Context, capabilityID string, fn func(descendantID string) error) error {
 	capID, err := valueobjects.NewCapabilityIDFromString(capabilityID)
 	if err != nil {
-		return err
+		return fmt.Errorf("parse capability id %s for descendant traversal: %w", capabilityID, err)
 	}
 
 	descendants, err := r.hierarchyService.GetDescendants(ctx, capID)
 	if err != nil {
 		log.Printf("Failed to get descendants for capability %s: %v", capabilityID, err)
-		return err
+		return fmt.Errorf("load descendants for capability %s: %w", capabilityID, err)
 	}
 
 	for _, descendantID := range descendants {
 		if err := fn(descendantID.Value()); err != nil {
-			return err
+			return fmt.Errorf("process descendant %s of capability %s: %w", descendantID.Value(), capabilityID, err)
 		}
 	}
 
@@ -85,16 +85,19 @@ func (r *EffectiveImportanceRecomputer) ForEachDescendant(ctx context.Context, c
 func (r *EffectiveImportanceRecomputer) recomputeSingleCapability(ctx context.Context, scope ImportanceScope) error {
 	resolved, err := r.resolveImportance(ctx, scope)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve effective importance for capability %s pillar %s domain %s: %w", scope.CapabilityID, scope.PillarID, scope.BusinessDomainID, err)
 	}
 
 	if resolved == nil {
-		return r.effectiveReadModel.Delete(ctx, scope.CapabilityID, scope.PillarID, scope.BusinessDomainID)
+		if err := r.effectiveReadModel.Delete(ctx, scope.CapabilityID, scope.PillarID, scope.BusinessDomainID); err != nil {
+			return fmt.Errorf("delete effective importance for capability %s pillar %s domain %s: %w", scope.CapabilityID, scope.PillarID, scope.BusinessDomainID, err)
+		}
+		return nil
 	}
 
 	dto := r.buildDTO(scope, resolved)
 	if err := r.effectiveReadModel.Upsert(ctx, dto); err != nil {
-		return err
+		return fmt.Errorf("upsert effective importance for capability %s pillar %s domain %s: %w", scope.CapabilityID, scope.PillarID, scope.BusinessDomainID, err)
 	}
 
 	return r.publishRecalculatedEvent(ctx, dto)
@@ -103,23 +106,23 @@ func (r *EffectiveImportanceRecomputer) recomputeSingleCapability(ctx context.Co
 func (r *EffectiveImportanceRecomputer) resolveImportance(ctx context.Context, scope ImportanceScope) (*services.ResolvedRating, error) {
 	capID, err := valueobjects.NewCapabilityIDFromString(scope.CapabilityID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse capability id %s for effective importance resolution: %w", scope.CapabilityID, err)
 	}
 
 	pillarVo, err := valueobjects.NewPillarIDFromString(scope.PillarID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse pillar id %s for effective importance resolution: %w", scope.PillarID, err)
 	}
 
 	domainVo, err := valueobjects.NewBusinessDomainIDFromString(scope.BusinessDomainID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse business domain id %s for effective importance resolution: %w", scope.BusinessDomainID, err)
 	}
 
 	resolved, err := r.ratingResolver.ResolveEffectiveImportance(ctx, capID, pillarVo, domainVo)
 	if err != nil {
 		log.Printf("Failed to resolve effective importance for capability %s: %v", scope.CapabilityID, err)
-		return nil, err
+		return nil, fmt.Errorf("resolve effective importance via resolver for capability %s pillar %s domain %s: %w", scope.CapabilityID, scope.PillarID, scope.BusinessDomainID, err)
 	}
 	return resolved, nil
 }

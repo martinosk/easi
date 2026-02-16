@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
@@ -29,8 +30,9 @@ func NewEARealizationCacheProjector(readModel RealizationCacheWriter) *EARealiza
 func (p *EARealizationCacheProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -60,17 +62,20 @@ type systemLinkedToCapabilityEvent struct {
 func (p *EARealizationCacheProjector) handleSystemLinkedToCapability(ctx context.Context, eventData []byte) error {
 	var event systemLinkedToCapabilityEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal SystemLinkedToCapability event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal SystemLinkedToCapability event data in EA realization cache projector: %w", err)
+		log.Printf("failed to unmarshal SystemLinkedToCapability event: %v", wrappedErr)
+		return wrappedErr
 	}
-
-	return p.readModel.Upsert(ctx, readmodels.RealizationEntry{
+	if err := p.readModel.Upsert(ctx, readmodels.RealizationEntry{
 		RealizationID: event.ID,
 		CapabilityID:  event.CapabilityID,
 		ComponentID:   event.ComponentID,
 		ComponentName: event.ComponentName,
 		Origin:        event.RealizationLevel,
-	})
+	}); err != nil {
+		return fmt.Errorf("project SystemLinkedToCapability EA realization cache upsert for realization %s: %w", event.ID, err)
+	}
+	return nil
 }
 
 type systemRealizationDeletedEvent struct {
@@ -80,11 +85,14 @@ type systemRealizationDeletedEvent struct {
 func (p *EARealizationCacheProjector) handleSystemRealizationDeleted(ctx context.Context, eventData []byte) error {
 	var event systemRealizationDeletedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal SystemRealizationDeleted event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal SystemRealizationDeleted event data in EA realization cache projector: %w", err)
+		log.Printf("failed to unmarshal SystemRealizationDeleted event: %v", wrappedErr)
+		return wrappedErr
 	}
-
-	return p.readModel.Delete(ctx, event.ID)
+	if err := p.readModel.Delete(ctx, event.ID); err != nil {
+		return fmt.Errorf("project SystemRealizationDeleted EA realization cache delete for realization %s: %w", event.ID, err)
+	}
+	return nil
 }
 
 type realizationCapabilityDeletedEvent struct {
@@ -94,11 +102,14 @@ type realizationCapabilityDeletedEvent struct {
 func (p *EARealizationCacheProjector) handleCapabilityDeleted(ctx context.Context, eventData []byte) error {
 	var event realizationCapabilityDeletedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityDeleted event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal CapabilityDeleted event data in EA realization cache projector: %w", err)
+		log.Printf("failed to unmarshal CapabilityDeleted event: %v", wrappedErr)
+		return wrappedErr
 	}
-
-	return p.readModel.DeleteByCapabilityID(ctx, event.ID)
+	if err := p.readModel.DeleteByCapabilityID(ctx, event.ID); err != nil {
+		return fmt.Errorf("project CapabilityDeleted EA realization cache delete by capability %s: %w", event.ID, err)
+	}
+	return nil
 }
 
 type applicationComponentUpdatedEvent struct {
@@ -109,9 +120,12 @@ type applicationComponentUpdatedEvent struct {
 func (p *EARealizationCacheProjector) handleApplicationComponentUpdated(ctx context.Context, eventData []byte) error {
 	var event applicationComponentUpdatedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal ApplicationComponentUpdated event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal ApplicationComponentUpdated event data in EA realization cache projector: %w", err)
+		log.Printf("failed to unmarshal ApplicationComponentUpdated event: %v", wrappedErr)
+		return wrappedErr
 	}
-
-	return p.readModel.UpdateComponentName(ctx, event.ID, event.Name)
+	if err := p.readModel.UpdateComponentName(ctx, event.ID, event.Name); err != nil {
+		return fmt.Errorf("project ApplicationComponentUpdated EA realization cache component rename for component %s: %w", event.ID, err)
+	}
+	return nil
 }

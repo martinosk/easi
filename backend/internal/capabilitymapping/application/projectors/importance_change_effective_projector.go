@@ -29,8 +29,9 @@ func NewImportanceChangeEffectiveProjector(
 func (p *ImportanceChangeEffectiveProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -51,8 +52,9 @@ func (p *ImportanceChangeEffectiveProjector) ProjectEvent(ctx context.Context, e
 func (p *ImportanceChangeEffectiveProjector) handleStrategyImportanceSet(ctx context.Context, eventData []byte) error {
 	var event events.StrategyImportanceSet
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal StrategyImportanceSet event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal StrategyImportanceSet event data: %w", err)
+		log.Printf("failed to unmarshal StrategyImportanceSet event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	return p.recomputer.RecomputeCapabilityAndDescendants(ctx, ImportanceScope{
@@ -65,14 +67,15 @@ func (p *ImportanceChangeEffectiveProjector) handleStrategyImportanceSet(ctx con
 func (p *ImportanceChangeEffectiveProjector) handleStrategyImportanceUpdated(ctx context.Context, eventData []byte) error {
 	var event events.StrategyImportanceUpdated
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal StrategyImportanceUpdated event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal StrategyImportanceUpdated event data: %w", err)
+		log.Printf("failed to unmarshal StrategyImportanceUpdated event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	importance, err := p.importanceReadModel.GetByID(ctx, event.ID)
 	if err != nil {
 		log.Printf("Failed to get strategy importance %s: %v", event.ID, err)
-		return err
+		return fmt.Errorf("load strategy importance %s for effective recomputation: %w", event.ID, err)
 	}
 	if importance == nil {
 		log.Printf("Strategy importance %s not found for recomputation", event.ID)
@@ -89,8 +92,9 @@ func (p *ImportanceChangeEffectiveProjector) handleStrategyImportanceUpdated(ctx
 func (p *ImportanceChangeEffectiveProjector) handleStrategyImportanceRemoved(ctx context.Context, eventData []byte) error {
 	var event events.StrategyImportanceRemoved
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal StrategyImportanceRemoved event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal StrategyImportanceRemoved event data: %w", err)
+		log.Printf("failed to unmarshal StrategyImportanceRemoved event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	return p.recomputer.RecomputeCapabilityAndDescendants(ctx, ImportanceScope{

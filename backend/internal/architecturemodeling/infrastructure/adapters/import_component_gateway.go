@@ -2,6 +2,7 @@ package adapters
 
 import (
 	"context"
+	"fmt"
 
 	"easi/backend/internal/architecturemodeling/application/commands"
 	"easi/backend/internal/shared/cqrs"
@@ -20,7 +21,7 @@ func (g *ImportComponentGateway) CreateComponent(ctx context.Context, name, desc
 		Name: name, Description: description,
 	})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("dispatch create application component command for %s: %w", name, err)
 	}
 	return result.CreatedID, nil
 }
@@ -34,7 +35,7 @@ func (g *ImportComponentGateway) CreateRelation(ctx context.Context, sourceID, t
 		Description:       description,
 	})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("dispatch create component relation command for source %s target %s: %w", sourceID, targetID, err)
 	}
 	return result.CreatedID, nil
 }

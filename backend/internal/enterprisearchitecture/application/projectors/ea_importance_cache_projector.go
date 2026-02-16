@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
@@ -25,8 +26,9 @@ func NewEAImportanceCacheProjector(readModel ImportanceCacheWriter) *EAImportanc
 func (p *EAImportanceCacheProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -52,14 +54,17 @@ type effectiveImportanceRecalculatedEvent struct {
 func (p *EAImportanceCacheProjector) handleEffectiveImportanceRecalculated(ctx context.Context, eventData []byte) error {
 	var event effectiveImportanceRecalculatedEvent
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal EffectiveImportanceRecalculated event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal EffectiveImportanceRecalculated event data: %w", err)
+		log.Printf("failed to unmarshal EffectiveImportanceRecalculated event: %v", wrappedErr)
+		return wrappedErr
 	}
-
-	return p.readModel.Upsert(ctx, readmodels.ImportanceEntry{
+	if err := p.readModel.Upsert(ctx, readmodels.ImportanceEntry{
 		CapabilityID:        event.CapabilityID,
 		BusinessDomainID:    event.BusinessDomainID,
 		PillarID:            event.PillarID,
 		EffectiveImportance: event.Importance,
-	})
+	}); err != nil {
+		return fmt.Errorf("project EffectiveImportanceRecalculated cache upsert for capability %s pillar %s domain %s: %w", event.CapabilityID, event.PillarID, event.BusinessDomainID, err)
+	}
+	return nil
 }

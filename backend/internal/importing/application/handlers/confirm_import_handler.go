@@ -56,15 +56,15 @@ func (h *ConfirmImportHandler) Handle(ctx context.Context, cmd cqrs.Command) (cq
 
 	session, err := h.repository.GetByID(ctx, command.ID)
 	if err != nil {
-		return cqrs.EmptyResult(), err
+		return cqrs.EmptyResult(), fmt.Errorf("load import session %s: %w", command.ID, err)
 	}
 
 	if err := session.StartImport(); err != nil {
-		return cqrs.EmptyResult(), err
+		return cqrs.EmptyResult(), fmt.Errorf("start import session %s: %w", command.ID, err)
 	}
 
 	if err := h.repository.Save(ctx, session); err != nil {
-		return cqrs.EmptyResult(), err
+		return cqrs.EmptyResult(), fmt.Errorf("persist started import session %s: %w", command.ID, err)
 	}
 
 	tenantID := sharedctx.GetTenantOrDefault(ctx)
@@ -83,7 +83,7 @@ func (h *ConfirmImportHandler) executeImport(ctx context.Context, sessionID stri
 
 	session, err := h.repository.GetByID(execCtx, sessionID)
 	if err != nil {
-		log.Printf("Failed to load import session %s: %v", sessionID, err)
+		log.Printf("failed to load import session %s for execution: %v", sessionID, err)
 		return
 	}
 
@@ -94,12 +94,12 @@ func (h *ConfirmImportHandler) executeImport(ctx context.Context, sessionID stri
 	}
 
 	if err := session.Complete(importResult); err != nil {
-		log.Printf("Failed to mark import session %s complete: %v", sessionID, err)
+		log.Printf("failed to mark import session %s complete: %v", sessionID, err)
 		return
 	}
 
 	if err := h.repository.Save(ctx, session); err != nil {
-		log.Printf("Failed to save import session %s: %v", sessionID, err)
+		log.Printf("failed to persist completed import session %s: %v", sessionID, err)
 	}
 }
 
@@ -147,7 +147,7 @@ func (h *ConfirmImportHandler) failSessionWithReason(ctx context.Context, sessio
 
 	session, err := h.repository.GetByID(persistenceCtx, sessionID)
 	if err != nil {
-		log.Printf("Failed to reload import session %s for failure persistence: %v", sessionID, err)
+		log.Printf("failed to reload import session %s for failure persistence: %v", sessionID, err)
 		return
 	}
 
@@ -156,11 +156,11 @@ func (h *ConfirmImportHandler) failSessionWithReason(ctx context.Context, sessio
 	}
 
 	if err := session.Fail(reason); err != nil {
-		log.Printf("Failed to mark import session %s failed: %v", sessionID, err)
+		log.Printf("failed to mark import session %s as failed: %v", sessionID, err)
 		return
 	}
 
 	if err := h.repository.Save(persistenceCtx, session); err != nil {
-		log.Printf("Failed to save failed import session %s: %v", sessionID, err)
+		log.Printf("failed to persist failed import session %s: %v", sessionID, err)
 	}
 }

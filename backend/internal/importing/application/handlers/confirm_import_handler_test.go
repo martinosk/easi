@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,24 @@ import (
 	"easi/backend/internal/importing/application/saga"
 	"easi/backend/internal/importing/infrastructure/repositories"
 )
+
+func TestConfirmImportHandler_WrapsLoadSessionErrorWithContext(t *testing.T) {
+	eventStore := newInMemoryEventStore()
+	repo := repositories.NewImportSessionRepository(eventStore)
+	handler := newConfirmImportHandlerForTests(repo, stubComponentGateway{}, context.Background(), 2*time.Second)
+
+	sessionID := "7f89f0c3-a0f5-4ce0-9f78-f4ccfe668d95"
+	_, err := handler.Handle(context.Background(), &commands.ConfirmImport{ID: sessionID})
+	if err == nil {
+		t.Fatal("expected error for missing import session")
+	}
+	if !strings.Contains(err.Error(), "load import session "+sessionID) {
+		t.Fatalf("expected wrapped context with session id, got %v", err)
+	}
+	if !errors.Is(err, repositories.ErrImportSessionNotFound) {
+		t.Fatalf("expected wrapped error to preserve cause %v, got %v", repositories.ErrImportSessionNotFound, err)
+	}
+}
 
 type stubComponentGateway struct {
 	createComponent func(ctx context.Context, name, description string) (string, error)

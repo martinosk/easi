@@ -26,8 +26,9 @@ func NewCapabilityProjector(readModel *readmodels.CapabilityReadModel, assignmen
 func (p *CapabilityProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -68,7 +69,7 @@ func unmarshalEvent[T any](eventData []byte) (T, error) {
 func handleProjection[T any](ctx context.Context, eventData []byte, project func(context.Context, T) error) error {
 	event, err := unmarshalEvent[T](eventData)
 	if err != nil {
-		return err
+		return fmt.Errorf("decode projector event payload: %w", err)
 	}
 	return project(ctx, event)
 }
@@ -87,7 +88,7 @@ func (p *CapabilityProjector) projectCreated(ctx context.Context, event events.C
 func (p *CapabilityProjector) handleCapabilityUpdated(ctx context.Context, eventData []byte) error {
 	event, err := unmarshalEvent[events.CapabilityUpdated](eventData)
 	if err != nil {
-		return err
+		return fmt.Errorf("decode CapabilityUpdated event payload: %w", err)
 	}
 
 	if err := p.readModel.Update(ctx, readmodels.CapabilityUpdate{
@@ -95,13 +96,13 @@ func (p *CapabilityProjector) handleCapabilityUpdated(ctx context.Context, event
 		Name:        event.Name,
 		Description: event.Description,
 	}); err != nil {
-		return err
+		return fmt.Errorf("project CapabilityUpdated read model update for capability %s: %w", event.ID, err)
 	}
 
 	capability, err := p.readModel.GetByID(ctx, event.ID)
 	if err != nil {
 		log.Printf("Failed to get capability %s after update: %v", event.ID, err)
-		return err
+		return fmt.Errorf("load capability %s after CapabilityUpdated projection: %w", event.ID, err)
 	}
 	if capability == nil {
 		log.Printf("Capability not found after update: %s", event.ID)
@@ -112,7 +113,7 @@ func (p *CapabilityProjector) handleCapabilityUpdated(ctx context.Context, event
 		CapabilityID: event.ID, Name: capability.Name, Description: capability.Description, Level: capability.Level,
 	}); err != nil {
 		log.Printf("Failed to update assignments for capability %s: %v", event.ID, err)
-		return err
+		return fmt.Errorf("project CapabilityUpdated assignment read model update for capability %s: %w", event.ID, err)
 	}
 
 	return nil

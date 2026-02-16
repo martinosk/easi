@@ -25,8 +25,9 @@ func NewEnterpriseCapabilityLinkProjector(readModel *readmodels.EnterpriseCapabi
 func (p *EnterpriseCapabilityLinkProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -45,61 +46,58 @@ func (p *EnterpriseCapabilityLinkProjector) ProjectEvent(ctx context.Context, ev
 }
 
 func (p *EnterpriseCapabilityLinkProjector) handleLinked(ctx context.Context, eventData []byte) error {
-	var event events.EnterpriseCapabilityLinked
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal EnterpriseCapabilityLinked event: %v", err)
-		return err
-	}
-
-	dto := readmodels.EnterpriseCapabilityLinkDTO{
-		ID:                     event.ID,
-		EnterpriseCapabilityID: event.EnterpriseCapabilityID,
-		DomainCapabilityID:     event.DomainCapabilityID,
-		LinkedBy:               event.LinkedBy,
-		LinkedAt:               event.LinkedAt,
-	}
-	if err := p.readModel.Insert(ctx, dto); err != nil {
-		return err
-	}
-
-	return p.computeBlocking(ctx, event.DomainCapabilityID, event.EnterpriseCapabilityID)
+	return handleProjection(ctx, eventData, func(ctx context.Context, event events.EnterpriseCapabilityLinked) error {
+		dto := readmodels.EnterpriseCapabilityLinkDTO{
+			ID:                     event.ID,
+			EnterpriseCapabilityID: event.EnterpriseCapabilityID,
+			DomainCapabilityID:     event.DomainCapabilityID,
+			LinkedBy:               event.LinkedBy,
+			LinkedAt:               event.LinkedAt,
+		}
+		if err := p.readModel.Insert(ctx, dto); err != nil {
+			return fmt.Errorf("project EnterpriseCapabilityLinked for link %s: %w", event.ID, err)
+		}
+		if err := p.computeBlocking(ctx, event.DomainCapabilityID, event.EnterpriseCapabilityID); err != nil {
+			return fmt.Errorf("project EnterpriseCapabilityLinked blocking computation for link %s: %w", event.ID, err)
+		}
+		return nil
+	})
 }
 
 func (p *EnterpriseCapabilityLinkProjector) handleUnlinked(ctx context.Context, eventData []byte) error {
-	var event events.EnterpriseCapabilityUnlinked
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal EnterpriseCapabilityUnlinked event: %v", err)
-		return err
-	}
-
-	if err := p.readModel.DeleteBlockingByBlocker(ctx, event.DomainCapabilityID); err != nil {
-		log.Printf("Failed to delete blocking records for capability %s: %v", event.DomainCapabilityID, err)
-		return err
-	}
-
-	return p.readModel.Delete(ctx, event.ID)
+	return handleProjection(ctx, eventData, func(ctx context.Context, event events.EnterpriseCapabilityUnlinked) error {
+		if err := p.readModel.DeleteBlockingByBlocker(ctx, event.DomainCapabilityID); err != nil {
+			return fmt.Errorf("project EnterpriseCapabilityUnlinked delete blocking for capability %s: %w", event.DomainCapabilityID, err)
+		}
+		if err := p.readModel.Delete(ctx, event.ID); err != nil {
+			return fmt.Errorf("project EnterpriseCapabilityUnlinked delete link %s: %w", event.ID, err)
+		}
+		return nil
+	})
 }
 
 func (p *EnterpriseCapabilityLinkProjector) handleCapabilityParentChanged(ctx context.Context, eventData []byte) error {
-	var event capabilityParentChangedEvent
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityParentChanged event: %v", err)
-		return err
-	}
-	return p.recomputeBlockingForSubtree(ctx, event.CapabilityID)
+	return handleProjection(ctx, eventData, func(ctx context.Context, event capabilityParentChangedEvent) error {
+		if err := p.recomputeBlockingForSubtree(ctx, event.CapabilityID); err != nil {
+			return fmt.Errorf("project CapabilityParentChanged blocking recomputation for capability %s: %w", event.CapabilityID, err)
+		}
+		return nil
+	})
 }
 
 func (p *EnterpriseCapabilityLinkProjector) recomputeBlockingForSubtree(ctx context.Context, capabilityID string) error {
-	subtreeIDs, err := p.readModel.GetSubtreeCapabilityIDs(ctx, capabilityID)
+	subtreeIDs, err := p.readModel.QueryHierarchy(ctx, capabilityID, readmodels.HierarchySubtree)
 	if err != nil {
-		log.Printf("Failed to get subtree for capability %s: %v", capabilityID, err)
-		return err
+		wrappedErr := fmt.Errorf("load subtree capability ids for capability %s: %w", capabilityID, err)
+		log.Printf("failed to get subtree for capability %s: %v", capabilityID, wrappedErr)
+		return wrappedErr
 	}
 
 	links, err := p.readModel.GetLinksForCapabilities(ctx, subtreeIDs)
 	if err != nil {
-		log.Printf("Failed to get links for subtree of capability %s: %v", capabilityID, err)
-		return err
+		wrappedErr := fmt.Errorf("load enterprise links for subtree rooted at capability %s: %w", capabilityID, err)
+		log.Printf("failed to get links for subtree of capability %s: %v", capabilityID, wrappedErr)
+		return wrappedErr
 	}
 
 	if len(links) == 0 {
@@ -111,8 +109,9 @@ func (p *EnterpriseCapabilityLinkProjector) recomputeBlockingForSubtree(ctx cont
 		linkedCapabilityIDs[i] = link.DomainCapabilityID
 	}
 	if err := p.readModel.DeleteBlockingForCapabilities(ctx, linkedCapabilityIDs); err != nil {
-		log.Printf("Failed to delete old blocking records: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("delete old blocking records for subtree rooted at capability %s: %w", capabilityID, err)
+		log.Printf("failed to delete old blocking records: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	for _, link := range links {
@@ -135,27 +134,27 @@ type blockingContext struct {
 func (p *EnterpriseCapabilityLinkProjector) computeBlocking(ctx context.Context, domainCapabilityID, enterpriseCapabilityID string) error {
 	bc, err := p.buildBlockingContext(ctx, domainCapabilityID, enterpriseCapabilityID)
 	if err != nil {
-		return err
+		return fmt.Errorf("build blocking context for domain capability %s and enterprise capability %s: %w", domainCapabilityID, enterpriseCapabilityID, err)
 	}
 
 	if err := p.insertBlockingForAncestors(ctx, bc); err != nil {
-		return err
+		return fmt.Errorf("insert ancestor blocking records for domain capability %s and enterprise capability %s: %w", domainCapabilityID, enterpriseCapabilityID, err)
 	}
 	if err := p.insertBlockingForDescendants(ctx, bc); err != nil {
-		return err
+		return fmt.Errorf("insert descendant blocking records for domain capability %s and enterprise capability %s: %w", domainCapabilityID, enterpriseCapabilityID, err)
 	}
 
 	return nil
 }
 
 func (p *EnterpriseCapabilityLinkProjector) buildBlockingContext(ctx context.Context, domainCapabilityID, enterpriseCapabilityID string) (blockingContext, error) {
-	capabilityName, err := p.readModel.GetCapabilityName(ctx, domainCapabilityID)
+	capabilityName, err := p.readModel.QueryName(ctx, domainCapabilityID, readmodels.NameDomainCapability)
 	if err != nil {
 		log.Printf("Failed to get capability name for %s: %v", domainCapabilityID, err)
 		return blockingContext{}, fmt.Errorf("build blocking context names for domain %s enterprise %s: %w", domainCapabilityID, enterpriseCapabilityID, err)
 	}
 
-	enterpriseName, err := p.readModel.GetEnterpriseCapabilityName(ctx, enterpriseCapabilityID)
+	enterpriseName, err := p.readModel.QueryName(ctx, enterpriseCapabilityID, readmodels.NameEnterpriseCapability)
 	if err != nil {
 		log.Printf("Failed to get enterprise capability name for %s: %v", enterpriseCapabilityID, err)
 		return blockingContext{}, fmt.Errorf("build blocking context names for domain %s enterprise %s: %w", domainCapabilityID, enterpriseCapabilityID, err)
@@ -170,7 +169,7 @@ func (p *EnterpriseCapabilityLinkProjector) buildBlockingContext(ctx context.Con
 }
 
 func (p *EnterpriseCapabilityLinkProjector) insertBlockingForAncestors(ctx context.Context, bc blockingContext) error {
-	ancestorIDs, err := p.readModel.GetAncestorIDs(ctx, bc.domainCapabilityID)
+	ancestorIDs, err := p.readModel.QueryHierarchy(ctx, bc.domainCapabilityID, readmodels.HierarchyAncestors)
 	if err != nil {
 		log.Printf("Failed to get ancestors for capability %s: %v", bc.domainCapabilityID, err)
 		return fmt.Errorf("load ancestors for capability %s while computing blocking: %w", bc.domainCapabilityID, err)
@@ -179,7 +178,7 @@ func (p *EnterpriseCapabilityLinkProjector) insertBlockingForAncestors(ctx conte
 }
 
 func (p *EnterpriseCapabilityLinkProjector) insertBlockingForDescendants(ctx context.Context, bc blockingContext) error {
-	descendantIDs, err := p.readModel.GetDescendantIDs(ctx, bc.domainCapabilityID)
+	descendantIDs, err := p.readModel.QueryHierarchy(ctx, bc.domainCapabilityID, readmodels.HierarchyDescendants)
 	if err != nil {
 		log.Printf("Failed to get descendants for capability %s: %v", bc.domainCapabilityID, err)
 		return fmt.Errorf("load descendants for capability %s while computing blocking: %w", bc.domainCapabilityID, err)

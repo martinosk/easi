@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"easi/backend/internal/capabilitymapping/application/readmodels"
@@ -34,8 +35,9 @@ func NewApplicationFitScoreProjector(
 func (p *ApplicationFitScoreProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -56,13 +58,14 @@ func (p *ApplicationFitScoreProjector) ProjectEvent(ctx context.Context, eventTy
 func (p *ApplicationFitScoreProjector) handleApplicationFitScoreSet(ctx context.Context, eventData []byte) error {
 	var event events.ApplicationFitScoreSet
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal ApplicationFitScoreSet event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal ApplicationFitScoreSet event data: %w", err)
+		log.Printf("failed to unmarshal ApplicationFitScoreSet event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	componentName, err := p.fetchComponentName(ctx, event.ComponentID)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve component name for fit score %s component %s: %w", event.ID, event.ComponentID, err)
 	}
 
 	pillarName := p.resolvePillarName(ctx, event.PillarID, event.PillarName)
@@ -81,14 +84,17 @@ func (p *ApplicationFitScoreProjector) handleApplicationFitScoreSet(ctx context.
 		ScoredBy:      event.ScoredBy,
 	}
 
-	return p.fitScoreReadModel.Insert(ctx, dto)
+	if err := p.fitScoreReadModel.Insert(ctx, dto); err != nil {
+		return fmt.Errorf("project ApplicationFitScoreSet for fit score %s: %w", event.ID, err)
+	}
+	return nil
 }
 
 func (p *ApplicationFitScoreProjector) fetchComponentName(ctx context.Context, componentID string) (string, error) {
 	dto, err := p.componentGateway.GetByID(ctx, componentID)
 	if err != nil {
 		log.Printf("Failed to get component %s: %v", componentID, err)
-		return "", err
+		return "", fmt.Errorf("load component %s for fit score projection: %w", componentID, err)
 	}
 	if dto == nil {
 		return "", nil
@@ -113,8 +119,9 @@ func (p *ApplicationFitScoreProjector) resolvePillarName(ctx context.Context, pi
 func (p *ApplicationFitScoreProjector) handleApplicationFitScoreUpdated(ctx context.Context, eventData []byte) error {
 	var event events.ApplicationFitScoreUpdated
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal ApplicationFitScoreUpdated event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal ApplicationFitScoreUpdated event data: %w", err)
+		log.Printf("failed to unmarshal ApplicationFitScoreUpdated event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	score, _ := valueobjects.NewFitScore(event.Score)
@@ -126,15 +133,22 @@ func (p *ApplicationFitScoreProjector) handleApplicationFitScoreUpdated(ctx cont
 		Rationale:  event.Rationale,
 	}
 
-	return p.fitScoreReadModel.Update(ctx, dto)
+	if err := p.fitScoreReadModel.Update(ctx, dto); err != nil {
+		return fmt.Errorf("project ApplicationFitScoreUpdated for fit score %s: %w", event.ID, err)
+	}
+	return nil
 }
 
 func (p *ApplicationFitScoreProjector) handleApplicationFitScoreRemoved(ctx context.Context, eventData []byte) error {
 	var event events.ApplicationFitScoreRemoved
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal ApplicationFitScoreRemoved event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal ApplicationFitScoreRemoved event data: %w", err)
+		log.Printf("failed to unmarshal ApplicationFitScoreRemoved event: %v", wrappedErr)
+		return wrappedErr
 	}
 
-	return p.fitScoreReadModel.Delete(ctx, event.ID)
+	if err := p.fitScoreReadModel.Delete(ctx, event.ID); err != nil {
+		return fmt.Errorf("project ApplicationFitScoreRemoved for fit score %s: %w", event.ID, err)
+	}
+	return nil
 }

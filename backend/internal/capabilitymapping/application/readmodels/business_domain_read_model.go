@@ -3,6 +3,7 @@ package readmodels
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"easi/backend/internal/infrastructure/database"
@@ -38,16 +39,19 @@ func NewBusinessDomainReadModel(db *database.TenantAwareDB) *BusinessDomainReadM
 func (rm *BusinessDomainReadModel) execTenantQuery(ctx context.Context, query string, args ...interface{}) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve tenant for business domain mutation: %w", err)
 	}
 	_, err = rm.db.ExecContext(ctx, query, append([]interface{}{tenantID.Value()}, args...)...)
-	return err
+	if err != nil {
+		return fmt.Errorf("execute business domain mutation for tenant %s: %w", tenantID.Value(), err)
+	}
+	return nil
 }
 
 func (rm *BusinessDomainReadModel) Insert(ctx context.Context, dto BusinessDomainDTO) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve tenant for insert business domain %s: %w", dto.ID, err)
 	}
 
 	var domainArchitectID interface{} = nil
@@ -60,7 +64,7 @@ func (rm *BusinessDomainReadModel) Insert(ctx context.Context, dto BusinessDomai
 		tenantID.Value(), dto.ID,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete existing business domain %s before insert: %w", dto.ID, err)
 	}
 
 	_, err = rm.db.ExecContext(ctx,
@@ -69,13 +73,16 @@ func (rm *BusinessDomainReadModel) Insert(ctx context.Context, dto BusinessDomai
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		dto.ID, tenantID.Value(), dto.Name, dto.Description, domainArchitectID, 0, dto.CreatedAt,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("insert business domain %s for tenant %s: %w", dto.ID, tenantID.Value(), err)
+	}
+	return nil
 }
 
 func (rm *BusinessDomainReadModel) Update(ctx context.Context, id string, update BusinessDomainUpdate) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve tenant for update business domain %s: %w", id, err)
 	}
 
 	var archID interface{} = nil
@@ -87,7 +94,10 @@ func (rm *BusinessDomainReadModel) Update(ctx context.Context, id string, update
 		"UPDATE capabilitymapping.business_domains SET name = $1, description = $2, domain_architect_id = $3, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $4 AND id = $5",
 		update.Name, update.Description, archID, tenantID.Value(), id,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("update business domain %s for tenant %s: %w", id, tenantID.Value(), err)
+	}
+	return nil
 }
 
 func (rm *BusinessDomainReadModel) Delete(ctx context.Context, id string) error {
@@ -105,7 +115,7 @@ func (rm *BusinessDomainReadModel) DecrementCapabilityCount(ctx context.Context,
 func (rm *BusinessDomainReadModel) GetAll(ctx context.Context) ([]BusinessDomainDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve tenant for list business domains: %w", err)
 	}
 
 	var domains []BusinessDomainDTO
@@ -115,19 +125,21 @@ func (rm *BusinessDomainReadModel) GetAll(ctx context.Context) ([]BusinessDomain
 			tenantID.Value(),
 		)
 		if err != nil {
-			return err
+			return fmt.Errorf("query business domains for tenant %s: %w", tenantID.Value(), err)
 		}
 		defer rows.Close()
 
 		for rows.Next() {
 			dto, err := scanBusinessDomain(rows)
 			if err != nil {
-				return err
+				return fmt.Errorf("scan business domain row for tenant %s: %w", tenantID.Value(), err)
 			}
 			domains = append(domains, *dto)
 		}
-
-		return rows.Err()
+		if err := rows.Err(); err != nil {
+			return fmt.Errorf("iterate business domain rows for tenant %s: %w", tenantID.Value(), err)
+		}
+		return nil
 	})
 
 	return domains, err
@@ -159,7 +171,7 @@ func scanBusinessDomain(s scanner) (*BusinessDomainDTO, error) {
 func (rm *BusinessDomainReadModel) getByCondition(ctx context.Context, whereClause string, arg interface{}) (*BusinessDomainDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve tenant for business domain lookup (%s): %w", whereClause, err)
 	}
 
 	var dto *BusinessDomainDTO
@@ -174,7 +186,7 @@ func (rm *BusinessDomainReadModel) getByCondition(ctx context.Context, whereClau
 			return nil
 		}
 		if err != nil {
-			return err
+			return fmt.Errorf("scan business domain by condition %s for tenant %s: %w", whereClause, tenantID.Value(), err)
 		}
 		dto = result
 		return nil
@@ -194,7 +206,7 @@ func (rm *BusinessDomainReadModel) GetByName(ctx context.Context, name string) (
 func (rm *BusinessDomainReadModel) NameExists(ctx context.Context, name, excludeID string) (bool, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("resolve tenant for business domain name exists %s: %w", name, err)
 	}
 
 	var count int
@@ -212,7 +224,7 @@ func (rm *BusinessDomainReadModel) NameExists(ctx context.Context, name, exclude
 	})
 
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("query business domain name exists %s for tenant %s: %w", name, tenantID.Value(), err)
 	}
 
 	return count > 0, nil

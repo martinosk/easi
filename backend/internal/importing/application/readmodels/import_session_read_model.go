@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"easi/backend/internal/infrastructure/database"
@@ -80,12 +81,12 @@ func NewImportSessionReadModel(db *database.TenantAwareDB) *ImportSessionReadMod
 func (rm *ImportSessionReadModel) Insert(ctx context.Context, dto ImportSessionDTO) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve tenant for insert import session %s: %w", dto.ID, err)
 	}
 
 	previewJSON, err := json.Marshal(dto.Preview)
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal import session %s preview: %w", dto.ID, err)
 	}
 
 	_, err = rm.db.ExecContext(ctx,
@@ -93,7 +94,10 @@ func (rm *ImportSessionReadModel) Insert(ctx context.Context, dto ImportSessionD
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		dto.ID, tenantID.Value(), dto.SourceFormat, nullString(dto.BusinessDomainID), nullString(dto.CapabilityEAOwner), dto.Status, previewJSON, dto.CreatedAt,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("insert import session %s for tenant %s: %w", dto.ID, tenantID.Value(), err)
+	}
+	return nil
 }
 
 func (rm *ImportSessionReadModel) UpdateStatus(ctx context.Context, id, status string) error {
@@ -103,7 +107,7 @@ func (rm *ImportSessionReadModel) UpdateStatus(ctx context.Context, id, status s
 func (rm *ImportSessionReadModel) UpdateProgress(ctx context.Context, id string, progress ProgressDTO) error {
 	progressJSON, err := json.Marshal(progress)
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal import session %s progress: %w", id, err)
 	}
 	return rm.execQuery(ctx, id, "UPDATE importing.import_sessions SET progress = $1 WHERE tenant_id = $2 AND id = $3", progressJSON)
 }
@@ -111,7 +115,7 @@ func (rm *ImportSessionReadModel) UpdateProgress(ctx context.Context, id string,
 func (rm *ImportSessionReadModel) MarkCompleted(ctx context.Context, id string, result ResultDTO, completedAt time.Time) error {
 	resultJSON, err := json.Marshal(result)
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal import session %s result: %w", id, err)
 	}
 	return rm.execQuery(ctx, id, "UPDATE importing.import_sessions SET status = 'completed', result = $1, completed_at = $2 WHERE tenant_id = $3 AND id = $4", resultJSON, completedAt)
 }
@@ -127,11 +131,14 @@ func (rm *ImportSessionReadModel) MarkCancelled(ctx context.Context, id string) 
 func (rm *ImportSessionReadModel) execQuery(ctx context.Context, id string, query string, args ...any) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve tenant for import session %s query: %w", id, err)
 	}
 	args = append(args, tenantID.Value(), id)
 	_, err = rm.db.ExecContext(ctx, query, args...)
-	return err
+	if err != nil {
+		return fmt.Errorf("execute import session %s mutation for tenant %s: %w", id, tenantID.Value(), err)
+	}
+	return nil
 }
 
 type importSessionRow struct {
@@ -178,7 +185,7 @@ func unmarshalJSON[T any](data []byte) *T {
 func (rm *ImportSessionReadModel) GetByID(ctx context.Context, id string) (*ImportSessionDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve tenant for load import session %s: %w", id, err)
 	}
 
 	var row importSessionRow
@@ -196,7 +203,10 @@ func (rm *ImportSessionReadModel) GetByID(ctx context.Context, id string) (*Impo
 			notFound = true
 			return nil
 		}
-		return err
+		if err != nil {
+			return fmt.Errorf("scan import session %s for tenant %s: %w", id, tenantID.Value(), err)
+		}
+		return nil
 	})
 
 	if err != nil || notFound {

@@ -3,6 +3,7 @@ package projectors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
@@ -41,14 +42,14 @@ func NewRealizationProjector(
 		componentGateway: componentGateway,
 	}
 	p.handlers = map[string]eventHandlerFunc{
-		"SystemLinkedToCapability":           p.handleSystemLinked,
-		"SystemRealizationUpdated":           p.handleRealizationUpdated,
-		"SystemRealizationDeleted":           p.handleRealizationDeleted,
-		"CapabilityRealizationsInherited":    p.handleCapabilityRealizationsInherited,
-		"CapabilityRealizationsUninherited":  p.handleCapabilityRealizationsUninherited,
-		"CapabilityUpdated":                  p.handleCapabilityUpdated,
-		archPL.ApplicationComponentUpdated:   p.handleApplicationComponentUpdated,
-		archPL.ApplicationComponentDeleted:   p.handleApplicationComponentDeleted,
+		"SystemLinkedToCapability":          p.handleSystemLinked,
+		"SystemRealizationUpdated":          p.handleRealizationUpdated,
+		"SystemRealizationDeleted":          p.handleRealizationDeleted,
+		"CapabilityRealizationsInherited":   p.handleCapabilityRealizationsInherited,
+		"CapabilityRealizationsUninherited": p.handleCapabilityRealizationsUninherited,
+		"CapabilityUpdated":                 p.handleCapabilityUpdated,
+		archPL.ApplicationComponentUpdated:  p.handleApplicationComponentUpdated,
+		archPL.ApplicationComponentDeleted:  p.handleApplicationComponentDeleted,
 	}
 	return p
 }
@@ -56,8 +57,9 @@ func NewRealizationProjector(
 func (p *RealizationProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -72,7 +74,7 @@ func (p *RealizationProjector) ProjectEvent(ctx context.Context, eventType strin
 func (p *RealizationProjector) handleSystemLinked(ctx context.Context, eventData []byte) error {
 	event, err := unmarshalEvent[events.SystemLinkedToCapability](eventData)
 	if err != nil {
-		return err
+		return fmt.Errorf("unmarshal SystemLinkedToCapability event data: %w", err)
 	}
 
 	componentName := event.ComponentName
@@ -92,7 +94,7 @@ func (p *RealizationProjector) handleSystemLinked(ctx context.Context, eventData
 	}
 
 	if err := p.readModel.Insert(ctx, dto); err != nil {
-		return err
+		return fmt.Errorf("project SystemLinkedToCapability for realization %s: %w", event.ID, err)
 	}
 
 	return nil
@@ -101,6 +103,9 @@ func (p *RealizationProjector) handleSystemLinked(ctx context.Context, eventData
 func (p *RealizationProjector) lookupComponentName(ctx context.Context, componentID string) string {
 	component, err := p.componentGateway.GetByID(ctx, componentID)
 	if err != nil || component == nil {
+		if err != nil {
+			log.Printf("load component name for component %s: %v", componentID, fmt.Errorf("load component %s for realization projection: %w", componentID, err))
+		}
 		return ""
 	}
 	return component.Name
@@ -109,30 +114,36 @@ func (p *RealizationProjector) lookupComponentName(ctx context.Context, componen
 func (p *RealizationProjector) handleRealizationUpdated(ctx context.Context, eventData []byte) error {
 	event, err := unmarshalEvent[events.SystemRealizationUpdated](eventData)
 	if err != nil {
-		return err
+		return fmt.Errorf("unmarshal SystemRealizationUpdated event data: %w", err)
 	}
-	return p.readModel.Update(ctx, readmodels.RealizationUpdate{
+	if err := p.readModel.Update(ctx, readmodels.RealizationUpdate{
 		ID:               event.ID,
 		RealizationLevel: event.RealizationLevel,
 		Notes:            event.Notes,
-	})
+	}); err != nil {
+		return fmt.Errorf("project SystemRealizationUpdated for realization %s: %w", event.ID, err)
+	}
+	return nil
 }
 
 func (p *RealizationProjector) handleRealizationDeleted(ctx context.Context, eventData []byte) error {
 	event, err := unmarshalEvent[events.SystemRealizationDeleted](eventData)
 	if err != nil {
-		return err
+		return fmt.Errorf("unmarshal SystemRealizationDeleted event data: %w", err)
 	}
 	if err := p.readModel.DeleteBySourceRealizationID(ctx, event.ID); err != nil {
-		return err
+		return fmt.Errorf("project SystemRealizationDeleted inherited cleanup for realization %s: %w", event.ID, err)
 	}
-	return p.readModel.Delete(ctx, event.ID)
+	if err := p.readModel.Delete(ctx, event.ID); err != nil {
+		return fmt.Errorf("project SystemRealizationDeleted for realization %s: %w", event.ID, err)
+	}
+	return nil
 }
 
 func (p *RealizationProjector) handleCapabilityRealizationsInherited(ctx context.Context, eventData []byte) error {
 	event, err := unmarshalEvent[events.CapabilityRealizationsInherited](eventData)
 	if err != nil {
-		return err
+		return fmt.Errorf("unmarshal CapabilityRealizationsInherited event data: %w", err)
 	}
 
 	for _, realization := range event.InheritedRealizations {
@@ -149,7 +160,7 @@ func (p *RealizationProjector) handleCapabilityRealizationsInherited(ctx context
 			LinkedAt:             realization.LinkedAt,
 		}
 		if err := p.readModel.InsertInherited(ctx, dto); err != nil {
-			return err
+			return fmt.Errorf("project CapabilityRealizationsInherited source realization %s capability %s: %w", realization.SourceRealizationID, realization.CapabilityID, err)
 		}
 	}
 
@@ -159,7 +170,7 @@ func (p *RealizationProjector) handleCapabilityRealizationsInherited(ctx context
 func (p *RealizationProjector) handleCapabilityRealizationsUninherited(ctx context.Context, eventData []byte) error {
 	event, err := unmarshalEvent[events.CapabilityRealizationsUninherited](eventData)
 	if err != nil {
-		return err
+		return fmt.Errorf("unmarshal CapabilityRealizationsUninherited event data: %w", err)
 	}
 
 	for _, removal := range event.Removals {
@@ -167,7 +178,7 @@ func (p *RealizationProjector) handleCapabilityRealizationsUninherited(ctx conte
 			SourceRealizationID: removal.SourceRealizationID,
 			CapabilityIDs:       removal.CapabilityIDs,
 		}); err != nil {
-			return err
+			return fmt.Errorf("project CapabilityRealizationsUninherited source realization %s: %w", removal.SourceRealizationID, err)
 		}
 	}
 
@@ -175,11 +186,9 @@ func (p *RealizationProjector) handleCapabilityRealizationsUninherited(ctx conte
 }
 
 func (p *RealizationProjector) handleCapabilityUpdated(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[events.CapabilityUpdated](eventData)
-	if err != nil {
-		return err
-	}
-	return p.readModel.UpdateSourceCapabilityName(ctx, readmodels.NameUpdate{ID: event.ID, Name: event.Name})
+	return handleProjection(ctx, eventData, func(ctx context.Context, event events.CapabilityUpdated) error {
+		return p.readModel.UpdateSourceCapabilityName(ctx, readmodels.NameUpdate{ID: event.ID, Name: event.Name})
+	})
 }
 
 type applicationComponentUpdatedEvent struct {
@@ -192,17 +201,13 @@ type applicationComponentDeletedEvent struct {
 }
 
 func (p *RealizationProjector) handleApplicationComponentUpdated(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[applicationComponentUpdatedEvent](eventData)
-	if err != nil {
-		return err
-	}
-	return p.readModel.UpdateComponentName(ctx, readmodels.NameUpdate{ID: event.ID, Name: event.Name})
+	return handleProjection(ctx, eventData, func(ctx context.Context, event applicationComponentUpdatedEvent) error {
+		return p.readModel.UpdateComponentName(ctx, readmodels.NameUpdate{ID: event.ID, Name: event.Name})
+	})
 }
 
 func (p *RealizationProjector) handleApplicationComponentDeleted(ctx context.Context, eventData []byte) error {
-	event, err := unmarshalEvent[applicationComponentDeletedEvent](eventData)
-	if err != nil {
-		return err
-	}
-	return p.readModel.DeleteByComponentID(ctx, event.ID)
+	return handleProjection(ctx, eventData, func(ctx context.Context, event applicationComponentDeletedEvent) error {
+		return p.readModel.DeleteByComponentID(ctx, event.ID)
+	})
 }

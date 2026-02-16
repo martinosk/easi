@@ -29,8 +29,9 @@ func NewHierarchyChangeEffectiveProjector(
 func (p *HierarchyChangeEffectiveProjector) Handle(ctx context.Context, event domain.DomainEvent) error {
 	eventData, err := json.Marshal(event.EventData())
 	if err != nil {
-		log.Printf("Failed to marshal event data: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("marshal %s event for aggregate %s: %w", event.EventType(), event.AggregateID(), err)
+		log.Printf("failed to marshal event data: %v", wrappedErr)
+		return wrappedErr
 	}
 	return p.ProjectEvent(ctx, event.EventType(), eventData)
 }
@@ -50,19 +51,20 @@ func (p *HierarchyChangeEffectiveProjector) ProjectEvent(ctx context.Context, ev
 func (p *HierarchyChangeEffectiveProjector) handleCapabilityParentChanged(ctx context.Context, eventData []byte) error {
 	var event events.CapabilityParentChanged
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal CapabilityParentChanged event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal CapabilityParentChanged event data: %w", err)
+		log.Printf("failed to unmarshal CapabilityParentChanged event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	seen := make(map[string]bool)
 
 	if err := p.recomputeFromEffectiveImportances(ctx, event.CapabilityID, event.CapabilityID, seen); err != nil {
-		return err
+		return fmt.Errorf("recompute effective importances for changed capability %s: %w", event.CapabilityID, err)
 	}
 
 	if event.NewParentID != "" {
 		if err := p.recomputeFromEffectiveImportances(ctx, event.NewParentID, event.CapabilityID, seen); err != nil {
-			return err
+			return fmt.Errorf("recompute effective importances for new parent %s and target capability %s: %w", event.NewParentID, event.CapabilityID, err)
 		}
 	}
 
@@ -73,7 +75,7 @@ func (p *HierarchyChangeEffectiveProjector) recomputeFromEffectiveImportances(ct
 	importances, err := p.effectiveReadModel.GetByCapability(ctx, sourceCapabilityID)
 	if err != nil {
 		log.Printf("Failed to get effective importances for capability %s: %v", sourceCapabilityID, err)
-		return err
+		return fmt.Errorf("load effective importances for capability %s: %w", sourceCapabilityID, err)
 	}
 
 	for _, ei := range importances {
@@ -100,8 +102,9 @@ func (p *HierarchyChangeEffectiveProjector) recomputeFromEffectiveImportances(ct
 func (p *HierarchyChangeEffectiveProjector) handleCapabilityDeleted(ctx context.Context, eventData []byte) error {
 	var eventMap map[string]interface{}
 	if err := json.Unmarshal(eventData, &eventMap); err != nil {
-		log.Printf("Failed to unmarshal CapabilityDeleted event: %v", err)
-		return err
+		wrappedErr := fmt.Errorf("unmarshal CapabilityDeleted event data: %w", err)
+		log.Printf("failed to unmarshal CapabilityDeleted event: %v", wrappedErr)
+		return wrappedErr
 	}
 
 	capabilityID, ok := eventMap["capabilityId"].(string)
@@ -113,5 +116,8 @@ func (p *HierarchyChangeEffectiveProjector) handleCapabilityDeleted(ctx context.
 		return fmt.Errorf("CapabilityDeleted payload missing capability identifier")
 	}
 
-	return p.effectiveReadModel.DeleteByCapability(ctx, capabilityID)
+	if err := p.effectiveReadModel.DeleteByCapability(ctx, capabilityID); err != nil {
+		return fmt.Errorf("delete effective importances for deleted capability %s: %w", capabilityID, err)
+	}
+	return nil
 }
