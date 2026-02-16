@@ -1,13 +1,36 @@
 //go:build !integration
 
+// SQL Schema Guardrail
+//
+// Scanned locations (approvedLocationPatterns):
+//   - */application/readmodels/*.go    — read model query definitions
+//   - */application/projectors/*.go    — event projectors that write to read models
+//   - */infrastructure/repositories/*.go — aggregate persistence
+//   - */infrastructure/repository/*.go  — aggregate persistence (singular variant)
+//   - */infrastructure/eventstore/*.go  — event store implementations
+//   - */infrastructure/adapters/*.go    — infrastructure adapters
+//
+// Intentionally excluded:
+//   - shared/, infrastructure/, testing/ — shared packages have no BC ownership
+//   - Domain layer (domain/) — must never contain SQL
+//   - Application services — orchestrate via repositories, never issue SQL directly
+//   - Migration files — schema DDL, not runtime queries
+//
+// How to extend:
+//   Add a new glob pattern to approvedLocationPatterns. Both TestSQLSchemaOwnership
+//   (positive ownership scan) and TestNoSQLOutsideApprovedLocations (negative guard)
+//   will automatically pick it up.
+
 package internal_test
 
 import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -34,10 +57,21 @@ var unqualifiedPatterns = []*regexp.Regexp{
 
 var ctePattern = regexp.MustCompile(`(?i)\bWITH\s+(?:RECURSIVE\s+)?(\w+)\s+AS\s*\(`)
 
+var sqlStatementPattern = regexp.MustCompile(`(?i)(\bSELECT\b.*\bFROM\b|\bINSERT\s+INTO\b|\bUPDATE\b.*\bSET\b|\bDELETE\s+FROM\b)`)
+
 var sqlKeywords = map[string]bool{
 	"select": true, "set": true, "where": true, "values": true,
 	"not": true, "null": true, "exists": true, "only": true,
 	"table": true, "index": true, "if": true, "as": true,
+}
+
+var approvedLocationPatterns = []string{
+	"*/application/readmodels/*.go",
+	"*/application/projectors/*.go",
+	"*/infrastructure/repositories/*.go",
+	"*/infrastructure/repository/*.go",
+	"*/infrastructure/eventstore/*.go",
+	"*/infrastructure/adapters/*.go",
 }
 
 type schemaTableRef struct {
@@ -81,9 +115,13 @@ func (a sqlAnalyzer) knownIdentifiers() map[string]bool {
 	return known
 }
 
+func (a sqlAnalyzer) looksLikeSQL() bool {
+	return sqlStatementPattern.MatchString(a.sql)
+}
+
 func (a sqlAnalyzer) unqualifiedTables() []string {
 	known := a.knownIdentifiers()
-	if len(known) == 0 {
+	if len(known) == 0 && !a.looksLikeSQL() {
 		return nil
 	}
 
@@ -99,21 +137,26 @@ func (a sqlAnalyzer) unqualifiedTables() []string {
 	return unqualified
 }
 
+func unquoteStringLiteral(lit *ast.BasicLit) (string, bool) {
+	val := lit.Value
+	if strings.HasPrefix(val, "`") && strings.HasSuffix(val, "`") {
+		return val[1 : len(val)-1], true
+	}
+	if unquoted, err := strconv.Unquote(val); err == nil {
+		return unquoted, true
+	}
+	return "", false
+}
+
 func extractStringLiterals(node ast.Node) []string {
 	var literals []string
 	ast.Inspect(node, func(n ast.Node) bool {
 		lit, ok := n.(*ast.BasicLit)
-		if !ok {
+		if !ok || lit.Kind.String() != "STRING" {
 			return true
 		}
-		if lit.Kind.String() != "STRING" {
-			return true
-		}
-		val := lit.Value
-		if strings.HasPrefix(val, "`") && strings.HasSuffix(val, "`") {
-			literals = append(literals, val[1:len(val)-1])
-		} else if strings.HasPrefix(val, `"`) && strings.HasSuffix(val, `"`) {
-			literals = append(literals, val[1:len(val)-1])
+		if s, ok := unquoteStringLiteral(lit); ok {
+			literals = append(literals, s)
 		}
 		return true
 	})
@@ -136,15 +179,8 @@ type schemaOwnershipScanner struct {
 }
 
 func (s *schemaOwnershipScanner) collectFiles() ([]string, error) {
-	patterns := []string{
-		"*/application/readmodels/*.go",
-		"*/application/projectors/*.go",
-		"*/infrastructure/repositories/*.go",
-		"*/infrastructure/repository/*.go",
-		"*/infrastructure/eventstore/*.go",
-	}
 	var files []string
-	for _, pattern := range patterns {
+	for _, pattern := range approvedLocationPatterns {
 		matches, err := filepath.Glob(filepath.Join(s.internalDir, pattern))
 		if err != nil {
 			return nil, err
@@ -252,7 +288,83 @@ func (s *schemaOwnershipScanner) scan(files []string) sqlScanResult {
 	return result
 }
 
-func TestReadModelsOnlyReferenceOwnedTables(t *testing.T) {
+func (a sqlAnalyzer) containsSchemaQualifiedRef() bool {
+	for _, re := range schemaQualifiedPatterns {
+		if re.MatchString(a.sql) {
+			return true
+		}
+	}
+	return false
+}
+
+type sqlLocationGuard struct {
+	internalDir   string
+	approvedFiles map[string]bool
+}
+
+func (s *schemaOwnershipScanner) locationGuard() sqlLocationGuard {
+	approved := make(map[string]bool)
+	for _, pattern := range approvedLocationPatterns {
+		matches, err := filepath.Glob(filepath.Join(s.internalDir, pattern))
+		if err != nil {
+			continue
+		}
+		for _, m := range matches {
+			approved[filepath.Clean(m)] = true
+		}
+	}
+	return sqlLocationGuard{internalDir: s.internalDir, approvedFiles: approved}
+}
+
+func fileContainsSchemaQualifiedSQL(path string) bool {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
+	if err != nil {
+		return false
+	}
+	for _, literal := range extractStringLiterals(node) {
+		if (sqlAnalyzer{sql: literal}).containsSchemaQualifiedRef() {
+			return true
+		}
+	}
+	return false
+}
+
+func (g *sqlLocationGuard) countSQLFiles() int {
+	count := 0
+	for path := range g.approvedFiles {
+		if fileContainsSchemaQualifiedSQL(path) {
+			count++
+		}
+	}
+	return count
+}
+
+func (g *sqlLocationGuard) checkFile(path string) (string, bool) {
+	relPath, err := filepath.Rel(g.internalDir, path)
+	if err != nil {
+		return "", false
+	}
+	ownerBC := strings.SplitN(filepath.ToSlash(relPath), "/", 2)[0]
+	if sharedPackages[ownerBC] || g.approvedFiles[filepath.Clean(path)] {
+		return "", false
+	}
+
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
+	if err != nil {
+		return "", false
+	}
+
+	for _, literal := range extractStringLiterals(node) {
+		if (sqlAnalyzer{sql: literal}).containsSchemaQualifiedRef() {
+			return filepath.ToSlash(relPath), true
+		}
+	}
+	return "", false
+}
+
+func TestSQLSchemaOwnership(t *testing.T) {
 	internalDir, err := filepath.Abs(".")
 	if err != nil {
 		t.Fatalf("failed to get absolute path: %v", err)
@@ -279,6 +391,43 @@ func TestReadModelsOnlyReferenceOwnedTables(t *testing.T) {
 			if !scan.usedAllowlistEntries[entry] {
 				t.Errorf("STALE SCHEMA ALLOWLIST ENTRY: %q (reason: %s) — violation no longer exists, remove this entry", entry, reason)
 			}
+		}
+	})
+}
+
+func TestNoSQLOutsideApprovedLocations(t *testing.T) {
+	internalDir, err := filepath.Abs(".")
+	if err != nil {
+		t.Fatalf("failed to get absolute path: %v", err)
+	}
+
+	scanner := &schemaOwnershipScanner{internalDir: internalDir}
+	guard := scanner.locationGuard()
+	var violations []string
+
+	walkErr := filepath.Walk(internalDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !isProductionGoFile(info, path) {
+			return nil
+		}
+		if relPath, found := guard.checkFile(path); found {
+			violations = append(violations, relPath)
+		}
+		return nil
+	})
+	if walkErr != nil {
+		t.Fatalf("failed to walk internal dir: %v", walkErr)
+	}
+
+	for _, v := range violations {
+		t.Errorf("SQL OUTSIDE APPROVED LOCATION: %s — move SQL to an approved location or extend approvedLocationPatterns", v)
+	}
+
+	t.Run("DetectionSmokeCheck", func(t *testing.T) {
+		if guard.countSQLFiles() == 0 {
+			t.Error("location guard detected 0 SQL-containing files in approved locations — detection mechanism may be broken")
 		}
 	})
 }
