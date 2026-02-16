@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	authCommands "easi/backend/internal/auth/application/commands"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/platform/application/commands"
 	"easi/backend/internal/platform/domain/aggregates"
 	"easi/backend/internal/platform/domain/valueobjects"
@@ -317,7 +317,7 @@ func (h *TenantHandlers) CreateTenantInvitation(w http.ResponseWriter, r *http.R
 	}
 	tenantCtx := sharedctx.WithTenant(r.Context(), tenantIDVO)
 
-	cmd := &authCommands.CreateInvitation{
+	cmd := &authPL.CreateInvitation{
 		Email: req.Email,
 		Role:  req.Role,
 	}

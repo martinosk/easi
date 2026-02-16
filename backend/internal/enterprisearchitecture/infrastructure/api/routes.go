@@ -15,7 +15,7 @@ import (
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	mmPL "easi/backend/internal/metamodel/publishedlanguage"
-	platformAPI "easi/backend/internal/platform/infrastructure/api"
+	"easi/backend/internal/infrastructure/api/middleware"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
@@ -74,7 +74,7 @@ func SetupEnterpriseArchitectureRoutes(deps EnterpriseArchRoutesDeps) error {
 	setupCommandHandlers(deps.CommandBus, repos, rm)
 
 	httpHandlers := initializeHTTPHandlers(deps.CommandBus, rm, deps.SessionProvider)
-	rateLimiter := platformAPI.NewRateLimiter(100, 60)
+	rateLimiter := middleware.NewRateLimiter(100, 60)
 	registerRoutes(deps.Router, httpHandlers, deps.AuthMiddleware, rateLimiter)
 
 	return nil
@@ -244,12 +244,12 @@ func initializeHTTPHandlers(commandBus *cqrs.InMemoryCommandBus, rm *routeReadMo
 	}
 }
 
-func registerRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
+func registerRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware, rateLimiter *middleware.RateLimiter) {
 	registerEnterpriseCapabilityRoutes(r, h.enterpriseCapability, authMiddleware, rateLimiter)
 	registerTimeSuggestionsRoutes(r, h.timeSuggestions, authMiddleware)
 }
 
-func registerEnterpriseCapabilityRoutes(r chi.Router, h *EnterpriseCapabilityHandlers, authMiddleware AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
+func registerEnterpriseCapabilityRoutes(r chi.Router, h *EnterpriseCapabilityHandlers, authMiddleware AuthMiddleware, rateLimiter *middleware.RateLimiter) {
 	r.Route("/enterprise-capabilities", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermEnterpriseArchRead))
@@ -263,7 +263,7 @@ func registerEnterpriseCapabilityRoutes(r chi.Router, h *EnterpriseCapabilityHan
 
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermEnterpriseArchWrite))
-			r.Use(platformAPI.RateLimitMiddleware(rateLimiter))
+			r.Use(middleware.RateLimitMiddleware(rateLimiter))
 			r.Post("/", h.CreateEnterpriseCapability)
 			r.Put("/{id}", h.UpdateEnterpriseCapability)
 			r.Put("/{id}/target-maturity", h.SetTargetMaturity)
@@ -274,7 +274,7 @@ func registerEnterpriseCapabilityRoutes(r chi.Router, h *EnterpriseCapabilityHan
 
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermEnterpriseArchDelete))
-			r.Use(platformAPI.RateLimitMiddleware(rateLimiter))
+			r.Use(middleware.RateLimitMiddleware(rateLimiter))
 			r.Delete("/{id}", h.DeleteEnterpriseCapability)
 			r.Delete("/{id}/links/{linkId}", h.UnlinkCapability)
 			r.Delete("/{id}/strategic-importance/{importanceId}", h.RemoveStrategicImportance)

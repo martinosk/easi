@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	authCommands "easi/backend/internal/auth/application/commands"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/platform/application/commands"
 	"easi/backend/internal/platform/domain/aggregates"
 	"easi/backend/internal/platform/domain/valueobjects"
@@ -29,69 +29,96 @@ func (h *CreateTenantHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqr
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
-	tenantID, err := sharedvo.NewTenantID(command.ID)
+	input, err := validateTenantInput(command)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
-	name, err := valueobjects.NewTenantName(command.Name)
-	if err != nil {
+	if _, err := aggregates.NewTenant(input.tenantID, input.name, input.domains, input.oidcConfig, command.FirstAdminEmail); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
-	domains, err := valueobjects.NewEmailDomainList(command.Domains)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	oidcConfig, err := valueobjects.NewOIDCConfig(
-		command.DiscoveryURL,
-		command.ClientID,
-		valueobjects.OIDCAuthMethod(command.AuthMethod),
-		command.Scopes,
-	)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	_, err = aggregates.NewTenant(tenantID, name, domains, oidcConfig, command.FirstAdminEmail)
-	if err != nil {
-		return cqrs.EmptyResult(), err
-	}
-
-	domainStrings := make([]string, len(domains))
-	for i, d := range domains {
-		domainStrings[i] = d.Value()
-	}
-
-	now := time.Now().UTC()
-	record := repositories.TenantRecord{
-		ID:              tenantID.Value(),
-		Name:            name.Value(),
-		Status:          "active",
-		Domains:         domainStrings,
-		DiscoveryURL:    oidcConfig.DiscoveryURL(),
-		ClientID:        oidcConfig.ClientID(),
-		AuthMethod:      string(oidcConfig.AuthMethod()),
-		Scopes:          oidcConfig.Scopes(),
-		FirstAdminEmail: command.FirstAdminEmail,
-		CreatedAt:       now,
-		UpdatedAt:       now,
-	}
-
+	record := buildTenantRecord(input, command.FirstAdminEmail)
 	if err := h.repository.Create(ctx, record); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
-	tenantCtx := sharedctx.WithTenant(ctx, tenantID)
-	createInvitationCmd := &authCommands.CreateInvitation{
-		Email: command.FirstAdminEmail,
-		Role:  "admin",
-	}
-
-	if _, err := h.commandBus.Dispatch(tenantCtx, createInvitationCmd); err != nil {
+	if err := h.inviteFirstAdmin(ctx, input.tenantID, command.FirstAdminEmail); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
-	return cqrs.NewResult(tenantID.Value()), nil
+	return cqrs.NewResult(input.tenantID.Value()), nil
+}
+
+type validatedTenantInput struct {
+	tenantID   sharedvo.TenantID
+	name       valueobjects.TenantName
+	domains    []valueobjects.EmailDomain
+	oidcConfig valueobjects.OIDCConfig
+}
+
+func validateTenantInput(cmd *commands.CreateTenant) (validatedTenantInput, error) {
+	tenantID, err := sharedvo.NewTenantID(cmd.ID)
+	if err != nil {
+		return validatedTenantInput{}, err
+	}
+
+	name, err := valueobjects.NewTenantName(cmd.Name)
+	if err != nil {
+		return validatedTenantInput{}, err
+	}
+
+	domains, err := valueobjects.NewEmailDomainList(cmd.Domains)
+	if err != nil {
+		return validatedTenantInput{}, err
+	}
+
+	oidcConfig, err := valueobjects.NewOIDCConfig(
+		cmd.DiscoveryURL,
+		cmd.ClientID,
+		valueobjects.OIDCAuthMethod(cmd.AuthMethod),
+		cmd.Scopes,
+	)
+	if err != nil {
+		return validatedTenantInput{}, err
+	}
+
+	return validatedTenantInput{
+		tenantID:   tenantID,
+		name:       name,
+		domains:    domains,
+		oidcConfig: oidcConfig,
+	}, nil
+}
+
+func buildTenantRecord(input validatedTenantInput, firstAdminEmail string) repositories.TenantRecord {
+	domainStrings := make([]string, len(input.domains))
+	for i, d := range input.domains {
+		domainStrings[i] = d.Value()
+	}
+
+	now := time.Now().UTC()
+	return repositories.TenantRecord{
+		ID:              input.tenantID.Value(),
+		Name:            input.name.Value(),
+		Status:          "active",
+		Domains:         domainStrings,
+		DiscoveryURL:    input.oidcConfig.DiscoveryURL(),
+		ClientID:        input.oidcConfig.ClientID(),
+		AuthMethod:      string(input.oidcConfig.AuthMethod()),
+		Scopes:          input.oidcConfig.Scopes(),
+		FirstAdminEmail: firstAdminEmail,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+	}
+}
+
+func (h *CreateTenantHandler) inviteFirstAdmin(ctx context.Context, tenantID sharedvo.TenantID, email string) error {
+	tenantCtx := sharedctx.WithTenant(ctx, tenantID)
+	cmd := &authPL.CreateInvitation{
+		Email: email,
+		Role:  "admin",
+	}
+	_, err := h.commandBus.Dispatch(tenantCtx, cmd)
+	return err
 }

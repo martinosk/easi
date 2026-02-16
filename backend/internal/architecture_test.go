@@ -19,15 +19,9 @@ var sharedPackages = map[string]bool{
 	"testing":        true,
 }
 
-var freeImportPackages = map[string]bool{
-	"platform/infrastructure/api": true,
-}
+var freeImportPackages = map[string]bool{}
 
-var allowedCrossBCImports = map[string]string{
-	"platform -> auth/application/commands":        "platform-internal",
-	"platform -> auth/application/handlers":        "platform-internal",
-	"platform -> auth/infrastructure/repositories": "platform-internal",
-}
+var allowedCrossBCImports = map[string]string{}
 
 type architectureScanner struct {
 	internalDir string

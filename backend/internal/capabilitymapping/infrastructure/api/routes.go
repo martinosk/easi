@@ -15,7 +15,7 @@ import (
 	"easi/backend/internal/infrastructure/eventstore"
 	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	mmPL "easi/backend/internal/metamodel/publishedlanguage"
-	platformAPI "easi/backend/internal/platform/infrastructure/api"
+	"easi/backend/internal/infrastructure/api/middleware"
 	sharedAPI "easi/backend/internal/shared/api"
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/shared/cqrs"
@@ -74,7 +74,7 @@ func SetupCapabilityMappingRoutes(config *RouteConfig) error {
 		strategicFitAnalysis: NewStrategicFitAnalysisHandlers(rm.strategicFitAnalysis, config.StrategyPillarsGateway, config.SessionProvider),
 	}
 
-	rateLimiter := platformAPI.NewRateLimiter(100, 60)
+	rateLimiter := middleware.NewRateLimiter(100, 60)
 
 	registerCapabilityRoutes(config.Router, httpHandlers, config.AuthMiddleware)
 	registerDependencyRoutes(config.Router, httpHandlers, config.AuthMiddleware)
@@ -513,7 +513,7 @@ func registerBusinessDomainRoutes(r chi.Router, h *routeHTTPHandlers, authMiddle
 func registerStrategyImportanceRoutes(r chi.Router, h *routeHTTPHandlers) {
 }
 
-func registerApplicationFitScoreRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
+func registerApplicationFitScoreRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware AuthMiddleware, rateLimiter *middleware.RateLimiter) {
 	r.Route("/components/{id}/fit-scores", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermComponentsRead))
@@ -521,12 +521,12 @@ func registerApplicationFitScoreRoutes(r chi.Router, h *routeHTTPHandlers, authM
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermComponentsWrite))
-			r.Use(platformAPI.RateLimitMiddleware(rateLimiter))
+			r.Use(middleware.RateLimitMiddleware(rateLimiter))
 			r.Put("/{pillarId}", h.applicationFitScore.SetFitScore)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermComponentsDelete))
-			r.Use(platformAPI.RateLimitMiddleware(rateLimiter))
+			r.Use(middleware.RateLimitMiddleware(rateLimiter))
 			r.Delete("/{pillarId}", h.applicationFitScore.RemoveFitScore)
 		})
 	})

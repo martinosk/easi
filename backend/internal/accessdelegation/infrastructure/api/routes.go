@@ -13,7 +13,7 @@ import (
 	capPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
-	platformAPI "easi/backend/internal/platform/infrastructure/api"
+	"easi/backend/internal/infrastructure/api/middleware"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
@@ -43,7 +43,7 @@ type AccessDelegationDependencies struct {
 	GrantResolver  *readmodels.EditGrantReadModel
 	handlers       *EditGrantHandlers
 	authMiddleware AuthMiddleware
-	rateLimiter    *platformAPI.RateLimiter
+	rateLimiter    *middleware.RateLimiter
 }
 
 func (d *AccessDelegationDependencies) RegisterRoutes(r chi.Router) {
@@ -70,7 +70,7 @@ func SetupAccessDelegationRoutes(deps AccessDelegationRoutesDeps) (*AccessDelega
 		DomainChecker: deps.DomainChecker,
 		EventBus:      deps.EventBus,
 	})
-	rateLimiter := platformAPI.NewRateLimiter(100, 60)
+	rateLimiter := middleware.NewRateLimiter(100, 60)
 
 	return &AccessDelegationDependencies{
 		GrantResolver:  readModel,
@@ -110,11 +110,11 @@ func registerArtifactDeletionSubscriptions(eventBus *events.InMemoryEventBus, re
 	eventBus.Subscribe(archPL.InternalTeamDeleted, internalTeamDeletionProjector)
 }
 
-func registerRoutes(r chi.Router, h *EditGrantHandlers, authMiddleware AuthMiddleware, rateLimiter *platformAPI.RateLimiter) {
+func registerRoutes(r chi.Router, h *EditGrantHandlers, authMiddleware AuthMiddleware, rateLimiter *middleware.RateLimiter) {
 	r.Route("/edit-grants", func(r chi.Router) {
 		r.Use(authMiddleware.RequireAuth())
 		r.Group(func(r chi.Router) {
-			r.Use(platformAPI.RateLimitMiddleware(rateLimiter))
+			r.Use(middleware.RateLimitMiddleware(rateLimiter))
 			r.Post("/", h.CreateEditGrant)
 		})
 		r.Get("/", h.GetMyEditGrants)

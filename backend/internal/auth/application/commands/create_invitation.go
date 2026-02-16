@@ -1,12 +1,5 @@
 package commands
 
-type CreateInvitation struct {
-	Email        string
-	Role         string
-	InviterID    string
-	InviterEmail string
-}
+import "easi/backend/internal/auth/publishedlanguage"
 
-func (c CreateInvitation) CommandName() string {
-	return "CreateInvitation"
-}
+type CreateInvitation = publishedlanguage.CreateInvitation

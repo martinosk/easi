@@ -160,7 +160,6 @@ func registerPublicRoutes(r chi.Router, deps routerDependencies) {
 		RawDB:      deps.db.DB(),
 		TenantDB:   deps.db,
 		CommandBus: deps.commandBus,
-		EventStore: deps.eventStore,
 	}), "platform routes")
 	mustSetup(authAPI.SetupAuthRoutes(r, deps.db.DB(), deps.authDeps), "auth routes")
 }

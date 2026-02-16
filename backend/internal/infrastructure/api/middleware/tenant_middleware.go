@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"strings"
 
 	"easi/backend/internal/auth/infrastructure/session"
 	"easi/backend/internal/shared/config"
@@ -23,38 +25,55 @@ func TenantMiddleware() func(http.Handler) http.Handler {
 func TenantMiddlewareWithSession(sessionManager *session.SessionManager, userRoleLookup UserRoleLookup) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
+			var ctx context.Context
+			var err error
 
 			if config.IsAuthBypassed() {
-				tenantID, err := extractTenantFromHeader(r)
-				if err != nil {
-					handleTenantError(w, err)
-					return
-				}
-				ctx = sharedctx.WithTenant(ctx, tenantID)
-				logTenantContext(r, tenantID)
+				ctx, err = buildBypassContext(r)
 			} else {
-				info, err := extractSessionInfo(r, sessionManager)
-				if err != nil {
-					handleTenantError(w, err)
-					return
-				}
-				ctx = sharedctx.WithTenant(ctx, info.tenantID)
+				ctx, err = buildSessionContext(r, sessionManager, userRoleLookup)
+			}
 
-				var role sharedctx.Role
-				if userRoleLookup != nil {
-					roleStr, _ := userRoleLookup.GetRoleByEmail(ctx, info.userEmail)
-					role = sharedctx.Role(roleStr)
-				}
-
-				actor := sharedctx.NewActor(info.userID, info.userEmail, role)
-				ctx = sharedctx.WithActor(ctx, actor)
-				logTenantContext(r, info.tenantID)
+			if err != nil {
+				handleTenantError(w, err)
+				return
 			}
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+func buildBypassContext(r *http.Request) (context.Context, error) {
+	tenantID, err := extractTenantFromHeader(r)
+	if err != nil {
+		return nil, err
+	}
+	ctx := sharedctx.WithTenant(r.Context(), tenantID)
+	logTenantContext(r, tenantID)
+	return ctx, nil
+}
+
+func buildSessionContext(r *http.Request, sessionManager *session.SessionManager, userRoleLookup UserRoleLookup) (context.Context, error) {
+	info, err := extractSessionInfo(r, sessionManager)
+	if err != nil {
+		return nil, err
+	}
+	ctx := sharedctx.WithTenant(r.Context(), info.tenantID)
+
+	role := resolveUserRole(ctx, info.userEmail, userRoleLookup)
+	actor := sharedctx.NewActor(info.userID, info.userEmail, role)
+	ctx = sharedctx.WithActor(ctx, actor)
+	logTenantContext(r, info.tenantID)
+	return ctx, nil
+}
+
+func resolveUserRole(ctx context.Context, email string, lookup UserRoleLookup) sharedctx.Role {
+	if lookup == nil {
+		return ""
+	}
+	roleStr, _ := lookup.GetRoleByEmail(ctx, email)
+	return sharedctx.Role(roleStr)
 }
 
 type tenantError struct {
@@ -131,14 +150,20 @@ func logTenantContext(r *http.Request, tenantID sharedvo.TenantID) {
 
 func getClientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return xff
+		parts := strings.Split(xff, ",")
+		if len(parts) > 0 {
+			ip := strings.TrimSpace(parts[0])
+			if ip != "" {
+				return ip
+			}
+		}
 	}
 
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return xri
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
 	}
-
-	return r.RemoteAddr
+	return host
 }
 
 func RequireTenant() func(http.Handler) http.Handler {
