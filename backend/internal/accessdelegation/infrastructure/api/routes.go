@@ -7,6 +7,7 @@ import (
 	"easi/backend/internal/accessdelegation/application/readmodels"
 	"easi/backend/internal/accessdelegation/infrastructure/repositories"
 	adServices "easi/backend/internal/accessdelegation/infrastructure/services"
+	adPL "easi/backend/internal/accessdelegation/publishedlanguage"
 	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	viewsPL "easi/backend/internal/architectureviews/publishedlanguage"
 	capPL "easi/backend/internal/capabilitymapping/publishedlanguage"
@@ -86,9 +87,9 @@ func registerCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repo *reposito
 
 func registerEventSubscriptions(eventBus *events.InMemoryEventBus, readModel *readmodels.EditGrantReadModel) {
 	projector := projectors.NewEditGrantProjector(readModel)
-	eventBus.Subscribe("EditGrantActivated", projector)
-	eventBus.Subscribe("EditGrantRevoked", projector)
-	eventBus.Subscribe("EditGrantExpired", projector)
+	eventBus.Subscribe(adPL.EditGrantActivated, projector)
+	eventBus.Subscribe(adPL.EditGrantRevoked, projector)
+	eventBus.Subscribe(adPL.EditGrantExpired, projector)
 }
 
 func registerArtifactDeletionSubscriptions(eventBus *events.InMemoryEventBus, readModel *readmodels.EditGrantReadModel, commandBus cqrs.CommandBus) {

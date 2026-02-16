@@ -14,6 +14,7 @@ import (
 	"easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/auth/infrastructure/repositories"
 	"easi/backend/internal/auth/infrastructure/session"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -201,10 +202,10 @@ func registerUserCommandHandlers(commandBus cqrs.CommandBus, repo *repositories.
 
 func registerUserEventSubscriptions(eventBus events.EventBus, readModel *readmodels.UserReadModel) {
 	projector := projectors.NewUserProjector(readModel)
-	eventBus.Subscribe("UserCreated", projector)
-	eventBus.Subscribe("UserRoleChanged", projector)
-	eventBus.Subscribe("UserDisabled", projector)
-	eventBus.Subscribe("UserEnabled", projector)
+	eventBus.Subscribe(authPL.UserCreated, projector)
+	eventBus.Subscribe(authPL.UserRoleChanged, projector)
+	eventBus.Subscribe(authPL.UserDisabled, projector)
+	eventBus.Subscribe(authPL.UserEnabled, projector)
 }
 
 func registerUserAPIRoutes(r chi.Router, authMiddleware *AuthMiddleware, h *UserHandlers) {
@@ -236,10 +237,10 @@ func registerInvitationCommandHandlers(commandBus cqrs.CommandBus, repo *reposit
 
 func registerInvitationEventSubscriptions(eventBus events.EventBus, readModel *readmodels.InvitationReadModel) {
 	projector := projectors.NewInvitationProjector(readModel)
-	eventBus.Subscribe("InvitationCreated", projector)
-	eventBus.Subscribe("InvitationAccepted", projector)
-	eventBus.Subscribe("InvitationRevoked", projector)
-	eventBus.Subscribe("InvitationExpired", projector)
+	eventBus.Subscribe(authPL.InvitationCreated, projector)
+	eventBus.Subscribe(authPL.InvitationAccepted, projector)
+	eventBus.Subscribe(authPL.InvitationRevoked, projector)
+	eventBus.Subscribe(authPL.InvitationExpired, projector)
 }
 
 func registerInvitationRoutes(r chi.Router, authMiddleware *AuthMiddleware, h *InvitationHandlers) {

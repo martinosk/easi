@@ -17,6 +17,7 @@ import (
 	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	platformAPI "easi/backend/internal/platform/infrastructure/api"
 	sharedAPI "easi/backend/internal/shared/api"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
 
@@ -203,8 +204,8 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels, pill
 }
 
 func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.CapabilityProjector) {
-	events := []string{"CapabilityCreated", "CapabilityUpdated", "CapabilityMetadataUpdated",
-		"CapabilityExpertAdded", "CapabilityExpertRemoved", "CapabilityTagAdded", "CapabilityParentChanged", "CapabilityLevelChanged", "CapabilityDeleted"}
+	events := []string{cmPL.CapabilityCreated, cmPL.CapabilityUpdated, cmPL.CapabilityMetadataUpdated,
+		cmPL.CapabilityExpertAdded, cmPL.CapabilityExpertRemoved, cmPL.CapabilityTagAdded, cmPL.CapabilityParentChanged, cmPL.CapabilityLevelChanged, cmPL.CapabilityDeleted}
 	for _, event := range events {
 		eventBus.Subscribe(event, projector)
 	}
@@ -212,30 +213,30 @@ func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.C
 
 func subscribeEffectiveBusinessDomainEvents(eventBus events.EventBus, projector *projectors.EffectiveBusinessDomainProjector) {
 	for _, event := range []string{
-		"CapabilityCreated",
-		"CapabilityDeleted",
-		"CapabilityParentChanged",
-		"CapabilityLevelChanged",
-		"CapabilityAssignedToDomain",
-		"CapabilityUnassignedFromDomain",
+		cmPL.CapabilityCreated,
+		cmPL.CapabilityDeleted,
+		cmPL.CapabilityParentChanged,
+		cmPL.CapabilityLevelChanged,
+		cmPL.CapabilityAssignedToDomain,
+		cmPL.CapabilityUnassignedFromDomain,
 	} {
 		eventBus.Subscribe(event, projector)
 	}
 }
 
 func subscribeDependencyEvents(eventBus events.EventBus, projector *projectors.DependencyProjector) {
-	eventBus.Subscribe("CapabilityDependencyCreated", projector)
-	eventBus.Subscribe("CapabilityDependencyDeleted", projector)
+	eventBus.Subscribe(cmPL.CapabilityDependencyCreated, projector)
+	eventBus.Subscribe(cmPL.CapabilityDependencyDeleted, projector)
 }
 
 func subscribeRealizationEvents(eventBus events.EventBus, projector *projectors.RealizationProjector) {
 	for _, event := range []string{
-		"SystemLinkedToCapability",
-		"SystemRealizationUpdated",
-		"SystemRealizationDeleted",
-		"CapabilityRealizationsInherited",
-		"CapabilityRealizationsUninherited",
-		"CapabilityUpdated",
+		cmPL.SystemLinkedToCapability,
+		cmPL.SystemRealizationUpdated,
+		cmPL.SystemRealizationDeleted,
+		cmPL.CapabilityRealizationsInherited,
+		cmPL.CapabilityRealizationsUninherited,
+		cmPL.CapabilityUpdated,
 		archPL.ApplicationComponentUpdated,
 		archPL.ApplicationComponentDeleted,
 	} {
@@ -244,29 +245,29 @@ func subscribeRealizationEvents(eventBus events.EventBus, projector *projectors.
 }
 
 func subscribeBusinessDomainEvents(eventBus events.EventBus, projector *projectors.BusinessDomainProjector) {
-	events := []string{"BusinessDomainCreated", "BusinessDomainUpdated", "BusinessDomainDeleted",
-		"CapabilityAssignedToDomain", "CapabilityUnassignedFromDomain"}
+	events := []string{cmPL.BusinessDomainCreated, cmPL.BusinessDomainUpdated, cmPL.BusinessDomainDeleted,
+		cmPL.CapabilityAssignedToDomain, cmPL.CapabilityUnassignedFromDomain}
 	for _, event := range events {
 		eventBus.Subscribe(event, projector)
 	}
 }
 
 func subscribeDomainAssignmentEvents(eventBus events.EventBus, projector *projectors.BusinessDomainAssignmentProjector) {
-	events := []string{"CapabilityAssignedToDomain", "CapabilityUnassignedFromDomain"}
+	events := []string{cmPL.CapabilityAssignedToDomain, cmPL.CapabilityUnassignedFromDomain}
 	for _, event := range events {
 		eventBus.Subscribe(event, projector)
 	}
 }
 
 func subscribeStrategyImportanceEvents(eventBus events.EventBus, projector *projectors.StrategyImportanceProjector) {
-	events := []string{"StrategyImportanceSet", "StrategyImportanceUpdated", "StrategyImportanceRemoved"}
+	events := []string{cmPL.StrategyImportanceSet, cmPL.StrategyImportanceUpdated, cmPL.StrategyImportanceRemoved}
 	for _, event := range events {
 		eventBus.Subscribe(event, projector)
 	}
 }
 
 func subscribeApplicationFitScoreEvents(eventBus events.EventBus, projector *projectors.ApplicationFitScoreProjector) {
-	events := []string{"ApplicationFitScoreSet", "ApplicationFitScoreUpdated", "ApplicationFitScoreRemoved"}
+	events := []string{cmPL.ApplicationFitScoreSet, cmPL.ApplicationFitScoreUpdated, cmPL.ApplicationFitScoreRemoved}
 	for _, event := range events {
 		eventBus.Subscribe(event, projector)
 	}
@@ -283,19 +284,19 @@ func subscribeComponentCacheEvents(eventBus events.EventBus, projector *projecto
 }
 
 func subscribeImportanceChangeEffectiveEvents(eventBus events.EventBus, projector *projectors.ImportanceChangeEffectiveProjector) {
-	for _, event := range []string{"StrategyImportanceSet", "StrategyImportanceUpdated", "StrategyImportanceRemoved"} {
+	for _, event := range []string{cmPL.StrategyImportanceSet, cmPL.StrategyImportanceUpdated, cmPL.StrategyImportanceRemoved} {
 		eventBus.Subscribe(event, projector)
 	}
 }
 
 func subscribeHierarchyChangeEffectiveEvents(eventBus events.EventBus, projector *projectors.HierarchyChangeEffectiveProjector) {
-	for _, event := range []string{"CapabilityParentChanged", "CapabilityDeleted"} {
+	for _, event := range []string{cmPL.CapabilityParentChanged, cmPL.CapabilityDeleted} {
 		eventBus.Subscribe(event, projector)
 	}
 }
 
 func subscribeDomainAssignmentEffectiveEvents(eventBus events.EventBus, projector *projectors.DomainAssignmentEffectiveProjector) {
-	for _, event := range []string{"CapabilityAssignedToDomain", "CapabilityUnassignedFromDomain"} {
+	for _, event := range []string{cmPL.CapabilityAssignedToDomain, cmPL.CapabilityUnassignedFromDomain} {
 		eventBus.Subscribe(event, projector)
 	}
 }
@@ -319,11 +320,11 @@ func setupCascadingDeleteHandlers(eventBus events.EventBus, commandBus *cqrs.InM
 	onCapabilityDeletedImportanceHandler := handlers.NewOnCapabilityDeletedImportanceHandler(rm.strategyImportance)
 	onBusinessDomainDeletedImportanceHandler := handlers.NewOnBusinessDomainDeletedImportanceHandler(rm.strategyImportance)
 
-	eventBus.Subscribe("CapabilityDeleted", onCapabilityDeletedHandler)
-	eventBus.Subscribe("CapabilityDeleted", onCapabilityDeletedImportanceHandler)
-	eventBus.Subscribe("BusinessDomainDeleted", onBusinessDomainDeletedHandler)
-	eventBus.Subscribe("BusinessDomainDeleted", onBusinessDomainDeletedImportanceHandler)
-	eventBus.Subscribe("CapabilityParentChanged", onCapabilityParentChangedHandler)
+	eventBus.Subscribe(cmPL.CapabilityDeleted, onCapabilityDeletedHandler)
+	eventBus.Subscribe(cmPL.CapabilityDeleted, onCapabilityDeletedImportanceHandler)
+	eventBus.Subscribe(cmPL.BusinessDomainDeleted, onBusinessDomainDeletedHandler)
+	eventBus.Subscribe(cmPL.BusinessDomainDeleted, onBusinessDomainDeletedImportanceHandler)
+	eventBus.Subscribe(cmPL.CapabilityParentChanged, onCapabilityParentChangedHandler)
 }
 
 func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepositories, rm *routeReadModels, pillarsGateway metamodel.StrategyPillarsGateway) {

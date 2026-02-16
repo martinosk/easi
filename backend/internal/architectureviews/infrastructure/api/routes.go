@@ -9,6 +9,7 @@ import (
 	"easi/backend/internal/architectureviews/application/projectors"
 	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
+	viewsPL "easi/backend/internal/architectureviews/publishedlanguage"
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -27,13 +28,13 @@ func SubscribeEvents(eventBus events.EventBus, commandBus *cqrs.InMemoryCommandB
 	viewReadModel := readmodels.NewArchitectureViewReadModel(db)
 	viewProjector := projectors.NewArchitectureViewProjector(viewReadModel)
 
-	eventBus.Subscribe("ViewCreated", viewProjector)
-	eventBus.Subscribe("ComponentAddedToView", viewProjector)
-	eventBus.Subscribe("ComponentRemovedFromView", viewProjector)
-	eventBus.Subscribe("ViewRenamed", viewProjector)
-	eventBus.Subscribe("ViewDeleted", viewProjector)
-	eventBus.Subscribe("DefaultViewChanged", viewProjector)
-	eventBus.Subscribe("ViewVisibilityChanged", viewProjector)
+	eventBus.Subscribe(viewsPL.ViewCreated, viewProjector)
+	eventBus.Subscribe(viewsPL.ComponentAddedToView, viewProjector)
+	eventBus.Subscribe(viewsPL.ComponentRemovedFromView, viewProjector)
+	eventBus.Subscribe(viewsPL.ViewRenamed, viewProjector)
+	eventBus.Subscribe(viewsPL.ViewDeleted, viewProjector)
+	eventBus.Subscribe(viewsPL.DefaultViewChanged, viewProjector)
+	eventBus.Subscribe(viewsPL.ViewVisibilityChanged, viewProjector)
 
 	componentDeletedHandler := handlers.NewApplicationComponentDeletedHandler(commandBus, viewReadModel)
 	relationDeletedHandler := handlers.NewComponentRelationDeletedHandler()

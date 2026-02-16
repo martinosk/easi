@@ -9,6 +9,7 @@ import (
 
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/domain/events"
+	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
@@ -90,15 +91,15 @@ func (p *ApplicationComponentProjector) Handle(ctx context.Context, event domain
 
 func (p *ApplicationComponentProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	switch eventType {
-	case "ApplicationComponentCreated":
+	case archPL.ApplicationComponentCreated:
 		return p.projectCreated(ctx, eventData)
-	case "ApplicationComponentUpdated":
+	case archPL.ApplicationComponentUpdated:
 		return p.projectUpdated(ctx, eventData)
-	case "ApplicationComponentDeleted":
+	case archPL.ApplicationComponentDeleted:
 		return p.projectDeleted(ctx, eventData)
-	case "ApplicationComponentExpertAdded":
+	case archPL.ApplicationComponentExpertAdded:
 		return p.projectExpertAdded(ctx, eventData)
-	case "ApplicationComponentExpertRemoved":
+	case archPL.ApplicationComponentExpertRemoved:
 		return p.projectExpertRemoved(ctx, eventData)
 	}
 	return nil

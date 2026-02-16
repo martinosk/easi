@@ -8,6 +8,7 @@ import (
 
 	"easi/backend/internal/auth/application/readmodels"
 	"easi/backend/internal/auth/domain/events"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
@@ -38,13 +39,13 @@ func (p *InvitationProjector) Handle(ctx context.Context, event domain.DomainEve
 
 func (p *InvitationProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	switch eventType {
-	case "InvitationCreated":
+	case authPL.InvitationCreated:
 		return p.handleInvitationCreated(ctx, eventData)
-	case "InvitationAccepted":
+	case authPL.InvitationAccepted:
 		return p.handleInvitationAccepted(ctx, eventData)
-	case "InvitationRevoked":
+	case authPL.InvitationRevoked:
 		return p.handleInvitationRevoked(ctx, eventData)
-	case "InvitationExpired":
+	case authPL.InvitationExpired:
 		return p.handleInvitationExpired(ctx, eventData)
 	}
 	return nil

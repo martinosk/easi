@@ -9,6 +9,7 @@ import (
 	"easi/backend/internal/importing/application/readmodels"
 	"easi/backend/internal/importing/application/saga"
 	"easi/backend/internal/importing/infrastructure/repositories"
+	importPL "easi/backend/internal/importing/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	"easi/backend/internal/shared/cqrs"
@@ -34,12 +35,12 @@ func SetupImportingRoutes(r chi.Router, deps ImportingRoutesDeps) error {
 	readModel := readmodels.NewImportSessionReadModel(deps.DB)
 
 	projector := projectors.NewImportSessionProjector(readModel)
-	deps.EventBus.Subscribe("ImportSessionCreated", projector)
-	deps.EventBus.Subscribe("ImportStarted", projector)
-	deps.EventBus.Subscribe("ImportProgressUpdated", projector)
-	deps.EventBus.Subscribe("ImportCompleted", projector)
-	deps.EventBus.Subscribe("ImportFailed", projector)
-	deps.EventBus.Subscribe("ImportSessionCancelled", projector)
+	deps.EventBus.Subscribe(importPL.ImportSessionCreated, projector)
+	deps.EventBus.Subscribe(importPL.ImportStarted, projector)
+	deps.EventBus.Subscribe(importPL.ImportProgressUpdated, projector)
+	deps.EventBus.Subscribe(importPL.ImportCompleted, projector)
+	deps.EventBus.Subscribe(importPL.ImportFailed, projector)
+	deps.EventBus.Subscribe(importPL.ImportSessionCancelled, projector)
 
 	importSaga := saga.New(deps.ComponentGateway, deps.CapabilityGateway, deps.ValueStreamGateway)
 

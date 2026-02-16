@@ -8,6 +8,7 @@ import (
 
 	"easi/backend/internal/metamodel/application/readmodels"
 	"easi/backend/internal/metamodel/domain/events"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
@@ -32,64 +33,63 @@ func (p *MetaModelConfigurationProjector) Handle(ctx context.Context, event doma
 
 func (p *MetaModelConfigurationProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	switch eventType {
-	case "MetaModelConfigurationCreated":
+	case mmPL.MetaModelConfigurationCreated:
 		return p.handleCreated(ctx, eventData)
-	case "MaturityScaleConfigUpdated":
+	case mmPL.MaturityScaleConfigUpdated:
 		return p.handleUpdated(ctx, eventData)
-	case "MaturityScaleConfigReset":
+	case mmPL.MaturityScaleConfigReset:
 		return p.handleReset(ctx, eventData)
-	case "StrategyPillarAdded":
+	case mmPL.StrategyPillarAdded:
 		return p.handlePillarAdded(ctx, eventData)
-	case "StrategyPillarUpdated":
+	case mmPL.StrategyPillarUpdated:
 		return p.handlePillarUpdated(ctx, eventData)
-	case "StrategyPillarRemoved":
+	case mmPL.StrategyPillarRemoved:
 		return p.handlePillarRemoved(ctx, eventData)
-	case "PillarFitConfigurationUpdated":
+	case mmPL.PillarFitConfigurationUpdated:
 		return p.handlePillarFitConfigurationUpdated(ctx, eventData)
 	}
 	return nil
 }
 
-func (p *MetaModelConfigurationProjector) handleCreated(ctx context.Context, eventData []byte) error {
-	var event events.MetaModelConfigurationCreated
+func unmarshalAndProject[T any](eventData []byte, eventName string, project func(*T) error) error {
+	var event T
 	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal MetaModelConfigurationCreated event: %v", err)
+		log.Printf("Failed to unmarshal %s event: %v", eventName, err)
 		return err
 	}
+	return project(&event)
+}
 
-	dto := readmodels.MetaModelConfigurationDTO{
-		ID:              event.ID,
-		TenantID:        event.TenantID,
-		Sections:        toSectionDTOs(event.Sections),
-		StrategyPillars: toPillarDTOs(event.Pillars),
-		Version:         1,
-		IsDefault:       true,
-		CreatedAt:       event.CreatedAt,
-		ModifiedAt:      event.CreatedAt,
-		ModifiedBy:      event.CreatedBy,
-	}
-	return p.readModel.Insert(ctx, dto)
+func (p *MetaModelConfigurationProjector) handleCreated(ctx context.Context, eventData []byte) error {
+	return unmarshalAndProject(eventData, "MetaModelConfigurationCreated", func(event *events.MetaModelConfigurationCreated) error {
+		dto := readmodels.MetaModelConfigurationDTO{
+			ID:              event.ID,
+			TenantID:        event.TenantID,
+			Sections:        toSectionDTOs(event.Sections),
+			StrategyPillars: toPillarDTOs(event.Pillars),
+			Version:         1,
+			IsDefault:       true,
+			CreatedAt:       event.CreatedAt,
+			ModifiedAt:      event.CreatedAt,
+			ModifiedBy:      event.CreatedBy,
+		}
+		return p.readModel.Insert(ctx, dto)
+	})
 }
 
 func (p *MetaModelConfigurationProjector) handleUpdated(ctx context.Context, eventData []byte) error {
-	var event events.MaturityScaleConfigUpdated
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal MaturityScaleConfigUpdated event: %v", err)
-		return err
-	}
-	return p.updateMaturitySections(ctx, maturityUpdateData{
-		ID: event.ID, Sections: toSectionDTOs(event.NewSections), Version: event.Version, IsDefault: false, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy,
+	return unmarshalAndProject(eventData, "MaturityScaleConfigUpdated", func(event *events.MaturityScaleConfigUpdated) error {
+		return p.updateMaturitySections(ctx, maturityUpdateData{
+			ID: event.ID, Sections: toSectionDTOs(event.NewSections), Version: event.Version, IsDefault: false, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy,
+		})
 	})
 }
 
 func (p *MetaModelConfigurationProjector) handleReset(ctx context.Context, eventData []byte) error {
-	var event events.MaturityScaleConfigReset
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal MaturityScaleConfigReset event: %v", err)
-		return err
-	}
-	return p.updateMaturitySections(ctx, maturityUpdateData{
-		ID: event.ID, Sections: toSectionDTOs(event.Sections), Version: event.Version, IsDefault: true, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy,
+	return unmarshalAndProject(eventData, "MaturityScaleConfigReset", func(event *events.MaturityScaleConfigReset) error {
+		return p.updateMaturitySections(ctx, maturityUpdateData{
+			ID: event.ID, Sections: toSectionDTOs(event.Sections), Version: event.Version, IsDefault: true, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy,
+		})
 	})
 }
 
@@ -121,50 +121,38 @@ type pillarEventData struct {
 }
 
 func (p *MetaModelConfigurationProjector) handlePillarAdded(ctx context.Context, eventData []byte) error {
-	var event events.StrategyPillarAdded
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal StrategyPillarAdded event: %v", err)
-		return err
-	}
-	data := pillarEventData{ID: event.ID, Version: event.Version, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy}
-	return p.updatePillarsWithModification(ctx, data, func(pillars []readmodels.StrategyPillarDTO) []readmodels.StrategyPillarDTO {
-		return append(pillars, readmodels.StrategyPillarDTO{ID: event.PillarID, Name: event.Name, Description: event.Description, Active: true})
+	return unmarshalAndProject(eventData, "StrategyPillarAdded", func(event *events.StrategyPillarAdded) error {
+		data := pillarEventData{ID: event.ID, Version: event.Version, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy}
+		return p.updatePillarsWithModification(ctx, data, func(pillars []readmodels.StrategyPillarDTO) []readmodels.StrategyPillarDTO {
+			return append(pillars, readmodels.StrategyPillarDTO{ID: event.PillarID, Name: event.Name, Description: event.Description, Active: true})
+		})
 	})
 }
 
 func (p *MetaModelConfigurationProjector) handlePillarUpdated(ctx context.Context, eventData []byte) error {
-	var event events.StrategyPillarUpdated
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal StrategyPillarUpdated event: %v", err)
-		return err
-	}
-	data := pillarEventData{ID: event.ID, Version: event.Version, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy}
-	return p.updatePillarByID(ctx, data, event.PillarID, func(pillar *readmodels.StrategyPillarDTO) {
-		pillar.Name, pillar.Description = event.NewName, event.NewDescription
+	return unmarshalAndProject(eventData, "StrategyPillarUpdated", func(event *events.StrategyPillarUpdated) error {
+		data := pillarEventData{ID: event.ID, Version: event.Version, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy}
+		return p.updatePillarByID(ctx, data, event.PillarID, func(pillar *readmodels.StrategyPillarDTO) {
+			pillar.Name, pillar.Description = event.NewName, event.NewDescription
+		})
 	})
 }
 
 func (p *MetaModelConfigurationProjector) handlePillarRemoved(ctx context.Context, eventData []byte) error {
-	var event events.StrategyPillarRemoved
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal StrategyPillarRemoved event: %v", err)
-		return err
-	}
-	data := pillarEventData{ID: event.ID, Version: event.Version, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy}
-	return p.updatePillarByID(ctx, data, event.PillarID, func(pillar *readmodels.StrategyPillarDTO) {
-		pillar.Active = false
+	return unmarshalAndProject(eventData, "StrategyPillarRemoved", func(event *events.StrategyPillarRemoved) error {
+		data := pillarEventData{ID: event.ID, Version: event.Version, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy}
+		return p.updatePillarByID(ctx, data, event.PillarID, func(pillar *readmodels.StrategyPillarDTO) {
+			pillar.Active = false
+		})
 	})
 }
 
 func (p *MetaModelConfigurationProjector) handlePillarFitConfigurationUpdated(ctx context.Context, eventData []byte) error {
-	var event events.PillarFitConfigurationUpdated
-	if err := json.Unmarshal(eventData, &event); err != nil {
-		log.Printf("Failed to unmarshal PillarFitConfigurationUpdated event: %v", err)
-		return err
-	}
-	data := pillarEventData{ID: event.ID, Version: event.Version, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy}
-	return p.updatePillarByID(ctx, data, event.PillarID, func(pillar *readmodels.StrategyPillarDTO) {
-		pillar.FitScoringEnabled, pillar.FitCriteria, pillar.FitType = event.FitScoringEnabled, event.FitCriteria, event.FitType
+	return unmarshalAndProject(eventData, "PillarFitConfigurationUpdated", func(event *events.PillarFitConfigurationUpdated) error {
+		data := pillarEventData{ID: event.ID, Version: event.Version, ModifiedAt: event.ModifiedAt, ModifiedBy: event.ModifiedBy}
+		return p.updatePillarByID(ctx, data, event.PillarID, func(pillar *readmodels.StrategyPillarDTO) {
+			pillar.FitScoringEnabled, pillar.FitCriteria, pillar.FitType = event.FitScoringEnabled, event.FitCriteria, event.FitType
+		})
 	})
 }
 

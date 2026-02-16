@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"easi/backend/internal/auth/application/readmodels"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
@@ -30,13 +31,13 @@ func (p *UserProjector) Handle(ctx context.Context, event domain.DomainEvent) er
 
 func (p *UserProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	switch eventType {
-	case "UserCreated":
+	case authPL.UserCreated:
 		return p.handleUserCreated(ctx, eventData)
-	case "UserRoleChanged":
+	case authPL.UserRoleChanged:
 		return p.handleUserRoleChanged(ctx, eventData)
-	case "UserDisabled":
+	case authPL.UserDisabled:
 		return p.handleUserDisabled(ctx, eventData)
-	case "UserEnabled":
+	case authPL.UserEnabled:
 		return p.handleUserEnabled(ctx, eventData)
 	}
 	return nil

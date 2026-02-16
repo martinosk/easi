@@ -29,6 +29,10 @@ var allowedCrossBCImports = map[string]string{
 	"platform -> auth/infrastructure/repositories": "platform-internal",
 }
 
+type architectureScanner struct {
+	internalDir string
+}
+
 func isGoSourceFile(info os.FileInfo, path string) bool {
 	return !info.IsDir() && strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go")
 }
@@ -53,6 +57,9 @@ func isAllowedCrossBCImport(ownerBC, importSuffix string) bool {
 	if freeImportPackages[importSuffix] {
 		return true
 	}
+	if strings.Contains(importSuffix, "/publishedlanguage/contracts") {
+		return false
+	}
 	return strings.Contains(importSuffix, "/publishedlanguage")
 }
 
@@ -62,8 +69,13 @@ type importViolation struct {
 	importedBC   string
 }
 
-func checkFileImports(path, internalDir string) ([]importViolation, map[string]bool, error) {
-	relPath, err := filepath.Rel(internalDir, path)
+type importScanResult struct {
+	violations           []importViolation
+	usedAllowlistEntries map[string]bool
+}
+
+func (s architectureScanner) checkFileImports(path string) ([]importViolation, map[string]bool, error) {
+	relPath, err := filepath.Rel(s.internalDir, path)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -107,22 +119,17 @@ func checkFileImports(path, internalDir string) ([]importViolation, map[string]b
 	return violations, usedEntries, nil
 }
 
-type importScanResult struct {
-	violations           []importViolation
-	usedAllowlistEntries map[string]bool
-}
-
-func scanAllImports(internalDir string) (importScanResult, error) {
+func (s architectureScanner) scanImports() (importScanResult, error) {
 	result := importScanResult{usedAllowlistEntries: make(map[string]bool)}
 
-	err := filepath.Walk(internalDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(s.internalDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if !isProductionGoFile(info, path) {
 			return nil
 		}
-		violations, usedEntries, fileErr := checkFileImports(path, internalDir)
+		violations, usedEntries, fileErr := s.checkFileImports(path)
 		if fileErr != nil {
 			return fileErr
 		}
@@ -136,13 +143,67 @@ func scanAllImports(internalDir string) (importScanResult, error) {
 	return result, err
 }
 
+type purityViolation struct {
+	relPath    string
+	importPath string
+}
+
+func (s architectureScanner) checkContractsPurity(path string) ([]purityViolation, error) {
+	relPath, err := filepath.Rel(s.internalDir, path)
+	if err != nil {
+		return nil, err
+	}
+	relPath = filepath.ToSlash(relPath)
+
+	if !strings.Contains(relPath, "/publishedlanguage/contracts/") {
+		return nil, nil
+	}
+
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+	if err != nil {
+		return nil, err
+	}
+
+	var violations []purityViolation
+	for _, imp := range node.Imports {
+		importPath := strings.Trim(imp.Path.Value, `"`)
+		if strings.Contains(importPath, ".") || strings.Contains(importPath, modulePrefix) {
+			violations = append(violations, purityViolation{relPath, importPath})
+		}
+	}
+	return violations, nil
+}
+
+func (s architectureScanner) scanContractsPurity() ([]purityViolation, error) {
+	var violations []purityViolation
+
+	err := filepath.Walk(s.internalDir, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if !isGoSourceFile(info, path) {
+			return nil
+		}
+		fileViolations, checkErr := s.checkContractsPurity(path)
+		if checkErr != nil {
+			return checkErr
+		}
+		violations = append(violations, fileViolations...)
+		return nil
+	})
+
+	return violations, err
+}
+
 func TestNoCrossBoundedContextImports(t *testing.T) {
 	internalDir, err := filepath.Abs(".")
 	if err != nil {
 		t.Fatalf("failed to get absolute path: %v", err)
 	}
 
-	scan, err := scanAllImports(internalDir)
+	scanner := architectureScanner{internalDir: internalDir}
+	scan, err := scanner.scanImports()
 	if err != nil {
 		t.Fatalf("failed to scan imports: %v", err)
 	}
@@ -158,4 +219,21 @@ func TestNoCrossBoundedContextImports(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestPublishedLanguageContractsPurity(t *testing.T) {
+	internalDir, err := filepath.Abs(".")
+	if err != nil {
+		t.Fatalf("failed to get absolute path: %v", err)
+	}
+
+	scanner := architectureScanner{internalDir: internalDir}
+	violations, err := scanner.scanContractsPurity()
+	if err != nil {
+		t.Fatalf("failed to scan contracts purity: %v", err)
+	}
+
+	for _, v := range violations {
+		t.Errorf("PURITY VIOLATION: %s imports %q — contracts packages must only use stdlib", v.relPath, v.importPath)
+	}
 }

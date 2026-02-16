@@ -1,5 +1,11 @@
 package publishedlanguage
 
 const (
-	ViewDeleted = "ViewDeleted"
+	ViewCreated              = "ViewCreated"
+	ViewRenamed              = "ViewRenamed"
+	ViewDeleted              = "ViewDeleted"
+	ViewVisibilityChanged    = "ViewVisibilityChanged"
+	DefaultViewChanged       = "DefaultViewChanged"
+	ComponentAddedToView     = "ComponentAddedToView"
+	ComponentRemovedFromView = "ComponentRemovedFromView"
 )

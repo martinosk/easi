@@ -1,9 +1,6 @@
 package publishedlanguage
 
-import (
-	domain "easi/backend/internal/shared/eventsourcing"
-	"errors"
-)
+import "errors"
 
 var ErrInvalidPermission = errors.New("invalid permission")
 
@@ -88,12 +85,8 @@ func (p Permission) String() string {
 	return p.value
 }
 
-func (p Permission) Equals(other domain.ValueObject) bool {
-	otherPerm, ok := other.(Permission)
-	if !ok {
-		return false
-	}
-	return p.value == otherPerm.value
+func (p Permission) Equals(other Permission) bool {
+	return p.value == other.value
 }
 
 func PermissionsToStrings(perms []Permission) []string {

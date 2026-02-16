@@ -8,6 +8,7 @@ import (
 
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/domain/events"
+	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
@@ -33,11 +34,11 @@ func (p *InternalTeamProjector) Handle(ctx context.Context, event domain.DomainE
 
 func (p *InternalTeamProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	switch eventType {
-	case "InternalTeamCreated":
+	case archPL.InternalTeamCreated:
 		return p.projectCreated(ctx, eventData)
-	case "InternalTeamUpdated":
+	case archPL.InternalTeamUpdated:
 		return p.projectUpdated(ctx, eventData)
-	case "InternalTeamDeleted":
+	case archPL.InternalTeamDeleted:
 		return p.projectDeleted(ctx, eventData)
 	}
 	return nil

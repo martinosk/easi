@@ -11,6 +11,7 @@ import (
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
 	"easi/backend/internal/enterprisearchitecture/infrastructure/metamodel"
 	"easi/backend/internal/enterprisearchitecture/infrastructure/repositories"
+	eaPL "easi/backend/internal/enterprisearchitecture/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	mmPL "easi/backend/internal/metamodel/publishedlanguage"
@@ -126,12 +127,12 @@ func setupEventSubscriptions(eventBus events.EventBus, rm *routeReadModels) {
 
 func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.EnterpriseCapabilityProjector) {
 	eventTypes := []string{
-		"EnterpriseCapabilityCreated",
-		"EnterpriseCapabilityUpdated",
-		"EnterpriseCapabilityDeleted",
-		"EnterpriseCapabilityLinked",
-		"EnterpriseCapabilityUnlinked",
-		"EnterpriseCapabilityTargetMaturitySet",
+		eaPL.EnterpriseCapabilityCreated,
+		eaPL.EnterpriseCapabilityUpdated,
+		eaPL.EnterpriseCapabilityDeleted,
+		eaPL.EnterpriseCapabilityLinked,
+		eaPL.EnterpriseCapabilityUnlinked,
+		eaPL.EnterpriseCapabilityTargetMaturitySet,
 	}
 	for _, eventType := range eventTypes {
 		eventBus.Subscribe(eventType, projector)
@@ -140,8 +141,8 @@ func subscribeCapabilityEvents(eventBus events.EventBus, projector *projectors.E
 
 func subscribeLinkEvents(eventBus events.EventBus, projector *projectors.EnterpriseCapabilityLinkProjector) {
 	eventTypes := []string{
-		"EnterpriseCapabilityLinked",
-		"EnterpriseCapabilityUnlinked",
+		eaPL.EnterpriseCapabilityLinked,
+		eaPL.EnterpriseCapabilityUnlinked,
 		cmPL.CapabilityParentChanged,
 	}
 	for _, eventType := range eventTypes {
@@ -151,9 +152,9 @@ func subscribeLinkEvents(eventBus events.EventBus, projector *projectors.Enterpr
 
 func subscribeImportanceEvents(eventBus events.EventBus, projector *projectors.EnterpriseStrategicImportanceProjector) {
 	eventTypes := []string{
-		"EnterpriseStrategicImportanceSet",
-		"EnterpriseStrategicImportanceUpdated",
-		"EnterpriseStrategicImportanceRemoved",
+		eaPL.EnterpriseStrategicImportanceSet,
+		eaPL.EnterpriseStrategicImportanceUpdated,
+		eaPL.EnterpriseStrategicImportanceRemoved,
 	}
 	for _, eventType := range eventTypes {
 		eventBus.Subscribe(eventType, projector)

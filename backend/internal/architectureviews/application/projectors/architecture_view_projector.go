@@ -7,6 +7,7 @@ import (
 
 	"easi/backend/internal/architectureviews/application/readmodels"
 	"easi/backend/internal/architectureviews/domain/events"
+	viewsPL "easi/backend/internal/architectureviews/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
@@ -35,19 +36,19 @@ func (p *ArchitectureViewProjector) Handle(ctx context.Context, event domain.Dom
 // ProjectEvent projects a domain event to the read model
 func (p *ArchitectureViewProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	switch eventType {
-	case "ViewCreated":
+	case viewsPL.ViewCreated:
 		return p.projectViewCreated(ctx, eventData)
-	case "ComponentAddedToView":
+	case viewsPL.ComponentAddedToView:
 		return p.projectComponentAdded(ctx, eventData)
-	case "ComponentRemovedFromView":
+	case viewsPL.ComponentRemovedFromView:
 		return p.projectComponentRemoved(ctx, eventData)
-	case "ViewRenamed":
+	case viewsPL.ViewRenamed:
 		return p.projectViewRenamed(ctx, eventData)
-	case "ViewDeleted":
+	case viewsPL.ViewDeleted:
 		return p.projectViewDeleted(ctx, eventData)
-	case "DefaultViewChanged":
+	case viewsPL.DefaultViewChanged:
 		return p.projectDefaultViewChanged(ctx, eventData)
-	case "ViewVisibilityChanged":
+	case viewsPL.ViewVisibilityChanged:
 		return p.projectViewVisibilityChanged(ctx, eventData)
 	}
 

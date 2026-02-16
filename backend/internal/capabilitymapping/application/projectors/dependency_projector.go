@@ -8,6 +8,7 @@ import (
 
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/events"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
@@ -33,7 +34,7 @@ func (p *DependencyProjector) Handle(ctx context.Context, event domain.DomainEve
 
 func (p *DependencyProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	switch eventType {
-	case "CapabilityDependencyCreated":
+	case cmPL.CapabilityDependencyCreated:
 		var event events.CapabilityDependencyCreated
 		if err := json.Unmarshal(eventData, &event); err != nil {
 			wrappedErr := fmt.Errorf("unmarshal CapabilityDependencyCreated event data: %w", err)
@@ -54,7 +55,7 @@ func (p *DependencyProjector) ProjectEvent(ctx context.Context, eventType string
 			return fmt.Errorf("project CapabilityDependencyCreated for dependency %s: %w", event.ID, err)
 		}
 		return nil
-	case "CapabilityDependencyDeleted":
+	case cmPL.CapabilityDependencyDeleted:
 		var event events.CapabilityDependencyDeleted
 		if err := json.Unmarshal(eventData, &event); err != nil {
 			wrappedErr := fmt.Errorf("unmarshal CapabilityDependencyDeleted event data: %w", err)

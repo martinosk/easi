@@ -10,6 +10,8 @@ import (
 	"easi/backend/internal/metamodel/application/projectors"
 	"easi/backend/internal/metamodel/application/readmodels"
 	"easi/backend/internal/metamodel/infrastructure/repositories"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
+	platformPL "easi/backend/internal/platform/publishedlanguage"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
@@ -39,13 +41,13 @@ func SetupMetaModelRoutes(deps MetaModelRoutesDeps) error {
 
 	configProjector := projectors.NewMetaModelConfigurationProjector(configReadModel)
 
-	deps.EventBus.Subscribe("MetaModelConfigurationCreated", configProjector)
-	deps.EventBus.Subscribe("MaturityScaleConfigUpdated", configProjector)
-	deps.EventBus.Subscribe("MaturityScaleConfigReset", configProjector)
-	deps.EventBus.Subscribe("StrategyPillarAdded", configProjector)
-	deps.EventBus.Subscribe("StrategyPillarUpdated", configProjector)
-	deps.EventBus.Subscribe("StrategyPillarRemoved", configProjector)
-	deps.EventBus.Subscribe("PillarFitConfigurationUpdated", configProjector)
+	deps.EventBus.Subscribe(mmPL.MetaModelConfigurationCreated, configProjector)
+	deps.EventBus.Subscribe(mmPL.MaturityScaleConfigUpdated, configProjector)
+	deps.EventBus.Subscribe(mmPL.MaturityScaleConfigReset, configProjector)
+	deps.EventBus.Subscribe(mmPL.StrategyPillarAdded, configProjector)
+	deps.EventBus.Subscribe(mmPL.StrategyPillarUpdated, configProjector)
+	deps.EventBus.Subscribe(mmPL.StrategyPillarRemoved, configProjector)
+	deps.EventBus.Subscribe(mmPL.PillarFitConfigurationUpdated, configProjector)
 
 	createConfigHandler := handlers.NewCreateMetaModelConfigurationHandler(configRepo)
 	updateScaleHandler := handlers.NewUpdateMaturityScaleHandler(configRepo)
@@ -68,7 +70,7 @@ func SetupMetaModelRoutes(deps MetaModelRoutesDeps) error {
 	deps.CommandBus.Register("UpdatePillarFitConfiguration", updatePillarFitConfigHandler)
 
 	tenantCreatedHandler := handlers.NewTenantCreatedHandler(deps.CommandBus)
-	deps.EventBus.Subscribe("TenantCreated", tenantCreatedHandler)
+	deps.EventBus.Subscribe(platformPL.TenantCreated, tenantCreatedHandler)
 
 	links := NewMetaModelLinks(deps.Hateoas)
 	metaModelHandlers := NewMetaModelHandlers(deps.CommandBus, configReadModel, links, deps.SessionProvider)

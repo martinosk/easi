@@ -8,6 +8,7 @@ import (
 
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/domain/events"
+	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
@@ -33,11 +34,11 @@ func (p *AcquiredEntityProjector) Handle(ctx context.Context, event domain.Domai
 
 func (p *AcquiredEntityProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	switch eventType {
-	case "AcquiredEntityCreated":
+	case archPL.AcquiredEntityCreated:
 		return p.projectCreated(ctx, eventData)
-	case "AcquiredEntityUpdated":
+	case archPL.AcquiredEntityUpdated:
 		return p.projectUpdated(ctx, eventData)
-	case "AcquiredEntityDeleted":
+	case archPL.AcquiredEntityDeleted:
 		return p.projectDeleted(ctx, eventData)
 	}
 	return nil

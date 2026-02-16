@@ -8,6 +8,7 @@ import (
 
 	"easi/backend/internal/accessdelegation/application/readmodels"
 	"easi/backend/internal/accessdelegation/domain/events"
+	adPL "easi/backend/internal/accessdelegation/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
@@ -29,11 +30,11 @@ func (p *EditGrantProjector) Handle(ctx context.Context, event domain.DomainEven
 
 func (p *EditGrantProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	switch eventType {
-	case "EditGrantActivated":
+	case adPL.EditGrantActivated:
 		return p.handleEditGrantActivated(ctx, eventData)
-	case "EditGrantRevoked":
+	case adPL.EditGrantRevoked:
 		return p.handleEditGrantRevoked(ctx, eventData)
-	case "EditGrantExpired":
+	case adPL.EditGrantExpired:
 		return p.handleEditGrantExpired(ctx, eventData)
 	}
 	return nil

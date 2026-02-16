@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"easi/backend/internal/importing/application/readmodels"
+	importPL "easi/backend/internal/importing/publishedlanguage"
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
@@ -43,17 +44,17 @@ func unmarshalEventData[T any](eventData []byte, eventName string) (*T, error) {
 
 func (p *ImportSessionProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	switch eventType {
-	case "ImportSessionCreated":
+	case importPL.ImportSessionCreated:
 		return p.handleImportSessionCreated(ctx, eventData)
-	case "ImportStarted":
+	case importPL.ImportStarted:
 		return p.handleImportStarted(ctx, eventData)
-	case "ImportProgressUpdated":
+	case importPL.ImportProgressUpdated:
 		return p.handleImportProgressUpdated(ctx, eventData)
-	case "ImportCompleted":
+	case importPL.ImportCompleted:
 		return p.handleImportCompleted(ctx, eventData)
-	case "ImportFailed":
+	case importPL.ImportFailed:
 		return p.handleImportFailed(ctx, eventData)
-	case "ImportSessionCancelled":
+	case importPL.ImportSessionCancelled:
 		return p.handleImportSessionCancelled(ctx, eventData)
 	}
 	return nil

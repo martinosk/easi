@@ -7,6 +7,7 @@ import (
 	"easi/backend/internal/architecturemodeling/application/projectors"
 	"easi/backend/internal/architecturemodeling/application/readmodels"
 	"easi/backend/internal/architecturemodeling/infrastructure/repositories"
+	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
@@ -99,34 +100,34 @@ func subscribeProjectors(eventBus events.EventBus, rm *readModelSet) {
 }
 
 func subscribeComponentProjectors(eventBus events.EventBus, component, relation events.EventHandler) {
-	eventBus.Subscribe("ApplicationComponentCreated", component)
-	eventBus.Subscribe("ApplicationComponentUpdated", component)
-	eventBus.Subscribe("ApplicationComponentDeleted", component)
-	eventBus.Subscribe("ApplicationComponentExpertAdded", component)
-	eventBus.Subscribe("ApplicationComponentExpertRemoved", component)
-	eventBus.Subscribe("ComponentRelationCreated", relation)
-	eventBus.Subscribe("ComponentRelationUpdated", relation)
-	eventBus.Subscribe("ComponentRelationDeleted", relation)
+	eventBus.Subscribe(archPL.ApplicationComponentCreated, component)
+	eventBus.Subscribe(archPL.ApplicationComponentUpdated, component)
+	eventBus.Subscribe(archPL.ApplicationComponentDeleted, component)
+	eventBus.Subscribe(archPL.ApplicationComponentExpertAdded, component)
+	eventBus.Subscribe(archPL.ApplicationComponentExpertRemoved, component)
+	eventBus.Subscribe(archPL.ComponentRelationCreated, relation)
+	eventBus.Subscribe(archPL.ComponentRelationUpdated, relation)
+	eventBus.Subscribe(archPL.ComponentRelationDeleted, relation)
 }
 
 func subscribeOriginEntityProjectors(eventBus events.EventBus, acquired, vendor, team events.EventHandler) {
-	eventBus.Subscribe("AcquiredEntityCreated", acquired)
-	eventBus.Subscribe("AcquiredEntityUpdated", acquired)
-	eventBus.Subscribe("AcquiredEntityDeleted", acquired)
-	eventBus.Subscribe("VendorCreated", vendor)
-	eventBus.Subscribe("VendorUpdated", vendor)
-	eventBus.Subscribe("VendorDeleted", vendor)
-	eventBus.Subscribe("InternalTeamCreated", team)
-	eventBus.Subscribe("InternalTeamUpdated", team)
-	eventBus.Subscribe("InternalTeamDeleted", team)
+	eventBus.Subscribe(archPL.AcquiredEntityCreated, acquired)
+	eventBus.Subscribe(archPL.AcquiredEntityUpdated, acquired)
+	eventBus.Subscribe(archPL.AcquiredEntityDeleted, acquired)
+	eventBus.Subscribe(archPL.VendorCreated, vendor)
+	eventBus.Subscribe(archPL.VendorUpdated, vendor)
+	eventBus.Subscribe(archPL.VendorDeleted, vendor)
+	eventBus.Subscribe(archPL.InternalTeamCreated, team)
+	eventBus.Subscribe(archPL.InternalTeamUpdated, team)
+	eventBus.Subscribe(archPL.InternalTeamDeleted, team)
 }
 
 func subscribeOriginRelationshipProjectors(eventBus events.EventBus, projector events.EventHandler) {
-	eventBus.Subscribe("OriginLinkSet", projector)
-	eventBus.Subscribe("OriginLinkReplaced", projector)
-	eventBus.Subscribe("OriginLinkNotesUpdated", projector)
-	eventBus.Subscribe("OriginLinkCleared", projector)
-	eventBus.Subscribe("OriginLinkDeleted", projector)
+	eventBus.Subscribe(archPL.OriginLinkSet, projector)
+	eventBus.Subscribe(archPL.OriginLinkReplaced, projector)
+	eventBus.Subscribe(archPL.OriginLinkNotesUpdated, projector)
+	eventBus.Subscribe(archPL.OriginLinkCleared, projector)
+	eventBus.Subscribe(archPL.OriginLinkDeleted, projector)
 }
 
 func registerCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *repositorySet, rm *readModelSet) {
