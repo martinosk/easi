@@ -247,6 +247,100 @@ func TestImportSaga_MapsServingRelationType(t *testing.T) {
 	}
 }
 
+func TestImportSaga_FailureIsBestEffortAndKeepsSuccessfulProgress(t *testing.T) {
+	f := newFixture()
+	f.compGw.createErrByName["Broken"] = errors.New("component create failed")
+
+	data := aggregates.ParsedData{
+		Components: []aggregates.ParsedElement{
+			{SourceID: "comp-1", Name: "Broken"},
+			{SourceID: "comp-2", Name: "Healthy"},
+		},
+		Capabilities: []aggregates.ParsedElement{{SourceID: "cap-1", Name: "Cap1"}},
+	}
+
+	result := f.execute(t, data, "", "")
+
+	expectCount(t, "components", result.ComponentsCreated, 1)
+	expectCount(t, "capabilities", result.CapabilitiesCreated, 1)
+	if len(result.Errors) != 1 {
+		t.Fatalf("expected exactly one error, got %d", len(result.Errors))
+	}
+	if result.Errors[0].Action() != "skipped" {
+		t.Fatalf("expected skipped action for failed item, got %q", result.Errors[0].Action())
+	}
+}
+
+func TestImportSaga_CapabilityFailureDoesNotPreventValueStreamCreation(t *testing.T) {
+	f := newFixture()
+	f.capGw.createErrByName["BrokenCap"] = errors.New("capability create failed")
+
+	data := aggregates.ParsedData{
+		Capabilities: []aggregates.ParsedElement{
+			{SourceID: "cap-1", Name: "BrokenCap"},
+			{SourceID: "cap-2", Name: "HealthyCap"},
+		},
+		ValueStreams: []aggregates.ParsedElement{
+			{SourceID: "vs-1", Name: "MyStream"},
+		},
+	}
+
+	result := f.execute(t, data, "", "")
+
+	expectCount(t, "capabilities", result.CapabilitiesCreated, 1)
+	expectCount(t, "value streams", result.ValueStreamsCreated, 1)
+	if len(result.Errors) != 1 {
+		t.Fatalf("expected 1 error, got %d", len(result.Errors))
+	}
+}
+
+func TestImportSaga_ValueStreamFailureDoesNotPreventRealizationCreation(t *testing.T) {
+	f := newFixture()
+	f.vsGw.createErrByName["BrokenStream"] = errors.New("value stream create failed")
+
+	data := aggregates.ParsedData{
+		Components:   []aggregates.ParsedElement{{SourceID: "comp-1", Name: "MyComp"}},
+		Capabilities: []aggregates.ParsedElement{{SourceID: "cap-1", Name: "MyCap"}},
+		ValueStreams:  []aggregates.ParsedElement{{SourceID: "vs-1", Name: "BrokenStream"}},
+		Relationships: []aggregates.ParsedRelationship{
+			{SourceID: "rel-1", Type: "Realization", SourceRef: "comp-1", TargetRef: "cap-1"},
+		},
+	}
+
+	result := f.execute(t, data, "", "")
+
+	expectCount(t, "components", result.ComponentsCreated, 1)
+	expectCount(t, "capabilities", result.CapabilitiesCreated, 1)
+	expectCount(t, "value streams", result.ValueStreamsCreated, 0)
+	expectCount(t, "realizations", result.RealizationsCreated, 1)
+	if len(result.Errors) != 1 {
+		t.Fatalf("expected 1 error, got %d", len(result.Errors))
+	}
+}
+
+func TestImportSaga_RealizationFailureDoesNotPreventDomainAssignment(t *testing.T) {
+	f := newFixture()
+	f.capGw.linkErrByKey["comp-MyComp-cap-MyCap"] = errors.New("link failed")
+
+	data := aggregates.ParsedData{
+		Components:   []aggregates.ParsedElement{{SourceID: "comp-1", Name: "MyComp"}},
+		Capabilities: []aggregates.ParsedElement{{SourceID: "cap-1", Name: "MyCap"}},
+		Relationships: []aggregates.ParsedRelationship{
+			{SourceID: "rel-1", Type: "Realization", SourceRef: "comp-1", TargetRef: "cap-1"},
+		},
+	}
+
+	result := f.execute(t, data, "domain-1", "")
+
+	expectCount(t, "components", result.ComponentsCreated, 1)
+	expectCount(t, "capabilities", result.CapabilitiesCreated, 1)
+	expectCount(t, "realizations", result.RealizationsCreated, 0)
+	expectCount(t, "domain assignments", result.DomainAssignments, 1)
+	if len(result.Errors) != 1 {
+		t.Fatalf("expected 1 error, got %d", len(result.Errors))
+	}
+}
+
 func TestImportSaga_FullImportWithAllPhases(t *testing.T) {
 	f := newFixture()
 	data := aggregates.ParsedData{

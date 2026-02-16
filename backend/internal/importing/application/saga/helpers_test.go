@@ -25,16 +25,23 @@ type relationCreateCall struct {
 }
 
 type fakeComponentGateway struct {
-	createdIDs    map[string]string
-	relationCalls []relationCreateCall
-	err           error
+	createdIDs      map[string]string
+	relationCalls   []relationCreateCall
+	createErrByName map[string]error
+	err             error
 }
 
 func newFakeComponentGateway() *fakeComponentGateway {
-	return &fakeComponentGateway{createdIDs: make(map[string]string)}
+	return &fakeComponentGateway{
+		createdIDs:      make(map[string]string),
+		createErrByName: make(map[string]error),
+	}
 }
 
 func (f *fakeComponentGateway) CreateComponent(_ context.Context, name, _ string) (string, error) {
+	if err, ok := f.createErrByName[name]; ok {
+		return "", err
+	}
 	if f.err != nil {
 		return "", f.err
 	}
@@ -56,15 +63,24 @@ type fakeCapabilityGateway struct {
 	createCalls     []capabilityCreateCall
 	metadataCalls   []metadataUpdateCall
 	linkSystemCalls []linkSystemCall
+	createErrByName map[string]error
+	linkErrByKey    map[string]error
 	err             error
 }
 
 func newFakeCapabilityGateway() *fakeCapabilityGateway {
-	return &fakeCapabilityGateway{createdIDs: make(map[string]string)}
+	return &fakeCapabilityGateway{
+		createdIDs:      make(map[string]string),
+		createErrByName: make(map[string]error),
+		linkErrByKey:    make(map[string]error),
+	}
 }
 
 func (f *fakeCapabilityGateway) CreateCapability(_ context.Context, name, description, parentID, level string) (string, error) {
 	f.createCalls = append(f.createCalls, capabilityCreateCall{name, description, parentID, level})
+	if err, ok := f.createErrByName[name]; ok {
+		return "", err
+	}
 	if f.err != nil {
 		return "", f.err
 	}
@@ -80,10 +96,14 @@ func (f *fakeCapabilityGateway) UpdateMetadata(_ context.Context, id, eaOwner, s
 
 func (f *fakeCapabilityGateway) LinkSystem(_ context.Context, capabilityID, componentID, realizationLevel, notes string) (string, error) {
 	f.linkSystemCalls = append(f.linkSystemCalls, linkSystemCall{capabilityID, componentID, realizationLevel, notes})
+	key := componentID + "-" + capabilityID
+	if err, ok := f.linkErrByKey[key]; ok {
+		return "", err
+	}
 	if f.err != nil {
 		return "", f.err
 	}
-	return "real-" + componentID + "-" + capabilityID, nil
+	return "real-" + key, nil
 }
 
 func (f *fakeCapabilityGateway) AssignToDomain(_ context.Context, _, _ string) error {
@@ -91,19 +111,24 @@ func (f *fakeCapabilityGateway) AssignToDomain(_ context.Context, _, _ string) e
 }
 
 type fakeValueStreamGateway struct {
-	createdIDs map[string]string
-	stageIDs   map[string]string
-	err        error
+	createdIDs      map[string]string
+	stageIDs        map[string]string
+	createErrByName map[string]error
+	err             error
 }
 
 func newFakeValueStreamGateway() *fakeValueStreamGateway {
 	return &fakeValueStreamGateway{
-		createdIDs: make(map[string]string),
-		stageIDs:   make(map[string]string),
+		createdIDs:      make(map[string]string),
+		stageIDs:        make(map[string]string),
+		createErrByName: make(map[string]error),
 	}
 }
 
 func (f *fakeValueStreamGateway) CreateValueStream(_ context.Context, name, _ string) (string, error) {
+	if err, ok := f.createErrByName[name]; ok {
+		return "", err
+	}
 	if f.err != nil {
 		return "", f.err
 	}
