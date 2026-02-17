@@ -130,6 +130,9 @@ func (s *PostgresEventStore) insertEvents(ctx context.Context, tx *sql.Tx, tenan
 			actorID = "system"
 			actorEmail = "system@easi.app"
 		}
+		if actor.ViaAgent {
+			actorEmail += " (via AI assistant)"
+		}
 
 		_, err = stmt.ExecContext(ctx,
 			tenantID.Value(),

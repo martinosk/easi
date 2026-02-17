@@ -520,4 +520,51 @@ export const handlers = [
       _links: { self: { href: '/api/v1/origin-relationships', method: 'GET' } },
     });
   }),
+
+  http.get(`${BASE_URL}/api/v1/assistant-config`, () => {
+    return HttpResponse.json({
+      id: '',
+      provider: '',
+      endpoint: '',
+      apiKeyStatus: 'not_configured',
+      model: '',
+      maxTokens: 4096,
+      temperature: 0.3,
+      status: 'not_configured',
+      updatedAt: new Date().toISOString(),
+      _links: {
+        self: { href: '/api/v1/assistant-config', method: 'GET' },
+        update: { href: '/api/v1/assistant-config', method: 'PUT' },
+      },
+    });
+  }),
+
+  http.put(`${BASE_URL}/api/v1/assistant-config`, async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json({
+      id: 'test-config-id',
+      provider: body.provider ?? 'openai',
+      endpoint: body.endpoint,
+      apiKeyStatus: body.apiKey ? 'configured' : 'not_configured',
+      model: body.model,
+      maxTokens: body.maxTokens ?? 4096,
+      temperature: body.temperature ?? 0.3,
+      systemPromptOverride: body.systemPromptOverride ?? null,
+      status: body.apiKey ? 'configured' : 'not_configured',
+      updatedAt: new Date().toISOString(),
+      _links: {
+        self: { href: '/api/v1/assistant-config', method: 'GET' },
+        update: { href: '/api/v1/assistant-config', method: 'PUT' },
+        test: { href: '/api/v1/assistant-config/test', method: 'POST' },
+      },
+    });
+  }),
+
+  http.post(`${BASE_URL}/api/v1/assistant-config/test`, () => {
+    return HttpResponse.json({
+      success: true,
+      model: 'gpt-4o',
+      latencyMs: 150,
+    });
+  }),
 ];

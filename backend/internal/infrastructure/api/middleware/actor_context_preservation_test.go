@@ -15,15 +15,24 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"easi/backend/internal/auth/infrastructure/session"
+	"easi/backend/internal/shared/agenttoken"
 	sharedctx "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 type mockRoleLookup struct {
-	role string
+	role     string
+	roleByID map[string]string
 }
 
 func (m *mockRoleLookup) GetRoleByEmail(_ context.Context, _ string) (string, error) {
+	return m.role, nil
+}
+
+func (m *mockRoleLookup) GetRoleByUserID(_ context.Context, userID string) (string, error) {
+	if m.roleByID != nil {
+		return m.roleByID[userID], nil
+	}
 	return m.role, nil
 }
 
@@ -206,4 +215,58 @@ func TestActorPreservedWithEditGrants(t *testing.T) {
 	assert.Equal(t, "stakeholder@acme.com", capturedActor.Email)
 	assert.True(t, capturedActor.HasEditGrant("components", "comp-1"), "Edit grants must be preserved")
 	assert.True(t, capturedActor.HasEditGrant("components", "comp-2"), "Edit grants must be preserved")
+}
+
+func TestTenantMiddlewareWithAgentToken_SetsRoleFromUserID(t *testing.T) {
+	t.Setenv("AGENT_TOKEN_SECRET", "test-secret-key")
+	token, err := agenttoken.Mint("9d6f7ca6-5f8f-4cca-96f5-f52e1f2e8e4c", "acme", time.Minute)
+	require.NoError(t, err)
+
+	lookup := &mockRoleLookup{
+		roleByID: map[string]string{"9d6f7ca6-5f8f-4cca-96f5-f52e1f2e8e4c": "architect"},
+	}
+
+	var capturedActor sharedctx.Actor
+	var actorFound bool
+
+	router := chi.NewRouter()
+	router.Use(TenantMiddlewareWithSession(nil, lookup))
+	router.Get("/test", func(w http.ResponseWriter, r *http.Request) {
+		capturedActor, actorFound = sharedctx.GetActor(r.Context())
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Authorization", "AgentToken "+token)
+	req.RemoteAddr = "127.0.0.1:12345"
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.True(t, actorFound)
+	assert.Equal(t, sharedctx.RoleArchitect, capturedActor.Role)
+	assert.True(t, capturedActor.ViaAgent)
+	assert.True(t, capturedActor.HasPermission("assistant:use"))
+}
+
+func TestTenantMiddlewareWithAgentToken_RejectsWhenRoleNotFound(t *testing.T) {
+	t.Setenv("AGENT_TOKEN_SECRET", "test-secret-key")
+	token, err := agenttoken.Mint("9d6f7ca6-5f8f-4cca-96f5-f52e1f2e8e4c", "acme", time.Minute)
+	require.NoError(t, err)
+
+	lookup := &mockRoleLookup{roleByID: map[string]string{}}
+
+	router := chi.NewRouter()
+	router.Use(TenantMiddlewareWithSession(nil, lookup))
+	router.Get("/test", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Authorization", "AgentToken "+token)
+	req.RemoteAddr = "127.0.0.1:12345"
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }

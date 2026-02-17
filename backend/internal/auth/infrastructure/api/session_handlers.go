@@ -34,10 +34,15 @@ type TenantRepository interface {
 	GetByID(ctx context.Context, tenantID string) (*TenantDTO, error)
 }
 
+type AIConfigStatusChecker interface {
+	IsConfigured(ctx context.Context) (bool, error)
+}
+
 type SessionHandlers struct {
-	sessionManager *session.SessionManager
-	userRepo       UserRepository
-	tenantRepo     TenantRepository
+	sessionManager       *session.SessionManager
+	userRepo             UserRepository
+	tenantRepo           TenantRepository
+	aiConfigStatusChecker AIConfigStatusChecker
 }
 
 func NewSessionHandlers(
@@ -50,6 +55,11 @@ func NewSessionHandlers(
 		userRepo:       userRepo,
 		tenantRepo:     tenantRepo,
 	}
+}
+
+func (h *SessionHandlers) WithAIConfigStatusChecker(checker AIConfigStatusChecker) *SessionHandlers {
+	h.aiConfigStatusChecker = checker
+	return h
 }
 
 type CurrentSessionResponse struct {
@@ -109,6 +119,8 @@ func (h *SessionHandlers) GetCurrentSession(w http.ResponseWriter, r *http.Reque
 
 	permissions := valueobjects.PermissionsToStrings(role.Permissions())
 
+	links := h.buildSessionLinks(r.Context(), user.ID, role)
+
 	response := CurrentSessionResponse{
 		ID: authSession.TenantID(),
 		User: CurrentSessionUser{
@@ -123,15 +135,27 @@ func (h *SessionHandlers) GetCurrentSession(w http.ResponseWriter, r *http.Reque
 			Name: tenant.Name,
 		},
 		ExpiresAt: authSession.TokenExpiry(),
-		Links: map[string]string{
-			"self":   "/api/v1/auth/sessions/current",
-			"logout": "/api/v1/auth/sessions/current",
-			"user":   fmt.Sprintf("/api/v1/users/%s", user.ID),
-			"tenant": "/api/v1/tenants/current",
-		},
+		Links:     links,
 	}
 
 	sharedAPI.RespondJSON(w, http.StatusOK, response)
+}
+
+func (h *SessionHandlers) buildSessionLinks(ctx context.Context, userID uuid.UUID, role valueobjects.Role) map[string]string {
+	links := map[string]string{
+		"self":   "/api/v1/auth/sessions/current",
+		"logout": "/api/v1/auth/sessions/current",
+		"user":   fmt.Sprintf("/api/v1/users/%s", userID),
+		"tenant": "/api/v1/tenants/current",
+	}
+
+	if role.HasPermission(valueobjects.PermAssistantUse) && h.aiConfigStatusChecker != nil {
+		if configured, err := h.aiConfigStatusChecker.IsConfigured(ctx); err == nil && configured {
+			links["x-assistant"] = "/api/v1/assistant/chat"
+		}
+	}
+
+	return links
 }
 
 // DeleteCurrentSession godoc

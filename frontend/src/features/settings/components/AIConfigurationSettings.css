@@ -1,0 +1,213 @@
+.ai-config-settings {
+  background-color: white;
+  border-radius: 0.5rem;
+  padding: 2rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.ai-config-header {
+  margin-bottom: 1.5rem;
+}
+
+.ai-config-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-gray-900);
+  margin: 0 0 0.5rem 0;
+}
+
+.ai-config-description {
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+  margin: 0;
+}
+
+.ai-config-banner {
+  padding: 0.75rem 1rem;
+  background-color: var(--blue-50);
+  border: 1px solid var(--blue-200);
+  border-radius: 0.375rem;
+  color: var(--blue-800);
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.ai-config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.ai-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.ai-config-field label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-gray-700);
+}
+
+.ai-config-required {
+  color: var(--red-500);
+}
+
+.ai-config-field select,
+.ai-config-field input[type="text"],
+.ai-config-field input[type="password"],
+.ai-config-field input[type="number"],
+.ai-config-field textarea {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border: 1px solid var(--color-gray-300);
+  border-radius: 0.375rem;
+  background-color: white;
+  color: var(--color-gray-900);
+  transition: border-color 0.2s;
+}
+
+.ai-config-field select:focus,
+.ai-config-field input:focus,
+.ai-config-field textarea:focus {
+  outline: none;
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 1px var(--blue-500);
+}
+
+.ai-config-field textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.ai-config-field-hint {
+  font-size: 0.75rem;
+  color: var(--color-gray-500);
+  margin: 0;
+}
+
+.ai-config-api-key-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.ai-config-api-key-row input {
+  flex: 1;
+}
+
+.ai-config-api-key-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+}
+
+.ai-config-api-key-status.configured {
+  background-color: var(--green-50);
+  color: var(--green-700);
+}
+
+.ai-config-api-key-status.not-configured {
+  background-color: var(--color-gray-100);
+  color: var(--color-gray-600);
+}
+
+.ai-config-advanced-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-gray-700);
+  padding: 0.5rem 0;
+  border: none;
+  background: none;
+}
+
+.ai-config-advanced-toggle:hover {
+  color: var(--color-gray-900);
+}
+
+.ai-config-advanced-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1rem;
+  background-color: var(--color-gray-50);
+  border-radius: 0.375rem;
+}
+
+.ai-config-row {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.ai-config-row .ai-config-field {
+  flex: 1;
+}
+
+.ai-config-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-gray-200);
+}
+
+.ai-config-test-result {
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.ai-config-test-result.success {
+  background-color: var(--green-50);
+  border: 1px solid var(--green-200);
+  color: var(--green-800);
+}
+
+.ai-config-test-result.failure {
+  background-color: var(--red-50);
+  border: 1px solid var(--red-200);
+  color: var(--red-800);
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+  color: var(--color-gray-600);
+}
+
+.loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid var(--color-gray-200);
+  border-top-color: var(--blue-600);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 768px) {
+  .ai-config-row {
+    flex-direction: column;
+  }
+}

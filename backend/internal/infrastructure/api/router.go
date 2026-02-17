@@ -10,6 +10,10 @@ import (
 	accessdelegationAPI "easi/backend/internal/accessdelegation/infrastructure/api"
 	adServices "easi/backend/internal/accessdelegation/infrastructure/services"
 	adPL "easi/backend/internal/accessdelegation/publishedlanguage"
+	archAssistantHandlers "easi/backend/internal/archassistant/application/handlers"
+	archAssistantAdapters "easi/backend/internal/archassistant/infrastructure/adapters"
+	archAssistantAPI "easi/backend/internal/archassistant/infrastructure/api"
+	archAssistantRepos "easi/backend/internal/archassistant/infrastructure/repositories"
 	archReadModels "easi/backend/internal/architecturemodeling/application/readmodels"
 	archAdapters "easi/backend/internal/architecturemodeling/infrastructure/adapters"
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
@@ -30,6 +34,7 @@ import (
 	"easi/backend/internal/infrastructure/eventstore"
 	metamodelAPI "easi/backend/internal/metamodel/infrastructure/api"
 	platformAPI "easi/backend/internal/platform/infrastructure/api"
+	platformPL "easi/backend/internal/platform/publishedlanguage"
 	releasesAPI "easi/backend/internal/releases/infrastructure/api"
 	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/shared/audit"
@@ -57,14 +62,15 @@ func getEnv(key, defaultValue string) string {
 }
 
 type routerDependencies struct {
-	eventStore    eventstore.EventStore
-	db            *database.TenantAwareDB
-	authDeps      *authAPI.AuthDependencies
-	commandBus    *cqrs.InMemoryCommandBus
-	eventBus      *events.InMemoryEventBus
-	hateoas       *sharedAPI.HATEOASLinks
-	userReadModel *authReadModels.UserReadModel
-	appContext    context.Context
+	eventStore            eventstore.EventStore
+	db                    *database.TenantAwareDB
+	authDeps              *authAPI.AuthDependencies
+	commandBus            *cqrs.InMemoryCommandBus
+	eventBus              *events.InMemoryEventBus
+	hateoas               *sharedAPI.HATEOASLinks
+	userReadModel         *authReadModels.UserReadModel
+	aiConfigStatusChecker *archAssistantAdapters.AIConfigStatusAdapter
+	appContext            context.Context
 }
 
 // NewRouter creates and configures the HTTP router
@@ -97,15 +103,18 @@ func initializeDependencies(appContext context.Context, eventStore eventstore.Ev
 		pgStore.SetEventBus(eventBus)
 	}
 
+	aiConfigStatusChecker := archAssistantAdapters.NewAIConfigStatusAdapter(db)
+
 	return routerDependencies{
-		eventStore:    eventStore,
-		db:            db,
-		authDeps:      authDeps,
-		commandBus:    commandBus,
-		eventBus:      eventBus,
-		hateoas:       sharedAPI.NewHATEOASLinks("/api/v1"),
-		userReadModel: userReadModel,
-		appContext:    appContext,
+		eventStore:            eventStore,
+		db:                    db,
+		authDeps:              authDeps,
+		commandBus:            commandBus,
+		eventBus:              eventBus,
+		hateoas:               sharedAPI.NewHATEOASLinks("/api/v1"),
+		userReadModel:         userReadModel,
+		aiConfigStatusChecker: aiConfigStatusChecker,
+		appContext:            appContext,
 	}
 }
 
@@ -161,7 +170,7 @@ func registerPublicRoutes(r chi.Router, deps routerDependencies) {
 		TenantDB:   deps.db,
 		CommandBus: deps.commandBus,
 	}), "platform routes")
-	mustSetup(authAPI.SetupAuthRoutes(r, deps.db.DB(), deps.authDeps), "auth routes")
+	mustSetup(authAPI.SetupAuthRoutes(r, deps.db.DB(), deps.authDeps, deps.aiConfigStatusChecker), "auth routes")
 }
 
 func registerTenantRoutes(r chi.Router, deps routerDependencies) {
@@ -172,6 +181,7 @@ func registerTenantRoutes(r chi.Router, deps routerDependencies) {
 	setupDomainRoutes(r, deps)
 	setupValueStreamsRoutes(r, deps)
 	setupSupportRoutes(r, deps)
+	setupArchAssistantRoutes(r, deps)
 	setupAuthRoutes(r, deps)
 	wireAutoInvitationProjector(deps)
 }
@@ -311,6 +321,18 @@ func setupAuthRoutes(r chi.Router, deps routerDependencies) {
 		AuthDeps:   deps.authDeps,
 		InvDeps:    invDeps,
 	}), "user routes")
+}
+
+func setupArchAssistantRoutes(r chi.Router, deps routerDependencies) {
+	mustSetup(archAssistantAPI.SetupArchAssistantRoutes(archAssistantAPI.ArchAssistantRoutesDeps{
+		Router:         r,
+		DB:             deps.db,
+		AuthMiddleware: deps.authDeps.AuthMiddleware,
+	}), "arch assistant routes")
+
+	aiConfigRepo := archAssistantRepos.NewAIConfigurationRepository(deps.db)
+	tenantCreatedHandler := archAssistantHandlers.NewTenantCreatedHandler(aiConfigRepo)
+	deps.eventBus.Subscribe(platformPL.TenantCreated, tenantCreatedHandler)
 }
 
 func wireAutoInvitationProjector(deps routerDependencies) {

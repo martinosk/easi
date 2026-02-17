@@ -44,6 +44,8 @@ var (
 	PermValueStreamsRead   = Permission{value: "valuestreams:read"}
 	PermValueStreamsWrite  = Permission{value: "valuestreams:write"}
 	PermValueStreamsDelete = Permission{value: "valuestreams:delete"}
+
+	PermAssistantUse = Permission{value: "assistant:use"}
 )
 
 var validPermissions = map[string]Permission{
@@ -72,6 +74,7 @@ var validPermissions = map[string]Permission{
 	"valuestreams:read":      PermValueStreamsRead,
 	"valuestreams:write":     PermValueStreamsWrite,
 	"valuestreams:delete":    PermValueStreamsDelete,
+	"assistant:use":          PermAssistantUse,
 }
 
 func PermissionFromString(s string) (Permission, error) {

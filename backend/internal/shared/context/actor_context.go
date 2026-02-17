@@ -35,6 +35,7 @@ type Actor struct {
 	Email       string
 	Role        Role
 	Permissions map[string]bool
+	ViaAgent    bool
 	editGrants  map[ResourceName]map[string]bool
 }
 
@@ -92,6 +93,11 @@ func PluralResourceName(singular string) ResourceName {
 	return ResourceName(singular)
 }
 
+func (a Actor) WithViaAgent() Actor {
+	a.ViaAgent = true
+	return a
+}
+
 func (a Actor) WithEditGrants(grants map[string]map[string]bool) Actor {
 	normalized := make(map[ResourceName]map[string]bool, len(grants))
 	for key, ids := range grants {
@@ -123,6 +129,7 @@ var rolePermissions = map[Role][]string{
 		"enterprise-arch:read", "enterprise-arch:write", "enterprise-arch:delete",
 		"edit-grants:manage",
 		"valuestreams:read", "valuestreams:write", "valuestreams:delete",
+		"assistant:use",
 	},
 	RoleArchitect: {
 		"components:read", "components:write", "components:delete",
@@ -135,6 +142,7 @@ var rolePermissions = map[Role][]string{
 		"enterprise-arch:read", "enterprise-arch:write", "enterprise-arch:delete",
 		"edit-grants:manage",
 		"valuestreams:read", "valuestreams:write", "valuestreams:delete",
+		"assistant:use",
 	},
 	RoleStakeholder: {
 		"components:read",

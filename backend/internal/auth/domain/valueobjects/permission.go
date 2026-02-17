@@ -44,6 +44,8 @@ var (
 	PermValueStreamsRead   = pl.PermValueStreamsRead
 	PermValueStreamsWrite  = pl.PermValueStreamsWrite
 	PermValueStreamsDelete = pl.PermValueStreamsDelete
+
+	PermAssistantUse = pl.PermAssistantUse
 )
 
 var PermissionFromString = pl.PermissionFromString

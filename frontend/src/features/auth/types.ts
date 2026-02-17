@@ -35,5 +35,6 @@ export interface CurrentSessionResponse {
     logout: string;
     user: string;
     tenant: string;
+    'x-assistant'?: string;
   };
 }

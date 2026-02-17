@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"easi/backend/internal/auth/infrastructure/session"
+	"easi/backend/internal/shared/agenttoken"
 	"easi/backend/internal/shared/config"
 	sharedctx "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
@@ -16,6 +17,7 @@ import (
 
 type UserRoleLookup interface {
 	GetRoleByEmail(ctx context.Context, email string) (string, error)
+	GetRoleByUserID(ctx context.Context, userID string) (string, error)
 }
 
 func TenantMiddleware() func(http.Handler) http.Handler {
@@ -55,6 +57,10 @@ func buildBypassContext(r *http.Request) (context.Context, error) {
 }
 
 func buildSessionContext(r *http.Request, sessionManager *session.SessionManager, userRoleLookup UserRoleLookup) (context.Context, error) {
+	if ctx, err := tryAgentTokenAuth(r, userRoleLookup); ctx != nil {
+		return ctx, err
+	}
+
 	info, err := extractSessionInfo(r, sessionManager)
 	if err != nil {
 		return nil, err
@@ -68,12 +74,72 @@ func buildSessionContext(r *http.Request, sessionManager *session.SessionManager
 	return ctx, nil
 }
 
+func tryAgentTokenAuth(r *http.Request, userRoleLookup UserRoleLookup) (context.Context, error) {
+	authHeader := r.Header.Get("Authorization")
+	if !strings.HasPrefix(authHeader, "AgentToken ") {
+		return nil, nil
+	}
+
+	if !isLoopback(r) {
+		return nil, tenantError{"Agent tokens only accepted from loopback", http.StatusForbidden}
+	}
+
+	token := strings.TrimPrefix(authHeader, "AgentToken ")
+	claims, err := agenttoken.Verify(token)
+	if err != nil {
+		return nil, tenantError{"Invalid agent token", http.StatusUnauthorized}
+	}
+
+	if strings.TrimSpace(claims.UserID) == "" {
+		return nil, tenantError{"Invalid agent token", http.StatusUnauthorized}
+	}
+
+	tenantID, err := sharedvo.NewTenantID(claims.TenantID)
+	if err != nil {
+		return nil, tenantError{"Invalid tenant in agent token", http.StatusUnauthorized}
+	}
+
+	ctx := sharedctx.WithTenant(r.Context(), tenantID)
+
+	role, err := resolveUserRoleByUserID(ctx, claims.UserID, userRoleLookup)
+	if err != nil {
+		return nil, tenantError{"Invalid agent token", http.StatusUnauthorized}
+	}
+	actor := sharedctx.NewActor(claims.UserID, "", role).WithViaAgent()
+	ctx = sharedctx.WithActor(ctx, actor)
+	logTenantContext(r, tenantID)
+	return ctx, nil
+}
+
+func isLoopback(r *http.Request) bool {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 func resolveUserRole(ctx context.Context, email string, lookup UserRoleLookup) sharedctx.Role {
 	if lookup == nil {
 		return ""
 	}
 	roleStr, _ := lookup.GetRoleByEmail(ctx, email)
 	return sharedctx.Role(roleStr)
+}
+
+func resolveUserRoleByUserID(ctx context.Context, userID string, lookup UserRoleLookup) (sharedctx.Role, error) {
+	if lookup == nil {
+		return "", fmt.Errorf("missing role lookup")
+	}
+	roleStr, err := lookup.GetRoleByUserID(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	if roleStr == "" {
+		return "", fmt.Errorf("role not found")
+	}
+	return sharedctx.Role(roleStr), nil
 }
 
 type tenantError struct {
