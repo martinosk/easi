@@ -24,33 +24,47 @@ type relationCreateCall struct {
 	SourceID, TargetID, RelationType, Name, Description string
 }
 
-type fakeComponentGateway struct {
+type fakeEntityStore struct {
 	createdIDs      map[string]string
-	relationCalls   []relationCreateCall
 	createErrByName map[string]error
 	err             error
 }
 
-func newFakeComponentGateway() *fakeComponentGateway {
-	return &fakeComponentGateway{
+func newFakeEntityStore() fakeEntityStore {
+	return fakeEntityStore{
 		createdIDs:      make(map[string]string),
 		createErrByName: make(map[string]error),
 	}
 }
 
-func (f *fakeComponentGateway) CreateComponent(_ context.Context, name, _ string) (string, error) {
-	if err, ok := f.createErrByName[name]; ok {
+func (s *fakeEntityStore) create(prefix, name string) (string, error) {
+	if err, ok := s.createErrByName[name]; ok {
 		return "", err
 	}
-	if f.err != nil {
-		return "", f.err
+	if s.err != nil {
+		return "", s.err
 	}
-	id := "comp-" + name
-	f.createdIDs[name] = id
+	id := prefix + name
+	s.createdIDs[name] = id
 	return id, nil
 }
 
-func (f *fakeComponentGateway) CreateRelation(_ context.Context, sourceID, targetID, relationType, name, description string) (string, error) {
+type fakeComponentGateway struct {
+	fakeEntityStore
+	relationCalls []relationCreateCall
+}
+
+func newFakeComponentGateway() *fakeComponentGateway {
+	return &fakeComponentGateway{fakeEntityStore: newFakeEntityStore()}
+}
+
+func (f *fakeComponentGateway) CreateComponent(_ context.Context, name, _ string) (string, error) {
+	return f.create("comp-", name)
+}
+
+func (f *fakeComponentGateway) CreateRelation(
+	_ context.Context, sourceID, targetID, relationType, name, description string,
+) (string, error) {
 	f.relationCalls = append(f.relationCalls, relationCreateCall{sourceID, targetID, relationType, name, description})
 	if f.err != nil {
 		return "", f.err
@@ -59,34 +73,25 @@ func (f *fakeComponentGateway) CreateRelation(_ context.Context, sourceID, targe
 }
 
 type fakeCapabilityGateway struct {
-	createdIDs      map[string]string
+	fakeEntityStore
 	createCalls     []capabilityCreateCall
 	metadataCalls   []metadataUpdateCall
 	linkSystemCalls []linkSystemCall
-	createErrByName map[string]error
 	linkErrByKey    map[string]error
-	err             error
 }
 
 func newFakeCapabilityGateway() *fakeCapabilityGateway {
 	return &fakeCapabilityGateway{
-		createdIDs:      make(map[string]string),
-		createErrByName: make(map[string]error),
+		fakeEntityStore: newFakeEntityStore(),
 		linkErrByKey:    make(map[string]error),
 	}
 }
 
-func (f *fakeCapabilityGateway) CreateCapability(_ context.Context, name, description, parentID, level string) (string, error) {
+func (f *fakeCapabilityGateway) CreateCapability(
+	_ context.Context, name, description, parentID, level string,
+) (string, error) {
 	f.createCalls = append(f.createCalls, capabilityCreateCall{name, description, parentID, level})
-	if err, ok := f.createErrByName[name]; ok {
-		return "", err
-	}
-	if f.err != nil {
-		return "", f.err
-	}
-	id := "cap-" + name
-	f.createdIDs[name] = id
-	return id, nil
+	return f.create("cap-", name)
 }
 
 func (f *fakeCapabilityGateway) UpdateMetadata(_ context.Context, id, eaOwner, status string) error {
@@ -94,7 +99,9 @@ func (f *fakeCapabilityGateway) UpdateMetadata(_ context.Context, id, eaOwner, s
 	return f.err
 }
 
-func (f *fakeCapabilityGateway) LinkSystem(_ context.Context, capabilityID, componentID, realizationLevel, notes string) (string, error) {
+func (f *fakeCapabilityGateway) LinkSystem(
+	_ context.Context, capabilityID, componentID, realizationLevel, notes string,
+) (string, error) {
 	f.linkSystemCalls = append(f.linkSystemCalls, linkSystemCall{capabilityID, componentID, realizationLevel, notes})
 	key := componentID + "-" + capabilityID
 	if err, ok := f.linkErrByKey[key]; ok {
@@ -111,30 +118,19 @@ func (f *fakeCapabilityGateway) AssignToDomain(_ context.Context, _, _ string) e
 }
 
 type fakeValueStreamGateway struct {
-	createdIDs      map[string]string
-	stageIDs        map[string]string
-	createErrByName map[string]error
-	err             error
+	fakeEntityStore
+	stageIDs map[string]string
 }
 
 func newFakeValueStreamGateway() *fakeValueStreamGateway {
 	return &fakeValueStreamGateway{
-		createdIDs:      make(map[string]string),
+		fakeEntityStore: newFakeEntityStore(),
 		stageIDs:        make(map[string]string),
-		createErrByName: make(map[string]error),
 	}
 }
 
 func (f *fakeValueStreamGateway) CreateValueStream(_ context.Context, name, _ string) (string, error) {
-	if err, ok := f.createErrByName[name]; ok {
-		return "", err
-	}
-	if f.err != nil {
-		return "", f.err
-	}
-	id := "vs-" + name
-	f.createdIDs[name] = id
-	return id, nil
+	return f.create("vs-", name)
 }
 
 func (f *fakeValueStreamGateway) AddStage(_ context.Context, vsID, _, _ string) (string, error) {
