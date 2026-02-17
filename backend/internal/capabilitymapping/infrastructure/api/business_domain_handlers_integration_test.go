@@ -69,13 +69,13 @@ func setupBusinessDomainTestDB(t *testing.T) (*businessDomainTestContext, func()
 	cleanup := func() {
 		ctx.setTenantContext(t)
 		for _, id := range ctx.createdDomainIDs {
-			db.Exec("DELETE FROM domain_capability_assignments WHERE business_domain_id = $1", id)
-			db.Exec("DELETE FROM business_domains WHERE id = $1", id)
-			db.Exec("DELETE FROM events WHERE aggregate_id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.domain_capability_assignments WHERE business_domain_id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", id)
+			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
 		}
 		for _, id := range ctx.createdCapabilityIDs {
-			db.Exec("DELETE FROM capabilities WHERE id = $1", id)
-			db.Exec("DELETE FROM events WHERE aggregate_id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", id)
+			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
 		}
 		db.Close()
 	}
@@ -94,7 +94,7 @@ func (ctx *businessDomainTestContext) trackCapabilityID(id string) {
 func (ctx *businessDomainTestContext) createTestDomain(t *testing.T, id, name, description string) {
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
-		"INSERT INTO business_domains (id, name, description, capability_count, tenant_id, created_at) VALUES ($1, $2, $3, 0, $4, NOW())",
+		"INSERT INTO capabilitymapping.business_domains (id, name, description, capability_count, tenant_id, created_at) VALUES ($1, $2, $3, 0, $4, NOW())",
 		id, name, description, testTenantID(),
 	)
 	require.NoError(t, err)
@@ -112,7 +112,7 @@ func (ctx *businessDomainTestContext) createTestDomainWithEvents(t *testing.T, i
 func (ctx *businessDomainTestContext) createTestCapability(t *testing.T, id, name, level string) {
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
-		"INSERT INTO capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		"INSERT INTO capabilitymapping.capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
 		id, name, "", level, testTenantID(), "Genesis", "Active",
 	)
 	require.NoError(t, err)
@@ -130,7 +130,7 @@ func (ctx *businessDomainTestContext) createTestCapabilityWithEvents(t *testing.
 func (ctx *businessDomainTestContext) insertTestEvent(t *testing.T, aggregateID, eventType, eventData string) {
 	t.Helper()
 	_, err := ctx.db.Exec(
-		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7)",
+		"INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7)",
 		testTenantID(), aggregateID, eventType, eventData, 1, "test-user-id", "test@example.com",
 	)
 	require.NoError(t, err)
@@ -146,7 +146,7 @@ type testCapabilityWithParentData struct {
 func (ctx *businessDomainTestContext) createTestCapabilityWithParent(t *testing.T, data testCapabilityWithParentData) {
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
-		"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+		"INSERT INTO capabilitymapping.capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
 		data.id, data.name, "", data.level, data.parentID, testTenantID(), "Genesis", "Active",
 	)
 	require.NoError(t, err)
@@ -165,7 +165,7 @@ type testRealizationData struct {
 func (ctx *businessDomainTestContext) createTestRealization(t *testing.T, data testRealizationData) {
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
-		"INSERT INTO capability_realizations (id, capability_id, component_id, component_name, realization_level, origin, tenant_id, linked_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		"INSERT INTO capabilitymapping.capability_realizations (id, capability_id, component_id, component_name, realization_level, origin, tenant_id, linked_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
 		data.id, data.capabilityID, data.componentID, data.componentName, data.level, data.origin, testTenantID(),
 	)
 	require.NoError(t, err)
@@ -174,7 +174,7 @@ func (ctx *businessDomainTestContext) createTestRealization(t *testing.T, data t
 func (ctx *businessDomainTestContext) createTestComponent(t *testing.T, id, name string) {
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
-		"INSERT INTO application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
+		"INSERT INTO architecturemodeling.application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
 		id, name, "", testTenantID(),
 	)
 	require.NoError(t, err)
@@ -191,7 +191,7 @@ func (ctx *businessDomainTestContext) createTestAssignment(t *testing.T, input t
 	ctx.setTenantContext(t)
 	assignmentID := uuid.New().String()
 	_, err := ctx.db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_description, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+		"INSERT INTO capabilitymapping.domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_description, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
 		assignmentID, input.domainID, input.domainName, input.capID, input.capName, "", "L1", testTenantID(),
 	)
 	require.NoError(t, err)
@@ -210,7 +210,7 @@ type testAssignmentData struct {
 func (ctx *businessDomainTestContext) createTestAssignmentWithEvents(t *testing.T, data testAssignmentData) {
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_description, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+		"INSERT INTO capabilitymapping.domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_description, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
 		data.assignmentID, data.domainID, data.domainName, data.capID, data.capName, "", data.capLevel, testTenantID(),
 	)
 	require.NoError(t, err)
@@ -218,7 +218,7 @@ func (ctx *businessDomainTestContext) createTestAssignmentWithEvents(t *testing.
 	eventData := fmt.Sprintf(`{"id":"%s","businessDomainId":"%s","capabilityId":"%s","assignedAt":"%s"}`,
 		data.assignmentID, data.domainID, data.capID, time.Now().Format(time.RFC3339Nano))
 	_, err = ctx.db.Exec(
-		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7)",
+		"INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7)",
 		testTenantID(), data.assignmentID, "CapabilityAssignedToDomain", eventData, 1, "test-user-id", "test@example.com",
 	)
 	require.NoError(t, err)
@@ -323,7 +323,7 @@ func TestCreateBusinessDomain_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var eventData string
 	err = testCtx.db.QueryRow(
-		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'BusinessDomainCreated'",
+		"SELECT event_data FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = 'BusinessDomainCreated'",
 		response.ID,
 	).Scan(&eventData)
 	require.NoError(t, err)
@@ -448,7 +448,7 @@ func TestUpdateBusinessDomain_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var eventData string
 	err = testCtx.db.QueryRow(
-		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'BusinessDomainUpdated'",
+		"SELECT event_data FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = 'BusinessDomainUpdated'",
 		createdDomain.ID,
 	).Scan(&eventData)
 	require.NoError(t, err)
@@ -518,7 +518,7 @@ func TestDeleteBusinessDomain_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var count int
 	err := testCtx.db.QueryRow(
-		"SELECT COUNT(*) FROM business_domains WHERE id = $1",
+		"SELECT COUNT(*) FROM capabilitymapping.business_domains WHERE id = $1",
 		createdDomain.ID,
 	).Scan(&count)
 	require.NoError(t, err)
@@ -553,7 +553,7 @@ func TestDeleteBusinessDomain_HasCapabilities_Integration(t *testing.T) {
 	testCtx.createTestCapability(t, capID, "Test Capability", "L1")
 	testCtx.createTestAssignment(t, testAssignmentInput{domainID: domainID, domainName: domainName, capID: capID, capName: "Test Capability"})
 	testCtx.setTenantContext(t)
-	_, err := testCtx.db.Exec("UPDATE business_domains SET capability_count = 1 WHERE id = $1", domainID)
+	_, err := testCtx.db.Exec("UPDATE capabilitymapping.business_domains SET capability_count = 1 WHERE id = $1", domainID)
 	require.NoError(t, err)
 
 	w, req := makeRequest(t, http.MethodDelete, "/api/v1/business-domains/"+domainID, nil, map[string]string{"id": domainID})
@@ -643,7 +643,7 @@ func TestAssignCapabilityToDomain_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var count int
 	err := testCtx.db.QueryRow(
-		"SELECT COUNT(*) FROM domain_capability_assignments WHERE business_domain_id = $1 AND capability_id = $2",
+		"SELECT COUNT(*) FROM capabilitymapping.domain_capability_assignments WHERE business_domain_id = $1 AND capability_id = $2",
 		domainID, capID,
 	).Scan(&count)
 	require.NoError(t, err)
@@ -704,7 +704,7 @@ func TestRemoveCapabilityFromDomain_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var count int
 	err := testCtx.db.QueryRow(
-		"SELECT COUNT(*) FROM domain_capability_assignments WHERE assignment_id = $1",
+		"SELECT COUNT(*) FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1",
 		assignmentID,
 	).Scan(&count)
 	require.NoError(t, err)

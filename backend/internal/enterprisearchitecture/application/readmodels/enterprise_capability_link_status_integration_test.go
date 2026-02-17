@@ -74,12 +74,12 @@ func TestGetLinkStatus_DirectlyLinked(t *testing.T) {
 	ecID, ecName := fmt.Sprintf("ec-%d", s), fmt.Sprintf("Customer Management %d", s)
 	dcID, linkID := fmt.Sprintf("dc-%d", s), fmt.Sprintf("link-%d", s)
 
-	f.exec("INSERT INTO enterprise_capabilities (id, tenant_id, name, created_at) VALUES ($1, $2, $3, $4)", ecID, "default", ecName, time.Now().UTC())
-	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprise_capabilities WHERE id = $1", ecID) })
-	f.exec("INSERT INTO capabilities (id, tenant_id, name, level, created_at) VALUES ($1, $2, $3, $4, $5)", dcID, "default", "Order Processing", "L2", time.Now().UTC())
-	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM capabilities WHERE id = $1", dcID) })
-	f.exec("INSERT INTO enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at) VALUES ($1, $2, $3, $4, $5, $6)", linkID, "default", ecID, dcID, "user-123", time.Now().UTC())
-	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprise_capability_links WHERE id = $1", linkID) })
+	f.exec("INSERT INTO enterprisearchitecture.enterprise_capabilities (id, tenant_id, name, created_at) VALUES ($1, $2, $3, $4)", ecID, "default", ecName, time.Now().UTC())
+	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_capabilities WHERE id = $1", ecID) })
+	f.exec("INSERT INTO capabilitymapping.capabilities (id, tenant_id, name, level, created_at) VALUES ($1, $2, $3, $4, $5)", dcID, "default", "Order Processing", "L2", time.Now().UTC())
+	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", dcID) })
+	f.exec("INSERT INTO enterprisearchitecture.enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at) VALUES ($1, $2, $3, $4, $5, $6)", linkID, "default", ecID, dcID, "user-123", time.Now().UTC())
+	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE id = $1", linkID) })
 
 	status, err := f.linkRM.GetLinkStatus(f.ctx(), dcID)
 	require.NoError(t, err)
@@ -93,8 +93,8 @@ func TestGetLinkStatus_DirectlyLinked(t *testing.T) {
 func TestGetLinkStatus_Available(t *testing.T) {
 	f := newLinkFixture(t)
 	dcID := fmt.Sprintf("dc-%d", time.Now().UnixNano())
-	f.exec("INSERT INTO capabilities (id, tenant_id, name, level, created_at) VALUES ($1, $2, $3, $4, $5)", dcID, "default", "Standalone", "L2", time.Now().UTC())
-	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM capabilities WHERE id = $1", dcID) })
+	f.exec("INSERT INTO capabilitymapping.capabilities (id, tenant_id, name, level, created_at) VALUES ($1, $2, $3, $4, $5)", dcID, "default", "Standalone", "L2", time.Now().UTC())
+	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", dcID) })
 
 	status, err := f.linkRM.GetLinkStatus(f.ctx(), dcID)
 	require.NoError(t, err)
@@ -116,8 +116,8 @@ type blockingScenario struct {
 func setupBlockingScenario(f *linkTestFixture, s int64, sc blockingScenario) blockingTestResult {
 	ecID := fmt.Sprintf("ec-%d", s)
 	ecName := fmt.Sprintf("%s %d", sc.ecName, s)
-	f.exec("INSERT INTO enterprise_capabilities (id, tenant_id, name, created_at) VALUES ($1, 'default', $2, $3)", ecID, ecName, time.Now().UTC())
-	f.t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprise_capabilities WHERE id = $1", ecID) })
+	f.exec("INSERT INTO enterprisearchitecture.enterprise_capabilities (id, tenant_id, name, created_at) VALUES ($1, 'default', $2, $3)", ecID, ecName, time.Now().UTC())
+	f.t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_capabilities WHERE id = $1", ecID) })
 
 	capIDs := make([]string, len(sc.capNames))
 	capNames := make([]string, len(sc.capNames))
@@ -129,21 +129,21 @@ func setupBlockingScenario(f *linkTestFixture, s int64, sc blockingScenario) blo
 		if i > 0 {
 			parentID = capIDs[i-1]
 		}
-		f.exec("INSERT INTO capabilities (id, tenant_id, name, parent_id, level, created_at) VALUES ($1, 'default', $2, $3, $4, $5)",
+		f.exec("INSERT INTO capabilitymapping.capabilities (id, tenant_id, name, parent_id, level, created_at) VALUES ($1, 'default', $2, $3, $4, $5)",
 			id, capNames[i], parentID, fmt.Sprintf("L%d", i+1), time.Now().UTC())
-		f.t.Cleanup(func() { f.rawDB.Exec("DELETE FROM capabilities WHERE id = $1", id) })
+		f.t.Cleanup(func() { f.rawDB.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", id) })
 	}
 
 	linkID := fmt.Sprintf("lnk-%d", s)
-	f.exec("INSERT INTO enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at) VALUES ($1, 'default', $2, $3, 'user-123', $4)",
+	f.exec("INSERT INTO enterprisearchitecture.enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at) VALUES ($1, 'default', $2, $3, 'user-123', $4)",
 		linkID, ecID, capIDs[sc.linkedCapIdx], time.Now().UTC())
-	f.t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprise_capability_links WHERE id = $1", linkID) })
+	f.t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE id = $1", linkID) })
 
 	blockedID, blockerID := capIDs[sc.blockedCapIdx], capIDs[sc.linkedCapIdx]
 	blockerName := capNames[sc.linkedCapIdx]
-	f.exec("INSERT INTO capability_link_blocking (tenant_id, domain_capability_id, blocked_by_capability_id, blocked_by_enterprise_id, blocked_by_capability_name, blocked_by_enterprise_name, is_ancestor) VALUES ('default', $1, $2, $3, $4, $5, $6)",
+	f.exec("INSERT INTO enterprisearchitecture.capability_link_blocking (tenant_id, domain_capability_id, blocked_by_capability_id, blocked_by_enterprise_id, blocked_by_capability_name, blocked_by_enterprise_name, is_ancestor) VALUES ('default', $1, $2, $3, $4, $5, $6)",
 		blockedID, blockerID, ecID, blockerName, ecName, sc.isAncestor)
-	f.t.Cleanup(func() { f.rawDB.Exec("DELETE FROM capability_link_blocking WHERE tenant_id = 'default' AND domain_capability_id = $1", blockedID) })
+	f.t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprisearchitecture.capability_link_blocking WHERE tenant_id = 'default' AND domain_capability_id = $1", blockedID) })
 
 	return blockingTestResult{blockedID, sc.expectedStatus, blockerID, blockerName, ecID}
 }
@@ -181,21 +181,21 @@ func TestEnterpriseCapabilityLinkReadModel_Insert_IdempotentReplay(t *testing.T)
 	ecID, dcID := fmt.Sprintf("ec-replay-%d", s), fmt.Sprintf("dc-replay-%d", s)
 	linkID := fmt.Sprintf("link-replay-%d", s)
 
-	f.exec("INSERT INTO enterprise_capabilities (id, tenant_id, name, created_at) VALUES ($1, 'default', $2, $3)", ecID, "Replay EC", time.Now().UTC())
-	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprise_capabilities WHERE id = $1", ecID) })
-	f.exec("INSERT INTO capabilities (id, tenant_id, name, level, created_at) VALUES ($1, 'default', $2, $3, $4)", dcID, "Replay DC", "L2", time.Now().UTC())
-	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM capabilities WHERE id = $1", dcID) })
+	f.exec("INSERT INTO enterprisearchitecture.enterprise_capabilities (id, tenant_id, name, created_at) VALUES ($1, 'default', $2, $3)", ecID, "Replay EC", time.Now().UTC())
+	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_capabilities WHERE id = $1", ecID) })
+	f.exec("INSERT INTO capabilitymapping.capabilities (id, tenant_id, name, level, created_at) VALUES ($1, 'default', $2, $3, $4)", dcID, "Replay DC", "L2", time.Now().UTC())
+	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", dcID) })
 
 	dto := EnterpriseCapabilityLinkDTO{
 		ID: linkID, EnterpriseCapabilityID: ecID, DomainCapabilityID: dcID,
 		LinkedBy: "user-123", LinkedAt: time.Now().UTC(),
 	}
 	require.NoError(t, f.linkRM.Insert(f.ctx(), dto))
-	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprise_capability_links WHERE id = $1", linkID) })
+	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE id = $1", linkID) })
 	require.NoError(t, f.linkRM.Insert(f.ctx(), dto))
 
 	var count int
-	f.queryScalar(&count, "SELECT COUNT(*) FROM enterprise_capability_links WHERE id = $1", linkID)
+	f.queryScalar(&count, "SELECT COUNT(*) FROM enterprisearchitecture.enterprise_capability_links WHERE id = $1", linkID)
 	assert.Equal(t, 1, count)
 }
 
@@ -209,7 +209,7 @@ func TestEnterpriseCapabilityReadModel_InsertReplay(t *testing.T) {
 		"idempotent": {
 			check: func(t *testing.T, f *linkTestFixture, id string) {
 				var count int
-				f.queryScalar(&count, "SELECT COUNT(*) FROM enterprise_capabilities WHERE id = $1", id)
+				f.queryScalar(&count, "SELECT COUNT(*) FROM enterprisearchitecture.enterprise_capabilities WHERE id = $1", id)
 				assert.Equal(t, 1, count)
 			},
 		},
@@ -217,7 +217,7 @@ func TestEnterpriseCapabilityReadModel_InsertReplay(t *testing.T) {
 			modify: func(dto *EnterpriseCapabilityDTO) { dto.Name = "Updated Name" },
 			check: func(t *testing.T, f *linkTestFixture, id string) {
 				var name string
-				f.queryScalar(&name, "SELECT name FROM enterprise_capabilities WHERE id = $1", id)
+				f.queryScalar(&name, "SELECT name FROM enterprisearchitecture.enterprise_capabilities WHERE id = $1", id)
 				assert.Equal(t, "Updated Name", name)
 			},
 		},
@@ -232,7 +232,7 @@ func TestEnterpriseCapabilityReadModel_InsertReplay(t *testing.T) {
 				Category: "Business", Active: true, CreatedAt: time.Now().UTC(),
 			}
 			require.NoError(t, f.ecRM.Insert(f.ctx(), dto))
-			t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprise_capabilities WHERE id = $1", id) })
+			t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_capabilities WHERE id = $1", id) })
 			if tc.modify != nil {
 				tc.modify(&dto)
 			}
@@ -246,8 +246,8 @@ func TestEnterpriseStrategicImportanceReadModel_Insert_IdempotentReplay(t *testi
 	f := newLinkFixture(t)
 	s := time.Now().UnixNano()
 	ecID := fmt.Sprintf("ec-si-%d", s)
-	f.exec("INSERT INTO enterprise_capabilities (id, tenant_id, name, created_at) VALUES ($1, 'default', $2, $3)", ecID, "SI EC", time.Now().UTC())
-	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprise_capabilities WHERE id = $1", ecID) })
+	f.exec("INSERT INTO enterprisearchitecture.enterprise_capabilities (id, tenant_id, name, created_at) VALUES ($1, 'default', $2, $3)", ecID, "SI EC", time.Now().UTC())
+	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_capabilities WHERE id = $1", ecID) })
 
 	id := fmt.Sprintf("esi-replay-%d", s)
 	dto := EnterpriseStrategicImportanceDTO{
@@ -256,10 +256,10 @@ func TestEnterpriseStrategicImportanceReadModel_Insert_IdempotentReplay(t *testi
 		SetAt: time.Now().UTC(),
 	}
 	require.NoError(t, f.siRM.Insert(f.ctx(), dto))
-	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprise_strategic_importance WHERE id = $1", id) })
+	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_strategic_importance WHERE id = $1", id) })
 	require.NoError(t, f.siRM.Insert(f.ctx(), dto))
 
 	var count int
-	f.queryScalar(&count, "SELECT COUNT(*) FROM enterprise_strategic_importance WHERE id = $1", id)
+	f.queryScalar(&count, "SELECT COUNT(*) FROM enterprisearchitecture.enterprise_strategic_importance WHERE id = $1", id)
 	assert.Equal(t, 1, count)
 }

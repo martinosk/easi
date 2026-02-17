@@ -52,10 +52,10 @@ func TestEffectiveBDProjectorIntegration_L1AssignedToDomain_PropagatesToChildren
 		sql  string
 		args []any
 	}{
-		{"INSERT INTO capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, '', 'L1', 'default', 'Genesis', 'Active', NOW())", []any{l1ID, fmt.Sprintf("Payment Processing-%s", suffix)}},
-		{"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, '', 'L2', $3, 'default', 'Genesis', 'Active', NOW())", []any{l2ID, fmt.Sprintf("Card Payments-%s", suffix), l1ID}},
-		{"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, '', 'L3', $3, 'default', 'Genesis', 'Active', NOW())", []any{l3ID, fmt.Sprintf("Visa Processing-%s", suffix), l2ID}},
-		{"INSERT INTO business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, 'default', $2, '', 0, NOW())", []any{domainID, domainName}},
+		{"INSERT INTO capabilitymapping.capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, '', 'L1', 'default', 'Genesis', 'Active', NOW())", []any{l1ID, fmt.Sprintf("Payment Processing-%s", suffix)}},
+		{"INSERT INTO capabilitymapping.capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, '', 'L2', $3, 'default', 'Genesis', 'Active', NOW())", []any{l2ID, fmt.Sprintf("Card Payments-%s", suffix), l1ID}},
+		{"INSERT INTO capabilitymapping.capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, '', 'L3', $3, 'default', 'Genesis', 'Active', NOW())", []any{l3ID, fmt.Sprintf("Visa Processing-%s", suffix), l2ID}},
+		{"INSERT INTO capabilitymapping.business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, 'default', $2, '', 0, NOW())", []any{domainID, domainName}},
 	} {
 		_, err := h.testCtx.db.Exec(q.sql, q.args...)
 		require.NoError(t, err)
@@ -63,9 +63,9 @@ func TestEffectiveBDProjectorIntegration_L1AssignedToDomain_PropagatesToChildren
 
 	defer func() {
 		h.testCtx.setTenantContext(t)
-		h.testCtx.db.Exec("DELETE FROM cm_effective_business_domain WHERE tenant_id = 'default' AND capability_id IN ($1, $2, $3)", l1ID, l2ID, l3ID)
-		h.testCtx.db.Exec("DELETE FROM capabilities WHERE id IN ($1, $2, $3)", l1ID, l2ID, l3ID)
-		h.testCtx.db.Exec("DELETE FROM business_domains WHERE id = $1", domainID)
+		h.testCtx.db.Exec("DELETE FROM capabilitymapping.cm_effective_business_domain WHERE tenant_id = 'default' AND capability_id IN ($1, $2, $3)", l1ID, l2ID, l3ID)
+		h.testCtx.db.Exec("DELETE FROM capabilitymapping.capabilities WHERE id IN ($1, $2, $3)", l1ID, l2ID, l3ID)
+		h.testCtx.db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", domainID)
 	}()
 
 	ctx := tenantContext()
@@ -126,11 +126,11 @@ func TestEffectiveBDProjectorIntegration_MoveSubtreeToNewParent(t *testing.T) {
 		sql  string
 		args []any
 	}{
-		{"INSERT INTO capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, '', 'L1', 'default', 'Genesis', 'Active', NOW())", []any{l1A, fmt.Sprintf("L1-A-%s", suffix)}},
-		{"INSERT INTO capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, '', 'L1', 'default', 'Genesis', 'Active', NOW())", []any{l1B, fmt.Sprintf("L1-B-%s", suffix)}},
-		{"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, '', 'L2', $3, 'default', 'Genesis', 'Active', NOW())", []any{l2Child, fmt.Sprintf("L2-Child-%s", suffix), l1A}},
-		{"INSERT INTO business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, 'default', $2, '', 0, NOW())", []any{domainA, domainAName}},
-		{"INSERT INTO business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, 'default', $2, '', 0, NOW())", []any{domainB, domainBName}},
+		{"INSERT INTO capabilitymapping.capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, '', 'L1', 'default', 'Genesis', 'Active', NOW())", []any{l1A, fmt.Sprintf("L1-A-%s", suffix)}},
+		{"INSERT INTO capabilitymapping.capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, '', 'L1', 'default', 'Genesis', 'Active', NOW())", []any{l1B, fmt.Sprintf("L1-B-%s", suffix)}},
+		{"INSERT INTO capabilitymapping.capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, '', 'L2', $3, 'default', 'Genesis', 'Active', NOW())", []any{l2Child, fmt.Sprintf("L2-Child-%s", suffix), l1A}},
+		{"INSERT INTO capabilitymapping.business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, 'default', $2, '', 0, NOW())", []any{domainA, domainAName}},
+		{"INSERT INTO capabilitymapping.business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, 'default', $2, '', 0, NOW())", []any{domainB, domainBName}},
 	} {
 		_, err := h.testCtx.db.Exec(q.sql, q.args...)
 		require.NoError(t, err)
@@ -138,9 +138,9 @@ func TestEffectiveBDProjectorIntegration_MoveSubtreeToNewParent(t *testing.T) {
 
 	defer func() {
 		h.testCtx.setTenantContext(t)
-		h.testCtx.db.Exec("DELETE FROM cm_effective_business_domain WHERE tenant_id = 'default' AND capability_id IN ($1, $2, $3)", l1A, l1B, l2Child)
-		h.testCtx.db.Exec("DELETE FROM capabilities WHERE id IN ($1, $2, $3)", l1A, l1B, l2Child)
-		h.testCtx.db.Exec("DELETE FROM business_domains WHERE id IN ($1, $2)", domainA, domainB)
+		h.testCtx.db.Exec("DELETE FROM capabilitymapping.cm_effective_business_domain WHERE tenant_id = 'default' AND capability_id IN ($1, $2, $3)", l1A, l1B, l2Child)
+		h.testCtx.db.Exec("DELETE FROM capabilitymapping.capabilities WHERE id IN ($1, $2, $3)", l1A, l1B, l2Child)
+		h.testCtx.db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id IN ($1, $2)", domainA, domainB)
 	}()
 
 	ctx := tenantContext()

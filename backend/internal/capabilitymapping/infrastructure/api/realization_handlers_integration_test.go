@@ -111,7 +111,7 @@ func TestLinkSystemToCapability_InheritsToAncestors_Integration(t *testing.T) {
 	var err error
 
 	_, err = testCtx.db.Exec(
-		"INSERT INTO capability_component_cache (tenant_id, id, name) VALUES ($1, $2, $3)",
+		"INSERT INTO capabilitymapping.capability_component_cache (tenant_id, id, name) VALUES ($1, $2, $3)",
 		testTenantID(), componentID, "Component A",
 	)
 	require.NoError(t, err)
@@ -139,7 +139,7 @@ func TestLinkSystemToCapability_InheritsToAncestors_Integration(t *testing.T) {
 
 	var directCount int
 	err = testCtx.db.QueryRow(
-		"SELECT COUNT(*) FROM capability_realizations WHERE tenant_id = $1 AND capability_id = $2 AND origin = 'Direct'",
+		"SELECT COUNT(*) FROM capabilitymapping.capability_realizations WHERE tenant_id = $1 AND capability_id = $2 AND origin = 'Direct'",
 		testTenantID(), l3ID,
 	).Scan(&directCount)
 	require.NoError(t, err)
@@ -147,7 +147,7 @@ func TestLinkSystemToCapability_InheritsToAncestors_Integration(t *testing.T) {
 
 	var inheritedCount int
 	err = testCtx.db.QueryRow(
-		"SELECT COUNT(*) FROM capability_realizations WHERE tenant_id = $1 AND capability_id IN ($2, $3) AND origin = 'Inherited'",
+		"SELECT COUNT(*) FROM capabilitymapping.capability_realizations WHERE tenant_id = $1 AND capability_id IN ($2, $3) AND origin = 'Inherited'",
 		testTenantID(), l2ID, l1ID,
 	).Scan(&inheritedCount)
 	require.NoError(t, err)

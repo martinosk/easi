@@ -67,8 +67,8 @@ func setupUserTestDB(t *testing.T) (*userTestContext, func()) {
 
 	cleanup := func() {
 		for _, id := range ctx.createdIDs {
-			db.Exec("DELETE FROM users WHERE id = $1", id)
-			db.Exec("DELETE FROM events WHERE aggregate_id = $1", id)
+			db.Exec("DELETE FROM auth.users WHERE id = $1", id)
+			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
 		}
 		db.Close()
 	}
@@ -409,7 +409,7 @@ func TestCannotDemoteLastAdmin_Integration(t *testing.T) {
 
 	_, err := testCtx.db.Exec("SET app.current_tenant = 'acme'")
 	require.NoError(t, err)
-	_, err = testCtx.db.Exec("UPDATE users SET role = 'architect' WHERE role = 'admin'")
+	_, err = testCtx.db.Exec("UPDATE auth.users SET role = 'architect' WHERE role = 'admin'")
 	require.NoError(t, err)
 
 	fixture := setupUserHandlers(testCtx.db)
@@ -450,7 +450,7 @@ func TestCannotDisableLastAdmin_Integration(t *testing.T) {
 
 	_, err := testCtx.db.Exec("SET app.current_tenant = 'acme'")
 	require.NoError(t, err)
-	_, err = testCtx.db.Exec("UPDATE users SET role = 'architect' WHERE role = 'admin'")
+	_, err = testCtx.db.Exec("UPDATE auth.users SET role = 'architect' WHERE role = 'admin'")
 	require.NoError(t, err)
 
 	fixture := setupUserHandlers(testCtx.db)

@@ -42,7 +42,7 @@ func setupOriginTestHandlers(db *sql.DB) *originTestContext {
 	tenantDB := database.NewTenantAwareDB(db)
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	commandBus := cqrs.NewInMemoryCommandBus()
-	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewArchitectureModelingLinks(sharedAPI.NewHATEOASLinks("/api/v1"))
 	eventBus := events.NewInMemoryEventBus()
 	eventStore.SetEventBus(eventBus)
 
@@ -53,7 +53,7 @@ func setupOriginTestHandlers(db *sql.DB) *originTestContext {
 	componentRepo := repositories.NewApplicationComponentRepository(eventStore)
 	createComponentHandler := handlers.NewCreateApplicationComponentHandler(componentRepo)
 	commandBus.Register("CreateApplicationComponent", createComponentHandler)
-	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, hateoas)
+	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, links)
 
 	acquiredViaReadModel := readmodels.NewAcquiredViaRelationshipReadModel(tenantDB)
 	purchasedFromReadModel := readmodels.NewPurchasedFromRelationshipReadModel(tenantDB)
@@ -78,7 +78,7 @@ func setupOriginTestHandlers(db *sql.DB) *originTestContext {
 			PurchasedFrom: purchasedFromReadModel,
 			BuiltBy:       builtByReadModel,
 		},
-		HATEOAS: hateoas,
+		HATEOAS: links,
 	})
 
 	return &originTestContext{
@@ -101,13 +101,13 @@ func (ctx *originTestContext) trackID(id string) {
 func (ctx *originTestContext) cleanup() {
 	ctx.setTenantContextNoError()
 	for _, id := range ctx.createdIDs {
-		ctx.db.Exec("DELETE FROM acquired_via_relationships WHERE component_id = $1 OR id = $1", id)
-		ctx.db.Exec("DELETE FROM built_by_relationships WHERE component_id = $1 OR id = $1", id)
-		ctx.db.Exec("DELETE FROM purchased_from_relationships WHERE component_id = $1 OR id = $1", id)
-		ctx.db.Exec("DELETE FROM application_components WHERE id = $1", id)
-		ctx.db.Exec("DELETE FROM acquired_entities WHERE id = $1", id)
-		ctx.db.Exec("DELETE FROM internal_teams WHERE id = $1", id)
-		ctx.db.Exec("DELETE FROM events WHERE aggregate_id = $1 OR aggregate_id LIKE $2 OR aggregate_id LIKE $3", id, "component-origins:"+id, "origin-link:%:"+id)
+		ctx.db.Exec("DELETE FROM architecturemodeling.acquired_via_relationships WHERE component_id = $1 OR id = $1", id)
+		ctx.db.Exec("DELETE FROM architecturemodeling.built_by_relationships WHERE component_id = $1 OR id = $1", id)
+		ctx.db.Exec("DELETE FROM architecturemodeling.purchased_from_relationships WHERE component_id = $1 OR id = $1", id)
+		ctx.db.Exec("DELETE FROM architecturemodeling.application_components WHERE id = $1", id)
+		ctx.db.Exec("DELETE FROM architecturemodeling.acquired_entities WHERE id = $1", id)
+		ctx.db.Exec("DELETE FROM architecturemodeling.internal_teams WHERE id = $1", id)
+		ctx.db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1 OR aggregate_id LIKE $2 OR aggregate_id LIKE $3", id, "component-origins:"+id, "origin-link:%:"+id)
 	}
 	ctx.db.Close()
 }
@@ -129,19 +129,19 @@ func (ctx *originTestContext) insertTestRecord(t *testing.T, query string, args 
 
 func (ctx *originTestContext) createTestComponent(t *testing.T, name string) string {
 	return ctx.insertTestRecord(t,
-		"INSERT INTO application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
+		"INSERT INTO architecturemodeling.application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
 		name, "Test component")
 }
 
 func (ctx *originTestContext) createTestAcquiredEntity(t *testing.T, name string) string {
 	return ctx.insertTestRecord(t,
-		"INSERT INTO acquired_entities (id, name, tenant_id, created_at) VALUES ($1, $2, $3, NOW())",
+		"INSERT INTO architecturemodeling.acquired_entities (id, name, tenant_id, created_at) VALUES ($1, $2, $3, NOW())",
 		name)
 }
 
 func (ctx *originTestContext) createTestInternalTeam(t *testing.T, name string) string {
 	return ctx.insertTestRecord(t,
-		"INSERT INTO internal_teams (id, name, tenant_id, created_at) VALUES ($1, $2, $3, NOW())",
+		"INSERT INTO architecturemodeling.internal_teams (id, name, tenant_id, created_at) VALUES ($1, $2, $3, NOW())",
 		name)
 }
 

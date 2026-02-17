@@ -69,17 +69,17 @@ func (f *businessDomainTestFixture) setTenantContext() {
 func (f *businessDomainTestFixture) insertDomain(id, name, description string, capabilityCount int) {
 	f.setTenantContext()
 	_, err := f.db.Exec(
-		"INSERT INTO business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+		"INSERT INTO capabilitymapping.business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
 		id, "default", name, description, capabilityCount, time.Now().UTC(),
 	)
 	require.NoError(f.t, err)
-	f.t.Cleanup(func() { f.db.Exec("DELETE FROM business_domains WHERE id = $1", id) })
+	f.t.Cleanup(func() { f.db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", id) })
 }
 
 func (f *businessDomainTestFixture) queryName(id string) string {
 	f.setTenantContext()
 	var name string
-	err := f.db.QueryRow("SELECT name FROM business_domains WHERE id = $1", id).Scan(&name)
+	err := f.db.QueryRow("SELECT name FROM capabilitymapping.business_domains WHERE id = $1", id).Scan(&name)
 	require.NoError(f.t, err)
 	return name
 }
@@ -87,7 +87,7 @@ func (f *businessDomainTestFixture) queryName(id string) string {
 func (f *businessDomainTestFixture) queryCapabilityCount(id string) int {
 	f.setTenantContext()
 	var count int
-	err := f.db.QueryRow("SELECT capability_count FROM business_domains WHERE id = $1", id).Scan(&count)
+	err := f.db.QueryRow("SELECT capability_count FROM capabilitymapping.business_domains WHERE id = $1", id).Scan(&count)
 	require.NoError(f.t, err)
 	return count
 }
@@ -95,7 +95,7 @@ func (f *businessDomainTestFixture) queryCapabilityCount(id string) int {
 func (f *businessDomainTestFixture) queryRowCount(id string) int {
 	f.setTenantContext()
 	var count int
-	err := f.db.QueryRow("SELECT COUNT(*) FROM business_domains WHERE id = $1", id).Scan(&count)
+	err := f.db.QueryRow("SELECT COUNT(*) FROM capabilitymapping.business_domains WHERE id = $1", id).Scan(&count)
 	require.NoError(f.t, err)
 	return count
 }
@@ -113,13 +113,13 @@ func TestBusinessDomainReadModel_Insert(t *testing.T) {
 
 	err := f.readModel.Insert(f.ctx, dto)
 	require.NoError(t, err)
-	t.Cleanup(func() { f.db.Exec("DELETE FROM business_domains WHERE id = $1", domainID) })
+	t.Cleanup(func() { f.db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", domainID) })
 
 	f.setTenantContext()
 	var name, description string
 	var createdAt time.Time
 	err = f.db.QueryRow(
-		"SELECT name, description, created_at FROM business_domains WHERE id = $1", domainID,
+		"SELECT name, description, created_at FROM capabilitymapping.business_domains WHERE id = $1", domainID,
 	).Scan(&name, &description, &createdAt)
 	require.NoError(t, err)
 
@@ -141,7 +141,7 @@ func TestBusinessDomainReadModel_Insert_IdempotentReplay(t *testing.T) {
 
 	err := f.readModel.Insert(f.ctx, dto)
 	require.NoError(t, err)
-	t.Cleanup(func() { f.db.Exec("DELETE FROM business_domains WHERE id = $1", domainID) })
+	t.Cleanup(func() { f.db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", domainID) })
 
 	err = f.readModel.Insert(f.ctx, dto)
 	require.NoError(t, err)
@@ -160,7 +160,7 @@ func TestBusinessDomainReadModel_Insert_ReplayConvergence(t *testing.T) {
 	}
 
 	require.NoError(t, f.readModel.Insert(f.ctx, dto))
-	t.Cleanup(func() { f.db.Exec("DELETE FROM business_domains WHERE id = $1", domainID) })
+	t.Cleanup(func() { f.db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", domainID) })
 
 	dto.Name = "Updated Name"
 	require.NoError(t, f.readModel.Insert(f.ctx, dto))
@@ -178,7 +178,7 @@ func TestBusinessDomainReadModel_Update(t *testing.T) {
 
 	f.setTenantContext()
 	var name, description string
-	err = f.db.QueryRow("SELECT name, description FROM business_domains WHERE id = $1", domainID).Scan(&name, &description)
+	err = f.db.QueryRow("SELECT name, description FROM capabilitymapping.business_domains WHERE id = $1", domainID).Scan(&name, &description)
 	require.NoError(t, err)
 
 	assert.Equal(t, "Updated Name", name)

@@ -65,20 +65,20 @@ func setupAuthTestDB(t *testing.T) (*authTestContext, func()) {
 	tenantID := fmt.Sprintf("test-%s", testID)
 
 	_, err = db.Exec(`
-		INSERT INTO tenants (id, name, status, created_at, updated_at)
+		INSERT INTO platform.tenants (id, name, status, created_at, updated_at)
 		VALUES ($1, $2, 'active', NOW(), NOW())
 	`, tenantID, "ACME Test Corp")
 	require.NoError(t, err)
 
 	testDomain := fmt.Sprintf("test%s.example.com", testID)
 	_, err = db.Exec(`
-		INSERT INTO tenant_domains (tenant_id, domain, created_at)
+		INSERT INTO platform.tenant_domains (tenant_id, domain, created_at)
 		VALUES ($1, $2, NOW())
 	`, tenantID, testDomain)
 	require.NoError(t, err)
 
 	_, err = db.Exec(`
-		INSERT INTO tenant_oidc_configs (tenant_id, discovery_url, client_id, auth_method, scopes, created_at, updated_at)
+		INSERT INTO platform.tenant_oidc_configs (tenant_id, discovery_url, client_id, auth_method, scopes, created_at, updated_at)
 		VALUES ($1, $2, 'easi-test', 'client_secret', 'openid email profile offline_access', NOW(), NOW())
 	`, tenantID, dexBaseURL)
 	require.NoError(t, err)
@@ -92,9 +92,9 @@ func setupAuthTestDB(t *testing.T) (*authTestContext, func()) {
 	}
 
 	cleanup := func() {
-		db.Exec("DELETE FROM tenant_oidc_configs WHERE tenant_id = $1", tenantID)
-		db.Exec("DELETE FROM tenant_domains WHERE tenant_id = $1", tenantID)
-		db.Exec("DELETE FROM tenants WHERE id = $1", tenantID)
+		db.Exec("DELETE FROM platform.tenant_oidc_configs WHERE tenant_id = $1", tenantID)
+		db.Exec("DELETE FROM platform.tenant_domains WHERE tenant_id = $1", tenantID)
+		db.Exec("DELETE FROM platform.tenants WHERE id = $1", tenantID)
 		db.Close()
 	}
 

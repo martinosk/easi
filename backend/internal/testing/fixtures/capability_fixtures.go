@@ -41,7 +41,8 @@ func NewCapabilityFixtures(tc *TestContext) *CapabilityFixtures {
 	tc.CommandBus.Register("UpdateCapabilityMetadata", handlers.NewUpdateCapabilityMetadataHandler(capabilityRepo))
 	tc.CommandBus.Register("AddCapabilityExpert", handlers.NewAddCapabilityExpertHandler(capabilityRepo))
 	tc.CommandBus.Register("AddCapabilityTag", handlers.NewAddCapabilityTagHandler(capabilityRepo))
-	tc.CommandBus.Register("DeleteCapability", handlers.NewDeleteCapabilityHandler(capabilityRepo, deletionService))
+	realizationReadModel := readmodels.NewRealizationReadModel(tc.TenantDB)
+	tc.CommandBus.Register("DeleteCapability", handlers.NewDeleteCapabilityHandler(capabilityRepo, deletionService, realizationReadModel, capabilityReadModel))
 
 	return &CapabilityFixtures{
 		tc:                  tc,

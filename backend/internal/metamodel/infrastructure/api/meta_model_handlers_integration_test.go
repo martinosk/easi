@@ -73,8 +73,8 @@ func setupTestDB(t *testing.T) (*testContext, func()) {
 
 	cleanup := func() {
 		for _, id := range ctx.createdIDs {
-			db.Exec("DELETE FROM meta_model_configurations WHERE id = $1", id)
-			db.Exec("DELETE FROM events WHERE aggregate_id = $1", id)
+			db.Exec("DELETE FROM metamodel.meta_model_configurations WHERE id = $1", id)
+			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
 		}
 		db.Close()
 	}
@@ -95,7 +95,7 @@ func setupHandlers(db *sql.DB, tenantID string) *testHandlers {
 
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	commandBus := cqrs.NewInMemoryCommandBus()
-	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewMetaModelLinks(sharedAPI.NewHATEOASLinks("/api/v1"))
 
 	eventBus := events.NewInMemoryEventBus()
 	eventStore.SetEventBus(eventBus)
@@ -119,7 +119,7 @@ func setupHandlers(db *sql.DB, tenantID string) *testHandlers {
 	sessionMgr := newTestSessionManager()
 
 	return &testHandlers{
-		handlers:       NewMetaModelHandlers(commandBus, readModel, hateoas, sessionMgr.sessionManager),
+		handlers:       NewMetaModelHandlers(commandBus, readModel, links, sessionMgr.sessionManager),
 		commandBus:     commandBus,
 		readModel:      readModel,
 		sessionManager: sessionMgr,

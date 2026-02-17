@@ -99,39 +99,39 @@ func (f *timeSuggestionTestFixture) seedSuggestionData(data suggestionSeedData) 
 	f.t.Helper()
 
 	realizationID := uuid.New().String()
-	_, err := f.db.Exec(`INSERT INTO ea_realization_cache (tenant_id, realization_id, capability_id, component_id, component_name, origin)
+	_, err := f.db.Exec(`INSERT INTO enterprisearchitecture.ea_realization_cache (tenant_id, realization_id, capability_id, component_id, component_name, origin)
 		VALUES ('default', $1, $2, $3, $4, 'Direct') ON CONFLICT DO NOTHING`,
 		realizationID, data.CapabilityID, data.ComponentID, data.ComponentName)
 	require.NoError(f.t, err)
 	f.t.Cleanup(func() {
-		f.db.Exec("DELETE FROM ea_realization_cache WHERE tenant_id = 'default' AND realization_id = $1", realizationID)
+		f.db.Exec("DELETE FROM enterprisearchitecture.ea_realization_cache WHERE tenant_id = 'default' AND realization_id = $1", realizationID)
 	})
 
-	_, err = f.db.Exec(`INSERT INTO domain_capability_metadata (tenant_id, capability_id, capability_name, capability_level, l1_capability_id, business_domain_id, business_domain_name)
+	_, err = f.db.Exec(`INSERT INTO enterprisearchitecture.domain_capability_metadata (tenant_id, capability_id, capability_name, capability_level, l1_capability_id, business_domain_id, business_domain_name)
 		VALUES ('default', $1, 'Cap Name', 'L1', $1, $2, 'Domain Name') ON CONFLICT DO NOTHING`,
 		data.CapabilityID, data.DomainID)
 	require.NoError(f.t, err)
 	f.t.Cleanup(func() {
-		f.db.Exec("DELETE FROM domain_capability_metadata WHERE tenant_id = 'default' AND capability_id = $1", data.CapabilityID)
+		f.db.Exec("DELETE FROM enterprisearchitecture.domain_capability_metadata WHERE tenant_id = 'default' AND capability_id = $1", data.CapabilityID)
 	})
 
 	for _, ps := range data.PillarScores {
 		ps := ps
-		_, err = f.db.Exec(`INSERT INTO ea_importance_cache (tenant_id, capability_id, business_domain_id, pillar_id, effective_importance)
+		_, err = f.db.Exec(`INSERT INTO enterprisearchitecture.ea_importance_cache (tenant_id, capability_id, business_domain_id, pillar_id, effective_importance)
 			VALUES ('default', $1, $2, $3, $4) ON CONFLICT DO NOTHING`,
 			data.CapabilityID, data.DomainID, ps.PillarID, ps.Importance)
 		require.NoError(f.t, err)
 		f.t.Cleanup(func() {
-			f.db.Exec("DELETE FROM ea_importance_cache WHERE tenant_id = 'default' AND capability_id = $1 AND pillar_id = $2",
+			f.db.Exec("DELETE FROM enterprisearchitecture.ea_importance_cache WHERE tenant_id = 'default' AND capability_id = $1 AND pillar_id = $2",
 				data.CapabilityID, ps.PillarID)
 		})
 
-		_, err = f.db.Exec(`INSERT INTO ea_fit_score_cache (tenant_id, component_id, pillar_id, score, rationale)
+		_, err = f.db.Exec(`INSERT INTO enterprisearchitecture.ea_fit_score_cache (tenant_id, component_id, pillar_id, score, rationale)
 			VALUES ('default', $1, $2, $3, '') ON CONFLICT DO NOTHING`,
 			data.ComponentID, ps.PillarID, ps.FitScore)
 		require.NoError(f.t, err)
 		f.t.Cleanup(func() {
-			f.db.Exec("DELETE FROM ea_fit_score_cache WHERE tenant_id = 'default' AND component_id = $1 AND pillar_id = $2",
+			f.db.Exec("DELETE FROM enterprisearchitecture.ea_fit_score_cache WHERE tenant_id = 'default' AND component_id = $1 AND pillar_id = $2",
 				data.ComponentID, ps.PillarID)
 		})
 	}

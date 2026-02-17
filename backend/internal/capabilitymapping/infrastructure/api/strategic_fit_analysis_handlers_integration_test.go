@@ -102,16 +102,16 @@ func setupStrategicFitTestDB(t *testing.T) (*strategicFitTestContext, func()) {
 	cleanup := func() {
 		ctx.setTenantContext(t)
 		for _, id := range ctx.createdIDs {
-			db.Exec("DELETE FROM effective_capability_importance WHERE capability_id = $1 OR business_domain_id = $1 OR source_capability_id = $1", id)
-			db.Exec("DELETE FROM application_fit_scores WHERE id = $1 OR component_id = $1", id)
-			db.Exec("DELETE FROM strategy_importance WHERE id = $1 OR capability_id = $1", id)
-			db.Exec("DELETE FROM capability_realizations WHERE id = $1 OR capability_id = $1 OR component_id = $1", id)
-			db.Exec("DELETE FROM domain_capability_assignments WHERE capability_id = $1 OR business_domain_id = $1", id)
-			db.Exec("DELETE FROM cm_effective_business_domain WHERE capability_id = $1", id)
-			db.Exec("DELETE FROM domain_capability_metadata WHERE capability_id = $1 OR business_domain_id = $1", id)
-			db.Exec("DELETE FROM capabilities WHERE id = $1", id)
-			db.Exec("DELETE FROM business_domains WHERE id = $1", id)
-			db.Exec("DELETE FROM application_components WHERE id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.effective_capability_importance WHERE capability_id = $1 OR business_domain_id = $1 OR source_capability_id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.application_fit_scores WHERE id = $1 OR component_id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.strategy_importance WHERE id = $1 OR capability_id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.capability_realizations WHERE id = $1 OR capability_id = $1 OR component_id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.domain_capability_assignments WHERE capability_id = $1 OR business_domain_id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.cm_effective_business_domain WHERE capability_id = $1", id)
+			db.Exec("DELETE FROM enterprisearchitecture.domain_capability_metadata WHERE capability_id = $1 OR business_domain_id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", id)
+			db.Exec("DELETE FROM architecturemodeling.application_components WHERE id = $1", id)
 		}
 		db.Close()
 	}
@@ -301,12 +301,12 @@ func (b *testDataBuilder) createCapability(c capabilityData) {
 	var err error
 	if c.parentID == "" {
 		_, err = b.ctx.db.Exec(
-			"INSERT INTO capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+			"INSERT INTO capabilitymapping.capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
 			c.id, c.name, "", c.level, testTenantID(), "Genesis", "Active",
 		)
 	} else {
 		_, err = b.ctx.db.Exec(
-			"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+			"INSERT INTO capabilitymapping.capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
 			c.id, c.name, "", c.level, c.parentID, testTenantID(), "Genesis", "Active",
 		)
 	}
@@ -317,7 +317,7 @@ func (b *testDataBuilder) createCapability(c capabilityData) {
 func (b *testDataBuilder) createDomain(d domainData) {
 	b.ctx.setTenantContext(b.t)
 	_, err := b.ctx.db.Exec(
-		"INSERT INTO business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, NOW())",
+		"INSERT INTO capabilitymapping.business_domains (id, tenant_id, name, description, capability_count, created_at) VALUES ($1, $2, $3, $4, $5, NOW())",
 		d.id, testTenantID(), d.name, "", 0,
 	)
 	require.NoError(b.t, err)
@@ -327,7 +327,7 @@ func (b *testDataBuilder) createDomain(d domainData) {
 func (b *testDataBuilder) createComponent(c componentData) {
 	b.ctx.setTenantContext(b.t)
 	_, err := b.ctx.db.Exec(
-		"INSERT INTO application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, NOW())",
+		"INSERT INTO architecturemodeling.application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, NOW())",
 		c.id, testTenantID(), c.name, "",
 	)
 	require.NoError(b.t, err)
@@ -337,7 +337,7 @@ func (b *testDataBuilder) createComponent(c componentData) {
 func (b *testDataBuilder) createRealization(r realizationData) {
 	b.ctx.setTenantContext(b.t)
 	_, err := b.ctx.db.Exec(
-		"INSERT INTO capability_realizations (id, tenant_id, capability_id, component_id, component_name, realization_level, origin, linked_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		"INSERT INTO capabilitymapping.capability_realizations (id, tenant_id, capability_id, component_id, component_name, realization_level, origin, linked_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
 		r.id, testTenantID(), r.capabilityID, r.componentID, "", "Full", "Direct",
 	)
 	require.NoError(b.t, err)
@@ -347,7 +347,7 @@ func (b *testDataBuilder) createRealization(r realizationData) {
 func (b *testDataBuilder) createDomainAssignment(da domainAssignmentData) {
 	b.ctx.setTenantContext(b.t)
 	_, err := b.ctx.db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		"INSERT INTO capabilitymapping.domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
 		da.id, testTenantID(), da.domainID, da.domainName, da.capabilityID, da.capabilityName, "L1",
 	)
 	require.NoError(b.t, err)
@@ -358,7 +358,7 @@ func (b *testDataBuilder) createStrategyImportance(si strategyImportanceData) {
 	b.ctx.setTenantContext(b.t)
 	labels := map[int]string{1: "Very Low", 2: "Low", 3: "Medium", 4: "High", 5: "Very High"}
 	_, err := b.ctx.db.Exec(
-		"INSERT INTO strategy_importance (id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, pillar_id, pillar_name, importance, importance_label, set_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())",
+		"INSERT INTO capabilitymapping.strategy_importance (id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, pillar_id, pillar_name, importance, importance_label, set_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())",
 		si.id, testTenantID(), si.domainID, si.domainName, si.capabilityID, si.capabilityName, si.pillarID, si.pillarName, si.importance, labels[si.importance],
 	)
 	require.NoError(b.t, err)
@@ -369,7 +369,7 @@ func (b *testDataBuilder) createApplicationFitScore(afs applicationFitScoreData)
 	b.ctx.setTenantContext(b.t)
 	labels := map[int]string{1: "Critical", 2: "Poor", 3: "Adequate", 4: "Good", 5: "Excellent"}
 	_, err := b.ctx.db.Exec(
-		"INSERT INTO application_fit_scores (id, tenant_id, component_id, component_name, pillar_id, pillar_name, score, score_label, scored_at, scored_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9)",
+		"INSERT INTO capabilitymapping.application_fit_scores (id, tenant_id, component_id, component_name, pillar_id, pillar_name, score, score_label, scored_at, scored_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9)",
 		afs.id, testTenantID(), afs.componentID, afs.componentName, afs.pillarID, afs.pillarName, afs.score, labels[afs.score], "test-user",
 	)
 	require.NoError(b.t, err)
@@ -379,7 +379,7 @@ func (b *testDataBuilder) createApplicationFitScore(afs applicationFitScoreData)
 func (b *testDataBuilder) createCMEffectiveBusinessDomain(ebd cmEffectiveBusinessDomainData) {
 	b.ctx.setTenantContext(b.t)
 	_, err := b.ctx.db.Exec(
-		"INSERT INTO cm_effective_business_domain (tenant_id, capability_id, business_domain_id, business_domain_name, l1_capability_id) VALUES ($1, $2, $3, $4, $5)",
+		"INSERT INTO capabilitymapping.cm_effective_business_domain (tenant_id, capability_id, business_domain_id, business_domain_name, l1_capability_id) VALUES ($1, $2, $3, $4, $5)",
 		testTenantID(), ebd.capabilityID, ebd.domainID, ebd.domainName, ebd.l1CapabilityID,
 	)
 	require.NoError(b.t, err)
@@ -389,7 +389,7 @@ func (b *testDataBuilder) createEffectiveImportance(ei effectiveImportanceData) 
 	b.ctx.setTenantContext(b.t)
 	labels := map[int]string{1: "Very Low", 2: "Low", 3: "Medium", 4: "High", 5: "Very High"}
 	_, err := b.ctx.db.Exec(
-		"INSERT INTO effective_capability_importance (tenant_id, capability_id, pillar_id, business_domain_id, effective_importance, importance_label, source_capability_id, source_capability_name, is_inherited, computed_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())",
+		"INSERT INTO capabilitymapping.effective_capability_importance (tenant_id, capability_id, pillar_id, business_domain_id, effective_importance, importance_label, source_capability_id, source_capability_name, is_inherited, computed_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())",
 		testTenantID(), ei.capabilityID, ei.pillarID, ei.domainID, ei.importance, labels[ei.importance], ei.sourceCapabilityID, ei.sourceCapabilityName, ei.isInherited,
 	)
 	require.NoError(b.t, err)

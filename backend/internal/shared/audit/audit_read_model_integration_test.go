@@ -60,7 +60,7 @@ func setupTestDB(t *testing.T) (*testContext, func()) {
 	}
 
 	cleanup := func() {
-		db.Exec(fmt.Sprintf("DELETE FROM events WHERE aggregate_id LIKE '%s%%'", testID))
+		db.Exec(fmt.Sprintf("DELETE FROM infrastructure.events WHERE aggregate_id LIKE '%s%%'", testID))
 		db.Close()
 	}
 
@@ -100,7 +100,7 @@ func TestAuditHistory_IncludesFitScoreEventsForComponent(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = tx.ExecContext(tenantCtx,
-		`INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
+		`INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		tenantID.Value(), componentID, "ApplicationComponentCreated", componentEventJSON, 1, time.Now(), "user-1", "user@test.com",
 	)
@@ -119,7 +119,7 @@ func TestAuditHistory_IncludesFitScoreEventsForComponent(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = tx.ExecContext(tenantCtx,
-		`INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
+		`INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		tenantID.Value(), fitScoreAggregateID, "ApplicationFitScoreSet", fitScoreEventJSON, 1, time.Now().Add(time.Second), "user-2", "architect@test.com",
 	)
@@ -138,7 +138,7 @@ func TestAuditHistory_IncludesFitScoreEventsForComponent(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = tx.ExecContext(tenantCtx,
-		`INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
+		`INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		tenantID.Value(), fitScoreAggregateID, "ApplicationFitScoreUpdated", fitScoreUpdateEventJSON, 2, time.Now().Add(2*time.Second), "user-2", "architect@test.com",
 	)
@@ -201,7 +201,7 @@ func TestAuditHistory_DoesNotIncludeUnrelatedFitScoreEvents(t *testing.T) {
 
 	componentAEventData, _ := json.Marshal(map[string]any{"id": componentA, "name": "Component A"})
 	_, err = tx.ExecContext(tenantCtx,
-		`INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
+		`INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		tenantID.Value(), componentA, "ApplicationComponentCreated", componentAEventData, 1, time.Now(), "user-1", "user@test.com",
 	)
@@ -209,7 +209,7 @@ func TestAuditHistory_DoesNotIncludeUnrelatedFitScoreEvents(t *testing.T) {
 
 	componentBEventData, _ := json.Marshal(map[string]any{"id": componentB, "name": "Component B"})
 	_, err = tx.ExecContext(tenantCtx,
-		`INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
+		`INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		tenantID.Value(), componentB, "ApplicationComponentCreated", componentBEventData, 1, time.Now(), "user-1", "user@test.com",
 	)
@@ -219,7 +219,7 @@ func TestAuditHistory_DoesNotIncludeUnrelatedFitScoreEvents(t *testing.T) {
 		"id": fitScoreForA, "componentId": componentA, "score": 4,
 	})
 	_, err = tx.ExecContext(tenantCtx,
-		`INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
+		`INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		tenantID.Value(), fitScoreForA, "ApplicationFitScoreSet", fitScoreAEventData, 1, time.Now(), "user-2", "architect@test.com",
 	)
@@ -229,7 +229,7 @@ func TestAuditHistory_DoesNotIncludeUnrelatedFitScoreEvents(t *testing.T) {
 		"id": fitScoreForB, "componentId": componentB, "score": 3,
 	})
 	_, err = tx.ExecContext(tenantCtx,
-		`INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
+		`INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		tenantID.Value(), fitScoreForB, "ApplicationFitScoreSet", fitScoreBEventData, 1, time.Now(), "user-2", "architect@test.com",
 	)

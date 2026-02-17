@@ -70,8 +70,8 @@ func setupTestDB(t *testing.T) (*testContext, func()) {
 
 	cleanup := func() {
 		for _, id := range ctx.createdIDs {
-			db.Exec("DELETE FROM capabilities WHERE id = $1", id)
-			db.Exec("DELETE FROM events WHERE aggregate_id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", id)
+			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
 		}
 		db.Close()
 	}
@@ -86,7 +86,7 @@ func (ctx *testContext) trackID(id string) {
 func (ctx *testContext) createTestCapability(t *testing.T, id, name, level string) {
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
-		"INSERT INTO capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		"INSERT INTO capabilitymapping.capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
 		id, name, "", level, testTenantID(), "Genesis", "Active",
 	)
 	require.NoError(t, err)
@@ -163,14 +163,14 @@ func TestCreateCapability_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var aggregateID string
 	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&aggregateID)
 	require.NoError(t, err)
 	testCtx.trackID(aggregateID)
 
 	var eventData string
 	err = testCtx.db.QueryRow(
-		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'CapabilityCreated'",
+		"SELECT event_data FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = 'CapabilityCreated'",
 		aggregateID,
 	).Scan(&eventData)
 	require.NoError(t, err)
@@ -293,7 +293,7 @@ func TestCreateCapability_ValidationError_Integration(t *testing.T) {
 
 	var count int
 	err := testCtx.db.QueryRow(
-		"SELECT COUNT(*) FROM events WHERE created_at > NOW() - INTERVAL '5 seconds'",
+		"SELECT COUNT(*) FROM infrastructure.events WHERE created_at > NOW() - INTERVAL '5 seconds'",
 	).Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
@@ -323,7 +323,7 @@ func TestUpdateCapability_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var capabilityID string
 	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&capabilityID)
 	require.NoError(t, err)
 	testCtx.trackID(capabilityID)
@@ -354,7 +354,7 @@ func TestUpdateCapability_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var updateEventData string
 	err = testCtx.db.QueryRow(
-		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'CapabilityUpdated'",
+		"SELECT event_data FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = 'CapabilityUpdated'",
 		capabilityID,
 	).Scan(&updateEventData)
 	require.NoError(t, err)
@@ -365,7 +365,7 @@ func TestUpdateCapability_Integration(t *testing.T) {
 
 	var name, description string
 	err = testCtx.db.QueryRow(
-		"SELECT name, description FROM capabilities WHERE id = $1",
+		"SELECT name, description FROM capabilitymapping.capabilities WHERE id = $1",
 		capabilityID,
 	).Scan(&name, &description)
 	require.NoError(t, err)
@@ -387,14 +387,14 @@ func TestGetCapabilityChildren_Integration(t *testing.T) {
 
 	testCtx.setTenantContext(t)
 	_, err := testCtx.db.Exec(
-		"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+		"INSERT INTO capabilitymapping.capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
 		childID1, "Child 1", "", "L2", parentID, testTenantID(), "Genesis", "Active",
 	)
 	require.NoError(t, err)
 	testCtx.trackID(childID1)
 
 	_, err = testCtx.db.Exec(
-		"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+		"INSERT INTO capabilitymapping.capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
 		childID2, "Child 2", "", "L2", parentID, testTenantID(), "Genesis", "Active",
 	)
 	require.NoError(t, err)
@@ -445,7 +445,7 @@ func TestDeleteCapability_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var capabilityID string
 	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&capabilityID)
 	require.NoError(t, err)
 	testCtx.trackID(capabilityID)
@@ -479,7 +479,7 @@ func TestDeleteCapability_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var eventCount int
 	err = testCtx.db.QueryRow(
-		"SELECT COUNT(*) FROM events WHERE aggregate_id = $1 AND event_type = 'CapabilityDeleted'",
+		"SELECT COUNT(*) FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = 'CapabilityDeleted'",
 		capabilityID,
 	).Scan(&eventCount)
 	require.NoError(t, err)
@@ -522,7 +522,7 @@ func TestDeleteCapability_HasChildren_Integration(t *testing.T) {
 
 	testCtx.setTenantContext(t)
 	_, err := testCtx.db.Exec(
-		"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+		"INSERT INTO capabilitymapping.capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
 		childID, "Child Capability", "", "L2", parentID, testTenantID(), "Genesis", "Active",
 	)
 	require.NoError(t, err)
@@ -597,7 +597,7 @@ func TestCreateCapability_CommandResultFlow_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var eventAggregateID string
 	err = testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'CapabilityCreated' AND aggregate_id = $1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'CapabilityCreated' AND aggregate_id = $1",
 		response.ID,
 	).Scan(&eventAggregateID)
 	require.NoError(t, err)

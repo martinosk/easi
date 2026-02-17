@@ -36,7 +36,7 @@ func setupProjectorTest(t *testing.T) (context.Context, *DomainCapabilityMetadat
 	ctx := sharedctx.WithTenant(context.Background(), valueobjects.MustNewTenantID(testTenant))
 
 	t.Cleanup(func() {
-		_, _ = db.Exec("DELETE FROM domain_capability_metadata WHERE tenant_id = $1", testTenant)
+		_, _ = db.Exec("DELETE FROM enterprisearchitecture.domain_capability_metadata WHERE tenant_id = $1", testTenant)
 		db.Close()
 	})
 

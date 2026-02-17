@@ -69,8 +69,8 @@ func setupInvitationTestDB(t *testing.T) (*invitationTestContext, func()) {
 
 	cleanup := func() {
 		for _, id := range ctx.createdIDs {
-			db.Exec("DELETE FROM invitations WHERE id = $1", id)
-			db.Exec("DELETE FROM events WHERE aggregate_id = $1", id)
+			db.Exec("DELETE FROM auth.invitations WHERE id = $1", id)
+			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
 		}
 		db.Close()
 	}
@@ -198,7 +198,7 @@ func (f *loginServiceTestFixture) createInvitation(ctx context.Context, t *testi
 
 func (f *loginServiceTestFixture) expireInvitation(ctx context.Context, t *testing.T, id string) {
 	_, err := f.db.ExecContext(ctx,
-		"UPDATE invitations SET expires_at = $1 WHERE id = $2",
+		"UPDATE auth.invitations SET expires_at = $1 WHERE id = $2",
 		time.Now().UTC().Add(-1*time.Hour), id)
 	require.NoError(t, err)
 }
@@ -368,7 +368,7 @@ func TestInvitationExpiration_QueryDoesNotReturnExpired_Integration(t *testing.T
 
 	ctx := tenantContext()
 	_, err := testCtx.db.ExecContext(ctx,
-		"UPDATE invitations SET expires_at = $1 WHERE id = $2",
+		"UPDATE auth.invitations SET expires_at = $1 WHERE id = $2",
 		time.Now().UTC().Add(-1*time.Hour),
 		created.ID,
 	)
@@ -407,7 +407,7 @@ func TestAcceptInvitation_WhenExpired_Integration(t *testing.T) {
 
 	ctx := tenantContext()
 	_, err := testCtx.db.ExecContext(ctx,
-		"UPDATE invitations SET expires_at = $1 WHERE id = $2",
+		"UPDATE auth.invitations SET expires_at = $1 WHERE id = $2",
 		time.Now().UTC().Add(-1*time.Hour),
 		created.ID,
 	)
@@ -471,7 +471,7 @@ func TestLoginService_ValidInvitationCreatesUser_Integration(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "accepted", acceptedInvitation.Status)
 
-	defer testCtx.db.Exec("DELETE FROM users WHERE email = $1", email)
+	defer testCtx.db.Exec("DELETE FROM auth.users WHERE email = $1", email)
 }
 
 func TestLoginService_ExpiredInvitationMarkedAsExpired_Integration(t *testing.T) {

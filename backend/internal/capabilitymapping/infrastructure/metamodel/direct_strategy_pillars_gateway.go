@@ -56,7 +56,7 @@ func (g *directStrategyPillarsGateway) InvalidateCache(tenantID string) {
 func (g *directStrategyPillarsGateway) queryPillars(ctx context.Context, tenantID string) ([]StrategyPillarDTO, error) {
 	query := `
 		SELECT strategy_pillars
-		FROM meta_model_configurations
+		FROM metamodel.meta_model_configurations
 		WHERE tenant_id = $1
 	`
 

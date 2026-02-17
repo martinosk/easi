@@ -9,6 +9,7 @@
 //   - */infrastructure/repository/*.go  — aggregate persistence (singular variant)
 //   - */infrastructure/eventstore/*.go  — event store implementations
 //   - */infrastructure/adapters/*.go    — infrastructure adapters
+//   - */infrastructure/metamodel/*.go   — cross-BC metamodel gateways
 //
 // Intentionally excluded:
 //   - shared/, infrastructure/, testing/ — shared packages have no BC ownership
@@ -36,7 +37,8 @@ import (
 )
 
 var allowedSchemaAccess = map[string]string{
-	"auth -> platform": "tenant domain checking for authentication",
+	"auth -> platform":            "tenant domain checking for authentication",
+	"capabilitymapping -> metamodel": "strategy pillar configuration gateway",
 }
 
 var schemaQualifiedPatterns = []*regexp.Regexp{
@@ -72,6 +74,7 @@ var approvedLocationPatterns = []string{
 	"*/infrastructure/repository/*.go",
 	"*/infrastructure/eventstore/*.go",
 	"*/infrastructure/adapters/*.go",
+	"*/infrastructure/metamodel/*.go",
 }
 
 type schemaTableRef struct {
@@ -364,13 +367,87 @@ func (g *sqlLocationGuard) checkFile(path string) (string, bool) {
 	return "", false
 }
 
-func TestSQLSchemaOwnership(t *testing.T) {
-	internalDir, err := filepath.Abs(".")
+func mustInternalDir(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.Abs(".")
 	if err != nil {
 		t.Fatalf("failed to get absolute path: %v", err)
 	}
+	return dir
+}
 
-	scanner := &schemaOwnershipScanner{internalDir: internalDir}
+type unqualifiedTableScanResult struct {
+	violations   []sqlViolation
+	filesScanned int
+}
+
+func (s *schemaOwnershipScanner) scanAllForUnqualifiedTables() (unqualifiedTableScanResult, error) {
+	var result unqualifiedTableScanResult
+
+	err := filepath.Walk(s.internalDir, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if info.IsDir() && info.Name() == "migrations" {
+			return filepath.SkipDir
+		}
+		if info.IsDir() || !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+
+		result.filesScanned++
+		result.violations = append(result.violations, s.findUnqualifiedTables(path)...)
+		return nil
+	})
+
+	return result, err
+}
+
+func (s *schemaOwnershipScanner) findUnqualifiedTables(path string) []sqlViolation {
+	relPath, err := filepath.Rel(s.internalDir, path)
+	if err != nil {
+		return nil
+	}
+
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
+	if err != nil {
+		return nil
+	}
+
+	var violations []sqlViolation
+	for _, literal := range extractStringLiterals(node) {
+		analyzer := sqlAnalyzer{sql: literal}
+		for _, name := range analyzer.unqualifiedTables() {
+			violations = append(violations, sqlViolation{
+				relPath: filepath.ToSlash(relPath),
+				message: "unqualified table reference '" + name + "' — must use schema.table format",
+			})
+		}
+	}
+	return violations
+}
+
+func TestAllGoFilesUseSchemaQualifiedSQL(t *testing.T) {
+	scanner := &schemaOwnershipScanner{internalDir: mustInternalDir(t)}
+	result, err := scanner.scanAllForUnqualifiedTables()
+	if err != nil {
+		t.Fatalf("failed to walk internal dir: %v", err)
+	}
+
+	for _, v := range result.violations {
+		t.Errorf("UNQUALIFIED TABLE: %s — %s", v.relPath, v.message)
+	}
+
+	t.Run("SmokeCheck", func(t *testing.T) {
+		if result.filesScanned == 0 {
+			t.Error("scanned 0 files — detection mechanism may be broken")
+		}
+	})
+}
+
+func TestSQLSchemaOwnership(t *testing.T) {
+	scanner := &schemaOwnershipScanner{internalDir: mustInternalDir(t)}
 
 	files, err := scanner.collectFiles()
 	if err != nil {
@@ -396,16 +473,11 @@ func TestSQLSchemaOwnership(t *testing.T) {
 }
 
 func TestNoSQLOutsideApprovedLocations(t *testing.T) {
-	internalDir, err := filepath.Abs(".")
-	if err != nil {
-		t.Fatalf("failed to get absolute path: %v", err)
-	}
-
-	scanner := &schemaOwnershipScanner{internalDir: internalDir}
+	scanner := &schemaOwnershipScanner{internalDir: mustInternalDir(t)}
 	guard := scanner.locationGuard()
 	var violations []string
 
-	walkErr := filepath.Walk(internalDir, func(path string, info os.FileInfo, err error) error {
+	walkErr := filepath.Walk(scanner.internalDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}

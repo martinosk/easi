@@ -72,10 +72,10 @@ func setupPlatformTestDB(t *testing.T) (*platformTestContext, func()) {
 
 	cleanup := func() {
 		for _, id := range ctx.createdTenants {
-			db.Exec("DELETE FROM invitations WHERE tenant_id = $1", id)
-			db.Exec("DELETE FROM tenant_oidc_configs WHERE tenant_id = $1", id)
-			db.Exec("DELETE FROM tenant_domains WHERE tenant_id = $1", id)
-			db.Exec("DELETE FROM tenants WHERE id = $1", id)
+			db.Exec("DELETE FROM auth.invitations WHERE tenant_id = $1", id)
+			db.Exec("DELETE FROM platform.tenant_oidc_configs WHERE tenant_id = $1", id)
+			db.Exec("DELETE FROM platform.tenant_domains WHERE tenant_id = $1", id)
+			db.Exec("DELETE FROM platform.tenants WHERE id = $1", id)
 		}
 		db.Close()
 	}
@@ -181,12 +181,12 @@ func TestCreateTenant_Integration(t *testing.T) {
 	assert.Contains(t, response.Links["self"].Href, tenantID)
 
 	var exists bool
-	err = ctx.db.QueryRow("SELECT EXISTS(SELECT 1 FROM tenants WHERE id = $1)", tenantID).Scan(&exists)
+	err = ctx.db.QueryRow("SELECT EXISTS(SELECT 1 FROM platform.tenants WHERE id = $1)", tenantID).Scan(&exists)
 	require.NoError(t, err)
 	assert.True(t, exists)
 
 	var domainCount int
-	err = ctx.db.QueryRow("SELECT COUNT(*) FROM tenant_domains WHERE tenant_id = $1", tenantID).Scan(&domainCount)
+	err = ctx.db.QueryRow("SELECT COUNT(*) FROM platform.tenant_domains WHERE tenant_id = $1", tenantID).Scan(&domainCount)
 	require.NoError(t, err)
 	assert.Equal(t, 1, domainCount)
 
@@ -195,7 +195,7 @@ func TestCreateTenant_Integration(t *testing.T) {
 	require.NoError(t, err)
 	_, err = tx.Exec(fmt.Sprintf("SET LOCAL app.current_tenant = '%s'", tenantID))
 	require.NoError(t, err)
-	err = tx.QueryRow("SELECT COUNT(*) FROM invitations WHERE tenant_id = $1 AND email = $2 AND role = 'admin'",
+	err = tx.QueryRow("SELECT COUNT(*) FROM auth.invitations WHERE tenant_id = $1 AND email = $2 AND role = 'admin'",
 		tenantID, "admin@"+tenantID+".com").Scan(&invitationCount)
 	require.NoError(t, err)
 	tx.Rollback()

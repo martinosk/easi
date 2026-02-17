@@ -59,10 +59,10 @@ func setupACLCacheTest(t *testing.T) *aclCacheTestFixture {
 	linkRM := readmodels.NewEnterpriseCapabilityLinkReadModel(tenantDB)
 
 	t.Cleanup(func() {
-		db.Exec("DELETE FROM ea_realization_cache WHERE tenant_id = $1", aclTestTenant)
-		db.Exec("DELETE FROM ea_importance_cache WHERE tenant_id = $1", aclTestTenant)
-		db.Exec("DELETE FROM ea_fit_score_cache WHERE tenant_id = $1", aclTestTenant)
-		db.Exec("DELETE FROM domain_capability_metadata WHERE tenant_id = $1", aclTestTenant)
+		db.Exec("DELETE FROM enterprisearchitecture.ea_realization_cache WHERE tenant_id = $1", aclTestTenant)
+		db.Exec("DELETE FROM enterprisearchitecture.ea_importance_cache WHERE tenant_id = $1", aclTestTenant)
+		db.Exec("DELETE FROM enterprisearchitecture.ea_fit_score_cache WHERE tenant_id = $1", aclTestTenant)
+		db.Exec("DELETE FROM enterprisearchitecture.domain_capability_metadata WHERE tenant_id = $1", aclTestTenant)
 		db.Close()
 	})
 
@@ -99,7 +99,7 @@ func (f *aclCacheTestFixture) countRealizationsByColumn(column, value string) in
 	f.t.Helper()
 	var count int
 	err := f.db.QueryRow(
-		fmt.Sprintf("SELECT COUNT(*) FROM ea_realization_cache WHERE tenant_id = $1 AND %s = $2", column),
+		fmt.Sprintf("SELECT COUNT(*) FROM enterprisearchitecture.ea_realization_cache WHERE tenant_id = $1 AND %s = $2", column),
 		aclTestTenant, value,
 	).Scan(&count)
 	require.NoError(f.t, err)
@@ -167,7 +167,7 @@ func TestRealizationCacheProjector_ComponentUpdated_UpdatesCachedName(t *testing
 
 	var name string
 	err = f.db.QueryRow(
-		"SELECT component_name FROM ea_realization_cache WHERE tenant_id = $1 AND component_id = $2",
+		"SELECT component_name FROM enterprisearchitecture.ea_realization_cache WHERE tenant_id = $1 AND component_id = $2",
 		aclTestTenant, componentID,
 	).Scan(&name)
 	require.NoError(t, err)
@@ -194,7 +194,7 @@ func TestImportanceCacheProjector_Recalculated_InsertsCache(t *testing.T) {
 
 	var importance int
 	err = f.db.QueryRow(
-		"SELECT effective_importance FROM ea_importance_cache WHERE tenant_id = $1 AND capability_id = $2 AND pillar_id = $3",
+		"SELECT effective_importance FROM enterprisearchitecture.ea_importance_cache WHERE tenant_id = $1 AND capability_id = $2 AND pillar_id = $3",
 		aclTestTenant, capabilityID, pillarID,
 	).Scan(&importance)
 	require.NoError(t, err)
@@ -227,7 +227,7 @@ func TestImportanceCacheProjector_Recalculated_UpdatesExistingEntry(t *testing.T
 
 	var importance int
 	err = f.db.QueryRow(
-		"SELECT effective_importance FROM ea_importance_cache WHERE tenant_id = $1 AND capability_id = $2 AND pillar_id = $3",
+		"SELECT effective_importance FROM enterprisearchitecture.ea_importance_cache WHERE tenant_id = $1 AND capability_id = $2 AND pillar_id = $3",
 		aclTestTenant, capabilityID, pillarID,
 	).Scan(&importance)
 	require.NoError(t, err)
@@ -254,7 +254,7 @@ func TestFitScoreCacheProjector_ScoreSet_InsertsCache(t *testing.T) {
 	var score int
 	var rationale string
 	err = f.db.QueryRow(
-		"SELECT score, rationale FROM ea_fit_score_cache WHERE tenant_id = $1 AND component_id = $2 AND pillar_id = $3",
+		"SELECT score, rationale FROM enterprisearchitecture.ea_fit_score_cache WHERE tenant_id = $1 AND component_id = $2 AND pillar_id = $3",
 		aclTestTenant, componentID, pillarID,
 	).Scan(&score, &rationale)
 	require.NoError(t, err)
@@ -285,7 +285,7 @@ func TestFitScoreCacheProjector_ScoreRemoved_DeletesCache(t *testing.T) {
 
 	var count int
 	err = f.db.QueryRow(
-		"SELECT COUNT(*) FROM ea_fit_score_cache WHERE tenant_id = $1 AND component_id = $2 AND pillar_id = $3",
+		"SELECT COUNT(*) FROM enterprisearchitecture.ea_fit_score_cache WHERE tenant_id = $1 AND component_id = $2 AND pillar_id = $3",
 		aclTestTenant, componentID, pillarID,
 	).Scan(&count)
 	require.NoError(t, err)
@@ -315,7 +315,7 @@ func TestMetadataProjector_CapabilityMetadataUpdated_UpdatesMaturity(t *testing.
 
 	var maturityValue int
 	err = f.db.QueryRow(
-		"SELECT maturity_value FROM domain_capability_metadata WHERE tenant_id = $1 AND capability_id = $2",
+		"SELECT maturity_value FROM enterprisearchitecture.domain_capability_metadata WHERE tenant_id = $1 AND capability_id = $2",
 		aclTestTenant, capabilityID,
 	).Scan(&maturityValue)
 	require.NoError(t, err)

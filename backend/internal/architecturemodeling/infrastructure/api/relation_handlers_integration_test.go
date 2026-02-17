@@ -73,9 +73,9 @@ func setupRelationTestDB(t *testing.T) (*relationTestContext, func()) {
 	cleanup := func() {
 		// Delete relations and components by tracking the IDs created during the test
 		for _, id := range ctx.createdIDs {
-			db.Exec("DELETE FROM component_relations WHERE id = $1", id)
-			db.Exec("DELETE FROM application_components WHERE id = $1", id)
-			db.Exec("DELETE FROM events WHERE aggregate_id = $1", id)
+			db.Exec("DELETE FROM architecturemodeling.component_relations WHERE id = $1", id)
+			db.Exec("DELETE FROM architecturemodeling.application_components WHERE id = $1", id)
+			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
 		}
 		db.Close()
 	}
@@ -100,7 +100,7 @@ type testRelationParams struct {
 func (ctx *relationTestContext) createTestRelation(t *testing.T, params testRelationParams) {
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
-		"INSERT INTO component_relations (id, source_component_id, target_component_id, relation_type, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		"INSERT INTO architecturemodeling.component_relations (id, source_component_id, target_component_id, relation_type, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
 		params.ID, params.SourceID, params.TargetID, params.RelationType, params.Name, params.Description, testTenantID(),
 	)
 	require.NoError(t, err)
@@ -113,7 +113,7 @@ func setupRelationHandlers(db *sql.DB) (*RelationHandlers, *readmodels.Component
 
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	commandBus := cqrs.NewInMemoryCommandBus()
-	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewArchitectureModelingLinks(sharedAPI.NewHATEOASLinks("/api/v1"))
 
 	// Setup repository and handlers
 	relationRepo := repositories.NewComponentRelationRepository(eventStore)
@@ -126,7 +126,7 @@ func setupRelationHandlers(db *sql.DB) (*RelationHandlers, *readmodels.Component
 	readModel := readmodels.NewComponentRelationReadModel(tenantDB)
 
 	// Setup HTTP handlers
-	relationHandlers := NewRelationHandlers(commandBus, readModel, hateoas)
+	relationHandlers := NewRelationHandlers(commandBus, readModel, links)
 
 	return relationHandlers, readModel
 }
@@ -167,7 +167,7 @@ func TestCreateRelation_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var aggregateID string
 	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ComponentRelationCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'ComponentRelationCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&aggregateID)
 	require.NoError(t, err)
 	testCtx.trackID(aggregateID)
@@ -175,7 +175,7 @@ func TestCreateRelation_Integration(t *testing.T) {
 	// Verify event data contains expected values
 	var eventData string
 	err = testCtx.db.QueryRow(
-		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'ComponentRelationCreated'",
+		"SELECT event_data FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = 'ComponentRelationCreated'",
 		aggregateID,
 	).Scan(&eventData)
 	require.NoError(t, err)
@@ -185,7 +185,7 @@ func TestCreateRelation_Integration(t *testing.T) {
 
 	// Manually insert into read model for testing (simulating event projection)
 	_, err = testCtx.db.Exec(
-		"INSERT INTO component_relations (id, source_component_id, target_component_id, relation_type, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		"INSERT INTO architecturemodeling.component_relations (id, source_component_id, target_component_id, relation_type, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
 		aggregateID, sourceID, targetID, "Triggers", "Triggers API", "Frontend triggers backend API", testTenantID(),
 	)
 	require.NoError(t, err)
@@ -226,7 +226,7 @@ func TestCreateRelation_ValidationError_Integration(t *testing.T) {
 	// Verify no event was created in our test's scope
 	var count int
 	err := testCtx.db.QueryRow(
-		"SELECT COUNT(*) FROM events WHERE created_at > NOW() - INTERVAL '5 seconds'",
+		"SELECT COUNT(*) FROM infrastructure.events WHERE created_at > NOW() - INTERVAL '5 seconds'",
 	).Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count, "No events should be created for invalid request")
@@ -430,7 +430,7 @@ func TestGetAllRelationsPaginated_Integration(t *testing.T) {
 			relType = "Serves"
 		}
 		_, err := testCtx.db.Exec(
-			"INSERT INTO component_relations (id, source_component_id, target_component_id, relation_type, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW() - INTERVAL '"+fmt.Sprintf("%d", i)+" seconds')",
+			"INSERT INTO architecturemodeling.component_relations (id, source_component_id, target_component_id, relation_type, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW() - INTERVAL '"+fmt.Sprintf("%d", i)+" seconds')",
 			id, comp1, comp2, relType, name, "Description", testTenantID(),
 		)
 		require.NoError(t, err)
@@ -494,7 +494,7 @@ func TestDeleteRelation_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var relationID string
 	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ComponentRelationCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'ComponentRelationCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&relationID)
 	require.NoError(t, err)
 	testCtx.trackID(relationID)
@@ -517,7 +517,7 @@ func TestDeleteRelation_Integration(t *testing.T) {
 
 	var deleteEventData string
 	err = testCtx.db.QueryRow(
-		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'ComponentRelationDeleted'",
+		"SELECT event_data FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = 'ComponentRelationDeleted'",
 		relationID,
 	).Scan(&deleteEventData)
 	require.NoError(t, err)
@@ -534,7 +534,7 @@ func setupCascadeTestDependencies(testCtx *testContext) *cascadeTestDependencies
 	tenantDB := database.NewTenantAwareDB(testCtx.db)
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	commandBus := cqrs.NewInMemoryCommandBus()
-	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewArchitectureModelingLinks(sharedAPI.NewHATEOASLinks("/api/v1"))
 	eventBus := events.NewInMemoryEventBus()
 	eventStore.SetEventBus(eventBus)
 
@@ -561,8 +561,8 @@ func setupCascadeTestDependencies(testCtx *testContext) *cascadeTestDependencies
 	commandBus.Register("CreateComponentRelation", createRelationHandler)
 	commandBus.Register("DeleteComponentRelation", deleteRelationHandler)
 
-	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, hateoas)
-	relationHandlers := NewRelationHandlers(commandBus, relationReadModel, hateoas)
+	componentHandlers := NewComponentHandlers(commandBus, componentReadModel, links)
+	relationHandlers := NewRelationHandlers(commandBus, relationReadModel, links)
 
 	return &cascadeTestDependencies{
 		componentHandlers: componentHandlers,
@@ -632,7 +632,7 @@ func TestCascadeDeleteRelations_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var componentID string
 	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ApplicationComponentCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'ApplicationComponentCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&componentID)
 	require.NoError(t, err)
 	testCtx.trackID(componentID)
@@ -645,7 +645,7 @@ func TestCascadeDeleteRelations_Integration(t *testing.T) {
 
 	var relationID string
 	err = testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ComponentRelationCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'ComponentRelationCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&relationID)
 	require.NoError(t, err)
 	testCtx.trackID(relationID)
@@ -659,7 +659,7 @@ func TestCascadeDeleteRelations_Integration(t *testing.T) {
 
 	var relationDeleted bool
 	err = testCtx.db.QueryRow(
-		"SELECT is_deleted FROM component_relations WHERE id = $1",
+		"SELECT is_deleted FROM architecturemodeling.component_relations WHERE id = $1",
 		relationID,
 	).Scan(&relationDeleted)
 	require.NoError(t, err)

@@ -73,8 +73,8 @@ func setupTestDB(t *testing.T) (*testContext, func()) {
 	cleanup := func() {
 		// Delete components by tracking the IDs created during the test
 		for _, id := range ctx.createdIDs {
-			db.Exec("DELETE FROM application_components WHERE id = $1", id)
-			db.Exec("DELETE FROM events WHERE aggregate_id = $1", id)
+			db.Exec("DELETE FROM architecturemodeling.application_components WHERE id = $1", id)
+			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
 		}
 		db.Close()
 	}
@@ -124,7 +124,7 @@ func (ctx *testContext) createComponentViaAPI(t *testing.T, handlers *ComponentH
 	ctx.setTenantContext(t)
 	var componentID string
 	err := ctx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ApplicationComponentCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'ApplicationComponentCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&componentID)
 	require.NoError(t, err)
 	ctx.trackID(componentID)
@@ -136,7 +136,7 @@ func (ctx *testContext) createComponentViaAPI(t *testing.T, handlers *ComponentH
 func (ctx *testContext) createTestComponent(t *testing.T, id, name, description string) {
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
-		"INSERT INTO application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
+		"INSERT INTO architecturemodeling.application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW())",
 		id, name, description, testTenantID(),
 	)
 	require.NoError(t, err)
@@ -149,7 +149,7 @@ func setupHandlers(db *sql.DB) (*ComponentHandlers, *readmodels.ApplicationCompo
 
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	commandBus := cqrs.NewInMemoryCommandBus()
-	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewArchitectureModelingLinks(sharedAPI.NewHATEOASLinks("/api/v1"))
 
 	// Setup event bus and wire to event store
 	eventBus := events.NewInMemoryEventBus()
@@ -178,7 +178,7 @@ func setupHandlers(db *sql.DB) (*ComponentHandlers, *readmodels.ApplicationCompo
 	commandBus.Register("DeleteComponentRelation", deleteRelationHandler)
 
 	// Setup HTTP handlers
-	componentHandlers := NewComponentHandlers(commandBus, readModel, hateoas)
+	componentHandlers := NewComponentHandlers(commandBus, readModel, links)
 
 	return componentHandlers, readModel
 }
@@ -195,7 +195,7 @@ func TestCreateComponent_Integration(t *testing.T) {
 	// Verify event data contains expected values
 	var eventData string
 	err := testCtx.db.QueryRow(
-		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'ApplicationComponentCreated'",
+		"SELECT event_data FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = 'ApplicationComponentCreated'",
 		aggregateID,
 	).Scan(&eventData)
 	require.NoError(t, err)
@@ -322,7 +322,7 @@ func TestCreateComponent_ValidationError_Integration(t *testing.T) {
 	// Verify no event was created in our test's scope
 	var count int
 	err := testCtx.db.QueryRow(
-		"SELECT COUNT(*) FROM events WHERE created_at > NOW() - INTERVAL '5 seconds'",
+		"SELECT COUNT(*) FROM infrastructure.events WHERE created_at > NOW() - INTERVAL '5 seconds'",
 	).Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count, "No events should be created for invalid request")
@@ -342,7 +342,7 @@ func TestGetAllComponentsPaginated_Integration(t *testing.T) {
 		description := fmt.Sprintf("Description %d", i)
 
 		_, err := testCtx.db.Exec(
-			"INSERT INTO application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW() - INTERVAL '"+fmt.Sprintf("%d", i)+" seconds')",
+			"INSERT INTO architecturemodeling.application_components (id, name, description, tenant_id, created_at) VALUES ($1, $2, $3, $4, NOW() - INTERVAL '"+fmt.Sprintf("%d", i)+" seconds')",
 			id, name, description, testTenantID(),
 		)
 		require.NoError(t, err)
@@ -452,7 +452,7 @@ func TestUpdateComponent_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var componentID string
 	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ApplicationComponentCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'ApplicationComponentCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&componentID)
 	require.NoError(t, err)
 	testCtx.trackID(componentID)
@@ -487,7 +487,7 @@ func TestUpdateComponent_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var updateEventData string
 	err = testCtx.db.QueryRow(
-		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'ApplicationComponentUpdated'",
+		"SELECT event_data FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = 'ApplicationComponentUpdated'",
 		componentID,
 	).Scan(&updateEventData)
 	require.NoError(t, err)
@@ -500,7 +500,7 @@ func TestUpdateComponent_Integration(t *testing.T) {
 	// Verify the read model was updated
 	var name, description string
 	err = testCtx.db.QueryRow(
-		"SELECT name, description FROM application_components WHERE id = $1",
+		"SELECT name, description FROM architecturemodeling.application_components WHERE id = $1",
 		componentID,
 	).Scan(&name, &description)
 	require.NoError(t, err)
@@ -528,7 +528,7 @@ func TestDeleteComponent_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var deleteEventData string
 	err := testCtx.db.QueryRow(
-		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'ApplicationComponentDeleted'",
+		"SELECT event_data FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = 'ApplicationComponentDeleted'",
 		componentID,
 	).Scan(&deleteEventData)
 	require.NoError(t, err)
@@ -538,7 +538,7 @@ func TestDeleteComponent_Integration(t *testing.T) {
 
 	var isDeleted bool
 	err = testCtx.db.QueryRow(
-		"SELECT is_deleted FROM application_components WHERE id = $1",
+		"SELECT is_deleted FROM architecturemodeling.application_components WHERE id = $1",
 		componentID,
 	).Scan(&isDeleted)
 	require.NoError(t, err)
@@ -626,7 +626,7 @@ func TestCreateComponent_CommandResultFlow_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var eventAggregateID string
 	err = testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'ApplicationComponentCreated' AND aggregate_id = $1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'ApplicationComponentCreated' AND aggregate_id = $1",
 		response.ID,
 	).Scan(&eventAggregateID)
 	require.NoError(t, err)

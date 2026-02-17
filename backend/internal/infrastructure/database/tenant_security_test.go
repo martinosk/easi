@@ -22,7 +22,7 @@ func TestSQLInjectionProtection_TenantID(t *testing.T) {
 		{"SQL comment injection attempt with hyphens", "tenant--drop-table", false},
 		{"Single quote SQL injection", "tenant'; DROP TABLE users; --", true},
 		{"Semicolon command separator", "tenant; DROP TABLE users", true},
-		{"Union-based injection", "tenant' UNION SELECT * FROM users--", true},
+		{"Union-based injection", "tenant' UNION SELECT * FROM auth.users--", true},
 		{"Null byte injection", "tenant\x00malicious", true},
 		{"Unicode normalization attack", "tenant\u2019", true},
 		{"Case manipulation attack", "Tenant-Corp", true},

@@ -113,14 +113,14 @@ func TestRealizationProjectorIntegration_AppliesInheritedEvent(t *testing.T) {
 
 	var inheritedCount int
 	err = testCtx.db.QueryRow(
-		"SELECT COUNT(*) FROM capability_realizations WHERE tenant_id = $1 AND origin = 'Inherited' AND source_realization_id = $2",
+		"SELECT COUNT(*) FROM capabilitymapping.capability_realizations WHERE tenant_id = $1 AND origin = 'Inherited' AND source_realization_id = $2",
 		"default", "real-source-1",
 	).Scan(&inheritedCount)
 	require.NoError(t, err)
 	assert.Equal(t, 2, inheritedCount)
 
 	_, err = testCtx.db.Exec(
-		"DELETE FROM capability_realizations WHERE tenant_id = $1 AND source_realization_id = $2",
+		"DELETE FROM capabilitymapping.capability_realizations WHERE tenant_id = $1 AND source_realization_id = $2",
 		"default",
 		"real-source-1",
 	)
@@ -142,7 +142,7 @@ func TestRealizationProjectorIntegration_AppliesUninheritedEvent(t *testing.T) {
 	removeBID := uuid.New().String()
 
 	_, err := testCtx.db.Exec(
-		`INSERT INTO capability_realizations
+		`INSERT INTO capabilitymapping.capability_realizations
 			(id, tenant_id, capability_id, component_id, component_name, realization_level, notes, origin, source_realization_id, source_capability_id, source_capability_name, linked_at)
 		VALUES
 			($1, $2, 'cap-old-a', 'comp-a', 'Component A', 'Full', '', 'Inherited', 'real-source-remove', 'cap-source', 'Source', NOW()),
@@ -170,7 +170,7 @@ func TestRealizationProjectorIntegration_AppliesUninheritedEvent(t *testing.T) {
 
 	var removedCount int
 	err = testCtx.db.QueryRow(
-		"SELECT COUNT(*) FROM capability_realizations WHERE tenant_id = $1 AND source_realization_id = $2",
+		"SELECT COUNT(*) FROM capabilitymapping.capability_realizations WHERE tenant_id = $1 AND source_realization_id = $2",
 		"default", "real-source-remove",
 	).Scan(&removedCount)
 	require.NoError(t, err)
@@ -178,14 +178,14 @@ func TestRealizationProjectorIntegration_AppliesUninheritedEvent(t *testing.T) {
 
 	var keptCount int
 	err = testCtx.db.QueryRow(
-		"SELECT COUNT(*) FROM capability_realizations WHERE tenant_id = $1 AND source_realization_id = $2",
+		"SELECT COUNT(*) FROM capabilitymapping.capability_realizations WHERE tenant_id = $1 AND source_realization_id = $2",
 		"default", "real-source-keep",
 	).Scan(&keptCount)
 	require.NoError(t, err)
 	assert.Equal(t, 1, keptCount)
 
 	_, err = testCtx.db.Exec(
-		"DELETE FROM capability_realizations WHERE tenant_id = $1 AND id IN ($2, $3, $4)",
+		"DELETE FROM capabilitymapping.capability_realizations WHERE tenant_id = $1 AND id IN ($2, $3, $4)",
 		"default", removeAID, removeBID, keepID,
 	)
 	require.NoError(t, err)

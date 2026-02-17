@@ -32,7 +32,7 @@ func TestDomainCapabilityMetadata_ChildInheritsFromParent(t *testing.T) {
 
 	// Cleanup
 	defer func() {
-		_, _ = db.Exec("DELETE FROM domain_capability_metadata WHERE tenant_id = 'test-tenant'")
+		_, _ = db.Exec("DELETE FROM enterprisearchitecture.domain_capability_metadata WHERE tenant_id = 'test-tenant'")
 	}()
 
 	// Test scenario: Create parent L1, then child L2, then assign parent to domain

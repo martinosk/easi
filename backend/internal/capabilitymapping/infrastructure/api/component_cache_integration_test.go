@@ -69,7 +69,7 @@ func setupComponentCacheTestDB(t *testing.T) (*componentCacheTestContext, func()
 	cleanup := func() {
 		ctx.setTenantContext(t)
 		for _, id := range ctx.createdComponentIDs {
-			db.Exec("DELETE FROM capability_component_cache WHERE id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.capability_component_cache WHERE id = $1", id)
 		}
 		db.Close()
 	}

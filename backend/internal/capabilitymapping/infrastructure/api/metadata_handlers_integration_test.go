@@ -42,7 +42,7 @@ func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var capabilityID string
 	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&capabilityID)
 	require.NoError(t, err)
 	testCtx.trackID(capabilityID)
@@ -76,7 +76,7 @@ func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var metadataEventData string
 	err = testCtx.db.QueryRow(
-		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'CapabilityMetadataUpdated'",
+		"SELECT event_data FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = 'CapabilityMetadataUpdated'",
 		capabilityID,
 	).Scan(&metadataEventData)
 	require.NoError(t, err)
@@ -88,7 +88,7 @@ func TestUpdateCapabilityMetadata_Integration(t *testing.T) {
 	var ownershipModel, status string
 	var maturityValue int
 	err = testCtx.db.QueryRow(
-		"SELECT maturity_value, ownership_model, status FROM capabilities WHERE id = $1",
+		"SELECT maturity_value, ownership_model, status FROM capabilitymapping.capabilities WHERE id = $1",
 		capabilityID,
 	).Scan(&maturityValue, &ownershipModel, &status)
 	require.NoError(t, err)
@@ -120,7 +120,7 @@ func TestUpdateCapabilityMetadata_InvalidMaturityValue_Integration(t *testing.T)
 	testCtx.setTenantContext(t)
 	var capabilityID string
 	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&capabilityID)
 	require.NoError(t, err)
 	testCtx.trackID(capabilityID)
@@ -173,7 +173,7 @@ func TestUpdateCapabilityMetadata_InvalidMaturityLevel_Integration(t *testing.T)
 	testCtx.setTenantContext(t)
 	var capabilityID string
 	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&capabilityID)
 	require.NoError(t, err)
 	testCtx.trackID(capabilityID)
@@ -225,7 +225,7 @@ func TestAddCapabilityExpert_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var capabilityID string
 	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&capabilityID)
 	require.NoError(t, err)
 	testCtx.trackID(capabilityID)
@@ -257,7 +257,7 @@ func TestAddCapabilityExpert_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var expertEventData string
 	err = testCtx.db.QueryRow(
-		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'CapabilityExpertAdded'",
+		"SELECT event_data FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = 'CapabilityExpertAdded'",
 		capabilityID,
 	).Scan(&expertEventData)
 	require.NoError(t, err)
@@ -289,7 +289,7 @@ func TestAddCapabilityTag_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var capabilityID string
 	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&capabilityID)
 	require.NoError(t, err)
 	testCtx.trackID(capabilityID)
@@ -319,7 +319,7 @@ func TestAddCapabilityTag_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var tagEventData string
 	err = testCtx.db.QueryRow(
-		"SELECT event_data FROM events WHERE aggregate_id = $1 AND event_type = 'CapabilityTagAdded'",
+		"SELECT event_data FROM infrastructure.events WHERE aggregate_id = $1 AND event_type = 'CapabilityTagAdded'",
 		capabilityID,
 	).Scan(&tagEventData)
 	require.NoError(t, err)
@@ -349,7 +349,7 @@ func TestAddCapabilityTag_EmptyTag_Integration(t *testing.T) {
 	testCtx.setTenantContext(t)
 	var capabilityID string
 	err := testCtx.db.QueryRow(
-		"SELECT aggregate_id FROM events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
+		"SELECT aggregate_id FROM infrastructure.events WHERE event_type = 'CapabilityCreated' ORDER BY created_at DESC LIMIT 1",
 	).Scan(&capabilityID)
 	require.NoError(t, err)
 	testCtx.trackID(capabilityID)

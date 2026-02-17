@@ -47,20 +47,20 @@ func (f *assignmentTestFixture) makeDTO(prefix string) AssignmentDTO {
 func (f *assignmentTestFixture) insertViaSQL(dto AssignmentDTO) {
 	setTenantContext(f.t, f.rawDB)
 	_, err := f.rawDB.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		"INSERT INTO capabilitymapping.domain_capability_assignments (assignment_id, tenant_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 		dto.AssignmentID, "default", dto.BusinessDomainID, dto.BusinessDomainName,
 		dto.CapabilityID, dto.CapabilityName, dto.CapabilityLevel, dto.AssignedAt,
 	)
 	require.NoError(f.t, err)
 	f.t.Cleanup(func() {
-		f.rawDB.Exec("DELETE FROM domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
+		f.rawDB.Exec("DELETE FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
 	})
 }
 
 func (f *assignmentTestFixture) insertViaReadModel(dto AssignmentDTO) {
 	require.NoError(f.t, f.readModel.Insert(tenantContext(), dto))
 	f.t.Cleanup(func() {
-		f.rawDB.Exec("DELETE FROM domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
+		f.rawDB.Exec("DELETE FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
 	})
 }
 
@@ -75,8 +75,8 @@ func TestDomainCapabilityAssignmentReadModel_Insert(t *testing.T) {
 	f.insertViaReadModel(dto)
 
 	var domainID, capID string
-	f.queryScalar(&domainID, "SELECT business_domain_id FROM domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
-	f.queryScalar(&capID, "SELECT capability_id FROM domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
+	f.queryScalar(&domainID, "SELECT business_domain_id FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
+	f.queryScalar(&capID, "SELECT capability_id FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
 	assert.Equal(t, dto.BusinessDomainID, domainID)
 	assert.Equal(t, dto.CapabilityID, capID)
 }
@@ -88,7 +88,7 @@ func TestDomainCapabilityAssignmentReadModel_Insert_IdempotentReplay(t *testing.
 	f.insertViaReadModel(dto)
 
 	var count int
-	f.queryScalar(&count, "SELECT COUNT(*) FROM domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
+	f.queryScalar(&count, "SELECT COUNT(*) FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
 	assert.Equal(t, 1, count)
 }
 
@@ -101,7 +101,7 @@ func TestDomainCapabilityAssignmentReadModel_Insert_ReplayConvergence(t *testing
 	f.insertViaReadModel(dto)
 
 	var name string
-	f.queryScalar(&name, "SELECT capability_name FROM domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
+	f.queryScalar(&name, "SELECT capability_name FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
 	assert.Equal(t, "Updated Name", name)
 }
 
@@ -113,7 +113,7 @@ func TestDomainCapabilityAssignmentReadModel_Delete(t *testing.T) {
 	require.NoError(t, f.readModel.Delete(tenantContext(), dto.AssignmentID))
 
 	var count int
-	f.queryScalar(&count, "SELECT COUNT(*) FROM domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
+	f.queryScalar(&count, "SELECT COUNT(*) FROM capabilitymapping.domain_capability_assignments WHERE assignment_id = $1", dto.AssignmentID)
 	assert.Equal(t, 0, count)
 }
 

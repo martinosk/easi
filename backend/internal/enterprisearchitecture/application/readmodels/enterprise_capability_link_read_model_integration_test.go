@@ -61,28 +61,28 @@ func (f *testFixture) uniqueID(prefix string) string {
 func (f *testFixture) createCapability(id, name string, parentID *string) {
 	var err error
 	if parentID == nil {
-		_, err = f.db.Exec(`INSERT INTO capabilities (id, tenant_id, name, level, parent_id, status, created_at)
+		_, err = f.db.Exec(`INSERT INTO capabilitymapping.capabilities (id, tenant_id, name, level, parent_id, status, created_at)
 			VALUES ($1, 'default', $2, 'L1', NULL, 'Active', NOW())`, id, name)
 	} else {
-		_, err = f.db.Exec(`INSERT INTO capabilities (id, tenant_id, name, level, parent_id, status, created_at)
+		_, err = f.db.Exec(`INSERT INTO capabilitymapping.capabilities (id, tenant_id, name, level, parent_id, status, created_at)
 			VALUES ($1, 'default', $2, 'L1', $3, 'Active', NOW())`, id, name, *parentID)
 	}
 	require.NoError(f.t, err)
-	f.t.Cleanup(func() { f.db.Exec("DELETE FROM capabilities WHERE id = $1", id) })
+	f.t.Cleanup(func() { f.db.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", id) })
 }
 
 func (f *testFixture) createEnterpriseCapability(id, name string) {
-	_, err := f.db.Exec(`INSERT INTO enterprise_capabilities (id, tenant_id, name, description, category, active, link_count, domain_count, created_at)
+	_, err := f.db.Exec(`INSERT INTO enterprisearchitecture.enterprise_capabilities (id, tenant_id, name, description, category, active, link_count, domain_count, created_at)
 		VALUES ($1, 'default', $2, $2, 'Test', true, 0, 0, NOW())`, id, name)
 	require.NoError(f.t, err)
-	f.t.Cleanup(func() { f.db.Exec("DELETE FROM enterprise_capabilities WHERE id = $1", id) })
+	f.t.Cleanup(func() { f.db.Exec("DELETE FROM enterprisearchitecture.enterprise_capabilities WHERE id = $1", id) })
 }
 
 func (f *testFixture) createLink(id, enterpriseCapID, domainCapID string) {
-	_, err := f.db.Exec(`INSERT INTO enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at)
+	_, err := f.db.Exec(`INSERT INTO enterprisearchitecture.enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at)
 		VALUES ($1, 'default', $2, $3, 'test@example.com', NOW())`, id, enterpriseCapID, domainCapID)
 	require.NoError(f.t, err)
-	f.t.Cleanup(func() { f.db.Exec("DELETE FROM enterprise_capability_links WHERE id = $1", id) })
+	f.t.Cleanup(func() { f.db.Exec("DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE id = $1", id) })
 }
 
 type blockingInfo struct {
@@ -93,16 +93,16 @@ type blockingInfo struct {
 }
 
 func (f *testFixture) createBlocking(domainCapID string, blockedBy blockingInfo, isAncestor bool) {
-	_, err := f.db.Exec(`INSERT INTO capability_link_blocking (tenant_id, domain_capability_id, blocked_by_capability_id, blocked_by_enterprise_id, blocked_by_capability_name, blocked_by_enterprise_name, is_ancestor)
+	_, err := f.db.Exec(`INSERT INTO enterprisearchitecture.capability_link_blocking (tenant_id, domain_capability_id, blocked_by_capability_id, blocked_by_enterprise_id, blocked_by_capability_name, blocked_by_enterprise_name, is_ancestor)
 		VALUES ('default', $1, $2, $3, $4, $5, $6)`, domainCapID, blockedBy.capID, blockedBy.enterpriseID, blockedBy.capName, blockedBy.enterpriseName, isAncestor)
 	require.NoError(f.t, err)
 	f.t.Cleanup(func() {
-		f.db.Exec("DELETE FROM capability_link_blocking WHERE tenant_id = 'default' AND blocked_by_capability_id = $1", blockedBy.capID)
+		f.db.Exec("DELETE FROM enterprisearchitecture.capability_link_blocking WHERE tenant_id = 'default' AND blocked_by_capability_id = $1", blockedBy.capID)
 	})
 }
 
 func (f *testFixture) setLinkCount(enterpriseCapID string, count int) {
-	_, err := f.db.Exec("UPDATE enterprise_capabilities SET link_count = $1 WHERE id = $2", count, enterpriseCapID)
+	_, err := f.db.Exec("UPDATE enterprisearchitecture.enterprise_capabilities SET link_count = $1 WHERE id = $2", count, enterpriseCapID)
 	require.NoError(f.t, err)
 }
 
@@ -260,14 +260,14 @@ func TestCheckHierarchyConflict_NoRelationship_NoConflict(t *testing.T) {
 
 func (f *testFixture) getLinkCount(enterpriseCapID string) int {
 	var count int
-	err := f.db.QueryRow("SELECT link_count FROM enterprise_capabilities WHERE tenant_id = 'default' AND id = $1", enterpriseCapID).Scan(&count)
+	err := f.db.QueryRow("SELECT link_count FROM enterprisearchitecture.enterprise_capabilities WHERE tenant_id = 'default' AND id = $1", enterpriseCapID).Scan(&count)
 	require.NoError(f.t, err)
 	return count
 }
 
 func (f *testFixture) getDomainCount(enterpriseCapID string) int {
 	var count int
-	err := f.db.QueryRow("SELECT domain_count FROM enterprise_capabilities WHERE tenant_id = 'default' AND id = $1", enterpriseCapID).Scan(&count)
+	err := f.db.QueryRow("SELECT domain_count FROM enterprisearchitecture.enterprise_capabilities WHERE tenant_id = 'default' AND id = $1", enterpriseCapID).Scan(&count)
 	require.NoError(f.t, err)
 	return count
 }
@@ -275,14 +275,14 @@ func (f *testFixture) getDomainCount(enterpriseCapID string) int {
 func (f *testFixture) createCapabilityMetadata(capabilityID, capabilityName string, domainID, domainName *string) {
 	var err error
 	if domainID != nil {
-		_, err = f.db.Exec(`INSERT INTO domain_capability_metadata (tenant_id, capability_id, capability_name, capability_level, l1_capability_id, business_domain_id, business_domain_name)
+		_, err = f.db.Exec(`INSERT INTO enterprisearchitecture.domain_capability_metadata (tenant_id, capability_id, capability_name, capability_level, l1_capability_id, business_domain_id, business_domain_name)
 			VALUES ('default', $1, $2, 'L1', $1, $3, $4) ON CONFLICT DO NOTHING`, capabilityID, capabilityName, *domainID, *domainName)
 	} else {
-		_, err = f.db.Exec(`INSERT INTO domain_capability_metadata (tenant_id, capability_id, capability_name, capability_level, l1_capability_id)
+		_, err = f.db.Exec(`INSERT INTO enterprisearchitecture.domain_capability_metadata (tenant_id, capability_id, capability_name, capability_level, l1_capability_id)
 			VALUES ('default', $1, $2, 'L1', $1) ON CONFLICT DO NOTHING`, capabilityID, capabilityName)
 	}
 	require.NoError(f.t, err)
-	f.t.Cleanup(func() { f.db.Exec("DELETE FROM domain_capability_metadata WHERE capability_id = $1", capabilityID) })
+	f.t.Cleanup(func() { f.db.Exec("DELETE FROM enterprisearchitecture.domain_capability_metadata WHERE capability_id = $1", capabilityID) })
 }
 
 func TestLinkCount_IncrementAndDecrement(t *testing.T) {
@@ -421,10 +421,10 @@ func TestRecalculateDomainCount_AfterDecrementLinkCount(t *testing.T) {
 	f.createCapabilityMetadata(capID1, "Cap1", &domainID1, &domainName1)
 	f.createLink(f.uniqueID("link1"), enterpriseCapID, capID1)
 
-	_, err := f.db.Exec("UPDATE enterprise_capabilities SET link_count = 1, domain_count = 1 WHERE id = $1", enterpriseCapID)
+	_, err := f.db.Exec("UPDATE enterprisearchitecture.enterprise_capabilities SET link_count = 1, domain_count = 1 WHERE id = $1", enterpriseCapID)
 	require.NoError(t, err)
 
-	_, err = f.db.Exec("DELETE FROM enterprise_capability_links WHERE enterprise_capability_id = $1", enterpriseCapID)
+	_, err = f.db.Exec("DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE enterprise_capability_id = $1", enterpriseCapID)
 	require.NoError(t, err)
 
 	err = f.enterpriseCapabilityRM.DecrementLinkCount(f.ctx, enterpriseCapID)

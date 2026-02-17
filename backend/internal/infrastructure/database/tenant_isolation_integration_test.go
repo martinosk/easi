@@ -59,9 +59,9 @@ func setupTestDB(t *testing.T) (*testContext, func()) {
 	}
 
 	cleanup := func() {
-		db.Exec(fmt.Sprintf("DELETE FROM events WHERE aggregate_id LIKE '%s%%'", testID))
-		db.Exec(fmt.Sprintf("DELETE FROM application_components WHERE id LIKE '%s%%'", testID))
-		db.Exec(fmt.Sprintf("DELETE FROM capabilities WHERE id LIKE '%s%%'", testID))
+		db.Exec(fmt.Sprintf("DELETE FROM infrastructure.events WHERE aggregate_id LIKE '%s%%'", testID))
+		db.Exec(fmt.Sprintf("DELETE FROM architecturemodeling.application_components WHERE id LIKE '%s%%'", testID))
+		db.Exec(fmt.Sprintf("DELETE FROM capabilitymapping.capabilities WHERE id LIKE '%s%%'", testID))
 		db.Close()
 	}
 
@@ -93,13 +93,13 @@ func TestTenantIsolation_ReadModelData(t *testing.T) {
 	ctxB := sharedctx.WithTenant(context.Background(), tenantB)
 
 	_, err = ctx.tenantDB.ExecContext(ctxA,
-		"INSERT INTO application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
+		"INSERT INTO architecturemodeling.application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
 		componentIDTenantA, tenantA.Value(), "Component A", "Tenant A Component", time.Now(),
 	)
 	require.NoError(t, err)
 
 	_, err = ctx.tenantDB.ExecContext(ctxB,
-		"INSERT INTO application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
+		"INSERT INTO architecturemodeling.application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
 		componentIDTenantB, tenantB.Value(), "Component B", "Tenant B Component", time.Now(),
 	)
 	require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestTenantIsolation_ReadModelData(t *testing.T) {
 	var countTenantB int
 	err = ctx.tenantDB.WithReadOnlyTx(ctxB, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctxB,
-			"SELECT COUNT(*) FROM application_components WHERE tenant_id = $1 AND id = $2",
+			"SELECT COUNT(*) FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
 			tenantB.Value(), componentIDTenantA,
 		).Scan(&countTenantB)
 	})
@@ -117,7 +117,7 @@ func TestTenantIsolation_ReadModelData(t *testing.T) {
 	var countTenantA int
 	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctxA,
-			"SELECT COUNT(*) FROM application_components WHERE tenant_id = $1 AND id = $2",
+			"SELECT COUNT(*) FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
 			tenantA.Value(), componentIDTenantA,
 		).Scan(&countTenantA)
 	})
@@ -127,7 +127,7 @@ func TestTenantIsolation_ReadModelData(t *testing.T) {
 	var nameTenantA string
 	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctxA,
-			"SELECT name FROM application_components WHERE tenant_id = $1 AND id = $2",
+			"SELECT name FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
 			tenantA.Value(), componentIDTenantA,
 		).Scan(&nameTenantA)
 	})
@@ -137,7 +137,7 @@ func TestTenantIsolation_ReadModelData(t *testing.T) {
 	var nameTenantB string
 	err = ctx.tenantDB.WithReadOnlyTx(ctxB, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctxB,
-			"SELECT name FROM application_components WHERE tenant_id = $1 AND id = $2",
+			"SELECT name FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
 			tenantB.Value(), componentIDTenantB,
 		).Scan(&nameTenantB)
 	})
@@ -175,7 +175,7 @@ func TestTenantIsolation_EventStoreData(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = tx.ExecContext(ctxA,
-		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		"INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 		tenantA.Value(), aggregateID, "ComponentCreated", eventJSON, 1, time.Now(), "test-user-id", "test@example.com",
 	)
 	require.NoError(t, err)
@@ -186,7 +186,7 @@ func TestTenantIsolation_EventStoreData(t *testing.T) {
 	var countTenantB int
 	err = ctx.tenantDB.WithReadOnlyTx(ctxB, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctxB,
-			"SELECT COUNT(*) FROM events WHERE tenant_id = $1 AND aggregate_id = $2",
+			"SELECT COUNT(*) FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2",
 			tenantB.Value(), aggregateID,
 		).Scan(&countTenantB)
 	})
@@ -196,7 +196,7 @@ func TestTenantIsolation_EventStoreData(t *testing.T) {
 	var countTenantA int
 	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctxA,
-			"SELECT COUNT(*) FROM events WHERE tenant_id = $1 AND aggregate_id = $2",
+			"SELECT COUNT(*) FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2",
 			tenantA.Value(), aggregateID,
 		).Scan(&countTenantA)
 	})
@@ -206,7 +206,7 @@ func TestTenantIsolation_EventStoreData(t *testing.T) {
 	var eventType string
 	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctxA,
-			"SELECT event_type FROM events WHERE tenant_id = $1 AND aggregate_id = $2",
+			"SELECT event_type FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2",
 			tenantA.Value(), aggregateID,
 		).Scan(&eventType)
 	})
@@ -235,13 +235,13 @@ func TestTenantIsolation_MultipleTablesConsistency(t *testing.T) {
 	ctxB := sharedctx.WithTenant(context.Background(), tenantB)
 
 	_, err = ctx.tenantDB.ExecContext(ctxA,
-		"INSERT INTO capabilities (id, tenant_id, name, description, level, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+		"INSERT INTO capabilitymapping.capabilities (id, tenant_id, name, description, level, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
 		capabilityIDTenantA, tenantA.Value(), "Capability A", "Tenant A Capability", "L1", time.Now(),
 	)
 	require.NoError(t, err)
 
 	_, err = ctx.tenantDB.ExecContext(ctxB,
-		"INSERT INTO capabilities (id, tenant_id, name, description, level, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+		"INSERT INTO capabilitymapping.capabilities (id, tenant_id, name, description, level, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
 		capabilityIDTenantB, tenantB.Value(), "Capability B", "Tenant B Capability", "L1", time.Now(),
 	)
 	require.NoError(t, err)
@@ -249,7 +249,7 @@ func TestTenantIsolation_MultipleTablesConsistency(t *testing.T) {
 	var results []string
 	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctxA,
-			"SELECT name FROM capabilities WHERE tenant_id = $1 AND id IN ($2, $3)",
+			"SELECT name FROM capabilitymapping.capabilities WHERE tenant_id = $1 AND id IN ($2, $3)",
 			tenantA.Value(), capabilityIDTenantA, capabilityIDTenantB,
 		)
 		if err != nil {
@@ -273,7 +273,7 @@ func TestTenantIsolation_MultipleTablesConsistency(t *testing.T) {
 	results = nil
 	err = ctx.tenantDB.WithReadOnlyTx(ctxB, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctxB,
-			"SELECT name FROM capabilities WHERE tenant_id = $1 AND id IN ($2, $3)",
+			"SELECT name FROM capabilitymapping.capabilities WHERE tenant_id = $1 AND id IN ($2, $3)",
 			tenantB.Value(), capabilityIDTenantA, capabilityIDTenantB,
 		)
 		if err != nil {
@@ -345,7 +345,7 @@ func TestDefaultTenantFallback(t *testing.T) {
 
 	componentID := ctx.uniqueID("default-comp")
 	_, err := ctx.tenantDB.ExecContext(ctxWithDefault,
-		"INSERT INTO application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
+		"INSERT INTO architecturemodeling.application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
 		componentID, defaultTenant.Value(), "Default Component", "Default Tenant Component", time.Now(),
 	)
 	require.NoError(t, err)
@@ -353,7 +353,7 @@ func TestDefaultTenantFallback(t *testing.T) {
 	var name string
 	err = ctx.tenantDB.WithReadOnlyTx(ctxWithDefault, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctxWithDefault,
-			"SELECT name FROM application_components WHERE tenant_id = $1 AND id = $2",
+			"SELECT name FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
 			defaultTenant.Value(), componentID,
 		).Scan(&name)
 	})
@@ -384,7 +384,7 @@ func TestTenantContext_TransactionIsolation(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = txA.ExecContext(ctxA,
-		"INSERT INTO application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
+		"INSERT INTO architecturemodeling.application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
 		componentID, tenantA.Value(), "Transaction Component", "Test", time.Now(),
 	)
 	require.NoError(t, err)
@@ -392,7 +392,7 @@ func TestTenantContext_TransactionIsolation(t *testing.T) {
 	var countBeforeCommit int
 	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctxA,
-			"SELECT COUNT(*) FROM application_components WHERE tenant_id = $1 AND id = $2",
+			"SELECT COUNT(*) FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
 			tenantA.Value(), componentID,
 		).Scan(&countBeforeCommit)
 	})
@@ -405,7 +405,7 @@ func TestTenantContext_TransactionIsolation(t *testing.T) {
 	var countAfterCommit int
 	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctxA,
-			"SELECT COUNT(*) FROM application_components WHERE tenant_id = $1 AND id = $2",
+			"SELECT COUNT(*) FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
 			tenantA.Value(), componentID,
 		).Scan(&countAfterCommit)
 	})
@@ -415,7 +415,7 @@ func TestTenantContext_TransactionIsolation(t *testing.T) {
 	var countTenantB int
 	err = ctx.tenantDB.WithReadOnlyTx(ctxB, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctxB,
-			"SELECT COUNT(*) FROM application_components WHERE tenant_id = $1 AND id = $2",
+			"SELECT COUNT(*) FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
 			tenantB.Value(), componentID,
 		).Scan(&countTenantB)
 	})
@@ -439,7 +439,7 @@ func TestTenantContext_ReadOnlyTransaction(t *testing.T) {
 	ctxA := sharedctx.WithTenant(context.Background(), tenantA)
 
 	_, err = ctx.tenantDB.ExecContext(ctxA,
-		"INSERT INTO application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
+		"INSERT INTO architecturemodeling.application_components (id, tenant_id, name, description, created_at) VALUES ($1, $2, $3, $4, $5)",
 		componentID, tenantA.Value(), "Read Only Test", "Test", time.Now(),
 	)
 	require.NoError(t, err)
@@ -447,7 +447,7 @@ func TestTenantContext_ReadOnlyTransaction(t *testing.T) {
 	var name string
 	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctxA,
-			"SELECT name FROM application_components WHERE tenant_id = $1 AND id = $2",
+			"SELECT name FROM architecturemodeling.application_components WHERE tenant_id = $1 AND id = $2",
 			tenantA.Value(), componentID,
 		).Scan(&name)
 	})
@@ -456,7 +456,7 @@ func TestTenantContext_ReadOnlyTransaction(t *testing.T) {
 
 	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctxA,
-			"UPDATE application_components SET name = $1 WHERE tenant_id = $2 AND id = $3",
+			"UPDATE architecturemodeling.application_components SET name = $1 WHERE tenant_id = $2 AND id = $3",
 			"Modified Name", tenantA.Value(), componentID,
 		)
 		return err
@@ -492,7 +492,7 @@ func TestTenantContext_EventVersioning(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = txA.ExecContext(ctxA,
-		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		"INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 		tenantA.Value(), aggregateID, "Event1", eventJSON, 1, time.Now(), "test-user-id", "test@example.com",
 	)
 	require.NoError(t, err)
@@ -504,7 +504,7 @@ func TestTenantContext_EventVersioning(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = txB.ExecContext(ctxB,
-		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		"INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 		tenantB.Value(), aggregateID, "Event1", eventJSON, 1, time.Now(), "test-user-id", "test@example.com",
 	)
 	require.NoError(t, err)
@@ -515,7 +515,7 @@ func TestTenantContext_EventVersioning(t *testing.T) {
 	var versionA int
 	err = ctx.tenantDB.WithReadOnlyTx(ctxA, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctxA,
-			"SELECT version FROM events WHERE tenant_id = $1 AND aggregate_id = $2",
+			"SELECT version FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2",
 			tenantA.Value(), aggregateID,
 		).Scan(&versionA)
 	})
@@ -525,7 +525,7 @@ func TestTenantContext_EventVersioning(t *testing.T) {
 	var versionB int
 	err = ctx.tenantDB.WithReadOnlyTx(ctxB, func(tx *sql.Tx) error {
 		return tx.QueryRowContext(ctxB,
-			"SELECT version FROM events WHERE tenant_id = $1 AND aggregate_id = $2",
+			"SELECT version FROM infrastructure.events WHERE tenant_id = $1 AND aggregate_id = $2",
 			tenantB.Value(), aggregateID,
 		).Scan(&versionB)
 	})

@@ -110,14 +110,14 @@ func setupAssignmentConsistencyTestDB(t *testing.T) (*assignmentConsistencyTestC
 	cleanup := func() {
 		ctx.setTenantContext(t)
 		for _, id := range ctx.createdDomainIDs {
-			db.Exec("DELETE FROM domain_capability_assignments WHERE business_domain_id = $1", id)
-			db.Exec("DELETE FROM business_domains WHERE id = $1", id)
-			db.Exec("DELETE FROM events WHERE aggregate_id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.domain_capability_assignments WHERE business_domain_id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", id)
+			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
 		}
 		for _, id := range ctx.createdCapabilityIDs {
-			db.Exec("DELETE FROM domain_capability_assignments WHERE capability_id = $1", id)
-			db.Exec("DELETE FROM capabilities WHERE id = $1", id)
-			db.Exec("DELETE FROM events WHERE aggregate_id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.domain_capability_assignments WHERE capability_id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", id)
+			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
 		}
 		db.Close()
 	}
@@ -186,7 +186,7 @@ type parentChangeTestParams struct {
 func (ctx *assignmentConsistencyTestContext) executeParentChangeAndVerify(t *testing.T, p parentChangeTestParams) {
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
-		"UPDATE capabilities SET parent_id = $1, level = $2 WHERE id = $3 AND tenant_id = $4",
+		"UPDATE capabilitymapping.capabilities SET parent_id = $1, level = $2 WHERE id = $3 AND tenant_id = $4",
 		p.newParentID, p.newLevel, p.childID, testTenantID(),
 	)
 	require.NoError(t, err)
@@ -212,7 +212,7 @@ func (ctx *assignmentConsistencyTestContext) createCapability(t *testing.T, name
 	id := fmt.Sprintf("cap-%s-%d", name, time.Now().UnixNano())
 
 	_, err := ctx.db.Exec(
-		"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+		"INSERT INTO capabilitymapping.capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
 		id, name, "", level, nullString(parentID), testTenantID(), "Genesis", "Active",
 	)
 	require.NoError(t, err)
@@ -226,7 +226,7 @@ func (ctx *assignmentConsistencyTestContext) createCapabilityWithEvents(t *testi
 	id := uuid.New().String()
 
 	_, err := ctx.db.Exec(
-		"INSERT INTO capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+		"INSERT INTO capabilitymapping.capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
 		id, name, "", level, nullString(parentID), testTenantID(), "Genesis", "Active",
 	)
 	require.NoError(t, err)
@@ -238,7 +238,7 @@ func (ctx *assignmentConsistencyTestContext) createCapabilityWithEvents(t *testi
 	eventData := fmt.Sprintf(`{"id":"%s","name":"%s","description":"","level":"%s"%s,"createdAt":"%s"}`,
 		id, name, level, parentIDJSON, time.Now().Format(time.RFC3339Nano))
 	_, err = ctx.db.Exec(
-		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7)",
+		"INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7)",
 		testTenantID(), id, "CapabilityCreated", eventData, 1, "test-user-id", "test@example.com",
 	)
 	require.NoError(t, err)
@@ -253,7 +253,7 @@ func (ctx *assignmentConsistencyTestContext) createDomain(t *testing.T, name str
 	id := uuid.New().String()
 
 	_, err := ctx.db.Exec(
-		"INSERT INTO business_domains (id, name, description, capability_count, tenant_id, created_at) VALUES ($1, $2, $3, 0, $4, NOW())",
+		"INSERT INTO capabilitymapping.business_domains (id, name, description, capability_count, tenant_id, created_at) VALUES ($1, $2, $3, 0, $4, NOW())",
 		id, name, "", testTenantID(),
 	)
 	require.NoError(t, err)
@@ -275,13 +275,13 @@ func (ctx *assignmentConsistencyTestContext) assignCapabilityToDomain(t *testing
 	assignmentID := fmt.Sprintf("assign-%d", time.Now().UnixNano())
 
 	_, err = ctx.db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		"INSERT INTO capabilitymapping.domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
 		assignmentID, domainID, dom.Name, capabilityID, cap.Name, cap.Level, testTenantID(),
 	)
 	require.NoError(t, err)
 
 	_, err = ctx.db.Exec(
-		"UPDATE business_domains SET capability_count = capability_count + 1 WHERE id = $1 AND tenant_id = $2",
+		"UPDATE capabilitymapping.business_domains SET capability_count = capability_count + 1 WHERE id = $1 AND tenant_id = $2",
 		domainID, testTenantID(),
 	)
 	require.NoError(t, err)
@@ -303,13 +303,13 @@ func (ctx *assignmentConsistencyTestContext) assignCapabilityToDomainWithEvents(
 	assignmentID := fmt.Sprintf("assign-%d", time.Now().UnixNano())
 
 	_, err = ctx.db.Exec(
-		"INSERT INTO domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
+		"INSERT INTO capabilitymapping.domain_capability_assignments (assignment_id, business_domain_id, business_domain_name, capability_id, capability_name, capability_level, tenant_id, assigned_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
 		assignmentID, domainID, dom.Name, capabilityID, cap.Name, cap.Level, testTenantID(),
 	)
 	require.NoError(t, err)
 
 	_, err = ctx.db.Exec(
-		"UPDATE business_domains SET capability_count = capability_count + 1 WHERE id = $1 AND tenant_id = $2",
+		"UPDATE capabilitymapping.business_domains SET capability_count = capability_count + 1 WHERE id = $1 AND tenant_id = $2",
 		domainID, testTenantID(),
 	)
 	require.NoError(t, err)
@@ -317,7 +317,7 @@ func (ctx *assignmentConsistencyTestContext) assignCapabilityToDomainWithEvents(
 	eventData := fmt.Sprintf(`{"id":"%s","businessDomainId":"%s","capabilityId":"%s","assignedAt":"%s"}`,
 		assignmentID, domainID, capabilityID, time.Now().Format(time.RFC3339Nano))
 	_, err = ctx.db.Exec(
-		"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7)",
+		"INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7)",
 		testTenantID(), assignmentID, "CapabilityAssignedToDomain", eventData, 1, "test-user-id", "test@example.com",
 	)
 	require.NoError(t, err)

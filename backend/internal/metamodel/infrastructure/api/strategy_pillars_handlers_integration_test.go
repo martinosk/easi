@@ -45,7 +45,7 @@ func setupStrategyPillarsTestHandlers(db *sql.DB, tenantID string) *strategyPill
 
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	commandBus := cqrs.NewInMemoryCommandBus()
-	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewMetaModelLinks(sharedAPI.NewHATEOASLinks("/api/v1"))
 
 	eventBus := events.NewInMemoryEventBus()
 	eventStore.SetEventBus(eventBus)
@@ -81,8 +81,8 @@ func setupStrategyPillarsTestHandlers(db *sql.DB, tenantID string) *strategyPill
 	sessionMgr := newTestSessionManager()
 
 	return &strategyPillarsTestHandlers{
-		handlers:                NewMetaModelHandlers(commandBus, readModel, hateoas, sessionMgr.sessionManager),
-		strategyPillarsHandlers: NewStrategyPillarsHandlers(commandBus, readModel, hateoas, sessionMgr.sessionManager),
+		handlers:                NewMetaModelHandlers(commandBus, readModel, links, sessionMgr.sessionManager),
+		strategyPillarsHandlers: NewStrategyPillarsHandlers(commandBus, readModel, links, sessionMgr.sessionManager),
 		commandBus:              commandBus,
 		readModel:               readModel,
 		sessionManager:          sessionMgr,

@@ -92,19 +92,19 @@ func (tc *TestContext) TrackID(id string) {
 func (tc *TestContext) cleanup() {
 	tc.setTenantContext()
 	for _, id := range tc.cleanupIDs {
-		tc.DB.Exec("DELETE FROM domain_capability_metadata WHERE capability_id = $1", id)
-		tc.DB.Exec("DELETE FROM domain_capability_assignments WHERE capability_id = $1 OR business_domain_id = $1", id)
-		tc.DB.Exec("DELETE FROM strategy_importance WHERE capability_id = $1 OR business_domain_id = $1", id)
-		tc.DB.Exec("DELETE FROM effective_capability_importance WHERE capability_id = $1 OR business_domain_id = $1", id)
-		tc.DB.Exec("DELETE FROM capability_realizations WHERE capability_id = $1 OR component_id = $1", id)
-		tc.DB.Exec("DELETE FROM application_fit_scores WHERE component_id = $1", id)
-		tc.DB.Exec("DELETE FROM enterprise_capability_links WHERE domain_capability_id = $1 OR enterprise_capability_id = $1", id)
-		tc.DB.Exec("DELETE FROM capability_link_blocking WHERE domain_capability_id = $1 OR blocked_by_capability_id = $1", id)
-		tc.DB.Exec("DELETE FROM capabilities WHERE id = $1", id)
-		tc.DB.Exec("DELETE FROM business_domains WHERE id = $1", id)
-		tc.DB.Exec("DELETE FROM application_components WHERE id = $1", id)
-		tc.DB.Exec("DELETE FROM enterprise_capabilities WHERE id = $1", id)
-		tc.DB.Exec("DELETE FROM events WHERE aggregate_id = $1", id)
+		tc.DB.Exec("DELETE FROM capabilitymapping.domain_capability_metadata WHERE capability_id = $1", id)
+		tc.DB.Exec("DELETE FROM capabilitymapping.domain_capability_assignments WHERE capability_id = $1 OR business_domain_id = $1", id)
+		tc.DB.Exec("DELETE FROM capabilitymapping.strategy_importance WHERE capability_id = $1 OR business_domain_id = $1", id)
+		tc.DB.Exec("DELETE FROM capabilitymapping.effective_capability_importance WHERE capability_id = $1 OR business_domain_id = $1", id)
+		tc.DB.Exec("DELETE FROM capabilitymapping.capability_realizations WHERE capability_id = $1 OR component_id = $1", id)
+		tc.DB.Exec("DELETE FROM capabilitymapping.application_fit_scores WHERE component_id = $1", id)
+		tc.DB.Exec("DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE domain_capability_id = $1 OR enterprise_capability_id = $1", id)
+		tc.DB.Exec("DELETE FROM enterprisearchitecture.capability_link_blocking WHERE domain_capability_id = $1 OR blocked_by_capability_id = $1", id)
+		tc.DB.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", id)
+		tc.DB.Exec("DELETE FROM capabilitymapping.business_domains WHERE id = $1", id)
+		tc.DB.Exec("DELETE FROM architecturemodeling.application_components WHERE id = $1", id)
+		tc.DB.Exec("DELETE FROM enterprisearchitecture.enterprise_capabilities WHERE id = $1", id)
+		tc.DB.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
 	}
 }
 

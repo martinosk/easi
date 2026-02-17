@@ -42,7 +42,7 @@ func setupViewHandlers(db *sql.DB) *viewTestHarness {
 
 	eventStore := eventstore.NewPostgresEventStore(tenantDB)
 	commandBus := cqrs.NewInMemoryCommandBus()
-	hateoas := sharedAPI.NewHATEOASLinks("/api/v1")
+	links := NewViewLinks(sharedAPI.NewHATEOASLinks("/api/v1"))
 
 	readModel := readmodels.NewArchitectureViewReadModel(tenantDB)
 	projector := projectors.NewArchitectureViewProjector(readModel)
@@ -68,9 +68,9 @@ func setupViewHandlers(db *sql.DB) *viewTestHarness {
 	commandBus.Register("ClearElementColor", handlers.NewClearElementColorHandler(layoutRepo))
 
 	return &viewTestHarness{
-		viewHandlers:      NewViewHandlers(commandBus, readModel, hateoas),
+		viewHandlers:      NewViewHandlers(commandBus, readModel, links),
 		componentHandlers: NewViewComponentHandlers(commandBus, readModel),
-		colorHandlers:     NewViewColorHandlers(commandBus, readModel, hateoas),
+		colorHandlers:     NewViewColorHandlers(commandBus, readModel, links),
 		elementHandlers:   NewViewElementHandlers(layoutRepo, readModel),
 	}
 }
@@ -108,10 +108,10 @@ func setupViewTestDB(t *testing.T) (*viewTestContext, func()) {
 	cleanup := func() {
 		db.Exec(fmt.Sprintf("SET app.current_tenant = '%s'", testTenantID()))
 		for _, id := range ctx.createdIDs {
-			db.Exec("DELETE FROM view_element_positions WHERE view_id = $1", id)
-			db.Exec("DELETE FROM view_preferences WHERE view_id = $1", id)
-			db.Exec("DELETE FROM architecture_views WHERE id = $1", id)
-			db.Exec("DELETE FROM events WHERE aggregate_id = $1", id)
+			db.Exec("DELETE FROM architectureviews.view_element_positions WHERE view_id = $1", id)
+			db.Exec("DELETE FROM architectureviews.view_preferences WHERE view_id = $1", id)
+			db.Exec("DELETE FROM architectureviews.architecture_views WHERE id = $1", id)
+			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
 		}
 		db.Close()
 	}

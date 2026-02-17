@@ -39,7 +39,7 @@ func TestRLSPerformance_WithTenantContext(t *testing.T) {
 		err = ctx.tenantDB.WithReadOnlyTx(tenantCtx, func(tx *sql.Tx) error {
 			var count int
 			return tx.QueryRowContext(tenantCtx,
-				"SELECT COUNT(*) FROM events WHERE tenant_id = $1",
+				"SELECT COUNT(*) FROM infrastructure.events WHERE tenant_id = $1",
 				tenant.Value(),
 			).Scan(&count)
 		})
@@ -78,7 +78,7 @@ func TestRLSPerformance_TenantContextSwitch(t *testing.T) {
 		err := ctx.tenantDB.WithReadOnlyTx(tenantCtx, func(tx *sql.Tx) error {
 			var count int
 			return tx.QueryRowContext(tenantCtx,
-				"SELECT COUNT(*) FROM events WHERE tenant_id = $1",
+				"SELECT COUNT(*) FROM infrastructure.events WHERE tenant_id = $1",
 				tenant.Value(),
 			).Scan(&count)
 		})
@@ -118,7 +118,7 @@ func TestRLSPerformance_BulkInsert(t *testing.T) {
 
 	for i := 0; i < numEvents; i++ {
 		_, err = tx.ExecContext(tenantCtx,
-			"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+			"INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
 			tenant.Value(), fmt.Sprintf("%s-%d", aggregateID, i), "TestEvent", eventJSON, 1, time.Now(), "test-user-id", "test@example.com",
 		)
 		require.NoError(t, err)
@@ -133,7 +133,7 @@ func TestRLSPerformance_BulkInsert(t *testing.T) {
 	t.Logf("RLS Bulk Insert Performance: %d inserts in %v (avg: %v per insert)", numEvents, elapsed, avgInsertTime)
 	assert.Less(t, avgInsertTime, 10*time.Millisecond, "Average insert latency should be under 10ms")
 
-	ctx.db.Exec(fmt.Sprintf("DELETE FROM events WHERE aggregate_id LIKE '%s%%'", aggregateID))
+	ctx.db.Exec(fmt.Sprintf("DELETE FROM infrastructure.events WHERE aggregate_id LIKE '%s%%'", aggregateID))
 }
 
 func BenchmarkRLSQuery(b *testing.B) {
@@ -168,7 +168,7 @@ func BenchmarkRLSQuery(b *testing.B) {
 		err := tenantDB.WithReadOnlyTx(tenantCtx, func(tx *sql.Tx) error {
 			var count int
 			return tx.QueryRowContext(tenantCtx,
-				"SELECT COUNT(*) FROM events WHERE tenant_id = $1",
+				"SELECT COUNT(*) FROM infrastructure.events WHERE tenant_id = $1",
 				tenant.Value(),
 			).Scan(&count)
 		})
@@ -217,7 +217,7 @@ func BenchmarkRLSInsert(b *testing.B) {
 		}
 
 		_, err = tx.ExecContext(tenantCtx,
-			"INSERT INTO events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5, $6)",
+			"INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at) VALUES ($1, $2, $3, $4, $5, $6)",
 			tenant.Value(), fmt.Sprintf("%s-%d", testID, i), "BenchEvent", eventJSON, 1, time.Now(),
 		)
 		if err != nil {
@@ -231,5 +231,5 @@ func BenchmarkRLSInsert(b *testing.B) {
 	}
 
 	b.StopTimer()
-	db.Exec(fmt.Sprintf("DELETE FROM events WHERE aggregate_id LIKE '%s%%'", testID))
+	db.Exec(fmt.Sprintf("DELETE FROM infrastructure.events WHERE aggregate_id LIKE '%s%%'", testID))
 }
