@@ -248,6 +248,10 @@ func (h *ChangeCapabilityParentHandler) updateDescendantLevels(ctx context.Conte
 		return err
 	}
 
+	if len(children) == 0 {
+		return nil
+	}
+
 	childLevel, err := h.reparentingService.CalculateChildLevel(parentLevel)
 	if err != nil {
 		return err

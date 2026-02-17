@@ -19,6 +19,7 @@ import (
 	"easi/backend/internal/capabilitymapping/domain/services"
 	"easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -58,39 +59,29 @@ func setupParentHandlers(db *sql.DB) *CapabilityHandlers {
 	assignmentReadModel := readmodels.NewDomainCapabilityAssignmentReadModel(tenantDB)
 
 	projector := projectors.NewCapabilityProjector(readModel, assignmentReadModel)
-	eventBus.Subscribe("CapabilityCreated", projector)
-	eventBus.Subscribe("CapabilityUpdated", projector)
-	eventBus.Subscribe("CapabilityMetadataUpdated", projector)
-	eventBus.Subscribe("CapabilityExpertAdded", projector)
-	eventBus.Subscribe("CapabilityTagAdded", projector)
-	eventBus.Subscribe("CapabilityParentChanged", projector)
+	for _, event := range []string{
+		cmPL.CapabilityCreated, cmPL.CapabilityUpdated, cmPL.CapabilityMetadataUpdated,
+		cmPL.CapabilityExpertAdded, cmPL.CapabilityTagAdded,
+		cmPL.CapabilityParentChanged, cmPL.CapabilityLevelChanged,
+	} {
+		eventBus.Subscribe(event, projector)
+	}
 
 	capabilityRepo := repositories.NewCapabilityRepository(eventStore)
-	createHandler := handlers.NewCreateCapabilityHandler(capabilityRepo)
-	updateHandler := handlers.NewUpdateCapabilityHandler(capabilityRepo)
-	updateMetadataHandler := handlers.NewUpdateCapabilityMetadataHandler(capabilityRepo)
-	addExpertHandler := handlers.NewAddCapabilityExpertHandler(capabilityRepo)
-	addTagHandler := handlers.NewAddCapabilityTagHandler(capabilityRepo)
 	reparentingService := services.NewCapabilityReparentingService(adapters.NewCapabilityLookupAdapter(readModel))
-	changeParentHandler := handlers.NewChangeCapabilityParentHandler(capabilityRepo, readModel, realizationReadModel, reparentingService)
 
-	commandBus.Register("CreateCapability", createHandler)
-	commandBus.Register("UpdateCapability", updateHandler)
-	commandBus.Register("UpdateCapabilityMetadata", updateMetadataHandler)
-	commandBus.Register("AddCapabilityExpert", addExpertHandler)
-	commandBus.Register("AddCapabilityTag", addTagHandler)
-	commandBus.Register("ChangeCapabilityParent", changeParentHandler)
+	commandBus.Register("CreateCapability", handlers.NewCreateCapabilityHandler(capabilityRepo))
+	commandBus.Register("UpdateCapability", handlers.NewUpdateCapabilityHandler(capabilityRepo))
+	commandBus.Register("UpdateCapabilityMetadata", handlers.NewUpdateCapabilityMetadataHandler(capabilityRepo))
+	commandBus.Register("AddCapabilityExpert", handlers.NewAddCapabilityExpertHandler(capabilityRepo))
+	commandBus.Register("AddCapabilityTag", handlers.NewAddCapabilityTagHandler(capabilityRepo))
+	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(capabilityRepo, readModel, realizationReadModel, reparentingService))
 
 	return NewCapabilityHandlers(commandBus, readModel, links)
 }
 
-func (f *parentTestFixture) createCapability(name, level, parentID string) string {
-	reqBody := CreateCapabilityRequest{
-		Name:     name,
-		Level:    level,
-		ParentID: parentID,
-	}
-	body, _ := json.Marshal(reqBody)
+func (f *parentTestFixture) createCapability(capReq CreateCapabilityRequest) string {
+	body, _ := json.Marshal(capReq)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/capabilities", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -108,11 +99,8 @@ func (f *parentTestFixture) createCapability(name, level, parentID string) strin
 	return response.ID
 }
 
-func (f *parentTestFixture) changeParent(capabilityID, newParentID string) *httptest.ResponseRecorder {
-	reqBody := ChangeCapabilityParentRequest{
-		ParentID: newParentID,
-	}
-	body, _ := json.Marshal(reqBody)
+func (f *parentTestFixture) changeParent(capabilityID string, parentReq ChangeCapabilityParentRequest) *httptest.ResponseRecorder {
+	body, _ := json.Marshal(parentReq)
 
 	w, req := makeRequest(f.t, http.MethodPatch, "/api/v1/capabilities/"+capabilityID+"/parent", body, map[string]string{
 		"id": capabilityID,
@@ -131,21 +119,26 @@ func (f *parentTestFixture) getCapability(id string) *readmodels.CapabilityDTO {
 	return capability
 }
 
-func (f *parentTestFixture) changeParentAndVerify(capabilityID, newParentID, expectedLevel string) {
+type parentChangeExpectation struct {
+	parentID string
+	level    string
+}
+
+func (f *parentTestFixture) changeParentAndVerify(capabilityID string, parentReq ChangeCapabilityParentRequest, expect parentChangeExpectation) {
 	f.t.Helper()
-	w := f.changeParent(capabilityID, newParentID)
+	w := f.changeParent(capabilityID, parentReq)
 	assert.Equal(f.t, http.StatusNoContent, w.Code)
 
 	f.waitForProjection()
 
-	capability := f.getCapability(capabilityID)
-	assert.Equal(f.t, newParentID, capability.ParentID)
-	assert.Equal(f.t, expectedLevel, capability.Level)
+	cap := f.getCapability(capabilityID)
+	assert.Equal(f.t, expect.parentID, cap.ParentID)
+	assert.Equal(f.t, expect.level, cap.Level)
 }
 
-func (f *parentTestFixture) changeParentAndExpectConflict(capabilityID, newParentID string) {
+func (f *parentTestFixture) changeParentAndExpectConflict(capabilityID string, parentReq ChangeCapabilityParentRequest) {
 	f.t.Helper()
-	w := f.changeParent(capabilityID, newParentID)
+	w := f.changeParent(capabilityID, parentReq)
 	assert.Equal(f.t, http.StatusConflict, w.Code)
 }
 
@@ -153,8 +146,11 @@ func (f *parentTestFixture) createHierarchy(levels ...string) []string {
 	ids := make([]string, len(levels))
 	parentID := ""
 	for i, level := range levels {
-		name := fmt.Sprintf("%s Capability", level)
-		ids[i] = f.createCapability(name, level, parentID)
+		ids[i] = f.createCapability(CreateCapabilityRequest{
+			Name:     fmt.Sprintf("%s Capability", level),
+			Level:    level,
+			ParentID: parentID,
+		})
 		parentID = ids[i]
 	}
 	return ids
@@ -164,44 +160,44 @@ func TestChangeCapabilityParent_SuccessfullyChangeParent_Integration(t *testing.
 	f, cleanup := newParentTestFixture(t)
 	defer cleanup()
 
-	parentID := f.createCapability("Parent Capability", "L1", "")
-	newParentID := f.createCapability("New Parent Capability", "L1", "")
-	childID := f.createCapability("Child Capability", "L2", parentID)
+	parentID := f.createCapability(CreateCapabilityRequest{Name: "Parent Capability", Level: "L1"})
+	newParentID := f.createCapability(CreateCapabilityRequest{Name: "New Parent Capability", Level: "L1"})
+	childID := f.createCapability(CreateCapabilityRequest{Name: "Child Capability", Level: "L2", ParentID: parentID})
 	f.waitForProjection()
 
-	f.changeParentAndVerify(childID, newParentID, "L2")
+	f.changeParentAndVerify(childID, ChangeCapabilityParentRequest{ParentID: newParentID}, parentChangeExpectation{parentID: newParentID, level: "L2"})
 }
 
 func TestChangeCapabilityParent_MakeCapabilityRoot_Integration(t *testing.T) {
 	f, cleanup := newParentTestFixture(t)
 	defer cleanup()
 
-	parentID := f.createCapability("Parent Capability", "L1", "")
-	childID := f.createCapability("Child Capability", "L2", parentID)
+	parentID := f.createCapability(CreateCapabilityRequest{Name: "Parent Capability", Level: "L1"})
+	childID := f.createCapability(CreateCapabilityRequest{Name: "Child Capability", Level: "L2", ParentID: parentID})
 	f.waitForProjection()
 
-	f.changeParentAndVerify(childID, "", "L1")
+	f.changeParentAndVerify(childID, ChangeCapabilityParentRequest{}, parentChangeExpectation{parentID: "", level: "L1"})
 }
 
 func TestChangeCapabilityParent_LevelAutoCalculation_Integration(t *testing.T) {
 	f, cleanup := newParentTestFixture(t)
 	defer cleanup()
 
-	l1ID := f.createCapability("L1 Capability", "L1", "")
+	l1ID := f.createCapability(CreateCapabilityRequest{Name: "L1 Capability", Level: "L1"})
 	hierarchy := f.createHierarchy("L1", "L2", "L3")
 	f.waitForProjection()
 
-	f.changeParentAndVerify(l1ID, hierarchy[2], "L4")
+	f.changeParentAndVerify(l1ID, ChangeCapabilityParentRequest{ParentID: hierarchy[2]}, parentChangeExpectation{parentID: hierarchy[2], level: "L4"})
 }
 
 func TestChangeCapabilityParent_RejectSelfReference_Integration(t *testing.T) {
 	f, cleanup := newParentTestFixture(t)
 	defer cleanup()
 
-	capabilityID := f.createCapability("Test Capability", "L1", "")
+	capabilityID := f.createCapability(CreateCapabilityRequest{Name: "Test Capability", Level: "L1"})
 	f.waitForProjection()
 
-	f.changeParentAndExpectConflict(capabilityID, capabilityID)
+	f.changeParentAndExpectConflict(capabilityID, ChangeCapabilityParentRequest{ParentID: capabilityID})
 }
 
 func TestChangeCapabilityParent_RejectCircularReference_Integration(t *testing.T) {
@@ -211,7 +207,7 @@ func TestChangeCapabilityParent_RejectCircularReference_Integration(t *testing.T
 	hierarchy := f.createHierarchy("L1", "L2", "L3")
 	f.waitForProjection()
 
-	f.changeParentAndExpectConflict(hierarchy[0], hierarchy[2])
+	f.changeParentAndExpectConflict(hierarchy[0], ChangeCapabilityParentRequest{ParentID: hierarchy[2]})
 }
 
 func TestChangeCapabilityParent_RejectL5PlusHierarchy_Integration(t *testing.T) {
@@ -219,10 +215,10 @@ func TestChangeCapabilityParent_RejectL5PlusHierarchy_Integration(t *testing.T) 
 	defer cleanup()
 
 	hierarchy := f.createHierarchy("L1", "L2", "L3", "L4")
-	anotherL1ID := f.createCapability("Another L1", "L1", "")
+	anotherL1ID := f.createCapability(CreateCapabilityRequest{Name: "Another L1", Level: "L1"})
 	f.waitForProjection()
 
-	f.changeParentAndExpectConflict(anotherL1ID, hierarchy[3])
+	f.changeParentAndExpectConflict(anotherL1ID, ChangeCapabilityParentRequest{ParentID: hierarchy[3]})
 }
 
 func TestChangeCapabilityParent_RejectL5PlusHierarchyWithSubtree_Integration(t *testing.T) {
@@ -230,22 +226,22 @@ func TestChangeCapabilityParent_RejectL5PlusHierarchyWithSubtree_Integration(t *
 	defer cleanup()
 
 	hierarchy := f.createHierarchy("L1", "L2", "L3")
-	targetL1ID := f.createCapability("Target L1", "L1", "")
-	_ = f.createCapability("Target L2", "L2", targetL1ID)
+	targetL1ID := f.createCapability(CreateCapabilityRequest{Name: "Target L1", Level: "L1"})
+	_ = f.createCapability(CreateCapabilityRequest{Name: "Target L2", Level: "L2", ParentID: targetL1ID})
 	f.waitForProjection()
 
-	f.changeParentAndExpectConflict(targetL1ID, hierarchy[2])
+	f.changeParentAndExpectConflict(targetL1ID, ChangeCapabilityParentRequest{ParentID: hierarchy[2]})
 }
 
 func TestChangeCapabilityParent_NonExistentCapability_Integration(t *testing.T) {
 	f, cleanup := newParentTestFixture(t)
 	defer cleanup()
 
-	parentID := f.createCapability("Parent Capability", "L1", "")
+	parentID := f.createCapability(CreateCapabilityRequest{Name: "Parent Capability", Level: "L1"})
 	f.waitForProjection()
 
 	nonExistentID := fmt.Sprintf("non-existent-%d", time.Now().UnixNano())
-	w := f.changeParent(nonExistentID, parentID)
+	w := f.changeParent(nonExistentID, ChangeCapabilityParentRequest{ParentID: parentID})
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
@@ -253,10 +249,10 @@ func TestChangeCapabilityParent_NonExistentParent_Integration(t *testing.T) {
 	f, cleanup := newParentTestFixture(t)
 	defer cleanup()
 
-	capabilityID := f.createCapability("Test Capability", "L1", "")
+	capabilityID := f.createCapability(CreateCapabilityRequest{Name: "Test Capability", Level: "L1"})
 	f.waitForProjection()
 
-	w := f.changeParent(capabilityID, "00000000-0000-0000-0000-000000000000")
+	w := f.changeParent(capabilityID, ChangeCapabilityParentRequest{ParentID: "00000000-0000-0000-0000-000000000000"})
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
@@ -264,12 +260,12 @@ func TestChangeCapabilityParent_DescendantLevelsUpdated_Integration(t *testing.T
 	f, cleanup := newParentTestFixture(t)
 	defer cleanup()
 
-	l1ID := f.createCapability("L1 Capability", "L1", "")
-	l2ID := f.createCapability("L2 Capability", "L2", l1ID)
-	l3ID := f.createCapability("L3 Capability", "L3", l2ID)
+	l1ID := f.createCapability(CreateCapabilityRequest{Name: "L1 Capability", Level: "L1"})
+	l2ID := f.createCapability(CreateCapabilityRequest{Name: "L2 Capability", Level: "L2", ParentID: l1ID})
+	l3ID := f.createCapability(CreateCapabilityRequest{Name: "L3 Capability", Level: "L3", ParentID: l2ID})
 	f.waitForProjection()
 
-	w := f.changeParent(l2ID, "")
+	w := f.changeParent(l2ID, ChangeCapabilityParentRequest{})
 	assert.Equal(t, http.StatusNoContent, w.Code)
 
 	time.Sleep(150 * time.Millisecond)
