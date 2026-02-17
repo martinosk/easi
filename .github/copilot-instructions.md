@@ -9,11 +9,21 @@ EASI is a multi-tenant enterprise architecture modeling tool using Strategic DDD
 
 ## Quick Start
 
-**Build & Test Backend (containerized, no local Go):**
+**Build & Test Backend (command selection):**
+
+- If local `go` is installed, use it directly (preferred):
+```powershell
+cd backend
+go build -o bin/api cmd/api/main.go
+go test ./...
+bash ./test_integration.sh  # Requires bash/WSL/Git Bash
+```
+
+- If local `go` is not available, use the containerized script:
 ```powershell
 cd backend
 .\go-dev.ps1 -- build -o bin/api cmd/api/main.go  # Use -- before dash args
-.\go-dev.ps1 test ./...
+.\go-dev.ps1 -- test ./...
 bash ./test_integration.sh  # Requires bash/WSL/Git Bash
 ```
 

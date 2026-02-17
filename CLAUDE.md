@@ -25,7 +25,7 @@ Find detailed patterns and conventions in `/docs/`:
 - API first: all functionality via API calls
 
 ### Spec Management
-- **NEVER modify a spec file with "done" status**
+- Always update spec checklist before reporting back to user
 - Specs contain only what is to be implemented NOW
 - Status workflow: `pending` → `ongoing` → `done`
 
@@ -55,7 +55,11 @@ Find detailed patterns and conventions in `/docs/`:
 
 ```bash
 # Backend
+# Preferred when local Go is installed:
 go test ./...
+
+# Fallback when local Go is not installed (containerized):
+.\go-dev.ps1 -- test ./...
 
 # Frontend
 npm test -- --run
