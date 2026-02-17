@@ -361,6 +361,144 @@ const docTemplate = `{
                 }
             }
         },
+        "/assistant-config": {
+            "get": {
+                "description": "Retrieves the AI assistant configuration for the current tenant. If no configuration exists yet, returns a default not_configured response.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "assistant-config"
+                ],
+                "summary": "Get assistant configuration",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_archassistant_infrastructure_api.AIConfigResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Creates or updates the AI assistant configuration for the current tenant. API key is optional on update and existing encrypted key is preserved when omitted.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "assistant-config"
+                ],
+                "summary": "Create or update assistant configuration",
+                "parameters": [
+                    {
+                        "description": "Assistant configuration update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_archassistant_infrastructure_api.UpdateAIConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_archassistant_infrastructure_api.AIConfigResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/assistant-config/test": {
+            "post": {
+                "description": "Tests connectivity to the configured LLM provider endpoint using the stored encrypted API key for the current tenant.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "assistant-config"
+                ],
+                "summary": "Test assistant provider connection",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_archassistant_infrastructure_api.TestConnectionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/audit/{aggregateId}": {
             "get": {
                 "security": [
@@ -10893,6 +11031,9 @@ const docTemplate = `{
                 "capabilitiesCreated": {
                     "type": "integer"
                 },
+                "capabilityMappings": {
+                    "type": "integer"
+                },
                 "componentRelationsCreated": {
                     "type": "integer"
                 },
@@ -10910,6 +11051,9 @@ const docTemplate = `{
                 },
                 "realizationsCreated": {
                     "type": "integer"
+                },
+                "valueStreamsCreated": {
+                    "type": "integer"
                 }
             }
         },
@@ -10917,6 +11061,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "capabilities": {
+                    "type": "integer"
+                },
+                "capabilityToValueStreamMappings": {
                     "type": "integer"
                 },
                 "componentRelationships": {
@@ -10929,6 +11076,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "realizations": {
+                    "type": "integer"
+                },
+                "valueStreams": {
                     "type": "integer"
                 }
             }
@@ -11260,6 +11410,90 @@ const docTemplate = `{
                 },
                 "scope": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_archassistant_infrastructure_api.AIConfigResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/easi_backend_internal_shared_api.Link"
+                    }
+                },
+                "apiKeyStatus": {
+                    "type": "string"
+                },
+                "endpoint": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "maxTokens": {
+                    "type": "integer"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "systemPromptOverride": {
+                    "type": "string"
+                },
+                "temperature": {
+                    "type": "number"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_archassistant_infrastructure_api.TestConnectionResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "latencyMs": {
+                    "type": "integer"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_archassistant_infrastructure_api.UpdateAIConfigRequest": {
+            "type": "object",
+            "properties": {
+                "apiKey": {
+                    "type": "string"
+                },
+                "endpoint": {
+                    "type": "string"
+                },
+                "maxTokens": {
+                    "type": "integer"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "systemPromptOverride": {
+                    "type": "string"
+                },
+                "temperature": {
+                    "type": "number"
                 }
             }
         },

@@ -40,7 +40,8 @@ BEGIN
     FOREACH schema_name IN ARRAY ARRAY[
         'infrastructure', 'shared', 'architecturemodeling', 'architectureviews',
         'capabilitymapping', 'enterprisearchitecture', 'viewlayouts', 'importing',
-        'platform', 'auth', 'accessdelegation', 'metamodel', 'releases', 'valuestreams'
+        'platform', 'auth', 'accessdelegation', 'metamodel', 'releases', 'valuestreams',
+        'archassistant'
     ]
     LOOP
         EXECUTE format('CREATE SCHEMA IF NOT EXISTS %I', schema_name);

@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import { MaturityScaleSettings } from '../components/MaturityScaleSettings';
 import { StrategyPillarsSettings } from '../components/StrategyPillarsSettings';
+import { AIConfigurationSettings } from '../components/AIConfigurationSettings';
 import { useUserStore } from '../../../store/userStore';
 import './SettingsPage.css';
 
@@ -47,12 +48,21 @@ export function SettingsPage() {
           >
             Strategy Pillars
           </NavLink>
+          <NavLink
+            to="/settings/ai-configuration"
+            className={({ isActive }) =>
+              `settings-tab ${isActive ? 'settings-tab-active' : ''}`
+            }
+          >
+            AI Configuration
+          </NavLink>
         </nav>
 
         <Routes>
           <Route path="/" element={<Navigate to="/settings/maturity-scale" replace />} />
           <Route path="/maturity-scale" element={<MaturityScaleSettings />} />
           <Route path="/strategy-pillars" element={<StrategyPillarsSettings />} />
+          <Route path="/ai-configuration" element={<AIConfigurationSettings />} />
         </Routes>
       </div>
     </div>

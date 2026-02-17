@@ -60,7 +60,7 @@ func SetupAuthDependencies(db *sql.DB) (*AuthDependencies, error) {
 	}, nil
 }
 
-func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies) error {
+func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies, aiConfigChecker ...AIConfigStatusChecker) error {
 	if config.IsAuthBypassed() {
 		r.Route("/auth", func(r chi.Router) {
 			r.Get("/sessions/current", handleBypassSession)
@@ -102,6 +102,9 @@ func SetupAuthRoutes(r chi.Router, db *sql.DB, deps *AuthDependencies) error {
 	userRepo := NewUserRepositoryAdapter(repositories.NewUserRepository(db))
 	tenantRepo := NewTenantRepositoryAdapter(repositories.NewTenantRepository(db))
 	sessionHandlers := NewSessionHandlers(deps.SessionManager, userRepo, tenantRepo)
+	if len(aiConfigChecker) > 0 && aiConfigChecker[0] != nil {
+		sessionHandlers.WithAIConfigStatusChecker(aiConfigChecker[0])
+	}
 
 	r.Route("/auth", func(r chi.Router) {
 		r.Post("/sessions", authHandlers.PostSessions)

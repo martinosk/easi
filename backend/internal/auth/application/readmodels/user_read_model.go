@@ -76,6 +76,22 @@ func (rm *UserReadModel) GetRoleByEmail(ctx context.Context, email string) (stri
 	return user.Role, nil
 }
 
+func (rm *UserReadModel) GetRoleByUserID(ctx context.Context, userID string) (string, error) {
+	id, err := uuid.Parse(userID)
+	if err != nil {
+		return "", err
+	}
+
+	user, err := rm.GetByID(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	if user == nil {
+		return "", nil
+	}
+	return user.Role, nil
+}
+
 func (rm *UserReadModel) getByField(ctx context.Context, field string, value interface{}) (*UserDTO, error) {
 	if !allowedSelectFields[field] {
 		return nil, fmt.Errorf("invalid field name: %s", field)

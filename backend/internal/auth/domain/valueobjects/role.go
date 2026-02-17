@@ -56,6 +56,7 @@ var rolePermissionsList = map[string][]Permission{
 		PermEnterpriseArchRead, PermEnterpriseArchWrite, PermEnterpriseArchDelete,
 		PermEditGrantsManage,
 		PermValueStreamsRead, PermValueStreamsWrite, PermValueStreamsDelete,
+		PermAssistantUse,
 	},
 	"architect": {
 		PermComponentsRead, PermComponentsWrite, PermComponentsDelete,
@@ -68,6 +69,7 @@ var rolePermissionsList = map[string][]Permission{
 		PermEnterpriseArchRead, PermEnterpriseArchWrite, PermEnterpriseArchDelete,
 		PermEditGrantsManage,
 		PermValueStreamsRead, PermValueStreamsWrite, PermValueStreamsDelete,
+		PermAssistantUse,
 	},
 	"stakeholder": {
 		PermComponentsRead,
