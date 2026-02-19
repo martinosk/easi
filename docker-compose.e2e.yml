@@ -40,6 +40,7 @@ services:
       DB_CONN_STRING: "host=postgres-e2e port=5432 user=${E2E_POSTGRES_USER:-easi_test} password=${E2E_POSTGRES_PASSWORD:-easi_test} dbname=${E2E_POSTGRES_DB:-easi_test} sslmode=disable"
       LOCAL_DEV_MODE: "true"
       PORT: 8080
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-105b52c2af25870943e36ded5a7ca51927715ca4bae962b9c72b9268b4ccb43a}
     ports:
       - "8081:8080"
     depends_on:

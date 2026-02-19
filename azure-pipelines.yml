@@ -276,6 +276,29 @@ stages:
         versionSpec: 1.22.9
 
     - task: Kubernetes@1
+      name: DeleteEncryptionKeySecret
+      displayName: 'Delete easi-encryption-key secret if exists'
+      continueOnError: true
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: delete
+        arguments: 'secret easi-encryption-key'
+        versionSpec: 1.22.9
+
+    - task: Kubernetes@1
+      name: CreateEncryptionKeySecret
+      displayName: 'Create easi-encryption-key secret'
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: create
+        arguments: 'secret generic easi-encryption-key --from-literal=encryption-key="$(ENCRYPTION_KEY)"'
+        versionSpec: 1.22.9
+
+    - task: Kubernetes@1
       name: ApplyManifests
       displayName: 'Apply manifests'
       inputs:

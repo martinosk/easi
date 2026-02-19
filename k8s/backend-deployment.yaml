@@ -90,6 +90,11 @@ spec:
             secretKeyRef:
               name: easi-platform-credentials
               key: admin-api-key
+        - name: ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: easi-encryption-key
+              key: encryption-key
         resources:
           requests:
             memory: "128Mi"
