@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+
+	"easi/backend/internal/archassistant/application/orchestrator"
 )
+
+type eventType string
 
 type Writer struct {
 	mu      sync.Mutex
@@ -47,6 +51,42 @@ func (s *Writer) WriteError(code, message string) error {
 	return s.writeEvent("error", errorPayload{Code: code, Message: message})
 }
 
+type toolCallStartPayload struct {
+	ToolCallID string `json:"toolCallId"`
+	Name       string `json:"name"`
+	Arguments  string `json:"arguments"`
+}
+
+func (s *Writer) WriteToolCallStart(event orchestrator.ToolCallStartEvent) error {
+	return s.writeEvent("tool_call_start", toolCallStartPayload{
+		ToolCallID: event.ToolCallID,
+		Name:       event.Name,
+		Arguments:  event.Arguments,
+	})
+}
+
+type toolCallResultPayload struct {
+	ToolCallID    string `json:"toolCallId"`
+	Name          string `json:"name"`
+	ResultPreview string `json:"resultPreview"`
+}
+
+func (s *Writer) WriteToolCallResult(event orchestrator.ToolCallResultEvent) error {
+	return s.writeEvent("tool_call_result", toolCallResultPayload{
+		ToolCallID:    event.ToolCallID,
+		Name:          event.Name,
+		ResultPreview: event.ResultPreview,
+	})
+}
+
+type thinkingPayload struct {
+	Message string `json:"message"`
+}
+
+func (s *Writer) WriteThinking(event orchestrator.ThinkingEvent) error {
+	return s.writeEvent("thinking", thinkingPayload{Message: event.Message})
+}
+
 func (s *Writer) WritePing() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -58,14 +98,14 @@ func (s *Writer) WritePing() error {
 	return nil
 }
 
-func (s *Writer) writeEvent(eventType string, payload interface{}) error {
+func (s *Writer) writeEvent(evt eventType, payload interface{}) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal SSE payload: %w", err)
 	}
-	_, err = fmt.Fprintf(s.w, "event: %s\ndata: %s\n\n", eventType, data)
+	_, err = fmt.Fprintf(s.w, "event: %s\ndata: %s\n\n", evt, data)
 	if err != nil {
 		return err
 	}

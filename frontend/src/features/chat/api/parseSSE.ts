@@ -1,5 +1,8 @@
 export type SSEEvent =
   | { type: 'token'; content: string }
+  | { type: 'tool_call_start'; toolCallId: string; name: string; arguments: string }
+  | { type: 'tool_call_result'; toolCallId: string; name: string; resultPreview: string }
+  | { type: 'thinking'; message: string }
   | { type: 'done'; messageId: string; tokensUsed: number }
   | { type: 'error'; code: string; message: string };
 
@@ -32,6 +35,9 @@ function toSSEEvent({ eventType, data }: RawSSEBlock): SSEEvent | null {
   const parsed = JSON.parse(data);
   switch (eventType) {
     case 'token': return { type: 'token', content: parsed.content };
+    case 'tool_call_start': return { type: 'tool_call_start', toolCallId: parsed.toolCallId, name: parsed.name, arguments: parsed.arguments };
+    case 'tool_call_result': return { type: 'tool_call_result', toolCallId: parsed.toolCallId, name: parsed.name, resultPreview: parsed.resultPreview };
+    case 'thinking': return { type: 'thinking', message: parsed.message };
     case 'done': return { type: 'done', messageId: parsed.messageId, tokensUsed: parsed.tokensUsed };
     case 'error': return { type: 'error', code: parsed.code, message: parsed.message };
     default: return null;

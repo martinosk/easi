@@ -321,3 +321,218 @@
   color: var(--color-gray-400);
   line-height: 1.3;
 }
+
+.tool-call-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-600);
+  cursor: pointer;
+  flex-wrap: wrap;
+  transition: background 0.15s ease;
+}
+
+.tool-call-indicator:hover {
+  background: var(--color-gray-100);
+}
+
+.tool-call-category-icon {
+  flex-shrink: 0;
+  font-size: 0.85em;
+}
+
+.tool-call-status-icon {
+  flex-shrink: 0;
+  font-size: 0.85em;
+}
+
+.tool-call-label {
+  font-weight: 500;
+}
+
+.tool-call-activity {
+  color: var(--color-gray-400);
+  font-style: italic;
+}
+
+.tool-call-running .tool-call-label {
+  color: var(--color-gray-700);
+}
+
+.tool-call-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  animation: tool-call-pulse-anim 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes tool-call-pulse-anim {
+  0%, 100% { opacity: 0.4; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+.tool-call-completed {
+  color: var(--color-gray-500);
+}
+
+.tool-call-completed .tool-call-status-icon {
+  color: var(--color-success, #22c55e);
+}
+
+.tool-call-error {
+  color: var(--color-error, #ef4444);
+}
+
+.tool-call-error .tool-call-status-icon {
+  color: var(--color-error, #ef4444);
+}
+
+.tool-call-error-message {
+  color: var(--color-error, #ef4444);
+  font-size: var(--font-size-xs);
+}
+
+.tool-call-preview {
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: var(--color-gray-50);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-600);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.chat-panel-history-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  color: var(--color-gray-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-panel-history-btn:hover {
+  background: var(--color-gray-200);
+  color: var(--color-gray-700);
+}
+
+.conversation-list {
+  border-bottom: 1px solid var(--color-gray-200);
+  background: var(--color-gray-50);
+  max-height: 300px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.conversation-list-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.conversation-new-btn {
+  background: none;
+  border: 1px solid var(--color-gray-300);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  color: var(--color-gray-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.conversation-new-btn:hover {
+  background: var(--color-gray-200);
+  color: var(--color-gray-800);
+}
+
+.conversation-list-empty {
+  padding: var(--spacing-md);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-400);
+}
+
+.conversation-list-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.conversation-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  transition: background 0.1s ease;
+  gap: var(--spacing-xs);
+}
+
+.conversation-item:hover {
+  background: var(--color-gray-100);
+}
+
+.conversation-item-active {
+  background: var(--color-gray-200);
+}
+
+.conversation-item-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.conversation-item-title {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-800);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversation-item-time {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-400);
+}
+
+.conversation-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  color: var(--color-gray-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.conversation-item:hover .conversation-delete-btn {
+  opacity: 1;
+}
+
+.conversation-delete-btn:hover {
+  background: var(--color-gray-200);
+  color: var(--color-error, #ef4444);
+}

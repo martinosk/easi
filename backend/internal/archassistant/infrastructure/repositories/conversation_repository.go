@@ -98,6 +98,81 @@ func (r *ConversationRepository) UpdateConversation(ctx context.Context, conv *a
 	})
 }
 
+func (r *ConversationRepository) ListByUser(ctx context.Context, params domain.ListConversationsParams) ([]*aggregates.Conversation, int, error) {
+	var conversations []*aggregates.Conversation
+	var total int
+
+	err := r.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		row := tx.QueryRowContext(ctx, `
+			SELECT COUNT(*) FROM archassistant.conversations WHERE user_id = $1
+		`, params.UserID)
+		if err := row.Scan(&total); err != nil {
+			return err
+		}
+
+		rows, err := tx.QueryContext(ctx, `
+			SELECT id, tenant_id, user_id, title, created_at, last_message_at
+			FROM archassistant.conversations
+			WHERE user_id = $1
+			ORDER BY last_message_at DESC
+			LIMIT $2 OFFSET $3
+		`, params.UserID, params.Limit, params.Offset)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			conv, err := scanConversation(rows)
+			if err != nil {
+				return err
+			}
+			conversations = append(conversations, conv)
+		}
+		return rows.Err()
+	})
+
+	return conversations, total, err
+}
+
+func (r *ConversationRepository) Delete(ctx context.Context, id, userID string) error {
+	return r.db.WithTenantContext(ctx, func(conn *sql.Conn) error {
+		_, err := conn.ExecContext(ctx, `
+			DELETE FROM archassistant.messages WHERE conversation_id = $1
+		`, id)
+		if err != nil {
+			return err
+		}
+
+		result, err := conn.ExecContext(ctx, `
+			DELETE FROM archassistant.conversations WHERE id = $1 AND user_id = $2
+		`, id, userID)
+		if err != nil {
+			return err
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if rowsAffected == 0 {
+			return domain.ErrConversationNotFound
+		}
+		return nil
+	})
+}
+
+func (r *ConversationRepository) CountByUser(ctx context.Context, userID string) (int, error) {
+	var count int
+	err := r.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
+		row := tx.QueryRowContext(ctx, `
+			SELECT COUNT(*) FROM archassistant.conversations WHERE user_id = $1
+		`, userID)
+		return row.Scan(&count)
+	})
+	return count, err
+}
+
 func scanConversation(s scanner) (*aggregates.Conversation, error) {
 	var (
 		id, tenantID, userID, title string

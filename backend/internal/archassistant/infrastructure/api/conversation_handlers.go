@@ -9,10 +9,15 @@ import (
 	"time"
 
 	"easi/backend/internal/archassistant/application/orchestrator"
+	"easi/backend/internal/archassistant/application/tools"
+	"easi/backend/internal/archassistant/domain"
 	"easi/backend/internal/archassistant/domain/aggregates"
+	"easi/backend/internal/archassistant/infrastructure/agenthttp"
 	"easi/backend/internal/archassistant/infrastructure/ratelimit"
 	"easi/backend/internal/archassistant/infrastructure/sse"
+	"easi/backend/internal/archassistant/infrastructure/toolimpls"
 	"easi/backend/internal/archassistant/publishedlanguage"
+	"easi/backend/internal/shared/agenttoken"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/types"
@@ -23,23 +28,31 @@ import (
 
 const maxRequestBodySize = 8 * 1024
 
-type ConversationHandlers struct {
-	configProvider publishedlanguage.AIConfigProvider
-	rateLimiter    *ratelimit.Limiter
-	orchestrator   *orchestrator.Orchestrator
-	links          *sharedAPI.LinkBuilder
+type ConversationHandlersDeps struct {
+	ConfigProvider  publishedlanguage.AIConfigProvider
+	RateLimiter     *ratelimit.Limiter
+	Orchestrator    *orchestrator.Orchestrator
+	ConvRepo        domain.ConversationRepository
+	LoopbackBaseURL string
 }
 
-func NewConversationHandlers(
-	configProvider publishedlanguage.AIConfigProvider,
-	rateLimiter *ratelimit.Limiter,
-	orch *orchestrator.Orchestrator,
-) *ConversationHandlers {
+type ConversationHandlers struct {
+	configProvider  publishedlanguage.AIConfigProvider
+	rateLimiter     *ratelimit.Limiter
+	orchestrator    *orchestrator.Orchestrator
+	convRepo        domain.ConversationRepository
+	links           *sharedAPI.LinkBuilder
+	loopbackBaseURL string
+}
+
+func NewConversationHandlers(deps ConversationHandlersDeps) *ConversationHandlers {
 	return &ConversationHandlers{
-		configProvider: configProvider,
-		rateLimiter:    rateLimiter,
-		orchestrator:   orch,
-		links:          sharedAPI.NewLinkBuilder("/assistant/conversations"),
+		configProvider:  deps.ConfigProvider,
+		rateLimiter:     deps.RateLimiter,
+		orchestrator:    deps.Orchestrator,
+		convRepo:        deps.ConvRepo,
+		links:           sharedAPI.NewLinkBuilder("/assistant/conversations"),
+		loopbackBaseURL: deps.LoopbackBaseURL,
 	}
 }
 
@@ -91,7 +104,8 @@ func (h *ConversationHandlers) CreateConversation(w http.ResponseWriter, r *http
 }
 
 type SendMessageRequest struct {
-	Content string `json:"content"`
+	Content              string `json:"content"`
+	AllowWriteOperations bool   `json:"allowWriteOperations"`
 }
 
 // SendMessage godoc
@@ -141,10 +155,11 @@ func (h *ConversationHandlers) SendMessage(w http.ResponseWriter, r *http.Reques
 }
 
 type parsedInput struct {
-	actor    sharedctx.Actor
-	tenantID string
-	convID   string
-	content  string
+	actor                sharedctx.Actor
+	tenantID             string
+	convID               string
+	content              string
+	allowWriteOperations bool
 }
 
 func (h *ConversationHandlers) parseSendMessageInput(r *http.Request) (*parsedInput, *handlerError) {
@@ -173,10 +188,11 @@ func (h *ConversationHandlers) parseSendMessageInput(r *http.Request) (*parsedIn
 	}
 
 	return &parsedInput{
-		actor:    actor,
-		tenantID: tenantID.Value(),
-		convID:   convID,
-		content:  req.Content,
+		actor:                actor,
+		tenantID:             tenantID.Value(),
+		convID:               convID,
+		content:              req.Content,
+		allowWriteOperations: req.AllowWriteOperations,
 	}, nil
 }
 
@@ -199,20 +215,52 @@ func (h *ConversationHandlers) streamAssistantResponse(w http.ResponseWriter, ct
 		<-pingDone
 	}()
 
+	registry, permissions := h.buildToolContext(input)
+
 	streamErr := h.orchestrator.SendMessage(ctx, sseWriter, orchestrator.SendMessageParams{
 		ConversationID:       input.convID,
 		UserID:               input.actor.ID,
 		Content:              input.content,
 		TenantID:             input.tenantID,
 		UserRole:             string(input.actor.Role),
+		AllowWriteOperations: input.allowWriteOperations,
 		SystemPromptOverride: nil,
 		Config:               config,
+		Permissions:          permissions,
+		ToolRegistry:         registry,
 	})
 
 	if streamErr != nil && ctx.Err() == nil {
 		code := classifyOrchestratorError(streamErr)
 		_ = sseWriter.WriteError(code, sanitizeErrorMessage(streamErr))
 	}
+}
+
+func (h *ConversationHandlers) buildToolContext(input *parsedInput) (*tools.Registry, tools.PermissionChecker) {
+	if h.loopbackBaseURL == "" {
+		return nil, nil
+	}
+
+	token, err := agenttoken.Mint(input.actor.ID, input.tenantID, agenttoken.DefaultTTL)
+	if err != nil {
+		log.Printf("failed to mint agent token: %v", err)
+		return nil, nil
+	}
+
+	client := agenthttp.NewClient(h.loopbackBaseURL, token)
+	registry := tools.NewRegistry()
+	toolimpls.RegisterQueryTools(registry, client)
+	toolimpls.RegisterMutationTools(registry, client)
+
+	return registry, &actorPermissions{actor: input.actor}
+}
+
+type actorPermissions struct {
+	actor sharedctx.Actor
+}
+
+func (a *actorPermissions) HasPermission(permission string) bool {
+	return a.actor.HasPermission(permission)
 }
 
 func startPingLoop(ctx context.Context, writer *sse.Writer) <-chan struct{} {
