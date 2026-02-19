@@ -222,7 +222,7 @@ func buildUpdateParams(req UpdateAIConfigRequest) (aggregates.UpdateConfigParams
 // @Failure 401 {object} sharedAPI.ErrorResponse
 // @Failure 403 {object} sharedAPI.ErrorResponse
 // @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /assistant-config/test [post]
+// @Router /assistant-config/connection-tests [post]
 func (h *AIConfigHandlers) TestConnection(w http.ResponseWriter, r *http.Request) {
 	config, err := h.repo.GetByTenantID(r.Context())
 	if err != nil || config == nil {
@@ -335,13 +335,14 @@ func toResponse(config *aggregates.AIConfiguration, actor sharedctx.Actor) AICon
 }
 
 func configLinks(actor sharedctx.Actor, isConfigured bool) map[string]sharedAPI.Link {
+	lb := sharedAPI.NewLinkBuilder("/assistant-config")
 	links := map[string]sharedAPI.Link{
-		"self": {Href: "/api/v1/assistant-config", Method: "GET"},
+		"self": {Href: lb.Collection(), Method: "GET"},
 	}
 	if actor.HasPermission("metamodel:write") {
-		links["update"] = sharedAPI.Link{Href: "/api/v1/assistant-config", Method: "PUT"}
+		links["update"] = sharedAPI.Link{Href: lb.Collection(), Method: "PUT"}
 		if isConfigured {
-			links["test"] = sharedAPI.Link{Href: "/api/v1/assistant-config/test", Method: "POST"}
+			links["test"] = sharedAPI.Link{Href: sharedAPI.BuildLink("/assistant-config/connection-tests"), Method: "POST"}
 		}
 	}
 	return links

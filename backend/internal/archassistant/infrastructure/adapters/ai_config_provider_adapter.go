@@ -2,7 +2,7 @@ package adapters
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	"easi/backend/internal/archassistant/domain"
 	"easi/backend/internal/archassistant/publishedlanguage"
@@ -21,13 +21,13 @@ func NewAIConfigProviderAdapter(repo domain.AIConfigurationRepository) published
 func (a *AIConfigProviderAdapter) GetDecryptedConfig(ctx context.Context) (*publishedlanguage.AIConfigInfo, error) {
 	config, err := a.repo.GetByTenantID(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load AI configuration: %w", err)
 	}
 	if config == nil {
-		return nil, errors.New("AI configuration not found")
+		return nil, publishedlanguage.ErrNotConfigured
 	}
 	if !config.Status().IsConfigured() {
-		return nil, errors.New("AI configuration is not configured")
+		return nil, publishedlanguage.ErrNotConfigured
 	}
 
 	tenantID, err := sharedctx.GetTenant(ctx)
