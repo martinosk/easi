@@ -25,16 +25,18 @@ export interface SessionTenant {
   name: string;
 }
 
+export interface SessionLinks {
+  self: string;
+  logout: string;
+  user: string;
+  tenant: string;
+  'x-assistant'?: string;
+}
+
 export interface CurrentSessionResponse {
   id: string;
   user: SessionUser;
   tenant: SessionTenant;
   expiresAt: string;
-  _links: {
-    self: string;
-    logout: string;
-    user: string;
-    tenant: string;
-    'x-assistant'?: string;
-  };
+  _links: SessionLinks;
 }

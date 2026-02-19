@@ -9,6 +9,7 @@ type AppView = 'canvas' | 'business-domains' | 'value-streams' | 'invitations' |
 interface AppNavigationProps {
   currentView: AppView;
   onOpenReleaseNotes?: () => void;
+  chatButton?: React.ReactNode;
 }
 
 const viewRouteMap: Record<AppView, string> = {
@@ -134,7 +135,7 @@ function NavItems({ currentView, onNavigate }: { currentView: AppView; onNavigat
   );
 }
 
-export function AppNavigation({ currentView, onOpenReleaseNotes }: AppNavigationProps) {
+export function AppNavigation({ currentView, onOpenReleaseNotes, chatButton }: AppNavigationProps) {
   const navigate = useNavigate();
 
   const handleNavigate = (view: AppView) => {
@@ -151,6 +152,7 @@ export function AppNavigation({ currentView, onOpenReleaseNotes }: AppNavigation
       <NavItems currentView={currentView} onNavigate={handleNavigate} />
 
       <div className="app-header-actions">
+        {chatButton}
         {onOpenReleaseNotes && (
           <button
             type="button"

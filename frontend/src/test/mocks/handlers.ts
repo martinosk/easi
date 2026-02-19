@@ -567,4 +567,34 @@ export const handlers = [
       latencyMs: 150,
     });
   }),
+
+  http.post(`${BASE_URL}/api/v1/assistant/conversations`, () => {
+    const id = `conv-${Date.now()}`;
+    return HttpResponse.json({
+      id,
+      title: 'New conversation',
+      createdAt: new Date().toISOString(),
+      _links: {
+        self: { href: `/api/v1/assistant/conversations/${id}`, method: 'GET' },
+        messages: { href: `/api/v1/assistant/conversations/${id}/messages`, method: 'POST' },
+        delete: { href: `/api/v1/assistant/conversations/${id}`, method: 'DELETE' },
+      },
+    }, { status: 201 });
+  }),
+
+  http.post(`${BASE_URL}/api/v1/assistant/conversations/:id/messages`, () => {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('event: token\ndata: {"content":"Hello! "}\n\n'));
+        controller.enqueue(encoder.encode('event: token\ndata: {"content":"How can I help?"}\n\n'));
+        controller.enqueue(encoder.encode('event: done\ndata: {"messageId":"msg-test","tokensUsed":10}\n\n'));
+        controller.close();
+      },
+    });
+    return new HttpResponse(stream, {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    });
+  }),
 ];

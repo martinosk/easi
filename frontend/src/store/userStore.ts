@@ -7,4 +7,4 @@ export const useUserStore = create<UserStore>()((...args) => ({
   ...createUserSlice(...args),
 }));
 
-export type { SessionUser, SessionTenant, UserRole } from '../features/auth/types';
+export type { SessionUser, SessionTenant, SessionLinks, UserRole } from '../features/auth/types';

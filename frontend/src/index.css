@@ -180,6 +180,11 @@ body {
   border-color: rgba(255, 255, 255, 0.35);
 }
 
+.app-header-action-btn-active {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
 .app-header-action-icon {
   width: 16px;
   height: 16px;
