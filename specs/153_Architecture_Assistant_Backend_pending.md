@@ -417,17 +417,17 @@ Reserve 80% for conversation history + tool results, 20% for system prompt + too
 - [x] Unit tests passing, build passing
 
 **Phase 2 (conversation CRUD + tool-calling assistant):**
-- [ ] Conversation CRUD surface (list, get, delete)
-- [ ] Max 100 per user, 90-day cleanup
-- [ ] LLM client: tool call accumulation
-- [ ] Agent HTTP client: loopback with agent token auth
-- [ ] Tool registry: permission + allowWriteOperations-filtered with defense-in-depth execution
-- [ ] 11 query tools (list/get/search for applications, capabilities, domains, value streams)
-- [ ] 12 mutation tools (create/update/delete for applications, capabilities, domains, relations, realizations)
-- [ ] Agent loop with guardrails (max iterations, timeouts, cancellation)
-- [ ] Agent token from SSE handler (never session cookie)
-- [ ] `allowWriteOperations=false` default (read-only tools), `allowWriteOperations=true` enables permitted write tools
-- [ ] Additional SSE events (tool_call_start, tool_call_result, thinking)
-- [ ] System prompt: write confirmation rules
+- [x] Conversation CRUD surface (list, get, delete)
+- [x] Max 100 per user, 90-day cleanup
+- [x] LLM client: tool call accumulation
+- [x] Agent HTTP client: loopback with agent token auth
+- [x] Tool registry: permission + allowWriteOperations-filtered with defense-in-depth execution
+- [x] 11 query tools (list/get/search for applications, capabilities, domains, value streams)
+- [x] 12 mutation tools (create/update/delete for applications, capabilities, domains, relations, realizations)
+- [x] Agent loop with guardrails (max iterations, timeouts, cancellation)
+- [x] Agent token from SSE handler (never session cookie)
+- [x] `allowWriteOperations=false` default (read-only tools), `allowWriteOperations=true` enables permitted write tools
+- [x] Additional SSE events (tool_call_start, tool_call_result, thinking)
+- [x] System prompt: write confirmation rules
 - [ ] OpenTelemetry spans: handle_message, llm_call, tool_execution
-- [ ] Usage tracking persistence per message
+- [x] Usage tracking persistence per message

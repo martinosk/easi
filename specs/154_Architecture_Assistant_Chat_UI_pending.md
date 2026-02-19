@@ -109,11 +109,11 @@ Invalidate conversation list on `done` SSE event (title and `lastMessageAt` chan
 - [x] Chat panel (slide-out, responsive, transitions)
 - [x] Message display (user/assistant variants, markdown, streaming cursor)
 - [x] YOLO checkbox (default off) — UI done, not yet wired to `allowWriteOperations` in payload
-- [ ] Tool call indicators (Phase 2: running/completed/error, read/write icons, expandable)
+- [x] Tool call indicators (Phase 2: running/completed/error, read/write icons, expandable)
 - [x] Chat input (multiline, Enter to send, disabled during streaming)
 - [x] Chat button in navigation (HATEOAS-gated)
 - [x] SSE streaming hook with event parsing
-- [ ] Phase 2: Conversation management (list, create, switch, delete)
-- [ ] Cache invalidation (conversation list on done event — Phase 2, no conversation list yet)
+- [x] Phase 2: Conversation management (list, create, switch, delete)
+- [x] Cache invalidation (conversation list on done event — Phase 2, no conversation list yet)
 - [x] MSW test handlers
 - [x] Tests and build passing

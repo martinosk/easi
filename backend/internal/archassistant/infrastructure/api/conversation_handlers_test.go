@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"easi/backend/internal/archassistant/application/orchestrator"
+	"easi/backend/internal/archassistant/domain"
 	"easi/backend/internal/archassistant/domain/aggregates"
 	vo "easi/backend/internal/archassistant/domain/valueobjects"
 	"easi/backend/internal/archassistant/infrastructure/adapters"
@@ -56,6 +57,18 @@ func (m *mockConversationRepo) UpdateConversation(ctx context.Context, conv *agg
 	return nil
 }
 
+func (m *mockConversationRepo) ListByUser(_ context.Context, _ domain.ListConversationsParams) ([]*aggregates.Conversation, int, error) {
+	return nil, 0, nil
+}
+
+func (m *mockConversationRepo) Delete(_ context.Context, _, _ string) error {
+	return nil
+}
+
+func (m *mockConversationRepo) CountByUser(_ context.Context, _ string) (int, error) {
+	return 0, nil
+}
+
 type mockConfigProvider struct {
 	config *publishedlanguage.AIConfigInfo
 	err    error
@@ -91,7 +104,12 @@ func withActorAndTenant(r *http.Request) *http.Request {
 func newTestHandlers(repo *mockConversationRepo, cp *mockConfigProvider, limiter *ratelimit.Limiter) *assistantAPI.ConversationHandlers {
 	factory := adapters.NewLLMClientFactory()
 	orch := orchestrator.New(repo, factory)
-	return assistantAPI.NewConversationHandlers(cp, limiter, orch)
+	return assistantAPI.NewConversationHandlers(assistantAPI.ConversationHandlersDeps{
+		ConfigProvider: cp,
+		RateLimiter:    limiter,
+		Orchestrator:   orch,
+		ConvRepo:       repo,
+	})
 }
 
 func newSendMessageRequest(t *testing.T, convID string, body interface{}) *http.Request {

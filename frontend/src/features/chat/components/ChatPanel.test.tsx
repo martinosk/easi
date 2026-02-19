@@ -1,15 +1,70 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { ChatPanel } from './ChatPanel';
+import { createTestQueryClient, TestProviders } from '../../../test/helpers/renderWithProviders';
+import type { ReactNode } from 'react';
+import type { QueryClient } from '@tanstack/react-query';
 
 vi.mock('../api/chatApi', () => ({
   chatApi: {
     createConversation: vi.fn(),
     sendMessageStream: vi.fn(),
+    listConversations: vi.fn(),
+    getConversation: vi.fn(),
+    deleteConversation: vi.fn(),
   },
 }));
 
 import { chatApi } from '../api/chatApi';
+
+function createWrapper(queryClient: QueryClient) {
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <TestProviders withRouter={false} queryClient={queryClient}>
+        {children}
+      </TestProviders>
+    );
+  };
+}
+
+function renderPanel(isOpen: boolean, onClose = vi.fn(), queryClient?: QueryClient) {
+  const qc = queryClient ?? createTestQueryClient();
+  vi.mocked(chatApi.listConversations).mockResolvedValue({ data: [], _links: {} });
+  const Wrapper = createWrapper(qc);
+  return render(
+    <Wrapper>
+      <ChatPanel isOpen={isOpen} onClose={onClose} />
+    </Wrapper>
+  );
+}
+
+function mockConversationAndStream(convId: string) {
+  vi.mocked(chatApi.createConversation).mockResolvedValue({
+    id: convId,
+    title: 'New conversation',
+    createdAt: new Date().toISOString(),
+    _links: {},
+  });
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode('event: token\ndata: {"content":"Hello"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n'));
+      controller.close();
+    },
+  });
+  vi.mocked(chatApi.sendMessageStream).mockResolvedValue(
+    new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } })
+  );
+}
+
+async function typeAndSendMessage(text: string) {
+  const textarea = screen.getByPlaceholderText('Ask about your architecture...');
+  await act(async () => {
+    fireEvent.change(textarea, { target: { value: text } });
+    fireEvent.keyDown(textarea, { key: 'Enter' });
+  });
+}
 
 describe('ChatPanel', () => {
   beforeEach(() => {
@@ -17,77 +72,54 @@ describe('ChatPanel', () => {
   });
 
   it('should not render when isOpen is false', () => {
-    const { container } = render(<ChatPanel isOpen={false} onClose={vi.fn()} />);
+    const { container } = renderPanel(false);
     expect(container.querySelector('.chat-panel')).not.toBeInTheDocument();
   });
 
   it('should render when isOpen is true', () => {
-    const { container } = render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+    const { container } = renderPanel(true);
     expect(container.querySelector('.chat-panel')).toBeInTheDocument();
   });
 
   it('should render header with title', () => {
-    render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+    renderPanel(true);
     expect(screen.getByText('Architecture Assistant')).toBeInTheDocument();
   });
 
   it('should render close button', () => {
-    render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+    renderPanel(true);
     expect(screen.getByLabelText('Close chat')).toBeInTheDocument();
   });
 
   it('should call onClose when close button is clicked', () => {
     const onClose = vi.fn();
-    render(<ChatPanel isOpen={true} onClose={onClose} />);
+    renderPanel(true, onClose);
     fireEvent.click(screen.getByLabelText('Close chat'));
     expect(onClose).toHaveBeenCalled();
   });
 
   it('should call onClose when Escape is pressed', () => {
     const onClose = vi.fn();
-    render(<ChatPanel isOpen={true} onClose={onClose} />);
+    renderPanel(true, onClose);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });
 
   it('should show prompt suggestions in empty state', () => {
-    render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+    renderPanel(true);
     expect(screen.getByText('What applications are in the Finance domain?')).toBeInTheDocument();
     expect(screen.getByText('Show me a portfolio summary')).toBeInTheDocument();
   });
 
   it('should render chat input', () => {
-    render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+    renderPanel(true);
     expect(screen.getByPlaceholderText('Ask about your architecture...')).toBeInTheDocument();
   });
 
-  it('should create conversation on open and send message', async () => {
-    vi.mocked(chatApi.createConversation).mockResolvedValue({
-      id: 'conv-1',
-      title: 'New conversation',
-      createdAt: new Date().toISOString(),
-      _links: {},
-    });
-
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(encoder.encode('event: token\ndata: {"content":"Hello"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n'));
-        controller.close();
-      },
-    });
-    vi.mocked(chatApi.sendMessageStream).mockResolvedValue(
-      new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } })
-    );
-
-    render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
-
-    const textarea = screen.getByPlaceholderText('Ask about your architecture...');
-
-    await act(async () => {
-      fireEvent.change(textarea, { target: { value: 'Hello' } });
-      fireEvent.keyDown(textarea, { key: 'Enter' });
-    });
+  it('should create conversation on first send and send message', async () => {
+    mockConversationAndStream('conv-1');
+    renderPanel(true);
+    await typeAndSendMessage('Hello');
 
     await waitFor(() => {
       expect(chatApi.createConversation).toHaveBeenCalled();
@@ -95,7 +127,22 @@ describe('ChatPanel', () => {
   });
 
   it('should render YOLO checkbox', () => {
-    render(<ChatPanel isOpen={true} onClose={vi.fn()} />);
+    renderPanel(true);
     expect(screen.getByLabelText('YOLO (allow changes)')).toBeInTheDocument();
+  });
+
+  it('should pass yoloEnabled as allowWriteOperations when sending message', async () => {
+    mockConversationAndStream('conv-yolo');
+    renderPanel(true);
+
+    fireEvent.click(screen.getByLabelText('YOLO (allow changes)'));
+    await typeAndSendMessage('Create app');
+
+    await waitFor(() => {
+      expect(chatApi.sendMessageStream).toHaveBeenCalledWith('conv-yolo', {
+        content: 'Create app',
+        allowWriteOperations: true,
+      });
+    });
   });
 });

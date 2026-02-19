@@ -1,39 +1,12 @@
-import { useEffect, useCallback, useState, useRef } from 'react';
-import { ChatMessage } from './ChatMessage';
+import { useEffect, useCallback, useState } from 'react';
 import { ChatInput } from './ChatInput';
+import { ChatPanelHeader } from './ChatPanelHeader';
+import { ConversationList } from './ConversationList';
+import { MessageList } from './MessageList';
 import { useChat } from '../hooks/useChat';
+import { useConversations } from '../hooks/useConversations';
 import { chatApi } from '../api/chatApi';
 import './ChatPanel.css';
-
-const PROMPT_SUGGESTIONS = [
-  'What applications are in the Finance domain?',
-  'Show me a portfolio summary',
-  "Create a new application called 'Payment Gateway'",
-];
-
-function EmptyState({ onSuggestionClick }: { onSuggestionClick: (s: string) => void }) {
-  return (
-    <div className="chat-empty-state">
-      <p className="chat-empty-title">How can I help with your architecture?</p>
-      <div className="chat-suggestions">
-        {PROMPT_SUGGESTIONS.map((suggestion) => (
-          <button
-            key={suggestion}
-            type="button"
-            className="chat-suggestion-btn"
-            onClick={() => onSuggestionClick(suggestion)}
-          >
-            {suggestion}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function isLastAssistantMessage(index: number, role: string, total: number): boolean {
-  return role === 'assistant' && index === total - 1;
-}
 
 interface ChatPanelProps {
   isOpen: boolean;
@@ -43,8 +16,11 @@ interface ChatPanelProps {
 export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [yoloEnabled, setYoloEnabled] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { messages, isStreaming, error, sendMessage } = useChat();
+  const [showConversationList, setShowConversationList] = useState(false);
+  const { conversations, deleteConversation, invalidateList } = useConversations();
+  const { messages, toolCalls, isStreaming, error, sendMessage } = useChat({
+    onDone: invalidateList,
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -56,58 +32,60 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
   const handleSend = useCallback(async (content: string) => {
     let convId = conversationId;
     if (!convId) {
       const conversation = await chatApi.createConversation();
       convId = conversation.id;
       setConversationId(convId);
+      invalidateList();
     }
-    sendMessage(convId, content);
-  }, [conversationId, sendMessage]);
+    sendMessage(convId, content, yoloEnabled);
+  }, [conversationId, sendMessage, yoloEnabled, invalidateList]);
+
+  const handleSelectConversation = useCallback((id: string) => {
+    setConversationId(id);
+    setShowConversationList(false);
+  }, []);
+
+  const handleNewConversation = useCallback(() => {
+    setConversationId(null);
+    setShowConversationList(false);
+  }, []);
+
+  const handleDeleteConversation = useCallback((id: string) => {
+    deleteConversation(id);
+    if (conversationId === id) {
+      setConversationId(null);
+    }
+  }, [deleteConversation, conversationId]);
 
   if (!isOpen) return null;
 
   return (
     <div className="chat-panel" role="complementary" aria-label="Chat panel">
-      <div className="chat-panel-header">
-        <h2 className="chat-panel-title">Architecture Assistant</h2>
-        <button
-          type="button"
-          className="chat-panel-close"
-          onClick={onClose}
-          aria-label="Close chat"
-        >
-          <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
-            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-        </button>
-      </div>
+      <ChatPanelHeader
+        onToggleHistory={() => setShowConversationList(!showConversationList)}
+        onClose={onClose}
+      />
 
-      <div className="chat-panel-messages">
-        {messages.length === 0 && <EmptyState onSuggestionClick={handleSend} />}
+      {showConversationList && (
+        <ConversationList
+          conversations={conversations}
+          activeConversationId={conversationId}
+          onSelect={handleSelectConversation}
+          onDelete={handleDeleteConversation}
+          onNewConversation={handleNewConversation}
+        />
+      )}
 
-        {messages.map((msg, index) => (
-          <ChatMessage
-            key={msg.id}
-            role={msg.role}
-            content={msg.content}
-            isStreaming={isStreaming && isLastAssistantMessage(index, msg.role, messages.length)}
-          />
-        ))}
-
-        {error && (
-          <div className="chat-error">
-            {error}
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
+      <MessageList
+        messages={messages}
+        toolCalls={toolCalls}
+        isStreaming={isStreaming}
+        error={error}
+        onSuggestionClick={handleSend}
+      />
 
       <ChatInput
         onSend={handleSend}

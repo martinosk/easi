@@ -6,6 +6,9 @@ vi.mock('../api/chatApi', () => ({
   chatApi: {
     createConversation: vi.fn(),
     sendMessageStream: vi.fn(),
+    listConversations: vi.fn(),
+    getConversation: vi.fn(),
+    deleteConversation: vi.fn(),
   },
 }));
 
@@ -112,14 +115,94 @@ describe('useChat', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('should pass conversationId to sendMessageStream', async () => {
+  it.each([
+    { desc: 'conversationId only', convId: 'my-conv-42', content: 'Hello', writeOps: undefined, expected: { content: 'Hello' } },
+    { desc: 'allowWriteOperations true', convId: 'conv-1', content: 'Create app', writeOps: true, expected: { content: 'Create app', allowWriteOperations: true } },
+    { desc: 'allowWriteOperations false', convId: 'conv-1', content: 'Read app', writeOps: false, expected: { content: 'Read app', allowWriteOperations: false } },
+  ])('should pass $desc to sendMessageStream', async ({ convId, content, writeOps, expected }) => {
     vi.mocked(chatApi.sendMessageStream).mockResolvedValue(createMockSSEResponse('event: done\ndata: {"messageId":"m1","tokensUsed":1}\n\n'));
     const { result } = renderHook(() => useChat());
 
     await act(async () => {
-      await result.current.sendMessage('my-conv-42', 'Hello');
+      await result.current.sendMessage(convId, content, writeOps);
     });
 
-    expect(chatApi.sendMessageStream).toHaveBeenCalledWith('my-conv-42', { content: 'Hello' });
+    expect(chatApi.sendMessageStream).toHaveBeenCalledWith(convId, expected);
+  });
+
+  it('should call onDone callback when done event is received', async () => {
+    const onDone = vi.fn();
+    vi.mocked(chatApi.sendMessageStream).mockResolvedValue(
+      createMockSSEResponse('event: token\ndata: {"content":"ok"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n')
+    );
+
+    const { result } = renderHook(() => useChat({ onDone }));
+
+    await act(async () => {
+      await result.current.sendMessage('conv-1', 'Hello');
+    });
+
+    expect(onDone).toHaveBeenCalled();
+  });
+
+  it('should track tool calls from SSE events', async () => {
+    const sseData = [
+      'event: tool_call_start\ndata: {"toolCallId":"tc-1","name":"list_applications","arguments":"{}"}\n\n',
+      'event: tool_call_result\ndata: {"toolCallId":"tc-1","name":"list_applications","resultPreview":"Found 3 apps"}\n\n',
+      'event: token\ndata: {"content":"Here are the apps"}\n\n',
+      'event: done\ndata: {"messageId":"msg-1","tokensUsed":10}\n\n',
+    ].join('');
+
+    const result = await sendWithSSE(sseData);
+
+    expect(result.current.toolCalls).toEqual([
+      {
+        id: 'tc-1',
+        name: 'list_applications',
+        status: 'completed',
+        resultPreview: 'Found 3 apps',
+      },
+    ]);
+  });
+
+  it('should add tool call as running on tool_call_start', async () => {
+    const sseData = [
+      'event: tool_call_start\ndata: {"toolCallId":"tc-1","name":"list_applications","arguments":"{}"}\n\n',
+      'event: token\ndata: {"content":"Working..."}\n\n',
+      'event: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n',
+    ].join('');
+
+    const result = await sendWithSSE(sseData);
+
+    expect(result.current.toolCalls).toEqual([
+      { id: 'tc-1', name: 'list_applications', status: 'running' },
+    ]);
+  });
+
+  it('should clear tool calls when sending a new message', async () => {
+    const sseDataWithTool = [
+      'event: tool_call_start\ndata: {"toolCallId":"tc-1","name":"list_applications","arguments":"{}"}\n\n',
+      'event: tool_call_result\ndata: {"toolCallId":"tc-1","name":"list_applications","resultPreview":"Found 3"}\n\n',
+      'event: token\ndata: {"content":"Result"}\n\n',
+      'event: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n',
+    ].join('');
+
+    const sseDataSimple = 'event: token\ndata: {"content":"Hello"}\n\nevent: done\ndata: {"messageId":"msg-2","tokensUsed":3}\n\n';
+
+    vi.mocked(chatApi.sendMessageStream)
+      .mockResolvedValueOnce(createMockSSEResponse(sseDataWithTool))
+      .mockResolvedValueOnce(createMockSSEResponse(sseDataSimple));
+
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.sendMessage('conv-1', 'First');
+    });
+    expect(result.current.toolCalls.length).toBe(1);
+
+    await act(async () => {
+      await result.current.sendMessage('conv-1', 'Second');
+    });
+    expect(result.current.toolCalls).toEqual([]);
   });
 });

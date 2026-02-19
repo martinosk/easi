@@ -65,3 +65,41 @@ func TestBuild_OverrideWithInjectionIsFiltered(t *testing.T) {
 	assert.Contains(t, result, "[filtered]")
 	assert.NotContains(t, result, "ignore previous")
 }
+
+func TestBuild_WriteAccessDisabled(t *testing.T) {
+	result := systemprompt.Build(systemprompt.BuildParams{
+		TenantID:             "acme-corp",
+		UserRole:             "architect",
+		AllowWriteOperations: false,
+	})
+
+	assert.Contains(t, result, "Do not call write tools")
+	assert.NotContains(t, result, "ask for explicit confirmation")
+}
+
+func TestBuild_WriteAccessEnabled(t *testing.T) {
+	result := systemprompt.Build(systemprompt.BuildParams{
+		TenantID:             "acme-corp",
+		UserRole:             "admin",
+		AllowWriteOperations: true,
+	})
+
+	assert.Contains(t, result, "ask for explicit confirmation")
+	assert.NotContains(t, result, "Do not call write tools")
+}
+
+func TestBuild_WriteAccessMode_IncludedInPrompt(t *testing.T) {
+	resultOff := systemprompt.Build(systemprompt.BuildParams{
+		TenantID:             "acme-corp",
+		UserRole:             "architect",
+		AllowWriteOperations: false,
+	})
+	resultOn := systemprompt.Build(systemprompt.BuildParams{
+		TenantID:             "acme-corp",
+		UserRole:             "architect",
+		AllowWriteOperations: true,
+	})
+
+	assert.Contains(t, resultOff, "Write access mode is disabled")
+	assert.Contains(t, resultOn, "Write access mode is enabled")
+}

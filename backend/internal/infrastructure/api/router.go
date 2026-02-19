@@ -328,11 +328,13 @@ func setupAuthRoutes(r chi.Router, deps routerDependencies) {
 }
 
 func setupArchAssistantRoutes(r chi.Router, deps routerDependencies) {
+	port := getEnv("PORT", "8080")
 	mustSetup(archAssistantAPI.SetupArchAssistantRoutes(archAssistantAPI.ArchAssistantRoutesDeps{
-		Router:         r,
-		DB:             deps.db,
-		AuthMiddleware: deps.authDeps.AuthMiddleware,
-		RateLimiter:    deps.assistantRateLimiter,
+		Router:          r,
+		DB:              deps.db,
+		AuthMiddleware:  deps.authDeps.AuthMiddleware,
+		RateLimiter:     deps.assistantRateLimiter,
+		LoopbackBaseURL: "http://localhost:" + port + "/api/v1",
 	}), "arch assistant routes")
 
 	aiConfigRepo := archAssistantRepos.NewAIConfigurationRepository(deps.db)

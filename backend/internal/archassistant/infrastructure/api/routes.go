@@ -18,10 +18,11 @@ type AuthMiddleware interface {
 }
 
 type ArchAssistantRoutesDeps struct {
-	Router         chi.Router
-	DB             *database.TenantAwareDB
-	AuthMiddleware AuthMiddleware
-	RateLimiter    *ratelimit.Limiter
+	Router           chi.Router
+	DB               *database.TenantAwareDB
+	AuthMiddleware   AuthMiddleware
+	RateLimiter      *ratelimit.Limiter
+	LoopbackBaseURL  string
 }
 
 func SetupArchAssistantRoutes(deps ArchAssistantRoutesDeps) error {
@@ -39,11 +40,20 @@ func SetupArchAssistantRoutes(deps ArchAssistantRoutesDeps) error {
 	configProvider := adapters.NewAIConfigProviderAdapter(aiConfigRepo)
 	clientFactory := adapters.NewLLMClientFactory()
 	orch := orchestrator.New(convRepo, clientFactory)
-	convHandlers := NewConversationHandlers(configProvider, deps.RateLimiter, orch)
+	convHandlers := NewConversationHandlers(ConversationHandlersDeps{
+		ConfigProvider:  configProvider,
+		RateLimiter:     deps.RateLimiter,
+		Orchestrator:    orch,
+		ConvRepo:        convRepo,
+		LoopbackBaseURL: deps.LoopbackBaseURL,
+	})
 
 	deps.Router.Route("/assistant/conversations", func(r chi.Router) {
 		r.Use(deps.AuthMiddleware.RequirePermission(authPL.PermAssistantUse))
-		r.Post("/", convHandlers.CreateConversation)
+		r.Get("/", convHandlers.ListConversations)
+		r.Post("/", convHandlers.CreateConversationWithLimit)
+		r.Get("/{id}", convHandlers.GetConversation)
+		r.Delete("/{id}", convHandlers.DeleteConversation)
 		r.Post("/{id}/messages", convHandlers.SendMessage)
 	})
 

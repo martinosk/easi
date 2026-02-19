@@ -50,4 +50,29 @@ describe('parseSSEChunk', () => {
     const events = parseSSEChunk(chunk);
     expect(events).toEqual([]);
   });
+
+  it.each([
+    {
+      desc: 'tool_call_start',
+      chunk: 'event: tool_call_start\ndata: {"toolCallId":"tc-1","name":"list_applications","arguments":"{}"}\n\n',
+      expected: [{ type: 'tool_call_start', toolCallId: 'tc-1', name: 'list_applications', arguments: '{}' }],
+    },
+    {
+      desc: 'tool_call_result',
+      chunk: 'event: tool_call_result\ndata: {"toolCallId":"tc-1","name":"list_applications","resultPreview":"Found 3 applications"}\n\n',
+      expected: [{ type: 'tool_call_result', toolCallId: 'tc-1', name: 'list_applications', resultPreview: 'Found 3 applications' }],
+    },
+  ])('should parse a $desc event', ({ chunk, expected }) => {
+    const events = parseSSEChunk(chunk);
+    expect(events).toEqual(expected);
+  });
+
+  it('should parse a thinking event', () => {
+    const chunk = 'event: thinking\ndata: {"message":"Analyzing the architecture..."}\n\n';
+    const events = parseSSEChunk(chunk);
+    expect(events).toEqual([{
+      type: 'thinking',
+      message: 'Analyzing the architecture...',
+    }]);
+  });
 });

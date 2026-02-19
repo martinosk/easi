@@ -568,6 +568,35 @@ export const handlers = [
     });
   }),
 
+  http.get(`${BASE_URL}/api/v1/assistant/conversations`, () => {
+    return HttpResponse.json({
+      data: [],
+      _links: {
+        self: { href: '/api/v1/assistant/conversations', method: 'GET' },
+        create: { href: '/api/v1/assistant/conversations', method: 'POST' },
+      },
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/v1/assistant/conversations/:id`, ({ params }) => {
+    return HttpResponse.json({
+      id: params.id,
+      title: 'Test conversation',
+      createdAt: new Date().toISOString(),
+      lastMessageAt: new Date().toISOString(),
+      messages: [],
+      _links: {
+        self: { href: `/api/v1/assistant/conversations/${params.id}`, method: 'GET' },
+        messages: { href: `/api/v1/assistant/conversations/${params.id}/messages`, method: 'POST' },
+        delete: { href: `/api/v1/assistant/conversations/${params.id}`, method: 'DELETE' },
+      },
+    });
+  }),
+
+  http.delete(`${BASE_URL}/api/v1/assistant/conversations/:id`, () => {
+    return new HttpResponse(null, { status: 204 });
+  }),
+
   http.post(`${BASE_URL}/api/v1/assistant/conversations`, () => {
     const id = `conv-${Date.now()}`;
     return HttpResponse.json({
