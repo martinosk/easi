@@ -2,7 +2,10 @@ package publishedlanguage
 
 import (
 	"context"
+	"errors"
 )
+
+var ErrNotConfigured = errors.New("AI assistant is not configured")
 
 type AIConfigInfo struct {
 	Provider    string

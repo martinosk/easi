@@ -13,6 +13,7 @@ import (
 	archAssistantHandlers "easi/backend/internal/archassistant/application/handlers"
 	archAssistantAdapters "easi/backend/internal/archassistant/infrastructure/adapters"
 	archAssistantAPI "easi/backend/internal/archassistant/infrastructure/api"
+	archAssistantRateLimit "easi/backend/internal/archassistant/infrastructure/ratelimit"
 	archAssistantRepos "easi/backend/internal/archassistant/infrastructure/repositories"
 	archReadModels "easi/backend/internal/architecturemodeling/application/readmodels"
 	archAdapters "easi/backend/internal/architecturemodeling/infrastructure/adapters"
@@ -70,6 +71,7 @@ type routerDependencies struct {
 	hateoas               *sharedAPI.HATEOASLinks
 	userReadModel         *authReadModels.UserReadModel
 	aiConfigStatusChecker *archAssistantAdapters.AIConfigStatusAdapter
+	assistantRateLimiter  *archAssistantRateLimit.Limiter
 	appContext            context.Context
 }
 
@@ -104,6 +106,7 @@ func initializeDependencies(appContext context.Context, eventStore eventstore.Ev
 	}
 
 	aiConfigStatusChecker := archAssistantAdapters.NewAIConfigStatusAdapter(db)
+	assistantRateLimiter := archAssistantRateLimit.NewLimiter()
 
 	return routerDependencies{
 		eventStore:            eventStore,
@@ -114,6 +117,7 @@ func initializeDependencies(appContext context.Context, eventStore eventstore.Ev
 		hateoas:               sharedAPI.NewHATEOASLinks("/api/v1"),
 		userReadModel:         userReadModel,
 		aiConfigStatusChecker: aiConfigStatusChecker,
+		assistantRateLimiter:  assistantRateLimiter,
 		appContext:            appContext,
 	}
 }
@@ -328,6 +332,7 @@ func setupArchAssistantRoutes(r chi.Router, deps routerDependencies) {
 		Router:         r,
 		DB:             deps.db,
 		AuthMiddleware: deps.authDeps.AuthMiddleware,
+		RateLimiter:    deps.assistantRateLimiter,
 	}), "arch assistant routes")
 
 	aiConfigRepo := archAssistantRepos.NewAIConfigurationRepository(deps.db)
