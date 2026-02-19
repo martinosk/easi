@@ -11,6 +11,8 @@ import (
 	"easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/auth/infrastructure/session"
 	sharedAPI "easi/backend/internal/shared/api"
+	sharedctx "easi/backend/internal/shared/context"
+	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 )
 
 type UserDTO struct {
@@ -119,7 +121,9 @@ func (h *SessionHandlers) GetCurrentSession(w http.ResponseWriter, r *http.Reque
 
 	permissions := valueobjects.PermissionsToStrings(role.Permissions())
 
-	links := h.buildSessionLinks(r.Context(), user.ID, role)
+	tenantID, _ := sharedvo.NewTenantID(authSession.TenantID())
+	ctxWithTenant := sharedctx.WithTenant(r.Context(), tenantID)
+	links := h.buildSessionLinks(ctxWithTenant, user.ID, role)
 
 	response := CurrentSessionResponse{
 		ID: authSession.TenantID(),
