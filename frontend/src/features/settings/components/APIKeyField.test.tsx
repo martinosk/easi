@@ -22,7 +22,7 @@ describe('APIKeyField', () => {
 
     expect(screen.getByText('API key configured')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Change' })).toBeInTheDocument();
-    expect(screen.queryByLabelText('API Key')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^API Key/)).not.toBeInTheDocument();
   });
 
   it('calls onShowInput when Change is clicked', () => {
@@ -52,7 +52,7 @@ describe('APIKeyField', () => {
       />
     );
 
-    expect(screen.getByLabelText('API Key')).toBeInTheDocument();
+    expect(screen.getByLabelText(/^API Key/)).toBeInTheDocument();
   });
 
   it('shows input with Cancel button when configured and showInput is true', () => {
@@ -66,7 +66,7 @@ describe('APIKeyField', () => {
       />
     );
 
-    expect(screen.getByLabelText('API Key')).toBeInTheDocument();
+    expect(screen.getByLabelText(/^API Key/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
   });
 
@@ -82,7 +82,7 @@ describe('APIKeyField', () => {
       />
     );
 
-    fireEvent.change(screen.getByLabelText('API Key'), { target: { value: 'sk-new-key' } });
+    fireEvent.change(screen.getByLabelText(/^API Key/), { target: { value: 'sk-new-key' } });
     expect(onApiKeyChange).toHaveBeenCalledWith('sk-new-key');
   });
 

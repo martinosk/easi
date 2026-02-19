@@ -1,10 +1,11 @@
 import type { StateCreator } from 'zustand';
-import type { SessionUser, SessionTenant } from '../../features/auth/types';
+import type { SessionUser, SessionTenant, SessionLinks } from '../../features/auth/types';
 import { authApi } from '../../features/auth/api/authApi';
 
 export interface UserState {
   user: SessionUser | null;
   tenant: SessionTenant | null;
+  sessionLinks: SessionLinks | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
@@ -24,6 +25,7 @@ export const createUserSlice: StateCreator<
 > = (set, get) => ({
   user: null,
   tenant: null,
+  sessionLinks: null,
   isAuthenticated: false,
   isLoading: true,
 
@@ -34,6 +36,7 @@ export const createUserSlice: StateCreator<
       set({
         user: session.user,
         tenant: session.tenant,
+        sessionLinks: session._links,
         isAuthenticated: true,
         isLoading: false,
       });
@@ -41,6 +44,7 @@ export const createUserSlice: StateCreator<
       set({
         user: null,
         tenant: null,
+        sessionLinks: null,
         isAuthenticated: false,
         isLoading: false,
       });
@@ -54,6 +58,7 @@ export const createUserSlice: StateCreator<
       set({
         user: null,
         tenant: null,
+        sessionLinks: null,
         isAuthenticated: false,
       });
     }
@@ -63,6 +68,7 @@ export const createUserSlice: StateCreator<
     set({
       user: null,
       tenant: null,
+      sessionLinks: null,
       isAuthenticated: false,
     });
   },

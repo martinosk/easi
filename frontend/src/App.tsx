@@ -11,6 +11,7 @@ import { LoadingFallback } from './components/shared/LoadingFallback';
 import { DockviewLayout } from './components/layout/DockviewLayout';
 import { DialogManager } from './components/shared/DialogManager';
 import { ReleaseNotesOverlay } from './contexts/releases/components/ReleaseNotesOverlay';
+import { ChatPanel, ChatButton, useChatStore } from './features/chat';
 import type { ComponentCanvasRef } from './features/canvas/components/ComponentCanvas';
 import { useCanvasDialogs } from './features/canvas/hooks/useCanvasDialogs';
 import { useViewOperations } from './features/views/hooks/useViewOperations';
@@ -205,6 +206,11 @@ function App({ view }: AppProps) {
 
   const { authError } = useAuthErrorHandler();
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+  const sessionLinks = useUserStore((state) => state.sessionLinks);
+  const assistantAvailable = Boolean(sessionLinks?.['x-assistant']);
+  const chatIsOpen = useChatStore((state) => state.isOpen);
+  const toggleChat = useChatStore((state) => state.togglePanel);
+  const closeChat = useChatStore((state) => state.closePanel);
   const permissions = useCanvasPermissions();
 
   const { isLoading, error } = useAppInitialization();
@@ -265,9 +271,20 @@ function App({ view }: AppProps) {
 
   return (
     <AppLayout>
-      <AppNavigation currentView={view} onOpenReleaseNotes={dialogActions.openReleaseNotesBrowser} />
+      <AppNavigation
+        currentView={view}
+        onOpenReleaseNotes={dialogActions.openReleaseNotesBrowser}
+        chatButton={
+          <ChatButton
+            assistantAvailable={assistantAvailable}
+            onClick={toggleChat}
+            isActive={chatIsOpen}
+          />
+        }
+      />
       <MainContent view={view} canvasViewProps={canvasViewProps} />
       <DialogManager />
+      <ChatPanel isOpen={chatIsOpen} onClose={closeChat} />
       <ReleaseNotesDisplay
         showOverlay={showReleaseNotes}
         release={release}
