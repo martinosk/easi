@@ -179,6 +179,26 @@ describe('useChat', () => {
     ]);
   });
 
+  it('should handle multi-chunk streaming without duplicate events', async () => {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('event: token\ndata: {"content":"Hello"}\n\nevent: tok'));
+        controller.enqueue(encoder.encode('en\ndata: {"content":" world"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n'));
+        controller.close();
+      },
+    });
+    const response = new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+    vi.mocked(chatApi.sendMessageStream).mockResolvedValue(response);
+
+    const { result } = renderHook(() => useChat());
+    await act(async () => { await result.current.sendMessage('conv-1', 'Hi'); });
+
+    const assistantMsg = result.current.messages.find(m => m.role === 'assistant');
+    expect(assistantMsg).toBeDefined();
+    expect(assistantMsg!.content).toBe('Hello world');
+  });
+
   it('should clear tool calls when sending a new message', async () => {
     const sseDataWithTool = [
       'event: tool_call_start\ndata: {"toolCallId":"tc-1","name":"list_applications","arguments":"{}"}\n\n',

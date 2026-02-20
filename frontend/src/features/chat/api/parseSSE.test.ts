@@ -75,4 +75,18 @@ describe('parseSSEChunk', () => {
       message: 'Analyzing the architecture...',
     }]);
   });
+
+  it('should not parse incomplete trailing block after complete events', () => {
+    const chunk = 'event: token\ndata: {"content":"Hello"}\n\nevent: token\ndata: {"content":"partial"}';
+    const events = parseSSEChunk(chunk);
+    expect(events).toEqual([{ type: 'token', content: 'Hello' }]);
+  });
+
+  it('should parse all blocks when chunk ends with double newline', () => {
+    const chunk = 'event: token\ndata: {"content":"A"}\n\nevent: token\ndata: {"content":"B"}\n\n';
+    const events = parseSSEChunk(chunk);
+    expect(events).toHaveLength(2);
+    expect(events[0]).toEqual({ type: 'token', content: 'A' });
+    expect(events[1]).toEqual({ type: 'token', content: 'B' });
+  });
 });

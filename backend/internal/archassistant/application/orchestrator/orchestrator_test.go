@@ -565,3 +565,157 @@ func TestOrchestrator_SendMessage_ToolCallError(t *testing.T) {
 	assert.Equal(t, []string{"Recovered"}, fix.writer.tokens)
 	require.Len(t, fix.writer.toolResults, 1)
 }
+
+func TestOrchestrator_SendMessage_NoToolsWithRegistryButNilPermissions(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(textResponse("No tools response")))
+	})
+
+	registry := newTestRegistry(map[string]tools.ToolResult{
+		"list_apps": {Content: `[]`},
+	})
+	fix, server := setupToolTest(t, registry, handler)
+	fix.registry = registry
+
+	err := fix.orch.SendMessage(context.Background(), fix.writer, orchestrator.SendMessageParams{
+		ConversationID: fix.conv.ID(),
+		UserID:         "user-1",
+		Content:        "Hello",
+		TenantID:       "tenant-1",
+		UserRole:       "architect",
+		Config:         testConfig(server.URL),
+		Permissions:    nil,
+		ToolRegistry:   registry,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"No tools response"}, fix.writer.tokens)
+}
+
+func TestOrchestrator_SendMessage_NoToolsWithPermissionsButNilRegistry(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(textResponse("No tools response")))
+	})
+
+	fix, server := setupToolTest(t, nil, handler)
+
+	err := fix.orch.SendMessage(context.Background(), fix.writer, orchestrator.SendMessageParams{
+		ConversationID: fix.conv.ID(),
+		UserID:         "user-1",
+		Content:        "Hello",
+		TenantID:       "tenant-1",
+		UserRole:       "architect",
+		Config:         testConfig(server.URL),
+		Permissions:    allPermissions(),
+		ToolRegistry:   nil,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"No tools response"}, fix.writer.tokens)
+}
+
+func TestOrchestrator_SendMessage_MaxSameToolCalls_ExactBoundary(t *testing.T) {
+	var callCount atomic.Int32
+	var toolResultBodies []string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+
+		n := callCount.Add(1)
+		if n <= 5 {
+			w.Write([]byte(toolCallResponse(fmt.Sprintf("call-%d", n), "list_apps", "{}")))
+			return
+		}
+		_ = body
+		w.Write([]byte(textResponse("Done")))
+	})
+
+	registry := newTestRegistry(map[string]tools.ToolResult{
+		"list_apps": {Content: `[{"name":"App1"}]`},
+	})
+	fix, server := setupToolTest(t, registry, handler)
+
+	err := fix.sendMessage(t, server.URL, "Call tools many times", allPermissions())
+	require.NoError(t, err)
+
+	var successResults, errorResults int
+	for _, r := range fix.writer.toolResults {
+		if strings.Contains(r.ResultPreview, "limit exceeded") {
+			errorResults++
+		} else {
+			successResults++
+		}
+	}
+	_ = toolResultBodies
+
+	assert.Equal(t, 3, successResults, "exactly 3 calls should succeed (maxSameToolCalls=3)")
+	assert.GreaterOrEqual(t, errorResults, 1, "4th+ calls should be rejected")
+}
+
+func TestOrchestrator_SendMessage_ToolResultTruncation(t *testing.T) {
+	longResult := strings.Repeat("x", 20000)
+	registry := newTestRegistry(map[string]tools.ToolResult{
+		"big_tool": {Content: longResult},
+	})
+	fix, server := setupToolTest(t, registry, toolThenTextHandler("call-1", "big_tool", "{}", "Summary"))
+
+	err := fix.sendMessage(t, server.URL, "Get big data", allPermissions())
+	require.NoError(t, err)
+
+	require.Len(t, fix.writer.toolResults, 1)
+	assert.LessOrEqual(t, len(fix.writer.toolResults[0].ResultPreview), 203)
+}
+
+func TestOrchestrator_SendMessage_PreviewTruncation(t *testing.T) {
+	longResult := strings.Repeat("a", 300)
+	registry := newTestRegistry(map[string]tools.ToolResult{
+		"verbose_tool": {Content: longResult},
+	})
+	fix, server := setupToolTest(t, registry, toolThenTextHandler("call-1", "verbose_tool", "{}", "Done"))
+
+	err := fix.sendMessage(t, server.URL, "Get verbose data", allPermissions())
+	require.NoError(t, err)
+
+	require.Len(t, fix.writer.toolResults, 1)
+	preview := fix.writer.toolResults[0].ResultPreview
+	assert.LessOrEqual(t, len(preview), 203, "preview should be truncated to ~200 chars + ellipsis")
+	assert.True(t, strings.HasSuffix(preview, "..."), "truncated preview should end with ...")
+}
+
+func TestOrchestrator_SendMessage_ContextCancellation_ReturnsTypedError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		flusher := w.(http.Flusher)
+		fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}\n\n")
+		flusher.Flush()
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+
+	orch, repo, writer, _ := setupTestOrchestrator(t)
+
+	conv := aggregates.NewConversation("tenant-1", "user-1")
+	repo.conversation = conv
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := orch.SendMessage(ctx, writer, orchestrator.SendMessageParams{
+		ConversationID: conv.ID(),
+		UserID:         "user-1",
+		Content:        "Test",
+		TenantID:       "tenant-1",
+		UserRole:       "architect",
+		Config:         testConfig(server.URL),
+	})
+
+	require.Error(t, err)
+	var llmErr *orchestrator.LLMError
+	var timeoutErr *orchestrator.TimeoutError
+	isTyped := assert.ErrorAs(t, err, &llmErr) || assert.ErrorAs(t, err, &timeoutErr)
+	assert.True(t, isTyped, "context cancellation should be wrapped as LLMError or TimeoutError, got: %T", err)
+}
