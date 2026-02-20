@@ -19,7 +19,7 @@ export const assistantConfigApi = {
   },
 
   async testConnection(): Promise<TestConnectionResponse> {
-    const response = await httpClient.post<TestConnectionResponse>(`${BASE}/test`);
+    const response = await httpClient.post<TestConnectionResponse>(`${BASE}/connection-tests`);
     return response.data;
   },
 };
