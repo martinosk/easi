@@ -1,7 +1,7 @@
 -- Migration: Add Release 0.26.0
 -- Description: Adds release notes for version 0.26.0
 
-INSERT INTO releases (version, release_date, notes, created_at) VALUES
+INSERT INTO releases.releases (version, release_date, notes, created_at) VALUES
 ('0.26.0', '2026-02-20', '## What''s New in v0.26.0
 
 ### Major
