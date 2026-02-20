@@ -124,43 +124,6 @@ func newSendMessageRequest(t *testing.T, convID string, body interface{}) *http.
 	return req
 }
 
-func TestCreateConversation_Success(t *testing.T) {
-	repo := &mockConversationRepo{}
-	handlers := newTestHandlers(repo, &mockConfigProvider{}, ratelimit.NewLimiter())
-
-	req := httptest.NewRequest("POST", "/assistant/conversations", nil)
-	req = withActorAndTenant(req)
-	rec := httptest.NewRecorder()
-
-	handlers.CreateConversation(rec, req)
-
-	assert.Equal(t, http.StatusCreated, rec.Code)
-	assert.NotEmpty(t, rec.Header().Get("Location"))
-
-	var resp assistantAPI.CreateConversationResponse
-	err := json.Unmarshal(rec.Body.Bytes(), &resp)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp.ID)
-	assert.Equal(t, "New conversation", resp.Title)
-	assert.NotNil(t, resp.Links["self"])
-	assert.NotNil(t, resp.Links["messages"])
-	assert.NotNil(t, resp.Links["delete"])
-
-	require.Len(t, repo.createdConvs, 1)
-	assert.Equal(t, "tenant-1", repo.createdConvs[0].TenantID())
-	assert.Equal(t, "user-1", repo.createdConvs[0].UserID())
-}
-
-func TestCreateConversation_NoActor(t *testing.T) {
-	handlers := newTestHandlers(&mockConversationRepo{}, &mockConfigProvider{}, ratelimit.NewLimiter())
-
-	req := httptest.NewRequest("POST", "/assistant/conversations", nil)
-	rec := httptest.NewRecorder()
-
-	handlers.CreateConversation(rec, req)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
-}
-
 func TestSendMessage_ErrorCases(t *testing.T) {
 	tests := []struct {
 		name           string

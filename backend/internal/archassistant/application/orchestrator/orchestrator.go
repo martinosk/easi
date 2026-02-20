@@ -45,10 +45,6 @@ func New(convRepo domain.ConversationRepository, clientFactory LLMClientFactory)
 	return &Orchestrator{convRepo: convRepo, clientFactory: clientFactory}
 }
 
-func (o *Orchestrator) CreateConversation(ctx context.Context, conv *aggregates.Conversation) error {
-	return o.convRepo.Create(ctx, conv)
-}
-
 func (o *Orchestrator) SendMessage(ctx context.Context, writer StreamWriter, params SendMessageParams) error {
 	conv, err := o.prepareConversation(ctx, params)
 	if err != nil {
