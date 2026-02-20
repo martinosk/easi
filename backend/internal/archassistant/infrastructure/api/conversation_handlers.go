@@ -11,7 +11,6 @@ import (
 	"easi/backend/internal/archassistant/application/orchestrator"
 	"easi/backend/internal/archassistant/application/tools"
 	"easi/backend/internal/archassistant/domain"
-	"easi/backend/internal/archassistant/domain/aggregates"
 	"easi/backend/internal/archassistant/infrastructure/agenthttp"
 	"easi/backend/internal/archassistant/infrastructure/ratelimit"
 	"easi/backend/internal/archassistant/infrastructure/sse"
@@ -63,46 +62,6 @@ type CreateConversationResponse struct {
 	Links     types.Links `json:"_links"`
 }
 
-// CreateConversation godoc
-// @Summary Create a new conversation
-// @Description Creates a new assistant conversation for the authenticated user.
-// @Tags assistant
-// @Produce json
-// @Success 201 {object} CreateConversationResponse
-// @Failure 401 {object} sharedAPI.ErrorResponse
-// @Failure 500 {object} sharedAPI.ErrorResponse
-// @Router /assistant/conversations [post]
-func (h *ConversationHandlers) CreateConversation(w http.ResponseWriter, r *http.Request) {
-	actor, ok := sharedctx.GetActor(r.Context())
-	if !ok {
-		sharedAPI.RespondError(w, http.StatusUnauthorized, nil, "Unauthorized")
-		return
-	}
-
-	tenantID, err := sharedctx.GetTenant(r.Context())
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to get tenant")
-		return
-	}
-
-	conv := aggregates.NewConversation(tenantID.Value(), actor.ID)
-
-	if err := h.orchestrator.CreateConversation(r.Context(), conv); err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to create conversation")
-		return
-	}
-
-	resp := CreateConversationResponse{
-		ID:        conv.ID(),
-		Title:     conv.Title(),
-		CreatedAt: conv.CreatedAt(),
-		Links:     h.conversationLinks(conv.ID()),
-	}
-
-	location := h.links.Self(sharedAPI.ResourceID(conv.ID()))
-	sharedAPI.RespondCreated(w, location, resp)
-}
-
 type SendMessageRequest struct {
 	Content              string `json:"content"`
 	AllowWriteOperations bool   `json:"allowWriteOperations"`
@@ -110,13 +69,13 @@ type SendMessageRequest struct {
 
 // SendMessage godoc
 // @Summary Send a message to the assistant
-// @Description Sends a user message and streams the assistant response as Server-Sent Events.
+// @Description Sends a user message and streams the assistant response as Server-Sent Events. Event types: token (content chunk), done (completion with messageId and tokensUsed), error (error with code and message — codes: iteration_limit, timeout, budget_exceeded, unknown), ping (keepalive), thinking (processing status), tool_call_start (tool invocation with toolCallId and name), tool_call_result (tool output with toolCallId, name, content, and isError flag).
 // @Tags assistant
 // @Accept json
 // @Produce text/event-stream
 // @Param id path string true "Conversation ID"
 // @Param request body SendMessageRequest true "Message content"
-// @Success 200 {string} string "SSE stream of token/ping/done/error events"
+// @Success 200 {string} string "SSE stream"
 // @Failure 400 {object} sharedAPI.ErrorResponse
 // @Failure 401 {object} sharedAPI.ErrorResponse
 // @Failure 404 {object} sharedAPI.ErrorResponse
