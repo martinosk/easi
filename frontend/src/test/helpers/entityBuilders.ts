@@ -7,6 +7,10 @@ import {
   toRealizationId,
   toBusinessDomainId,
   toReleaseVersion,
+  toAcquiredEntityId,
+  toVendorId,
+  toInternalTeamId,
+  toOriginRelationshipId,
 } from '../../api/types';
 import type {
   Component,
@@ -25,6 +29,10 @@ import type {
   RealizationLevel,
   Expert,
   Release,
+  AcquiredEntity,
+  Vendor,
+  InternalTeam,
+  OriginRelationship,
 } from '../../api/types';
 
 let idCounter = 0;
@@ -194,6 +202,58 @@ export function buildRelease(overrides: Partial<Release> = {}): Release {
     _links: {
       self: buildLink(`/api/v1/releases/${version}`, 'GET'),
     },
+    ...overrides,
+  };
+}
+
+export function buildAcquiredEntity(overrides: Partial<AcquiredEntity> = {}): AcquiredEntity {
+  const id = overrides.id ?? toAcquiredEntityId(nextId('ae'));
+  return {
+    id,
+    name: `Acquired Entity ${id}`,
+    integrationStatus: 'NOT_STARTED',
+    componentCount: 0,
+    createdAt: '2024-01-01T00:00:00Z',
+    _links: buildLinks(`/api/v1/acquired-entities/${id}`),
+    ...overrides,
+  };
+}
+
+export function buildVendor(overrides: Partial<Vendor> = {}): Vendor {
+  const id = overrides.id ?? toVendorId(nextId('vendor'));
+  return {
+    id,
+    name: `Vendor ${id}`,
+    componentCount: 0,
+    createdAt: '2024-01-01T00:00:00Z',
+    _links: buildLinks(`/api/v1/vendors/${id}`),
+    ...overrides,
+  };
+}
+
+export function buildInternalTeam(overrides: Partial<InternalTeam> = {}): InternalTeam {
+  const id = overrides.id ?? toInternalTeamId(nextId('team'));
+  return {
+    id,
+    name: `Internal Team ${id}`,
+    componentCount: 0,
+    createdAt: '2024-01-01T00:00:00Z',
+    _links: buildLinks(`/api/v1/internal-teams/${id}`),
+    ...overrides,
+  };
+}
+
+export function buildOriginRelationship(overrides: Partial<OriginRelationship> = {}): OriginRelationship {
+  const id = overrides.id ?? toOriginRelationshipId(nextId('or'));
+  return {
+    id,
+    componentId: toComponentId('comp-1'),
+    componentName: 'Component comp-1',
+    relationshipType: 'AcquiredVia',
+    originEntityId: 'ae-1',
+    originEntityName: 'Acquired Corp',
+    createdAt: '2024-01-01T00:00:00Z',
+    _links: buildLinks(`/api/v1/origin-relationships/${id}`),
     ...overrides,
   };
 }

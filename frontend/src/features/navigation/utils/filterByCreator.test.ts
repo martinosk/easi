@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { buildComponent, buildCapability, resetIdCounter } from '../../../test/helpers';
+import {
+  buildComponent,
+  buildCapability,
+  buildAcquiredEntity,
+  buildVendor,
+  buildInternalTeam,
+  resetIdCounter,
+} from '../../../test/helpers';
 import {
   toComponentId,
   toCapabilityId,
@@ -7,56 +14,8 @@ import {
   toVendorId,
   toInternalTeamId,
 } from '../../../api/types';
-import type {
-  AcquiredEntity,
-  Vendor,
-  InternalTeam,
-  HATEOASLinks,
-} from '../../../api/types';
 import { filterByCreator } from './filterByCreator';
 import type { FilterableArtifacts } from './filterByCreator';
-
-function buildLinks(href: string): HATEOASLinks {
-  return {
-    self: { href, method: 'GET' },
-    edit: { href, method: 'PUT' },
-    delete: { href, method: 'DELETE' },
-  };
-}
-
-function buildAcquiredEntity(overrides: Partial<AcquiredEntity> = {}): AcquiredEntity {
-  return {
-    id: toAcquiredEntityId('ae-1'),
-    name: 'Acquired Corp',
-    integrationStatus: 'NOT_STARTED',
-    componentCount: 0,
-    createdAt: '2024-01-01T00:00:00Z',
-    _links: buildLinks('/api/v1/acquired-entities/ae-1'),
-    ...overrides,
-  };
-}
-
-function buildVendor(overrides: Partial<Vendor> = {}): Vendor {
-  return {
-    id: toVendorId('vendor-1'),
-    name: 'Vendor Inc',
-    componentCount: 0,
-    createdAt: '2024-01-01T00:00:00Z',
-    _links: buildLinks('/api/v1/vendors/vendor-1'),
-    ...overrides,
-  };
-}
-
-function buildInternalTeam(overrides: Partial<InternalTeam> = {}): InternalTeam {
-  return {
-    id: toInternalTeamId('team-1'),
-    name: 'Platform Team',
-    componentCount: 0,
-    createdAt: '2024-01-01T00:00:00Z',
-    _links: buildLinks('/api/v1/internal-teams/team-1'),
-    ...overrides,
-  };
-}
 
 describe('filterByCreator', () => {
   beforeEach(() => {

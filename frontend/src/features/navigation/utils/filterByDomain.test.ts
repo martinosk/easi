@@ -1,20 +1,21 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { buildComponent, buildCapability, resetIdCounter } from '../../../test/helpers';
+import {
+  buildComponent,
+  buildCapability,
+  buildAcquiredEntity,
+  buildVendor,
+  buildInternalTeam,
+  buildOriginRelationship,
+  resetIdCounter,
+} from '../../../test/helpers';
 import {
   toComponentId,
   toCapabilityId,
   toAcquiredEntityId,
   toVendorId,
   toInternalTeamId,
-  toBusinessDomainId,
   toOriginRelationshipId,
-} from '../../../api/types';
-import type {
-  AcquiredEntity,
-  Vendor,
-  InternalTeam,
-  OriginRelationship,
-  HATEOASLinks,
+  toBusinessDomainId,
 } from '../../../api/types';
 import type { FilterableArtifacts } from './filterByCreator';
 import {
@@ -23,62 +24,6 @@ import {
   UNASSIGNED_DOMAIN,
 } from './filterByDomain';
 import type { DomainFilterData } from './filterByDomain';
-
-function buildLinks(href: string): HATEOASLinks {
-  return {
-    self: { href, method: 'GET' },
-    edit: { href, method: 'PUT' },
-    delete: { href, method: 'DELETE' },
-  };
-}
-
-function buildAcquiredEntity(overrides: Partial<AcquiredEntity> = {}): AcquiredEntity {
-  return {
-    id: toAcquiredEntityId('ae-1'),
-    name: 'Acquired Corp',
-    integrationStatus: 'NOT_STARTED',
-    componentCount: 0,
-    createdAt: '2024-01-01T00:00:00Z',
-    _links: buildLinks('/api/v1/acquired-entities/ae-1'),
-    ...overrides,
-  };
-}
-
-function buildVendor(overrides: Partial<Vendor> = {}): Vendor {
-  return {
-    id: toVendorId('vendor-1'),
-    name: 'Vendor Inc',
-    componentCount: 0,
-    createdAt: '2024-01-01T00:00:00Z',
-    _links: buildLinks('/api/v1/vendors/vendor-1'),
-    ...overrides,
-  };
-}
-
-function buildInternalTeam(overrides: Partial<InternalTeam> = {}): InternalTeam {
-  return {
-    id: toInternalTeamId('team-1'),
-    name: 'Platform Team',
-    componentCount: 0,
-    createdAt: '2024-01-01T00:00:00Z',
-    _links: buildLinks('/api/v1/internal-teams/team-1'),
-    ...overrides,
-  };
-}
-
-function buildOriginRelationship(overrides: Partial<OriginRelationship> = {}): OriginRelationship {
-  return {
-    id: toOriginRelationshipId('or-1'),
-    componentId: toComponentId('comp-1'),
-    componentName: 'Component comp-1',
-    relationshipType: 'AcquiredVia',
-    originEntityId: 'ae-1',
-    originEntityName: 'Acquired Corp',
-    createdAt: '2024-01-01T00:00:00Z',
-    _links: buildLinks('/api/v1/origin-relationships/or-1'),
-    ...overrides,
-  };
-}
 
 function buildArtifacts(overrides: Partial<FilterableArtifacts> = {}): FilterableArtifacts {
   return {
@@ -138,55 +83,50 @@ describe('filterByDomain', () => {
     });
   });
 
-  describe('directly assigned capabilities', () => {
-    it('should show capabilities directly assigned to the selected domain', () => {
-      const cap1 = buildCapability({ id: toCapabilityId('cap-1'), name: 'Customer Mgmt' });
-      const cap2 = buildCapability({ id: toCapabilityId('cap-2'), name: 'Order Processing' });
-      const cap3 = buildCapability({ id: toCapabilityId('cap-3'), name: 'Logistics' });
-
-      const artifacts = buildArtifacts({
-        capabilities: [cap1, cap2, cap3],
-      });
-
-      const data = buildDomainFilterData({
+  describe('capability filtering by domain selection', () => {
+    it.each([
+      {
+        scenario: 'shows capabilities directly assigned to the selected domain',
         domainCapabilityIds: new Map([[DOMAIN_A, ['cap-1', 'cap-2']]]),
-        allCapabilities: [cap1, cap2, cap3],
         allDomainIds: [DOMAIN_A],
-      });
+        selectedDomainIds: [DOMAIN_A],
+        expectedCapIds: ['cap-1', 'cap-2'],
+      },
+      {
+        scenario: 'returns union of domain and unassigned capabilities',
+        domainCapabilityIds: new Map([
+          [DOMAIN_A, ['cap-1']],
+          [DOMAIN_B, ['cap-3']],
+        ]),
+        allDomainIds: [DOMAIN_A, DOMAIN_B],
+        selectedDomainIds: [DOMAIN_A, UNASSIGNED_DOMAIN],
+        expectedCapIds: ['cap-1', 'cap-2'],
+      },
+    ])(
+      '$scenario',
+      ({ domainCapabilityIds, allDomainIds, selectedDomainIds, expectedCapIds }) => {
+        const cap1 = buildCapability({ id: toCapabilityId('cap-1') });
+        const cap2 = buildCapability({ id: toCapabilityId('cap-2') });
+        const cap3 = buildCapability({ id: toCapabilityId('cap-3') });
+        const allCaps = [cap1, cap2, cap3];
 
-      const result = filterByDomain(artifacts, [DOMAIN_A], data);
+        const artifacts = buildArtifacts({ capabilities: allCaps });
+        const data = buildDomainFilterData({
+          domainCapabilityIds,
+          allCapabilities: allCaps,
+          allDomainIds,
+        });
 
-      expect(result.capabilities).toEqual([cap1, cap2]);
-    });
+        const result = filterByDomain(artifacts, selectedDomainIds, data);
+
+        const expectedCaps = allCaps.filter((c) => expectedCapIds.includes(c.id));
+        expect(result.capabilities).toEqual(expectedCaps);
+      },
+    );
   });
 
   describe('descendant capability expansion', () => {
-    it('should include child capabilities of a directly assigned capability', () => {
-      const capParent = buildCapability({ id: toCapabilityId('cap-parent'), name: 'Parent' });
-      const capChild = buildCapability({
-        id: toCapabilityId('cap-child'),
-        name: 'Child',
-        parentId: toCapabilityId('cap-parent'),
-        level: 'L2',
-      });
-      const capUnrelated = buildCapability({ id: toCapabilityId('cap-other'), name: 'Unrelated' });
-
-      const artifacts = buildArtifacts({
-        capabilities: [capParent, capChild, capUnrelated],
-      });
-
-      const data = buildDomainFilterData({
-        domainCapabilityIds: new Map([[DOMAIN_A, ['cap-parent']]]),
-        allCapabilities: [capParent, capChild, capUnrelated],
-        allDomainIds: [DOMAIN_A],
-      });
-
-      const result = filterByDomain(artifacts, [DOMAIN_A], data);
-
-      expect(result.capabilities).toEqual([capParent, capChild]);
-    });
-
-    it('should include grandchild capabilities transitively', () => {
+    it('should include descendants transitively and exclude unrelated capabilities', () => {
       const capRoot = buildCapability({ id: toCapabilityId('cap-root'), name: 'Root' });
       const capChild = buildCapability({
         id: toCapabilityId('cap-child'),
@@ -200,14 +140,15 @@ describe('filterByDomain', () => {
         parentId: toCapabilityId('cap-child'),
         level: 'L3',
       });
+      const capUnrelated = buildCapability({ id: toCapabilityId('cap-other'), name: 'Unrelated' });
 
       const artifacts = buildArtifacts({
-        capabilities: [capRoot, capChild, capGrandchild],
+        capabilities: [capRoot, capChild, capGrandchild, capUnrelated],
       });
 
       const data = buildDomainFilterData({
         domainCapabilityIds: new Map([[DOMAIN_A, ['cap-root']]]),
-        allCapabilities: [capRoot, capChild, capGrandchild],
+        allCapabilities: [capRoot, capChild, capGrandchild, capUnrelated],
         allDomainIds: [DOMAIN_A],
       });
 
@@ -239,88 +180,61 @@ describe('filterByDomain', () => {
   });
 
   describe('origin entities linked to visible components', () => {
-    it('should show origin entities whose component is visible in the selected domain', () => {
-      const comp1 = buildComponent({ id: toComponentId('comp-1'), name: 'Payment Service' });
-      const ae1 = buildAcquiredEntity({ id: toAcquiredEntityId('ae-1'), name: 'Acquired Alpha' });
-      const ae2 = buildAcquiredEntity({ id: toAcquiredEntityId('ae-2'), name: 'Acquired Beta' });
+    it.each([
+      {
+        entityType: 'acquired entities' as const,
+        buildIncluded: () => buildAcquiredEntity({ id: toAcquiredEntityId('ae-1'), name: 'Alpha' }),
+        buildExcluded: () => buildAcquiredEntity({ id: toAcquiredEntityId('ae-2'), name: 'Beta' }),
+        artifactKey: 'acquiredEntities' as const,
+        originEntityId: 'ae-1',
+        relationshipType: 'AcquiredVia' as const,
+      },
+      {
+        entityType: 'vendors' as const,
+        buildIncluded: () => buildVendor({ id: toVendorId('vendor-1'), name: 'Alpha' }),
+        buildExcluded: () => buildVendor({ id: toVendorId('vendor-2'), name: 'Beta' }),
+        artifactKey: 'vendors' as const,
+        originEntityId: 'vendor-1',
+        relationshipType: 'PurchasedFrom' as const,
+      },
+      {
+        entityType: 'internal teams' as const,
+        buildIncluded: () => buildInternalTeam({ id: toInternalTeamId('team-1'), name: 'Alpha' }),
+        buildExcluded: () => buildInternalTeam({ id: toInternalTeamId('team-2'), name: 'Beta' }),
+        artifactKey: 'internalTeams' as const,
+        originEntityId: 'team-1',
+        relationshipType: 'BuiltBy' as const,
+      },
+    ])(
+      'should show $entityType linked to visible components',
+      ({ buildIncluded, buildExcluded, artifactKey, originEntityId, relationshipType }) => {
+        const comp1 = buildComponent({ id: toComponentId('comp-1') });
+        const included = buildIncluded();
+        const excluded = buildExcluded();
 
-      const artifacts = buildArtifacts({
-        components: [comp1],
-        acquiredEntities: [ae1, ae2],
-      });
+        const artifacts = buildArtifacts({
+          components: [comp1],
+          [artifactKey]: [included, excluded],
+        });
 
-      const data = buildDomainFilterData({
-        domainComponentIds: new Map([[DOMAIN_A, ['comp-1']]]),
-        originRelationships: [
-          buildOriginRelationship({
-            id: toOriginRelationshipId('or-1'),
-            componentId: toComponentId('comp-1'),
-            originEntityId: 'ae-1',
-          }),
-        ],
-        allDomainIds: [DOMAIN_A],
-      });
+        const data = buildDomainFilterData({
+          domainComponentIds: new Map([[DOMAIN_A, ['comp-1']]]),
+          originRelationships: [
+            buildOriginRelationship({
+              id: toOriginRelationshipId('or-1'),
+              componentId: toComponentId('comp-1'),
+              relationshipType,
+              originEntityId,
+            }),
+          ],
+          allDomainIds: [DOMAIN_A],
+        });
 
-      const result = filterByDomain(artifacts, [DOMAIN_A], data);
+        const result = filterByDomain(artifacts, [DOMAIN_A], data);
 
-      expect(result.acquiredEntities).toEqual([ae1]);
-    });
-
-    it('should show vendors linked to visible components', () => {
-      const comp1 = buildComponent({ id: toComponentId('comp-1') });
-      const v1 = buildVendor({ id: toVendorId('vendor-1'), name: 'Vendor Alpha' });
-      const v2 = buildVendor({ id: toVendorId('vendor-2'), name: 'Vendor Beta' });
-
-      const artifacts = buildArtifacts({
-        components: [comp1],
-        vendors: [v1, v2],
-      });
-
-      const data = buildDomainFilterData({
-        domainComponentIds: new Map([[DOMAIN_A, ['comp-1']]]),
-        originRelationships: [
-          buildOriginRelationship({
-            id: toOriginRelationshipId('or-1'),
-            componentId: toComponentId('comp-1'),
-            relationshipType: 'PurchasedFrom',
-            originEntityId: 'vendor-1',
-          }),
-        ],
-        allDomainIds: [DOMAIN_A],
-      });
-
-      const result = filterByDomain(artifacts, [DOMAIN_A], data);
-
-      expect(result.vendors).toEqual([v1]);
-    });
-
-    it('should show internal teams linked to visible components', () => {
-      const comp1 = buildComponent({ id: toComponentId('comp-1') });
-      const team1 = buildInternalTeam({ id: toInternalTeamId('team-1'), name: 'Platform' });
-      const team2 = buildInternalTeam({ id: toInternalTeamId('team-2'), name: 'Mobile' });
-
-      const artifacts = buildArtifacts({
-        components: [comp1],
-        internalTeams: [team1, team2],
-      });
-
-      const data = buildDomainFilterData({
-        domainComponentIds: new Map([[DOMAIN_A, ['comp-1']]]),
-        originRelationships: [
-          buildOriginRelationship({
-            id: toOriginRelationshipId('or-1'),
-            componentId: toComponentId('comp-1'),
-            relationshipType: 'BuiltBy',
-            originEntityId: 'team-1',
-          }),
-        ],
-        allDomainIds: [DOMAIN_A],
-      });
-
-      const result = filterByDomain(artifacts, [DOMAIN_A], data);
-
-      expect(result.internalTeams).toEqual([team1]);
-    });
+        expect(result[artifactKey]).toEqual([included]);
+      },
+    );
   });
 
   describe('multiple domains (union)', () => {
@@ -433,31 +347,6 @@ describe('filterByDomain', () => {
       const result = filterByDomain(artifacts, [UNASSIGNED_DOMAIN], data);
 
       expect(result.acquiredEntities).toEqual([aeOrphan]);
-    });
-  });
-
-  describe('combined domain + unassigned', () => {
-    it('should return the union of domain artifacts and unassigned artifacts', () => {
-      const capInA = buildCapability({ id: toCapabilityId('cap-in-a'), name: 'In Domain A' });
-      const capOrphan = buildCapability({ id: toCapabilityId('cap-orphan'), name: 'Orphan' });
-      const capInB = buildCapability({ id: toCapabilityId('cap-in-b'), name: 'In Domain B' });
-
-      const artifacts = buildArtifacts({
-        capabilities: [capInA, capOrphan, capInB],
-      });
-
-      const data = buildDomainFilterData({
-        domainCapabilityIds: new Map([
-          [DOMAIN_A, ['cap-in-a']],
-          [DOMAIN_B, ['cap-in-b']],
-        ]),
-        allCapabilities: [capInA, capOrphan, capInB],
-        allDomainIds: [DOMAIN_A, DOMAIN_B],
-      });
-
-      const result = filterByDomain(artifacts, [DOMAIN_A, UNASSIGNED_DOMAIN], data);
-
-      expect(result.capabilities).toEqual([capInA, capOrphan]);
     });
   });
 

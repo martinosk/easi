@@ -16,6 +16,10 @@ export {
   buildCapabilityDependency,
   buildCapabilityRealization,
   buildBusinessDomain,
+  buildAcquiredEntity,
+  buildVendor,
+  buildInternalTeam,
+  buildOriginRelationship,
   resetIdCounter,
 } from './entityBuilders';
 
