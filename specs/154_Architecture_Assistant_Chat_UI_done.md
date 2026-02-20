@@ -108,7 +108,7 @@ Invalidate conversation list on `done` SSE event (title and `lastMessageAt` chan
 - [x] Phase 1: Chat using `POST /assistant/conversations/{id}/messages` (server-side history)
 - [x] Chat panel (slide-out, responsive, transitions)
 - [x] Message display (user/assistant variants, markdown, streaming cursor)
-- [x] YOLO checkbox (default off) — UI done, not yet wired to `allowWriteOperations` in payload
+- [x] YOLO checkbox (default off)
 - [x] Tool call indicators (Phase 2: running/completed/error, read/write icons, expandable)
 - [x] Chat input (multiline, Enter to send, disabled during streaming)
 - [x] Chat button in navigation (HATEOAS-gated)
