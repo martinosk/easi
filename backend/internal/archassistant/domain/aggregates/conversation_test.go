@@ -3,6 +3,7 @@ package aggregates_test
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"easi/backend/internal/archassistant/domain/aggregates"
 	vo "easi/backend/internal/archassistant/domain/valueobjects"
@@ -121,13 +122,34 @@ func TestConversation_IsOwnedBy(t *testing.T) {
 }
 
 func TestConversation_AddUserMessage_UpdatesLastMessageAt(t *testing.T) {
-	conv := aggregates.NewConversation("tenant-1", "user-1")
-	initialTime := conv.LastMessageAt()
+	conv := aggregates.ReconstructConversation(aggregates.ReconstructConversationParams{
+		ID:            "conv-1",
+		TenantID:      "tenant-1",
+		UserID:        "user-1",
+		Title:         "Existing title",
+		LastMessageAt: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+	})
+	before := time.Now().Add(-time.Millisecond)
 
 	_, err := conv.AddUserMessage("Hello")
 	require.NoError(t, err)
 
-	assert.True(t, conv.LastMessageAt().Equal(initialTime) || conv.LastMessageAt().After(initialTime))
+	assert.True(t, conv.LastMessageAt().After(before), "lastMessageAt should be updated to current time")
+}
+
+func TestConversation_AddAssistantMessage_UpdatesLastMessageAt(t *testing.T) {
+	conv := aggregates.ReconstructConversation(aggregates.ReconstructConversationParams{
+		ID:            "conv-1",
+		TenantID:      "tenant-1",
+		UserID:        "user-1",
+		Title:         "Existing title",
+		LastMessageAt: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+	})
+	before := time.Now().Add(-time.Millisecond)
+
+	conv.AddAssistantMessage("Response", 42)
+
+	assert.True(t, conv.LastMessageAt().After(before), "lastMessageAt should be updated to current time")
 }
 
 func TestMessageRole_IsValid(t *testing.T) {

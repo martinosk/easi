@@ -76,4 +76,28 @@ describe('ChatInput', () => {
     const textarea = screen.getByPlaceholderText('Ask about your architecture...') as HTMLTextAreaElement;
     expect(textarea.maxLength).toBe(2000);
   });
+
+  it('should disable send button when textarea is empty', () => {
+    render(<ChatInput onSend={vi.fn()} disabled={false} yoloEnabled={false} onToggleYolo={vi.fn()} />);
+    const sendBtn = screen.getByRole('button', { name: 'Send message' });
+    expect(sendBtn).toBeDisabled();
+  });
+
+  it('should enable send button when textarea has content', async () => {
+    render(<ChatInput onSend={vi.fn()} disabled={false} yoloEnabled={false} onToggleYolo={vi.fn()} />);
+    const textarea = screen.getByPlaceholderText('Ask about your architecture...');
+    await userEvent.type(textarea, 'Hello');
+    const sendBtn = screen.getByRole('button', { name: 'Send message' });
+    expect(sendBtn).not.toBeDisabled();
+  });
+
+  it('should show short help text when YOLO is enabled', () => {
+    render(<ChatInput onSend={vi.fn()} disabled={false} yoloEnabled={true} onToggleYolo={vi.fn()} />);
+    expect(screen.getByText('Assistant may apply changes you are already permitted to make.')).toBeInTheDocument();
+  });
+
+  it('should show full help text when YOLO is disabled', () => {
+    render(<ChatInput onSend={vi.fn()} disabled={false} yoloEnabled={false} onToggleYolo={vi.fn()} />);
+    expect(screen.getByText(/When off, assistant can read only/)).toBeInTheDocument();
+  });
 });
