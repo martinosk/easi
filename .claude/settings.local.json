@@ -28,7 +28,18 @@
       "mcp__plugin_context7_context7__resolve-library-id",
       "mcp__plugin_context7_context7__get-library-docs"
     ],
-    "deny": [],
+    "deny": [
+      "Read(**/.env*)",
+      "Read(**/env.php*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/secrets/**)",
+      "Read(**/credentials/**)",
+      "Read(**/.aws/**)",
+      "Read(**/.ssh/**)",
+      "Read(**/docker-compose*.yml)",
+      "Read(**/config/database.yml)"
+    ],
     "ask": []
   },
   "hooks": {
