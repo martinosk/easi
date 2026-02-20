@@ -155,7 +155,7 @@ func (h *SessionHandlers) buildSessionLinks(ctx context.Context, userID uuid.UUI
 
 	if role.HasPermission(valueobjects.PermAssistantUse) && h.aiConfigStatusChecker != nil {
 		if configured, err := h.aiConfigStatusChecker.IsConfigured(ctx); err == nil && configured {
-			links["x-assistant"] = "/api/v1/assistant/chat"
+			links["x-assistant"] = "/api/v1/assistant/conversations"
 		}
 	}
 
