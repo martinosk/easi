@@ -91,24 +91,52 @@ func TestListApplications_Success(t *testing.T) {
 	assert.Contains(t, result.Content, "Legacy CRM")
 }
 
-func TestListApplications_WithFilter(t *testing.T) {
-	var capturedQuery string
-	server := newMockAPI(t, map[string]http.HandlerFunc{
-		"/api/v1/components": func(w http.ResponseWriter, r *http.Request) {
-			capturedQuery = r.URL.RawQuery
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(testCollectionJSON(map[string]interface{}{"id": "abc-123", "name": "Payment Gateway"}))
+func TestListResources_WithFilter(t *testing.T) {
+	tests := []struct {
+		name         string
+		endpoint     string
+		toolName     string
+		response     map[string]interface{}
+		args         map[string]interface{}
+		expectParams []string
+	}{
+		{
+			name:     "applications",
+			endpoint: "/api/v1/components",
+			toolName: "list_applications",
+			response: map[string]interface{}{"id": "abc-123", "name": "Payment Gateway"},
+			args:     map[string]interface{}{"name": "Payment", "limit": float64(10)},
+			expectParams: []string{"name=Payment", "limit=10"},
 		},
-	})
-	defer server.Close()
+		{
+			name:     "capabilities",
+			endpoint: "/api/v1/capabilities",
+			toolName: "list_capabilities",
+			response: map[string]interface{}{"id": "cap-1", "name": "Sales Management", "level": "L1"},
+			args:     map[string]interface{}{"name": "Sales", "limit": float64(5)},
+			expectParams: []string{"name=Sales", "limit=5"},
+		},
+	}
 
-	result := executeQueryTool(t, newQueryRegistry(server), "list_applications", map[string]interface{}{
-		"name": "Payment", "limit": float64(10),
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var capturedQuery string
+			server := newMockAPI(t, map[string]http.HandlerFunc{
+				tt.endpoint: func(w http.ResponseWriter, r *http.Request) {
+					capturedQuery = r.URL.RawQuery
+					w.Header().Set("Content-Type", "application/json")
+					w.Write(testCollectionJSON(tt.response))
+				},
+			})
+			defer server.Close()
 
-	assert.False(t, result.IsError)
-	assert.Contains(t, capturedQuery, "name=Payment")
-	assert.Contains(t, capturedQuery, "limit=10")
+			result := executeQueryTool(t, newQueryRegistry(server), tt.toolName, tt.args)
+			assert.False(t, result.IsError)
+			for _, param := range tt.expectParams {
+				assert.Contains(t, capturedQuery, param)
+			}
+		})
+	}
 }
 
 func TestListApplications_EmptyResult(t *testing.T) {
@@ -159,36 +187,52 @@ func TestListApplications_LimitClampAndFilterCap(t *testing.T) {
 	}
 }
 
-func TestGetApplicationDetails_Success(t *testing.T) {
-	server := newMockAPI(t, map[string]http.HandlerFunc{
-		"/api/v1/components/" + validUUID: jsonResourceHandler(map[string]interface{}{
-			"id": validUUID, "name": "Payment Gateway", "description": "Handles all payment processing",
-		}),
-	})
-	defer server.Close()
-
-	result := executeQueryTool(t, newQueryRegistry(server), "get_application_details", map[string]interface{}{"id": validUUID})
-
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "Payment Gateway")
-	assert.Contains(t, result.Content, validUUID)
-	assert.Contains(t, result.Content, "Handles all payment processing")
-}
-
-func TestGetApplicationDetails_NotFound(t *testing.T) {
-	server := newMockAPI(t, map[string]http.HandlerFunc{
-		"/api/v1/components/" + validUUID: func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{"message": "Component not found"})
+func TestQueryTool_ErrorResponses(t *testing.T) {
+	tests := []struct {
+		name       string
+		endpoint   string
+		toolName   string
+		statusCode int
+		message    string
+		args       map[string]interface{}
+		expectMsg  string
+	}{
+		{
+			name:       "not found",
+			endpoint:   "/api/v1/components/" + validUUID,
+			toolName:   "get_application_details",
+			statusCode: http.StatusNotFound,
+			message:    "Component not found",
+			args:       map[string]interface{}{"id": validUUID},
+			expectMsg:  "not found",
 		},
-	})
-	defer server.Close()
+		{
+			name:       "server error",
+			endpoint:   "/api/v1/components",
+			toolName:   "list_applications",
+			statusCode: http.StatusInternalServerError,
+			message:    "Database connection failed",
+			args:       nil,
+			expectMsg:  "Database connection failed",
+		},
+	}
 
-	result := executeQueryTool(t, newQueryRegistry(server), "get_application_details", map[string]interface{}{"id": validUUID})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := newMockAPI(t, map[string]http.HandlerFunc{
+				tt.endpoint: func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(tt.statusCode)
+					json.NewEncoder(w).Encode(map[string]string{"message": tt.message})
+				},
+			})
+			defer server.Close()
 
-	assert.True(t, result.IsError)
-	assert.Contains(t, result.Content, "not found")
+			result := executeQueryTool(t, newQueryRegistry(server), tt.toolName, tt.args)
+			assert.True(t, result.IsError)
+			assert.Contains(t, result.Content, tt.expectMsg)
+		})
+	}
 }
 
 func TestQueryTool_InvalidID(t *testing.T) {
@@ -255,89 +299,97 @@ func TestListCapabilities_Success(t *testing.T) {
 	assert.Contains(t, result.Content, "L2")
 }
 
-func TestListCapabilities_WithFilter(t *testing.T) {
-	var capturedQuery string
-	server := newMockAPI(t, map[string]http.HandlerFunc{
-		"/api/v1/capabilities": func(w http.ResponseWriter, r *http.Request) {
-			capturedQuery = r.URL.RawQuery
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(testCollectionJSON(map[string]interface{}{"id": "cap-1", "name": "Sales Management", "level": "L1"}))
+func TestGetResourceDetails_Success(t *testing.T) {
+	tests := []struct {
+		name     string
+		endpoint string
+		toolName string
+		resource map[string]interface{}
+		expects  []string
+	}{
+		{
+			name:     "application",
+			endpoint: "/api/v1/components/" + validUUID,
+			toolName: "get_application_details",
+			resource: map[string]interface{}{"id": validUUID, "name": "Payment Gateway", "description": "Handles all payment processing"},
+			expects:  []string{"Payment Gateway", validUUID, "Handles all payment processing"},
 		},
-	})
-	defer server.Close()
+		{
+			name:     "capability",
+			endpoint: "/api/v1/capabilities/" + validUUID,
+			toolName: "get_capability_details",
+			resource: map[string]interface{}{"id": validUUID, "name": "Sales Management", "description": "Manages all sales operations", "level": "L1"},
+			expects:  []string{"Sales Management", validUUID, "L1"},
+		},
+		{
+			name:     "business domain",
+			endpoint: "/api/v1/business-domains/" + validUUID,
+			toolName: "get_business_domain_details",
+			resource: map[string]interface{}{"id": validUUID, "name": "Sales", "description": "Sales business domain", "capabilityCount": 5},
+			expects:  []string{"Sales", validUUID},
+		},
+	}
 
-	result := executeQueryTool(t, newQueryRegistry(server), "list_capabilities", map[string]interface{}{
-		"name": "Sales", "limit": float64(5),
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := newMockAPI(t, map[string]http.HandlerFunc{
+				tt.endpoint: jsonResourceHandler(tt.resource),
+			})
+			defer server.Close()
 
-	assert.False(t, result.IsError)
-	assert.Contains(t, capturedQuery, "name=Sales")
-	assert.Contains(t, capturedQuery, "limit=5")
+			result := executeQueryTool(t, newQueryRegistry(server), tt.toolName, map[string]interface{}{"id": validUUID})
+			assert.False(t, result.IsError)
+			for _, expected := range tt.expects {
+				assert.Contains(t, result.Content, expected)
+			}
+		})
+	}
 }
 
-func TestGetCapabilityDetails_Success(t *testing.T) {
-	server := newMockAPI(t, map[string]http.HandlerFunc{
-		"/api/v1/capabilities/" + validUUID: jsonResourceHandler(map[string]interface{}{
-			"id": validUUID, "name": "Sales Management", "description": "Manages all sales operations", "level": "L1",
-		}),
-	})
-	defer server.Close()
+func TestListResources_CountSummary(t *testing.T) {
+	tests := []struct {
+		name     string
+		endpoint string
+		toolName string
+		data     []map[string]interface{}
+		expects  []string
+	}{
+		{
+			name:     "business domains",
+			endpoint: "/api/v1/business-domains",
+			toolName: "list_business_domains",
+			data: []map[string]interface{}{
+				{"id": "dom-1", "name": "Sales", "description": "Sales domain", "capabilityCount": 5},
+				{"id": "dom-2", "name": "Marketing", "description": "Marketing domain", "capabilityCount": 3},
+			},
+			expects: []string{"Sales", "Marketing", "2 business domains"},
+		},
+		{
+			name:     "value streams",
+			endpoint: "/api/v1/value-streams",
+			toolName: "list_value_streams",
+			data: []map[string]interface{}{
+				{"id": "vs-1", "name": "Customer Onboarding", "description": "Onboarding flow", "stageCount": 4},
+				{"id": "vs-2", "name": "Order Fulfillment", "description": "Fulfillment flow", "stageCount": 6},
+			},
+			expects: []string{"Customer Onboarding", "Order Fulfillment", "2 value streams"},
+		},
+	}
 
-	result := executeQueryTool(t, newQueryRegistry(server), "get_capability_details", map[string]interface{}{"id": validUUID})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := newMockAPI(t, map[string]http.HandlerFunc{
+				tt.endpoint: jsonCollectionHandler(tt.data...),
+			})
+			defer server.Close()
 
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "Sales Management")
-	assert.Contains(t, result.Content, validUUID)
-	assert.Contains(t, result.Content, "L1")
-}
-
-func TestListBusinessDomains_Success(t *testing.T) {
-	server := newMockAPI(t, map[string]http.HandlerFunc{
-		"/api/v1/business-domains": jsonCollectionHandler(
-			map[string]interface{}{"id": "dom-1", "name": "Sales", "description": "Sales domain", "capabilityCount": 5},
-			map[string]interface{}{"id": "dom-2", "name": "Marketing", "description": "Marketing domain", "capabilityCount": 3},
-		),
-	})
-	defer server.Close()
-
-	result := executeQueryTool(t, newQueryRegistry(server), "list_business_domains", nil)
-
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "Sales")
-	assert.Contains(t, result.Content, "Marketing")
-	assert.Contains(t, result.Content, "2 business domains")
-}
-
-func TestGetBusinessDomainDetails_Success(t *testing.T) {
-	server := newMockAPI(t, map[string]http.HandlerFunc{
-		"/api/v1/business-domains/" + validUUID: jsonResourceHandler(map[string]interface{}{
-			"id": validUUID, "name": "Sales", "description": "Sales business domain", "capabilityCount": 5,
-		}),
-	})
-	defer server.Close()
-
-	result := executeQueryTool(t, newQueryRegistry(server), "get_business_domain_details", map[string]interface{}{"id": validUUID})
-
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "Sales")
-	assert.Contains(t, result.Content, validUUID)
-}
-
-func TestListValueStreams_Success(t *testing.T) {
-	server := newMockAPI(t, map[string]http.HandlerFunc{
-		"/api/v1/value-streams": jsonCollectionHandler(
-			map[string]interface{}{"id": "vs-1", "name": "Customer Onboarding", "description": "Onboarding flow", "stageCount": 4},
-			map[string]interface{}{"id": "vs-2", "name": "Order Fulfillment", "description": "Fulfillment flow", "stageCount": 6},
-		),
-	})
-	defer server.Close()
-
-	result := executeQueryTool(t, newQueryRegistry(server), "list_value_streams", nil)
-
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "Customer Onboarding")
-	assert.Contains(t, result.Content, "Order Fulfillment")
-	assert.Contains(t, result.Content, "2 value streams")
+			result := executeQueryTool(t, newQueryRegistry(server), tt.toolName, nil)
+			assert.False(t, result.IsError)
+			for _, expected := range tt.expects {
+				assert.Contains(t, result.Content, expected)
+			}
+		})
+	}
 }
 
 func TestGetValueStreamDetails_Success(t *testing.T) {
@@ -409,22 +461,6 @@ func TestGetPortfolioSummary_AggregatesCounts(t *testing.T) {
 	assert.Contains(t, result.Content, "Business Domains: 1")
 	assert.Contains(t, result.Content, "Value Streams: 2")
 	assert.Contains(t, result.Content, "Relations: 1")
-}
-
-func TestQueryTool_APIError(t *testing.T) {
-	server := newMockAPI(t, map[string]http.HandlerFunc{
-		"/api/v1/components": func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"message": "Database connection failed"})
-		},
-	})
-	defer server.Close()
-
-	result := executeQueryTool(t, newQueryRegistry(server), "list_applications", nil)
-
-	assert.True(t, result.IsError)
-	assert.Contains(t, result.Content, "Database connection failed")
 }
 
 func TestRegisterQueryTools_AllRegistered(t *testing.T) {

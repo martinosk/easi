@@ -82,21 +82,28 @@ func (ctx *invitationTestContext) trackID(id string) {
 	ctx.createdIDs = append(ctx.createdIDs, id)
 }
 
-func (ctx *invitationTestContext) makeRequest(t *testing.T, method, url string, body []byte, urlParams map[string]string) (*httptest.ResponseRecorder, *http.Request) {
+type testRequest struct {
+	method    string
+	url       string
+	body      []byte
+	urlParams map[string]string
+}
+
+func (ctx *invitationTestContext) makeRequest(t *testing.T, r testRequest) (*httptest.ResponseRecorder, *http.Request) {
 	var bodyReader io.Reader
-	if body != nil {
-		bodyReader = bytes.NewReader(body)
+	if r.body != nil {
+		bodyReader = bytes.NewReader(r.body)
 	}
 
-	req := httptest.NewRequest(method, url, bodyReader)
-	if body != nil {
+	req := httptest.NewRequest(r.method, r.url, bodyReader)
+	if r.body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	req = withTestTenant(req)
 
-	if len(urlParams) > 0 {
+	if len(r.urlParams) > 0 {
 		rctx := chi.NewRouteContext()
-		for key, value := range urlParams {
+		for key, value := range r.urlParams {
 			rctx.URLParams.Add(key, value)
 		}
 		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -215,7 +222,7 @@ func TestCreateInvitation_Integration(t *testing.T) {
 	}
 	body, _ := json.Marshal(reqBody)
 
-	w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/invitations", body, nil)
+	w, req := testCtx.makeRequest(t, testRequest{method: http.MethodPost, url: "/api/v1/invitations", body: body})
 	invitationHandlers.CreateInvitation(w, req)
 
 	require.Equal(t, http.StatusCreated, w.Code)
@@ -249,7 +256,7 @@ func TestCreateInvitation_DuplicateEmail_Integration(t *testing.T) {
 	}
 	body, _ := json.Marshal(reqBody)
 
-	w1, req1 := testCtx.makeRequest(t, http.MethodPost, "/api/v1/invitations", body, nil)
+	w1, req1 := testCtx.makeRequest(t, testRequest{method: http.MethodPost, url: "/api/v1/invitations", body: body})
 	invitationHandlers.CreateInvitation(w1, req1)
 	require.Equal(t, http.StatusCreated, w1.Code)
 
@@ -257,7 +264,7 @@ func TestCreateInvitation_DuplicateEmail_Integration(t *testing.T) {
 	json.Unmarshal(w1.Body.Bytes(), &response)
 	testCtx.trackID(response.ID)
 
-	w2, req2 := testCtx.makeRequest(t, http.MethodPost, "/api/v1/invitations", body, nil)
+	w2, req2 := testCtx.makeRequest(t, testRequest{method: http.MethodPost, url: "/api/v1/invitations", body: body})
 	invitationHandlers.CreateInvitation(w2, req2)
 
 	assert.Equal(t, http.StatusConflict, w2.Code)
@@ -275,7 +282,7 @@ func TestRevokeInvitation_Integration(t *testing.T) {
 	}
 	body, _ := json.Marshal(reqBody)
 
-	wCreate, reqCreate := testCtx.makeRequest(t, http.MethodPost, "/api/v1/invitations", body, nil)
+	wCreate, reqCreate := testCtx.makeRequest(t, testRequest{method: http.MethodPost, url: "/api/v1/invitations", body: body})
 	invitationHandlers.CreateInvitation(wCreate, reqCreate)
 	require.Equal(t, http.StatusCreated, wCreate.Code)
 
@@ -284,7 +291,12 @@ func TestRevokeInvitation_Integration(t *testing.T) {
 	testCtx.trackID(created.ID)
 
 	revokeBody, _ := json.Marshal(UpdateInvitationRequest{Status: "revoked"})
-	wRevoke, reqRevoke := testCtx.makeRequest(t, http.MethodPatch, fmt.Sprintf("/api/v1/invitations/%s", created.ID), revokeBody, map[string]string{"id": created.ID})
+	wRevoke, reqRevoke := testCtx.makeRequest(t, testRequest{
+		method:    http.MethodPatch,
+		url:       fmt.Sprintf("/api/v1/invitations/%s", created.ID),
+		body:      revokeBody,
+		urlParams: map[string]string{"id": created.ID},
+	})
 	invitationHandlers.UpdateInvitation(wRevoke, reqRevoke)
 
 	require.Equal(t, http.StatusOK, wRevoke.Code)
@@ -330,7 +342,7 @@ func TestCreateInvitation_ValidationErrors_Integration(t *testing.T) {
 			reqBody := CreateInvitationRequest{Email: tc.email, Role: tc.role}
 			body, _ := json.Marshal(reqBody)
 
-			w, req := testCtx.makeRequest(t, http.MethodPost, "/api/v1/invitations", body, nil)
+			w, req := testCtx.makeRequest(t, testRequest{method: http.MethodPost, url: "/api/v1/invitations", body: body})
 			invitationHandlers.CreateInvitation(w, req)
 
 			assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -345,41 +357,47 @@ func TestCreateInvitation_ValidationErrors_Integration(t *testing.T) {
 	}
 }
 
+type expiredInvitationFixture struct {
+	invitationID string
+	email        string
+}
+
+func (ctx *invitationTestContext) createExpiredInvitation(t *testing.T, h *InvitationHandlers, emailPrefix string) expiredInvitationFixture {
+	t.Helper()
+	email := fmt.Sprintf("%s-%s@acme.com", emailPrefix, ctx.testID)
+	body, _ := json.Marshal(CreateInvitationRequest{Email: email, Role: "architect"})
+
+	wCreate, reqCreate := ctx.makeRequest(t, testRequest{method: http.MethodPost, url: "/api/v1/invitations", body: body})
+	h.CreateInvitation(wCreate, reqCreate)
+	require.Equal(t, http.StatusCreated, wCreate.Code)
+
+	var created readmodels.InvitationDTO
+	json.Unmarshal(wCreate.Body.Bytes(), &created)
+	ctx.trackID(created.ID)
+
+	tctx := tenantContext()
+	_, err := ctx.db.ExecContext(tctx,
+		"UPDATE auth.invitations SET expires_at = $1 WHERE id = $2",
+		time.Now().UTC().Add(-1*time.Hour), created.ID)
+	require.NoError(t, err)
+
+	return expiredInvitationFixture{invitationID: created.ID, email: email}
+}
+
 func TestInvitationExpiration_QueryDoesNotReturnExpired_Integration(t *testing.T) {
 	testCtx, cleanup := setupInvitationTestDB(t)
 	defer cleanup()
 
 	invitationHandlers, readModel, _ := setupInvitationHandlers(testCtx.db)
-
-	email := fmt.Sprintf("expire-%s@acme.com", testCtx.testID)
-	reqBody := CreateInvitationRequest{
-		Email: email,
-		Role:  "architect",
-	}
-	body, _ := json.Marshal(reqBody)
-
-	wCreate, reqCreate := testCtx.makeRequest(t, http.MethodPost, "/api/v1/invitations", body, nil)
-	invitationHandlers.CreateInvitation(wCreate, reqCreate)
-	require.Equal(t, http.StatusCreated, wCreate.Code)
-
-	var created readmodels.InvitationDTO
-	json.Unmarshal(wCreate.Body.Bytes(), &created)
-	testCtx.trackID(created.ID)
+	fix := testCtx.createExpiredInvitation(t, invitationHandlers, "expire")
 
 	ctx := tenantContext()
-	_, err := testCtx.db.ExecContext(ctx,
-		"UPDATE auth.invitations SET expires_at = $1 WHERE id = $2",
-		time.Now().UTC().Add(-1*time.Hour),
-		created.ID,
-	)
-	require.NoError(t, err)
-
-	invitation, err := readModel.GetByID(ctx, created.ID)
+	invitation, err := readModel.GetByID(ctx, fix.invitationID)
 	require.NoError(t, err)
 	require.NotNil(t, invitation)
 	assert.True(t, time.Now().UTC().After(invitation.ExpiresAt))
 
-	pendingInvitation, err := readModel.GetPendingByEmail(ctx, email)
+	pendingInvitation, err := readModel.GetPendingByEmail(ctx, fix.email)
 	require.NoError(t, err)
 	assert.Nil(t, pendingInvitation, "GetPendingByEmail should not return expired invitations")
 }
@@ -389,37 +407,13 @@ func TestAcceptInvitation_WhenExpired_Integration(t *testing.T) {
 	defer cleanup()
 
 	invitationHandlers, readModel, commandBus := setupInvitationHandlers(testCtx.db)
-
-	email := fmt.Sprintf("expired-accept-%s@acme.com", testCtx.testID)
-	reqBody := CreateInvitationRequest{
-		Email: email,
-		Role:  "architect",
-	}
-	body, _ := json.Marshal(reqBody)
-
-	wCreate, reqCreate := testCtx.makeRequest(t, http.MethodPost, "/api/v1/invitations", body, nil)
-	invitationHandlers.CreateInvitation(wCreate, reqCreate)
-	require.Equal(t, http.StatusCreated, wCreate.Code)
-
-	var created readmodels.InvitationDTO
-	json.Unmarshal(wCreate.Body.Bytes(), &created)
-	testCtx.trackID(created.ID)
+	fix := testCtx.createExpiredInvitation(t, invitationHandlers, "expired-accept")
 
 	ctx := tenantContext()
-	_, err := testCtx.db.ExecContext(ctx,
-		"UPDATE auth.invitations SET expires_at = $1 WHERE id = $2",
-		time.Now().UTC().Add(-1*time.Hour),
-		created.ID,
-	)
-	require.NoError(t, err)
-
-	acceptCmd := &commands.AcceptInvitation{
-		Email: email,
-	}
-	_, err = commandBus.Dispatch(ctx, acceptCmd)
+	_, err := commandBus.Dispatch(ctx, &commands.AcceptInvitation{Email: fix.email})
 	assert.Error(t, err)
 
-	invitation, err := readModel.GetByID(ctx, created.ID)
+	invitation, err := readModel.GetByID(ctx, fix.invitationID)
 	require.NoError(t, err)
 	assert.Equal(t, "pending", invitation.Status)
 }
