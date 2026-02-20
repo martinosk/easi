@@ -555,12 +555,12 @@ export const handlers = [
       _links: {
         self: { href: '/api/v1/assistant-config', method: 'GET' },
         update: { href: '/api/v1/assistant-config', method: 'PUT' },
-        test: { href: '/api/v1/assistant-config/test', method: 'POST' },
+        test: { href: '/api/v1/assistant-config/connection-tests', method: 'POST' },
       },
     });
   }),
 
-  http.post(`${BASE_URL}/api/v1/assistant-config/test`, () => {
+  http.post(`${BASE_URL}/api/v1/assistant-config/connection-tests`, () => {
     return HttpResponse.json({
       success: true,
       model: 'gpt-4o',
