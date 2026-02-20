@@ -299,6 +299,29 @@ stages:
         versionSpec: 1.22.9
 
     - task: Kubernetes@1
+      name: DeleteAgentTokenSecret
+      displayName: 'Delete easi-agent-token-secret secret if exists'
+      continueOnError: true
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: delete
+        arguments: 'secret easi-agent-token-secret'
+        versionSpec: 1.22.9
+
+    - task: Kubernetes@1
+      name: CreateAgentTokenSecret
+      displayName: 'Create easi-agent-token-secret secret'
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: '$(k8s-service-connection)'
+        namespace: '$(kubernetes-namespace)'
+        command: create
+        arguments: 'secret generic easi-agent-token-secret --from-literal=agent-token-secret="$(AGENT_TOKEN_SECRET)"'
+        versionSpec: 1.22.9
+
+    - task: Kubernetes@1
       name: ApplyManifests
       displayName: 'Apply manifests'
       inputs:

@@ -1,4 +1,4 @@
-import { httpClient } from '../../../api/core';
+import { httpClient } from '../../../api/core/httpClient';
 import type { Conversation, ConversationDetail, ConversationListResponse, SendMessageRequest } from './types';
 
 const BASE = '/api/v1/assistant/conversations';

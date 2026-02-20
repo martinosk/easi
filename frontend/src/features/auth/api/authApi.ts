@@ -1,4 +1,4 @@
-import { httpClient } from '../../../api/core';
+import { httpClient } from '../../../api/core/httpClient';
 import type { InitiateLoginRequest, InitiateLoginResponse, CurrentSessionResponse } from '../types';
 
 export const authApi = {

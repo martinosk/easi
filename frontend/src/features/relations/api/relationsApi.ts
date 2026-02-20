@@ -1,4 +1,5 @@
-import { httpClient, fetchAllPaginated } from '../../../api/core';
+import { httpClient } from '../../../api/core/httpClient';
+import { fetchAllPaginated } from '../../../api/core/pagination';
 import { followLink } from '../../../utils/hateoas';
 import type {
   Relation,

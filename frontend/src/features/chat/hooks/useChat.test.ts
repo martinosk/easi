@@ -199,6 +199,29 @@ describe('useChat', () => {
     expect(assistantMsg!.content).toBe('Hello world');
   });
 
+  it('should set messages when resetMessages is called with initial messages', () => {
+    const { result } = renderHook(() => useChat());
+    const initial = [
+      { id: 'msg-1', role: 'user' as const, content: 'Hello' },
+      { id: 'msg-2', role: 'assistant' as const, content: 'Hi there' },
+    ];
+
+    act(() => { result.current.resetMessages(initial); });
+
+    expect(result.current.messages).toEqual(initial);
+  });
+
+  it('should clear messages when resetMessages is called without arguments', async () => {
+    const result = await sendWithSSE('event: token\ndata: {"content":"Hi"}\n\nevent: done\ndata: {"messageId":"msg-1","tokensUsed":5}\n\n');
+    expect(result.current.messages.length).toBeGreaterThan(0);
+
+    act(() => { result.current.resetMessages(); });
+
+    expect(result.current.messages).toEqual([]);
+    expect(result.current.toolCalls).toEqual([]);
+    expect(result.current.error).toBeNull();
+  });
+
   it('should clear tool calls when sending a new message', async () => {
     const sseDataWithTool = [
       'event: tool_call_start\ndata: {"toolCallId":"tc-1","name":"list_applications","arguments":"{}"}\n\n',

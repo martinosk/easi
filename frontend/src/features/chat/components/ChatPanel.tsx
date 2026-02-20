@@ -18,7 +18,7 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
   const [yoloEnabled, setYoloEnabled] = useState(false);
   const [showConversationList, setShowConversationList] = useState(false);
   const { conversations, deleteConversation, invalidateList } = useConversations();
-  const { messages, toolCalls, isStreaming, error, sendMessage } = useChat({
+  const { messages, toolCalls, isStreaming, error, sendMessage, resetMessages } = useChat({
     onDone: invalidateList,
   });
 
@@ -43,22 +43,30 @@ export function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
     sendMessage(convId, content, yoloEnabled);
   }, [conversationId, sendMessage, yoloEnabled, invalidateList]);
 
-  const handleSelectConversation = useCallback((id: string) => {
+  const handleSelectConversation = useCallback(async (id: string) => {
     setConversationId(id);
     setShowConversationList(false);
-  }, []);
+    try {
+      const detail = await chatApi.getConversation(id);
+      resetMessages(detail.messages.map(m => ({ id: m.id, role: m.role, content: m.content })));
+    } catch {
+      resetMessages();
+    }
+  }, [resetMessages]);
 
   const handleNewConversation = useCallback(() => {
     setConversationId(null);
     setShowConversationList(false);
-  }, []);
+    resetMessages();
+  }, [resetMessages]);
 
   const handleDeleteConversation = useCallback((id: string) => {
     deleteConversation(id);
     if (conversationId === id) {
       setConversationId(null);
+      resetMessages();
     }
-  }, [deleteConversation, conversationId]);
+  }, [deleteConversation, conversationId, resetMessages]);
 
   if (!isOpen) return null;
 

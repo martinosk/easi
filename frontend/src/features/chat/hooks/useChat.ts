@@ -22,6 +22,7 @@ interface UseChatReturn {
   isStreaming: boolean;
   error: string | null;
   sendMessage: (conversationId: string, content: string, allowWriteOperations?: boolean) => Promise<void>;
+  resetMessages: (initial?: ChatMessage[]) => void;
 }
 
 type MessageUpdater = (fn: (prev: ChatMessage[]) => ChatMessage[]) => void;
@@ -112,6 +113,12 @@ export function useChat(options?: UseChatOptions): UseChatReturn {
   const onDoneRef = useRef(options?.onDone);
   onDoneRef.current = options?.onDone;
 
+  const resetMessages = useCallback((initial?: ChatMessage[]) => {
+    setMessages(initial ?? []);
+    setToolCalls([]);
+    setError(null);
+  }, []);
+
   const sendMessage = useCallback(async (conversationId: string, content: string, allowWriteOperations?: boolean) => {
     setError(null);
     setIsStreaming(true);
@@ -153,5 +160,5 @@ export function useChat(options?: UseChatOptions): UseChatReturn {
     }
   }, []);
 
-  return { messages, toolCalls, isStreaming, error, sendMessage };
+  return { messages, toolCalls, isStreaming, error, sendMessage, resetMessages };
 }

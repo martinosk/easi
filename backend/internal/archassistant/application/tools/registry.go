@@ -92,6 +92,12 @@ func (r *Registry) Register(def ToolDefinition, executor ToolExecutor) {
 	r.order = append(r.order, def.Name)
 }
 
+func (r *Registry) ToolNames() []string {
+	result := make([]string, len(r.order))
+	copy(result, r.order)
+	return result
+}
+
 func (r *Registry) AvailableTools(permissions PermissionChecker, allowWriteOperations bool) []ToolDefinition {
 	var result []ToolDefinition
 	for _, name := range r.order {

@@ -131,6 +131,77 @@ describe('ChatPanel', () => {
     expect(screen.getByLabelText('YOLO (allow changes)')).toBeInTheDocument();
   });
 
+  it('should load conversation messages when selecting a previous conversation', async () => {
+    const qc = createTestQueryClient();
+    vi.mocked(chatApi.listConversations).mockResolvedValue({
+      data: [{ id: 'conv-old', title: 'Old chat', createdAt: new Date().toISOString(), _links: {} }],
+      _links: {},
+    });
+    vi.mocked(chatApi.getConversation).mockResolvedValue({
+      id: 'conv-old',
+      title: 'Old chat',
+      createdAt: new Date().toISOString(),
+      lastMessageAt: new Date().toISOString(),
+      _links: {},
+      messages: [
+        { id: 'msg-1', role: 'user', content: 'What apps exist?', createdAt: new Date().toISOString() },
+        { id: 'msg-2', role: 'assistant', content: 'There are 3 apps.', createdAt: new Date().toISOString() },
+      ],
+    });
+
+    const Wrapper = createWrapper(qc);
+    render(<Wrapper><ChatPanel isOpen={true} onClose={vi.fn()} /></Wrapper>);
+
+    await waitFor(() => {
+      expect(screen.queryByText('No conversations yet')).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText('Conversation history'));
+    await waitFor(() => { expect(screen.getByText('Old chat')).toBeInTheDocument(); });
+
+    await act(async () => { fireEvent.click(screen.getByText('Old chat')); });
+
+    await waitFor(() => {
+      expect(chatApi.getConversation).toHaveBeenCalledWith('conv-old');
+      expect(screen.getByText('What apps exist?')).toBeInTheDocument();
+      expect(screen.getByText('There are 3 apps.')).toBeInTheDocument();
+    });
+  });
+
+  it('should clear messages when starting a new conversation', async () => {
+    const qc = createTestQueryClient();
+    vi.mocked(chatApi.listConversations).mockResolvedValue({
+      data: [{ id: 'conv-old', title: 'Old chat', createdAt: new Date().toISOString(), _links: {} }],
+      _links: {},
+    });
+    vi.mocked(chatApi.getConversation).mockResolvedValue({
+      id: 'conv-old',
+      title: 'Old chat',
+      createdAt: new Date().toISOString(),
+      lastMessageAt: new Date().toISOString(),
+      _links: {},
+      messages: [
+        { id: 'msg-1', role: 'user', content: 'Previous question', createdAt: new Date().toISOString() },
+      ],
+    });
+
+    const Wrapper = createWrapper(qc);
+    render(<Wrapper><ChatPanel isOpen={true} onClose={vi.fn()} /></Wrapper>);
+
+    fireEvent.click(screen.getByLabelText('Conversation history'));
+    await waitFor(() => { expect(screen.getByText('Old chat')).toBeInTheDocument(); });
+    await act(async () => { fireEvent.click(screen.getByText('Old chat')); });
+    await waitFor(() => { expect(screen.getByText('Previous question')).toBeInTheDocument(); });
+
+    fireEvent.click(screen.getByLabelText('Conversation history'));
+    fireEvent.click(screen.getByLabelText('New conversation'));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Previous question')).not.toBeInTheDocument();
+      expect(screen.getByText('How can I help with your architecture?')).toBeInTheDocument();
+    });
+  });
+
   it('should pass yoloEnabled as allowWriteOperations when sending message', async () => {
     mockConversationAndStream('conv-yolo');
     renderPanel(true);

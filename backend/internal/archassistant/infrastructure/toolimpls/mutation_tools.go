@@ -13,26 +13,43 @@ import (
 
 const maxStringLen = 200
 
-func requireString(args map[string]interface{}, key string) (string, *tools.ToolResult) {
+func toolErr(msg string) *tools.ToolResult {
+	return &tools.ToolResult{Content: msg, IsError: true}
+}
+
+type argValidator func(val, key string) *tools.ToolResult
+
+var validateStringLen argValidator = func(val, key string) *tools.ToolResult {
+	if len(val) > maxStringLen {
+		return toolErr(key + " must be at most 200 characters")
+	}
+	return nil
+}
+
+var validateUUIDFormat argValidator = func(val, key string) *tools.ToolResult {
+	if _, err := uuid.Parse(val); err != nil {
+		return toolErr(key + " must be a valid UUID")
+	}
+	return nil
+}
+
+func requireArg(args map[string]interface{}, key string, validate argValidator) (string, *tools.ToolResult) {
 	val, _ := args[key].(string)
 	if val == "" {
-		return "", &tools.ToolResult{Content: key + " is required", IsError: true}
+		return "", toolErr(key + " is required")
 	}
-	if len(val) > maxStringLen {
-		return "", &tools.ToolResult{Content: key + " must be at most 200 characters", IsError: true}
+	if errResult := validate(val, key); errResult != nil {
+		return "", errResult
 	}
 	return val, nil
 }
 
+func requireString(args map[string]interface{}, key string) (string, *tools.ToolResult) {
+	return requireArg(args, key, validateStringLen)
+}
+
 func requireUUID(args map[string]interface{}, key string) (string, *tools.ToolResult) {
-	val, _ := args[key].(string)
-	if val == "" {
-		return "", &tools.ToolResult{Content: key + " is required", IsError: true}
-	}
-	if _, err := uuid.Parse(val); err != nil {
-		return "", &tools.ToolResult{Content: key + " must be a valid UUID", IsError: true}
-	}
-	return val, nil
+	return requireArg(args, key, validateUUIDFormat)
 }
 
 func requireTwoUUIDs(args map[string]interface{}, key1, key2 string) (string, string, *tools.ToolResult) {
@@ -57,14 +74,6 @@ func extractField(body []byte, field string) string {
 	return ""
 }
 
-func apiError(err error) tools.ToolResult {
-	return tools.ToolResult{Content: "Failed to reach API: " + err.Error(), IsError: true}
-}
-
-func responseError(resp *agenthttp.Response) tools.ToolResult {
-	return tools.ToolResult{Content: "Failed: " + resp.ErrorMessage(), IsError: true}
-}
-
 func addOptionalStrings(args, body map[string]interface{}, keys ...string) *tools.ToolResult {
 	for _, key := range keys {
 		val, ok := args[key].(string)
@@ -72,7 +81,7 @@ func addOptionalStrings(args, body map[string]interface{}, keys ...string) *tool
 			continue
 		}
 		if len(val) > maxStringLen {
-			return &tools.ToolResult{Content: key + " must be at most 200 characters", IsError: true}
+			return toolErr(key + " must be at most 200 characters")
 		}
 		body[key] = val
 	}
@@ -85,27 +94,24 @@ type mutation struct {
 }
 
 func (m mutation) post(path string, body map[string]interface{}) (*agenthttp.Response, *tools.ToolResult) {
-	resp, err := m.client.Post(m.ctx, path, body)
-	return m.checkResponse(resp, err)
+	return m.send(m.client.Post(m.ctx, path, body))
 }
 
 func (m mutation) put(path string, body map[string]interface{}) (*agenthttp.Response, *tools.ToolResult) {
-	resp, err := m.client.Put(m.ctx, path, body)
-	return m.checkResponse(resp, err)
+	return m.send(m.client.Put(m.ctx, path, body))
 }
 
 func (m mutation) del(path string) *tools.ToolResult {
-	resp, err := m.client.Delete(m.ctx, path)
-	_, errResult := m.checkResponse(resp, err)
+	_, errResult := m.send(m.client.Delete(m.ctx, path))
 	return errResult
 }
 
-func (m mutation) checkResponse(resp *agenthttp.Response, err error) (*agenthttp.Response, *tools.ToolResult) {
+func (m mutation) send(resp *agenthttp.Response, err error) (*agenthttp.Response, *tools.ToolResult) {
 	if err != nil {
-		return nil, &tools.ToolResult{Content: "Failed to reach API: " + err.Error(), IsError: true}
+		return nil, toolErr("Failed to reach API: " + err.Error())
 	}
 	if !resp.IsSuccess() {
-		return nil, &tools.ToolResult{Content: "Failed: " + resp.ErrorMessage(), IsError: true}
+		return nil, toolErr("Failed: " + resp.ErrorMessage())
 	}
 	return resp, nil
 }
@@ -122,14 +128,18 @@ func (s resourceSpec) create(m mutation, args map[string]interface{}) tools.Tool
 		return *errResult
 	}
 	body := map[string]interface{}{"name": name}
-	if errResult := addOptionalStrings(args, body, s.optionalKeys...); errResult != nil {
-		return *errResult
-	}
-	resp, errResult := m.post(s.basePath, body)
+	resp, errResult := s.postWithOptionals(m, args, body)
 	if errResult != nil {
 		return *errResult
 	}
 	return tools.ToolResult{Content: fmt.Sprintf("Created %s '%s' (id: %s)", s.entityType, name, extractField(resp.Body, "id"))}
+}
+
+func (s resourceSpec) postWithOptionals(m mutation, args, body map[string]interface{}) (*agenthttp.Response, *tools.ToolResult) {
+	if errResult := addOptionalStrings(args, body, s.optionalKeys...); errResult != nil {
+		return nil, errResult
+	}
+	return m.post(s.basePath, body)
 }
 
 func (s resourceSpec) update(m mutation, args map[string]interface{}) tools.ToolResult {
@@ -161,7 +171,7 @@ func (s resourceSpec) deleteOne(m mutation, args map[string]interface{}) tools.T
 
 var (
 	appSpec    = resourceSpec{"application", "/components", []string{"description"}}
-	capSpec    = resourceSpec{"capability", "/capabilities", []string{"domainId", "description"}}
+	capSpec    = resourceSpec{"capability", "/capabilities", nil}
 	domainSpec = resourceSpec{"business domain", "/business-domains", []string{"description"}}
 )
 
@@ -186,7 +196,24 @@ func (t *deleteApplicationTool) Execute(ctx context.Context, args map[string]int
 type createCapabilityTool struct{ client *agenthttp.Client }
 
 func (t *createCapabilityTool) Execute(ctx context.Context, args map[string]interface{}) tools.ToolResult {
-	return capSpec.create(mutation{t.client, ctx}, args)
+	name, errResult := requireString(args, "name")
+	if errResult != nil {
+		return *errResult
+	}
+	level, errResult := requireString(args, "level")
+	if errResult != nil {
+		return *errResult
+	}
+	body := map[string]interface{}{"name": name, "level": level}
+	if errResult := addOptionalStrings(args, body, "parentId", "description"); errResult != nil {
+		return *errResult
+	}
+	m := mutation{t.client, ctx}
+	resp, errResult := m.post("/capabilities", body)
+	if errResult != nil {
+		return *errResult
+	}
+	return tools.ToolResult{Content: fmt.Sprintf("Created capability '%s' (id: %s, level: %s)", name, extractField(resp.Body, "id"), level)}
 }
 
 type updateCapabilityTool struct{ client *agenthttp.Client }
@@ -279,4 +306,32 @@ func (t *unrealizeCapabilityTool) Execute(ctx context.Context, args map[string]i
 		return *errResult
 	}
 	return tools.ToolResult{Content: fmt.Sprintf("Unlinked realization (id: %s) from capability %s", realizationID, capabilityID)}
+}
+
+type assignCapabilityToDomainTool struct{ client *agenthttp.Client }
+
+func (t *assignCapabilityToDomainTool) Execute(ctx context.Context, args map[string]interface{}) tools.ToolResult {
+	domainID, capabilityID, errResult := requireTwoUUIDs(args, "domainId", "capabilityId")
+	if errResult != nil {
+		return *errResult
+	}
+	body := map[string]interface{}{"capabilityId": capabilityID}
+	_, errResult = (mutation{t.client, ctx}).post("/business-domains/"+domainID+"/capabilities", body)
+	if errResult != nil {
+		return *errResult
+	}
+	return tools.ToolResult{Content: fmt.Sprintf("Assigned capability %s to business domain %s", capabilityID, domainID)}
+}
+
+type removeCapabilityFromDomainTool struct{ client *agenthttp.Client }
+
+func (t *removeCapabilityFromDomainTool) Execute(ctx context.Context, args map[string]interface{}) tools.ToolResult {
+	domainID, capabilityID, errResult := requireTwoUUIDs(args, "domainId", "capabilityId")
+	if errResult != nil {
+		return *errResult
+	}
+	if errResult := (mutation{t.client, ctx}).del("/business-domains/" + domainID + "/capabilities/" + capabilityID); errResult != nil {
+		return *errResult
+	}
+	return tools.ToolResult{Content: fmt.Sprintf("Removed capability %s from business domain %s", capabilityID, domainID)}
 }

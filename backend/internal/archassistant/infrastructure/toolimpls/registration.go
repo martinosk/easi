@@ -6,6 +6,12 @@ import (
 )
 
 func RegisterMutationTools(registry *tools.Registry, client *agenthttp.Client) {
+	registerComponentTools(registry, client)
+	registerCapabilityTools(registry, client)
+	registerDomainTools(registry, client)
+}
+
+func registerComponentTools(registry *tools.Registry, client *agenthttp.Client) {
 	registry.Register(tools.ToolDefinition{
 		Name:        "create_application",
 		Description: "Create a new application in the architecture portfolio",
@@ -40,13 +46,40 @@ func RegisterMutationTools(registry *tools.Registry, client *agenthttp.Client) {
 	}, &deleteApplicationTool{client: client})
 
 	registry.Register(tools.ToolDefinition{
+		Name:        "create_application_relation",
+		Description: "Create a relation between two applications",
+		Permission:  "components:write",
+		Access:      tools.AccessWrite,
+		Parameters: []tools.ParameterDef{
+			{Name: "sourceId", Type: "string", Description: "Source application ID (UUID)", Required: true},
+			{Name: "targetId", Type: "string", Description: "Target application ID (UUID)", Required: true},
+			{Name: "type", Type: "string", Description: "Relation type (e.g. depends_on)", Required: true},
+			{Name: "description", Type: "string", Description: "Relation description"},
+		},
+	}, &createApplicationRelationTool{client: client})
+
+	registry.Register(tools.ToolDefinition{
+		Name:        "delete_application_relation",
+		Description: "Delete a relation between applications",
+		Permission:  "components:write",
+		Access:      tools.AccessWrite,
+		Parameters: []tools.ParameterDef{
+			{Name: "componentId", Type: "string", Description: "Application ID (UUID)", Required: true},
+			{Name: "relationId", Type: "string", Description: "Relation ID (UUID)", Required: true},
+		},
+	}, &deleteApplicationRelationTool{client: client})
+}
+
+func registerCapabilityTools(registry *tools.Registry, client *agenthttp.Client) {
+	registry.Register(tools.ToolDefinition{
 		Name:        "create_capability",
-		Description: "Create a new capability under a business domain",
+		Description: "Create a new business capability. Capabilities form a hierarchy: L1 (top-level, no parent) → L2 (child of L1) → L3 (child of L2) → L4 (child of L3). The level must match the parent depth.",
 		Permission:  "capabilities:write",
 		Access:      tools.AccessWrite,
 		Parameters: []tools.ParameterDef{
 			{Name: "name", Type: "string", Description: "Capability name", Required: true},
-			{Name: "domainId", Type: "string", Description: "Business domain ID (UUID)"},
+			{Name: "level", Type: "string", Description: "Hierarchy level: L1 (no parent), L2 (parent is L1), L3 (parent is L2), or L4 (parent is L3)", Required: true},
+			{Name: "parentId", Type: "string", Description: "Parent capability ID (UUID). Required for L2/L3/L4, omit for L1."},
 			{Name: "description", Type: "string", Description: "Capability description"},
 		},
 	}, &createCapabilityTool{client: client})
@@ -74,6 +107,30 @@ func RegisterMutationTools(registry *tools.Registry, client *agenthttp.Client) {
 	}, &deleteCapabilityTool{client: client})
 
 	registry.Register(tools.ToolDefinition{
+		Name:        "realize_capability",
+		Description: "Link an application to a capability (realize it)",
+		Permission:  "capabilities:write",
+		Access:      tools.AccessWrite,
+		Parameters: []tools.ParameterDef{
+			{Name: "capabilityId", Type: "string", Description: "Capability ID (UUID)", Required: true},
+			{Name: "applicationId", Type: "string", Description: "Application ID (UUID)", Required: true},
+		},
+	}, &realizeCapabilityTool{client: client})
+
+	registry.Register(tools.ToolDefinition{
+		Name:        "unrealize_capability",
+		Description: "Unlink an application from a capability",
+		Permission:  "capabilities:write",
+		Access:      tools.AccessWrite,
+		Parameters: []tools.ParameterDef{
+			{Name: "capabilityId", Type: "string", Description: "Capability ID (UUID)", Required: true},
+			{Name: "realizationId", Type: "string", Description: "Realization ID (UUID)", Required: true},
+		},
+	}, &unrealizeCapabilityTool{client: client})
+}
+
+func registerDomainTools(registry *tools.Registry, client *agenthttp.Client) {
+	registry.Register(tools.ToolDefinition{
 		Name:        "create_business_domain",
 		Description: "Create a new business domain",
 		Permission:  "domains:write",
@@ -97,48 +154,24 @@ func RegisterMutationTools(registry *tools.Registry, client *agenthttp.Client) {
 	}, &updateBusinessDomainTool{client: client})
 
 	registry.Register(tools.ToolDefinition{
-		Name:        "create_application_relation",
-		Description: "Create a relation between two applications",
-		Permission:  "components:write",
+		Name:        "assign_capability_to_domain",
+		Description: "Assign an L1 capability to a business domain",
+		Permission:  "domains:write",
 		Access:      tools.AccessWrite,
 		Parameters: []tools.ParameterDef{
-			{Name: "sourceId", Type: "string", Description: "Source application ID (UUID)", Required: true},
-			{Name: "targetId", Type: "string", Description: "Target application ID (UUID)", Required: true},
-			{Name: "type", Type: "string", Description: "Relation type (e.g. depends_on)", Required: true},
-			{Name: "description", Type: "string", Description: "Relation description"},
+			{Name: "domainId", Type: "string", Description: "Business domain ID (UUID)", Required: true},
+			{Name: "capabilityId", Type: "string", Description: "Capability ID (UUID) — must be an L1 capability", Required: true},
 		},
-	}, &createApplicationRelationTool{client: client})
+	}, &assignCapabilityToDomainTool{client: client})
 
 	registry.Register(tools.ToolDefinition{
-		Name:        "delete_application_relation",
-		Description: "Delete a relation between applications",
-		Permission:  "components:write",
+		Name:        "remove_capability_from_domain",
+		Description: "Remove a capability assignment from a business domain",
+		Permission:  "domains:write",
 		Access:      tools.AccessWrite,
 		Parameters: []tools.ParameterDef{
-			{Name: "componentId", Type: "string", Description: "Application ID (UUID)", Required: true},
-			{Name: "relationId", Type: "string", Description: "Relation ID (UUID)", Required: true},
-		},
-	}, &deleteApplicationRelationTool{client: client})
-
-	registry.Register(tools.ToolDefinition{
-		Name:        "realize_capability",
-		Description: "Link an application to a capability (realize it)",
-		Permission:  "capabilities:write",
-		Access:      tools.AccessWrite,
-		Parameters: []tools.ParameterDef{
+			{Name: "domainId", Type: "string", Description: "Business domain ID (UUID)", Required: true},
 			{Name: "capabilityId", Type: "string", Description: "Capability ID (UUID)", Required: true},
-			{Name: "applicationId", Type: "string", Description: "Application ID (UUID)", Required: true},
 		},
-	}, &realizeCapabilityTool{client: client})
-
-	registry.Register(tools.ToolDefinition{
-		Name:        "unrealize_capability",
-		Description: "Unlink an application from a capability",
-		Permission:  "capabilities:write",
-		Access:      tools.AccessWrite,
-		Parameters: []tools.ParameterDef{
-			{Name: "capabilityId", Type: "string", Description: "Capability ID (UUID)", Required: true},
-			{Name: "realizationId", Type: "string", Description: "Realization ID (UUID)", Required: true},
-		},
-	}, &unrealizeCapabilityTool{client: client})
+	}, &removeCapabilityFromDomainTool{client: client})
 }
