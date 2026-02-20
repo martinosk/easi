@@ -23,3 +23,9 @@ type TimeoutError struct {
 
 func (e *TimeoutError) Error() string { return e.Err.Error() }
 func (e *TimeoutError) Unwrap() error { return e.Err }
+
+type IterationLimitError struct{}
+
+func (e *IterationLimitError) Error() string {
+	return "max tool iterations exceeded"
+}

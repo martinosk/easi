@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 
 	"easi/backend/internal/archassistant/application/systemprompt"
@@ -16,10 +17,9 @@ import (
 const (
 	charsPerToken        = 4
 	defaultContextWindow = 128000
-	maxIterations        = 10
-	maxParallelTools     = 5
-	maxSameToolCalls     = 3
-	maxToolResultChars   = 16000
+	maxIterations        = 50
+	maxSameToolCalls     = 500
+	maxToolResultChars   = 32000
 	previewMaxChars      = 200
 )
 
@@ -56,9 +56,11 @@ func (o *Orchestrator) SendMessage(ctx context.Context, writer StreamWriter, par
 	}
 
 	if !o.hasTools(params) {
+		log.Printf("[archassistant] sending WITHOUT tools (no registry or permissions)")
 		return o.sendWithoutTools(ctx, writer, params, conv)
 	}
 
+	log.Printf("[archassistant] sending WITH agent loop (tools available)")
 	return o.sendWithAgentLoop(ctx, writer, params, conv)
 }
 
@@ -87,31 +89,25 @@ func (o *Orchestrator) sendWithAgentLoop(ctx context.Context, writer StreamWrite
 	}
 
 	toolDefs := convertToolDefs(params.ToolRegistry.FormatForLLM(params.Permissions, params.AllowWriteOperations))
+	log.Printf("[archassistant] %d tool definitions sent to LLM", len(toolDefs))
 	toolCallCounts := make(map[string]int)
 
 	for iteration := 0; iteration < maxIterations; iteration++ {
-		client, err := o.clientFactory.Create(params.Config.Provider, params.Config.Endpoint, params.Config.APIKey)
-		if err != nil {
-			return wrapStreamError(fmt.Errorf("failed to create LLM client: %w", err))
-		}
-
-		stream, err := client.StreamChat(ctx, messages, ChatOptions{
-			Model:       params.Config.Model,
-			MaxTokens:   params.Config.MaxTokens,
-			Temperature: params.Config.Temperature,
-			Tools:       toolDefs,
-		})
+		agentResult, err := o.streamIteration(ctx, params, messages, toolDefs)
 		if err != nil {
 			return wrapStreamError(err)
 		}
 
-		agentResult, err := consumeAgentStream(ctx, writer, stream)
-		if err != nil {
-			return wrapStreamError(err)
-		}
+		applyTextToolCallFallback(&agentResult, params.ToolRegistry.ToolNames())
 
 		if len(agentResult.toolCalls) == 0 {
+			flushTokens(writer, agentResult.bufferedTokens)
 			return o.persistAndComplete(ctx, writer, conv, agentResult.streamResult)
+		}
+
+		log.Printf("[archassistant] tool calls detected (iteration %d): %d calls", iteration, len(agentResult.toolCalls))
+		if agentResult.content != "" {
+			_ = writer.WriteToken(agentResult.content + "\n\n")
 		}
 
 		_ = writer.WriteThinking(ThinkingEvent{Message: "Processing..."})
@@ -128,7 +124,26 @@ func (o *Orchestrator) sendWithAgentLoop(ctx context.Context, writer StreamWrite
 		messages = append(messages, toolMessages...)
 	}
 
-	return &TimeoutError{Err: fmt.Errorf("max tool iterations exceeded")}
+	return &IterationLimitError{}
+}
+
+func (o *Orchestrator) streamIteration(ctx context.Context, params SendMessageParams, messages []ChatMessage, toolDefs []interface{}) (agentStreamResult, error) {
+	client, err := o.clientFactory.Create(params.Config.Provider, params.Config.Endpoint, params.Config.APIKey)
+	if err != nil {
+		return agentStreamResult{}, fmt.Errorf("failed to create LLM client: %w", err)
+	}
+
+	stream, err := client.StreamChat(ctx, messages, ChatOptions{
+		Model:       params.Config.Model,
+		MaxTokens:   params.Config.MaxTokens,
+		Temperature: params.Config.Temperature,
+		Tools:       toolDefs,
+	})
+	if err != nil {
+		return agentStreamResult{}, err
+	}
+
+	return consumeAgentStreamBuffered(ctx, stream)
 }
 
 func (o *Orchestrator) buildInitialMessages(ctx context.Context, params SendMessageParams, conv *aggregates.Conversation) ([]ChatMessage, error) {
@@ -234,7 +249,38 @@ func consumeStream(ctx context.Context, writer StreamWriter, stream <-chan ChatE
 
 type agentStreamResult struct {
 	streamResult
-	toolCalls []ChatToolCall
+	toolCalls      []ChatToolCall
+	bufferedTokens []string
+}
+
+func consumeAgentStreamBuffered(ctx context.Context, stream <-chan ChatEvent) (agentStreamResult, error) {
+	var content strings.Builder
+	var toolCalls []ChatToolCall
+	var tokens []string
+	var tokensUsed int
+
+	for event := range stream {
+		if ctx.Err() != nil {
+			return agentStreamResult{}, ctx.Err()
+		}
+		switch event.Type {
+		case ChatEventToolCall:
+			toolCalls = append(toolCalls, event.ToolCalls...)
+		case ChatEventToken:
+			content.WriteString(event.Content)
+			tokens = append(tokens, event.Content)
+		case ChatEventDone:
+			tokensUsed = event.TokensUsed
+		case ChatEventError:
+			return agentStreamResult{}, event.Error
+		}
+	}
+
+	return agentStreamResult{
+		streamResult:   streamResult{content: content.String(), tokensUsed: tokensUsed},
+		toolCalls:      toolCalls,
+		bufferedTokens: tokens,
+	}, nil
 }
 
 func consumeAgentStream(ctx context.Context, writer StreamWriter, stream <-chan ChatEvent) (agentStreamResult, error) {
@@ -256,6 +302,12 @@ func consumeAgentStream(ctx context.Context, writer StreamWriter, stream <-chan 
 	}, nil
 }
 
+func flushTokens(writer StreamWriter, tokens []string) {
+	for _, t := range tokens {
+		_ = writer.WriteToken(t)
+	}
+}
+
 type toolCallContext struct {
 	ctx         context.Context
 	writer      StreamWriter
@@ -265,13 +317,8 @@ type toolCallContext struct {
 }
 
 func (o *Orchestrator) executeToolCalls(tcCtx toolCallContext, toolCalls []ChatToolCall) []ChatMessage {
-	calls := toolCalls
-	if len(calls) > maxParallelTools {
-		calls = calls[:maxParallelTools]
-	}
-
 	var messages []ChatMessage
-	for _, tc := range calls {
+	for _, tc := range toolCalls {
 		_ = tcCtx.writer.WriteToolCallStart(ToolCallStartEvent{
 			ToolCallID: tc.ID,
 			Name:       tc.Name,
@@ -290,9 +337,13 @@ func (o *Orchestrator) executeSingleToolCall(tcCtx toolCallContext, tc ChatToolC
 	}
 
 	args := parseToolArgs(tc.Arguments)
+	log.Printf("[archassistant] executing tool %q with args: %v", tc.Name, args)
 	result, err := tcCtx.registry.Execute(tcCtx.ctx, tcCtx.permissions, tc.Name, args)
 	if err != nil {
+		log.Printf("[archassistant] tool %q execution error: %v", tc.Name, err)
 		result = tools.ToolResult{Content: fmt.Sprintf("Error: %s", err.Error()), IsError: true}
+	} else {
+		log.Printf("[archassistant] tool %q returned %d chars (isError=%v)", tc.Name, len(result.Content), result.IsError)
 	}
 
 	content := truncateToolResult(result.Content)

@@ -1,6 +1,5 @@
-import { lazy, Suspense, useEffect, useRef, useState, useMemo } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useAppStore } from './store/appStore';
 import { useUserStore } from './store/userStore';
 import { AppLayout } from './components/layout/AppLayout';
 import { AppNavigation } from './components/layout/AppNavigation';
@@ -8,20 +7,22 @@ import { LoadingScreen } from './components/shared/LoadingScreen';
 import { ErrorScreen } from './components/shared/ErrorScreen';
 import { ErrorBoundary, FeatureErrorFallback } from './components/shared/ErrorBoundary';
 import { LoadingFallback } from './components/shared/LoadingFallback';
-import { DockviewLayout } from './components/layout/DockviewLayout';
-import { DialogManager } from './components/shared/DialogManager';
 import { ReleaseNotesOverlay } from './contexts/releases/components/ReleaseNotesOverlay';
-import { ChatPanel, ChatButton, useChatStore } from './features/chat';
-import type { ComponentCanvasRef } from './features/canvas/components/ComponentCanvas';
-import { useCanvasDialogs } from './features/canvas/hooks/useCanvasDialogs';
-import { useViewOperations } from './features/views/hooks/useViewOperations';
-import { useCanvasNavigation } from './features/canvas/hooks/useCanvasNavigation';
-import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { useReleaseNotes } from './hooks/useReleaseNotes';
-import { useRelations } from './features/relations/hooks/useRelations';
-import { useComponents } from './features/components/hooks/useComponents';
+import { ChatButton, useChatStore } from './features/chat';
+import { useDialogContext } from './contexts/dialogs';
 import { useAppInitialization } from './hooks/useAppInitialization';
+import { useReleaseNotes } from './hooks/useReleaseNotes';
 import type { Release } from './api/types';
+
+const CanvasContainer = lazy(() => import('./features/canvas/CanvasContainer'));
+
+const DialogManager = lazy(() =>
+  import('./components/shared/DialogManager').then(module => ({ default: module.DialogManager }))
+);
+
+const ChatPanel = lazy(() =>
+  import('./features/chat/components/ChatPanel').then(module => ({ default: module.ChatPanel }))
+);
 
 const BusinessDomainsRouter = lazy(() =>
   import('./features/business-domains').then(module => ({ default: module.BusinessDomainsRouter }))
@@ -75,66 +76,6 @@ function useAuthErrorHandler() {
   return { authError, clearAuthError: () => setAuthError(null) };
 }
 
-function useCanvasPermissions() {
-  const hasPermission = useUserStore((state) => state.hasPermission);
-  return useMemo(() => ({
-    canCreateComponent: hasPermission('components:write'),
-    canCreateCapability: hasPermission('capabilities:write'),
-    canCreateView: hasPermission('views:write'),
-    canCreateOriginEntity: hasPermission('components:write'),
-  }), [hasPermission]);
-}
-
-interface CanvasViewProps {
-  canvasRef: React.RefObject<ComponentCanvasRef | null>;
-  selectedNodeId: string | null;
-  selectedEdgeId: string | null;
-  dialogActions: ReturnType<typeof useCanvasDialogs>;
-  addComponentToView: ReturnType<typeof useViewOperations>['addComponentToView'];
-  switchView: ReturnType<typeof useViewOperations>['switchView'];
-  navigateToComponent: ReturnType<typeof useCanvasNavigation>['navigateToComponent'];
-  navigateToCapability: ReturnType<typeof useCanvasNavigation>['navigateToCapability'];
-  navigateToOriginEntity: ReturnType<typeof useCanvasNavigation>['navigateToOriginEntity'];
-  onRemoveFromView: () => void;
-  permissions: ReturnType<typeof useCanvasPermissions>;
-}
-
-function CanvasView({
-  canvasRef,
-  selectedNodeId,
-  selectedEdgeId,
-  dialogActions,
-  addComponentToView,
-  switchView,
-  navigateToComponent,
-  navigateToCapability,
-  navigateToOriginEntity,
-  onRemoveFromView,
-  permissions,
-}: CanvasViewProps) {
-  return (
-    <DockviewLayout
-      canvasRef={canvasRef}
-      selectedNodeId={selectedNodeId}
-      selectedEdgeId={selectedEdgeId}
-      onAddComponent={permissions.canCreateComponent ? dialogActions.openComponentDialog : undefined}
-      onAddCapability={permissions.canCreateCapability ? dialogActions.openCapabilityDialog : undefined}
-      canCreateView={permissions.canCreateView}
-      canCreateOriginEntity={permissions.canCreateOriginEntity}
-      onConnect={dialogActions.openRelationDialog}
-      onComponentDrop={(id, x, y) => addComponentToView(id as import('./api/types').ComponentId, x, y)}
-      onComponentSelect={navigateToComponent}
-      onCapabilitySelect={navigateToCapability}
-      onOriginEntitySelect={navigateToOriginEntity}
-      onViewSelect={async (id) => switchView(id as import('./api/types').ViewId)}
-      onEditComponent={dialogActions.openEditComponentDialog}
-      onEditRelation={dialogActions.openEditRelationDialog}
-      onEditCapability={dialogActions.openEditCapabilityDialog}
-      onRemoveFromView={onRemoveFromView}
-    />
-  );
-}
-
 interface ReleaseNotesDisplayProps {
   showOverlay: boolean;
   release: Release | null;
@@ -167,14 +108,9 @@ function LazyFeatureView({ featureName, children }: { featureName: string; child
   );
 }
 
-interface MainContentProps {
-  view: AppView;
-  canvasViewProps: CanvasViewProps;
-}
-
-function MainContent({ view, canvasViewProps }: MainContentProps) {
+function MainContent({ view }: { view: AppView }) {
   if (view === 'canvas') {
-    return <CanvasView {...canvasViewProps} />;
+    return <LazyFeatureView featureName="Canvas"><CanvasContainer /></LazyFeatureView>;
   }
   if (view === 'invitations') {
     return <LazyFeatureView featureName="Invitations"><InvitationsPage /></LazyFeatureView>;
@@ -202,8 +138,6 @@ interface AppProps {
 }
 
 function App({ view }: AppProps) {
-  const canvasRef = useRef<ComponentCanvasRef>(null);
-
   const { authError } = useAuthErrorHandler();
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
   const sessionLinks = useUserStore((state) => state.sessionLinks);
@@ -211,28 +145,14 @@ function App({ view }: AppProps) {
   const chatIsOpen = useChatStore((state) => state.isOpen);
   const toggleChat = useChatStore((state) => state.togglePanel);
   const closeChat = useChatStore((state) => state.closePanel);
-  const permissions = useCanvasPermissions();
+  const { openDialog } = useDialogContext();
 
   const { isLoading, error } = useAppInitialization();
-  const selectedNodeId = useAppStore((state) => state.selectedNodeId);
-  const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
-  const { data: relations = [] } = useRelations();
-  const { data: components = [] } = useComponents();
-
   const { showOverlay: showReleaseNotes, release, dismiss: dismissReleaseNotes } = useReleaseNotes();
-  const dialogActions = useCanvasDialogs(selectedEdgeId, relations, components);
-  const { removeComponentFromView, addComponentToView, switchView } = useViewOperations();
-  const { navigateToComponent, navigateToCapability, navigateToOriginEntity } = useCanvasNavigation(canvasRef);
 
-  const handleRemoveFromView = () => {
-    if (selectedNodeId) {
-      removeComponentFromView(selectedNodeId);
-    }
-  };
-
-  useKeyboardShortcuts({ onDelete: handleRemoveFromView });
-
-  const hasNoData = components.length === 0;
+  const openReleaseNotesBrowser = useCallback(() => {
+    openDialog('release-notes-browser');
+  }, [openDialog]);
 
   if (authError && !isAuthenticated) {
     return (
@@ -247,33 +167,19 @@ function App({ view }: AppProps) {
     );
   }
 
-  if (isLoading && hasNoData) {
+  if (isLoading) {
     return <AppLayout><LoadingScreen /></AppLayout>;
   }
 
-  if (error && hasNoData) {
+  if (error) {
     return <AppLayout><ErrorScreen error={error.message} onRetry={() => window.location.reload()} /></AppLayout>;
   }
-
-  const canvasViewProps: CanvasViewProps = {
-    canvasRef,
-    selectedNodeId,
-    selectedEdgeId,
-    dialogActions,
-    addComponentToView,
-    switchView,
-    navigateToComponent,
-    navigateToCapability,
-    navigateToOriginEntity,
-    onRemoveFromView: handleRemoveFromView,
-    permissions,
-  };
 
   return (
     <AppLayout>
       <AppNavigation
         currentView={view}
-        onOpenReleaseNotes={dialogActions.openReleaseNotesBrowser}
+        onOpenReleaseNotes={openReleaseNotesBrowser}
         chatButton={
           <ChatButton
             assistantAvailable={assistantAvailable}
@@ -282,9 +188,15 @@ function App({ view }: AppProps) {
           />
         }
       />
-      <MainContent view={view} canvasViewProps={canvasViewProps} />
-      <DialogManager />
-      <ChatPanel isOpen={chatIsOpen} onClose={closeChat} />
+      <MainContent view={view} />
+      <Suspense fallback={null}>
+        <DialogManager />
+      </Suspense>
+      {chatIsOpen && (
+        <Suspense fallback={null}>
+          <ChatPanel isOpen={chatIsOpen} onClose={closeChat} />
+        </Suspense>
+      )}
       <ReleaseNotesDisplay
         showOverlay={showReleaseNotes}
         release={release}

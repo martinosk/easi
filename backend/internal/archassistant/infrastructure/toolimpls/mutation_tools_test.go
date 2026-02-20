@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"easi/backend/internal/archassistant/application/tools"
@@ -16,275 +17,277 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const validUUID = "550e8400-e29b-41d4-a716-446655440000"
+const validUUID2 = "660e8400-e29b-41d4-a716-446655440000"
+
 func newTestClient(server *httptest.Server) *agenthttp.Client {
 	return agenthttp.NewClient(server.URL+"/api/v1", "test-token")
 }
 
-func jsonResponse(w http.ResponseWriter, status int, body map[string]interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(body)
+type toolTestCase struct {
+	name           string
+	toolName       string
+	args           map[string]interface{}
+	expectMethod   string
+	expectPath     string
+	expectBody     map[string]interface{}
+	responseStatus int
+	responseBody   map[string]interface{}
+	wantError      bool
+	wantContains   []string
 }
 
-func jsonError(w http.ResponseWriter, status int, message string) {
-	jsonResponse(w, status, map[string]interface{}{"message": message})
-}
-
-func readJSONBody(t *testing.T, r *http.Request) map[string]interface{} {
+func runToolTests(t *testing.T, cases []toolTestCase) {
 	t.Helper()
-	raw, err := io.ReadAll(r.Body)
-	require.NoError(t, err)
-	var body map[string]interface{}
-	require.NoError(t, json.Unmarshal(raw, &body))
-	return body
-}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := buildHandler(t, tc)
+			server := httptest.NewServer(handler)
+			t.Cleanup(server.Close)
 
-const validUUID = "550e8400-e29b-41d4-a716-446655440000"
-const validUUID2 = "660e8400-e29b-41d4-a716-446655440000"
+			result := executeRegisteredTool(t, server, tc.toolName, tc.args)
 
-func TestCreateApplication_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/api/v1/components", r.URL.Path)
-		body := readJSONBody(t, r)
-		assert.Equal(t, "Payment Gateway", body["name"])
-		assert.Equal(t, "Handles payments", body["description"])
-		jsonResponse(w, http.StatusCreated, map[string]interface{}{
-			"id":   validUUID,
-			"name": "Payment Gateway",
+			assert.Equal(t, tc.wantError, result.IsError, "IsError mismatch: %s", result.Content)
+			for _, s := range tc.wantContains {
+				assert.Contains(t, result.Content, s)
+			}
 		})
-	}))
-	defer server.Close()
+	}
+}
 
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, newTestClient(server))
-
-	result := executeTool(t, registry, "create_application", map[string]interface{}{
-		"name":        "Payment Gateway",
-		"description": "Handles payments",
+func buildHandler(t *testing.T, tc toolTestCase) http.Handler {
+	t.Helper()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if tc.wantError {
+			t.Fatal("API should not be called for validation errors")
+		}
+		assert.Equal(t, tc.expectMethod, r.Method)
+		assert.Equal(t, tc.expectPath, r.URL.Path)
+		if tc.expectBody != nil {
+			body := readJSONBody(t, r)
+			for k, v := range tc.expectBody {
+				assert.Equal(t, v, body[k], "body field %q", k)
+			}
+		}
+		if tc.responseBody != nil {
+			jsonResponse(w, tc.responseStatus, tc.responseBody)
+		} else {
+			w.WriteHeader(tc.responseStatus)
+		}
 	})
-
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "Payment Gateway")
-	assert.Contains(t, result.Content, validUUID)
 }
 
-func TestCreateApplication_MissingName(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Fatal("API should not be called when name is missing")
-	}))
-	defer server.Close()
-
+func executeRegisteredTool(t *testing.T, server *httptest.Server, name string, args map[string]interface{}) tools.ToolResult {
+	t.Helper()
+	client := agenthttp.NewClient(server.URL+"/api/v1", "test-token")
 	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, newTestClient(server))
-
-	result := executeTool(t, registry, "create_application", map[string]interface{}{})
-
-	assert.True(t, result.IsError)
-	assert.Contains(t, result.Content, "name is required")
+	toolimpls.RegisterMutationTools(registry, client)
+	return executeTool(t, registry, name, args)
 }
 
-func TestUpdateApplication_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPut, r.Method)
-		assert.Equal(t, "/api/v1/components/"+validUUID, r.URL.Path)
-		body := readJSONBody(t, r)
-		assert.Equal(t, "Payment Service", body["name"])
-		jsonResponse(w, http.StatusOK, map[string]interface{}{
-			"id":   validUUID,
-			"name": "Payment Service",
-		})
-	}))
-	defer server.Close()
-
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, newTestClient(server))
-
-	result := executeTool(t, registry, "update_application", map[string]interface{}{
-		"id":   validUUID,
-		"name": "Payment Service",
+func TestMutationTools_CreateSuccess(t *testing.T) {
+	runToolTests(t, []toolTestCase{
+		{
+			name:           "create application",
+			toolName:       "create_application",
+			args:           map[string]interface{}{"name": "Payment Gateway", "description": "Handles payments"},
+			expectMethod:   http.MethodPost,
+			expectPath:     "/api/v1/components",
+			expectBody:     map[string]interface{}{"name": "Payment Gateway", "description": "Handles payments"},
+			responseStatus: http.StatusCreated,
+			responseBody:   map[string]interface{}{"id": validUUID, "name": "Payment Gateway"},
+			wantContains:   []string{"Payment Gateway", validUUID},
+		},
+		{
+			name:           "create L1 capability",
+			toolName:       "create_capability",
+			args:           map[string]interface{}{"name": "Payment Processing", "level": "L1"},
+			expectMethod:   http.MethodPost,
+			expectPath:     "/api/v1/capabilities",
+			expectBody:     map[string]interface{}{"name": "Payment Processing", "level": "L1"},
+			responseStatus: http.StatusCreated,
+			responseBody:   map[string]interface{}{"id": validUUID, "name": "Payment Processing"},
+			wantContains:   []string{"Payment Processing", validUUID},
+		},
+		{
+			name:           "create L2 capability with parent",
+			toolName:       "create_capability",
+			args:           map[string]interface{}{"name": "Invoice Processing", "level": "L2", "parentId": validUUID},
+			expectMethod:   http.MethodPost,
+			expectPath:     "/api/v1/capabilities",
+			expectBody:     map[string]interface{}{"name": "Invoice Processing", "level": "L2", "parentId": validUUID},
+			responseStatus: http.StatusCreated,
+			responseBody:   map[string]interface{}{"id": validUUID2, "name": "Invoice Processing"},
+			wantContains:   []string{"Invoice Processing", "L2"},
+		},
+		{
+			name:           "create business domain",
+			toolName:       "create_business_domain",
+			args:           map[string]interface{}{"name": "Finance"},
+			expectMethod:   http.MethodPost,
+			expectPath:     "/api/v1/business-domains",
+			expectBody:     map[string]interface{}{"name": "Finance"},
+			responseStatus: http.StatusCreated,
+			responseBody:   map[string]interface{}{"id": validUUID, "name": "Finance"},
+			wantContains:   []string{"Finance", validUUID},
+		},
+		{
+			name:           "create application relation",
+			toolName:       "create_application_relation",
+			args:           map[string]interface{}{"sourceId": validUUID, "targetId": validUUID2, "type": "depends_on"},
+			expectMethod:   http.MethodPost,
+			expectPath:     "/api/v1/components/" + validUUID + "/relations",
+			expectBody:     map[string]interface{}{"targetId": validUUID2, "type": "depends_on"},
+			responseStatus: http.StatusCreated,
+			responseBody:   map[string]interface{}{"id": "rel-uuid-123"},
+			wantContains:   []string{"relation"},
+		},
+		{
+			name:           "realize capability",
+			toolName:       "realize_capability",
+			args:           map[string]interface{}{"capabilityId": validUUID, "applicationId": validUUID2},
+			expectMethod:   http.MethodPost,
+			expectPath:     "/api/v1/capabilities/" + validUUID + "/realizations",
+			expectBody:     map[string]interface{}{"applicationId": validUUID2},
+			responseStatus: http.StatusCreated,
+			responseBody:   map[string]interface{}{"id": "real-uuid-123"},
+			wantContains:   []string{"Linked"},
+		},
+		{
+			name:           "assign capability to domain",
+			toolName:       "assign_capability_to_domain",
+			args:           map[string]interface{}{"domainId": validUUID, "capabilityId": validUUID2},
+			expectMethod:   http.MethodPost,
+			expectPath:     "/api/v1/business-domains/" + validUUID + "/capabilities",
+			expectBody:     map[string]interface{}{"capabilityId": validUUID2},
+			responseStatus: http.StatusCreated,
+			responseBody:   map[string]interface{}{"businessDomainId": validUUID, "capabilityId": validUUID2},
+			wantContains:   []string{"Assigned", validUUID2, validUUID},
+		},
 	})
-
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "Payment Service")
 }
 
-func TestDeleteApplication_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodDelete, r.Method)
-		assert.Equal(t, "/api/v1/components/"+validUUID, r.URL.Path)
-		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer server.Close()
-
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, newTestClient(server))
-
-	result := executeTool(t, registry, "delete_application", map[string]interface{}{
-		"id": validUUID,
+func TestMutationTools_UpdateSuccess(t *testing.T) {
+	runToolTests(t, []toolTestCase{
+		{
+			name:           "update application",
+			toolName:       "update_application",
+			args:           map[string]interface{}{"id": validUUID, "name": "Payment Service"},
+			expectMethod:   http.MethodPut,
+			expectPath:     "/api/v1/components/" + validUUID,
+			expectBody:     map[string]interface{}{"name": "Payment Service"},
+			responseStatus: http.StatusOK,
+			responseBody:   map[string]interface{}{"id": validUUID, "name": "Payment Service"},
+			wantContains:   []string{"Payment Service"},
+		},
+		{
+			name:           "update capability",
+			toolName:       "update_capability",
+			args:           map[string]interface{}{"id": validUUID, "name": "Updated Capability"},
+			expectMethod:   http.MethodPut,
+			expectPath:     "/api/v1/capabilities/" + validUUID,
+			expectBody:     map[string]interface{}{"name": "Updated Capability"},
+			responseStatus: http.StatusOK,
+			responseBody:   map[string]interface{}{"id": validUUID, "name": "Updated Capability"},
+			wantContains:   []string{"Updated Capability"},
+		},
+		{
+			name:           "update business domain",
+			toolName:       "update_business_domain",
+			args:           map[string]interface{}{"id": validUUID, "name": "Updated Domain"},
+			expectMethod:   http.MethodPut,
+			expectPath:     "/api/v1/business-domains/" + validUUID,
+			expectBody:     map[string]interface{}{"name": "Updated Domain"},
+			responseStatus: http.StatusOK,
+			responseBody:   map[string]interface{}{"id": validUUID, "name": "Updated Domain"},
+			wantContains:   []string{"Updated Domain"},
+		},
 	})
-
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "Deleted application")
-	assert.Contains(t, result.Content, validUUID)
 }
 
-func TestCreateCapability_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/api/v1/capabilities", r.URL.Path)
-		body := readJSONBody(t, r)
-		assert.Equal(t, "Payment Processing", body["name"])
-		assert.Equal(t, validUUID2, body["domainId"])
-		jsonResponse(w, http.StatusCreated, map[string]interface{}{
-			"id":   validUUID,
-			"name": "Payment Processing",
-		})
-	}))
-	defer server.Close()
-
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, newTestClient(server))
-
-	result := executeTool(t, registry, "create_capability", map[string]interface{}{
-		"name":     "Payment Processing",
-		"domainId": validUUID2,
+func TestMutationTools_DeleteSuccess(t *testing.T) {
+	runToolTests(t, []toolTestCase{
+		{
+			name:           "delete application",
+			toolName:       "delete_application",
+			args:           map[string]interface{}{"id": validUUID},
+			expectMethod:   http.MethodDelete,
+			expectPath:     "/api/v1/components/" + validUUID,
+			responseStatus: http.StatusNoContent,
+			wantContains:   []string{"Deleted application", validUUID},
+		},
+		{
+			name:           "delete capability",
+			toolName:       "delete_capability",
+			args:           map[string]interface{}{"id": validUUID},
+			expectMethod:   http.MethodDelete,
+			expectPath:     "/api/v1/capabilities/" + validUUID,
+			responseStatus: http.StatusNoContent,
+			wantContains:   []string{"Deleted capability", validUUID},
+		},
+		{
+			name:           "delete application relation",
+			toolName:       "delete_application_relation",
+			args:           map[string]interface{}{"componentId": validUUID, "relationId": validUUID2},
+			expectMethod:   http.MethodDelete,
+			expectPath:     "/api/v1/components/" + validUUID + "/relations/" + validUUID2,
+			responseStatus: http.StatusNoContent,
+			wantContains:   []string{"Deleted relation"},
+		},
+		{
+			name:           "unrealize capability",
+			toolName:       "unrealize_capability",
+			args:           map[string]interface{}{"capabilityId": validUUID, "realizationId": validUUID2},
+			expectMethod:   http.MethodDelete,
+			expectPath:     "/api/v1/capabilities/" + validUUID + "/realizations/" + validUUID2,
+			responseStatus: http.StatusNoContent,
+			wantContains:   []string{"Unlinked"},
+		},
+		{
+			name:           "remove capability from domain",
+			toolName:       "remove_capability_from_domain",
+			args:           map[string]interface{}{"domainId": validUUID, "capabilityId": validUUID2},
+			expectMethod:   http.MethodDelete,
+			expectPath:     "/api/v1/business-domains/" + validUUID + "/capabilities/" + validUUID2,
+			responseStatus: http.StatusNoContent,
+			wantContains:   []string{"Removed", validUUID2, validUUID},
+		},
 	})
-
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "Payment Processing")
-	assert.Contains(t, result.Content, validUUID)
 }
 
-func TestCreateBusinessDomain_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/api/v1/business-domains", r.URL.Path)
-		body := readJSONBody(t, r)
-		assert.Equal(t, "Finance", body["name"])
-		jsonResponse(w, http.StatusCreated, map[string]interface{}{
-			"id":   validUUID,
-			"name": "Finance",
-		})
-	}))
-	defer server.Close()
-
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, newTestClient(server))
-
-	result := executeTool(t, registry, "create_business_domain", map[string]interface{}{
-		"name": "Finance",
+func TestMutationTools_ValidationErrors(t *testing.T) {
+	runToolTests(t, []toolTestCase{
+		{
+			name:         "create application missing name",
+			toolName:     "create_application",
+			args:         map[string]interface{}{},
+			wantError:    true,
+			wantContains: []string{"name is required"},
+		},
+		{
+			name:         "create capability missing level",
+			toolName:     "create_capability",
+			args:         map[string]interface{}{"name": "Payment Processing"},
+			wantError:    true,
+			wantContains: []string{"level is required"},
+		},
+		{
+			name:         "create application name too long",
+			toolName:     "create_application",
+			args:         map[string]interface{}{"name": strings.Repeat("a", 201)},
+			wantError:    true,
+			wantContains: []string{"200 characters"},
+		},
 	})
-
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "Finance")
-	assert.Contains(t, result.Content, validUUID)
 }
 
-func TestCreateApplicationRelation_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/api/v1/components/"+validUUID+"/relations", r.URL.Path)
-		body := readJSONBody(t, r)
-		assert.Equal(t, validUUID2, body["targetId"])
-		assert.Equal(t, "depends_on", body["type"])
-		jsonResponse(w, http.StatusCreated, map[string]interface{}{
-			"id":       "rel-uuid-123",
-			"sourceId": validUUID,
-			"targetId": validUUID2,
-			"type":     "depends_on",
-		})
-	}))
-	defer server.Close()
-
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, newTestClient(server))
-
-	result := executeTool(t, registry, "create_application_relation", map[string]interface{}{
-		"sourceId": validUUID,
-		"targetId": validUUID2,
-		"type":     "depends_on",
-	})
-
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "relation")
-}
-
-func TestDeleteApplicationRelation_Success(t *testing.T) {
-	relID := "770e8400-e29b-41d4-a716-446655440000"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodDelete, r.Method)
-		assert.Equal(t, "/api/v1/components/"+validUUID+"/relations/"+relID, r.URL.Path)
-		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer server.Close()
-
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, newTestClient(server))
-
-	result := executeTool(t, registry, "delete_application_relation", map[string]interface{}{
-		"componentId": validUUID,
-		"relationId":  relID,
-	})
-
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "Deleted relation")
-}
-
-func TestRealizeCapability_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/api/v1/capabilities/"+validUUID+"/realizations", r.URL.Path)
-		body := readJSONBody(t, r)
-		assert.Equal(t, validUUID2, body["applicationId"])
-		jsonResponse(w, http.StatusCreated, map[string]interface{}{
-			"id":            "real-uuid-123",
-			"capabilityId":  validUUID,
-			"applicationId": validUUID2,
-		})
-	}))
-	defer server.Close()
-
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, newTestClient(server))
-
-	result := executeTool(t, registry, "realize_capability", map[string]interface{}{
-		"capabilityId":  validUUID,
-		"applicationId": validUUID2,
-	})
-
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "Linked")
-}
-
-func TestUnrealizeCapability_Success(t *testing.T) {
-	realID := "880e8400-e29b-41d4-a716-446655440000"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodDelete, r.Method)
-		assert.Equal(t, "/api/v1/capabilities/"+validUUID+"/realizations/"+realID, r.URL.Path)
-		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer server.Close()
-
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, newTestClient(server))
-
-	result := executeTool(t, registry, "unrealize_capability", map[string]interface{}{
-		"capabilityId":  validUUID,
-		"realizationId": realID,
-	})
-
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "Unlinked")
-}
-
-func TestMutationTool_APIError(t *testing.T) {
+func TestMutationTools_APIError(t *testing.T) {
 	cases := []struct {
-		name       string
-		status     int
-		message    string
-		toolName   string
-		args       map[string]interface{}
+		name     string
+		status   int
+		message  string
+		toolName string
+		args     map[string]interface{}
 	}{
 		{
 			name:     "400 Bad Request",
@@ -314,77 +317,62 @@ func TestMutationTool_APIError(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				jsonError(w, tc.status, tc.message)
 			}))
-			defer server.Close()
+			t.Cleanup(server.Close)
 
-			registry := tools.NewRegistry()
-			toolimpls.RegisterMutationTools(registry, newTestClient(server))
-
-			result := executeTool(t, registry, tc.toolName, tc.args)
-
+			result := executeRegisteredTool(t, server, tc.toolName, tc.args)
 			assert.True(t, result.IsError)
 			assert.Contains(t, result.Content, tc.message)
 		})
 	}
 }
 
-func TestMutationTool_InvalidID(t *testing.T) {
+func TestMutationTools_InvalidID(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("API should not be called with invalid UUID")
 	}))
-	defer server.Close()
-
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, newTestClient(server))
+	t.Cleanup(server.Close)
 
 	cases := []struct {
 		name     string
 		toolName string
 		args     map[string]interface{}
 	}{
-		{
-			name:     "update_application with invalid ID",
-			toolName: "update_application",
-			args:     map[string]interface{}{"id": "not-a-uuid", "name": "Test"},
-		},
-		{
-			name:     "delete_application with invalid ID",
-			toolName: "delete_application",
-			args:     map[string]interface{}{"id": "not-a-uuid"},
-		},
-		{
-			name:     "delete_application_relation with invalid componentId",
-			toolName: "delete_application_relation",
-			args:     map[string]interface{}{"componentId": "bad", "relationId": validUUID},
-		},
-		{
-			name:     "delete_application_relation with invalid relationId",
-			toolName: "delete_application_relation",
-			args:     map[string]interface{}{"componentId": validUUID, "relationId": "bad"},
-		},
-		{
-			name:     "realize_capability with invalid capabilityId",
-			toolName: "realize_capability",
-			args:     map[string]interface{}{"capabilityId": "bad", "applicationId": validUUID},
-		},
+		{"update_application", "update_application", map[string]interface{}{"id": "not-a-uuid", "name": "Test"}},
+		{"delete_application", "delete_application", map[string]interface{}{"id": "not-a-uuid"}},
+		{"delete_relation invalid componentId", "delete_application_relation", map[string]interface{}{"componentId": "bad", "relationId": validUUID}},
+		{"delete_relation invalid relationId", "delete_application_relation", map[string]interface{}{"componentId": validUUID, "relationId": "bad"}},
+		{"realize invalid capabilityId", "realize_capability", map[string]interface{}{"capabilityId": "bad", "applicationId": validUUID}},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := executeTool(t, registry, tc.toolName, tc.args)
+			result := executeRegisteredTool(t, server, tc.toolName, tc.args)
 			assert.True(t, result.IsError)
 			assert.Contains(t, result.Content, "valid UUID")
 		})
 	}
 }
 
-func TestRegisterMutationTools_AllRegistered(t *testing.T) {
+func TestMutationTools_APIUnreachable(t *testing.T) {
+	client := agenthttp.NewClient("http://localhost:1/api/v1", "test-token")
+	registry := tools.NewRegistry()
+	toolimpls.RegisterMutationTools(registry, client)
+
+	result := executeTool(t, registry, "create_application", map[string]interface{}{"name": "Test"})
+
+	assert.True(t, result.IsError)
+	assert.Contains(t, result.Content, "Failed to reach API")
+}
+
+func TestMutationTools_AllRegistered(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	t.Cleanup(server.Close)
 
+	client := agenthttp.NewClient(server.URL+"/api/v1", "test-token")
 	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, newTestClient(server))
+	toolimpls.RegisterMutationTools(registry, client)
 
 	allPerms := &mockPermissions{permissions: map[string]bool{
 		"components:write":   true,
@@ -395,18 +383,12 @@ func TestRegisterMutationTools_AllRegistered(t *testing.T) {
 	available := registry.AvailableTools(allPerms, true)
 
 	expectedTools := []string{
-		"create_application",
-		"update_application",
-		"delete_application",
-		"create_capability",
-		"update_capability",
-		"delete_capability",
-		"create_business_domain",
-		"update_business_domain",
-		"create_application_relation",
-		"delete_application_relation",
-		"realize_capability",
-		"unrealize_capability",
+		"create_application", "update_application", "delete_application",
+		"create_capability", "update_capability", "delete_capability",
+		"create_business_domain", "update_business_domain",
+		"assign_capability_to_domain", "remove_capability_from_domain",
+		"create_application_relation", "delete_application_relation",
+		"realize_capability", "unrealize_capability",
 	}
 
 	names := make([]string, len(available))
@@ -420,109 +402,23 @@ func TestRegisterMutationTools_AllRegistered(t *testing.T) {
 	}
 }
 
-func TestUpdateCapability_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPut, r.Method)
-		assert.Equal(t, "/api/v1/capabilities/"+validUUID, r.URL.Path)
-		body := readJSONBody(t, r)
-		assert.Equal(t, "Updated Capability", body["name"])
-		jsonResponse(w, http.StatusOK, map[string]interface{}{
-			"id":   validUUID,
-			"name": "Updated Capability",
-		})
-	}))
-	defer server.Close()
-
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, newTestClient(server))
-
-	result := executeTool(t, registry, "update_capability", map[string]interface{}{
-		"id":   validUUID,
-		"name": "Updated Capability",
-	})
-
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "Updated Capability")
+func jsonResponse(w http.ResponseWriter, status int, body map[string]interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(body)
 }
 
-func TestDeleteCapability_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodDelete, r.Method)
-		assert.Equal(t, "/api/v1/capabilities/"+validUUID, r.URL.Path)
-		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer server.Close()
-
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, newTestClient(server))
-
-	result := executeTool(t, registry, "delete_capability", map[string]interface{}{
-		"id": validUUID,
-	})
-
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "Deleted capability")
+func jsonError(w http.ResponseWriter, status int, message string) {
+	jsonResponse(w, status, map[string]interface{}{"message": message})
 }
 
-func TestUpdateBusinessDomain_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPut, r.Method)
-		assert.Equal(t, "/api/v1/business-domains/"+validUUID, r.URL.Path)
-		body := readJSONBody(t, r)
-		assert.Equal(t, "Updated Domain", body["name"])
-		jsonResponse(w, http.StatusOK, map[string]interface{}{
-			"id":   validUUID,
-			"name": "Updated Domain",
-		})
-	}))
-	defer server.Close()
-
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, newTestClient(server))
-
-	result := executeTool(t, registry, "update_business_domain", map[string]interface{}{
-		"id":   validUUID,
-		"name": "Updated Domain",
-	})
-
-	assert.False(t, result.IsError)
-	assert.Contains(t, result.Content, "Updated Domain")
-}
-
-func TestCreateApplication_NameTooLong(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Fatal("API should not be called with name too long")
-	}))
-	defer server.Close()
-
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, newTestClient(server))
-
-	longName := make([]byte, 201)
-	for i := range longName {
-		longName[i] = 'a'
-	}
-
-	result := executeTool(t, registry, "create_application", map[string]interface{}{
-		"name": string(longName),
-	})
-
-	assert.True(t, result.IsError)
-	assert.Contains(t, result.Content, "200 characters")
-}
-
-func TestCreateApplication_APIUnreachable(t *testing.T) {
-	client := agenthttp.NewClient("http://localhost:1/api/v1", "test-token")
-
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, client)
-
-	result := executeTool(t, registry, "create_application", map[string]interface{}{
-		"name": "Test",
-	})
-
-	assert.True(t, result.IsError)
-	assert.Contains(t, result.Content, "Failed to reach API")
+func readJSONBody(t *testing.T, r *http.Request) map[string]interface{} {
+	t.Helper()
+	raw, err := io.ReadAll(r.Body)
+	require.NoError(t, err)
+	var body map[string]interface{}
+	require.NoError(t, json.Unmarshal(raw, &body))
+	return body
 }
 
 type mockPermissions struct {

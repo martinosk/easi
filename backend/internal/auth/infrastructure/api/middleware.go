@@ -69,6 +69,16 @@ func (m *AuthMiddleware) RequirePermission(permission valueobjects.Permission) f
 			}
 
 			origCtx := r.Context()
+
+			if actor, ok := sharedctx.GetActor(origCtx); ok && actor.ViaAgent {
+				if !actor.HasPermission(permission.String()) {
+					http.Error(w, "Forbidden", http.StatusForbidden)
+					return
+				}
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			ctx, err := m.authenticateAndAuthorize(origCtx, permission)
 			if err != nil {
 				err.Write(w)

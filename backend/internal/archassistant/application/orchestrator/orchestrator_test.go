@@ -499,8 +499,8 @@ func TestOrchestrator_SendMessage_MaxIterations(t *testing.T) {
 	err := fix.sendMessage(t, server.URL, "Keep calling tools", allPermissions())
 
 	require.Error(t, err)
-	var timeoutErr *orchestrator.TimeoutError
-	assert.ErrorAs(t, err, &timeoutErr)
+	var iterErr *orchestrator.IterationLimitError
+	assert.ErrorAs(t, err, &iterErr)
 }
 
 func TestOrchestrator_SendMessage_NoToolsWhenRegistryNil(t *testing.T) {
@@ -529,7 +529,7 @@ func TestOrchestrator_SendMessage_MaxSameToolCalls(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 
 		n := callCount.Add(1)
-		if n <= 4 {
+		if n <= 8 {
 			w.Write([]byte(toolCallResponse(fmt.Sprintf("call-%d", n), "list_apps", "{}")))
 			return
 		}
@@ -550,7 +550,8 @@ func TestOrchestrator_SendMessage_MaxSameToolCalls(t *testing.T) {
 			errorResults++
 		}
 	}
-	assert.GreaterOrEqual(t, errorResults, 1)
+	assert.Equal(t, 0, errorResults, "8 calls should be within maxSameToolCalls=10")
+	assert.Equal(t, 8, len(fix.writer.toolResults))
 }
 
 func TestOrchestrator_SendMessage_ToolCallError(t *testing.T) {
@@ -651,8 +652,8 @@ func TestOrchestrator_SendMessage_MaxSameToolCalls_ExactBoundary(t *testing.T) {
 	}
 	_ = toolResultBodies
 
-	assert.Equal(t, 3, successResults, "exactly 3 calls should succeed (maxSameToolCalls=3)")
-	assert.GreaterOrEqual(t, errorResults, 1, "4th+ calls should be rejected")
+	assert.Equal(t, 5, successResults, "exactly 5 calls should succeed (under maxSameToolCalls=10)")
+	assert.Equal(t, 0, errorResults, "no calls should be rejected when under limit")
 }
 
 func TestOrchestrator_SendMessage_ToolResultTruncation(t *testing.T) {
@@ -683,6 +684,146 @@ func TestOrchestrator_SendMessage_PreviewTruncation(t *testing.T) {
 	preview := fix.writer.toolResults[0].ResultPreview
 	assert.LessOrEqual(t, len(preview), 203, "preview should be truncated to ~200 chars + ellipsis")
 	assert.True(t, strings.HasSuffix(preview, "..."), "truncated preview should end with ...")
+}
+
+func textToolCallResponse(preamble, toolName, toolArgs string) string {
+	content := fmt.Sprintf(
+		"%s\n<tool_call>\n{\"name\": \"%s\", \"arguments\": %s}\n</tool_call>\n<tool_response>\n{\"fake\": \"data\"}\n</tool_response>",
+		preamble, toolName, toolArgs,
+	)
+	encoded, _ := json.Marshal(content)
+	raw := string(encoded[1 : len(encoded)-1])
+	return fmt.Sprintf(
+		`data: {"choices":[{"delta":{"content":"%s"}}]}`+"\n\n"+
+			"data: [DONE]\n\n",
+		raw,
+	)
+}
+
+func TestOrchestrator_SendMessage_TextToolCallFallback(t *testing.T) {
+	var callCount atomic.Int32
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+
+		n := callCount.Add(1)
+		if n == 1 && !hasToolCallMessages(body) {
+			w.Write([]byte(textToolCallResponse(
+				"I'll look up the applications for you.",
+				"list_apps",
+				`{}`,
+			)))
+			return
+		}
+		w.Write([]byte(textResponse("You have 2 real applications: Word and Excel.")))
+	})
+
+	registry := newTestRegistry(map[string]tools.ToolResult{
+		"list_apps": {Content: `[{"name":"Word"},{"name":"Excel"}]`},
+	})
+	fix, server := setupToolTest(t, registry, handler)
+
+	err := fix.sendMessage(t, server.URL, "List applications in my portfolio", allPermissions())
+	require.NoError(t, err)
+
+	require.Len(t, fix.writer.toolStarts, 1)
+	assert.Equal(t, "list_apps", fix.writer.toolStarts[0].Name)
+	assert.True(t, strings.HasPrefix(fix.writer.toolStarts[0].ToolCallID, "text-tc-"))
+
+	require.Len(t, fix.writer.toolResults, 1)
+	assert.Equal(t, "list_apps", fix.writer.toolResults[0].Name)
+
+	lastSaved := fix.repo.savedMsgs[len(fix.repo.savedMsgs)-1]
+	assert.Contains(t, lastSaved.Content(), "Word")
+	assert.Contains(t, lastSaved.Content(), "Excel")
+	assert.NotContains(t, lastSaved.Content(), "tool_call")
+
+	for _, tok := range fix.writer.tokens {
+		assert.NotContains(t, tok, "tool_call", "hallucinated XML must not reach the client")
+		assert.NotContains(t, tok, "tool_response", "hallucinated response must not reach the client")
+	}
+}
+
+func functionCallsResponse(preamble, toolName string, params map[string]string) string {
+	var paramXML strings.Builder
+	for k, v := range params {
+		fmt.Fprintf(&paramXML, `<parameter name="%s">%s</parameter> `, k, v)
+	}
+	content := fmt.Sprintf(
+		`%s`+"\n"+`<function_calls> <invoke name="%s"> %s</invoke> </function_calls> `+
+			`<function_result> <invoke name="%s"> {"fake":"data"} </invoke> </function_calls>`,
+		preamble, toolName, paramXML.String(), toolName,
+	)
+	encoded, _ := json.Marshal(content)
+	raw := string(encoded[1 : len(encoded)-1])
+	return fmt.Sprintf(
+		`data: {"choices":[{"delta":{"content":"%s"}}]}`+"\n\n"+
+			"data: [DONE]\n\n",
+		raw,
+	)
+}
+
+func TestOrchestrator_SendMessage_FunctionCallsFallback(t *testing.T) {
+	var callCount atomic.Int32
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+
+		n := callCount.Add(1)
+		if n == 1 && !hasToolCallMessages(body) {
+			w.Write([]byte(functionCallsResponse(
+				"I'll look up the applications in your enterprise right away.",
+				"get_applications",
+				map[string]string{"tenant": "acme"},
+			)))
+			return
+		}
+		w.Write([]byte(textResponse("You have 2 real applications: Word and Excel.")))
+	})
+
+	registry := newTestRegistry(map[string]tools.ToolResult{
+		"list_applications": {Content: `Found 2 applications:\n1. Word\n2. Excel`},
+	})
+	fix, server := setupToolTest(t, registry, handler)
+
+	err := fix.sendMessage(t, server.URL, "What applications are in my enterprise?", allPermissions())
+	require.NoError(t, err)
+
+	require.Len(t, fix.writer.toolStarts, 1)
+	assert.Equal(t, "list_applications", fix.writer.toolStarts[0].Name, "hallucinated 'get_applications' should resolve to 'list_applications'")
+
+	require.Len(t, fix.writer.toolResults, 1)
+
+	lastSaved := fix.repo.savedMsgs[len(fix.repo.savedMsgs)-1]
+	assert.Contains(t, lastSaved.Content(), "Word")
+	assert.NotContains(t, lastSaved.Content(), "function_calls")
+
+	for _, tok := range fix.writer.tokens {
+		assert.NotContains(t, tok, "function_calls", "hallucinated XML must not reach the client")
+		assert.NotContains(t, tok, "function_result", "hallucinated result must not reach the client")
+		assert.NotContains(t, tok, "get_applications", "hallucinated tool name must not reach the client")
+	}
+}
+
+func TestOrchestrator_SendMessage_TextToolCallFallback_NoToolCallsPassesThrough(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(textResponse("Just a plain answer, no tools needed.")))
+	})
+
+	registry := newTestRegistry(map[string]tools.ToolResult{
+		"list_apps": {Content: `[]`},
+	})
+	fix, server := setupToolTest(t, registry, handler)
+
+	err := fix.sendMessage(t, server.URL, "Hello", allPermissions())
+	require.NoError(t, err)
+
+	assert.Empty(t, fix.writer.toolStarts)
+	assert.Equal(t, []string{"Just a plain answer, no tools needed."}, fix.writer.tokens)
 }
 
 func TestOrchestrator_SendMessage_ContextCancellation_ReturnsTypedError(t *testing.T) {

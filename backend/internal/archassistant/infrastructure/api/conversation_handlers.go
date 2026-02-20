@@ -216,6 +216,11 @@ func (h *ConversationHandlers) streamAssistantResponse(w http.ResponseWriter, ct
 	}()
 
 	registry, permissions := h.buildToolContext(input)
+	if registry != nil {
+		log.Printf("[archassistant] tools enabled: %d tools registered", len(registry.ToolNames()))
+	} else {
+		log.Printf("[archassistant] tools NOT available (registry=nil)")
+	}
 
 	streamErr := h.orchestrator.SendMessage(ctx, sseWriter, orchestrator.SendMessageParams{
 		ConversationID:       input.convID,
@@ -284,6 +289,10 @@ func startPingLoop(ctx context.Context, writer *sse.Writer) <-chan struct{} {
 }
 
 func classifyOrchestratorError(err error) string {
+	var iterErr *orchestrator.IterationLimitError
+	if errors.As(err, &iterErr) {
+		return "iteration_limit"
+	}
 	var timeoutErr *orchestrator.TimeoutError
 	if errors.As(err, &timeoutErr) {
 		return "timeout"
@@ -296,15 +305,19 @@ func classifyOrchestratorError(err error) string {
 }
 
 func sanitizeErrorMessage(err error) string {
+	var iterErr *orchestrator.IterationLimitError
+	if errors.As(err, &iterErr) {
+		return "The assistant reached its processing limit for this message. Try breaking your request into smaller steps."
+	}
 	var timeoutErr *orchestrator.TimeoutError
 	if errors.As(err, &timeoutErr) {
 		return "The request timed out. Please try again."
 	}
-	var llmErr *orchestrator.LLMError
-	if errors.As(err, &llmErr) {
-		return "The AI service returned an error. Please try again later."
+	var valErr *orchestrator.ValidationError
+	if errors.As(err, &valErr) {
+		return "Invalid request: " + valErr.Error()
 	}
-	return "An unexpected error occurred. Please try again."
+	return "The AI service returned an error. Please try again later."
 }
 
 func (h *ConversationHandlers) conversationLinks(convID string) types.Links {

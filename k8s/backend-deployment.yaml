@@ -95,6 +95,11 @@ spec:
             secretKeyRef:
               name: easi-encryption-key
               key: encryption-key
+        - name: AGENT_TOKEN_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: easi-agent-token-secret
+              key: agent-token-secret
         resources:
           requests:
             memory: "128Mi"

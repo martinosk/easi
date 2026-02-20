@@ -1,4 +1,4 @@
-import { httpClient } from '../../../api/core';
+import { httpClient } from '../../../api/core/httpClient';
 import type { ArtifactCreator } from '../utils/filterByCreator';
 
 interface ArtifactCreatorsApiResponse {

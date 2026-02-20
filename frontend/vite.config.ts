@@ -25,6 +25,7 @@ export default defineConfig({
           'query': ['@tanstack/react-query'],
           'forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
           'state': ['zustand'],
+          'markdown': ['react-markdown', 'remark-gfm'],
           'utils': ['axios', 'react-colorful', 'react-hot-toast'],
         },
       },

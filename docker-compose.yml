@@ -48,6 +48,7 @@ services:
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173/}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-105b52c2af25870943e36ded5a7ca51927715ca4bae962b9c72b9268b4ccb43a}
+      AGENT_TOKEN_SECRET: ${AGENT_TOKEN_SECRET:-easi-local-agent-token-secret-do-not-use-in-production}
     ports:
       - "8080:8080"
     networks:
