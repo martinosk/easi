@@ -14,7 +14,7 @@ func AgentTools() []pl.AgentToolSpec {
 func capabilityTools() []pl.AgentToolSpec {
 	return []pl.AgentToolSpec{
 		{
-			Name: "list_capabilities", Description: "List business capabilities. Optionally filter by name.",
+			Name: "list_capabilities", Description: "List business capabilities. Capabilities form an L1→L4 hierarchy representing what the business does (not how). L1 are top-level strategic capabilities and the only level assignable to Business Domains. Each can be realized by application components. Filter by name substring. Returns up to limit results.",
 			Access: pl.AccessRead, Permission: "capabilities:read",
 			Method: "GET", Path: "/capabilities",
 			QueryParams: []pl.ParamSpec{
@@ -23,13 +23,13 @@ func capabilityTools() []pl.AgentToolSpec {
 			},
 		},
 		{
-			Name: "get_capability_details", Description: "Get full details of a capability including realizations",
+			Name: "get_capability_details", Description: "Get full details of a capability including its level, parent, children, and realizations (linked application components). Use to inspect hierarchy position and which systems support this capability.",
 			Access: pl.AccessRead, Permission: "capabilities:read",
 			Method: "GET", Path: "/capabilities/{id}",
 			PathParams: []pl.ParamSpec{pl.UUIDParam("id", "Capability ID (UUID)")},
 		},
 		{
-			Name: "create_capability", Description: "Create a new business capability. Capabilities form a hierarchy: L1 (top-level, no parent) → L2 (child of L1) → L3 (child of L2) → L4 (child of L3). The level must match the parent depth.",
+			Name: "create_capability", Description: "Create a new business capability. Capabilities form a strict hierarchy: L1 (top-level, no parent) → L2 (child of L1) → L3 (child of L2) → L4 (child of L3). The level must match the parent depth. Only L1 capabilities can later be assigned to Business Domains.",
 			Access: pl.AccessCreate, Permission: "capabilities:write",
 			Method: "POST", Path: "/capabilities",
 			BodyParams: []pl.ParamSpec{
@@ -40,7 +40,7 @@ func capabilityTools() []pl.AgentToolSpec {
 			},
 		},
 		{
-			Name: "update_capability", Description: "Update an existing capability's properties",
+			Name: "update_capability", Description: "Update a capability's name or description. Does not change its level, parent, or realizations.",
 			Access: pl.AccessUpdate, Permission: "capabilities:write",
 			Method: "PUT", Path: "/capabilities/{id}",
 			PathParams: []pl.ParamSpec{pl.UUIDParam("id", "Capability ID (UUID)")},
@@ -50,23 +50,23 @@ func capabilityTools() []pl.AgentToolSpec {
 			},
 		},
 		{
-			Name: "delete_capability", Description: "Delete a capability",
+			Name: "delete_capability", Description: "Delete a business capability. Fails if the capability has children — remove children first. Also removes any realizations and domain assignments.",
 			Access: pl.AccessDelete, Permission: "capabilities:write",
 			Method: "DELETE", Path: "/capabilities/{id}",
 			PathParams: []pl.ParamSpec{pl.UUIDParam("id", "Capability ID (UUID)")},
 		},
 		{
-			Name: "realize_capability", Description: "Link an application to a capability (realize it)",
+			Name: "realize_capability", Description: "Record that an application component (IT system) realizes a business capability. Realization level: Full (complete support), Partial (some aspects), Planned (future). One capability can have multiple realizing systems. One system can realize multiple capabilities.",
 			Access: pl.AccessCreate, Permission: "capabilities:write",
 			Method: "POST", Path: "/capabilities/{id}/systems",
 			PathParams: []pl.ParamSpec{pl.UUIDParam("id", "Capability ID (UUID)")},
 			BodyParams: []pl.ParamSpec{
 				{Name: "componentId", Type: "uuid", Description: "Application component ID (UUID)", Required: true},
-				pl.StringParam("realizationLevel", "Realization level", false),
+				pl.StringParam("realizationLevel", "Realization level: Full, Partial, or Planned", false),
 			},
 		},
 		{
-			Name: "unrealize_capability", Description: "Unlink an application from a capability",
+			Name: "unrealize_capability", Description: "Remove a realization link between an application and a capability. Does not affect the capability or the application themselves.",
 			Access: pl.AccessDelete, Permission: "capabilities:write",
 			Method: "DELETE", Path: "/capability-realizations/{id}",
 			PathParams: []pl.ParamSpec{pl.UUIDParam("id", "Realization ID (UUID)")},
@@ -77,18 +77,18 @@ func capabilityTools() []pl.AgentToolSpec {
 func businessDomainTools() []pl.AgentToolSpec {
 	return []pl.AgentToolSpec{
 		{
-			Name: "list_business_domains", Description: "List all business domains",
+			Name: "list_business_domains", Description: "List all business domains. Domains are organizational groupings of L1 capabilities (e.g. Finance, Customer Experience). One L1 capability can belong to multiple domains.",
 			Access: pl.AccessRead, Permission: "domains:read",
 			Method: "GET", Path: "/business-domains",
 		},
 		{
-			Name: "get_business_domain_details", Description: "Get details of a business domain with its capabilities",
+			Name: "get_business_domain_details", Description: "Get details of a business domain including its assigned L1 capabilities. Use to see which top-level capabilities are grouped under this domain.",
 			Access: pl.AccessRead, Permission: "domains:read",
 			Method: "GET", Path: "/business-domains/{id}",
 			PathParams: []pl.ParamSpec{pl.UUIDParam("id", "Business domain ID (UUID)")},
 		},
 		{
-			Name: "create_business_domain", Description: "Create a new business domain",
+			Name: "create_business_domain", Description: "Create a new business domain. Domains group L1 capabilities into organizational areas. After creation, assign L1 capabilities using assign_capability_to_domain.",
 			Access: pl.AccessCreate, Permission: "domains:write",
 			Method: "POST", Path: "/business-domains",
 			BodyParams: []pl.ParamSpec{
@@ -97,7 +97,7 @@ func businessDomainTools() []pl.AgentToolSpec {
 			},
 		},
 		{
-			Name: "update_business_domain", Description: "Update an existing business domain's properties",
+			Name: "update_business_domain", Description: "Update a business domain's name or description. Does not affect its capability assignments.",
 			Access: pl.AccessUpdate, Permission: "domains:write",
 			Method: "PUT", Path: "/business-domains/{id}",
 			PathParams: []pl.ParamSpec{pl.UUIDParam("id", "Business domain ID (UUID)")},
@@ -107,7 +107,7 @@ func businessDomainTools() []pl.AgentToolSpec {
 			},
 		},
 		{
-			Name: "assign_capability_to_domain", Description: "Assign an L1 capability to a business domain",
+			Name: "assign_capability_to_domain", Description: "Assign an L1 capability to a business domain. Only L1 (top-level) capabilities can be assigned — L2-L4 are included implicitly via their parent. One L1 can belong to multiple domains.",
 			Access: pl.AccessCreate, Permission: "domains:write",
 			Method: "POST", Path: "/business-domains/{domainId}/capabilities",
 			PathParams: []pl.ParamSpec{pl.UUIDParam("domainId", "Business domain ID (UUID)")},
@@ -116,7 +116,7 @@ func businessDomainTools() []pl.AgentToolSpec {
 			},
 		},
 		{
-			Name: "remove_capability_from_domain", Description: "Remove a capability assignment from a business domain",
+			Name: "remove_capability_from_domain", Description: "Remove an L1 capability assignment from a business domain. Does not delete the capability itself — only removes the domain grouping.",
 			Access: pl.AccessDelete, Permission: "domains:write",
 			Method: "DELETE", Path: "/business-domains/{domainId}/capabilities/{capabilityId}",
 			PathParams: []pl.ParamSpec{

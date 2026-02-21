@@ -88,6 +88,24 @@ func TestBuild_WriteAccessEnabled(t *testing.T) {
 	assert.NotContains(t, result, "Do not call write tools")
 }
 
+func TestBuild_ContainsDomainModelSection(t *testing.T) {
+	result := systemprompt.Build(systemprompt.BuildParams{
+		TenantID: "acme-corp",
+		UserRole: "architect",
+	})
+
+	assert.Contains(t, result, "EASI Domain Model:")
+	assert.Contains(t, result, "Capability Hierarchy")
+	assert.Contains(t, result, "L1")
+	assert.Contains(t, result, "Business Domains")
+	assert.Contains(t, result, "Capability Realizations")
+	assert.Contains(t, result, "Strategy Pillars")
+	assert.Contains(t, result, "Enterprise Capabilities")
+	assert.Contains(t, result, "TIME Classification")
+	assert.Contains(t, result, "Value Streams")
+	assert.Contains(t, result, "Component Origins")
+}
+
 func TestBuild_WriteAccessMode_IncludedInPrompt(t *testing.T) {
 	resultOff := systemprompt.Build(systemprompt.BuildParams{
 		TenantID:             "acme-corp",

@@ -42,6 +42,7 @@ func allPerms() *mockPermissions {
 		"capabilities:read": true, "capabilities:write": true,
 		"domains:read": true, "domains:write": true,
 		"valuestreams:read": true,
+		"assistant:use":     true,
 	}}
 }
 
@@ -144,6 +145,7 @@ func TestRegisterAllTools_AllRegistered(t *testing.T) {
 		"realize_capability", "unrealize_capability",
 		"create_business_domain", "update_business_domain",
 		"assign_capability_to_domain", "remove_capability_from_domain",
+		"query_domain_model",
 	}
 
 	names := make([]string, len(available))
@@ -152,12 +154,45 @@ func TestRegisterAllTools_AllRegistered(t *testing.T) {
 	}
 
 	assert.ElementsMatch(t, expectedTools, names)
-	assert.Len(t, available, 25)
+	assert.Len(t, available, 26)
 
 	for _, d := range available {
 		assert.NotEmpty(t, d.Permission, "tool %s should have a permission", d.Name)
 		assert.NotEmpty(t, d.Description, "tool %s should have a description", d.Name)
 	}
+}
+
+func TestQueryDomainModel(t *testing.T) {
+	server := newMockAPI(t, map[string]http.HandlerFunc{})
+	defer server.Close()
+	registry := newAllToolsRegistry(server)
+
+	t.Run("returns content for each topic", func(t *testing.T) {
+		topics := []string{
+			"capability-hierarchy", "business-domains", "realizations",
+			"strategy", "enterprise-capabilities", "time-classification",
+			"value-streams", "component-origins", "overview",
+		}
+		for _, topic := range topics {
+			t.Run(topic, func(t *testing.T) {
+				result := executeTool(t, registry, "query_domain_model", map[string]interface{}{"topic": topic})
+				assert.False(t, result.IsError, "topic %s returned error: %s", topic, result.Content)
+				assert.NotEmpty(t, result.Content, "topic %s returned empty content", topic)
+			})
+		}
+	})
+
+	t.Run("returns error for unknown topic", func(t *testing.T) {
+		result := executeTool(t, registry, "query_domain_model", map[string]interface{}{"topic": "unknown-topic"})
+		assert.True(t, result.IsError)
+		assert.Contains(t, result.Content, "Unknown topic")
+	})
+
+	t.Run("returns error for missing topic", func(t *testing.T) {
+		result := executeTool(t, registry, "query_domain_model", nil)
+		assert.True(t, result.IsError)
+		assert.Contains(t, result.Content, "topic is required")
+	})
 }
 
 func TestCompositeTools_InvalidID(t *testing.T) {

@@ -32,6 +32,39 @@ Write operation rules:
 - For deletes, state the exact entity name and type. Never bulk-delete.
 - After a successful write, briefly confirm what was done.`
 
+const domainModelSummary = `
+
+EASI Domain Model:
+
+- Capability Hierarchy: Business capabilities form an L1→L4 hierarchy. L1 is the
+  top level (e.g. "Customer Management"). L2-L4 are progressively detailed children.
+  Only L1 capabilities can be assigned to Business Domains.
+
+- Business Domains: Organizational groupings of L1 capabilities (e.g. "Finance",
+  "Customer Experience"). One L1 can belong to multiple domains.
+
+- Capability Realizations: Links between capabilities and application components
+  (IT systems). Level: Full, Partial, or Planned. One capability can be realized by
+  multiple systems.
+
+- Strategy Pillars: Configurable strategic themes (e.g. "Always On", "Grow",
+  "Transform"). Drive two types of scoring:
+  - Importance: How critical a capability is for a pillar (1-5, per business domain)
+  - Fit Score: How well an application supports a pillar (1-5)
+  - Gap = Importance - Fit → classified as liability, concern, or aligned
+
+- Enterprise Capabilities: Cross-domain groupings in the Enterprise Architecture
+  view. Link to domain capabilities to discover overlapping or duplicated capabilities across business domains.
+
+- TIME Classification: Investment classification for applications:
+  Tolerate, Invest, Migrate, Eliminate. Derived from fit gap analysis.
+
+- Value Streams: Ordered sequences of stages representing business value delivery.
+  Stages are mapped to capabilities.
+
+- Component Origins: Applications are linked to their origin — a Vendor (purchased),
+  Acquired Entity (from acquisition), or Internal Team (built in-house).`
+
 const tenantOverrideTemplate = `
 
 --- Tenant-Specific Context ---
@@ -60,6 +93,8 @@ func Build(params BuildParams) string {
 	} else {
 		prompt += writeDisabledRules
 	}
+
+	prompt += domainModelSummary
 
 	if params.SystemPromptOverride != nil && *params.SystemPromptOverride != "" {
 		sanitized := sanitizeOverride(*params.SystemPromptOverride)
