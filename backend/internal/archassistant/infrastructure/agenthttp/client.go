@@ -60,6 +60,14 @@ func (c *Client) Delete(ctx context.Context, path string) (*Response, error) {
 	return c.do(ctx, http.MethodDelete, path, nil)
 }
 
+func (c *Client) Do(ctx context.Context, method, path string) (*Response, error) {
+	return c.do(ctx, method, path, nil)
+}
+
+func (c *Client) DoWithBody(ctx context.Context, method, path string, body interface{}) (*Response, error) {
+	return c.do(ctx, method, path, body)
+}
+
 func (c *Client) do(ctx context.Context, method, path string, body interface{}) (*Response, error) {
 	url := c.baseURL + path
 

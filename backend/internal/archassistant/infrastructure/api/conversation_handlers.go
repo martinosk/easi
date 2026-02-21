@@ -213,8 +213,7 @@ func (h *ConversationHandlers) buildToolContext(input *parsedInput) (*tools.Regi
 
 	client := agenthttp.NewClient(h.loopbackBaseURL, token)
 	registry := tools.NewRegistry()
-	toolimpls.RegisterQueryTools(registry, client)
-	toolimpls.RegisterMutationTools(registry, client)
+	toolimpls.RegisterAllTools(registry, client)
 
 	return registry, tools.NewAgentScopedPermissions(&actorPermissions{actor: input.actor})
 }

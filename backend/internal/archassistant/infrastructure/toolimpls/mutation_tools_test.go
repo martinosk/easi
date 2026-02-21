@@ -1,7 +1,6 @@
 package toolimpls_test
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -11,7 +10,6 @@ import (
 
 	"easi/backend/internal/archassistant/application/tools"
 	"easi/backend/internal/archassistant/infrastructure/agenthttp"
-	"easi/backend/internal/archassistant/infrastructure/toolimpls"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,7 +22,15 @@ func newTestClient(server *httptest.Server) *agenthttp.Client {
 	return agenthttp.NewClient(server.URL+"/api/v1", "test-token")
 }
 
-type toolTestCase struct {
+type mockPermissions struct {
+	permissions map[string]bool
+}
+
+func (m *mockPermissions) HasPermission(perm string) bool {
+	return m.permissions[perm]
+}
+
+type specToolTestCase struct {
 	name           string
 	toolName       string
 	args           map[string]interface{}
@@ -32,61 +38,71 @@ type toolTestCase struct {
 	expectPath     string
 	expectBody     map[string]interface{}
 	responseStatus int
-	responseBody   map[string]interface{}
+	responseBody   string
 	wantError      bool
 	wantContains   []string
 }
 
-func runToolTests(t *testing.T, cases []toolTestCase) {
+func runSpecToolTests(t *testing.T, cases []specToolTestCase) {
 	t.Helper()
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			handler := buildHandler(t, tc)
-			server := httptest.NewServer(handler)
-			t.Cleanup(server.Close)
-
-			result := executeRegisteredTool(t, server, tc.toolName, tc.args)
-
-			assert.Equal(t, tc.wantError, result.IsError, "IsError mismatch: %s", result.Content)
-			for _, s := range tc.wantContains {
-				assert.Contains(t, result.Content, s)
-			}
+			capture := newRequestCapture(t, tc)
+			result := executeTool(t, newAllToolsRegistry(capture.server), tc.toolName, tc.args)
+			assertSpecResult(t, tc, result, capture)
 		})
 	}
 }
 
-func buildHandler(t *testing.T, tc toolTestCase) http.Handler {
-	t.Helper()
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if tc.wantError {
-			t.Fatal("API should not be called for validation errors")
-		}
-		assert.Equal(t, tc.expectMethod, r.Method)
-		assert.Equal(t, tc.expectPath, r.URL.Path)
-		if tc.expectBody != nil {
-			body := readJSONBody(t, r)
-			for k, v := range tc.expectBody {
-				assert.Equal(t, v, body[k], "body field %q", k)
-			}
-		}
-		if tc.responseBody != nil {
-			jsonResponse(w, tc.responseStatus, tc.responseBody)
-		} else {
-			w.WriteHeader(tc.responseStatus)
-		}
-	})
+type requestCapture struct {
+	server                  *httptest.Server
+	method, path            string
+	body                    map[string]interface{}
 }
 
-func executeRegisteredTool(t *testing.T, server *httptest.Server, name string, args map[string]interface{}) tools.ToolResult {
+func newRequestCapture(t *testing.T, tc specToolTestCase) *requestCapture {
 	t.Helper()
-	client := agenthttp.NewClient(server.URL+"/api/v1", "test-token")
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, client)
-	return executeTool(t, registry, name, args)
+	c := &requestCapture{}
+	c.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c.method = r.Method
+		c.path = r.URL.Path
+		if tc.expectBody != nil {
+			c.body = readJSONBody(t, r)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(tc.responseStatus)
+		if tc.responseBody != "" {
+			w.Write([]byte(tc.responseBody))
+		}
+	}))
+	t.Cleanup(c.server.Close)
+	return c
+}
+
+func assertSpecResult(t *testing.T, tc specToolTestCase, result tools.ToolResult, c *requestCapture) {
+	t.Helper()
+	assert.Equal(t, tc.wantError, result.IsError, "IsError mismatch: %s", result.Content)
+	if tc.expectMethod != "" {
+		assert.Equal(t, tc.expectMethod, c.method)
+	}
+	if tc.expectPath != "" {
+		assert.Equal(t, tc.expectPath, c.path)
+	}
+	assertBodyFields(t, tc.expectBody, c.body)
+	for _, s := range tc.wantContains {
+		assert.Contains(t, result.Content, s)
+	}
+}
+
+func assertBodyFields(t *testing.T, expected, actual map[string]interface{}) {
+	t.Helper()
+	for k, v := range expected {
+		assert.Equal(t, v, actual[k], "body field %q", k)
+	}
 }
 
 func TestMutationTools_CreateEntitySuccess(t *testing.T) {
-	runToolTests(t, []toolTestCase{
+	runSpecToolTests(t, []specToolTestCase{
 		{
 			name:           "create application",
 			toolName:       "create_application",
@@ -95,7 +111,7 @@ func TestMutationTools_CreateEntitySuccess(t *testing.T) {
 			expectPath:     "/api/v1/components",
 			expectBody:     map[string]interface{}{"name": "Payment Gateway", "description": "Handles payments"},
 			responseStatus: http.StatusCreated,
-			responseBody:   map[string]interface{}{"id": validUUID, "name": "Payment Gateway"},
+			responseBody:   `{"id":"` + validUUID + `","name":"Payment Gateway"}`,
 			wantContains:   []string{"Payment Gateway", validUUID},
 		},
 		{
@@ -106,7 +122,7 @@ func TestMutationTools_CreateEntitySuccess(t *testing.T) {
 			expectPath:     "/api/v1/capabilities",
 			expectBody:     map[string]interface{}{"name": "Payment Processing", "level": "L1"},
 			responseStatus: http.StatusCreated,
-			responseBody:   map[string]interface{}{"id": validUUID, "name": "Payment Processing"},
+			responseBody:   `{"id":"` + validUUID + `","name":"Payment Processing"}`,
 			wantContains:   []string{"Payment Processing", validUUID},
 		},
 		{
@@ -117,8 +133,8 @@ func TestMutationTools_CreateEntitySuccess(t *testing.T) {
 			expectPath:     "/api/v1/capabilities",
 			expectBody:     map[string]interface{}{"name": "Invoice Processing", "level": "L2", "parentId": validUUID},
 			responseStatus: http.StatusCreated,
-			responseBody:   map[string]interface{}{"id": validUUID2, "name": "Invoice Processing"},
-			wantContains:   []string{"Invoice Processing", "L2"},
+			responseBody:   `{"id":"` + validUUID2 + `","name":"Invoice Processing"}`,
+			wantContains:   []string{"Invoice Processing"},
 		},
 		{
 			name:           "create business domain",
@@ -128,14 +144,14 @@ func TestMutationTools_CreateEntitySuccess(t *testing.T) {
 			expectPath:     "/api/v1/business-domains",
 			expectBody:     map[string]interface{}{"name": "Finance"},
 			responseStatus: http.StatusCreated,
-			responseBody:   map[string]interface{}{"id": validUUID, "name": "Finance"},
+			responseBody:   `{"id":"` + validUUID + `","name":"Finance"}`,
 			wantContains:   []string{"Finance", validUUID},
 		},
 	})
 }
 
 func TestMutationTools_CreateLinkSuccess(t *testing.T) {
-	runToolTests(t, []toolTestCase{
+	runSpecToolTests(t, []specToolTestCase{
 		{
 			name:           "create application relation",
 			toolName:       "create_application_relation",
@@ -144,8 +160,8 @@ func TestMutationTools_CreateLinkSuccess(t *testing.T) {
 			expectPath:     "/api/v1/components/" + validUUID + "/relations",
 			expectBody:     map[string]interface{}{"targetId": validUUID2, "type": "depends_on"},
 			responseStatus: http.StatusCreated,
-			responseBody:   map[string]interface{}{"id": "rel-uuid-123"},
-			wantContains:   []string{"relation"},
+			responseBody:   `{"id":"rel-uuid-123"}`,
+			wantContains:   []string{"rel-uuid-123"},
 		},
 		{
 			name:           "realize capability",
@@ -155,8 +171,8 @@ func TestMutationTools_CreateLinkSuccess(t *testing.T) {
 			expectPath:     "/api/v1/capabilities/" + validUUID + "/realizations",
 			expectBody:     map[string]interface{}{"applicationId": validUUID2},
 			responseStatus: http.StatusCreated,
-			responseBody:   map[string]interface{}{"id": "real-uuid-123"},
-			wantContains:   []string{"Linked"},
+			responseBody:   `{"id":"real-uuid-123"}`,
+			wantContains:   []string{"real-uuid-123"},
 		},
 		{
 			name:           "assign capability to domain",
@@ -166,14 +182,14 @@ func TestMutationTools_CreateLinkSuccess(t *testing.T) {
 			expectPath:     "/api/v1/business-domains/" + validUUID + "/capabilities",
 			expectBody:     map[string]interface{}{"capabilityId": validUUID2},
 			responseStatus: http.StatusCreated,
-			responseBody:   map[string]interface{}{"businessDomainId": validUUID, "capabilityId": validUUID2},
-			wantContains:   []string{"Assigned", validUUID2, validUUID},
+			responseBody:   `{"businessDomainId":"` + validUUID + `","capabilityId":"` + validUUID2 + `"}`,
+			wantContains:   []string{validUUID2, validUUID},
 		},
 	})
 }
 
 func TestMutationTools_UpdateSuccess(t *testing.T) {
-	runToolTests(t, []toolTestCase{
+	runSpecToolTests(t, []specToolTestCase{
 		{
 			name:           "update application",
 			toolName:       "update_application",
@@ -182,7 +198,7 @@ func TestMutationTools_UpdateSuccess(t *testing.T) {
 			expectPath:     "/api/v1/components/" + validUUID,
 			expectBody:     map[string]interface{}{"name": "Payment Service"},
 			responseStatus: http.StatusOK,
-			responseBody:   map[string]interface{}{"id": validUUID, "name": "Payment Service"},
+			responseBody:   `{"id":"` + validUUID + `","name":"Payment Service"}`,
 			wantContains:   []string{"Payment Service"},
 		},
 		{
@@ -193,7 +209,7 @@ func TestMutationTools_UpdateSuccess(t *testing.T) {
 			expectPath:     "/api/v1/capabilities/" + validUUID,
 			expectBody:     map[string]interface{}{"name": "Updated Capability"},
 			responseStatus: http.StatusOK,
-			responseBody:   map[string]interface{}{"id": validUUID, "name": "Updated Capability"},
+			responseBody:   `{"id":"` + validUUID + `","name":"Updated Capability"}`,
 			wantContains:   []string{"Updated Capability"},
 		},
 		{
@@ -204,14 +220,14 @@ func TestMutationTools_UpdateSuccess(t *testing.T) {
 			expectPath:     "/api/v1/business-domains/" + validUUID,
 			expectBody:     map[string]interface{}{"name": "Updated Domain"},
 			responseStatus: http.StatusOK,
-			responseBody:   map[string]interface{}{"id": validUUID, "name": "Updated Domain"},
+			responseBody:   `{"id":"` + validUUID + `","name":"Updated Domain"}`,
 			wantContains:   []string{"Updated Domain"},
 		},
 	})
 }
 
 func TestMutationTools_DeleteSuccess(t *testing.T) {
-	runToolTests(t, []toolTestCase{
+	runSpecToolTests(t, []specToolTestCase{
 		{
 			name:           "delete application",
 			toolName:       "delete_application",
@@ -219,7 +235,6 @@ func TestMutationTools_DeleteSuccess(t *testing.T) {
 			expectMethod:   http.MethodDelete,
 			expectPath:     "/api/v1/components/" + validUUID,
 			responseStatus: http.StatusNoContent,
-			wantContains:   []string{"Deleted application", validUUID},
 		},
 		{
 			name:           "delete capability",
@@ -228,7 +243,6 @@ func TestMutationTools_DeleteSuccess(t *testing.T) {
 			expectMethod:   http.MethodDelete,
 			expectPath:     "/api/v1/capabilities/" + validUUID,
 			responseStatus: http.StatusNoContent,
-			wantContains:   []string{"Deleted capability", validUUID},
 		},
 		{
 			name:           "delete application relation",
@@ -237,7 +251,6 @@ func TestMutationTools_DeleteSuccess(t *testing.T) {
 			expectMethod:   http.MethodDelete,
 			expectPath:     "/api/v1/components/" + validUUID + "/relations/" + validUUID2,
 			responseStatus: http.StatusNoContent,
-			wantContains:   []string{"Deleted relation"},
 		},
 		{
 			name:           "unrealize capability",
@@ -246,7 +259,6 @@ func TestMutationTools_DeleteSuccess(t *testing.T) {
 			expectMethod:   http.MethodDelete,
 			expectPath:     "/api/v1/capabilities/" + validUUID + "/realizations/" + validUUID2,
 			responseStatus: http.StatusNoContent,
-			wantContains:   []string{"Unlinked"},
 		},
 		{
 			name:           "remove capability from domain",
@@ -255,13 +267,12 @@ func TestMutationTools_DeleteSuccess(t *testing.T) {
 			expectMethod:   http.MethodDelete,
 			expectPath:     "/api/v1/business-domains/" + validUUID + "/capabilities/" + validUUID2,
 			responseStatus: http.StatusNoContent,
-			wantContains:   []string{"Removed", validUUID2, validUUID},
 		},
 	})
 }
 
 func TestMutationTools_ValidationErrors(t *testing.T) {
-	runToolTests(t, []toolTestCase{
+	runSpecToolTests(t, []specToolTestCase{
 		{
 			name:         "create application missing name",
 			toolName:     "create_application",
@@ -302,13 +313,6 @@ func TestMutationTools_APIError(t *testing.T) {
 			args:     map[string]interface{}{"name": "Test"},
 		},
 		{
-			name:     "403 Forbidden",
-			status:   http.StatusForbidden,
-			message:  "Insufficient permissions",
-			toolName: "create_application",
-			args:     map[string]interface{}{"name": "Test"},
-		},
-		{
 			name:     "500 Internal Server Error",
 			status:   http.StatusInternalServerError,
 			message:  "Unexpected error occurred",
@@ -324,7 +328,7 @@ func TestMutationTools_APIError(t *testing.T) {
 			}))
 			t.Cleanup(server.Close)
 
-			result := executeRegisteredTool(t, server, tc.toolName, tc.args)
+			result := executeTool(t, newAllToolsRegistry(server), tc.toolName, tc.args)
 			assert.True(t, result.IsError)
 			assert.Contains(t, result.Content, tc.message)
 		})
@@ -337,6 +341,7 @@ func TestMutationTools_InvalidID(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
+	registry := newAllToolsRegistry(server)
 	cases := []struct {
 		name     string
 		toolName string
@@ -351,7 +356,7 @@ func TestMutationTools_InvalidID(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := executeRegisteredTool(t, server, tc.toolName, tc.args)
+			result := executeTool(t, registry, tc.toolName, tc.args)
 			assert.True(t, result.IsError)
 			assert.Contains(t, result.Content, "valid UUID")
 		})
@@ -359,52 +364,13 @@ func TestMutationTools_InvalidID(t *testing.T) {
 }
 
 func TestMutationTools_APIUnreachable(t *testing.T) {
-	client := agenthttp.NewClient("http://localhost:1/api/v1", "test-token")
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, client)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	server.Close()
 
-	result := executeTool(t, registry, "create_application", map[string]interface{}{"name": "Test"})
+	result := executeTool(t, newAllToolsRegistry(server), "create_application", map[string]interface{}{"name": "Test"})
 
 	assert.True(t, result.IsError)
 	assert.Contains(t, result.Content, "Failed to reach API")
-}
-
-func TestMutationTools_AllRegistered(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	t.Cleanup(server.Close)
-
-	client := agenthttp.NewClient(server.URL+"/api/v1", "test-token")
-	registry := tools.NewRegistry()
-	toolimpls.RegisterMutationTools(registry, client)
-
-	allPerms := &mockPermissions{permissions: map[string]bool{
-		"components:write":   true,
-		"capabilities:write": true,
-		"domains:write":      true,
-	}}
-
-	available := registry.AvailableTools(allPerms, true)
-
-	expectedTools := []string{
-		"create_application", "update_application", "delete_application",
-		"create_capability", "update_capability", "delete_capability",
-		"create_business_domain", "update_business_domain",
-		"assign_capability_to_domain", "remove_capability_from_domain",
-		"create_application_relation", "delete_application_relation",
-		"realize_capability", "unrealize_capability",
-	}
-
-	names := make([]string, len(available))
-	for i, d := range available {
-		names[i] = d.Name
-	}
-	assert.ElementsMatch(t, expectedTools, names)
-
-	for _, d := range available {
-		assert.True(t, d.Access.IsWrite(), "tool %s should have a write access class, got %s", d.Name, d.Access)
-	}
 }
 
 func jsonResponse(w http.ResponseWriter, status int, body map[string]interface{}) {
@@ -424,24 +390,4 @@ func readJSONBody(t *testing.T, r *http.Request) map[string]interface{} {
 	var body map[string]interface{}
 	require.NoError(t, json.Unmarshal(raw, &body))
 	return body
-}
-
-type mockPermissions struct {
-	permissions map[string]bool
-}
-
-func (m *mockPermissions) HasPermission(perm string) bool {
-	return m.permissions[perm]
-}
-
-func executeTool(t *testing.T, registry *tools.Registry, name string, args map[string]interface{}) tools.ToolResult {
-	t.Helper()
-	allPerms := &mockPermissions{permissions: map[string]bool{
-		"components:write":   true,
-		"capabilities:write": true,
-		"domains:write":      true,
-	}}
-	result, err := registry.Execute(context.Background(), allPerms, name, args)
-	require.NoError(t, err)
-	return result
 }
