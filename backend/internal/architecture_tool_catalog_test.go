@@ -198,7 +198,60 @@ func TestToolCatalog_MethodMatchesAccessClass(t *testing.T) {
 	}
 }
 
-func TestToolCatalog_InfoUnexposedRoutes(t *testing.T) {
+var excludedRoutes = map[string]string{
+	"POST /capabilities/*/experts":                 "expert management — operational, not architecture exploration",
+	"DELETE /capabilities/*/experts":               "expert management — operational, not architecture exploration",
+	"POST /capabilities/*/tags":                    "tag management — operational, not architecture exploration",
+	"PATCH /capabilities/*/parent":                 "hierarchy reparenting — complex operation, not suitable for agent",
+	"GET /capabilities/*/dependencies/incoming":    "per-capability view — use list_capability_dependencies instead",
+	"GET /capabilities/*/dependencies/outgoing":    "per-capability view — use list_capability_dependencies instead",
+	"GET /capability-realizations/by-component/*":  "realizations by component — available in get_application_details",
+	"PUT /capability-realizations/*":               "update realization level — fine-grained, use realize_capability",
+	"DELETE /business-domains/*":                   "delete domain — high-impact, reserved for UI",
+	"GET /business-domains/*/capabilities":         "capabilities in domain — available in get_business_domain_details",
+	"GET /business-domains/*/capability-realizations": "domain realizations — composite view, reserved for UI",
+	"GET /business-domains/*/capabilities/*/importance":           "per-domain-capability importance — use get_strategy_importance",
+	"PUT /business-domains/*/capabilities/*/importance/*":         "update importance — fine-grained, use set_strategy_importance",
+	"DELETE /business-domains/*/capabilities/*/importance/*":      "remove importance — fine-grained, reserved for UI",
+	"GET /components/expert-roles":                 "reference data for UI dropdowns",
+	"POST /components/*/experts":                   "expert management — operational, not architecture exploration",
+	"DELETE /components/*/experts":                 "expert management — operational, not architecture exploration",
+	"GET /components/*/fit-comparisons":            "fit comparison view — composite UI visualization",
+	"DELETE /components/*/fit-scores/*":            "remove fit score — fine-grained, reserved for UI",
+	"GET /components/*/origin/acquired-via":        "specific origin type — use get_component_origin for all origins",
+	"GET /components/*/origin/built-by":            "specific origin type — use get_component_origin for all origins",
+	"GET /components/*/origin/purchased-from":      "specific origin type — use get_component_origin for all origins",
+	"GET /origin-relationships":                    "all origin relationships — use get_component_origin per component",
+	"GET /relations":                               "all relations — covered by composite list_application_relations tool",
+	"GET /relations/*":                             "single relation — covered by composite list_application_relations tool",
+	"GET /relations/from/*":                        "outgoing relations — covered by composite list_application_relations tool",
+	"GET /relations/to/*":                          "incoming relations — covered by composite list_application_relations tool",
+	"PUT /relations/*":                             "update relation — fine-grained, use create/delete instead",
+	"DELETE /acquired-entities/*":                  "origin entity delete — high-impact cascading operation, reserved for UI",
+	"DELETE /vendors/*":                            "origin entity delete — high-impact cascading operation, reserved for UI",
+	"DELETE /internal-teams/*":                     "origin entity delete — high-impact cascading operation, reserved for UI",
+	"GET /enterprise-capabilities/*/links":                 "linked capabilities — available in get_enterprise_capability_details",
+	"PUT /enterprise-capabilities/*/target-maturity":       "set target maturity — fine-grained, reserved for UI",
+	"PUT /enterprise-capabilities/*/strategic-importance/*":    "update importance — fine-grained, use set_enterprise_strategic_importance",
+	"DELETE /enterprise-capabilities/*/strategic-importance/*": "remove importance — fine-grained, reserved for UI",
+	"GET /domain-capabilities/enterprise-link-status":         "batch link status — UI helper for enterprise capability mapping screen",
+	"GET /domain-capabilities/*/enterprise-capability":        "reverse lookup — UI helper for capability mapping screen",
+	"GET /domain-capabilities/*/enterprise-link-status":       "single link status — UI helper for capability mapping screen",
+	"GET /meta-model/configurations/*":             "metamodel config by ID — use get_maturity_scale instead",
+	"GET /meta-model/strategy-pillars/*":           "single pillar detail — use get_strategy_pillars for all",
+	"PUT /meta-model/maturity-scale":               "metamodel write — blocked by permission ceiling",
+	"POST /meta-model/maturity-scale/reset":        "metamodel write — blocked by permission ceiling",
+	"PATCH /meta-model/strategy-pillars":           "metamodel write — blocked by permission ceiling",
+	"POST /meta-model/strategy-pillars":            "metamodel write — blocked by permission ceiling",
+	"PUT /meta-model/strategy-pillars/*":           "metamodel write — blocked by permission ceiling",
+	"DELETE /meta-model/strategy-pillars/*":        "metamodel write — blocked by permission ceiling",
+	"PUT /meta-model/strategy-pillars/*/fit-configuration": "metamodel write — blocked by permission ceiling",
+	"DELETE /value-streams/*":                      "value stream delete — high-impact, reserved for UI",
+	"DELETE /value-streams/*/stages/*":             "stage delete — reserved for UI",
+	"DELETE /value-streams/*/stages/*/capabilities/*": "stage-capability unmapping — reserved for UI",
+}
+
+func TestToolCatalog_AllRoutesAccountedFor(t *testing.T) {
 	router := buildToolCatalogTestRouter(t)
 
 	toolRoutes := make(map[string]bool)
@@ -211,16 +264,31 @@ func TestToolCatalog_InfoUnexposedRoutes(t *testing.T) {
 	chi.Walk(router, func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
 		route = strings.TrimSuffix(route, "/")
 		key := method + " " + normalizeChiPath(route)
-		if !toolRoutes[key] {
-			uncovered = append(uncovered, fmt.Sprintf("  %s %s", method, route))
+		if toolRoutes[key] {
+			return nil
 		}
+		if _, excluded := excludedRoutes[key]; excluded {
+			return nil
+		}
+		uncovered = append(uncovered, fmt.Sprintf("  %s %s", method, route))
 		return nil
 	})
 
 	if len(uncovered) > 0 {
-		t.Logf("INFO: %d routes exist without tool specs (excluded by design or not yet covered):", len(uncovered))
+		t.Errorf("%d routes have no tool spec and are not explicitly excluded — add a tool or exclude with reason:", len(uncovered))
 		for _, r := range uncovered {
-			t.Logf("%s", r)
+			t.Errorf("%s", r)
+		}
+	}
+}
+
+func TestToolCatalog_NoStaleExclusions(t *testing.T) {
+	router := buildToolCatalogTestRouter(t)
+	registeredRoutes := collectRegisteredRoutes(router)
+
+	for excluded := range excludedRoutes {
+		if !registeredRoutes[excluded] {
+			t.Errorf("STALE exclusion: %q is excluded but no such route exists — remove from excludedRoutes", excluded)
 		}
 	}
 }
