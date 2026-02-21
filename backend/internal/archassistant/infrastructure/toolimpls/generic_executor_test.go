@@ -109,23 +109,23 @@ func TestGenericExecutor_PathParamSubstitution(t *testing.T) {
 		{
 			name: "single path param",
 			spec: toolimpls.AgentToolSpec{
-				Method: "GET", Path: "/capabilities/{capabilityId}/realizations",
-				PathParams: []toolimpls.ParamSpec{{Name: "capabilityId", Type: "uuid", Required: true}},
+				Method: "GET", Path: "/capabilities/{id}/systems",
+				PathParams: []toolimpls.ParamSpec{{Name: "id", Type: "uuid", Required: true}},
 			},
-			args:     map[string]interface{}{"capabilityId": validUUID},
-			wantPath: "/api/v1/capabilities/" + validUUID + "/realizations",
+			args:     map[string]interface{}{"id": validUUID},
+			wantPath: "/api/v1/capabilities/" + validUUID + "/systems",
 		},
 		{
 			name: "multiple path params",
 			spec: toolimpls.AgentToolSpec{
-				Method: "DELETE", Path: "/components/{componentId}/relations/{relationId}",
+				Method: "DELETE", Path: "/business-domains/{domainId}/capabilities/{capabilityId}",
 				PathParams: []toolimpls.ParamSpec{
-					{Name: "componentId", Type: "uuid", Required: true},
-					{Name: "relationId", Type: "uuid", Required: true},
+					{Name: "domainId", Type: "uuid", Required: true},
+					{Name: "capabilityId", Type: "uuid", Required: true},
 				},
 			},
-			args:     map[string]interface{}{"componentId": validUUID, "relationId": validUUID2},
-			wantPath: "/api/v1/components/" + validUUID + "/relations/" + validUUID2,
+			args:     map[string]interface{}{"domainId": validUUID, "capabilityId": validUUID2},
+			wantPath: "/api/v1/business-domains/" + validUUID + "/capabilities/" + validUUID2,
 		},
 	}
 
@@ -338,8 +338,8 @@ func TestGenericExecutor_IntegrationRoundTrip(t *testing.T) {
 		{"create via POST", "create_application", "POST", "/api/v1/components", `{"id":"new-id"}`, "new-id", map[string]interface{}{"name": "New App"}, http.StatusCreated},
 		{"update via PUT", "update_application", "PUT", "/api/v1/components/" + validUUID, `{"name":"Updated"}`, "Updated", map[string]interface{}{"id": validUUID, "name": "Updated"}, http.StatusOK},
 		{"delete via DELETE", "delete_application", "DELETE", "/api/v1/components/" + validUUID, "", "", map[string]interface{}{"id": validUUID}, http.StatusNoContent},
-		{"POST with path params", "realize_capability", "POST", "/api/v1/capabilities/" + validUUID + "/realizations", `{"id":"real-123"}`, "real-123", map[string]interface{}{"capabilityId": validUUID, "applicationId": validUUID2}, http.StatusCreated},
-		{"DELETE with path params", "delete_application_relation", "DELETE", "/api/v1/components/" + validUUID + "/relations/" + validUUID2, "", "", map[string]interface{}{"componentId": validUUID, "relationId": validUUID2}, http.StatusNoContent},
+		{"POST with path params", "realize_capability", "POST", "/api/v1/capabilities/" + validUUID + "/systems", `{"id":"real-123"}`, "real-123", map[string]interface{}{"id": validUUID, "componentId": validUUID2}, http.StatusCreated},
+		{"DELETE with path params", "remove_capability_from_domain", "DELETE", "/api/v1/business-domains/" + validUUID + "/capabilities/" + validUUID2, "", "", map[string]interface{}{"domainId": validUUID, "capabilityId": validUUID2}, http.StatusNoContent},
 	}
 
 	for _, tc := range cases {

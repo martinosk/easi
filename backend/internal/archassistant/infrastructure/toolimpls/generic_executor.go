@@ -6,30 +6,16 @@ import (
 	"net/url"
 	"strings"
 
+	pl "easi/backend/internal/archassistant/publishedlanguage"
 	"easi/backend/internal/archassistant/application/tools"
 	"easi/backend/internal/archassistant/infrastructure/agenthttp"
 
 	"github.com/google/uuid"
 )
 
-type ParamSpec struct {
-	Name        string
-	Type        string
-	Description string
-	Required    bool
-}
+type ParamSpec = pl.ParamSpec
 
-type AgentToolSpec struct {
-	Name        string
-	Description string
-	Access      tools.AccessClass
-	Permission  string
-	Method      string
-	Path        string
-	PathParams  []ParamSpec
-	QueryParams []ParamSpec
-	BodyParams  []ParamSpec
-}
+type AgentToolSpec = pl.AgentToolSpec
 
 type GenericAPIToolExecutor struct {
 	spec   AgentToolSpec
@@ -131,13 +117,13 @@ func extractStringValue(args map[string]interface{}, p ParamSpec) string {
 	return ""
 }
 
-func (p ParamSpec) isStringTyped() bool {
+func isStringTyped(p ParamSpec) bool {
 	return p.Type != "integer" && p.Type != "boolean"
 }
 
 func validateParam(args map[string]interface{}, p ParamSpec) *tools.ToolResult {
 	val, _ := args[p.Name].(string)
-	if val == "" && p.isStringTyped() {
+	if val == "" && isStringTyped(p) {
 		if p.Required {
 			return toolErr(p.Name + " is required")
 		}

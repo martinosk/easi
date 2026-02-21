@@ -155,10 +155,10 @@ func TestMutationTools_CreateLinkSuccess(t *testing.T) {
 		{
 			name:           "create application relation",
 			toolName:       "create_application_relation",
-			args:           map[string]interface{}{"sourceId": validUUID, "targetId": validUUID2, "type": "depends_on"},
+			args:           map[string]interface{}{"sourceComponentId": validUUID, "targetComponentId": validUUID2, "relationType": "depends_on"},
 			expectMethod:   http.MethodPost,
-			expectPath:     "/api/v1/components/" + validUUID + "/relations",
-			expectBody:     map[string]interface{}{"targetId": validUUID2, "type": "depends_on"},
+			expectPath:     "/api/v1/relations",
+			expectBody:     map[string]interface{}{"sourceComponentId": validUUID, "targetComponentId": validUUID2, "relationType": "depends_on"},
 			responseStatus: http.StatusCreated,
 			responseBody:   `{"id":"rel-uuid-123"}`,
 			wantContains:   []string{"rel-uuid-123"},
@@ -166,10 +166,10 @@ func TestMutationTools_CreateLinkSuccess(t *testing.T) {
 		{
 			name:           "realize capability",
 			toolName:       "realize_capability",
-			args:           map[string]interface{}{"capabilityId": validUUID, "applicationId": validUUID2},
+			args:           map[string]interface{}{"id": validUUID, "componentId": validUUID2},
 			expectMethod:   http.MethodPost,
-			expectPath:     "/api/v1/capabilities/" + validUUID + "/realizations",
-			expectBody:     map[string]interface{}{"applicationId": validUUID2},
+			expectPath:     "/api/v1/capabilities/" + validUUID + "/systems",
+			expectBody:     map[string]interface{}{"componentId": validUUID2},
 			responseStatus: http.StatusCreated,
 			responseBody:   `{"id":"real-uuid-123"}`,
 			wantContains:   []string{"real-uuid-123"},
@@ -247,17 +247,17 @@ func TestMutationTools_DeleteSuccess(t *testing.T) {
 		{
 			name:           "delete application relation",
 			toolName:       "delete_application_relation",
-			args:           map[string]interface{}{"componentId": validUUID, "relationId": validUUID2},
+			args:           map[string]interface{}{"id": validUUID},
 			expectMethod:   http.MethodDelete,
-			expectPath:     "/api/v1/components/" + validUUID + "/relations/" + validUUID2,
+			expectPath:     "/api/v1/relations/" + validUUID,
 			responseStatus: http.StatusNoContent,
 		},
 		{
 			name:           "unrealize capability",
 			toolName:       "unrealize_capability",
-			args:           map[string]interface{}{"capabilityId": validUUID, "realizationId": validUUID2},
+			args:           map[string]interface{}{"id": validUUID},
 			expectMethod:   http.MethodDelete,
-			expectPath:     "/api/v1/capabilities/" + validUUID + "/realizations/" + validUUID2,
+			expectPath:     "/api/v1/capability-realizations/" + validUUID,
 			responseStatus: http.StatusNoContent,
 		},
 		{
@@ -349,9 +349,8 @@ func TestMutationTools_InvalidID(t *testing.T) {
 	}{
 		{"update_application", "update_application", map[string]interface{}{"id": "not-a-uuid", "name": "Test"}},
 		{"delete_application", "delete_application", map[string]interface{}{"id": "not-a-uuid"}},
-		{"delete_relation invalid componentId", "delete_application_relation", map[string]interface{}{"componentId": "bad", "relationId": validUUID}},
-		{"delete_relation invalid relationId", "delete_application_relation", map[string]interface{}{"componentId": validUUID, "relationId": "bad"}},
-		{"realize invalid capabilityId", "realize_capability", map[string]interface{}{"capabilityId": "bad", "applicationId": validUUID}},
+		{"delete_relation invalid id", "delete_application_relation", map[string]interface{}{"id": "bad"}},
+		{"realize invalid id", "realize_capability", map[string]interface{}{"id": "bad", "componentId": validUUID}},
 	}
 
 	for _, tc := range cases {

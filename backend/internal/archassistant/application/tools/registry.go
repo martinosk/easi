@@ -4,21 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	pl "easi/backend/internal/archassistant/publishedlanguage"
 )
 
-type AccessClass string
+type AccessClass = pl.AccessClass
 
 const (
-	AccessRead   AccessClass = "read"
-	AccessWrite  AccessClass = "write"
-	AccessCreate AccessClass = "create"
-	AccessUpdate AccessClass = "update"
-	AccessDelete AccessClass = "delete"
+	AccessRead   = pl.AccessRead
+	AccessWrite  = pl.AccessWrite
+	AccessCreate = pl.AccessCreate
+	AccessUpdate = pl.AccessUpdate
+	AccessDelete = pl.AccessDelete
 )
-
-func (a AccessClass) IsWrite() bool {
-	return a != AccessRead
-}
 
 var (
 	ErrToolNotFound     = errors.New("tool not found")
