@@ -160,6 +160,56 @@ func TestRegistry_FormatForLLM_CorrectFormat(t *testing.T) {
 	assert.Equal(t, []string{"id"}, fn.Function.Parameters.Required)
 }
 
+func TestRegistry_AvailableTools_FiltersWriteSubClassesInReadOnlyMode(t *testing.T) {
+	registry := tools.NewRegistry()
+	registry.Register(newTool("list_apps", "components:read", tools.AccessRead), successExecutor())
+	registry.Register(newTool("create_app", "components:write", tools.AccessCreate), successExecutor())
+	registry.Register(newTool("update_app", "components:write", tools.AccessUpdate), successExecutor())
+	registry.Register(newTool("delete_app", "components:write", tools.AccessDelete), successExecutor())
+	allPerms := permsFor("components:read", "components:write")
+
+	available := registry.AvailableTools(allPerms, false)
+
+	assert.Equal(t, []string{"list_apps"}, toolNames(available))
+}
+
+func TestRegistry_AvailableTools_IncludesWriteSubClassesInWriteMode(t *testing.T) {
+	registry := tools.NewRegistry()
+	registry.Register(newTool("list_apps", "components:read", tools.AccessRead), successExecutor())
+	registry.Register(newTool("create_app", "components:write", tools.AccessCreate), successExecutor())
+	registry.Register(newTool("update_app", "components:write", tools.AccessUpdate), successExecutor())
+	registry.Register(newTool("delete_app", "components:write", tools.AccessDelete), successExecutor())
+	allPerms := permsFor("components:read", "components:write")
+
+	available := registry.AvailableTools(allPerms, true)
+
+	assert.ElementsMatch(t, []string{"list_apps", "create_app", "update_app", "delete_app"}, toolNames(available))
+}
+
+func TestRegistry_LookupAccessClass(t *testing.T) {
+	registry := tools.NewRegistry()
+	registry.Register(newTool("list_apps", "components:read", tools.AccessRead), successExecutor())
+	registry.Register(newTool("delete_app", "components:write", tools.AccessDelete), successExecutor())
+
+	access, ok := registry.LookupAccessClass("delete_app")
+	assert.True(t, ok)
+	assert.Equal(t, tools.AccessDelete, access)
+
+	access, ok = registry.LookupAccessClass("list_apps")
+	assert.True(t, ok)
+	assert.Equal(t, tools.AccessRead, access)
+
+	_, ok = registry.LookupAccessClass("nonexistent")
+	assert.False(t, ok)
+}
+
+func TestAccessClass_IsWrite(t *testing.T) {
+	assert.False(t, tools.AccessRead.IsWrite())
+	assert.True(t, tools.AccessCreate.IsWrite())
+	assert.True(t, tools.AccessUpdate.IsWrite())
+	assert.True(t, tools.AccessDelete.IsWrite())
+}
+
 func TestRegistry_Register_MultipleTools(t *testing.T) {
 	registry := tools.NewRegistry()
 	registry.Register(newTool("tool_a", "perm:a", tools.AccessRead), successExecutor())

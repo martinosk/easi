@@ -321,6 +321,67 @@ func TestOrchestrator_SendMessage_MaxSameToolCalls(t *testing.T) {
 	}
 }
 
+func newRegistryWithAccess(name string, access tools.AccessClass) *tools.Registry {
+	registry := tools.NewRegistry()
+	registry.Register(tools.ToolDefinition{
+		Name:       name,
+		Permission: "arch:write",
+		Access:     access,
+	}, &mockToolExecutor{result: tools.ToolResult{Content: "ok"}})
+	return registry
+}
+
+func repeatingNamedToolHandler(toolName string, callsBeforeText int32) http.Handler {
+	var callCount atomic.Int32
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		n := callCount.Add(1)
+		if n <= callsBeforeText {
+			w.Write([]byte(toolCallResponse(toolCallSpec{fmt.Sprintf("call-%d", n), toolName, "{}"})))
+			return
+		}
+		w.Write([]byte(textResponse("Final answer")))
+	})
+}
+
+func TestOrchestrator_SendMessage_DeleteToolCappedAt5(t *testing.T) {
+	registry := newRegistryWithAccess("delete_app", tools.AccessDelete)
+	fix, server := setupToolTest(t, registry, repeatingNamedToolHandler("delete_app", 10))
+
+	err := fix.sendMessage(t, server.URL, "Delete many apps", allPermissions())
+	require.NoError(t, err)
+
+	exceeded := countLimitExceeded(fix.writer.toolResults)
+	assert.Equal(t, 5, exceeded, "calls 6-10 should be rejected")
+
+	successful := len(fix.writer.toolResults) - exceeded
+	assert.Equal(t, 5, successful, "only first 5 delete calls should succeed")
+}
+
+func TestOrchestrator_SendMessage_UpdateToolCappedAt100(t *testing.T) {
+	registry := newRegistryWithAccess("update_app", tools.AccessUpdate)
+	fix, server := setupToolTest(t, registry, repeatingNamedToolHandler("update_app", 8))
+
+	err := fix.sendMessage(t, server.URL, "Update many apps", allPermissions())
+	require.NoError(t, err)
+
+	assert.Equal(t, 0, countLimitExceeded(fix.writer.toolResults), "8 update calls within 100 limit")
+	assert.Equal(t, 8, len(fix.writer.toolResults))
+}
+
+func TestOrchestrator_SendMessage_ReadToolAllows500(t *testing.T) {
+	registry := newTestRegistry(map[string]tools.ToolResult{
+		"list_apps": {Content: `[]`},
+	})
+	fix, server := setupToolTest(t, registry, repeatingToolHandler(8))
+
+	err := fix.sendMessage(t, server.URL, "Read many times", allPermissions())
+	require.NoError(t, err)
+
+	assert.Equal(t, 0, countLimitExceeded(fix.writer.toolResults), "8 read calls should all succeed within 500 limit")
+}
+
 func TestOrchestrator_SendMessage_ToolCallError(t *testing.T) {
 	registry := newTestRegistry(map[string]tools.ToolResult{
 		"failing_tool": {Content: "something went wrong", IsError: true},

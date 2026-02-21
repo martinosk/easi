@@ -85,7 +85,7 @@ func executeRegisteredTool(t *testing.T, server *httptest.Server, name string, a
 	return executeTool(t, registry, name, args)
 }
 
-func TestMutationTools_CreateSuccess(t *testing.T) {
+func TestMutationTools_CreateEntitySuccess(t *testing.T) {
 	runToolTests(t, []toolTestCase{
 		{
 			name:           "create application",
@@ -131,6 +131,11 @@ func TestMutationTools_CreateSuccess(t *testing.T) {
 			responseBody:   map[string]interface{}{"id": validUUID, "name": "Finance"},
 			wantContains:   []string{"Finance", validUUID},
 		},
+	})
+}
+
+func TestMutationTools_CreateLinkSuccess(t *testing.T) {
+	runToolTests(t, []toolTestCase{
 		{
 			name:           "create application relation",
 			toolName:       "create_application_relation",
@@ -398,7 +403,7 @@ func TestMutationTools_AllRegistered(t *testing.T) {
 	assert.ElementsMatch(t, expectedTools, names)
 
 	for _, d := range available {
-		assert.Equal(t, tools.AccessWrite, d.Access, "tool %s should be AccessWrite", d.Name)
+		assert.True(t, d.Access.IsWrite(), "tool %s should have a write access class, got %s", d.Name, d.Access)
 	}
 }
 

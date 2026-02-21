@@ -9,9 +9,16 @@ import (
 type AccessClass string
 
 const (
-	AccessRead  AccessClass = "read"
-	AccessWrite AccessClass = "write"
+	AccessRead   AccessClass = "read"
+	AccessWrite  AccessClass = "write"
+	AccessCreate AccessClass = "create"
+	AccessUpdate AccessClass = "update"
+	AccessDelete AccessClass = "delete"
 )
+
+func (a AccessClass) IsWrite() bool {
+	return a != AccessRead
+}
 
 var (
 	ErrToolNotFound     = errors.New("tool not found")
@@ -98,6 +105,14 @@ func (r *Registry) ToolNames() []string {
 	return result
 }
 
+func (r *Registry) LookupAccessClass(name string) (AccessClass, bool) {
+	tool, exists := r.tools[name]
+	if !exists {
+		return "", false
+	}
+	return tool.definition.Access, true
+}
+
 func (r *Registry) AvailableTools(permissions PermissionChecker, allowWriteOperations bool) []ToolDefinition {
 	var result []ToolDefinition
 	for _, name := range r.order {
@@ -105,7 +120,7 @@ func (r *Registry) AvailableTools(permissions PermissionChecker, allowWriteOpera
 		if !permissions.HasPermission(tool.definition.Permission) {
 			continue
 		}
-		if tool.definition.Access == AccessWrite && !allowWriteOperations {
+		if tool.definition.Access.IsWrite() && !allowWriteOperations {
 			continue
 		}
 		result = append(result, tool.definition)

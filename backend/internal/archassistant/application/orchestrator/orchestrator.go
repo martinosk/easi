@@ -18,10 +18,16 @@ const (
 	charsPerToken        = 4
 	defaultContextWindow = 128000
 	maxIterations        = 50
-	maxSameToolCalls     = 500
 	maxToolResultChars   = 32000
 	previewMaxChars      = 200
 )
+
+var maxCallsByAccessClass = map[tools.AccessClass]int{
+	tools.AccessRead:   500,
+	tools.AccessCreate: 50,
+	tools.AccessUpdate: 100,
+	tools.AccessDelete: 5,
+}
 
 type SendMessageParams struct {
 	ConversationID       string
@@ -328,7 +334,7 @@ func (o *Orchestrator) executeToolCalls(tcCtx toolCallContext, toolCalls []ChatT
 
 func (o *Orchestrator) executeSingleToolCall(tcCtx toolCallContext, tc ChatToolCall) ChatMessage {
 	tcCtx.callCounts[tc.Name]++
-	if tcCtx.callCounts[tc.Name] > maxSameToolCalls {
+	if tcCtx.callCounts[tc.Name] > toolCallLimit(tcCtx.registry, tc.Name) {
 		return o.buildToolLimitError(tcCtx, tc)
 	}
 
@@ -358,7 +364,8 @@ func (o *Orchestrator) executeSingleToolCall(tcCtx toolCallContext, tc ChatToolC
 }
 
 func (o *Orchestrator) buildToolLimitError(tcCtx toolCallContext, tc ChatToolCall) ChatMessage {
-	errContent := fmt.Sprintf("Tool call limit exceeded for %s: maximum %d calls per message", tc.Name, maxSameToolCalls)
+	limit := toolCallLimit(tcCtx.registry, tc.Name)
+	errContent := fmt.Sprintf("Tool call limit exceeded for %s: maximum %d calls per message", tc.Name, limit)
 	_ = tcCtx.writer.WriteToolCallResult(ToolCallResultEvent{
 		ToolCallID:    tc.ID,
 		Name:          tc.Name,
@@ -370,6 +377,15 @@ func (o *Orchestrator) buildToolLimitError(tcCtx toolCallContext, tc ChatToolCal
 		ToolCallID: tc.ID,
 		Name:       tc.Name,
 	}
+}
+
+func toolCallLimit(registry *tools.Registry, name string) int {
+	if access, ok := registry.LookupAccessClass(name); ok {
+		if limit, exists := maxCallsByAccessClass[access]; exists {
+			return limit
+		}
+	}
+	return maxCallsByAccessClass[tools.AccessRead]
 }
 
 func convertToolDefs(defs []tools.LLMToolDef) []interface{} {

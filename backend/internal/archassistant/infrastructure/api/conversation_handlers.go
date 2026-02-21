@@ -216,7 +216,7 @@ func (h *ConversationHandlers) buildToolContext(input *parsedInput) (*tools.Regi
 	toolimpls.RegisterQueryTools(registry, client)
 	toolimpls.RegisterMutationTools(registry, client)
 
-	return registry, &actorPermissions{actor: input.actor}
+	return registry, tools.NewAgentScopedPermissions(&actorPermissions{actor: input.actor})
 }
 
 type actorPermissions struct {
