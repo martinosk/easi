@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"easi/backend/internal/archassistant/domain"
@@ -267,6 +268,7 @@ func testLLMConnection(provider vo.LLMProvider, endpoint, apiKey, model string) 
 		path = "/v1/messages"
 	}
 
+	endpoint = strings.TrimRight(endpoint, "/")
 	req, err := http.NewRequest("POST", endpoint+path, bytes.NewReader(body))
 	if err != nil {
 		return TestConnectionResponse{Success: false, Error: fmt.Sprintf("Failed to create request: %v", err)}
