@@ -4,7 +4,7 @@ Bounded Context Canvases for all contexts in the EASI platform. Each canvas foll
 
 ## Overview
 
-EASI is built using Strategic Domain-Driven Design principles with clear bounded context boundaries. The system is organized into 10 bounded contexts across three classification tiers.
+EASI is built using Strategic Domain-Driven Design principles with clear bounded context boundaries. The system is organized into 11 bounded contexts across three classification tiers.
 
 ### 1. Architecture Modeling (Implemented)
 **Purpose:** Manage IT application landscape -- what systems exist and how they interact.
@@ -163,7 +163,27 @@ EASI is built using Strategic Domain-Driven Design principles with clear bounded
 
 ---
 
-### 10. Enterprise Strategy (Future)
+### 10. Arch Assistant (Implemented)
+**Purpose:** AI-powered conversational assistant for exploring and modifying enterprise architecture through natural language.
+
+**Location:** `/backend/internal/archassistant/`
+
+**Key Responsibilities:**
+- Per-tenant LLM configuration (OpenAI, Anthropic)
+- Conversational interface with agent loop (LLM → tool call → result)
+- Cross-context tool execution via loopback HTTP
+- Permission-controlled write operations with safety budgets
+- Rate limiting and usage tracking
+
+**Strategic Classification:** Supporting Domain
+
+**Published Language:** `archassistant/publishedlanguage` (`AgentToolSpec`, `AIConfigProvider`)
+
+[Full Canvas](./ArchAssistant.md)
+
+---
+
+### 11. Enterprise Strategy (Future)
 **Purpose:** Govern strategic architectural decisions about business domain evolution.
 
 **Location:** `/backend/internal/enterprisestrategy/` (future)
@@ -264,6 +284,21 @@ For implementation details and conventions, see [/docs/backend/cross-context-eve
 | `ValueStreamStageCapabilityAdded` | `"ValueStreamStageCapabilityAdded"` | (intra-context projector) |
 | `ValueStreamStageCapabilityRemoved` | `"ValueStreamStageCapabilityRemoved"` | (intra-context projector) |
 
+### Arch Assistant (published language -- non-event)
+
+**Package:** `backend/internal/archassistant/publishedlanguage`
+
+Arch Assistant does not publish domain events to the shared event bus. Instead, its published language defines contracts consumed by other bounded contexts to contribute tools to the agent:
+
+| Export | Type | Purpose |
+|--------|------|---------|
+| `AgentToolSpec` | struct | Contract for BC-contributed tool definitions (name, description, method, path, params, access class, permission) |
+| `AccessClass` | type + constants | Tool budget categories: `read`, `write`, `create`, `update`, `delete` |
+| `ParamSpec` | struct | Parameter descriptor for tool inputs (with `UUIDParam`, `StringParam`, `IntParam` helpers) |
+| `AIConfigProvider` | interface | Contract for reading decrypted LLM configuration and checking configuration status |
+| `AIConfigInfo` | struct | Decrypted LLM configuration data (provider, endpoint, API key, model, max tokens, temperature) |
+| `ErrNotConfigured` | sentinel error | Indicates the tenant's AI assistant is not configured |
+
 ---
 
 ## Context Map
@@ -316,6 +351,20 @@ For implementation details and conventions, see [/docs/backend/cross-context-eve
                   | [Generic Domain]|
                   └─────────────────┘
                   (Isolated -- no integration)
+
+┌──────────────────────────────────────────────────────────┐
+| Arch Assistant                                           |
+| (AI Conversational Agent)                                |
+| [Supporting Domain]                                      |
+|                                                          |
+| Consumes TenantCreated from Auth                         |
+| Calls all other BCs via loopback HTTP (tool execution)   |
+| Defines AgentToolSpec contract consumed by other BCs     |
+└──────────────────────────────────────────────────────────┘
+  ↑ TenantCreated          ↕ Loopback HTTP (tools)
+  from Auth                to Arch Modeling, Cap Mapping,
+                           Enterprise Arch, Value Streams,
+                           MetaModel
 ```
 
 ### Event Flows (Mermaid)
@@ -351,6 +400,13 @@ flowchart LR
     AD -->|EditGrantForNonUserCreated| AU
 
     CM -->|CapabilityCreated/Updated/Deleted| VS
+
+    AU -->|TenantCreated| AA
+    AA[Arch Assistant] -.->|Loopback HTTP| AM
+    AA -.->|Loopback HTTP| CM
+    AA -.->|Loopback HTTP| EA
+    AA -.->|Loopback HTTP| VS
+    AA -.->|Loopback HTTP| MM
 ```
 
 ### Relationship Types
@@ -372,6 +428,12 @@ flowchart LR
 | Access Delegation | Auth | Customer-Supplier | Event-driven (auto-invite non-users) |
 | Enterprise Architecture | Enterprise Strategy | Customer-Supplier | Query (analysis data) -- future |
 | Capability Mapping | Enterprise Strategy | Partnership | Command-driven (strategic ops) -- future |
+| Auth | Arch Assistant | Customer-Supplier | Event-driven (TenantCreated provisions AI configuration) |
+| Arch Assistant | Architecture Modeling | Open Host Service | Loopback HTTP (agent tool execution) |
+| Arch Assistant | Capability Mapping | Open Host Service | Loopback HTTP (agent tool execution) |
+| Arch Assistant | Enterprise Architecture | Open Host Service | Loopback HTTP (agent tool execution) |
+| Arch Assistant | Value Streams | Open Host Service | Loopback HTTP (agent tool execution) |
+| Arch Assistant | MetaModel | Open Host Service | Loopback HTTP (agent tool execution) |
 
 ---
 
@@ -479,6 +541,26 @@ This section documents every event subscription that crosses a bounded context b
 |-------|-----------|---------|
 | `EditGrantForNonUserCreated` | `InvitationAutoCreateProjector` | Auto-create invitation for grantee who is not yet a platform user |
 
+### Auth publishes to:
+
+**Arch Assistant**:
+| Event | Handler | Purpose |
+|-------|---------|---------|
+| `TenantCreated` | `TenantCreatedHandler` | Provision blank `AIConfiguration` for new tenant |
+
+### Arch Assistant integration (non-event):
+
+Arch Assistant does not publish events to the shared bus. Its cross-context integration is via **loopback HTTP**: the agent orchestrator calls back into the EASI API using a short-lived `AgentToken`, executing tools through the normal API pipeline of each target context. Tool specifications are contributed by other BCs via the `AgentToolSpec` published language contract.
+
+| Target Context | Tool Count | Permission Scope |
+|----------------|------------|-----------------|
+| Architecture Modeling | ~21 | `components:read/write` |
+| Capability Mapping | ~27 | `capabilities:read/write`, `domains:read/write` |
+| Enterprise Architecture | varies | `enterprise-arch:read/write` |
+| Value Streams | varies | `valuestreams:read/write` |
+| MetaModel | varies | `metamodel:read` |
+| Arch Assistant (composite) | 4 | various |
+
 ---
 
 ## Anti-Corruption Layer Pattern
@@ -527,6 +609,7 @@ This ensures each context remains decoupled. The consumer cherry-picks only the 
 3. **MetaModel** -- Tenant-specific configuration and vocabulary
 4. **View Layouts** -- Element positioning and styling persistence
 5. **Access Delegation** -- Temporary edit grant management
+6. **Arch Assistant** -- AI conversational agent for architecture exploration and modification
 
 ### Generic Domains (Commodity)
 1. **Releases** -- Simple version tracking
@@ -567,4 +650,5 @@ Each bounded context has:
 | Access Delegation | Implemented | `/backend/internal/accessdelegation/` | Yes | 4 events |
 | View Layouts | Implemented | `/backend/internal/viewlayouts/` | No (CRUD) | -- |
 | Releases | Implemented | `/backend/internal/releases/` | No (CRUD) | -- |
+| Arch Assistant | Implemented | `/backend/internal/archassistant/` | No (CRUD) | AgentToolSpec, AIConfigProvider |
 | Enterprise Strategy | Future | `/backend/internal/enterprisestrategy/` (future) | Yes (future) | -- |
