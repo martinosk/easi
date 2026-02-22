@@ -35,12 +35,12 @@ func validUpdateParams(t *testing.T) UpdateConfigParams {
 	provider, _ := vo.NewLLMProvider("openai")
 	key := vo.NewEncryptedAPIKey("encrypted-key")
 	return UpdateConfigParams{
-		Provider:    provider,
-		Endpoint:    endpoint,
+		Provider:        provider,
+		Endpoint:        endpoint,
 		APIKeyEncrypted: &key,
-		Model:       model,
-		MaxTokens:   maxTokens,
-		Temperature: temperature,
+		Model:           model,
+		MaxTokens:       maxTokens,
+		Temperature:     temperature,
 	}
 }
 
@@ -110,15 +110,15 @@ func TestUpdateConfig_SetsProvider(t *testing.T) {
 
 func TestReconstructAIConfiguration(t *testing.T) {
 	params := ReconstructParams{
-		ID:       "config-id",
-		TenantID: "tenant-1",
-		Provider: vo.ReconstructLLMProvider("anthropic"),
-		Endpoint: vo.ReconstructLLMEndpoint("https://api.anthropic.com"),
+		ID:              "config-id",
+		TenantID:        "tenant-1",
+		Provider:        vo.ReconstructLLMProvider("anthropic"),
+		Endpoint:        vo.ReconstructLLMEndpoint("https://api.anthropic.com"),
 		APIKeyEncrypted: vo.NewEncryptedAPIKey("enc-key"),
-		Model:    vo.ReconstructModelName("claude-3-opus"),
-		MaxTokens: vo.ReconstructMaxTokens(8192),
-		Temperature: vo.ReconstructTemperature(0.5),
-		Status:   vo.StatusConfigured,
+		Model:           vo.ReconstructModelName("claude-3-opus"),
+		MaxTokens:       vo.ReconstructMaxTokens(8192),
+		Temperature:     vo.ReconstructTemperature(0.5),
+		Status:          vo.StatusConfigured,
 	}
 
 	config := ReconstructAIConfiguration(params)

@@ -16,20 +16,20 @@ import (
 )
 
 type mockEnterpriseCapabilityReadModel struct {
-	insertedDTOs                          []readmodels.EnterpriseCapabilityDTO
-	updatedParams                         []readmodels.UpdateCapabilityParams
-	deletedIDs                            []string
-	incrementedLinkIDs                    []string
-	decrementedLinkIDs                    []string
-	incrementAndRecalculateIDs            []string
-	decrementAndRecalculateIDs            []string
-	insertErr                             error
-	updateErr                             error
-	deleteErr                             error
-	incrementErr                          error
-	decrementErr                          error
-	incrementAndRecalculateErr            error
-	decrementAndRecalculateErr            error
+	insertedDTOs               []readmodels.EnterpriseCapabilityDTO
+	updatedParams              []readmodels.UpdateCapabilityParams
+	deletedIDs                 []string
+	incrementedLinkIDs         []string
+	decrementedLinkIDs         []string
+	incrementAndRecalculateIDs []string
+	decrementAndRecalculateIDs []string
+	insertErr                  error
+	updateErr                  error
+	deleteErr                  error
+	incrementErr               error
+	decrementErr               error
+	incrementAndRecalculateErr error
+	decrementAndRecalculateErr error
 }
 
 func (m *mockEnterpriseCapabilityReadModel) Insert(ctx context.Context, dto readmodels.EnterpriseCapabilityDTO) error {

@@ -250,11 +250,11 @@ func TestDeleteCapabilityHandler_WithMultipleAncestors_RemovesFromAllAncestors(t
 	mockRealizationRM := &mockDeleteRealizationReadModel{
 		realizations: []readmodels.RealizationDTO{
 			{
-				ID:               realizationID,
-				CapabilityID:     childCapability.ID(),
-				ComponentID:      "comp-1",
-				Origin:           "Direct",
-				LinkedAt:         time.Now(),
+				ID:           realizationID,
+				CapabilityID: childCapability.ID(),
+				ComponentID:  "comp-1",
+				Origin:       "Direct",
+				LinkedAt:     time.Now(),
 			},
 		},
 	}

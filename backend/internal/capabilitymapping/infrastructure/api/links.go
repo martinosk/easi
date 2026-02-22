@@ -91,7 +91,7 @@ func (h *CapabilityMappingLinks) BusinessDomainCollectionLinksForActor(actor sha
 	return links
 }
 
-func (h *CapabilityMappingLinks) capabilityInDomainBase(capID, domID string) sharedAPI.Links {
+func (h *CapabilityMappingLinks) capabilityInDomainBase(capID, _ string) sharedAPI.Links {
 	return sharedAPI.Links{
 		"self":               h.Get("/capabilities/" + capID),
 		"x-children":         h.Get("/capabilities/" + capID + "/children"),

@@ -32,10 +32,14 @@ import (
 type originTestContext struct {
 	db                     *sql.DB
 	originHandlers         *OriginRelationshipHandlers
-	acquiredEntityHandlers interface{ CreateAcquiredEntity(http.ResponseWriter, *http.Request) }
-	internalTeamHandlers   interface{ CreateInternalTeam(http.ResponseWriter, *http.Request) }
-	componentHandlers      *ComponentHandlers
-	createdIDs             []string
+	acquiredEntityHandlers interface {
+		CreateAcquiredEntity(http.ResponseWriter, *http.Request)
+	}
+	internalTeamHandlers interface {
+		CreateInternalTeam(http.ResponseWriter, *http.Request)
+	}
+	componentHandlers *ComponentHandlers
+	createdIDs        []string
 }
 
 func setupOriginTestHandlers(db *sql.DB) *originTestContext {

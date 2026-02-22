@@ -12,9 +12,9 @@ type RealizationInheritanceRemoval struct {
 
 type CapabilityRealizationsUninherited struct {
 	domain.BaseEvent
-	CapabilityID string                        `json:"capabilityId"`
+	CapabilityID string                          `json:"capabilityId"`
 	Removals     []RealizationInheritanceRemoval `json:"removals"`
-	Timestamp    time.Time                     `json:"timestamp"`
+	Timestamp    time.Time                       `json:"timestamp"`
 }
 
 func NewCapabilityRealizationsUninherited(capabilityID string, removals []RealizationInheritanceRemoval) CapabilityRealizationsUninherited {

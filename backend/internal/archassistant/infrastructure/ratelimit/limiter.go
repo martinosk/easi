@@ -60,10 +60,10 @@ func (sw *slidingWindow) isEmpty() bool {
 func NewLimiter() *Limiter {
 	l := &Limiter{
 		activeStreams: make(map[string]bool),
-		userMinute:   make(map[string]*slidingWindow),
-		userHour:     make(map[string]*slidingWindow),
-		tenantMinute: make(map[string]*slidingWindow),
-		stopCleanup:  make(chan struct{}),
+		userMinute:    make(map[string]*slidingWindow),
+		userHour:      make(map[string]*slidingWindow),
+		tenantMinute:  make(map[string]*slidingWindow),
+		stopCleanup:   make(chan struct{}),
 	}
 	go l.periodicCleanup()
 	return l

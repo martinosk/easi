@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	authPL "easi/backend/internal/auth/publishedlanguage"
 	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/application/projectors"
@@ -11,13 +12,12 @@ import (
 	"easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	"easi/backend/internal/capabilitymapping/infrastructure/metamodel"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
+	"easi/backend/internal/infrastructure/api/middleware"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
-	archPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	mmPL "easi/backend/internal/metamodel/publishedlanguage"
-	"easi/backend/internal/infrastructure/api/middleware"
 	sharedAPI "easi/backend/internal/shared/api"
-	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/shared/events"
 

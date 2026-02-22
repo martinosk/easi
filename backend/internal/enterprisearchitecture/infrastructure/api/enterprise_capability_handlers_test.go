@@ -328,7 +328,6 @@ func TestDeleteEnterpriseCapability_Success_Returns204(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, w.Code)
 }
 
-
 func TestSetStrategicImportance_InvalidValue_Returns400(t *testing.T) {
 	th := newTestHandlers()
 
@@ -394,10 +393,10 @@ func (h *testableEnterpriseCapabilityHandlers) handleGetByID(w http.ResponseWrit
 	}
 
 	cap.Links = types.Links{
-		"self":     types.Link{Href: "/enterprise-capabilities/" + id, Method: "GET"},
-		"x-links":  types.Link{Href: "/enterprise-capabilities/" + id + "/links", Method: "GET"},
-		"edit":     types.Link{Href: "/enterprise-capabilities/" + id, Method: "PUT"},
-		"delete":   types.Link{Href: "/enterprise-capabilities/" + id, Method: "DELETE"},
+		"self":    types.Link{Href: "/enterprise-capabilities/" + id, Method: "GET"},
+		"x-links": types.Link{Href: "/enterprise-capabilities/" + id + "/links", Method: "GET"},
+		"edit":    types.Link{Href: "/enterprise-capabilities/" + id, Method: "PUT"},
+		"delete":  types.Link{Href: "/enterprise-capabilities/" + id, Method: "DELETE"},
 	}
 
 	w.Header().Set("Content-Type", "application/json")

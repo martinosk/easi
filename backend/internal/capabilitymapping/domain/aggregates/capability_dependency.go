@@ -10,9 +10,9 @@ import (
 )
 
 var (
-	ErrCannotCreateSelfDependency    = errors.New("cannot create self-dependency")
-	ErrCircularDependencyDetected    = errors.New("circular dependency detected")
-	ErrDuplicateDependencyExists     = errors.New("dependency already exists between these capabilities")
+	ErrCannotCreateSelfDependency = errors.New("cannot create self-dependency")
+	ErrCircularDependencyDetected = errors.New("circular dependency detected")
+	ErrDuplicateDependencyExists  = errors.New("dependency already exists between these capabilities")
 )
 
 type ExistingDependency struct {

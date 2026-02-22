@@ -301,7 +301,7 @@ func TestImportSaga_ValueStreamFailureDoesNotPreventRealizationCreation(t *testi
 	data := aggregates.ParsedData{
 		Components:   []aggregates.ParsedElement{{SourceID: "comp-1", Name: "MyComp"}},
 		Capabilities: []aggregates.ParsedElement{{SourceID: "cap-1", Name: "MyCap"}},
-		ValueStreams:  []aggregates.ParsedElement{{SourceID: "vs-1", Name: "BrokenStream"}},
+		ValueStreams: []aggregates.ParsedElement{{SourceID: "vs-1", Name: "BrokenStream"}},
 		Relationships: []aggregates.ParsedRelationship{
 			{SourceID: "rel-1", Type: "Realization", SourceRef: "comp-1", TargetRef: "cap-1"},
 		},
@@ -346,7 +346,7 @@ func TestImportSaga_FullImportWithAllPhases(t *testing.T) {
 	data := aggregates.ParsedData{
 		Components:   []aggregates.ParsedElement{{SourceID: "comp-1", Name: "Frontend"}},
 		Capabilities: []aggregates.ParsedElement{{SourceID: "cap-1", Name: "UserMgmt"}},
-		ValueStreams:  []aggregates.ParsedElement{{SourceID: "vs-1", Name: "Onboarding"}},
+		ValueStreams: []aggregates.ParsedElement{{SourceID: "vs-1", Name: "Onboarding"}},
 		Relationships: []aggregates.ParsedRelationship{
 			{SourceID: "rel-1", Type: "Realization", SourceRef: "comp-1", TargetRef: "cap-1"},
 			{SourceID: "rel-2", Type: "Association", SourceRef: "cap-1", TargetRef: "vs-1"},

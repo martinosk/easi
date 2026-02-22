@@ -39,9 +39,9 @@ type BusinessDomainAssignmentService interface {
 }
 
 type businessDomainAssignmentService struct {
-	assignmentLookup  AssignmentLookup
-	commandExecutor   AssignmentCommandExecutor
-	hierarchyService  CapabilityHierarchyService
+	assignmentLookup AssignmentLookup
+	commandExecutor  AssignmentCommandExecutor
+	hierarchyService CapabilityHierarchyService
 }
 
 func NewBusinessDomainAssignmentService(
@@ -50,9 +50,9 @@ func NewBusinessDomainAssignmentService(
 	hierarchyService CapabilityHierarchyService,
 ) BusinessDomainAssignmentService {
 	return &businessDomainAssignmentService{
-		assignmentLookup:  assignmentLookup,
-		commandExecutor:   commandExecutor,
-		hierarchyService:  hierarchyService,
+		assignmentLookup: assignmentLookup,
+		commandExecutor:  commandExecutor,
+		hierarchyService: hierarchyService,
 	}
 }
 

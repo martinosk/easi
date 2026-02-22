@@ -256,4 +256,3 @@ func TestDeleteCurrentSession_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusNoContent, rec.Code)
 }
-

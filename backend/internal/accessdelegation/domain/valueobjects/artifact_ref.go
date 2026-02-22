@@ -18,23 +18,23 @@ var uuidRegex = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 type ArtifactType string
 
 const (
-	ArtifactTypeCapability      ArtifactType = "capability"
-	ArtifactTypeComponent       ArtifactType = "component"
-	ArtifactTypeView            ArtifactType = "view"
-	ArtifactTypeDomain          ArtifactType = "domain"
-	ArtifactTypeVendor          ArtifactType = "vendor"
-	ArtifactTypeInternalTeam    ArtifactType = "internal_team"
-	ArtifactTypeAcquiredEntity  ArtifactType = "acquired_entity"
+	ArtifactTypeCapability     ArtifactType = "capability"
+	ArtifactTypeComponent      ArtifactType = "component"
+	ArtifactTypeView           ArtifactType = "view"
+	ArtifactTypeDomain         ArtifactType = "domain"
+	ArtifactTypeVendor         ArtifactType = "vendor"
+	ArtifactTypeInternalTeam   ArtifactType = "internal_team"
+	ArtifactTypeAcquiredEntity ArtifactType = "acquired_entity"
 )
 
 var validArtifactTypes = map[string]ArtifactType{
-	"capability":       ArtifactTypeCapability,
-	"component":        ArtifactTypeComponent,
-	"view":             ArtifactTypeView,
-	"domain":           ArtifactTypeDomain,
-	"vendor":           ArtifactTypeVendor,
-	"internal_team":    ArtifactTypeInternalTeam,
-	"acquired_entity":  ArtifactTypeAcquiredEntity,
+	"capability":      ArtifactTypeCapability,
+	"component":       ArtifactTypeComponent,
+	"view":            ArtifactTypeView,
+	"domain":          ArtifactTypeDomain,
+	"vendor":          ArtifactTypeVendor,
+	"internal_team":   ArtifactTypeInternalTeam,
+	"acquired_entity": ArtifactTypeAcquiredEntity,
 }
 
 func NewArtifactType(s string) (ArtifactType, error) {

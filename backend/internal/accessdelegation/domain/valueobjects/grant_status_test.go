@@ -63,9 +63,12 @@ func TestGrantStatus_IsExpired(t *testing.T) {
 }
 
 func TestGrantStatus_Equals_SameValue(t *testing.T) {
-	assert.True(t, GrantStatusActive.Equals(GrantStatusActive))
-	assert.True(t, GrantStatusRevoked.Equals(GrantStatusRevoked))
-	assert.True(t, GrantStatusExpired.Equals(GrantStatusExpired))
+	activeA, activeB := GrantStatusActive, GrantStatusActive
+	revokedA, revokedB := GrantStatusRevoked, GrantStatusRevoked
+	expiredA, expiredB := GrantStatusExpired, GrantStatusExpired
+	assert.True(t, activeA.Equals(activeB))
+	assert.True(t, revokedA.Equals(revokedB))
+	assert.True(t, expiredA.Equals(expiredB))
 }
 
 func TestGrantStatus_Equals_DifferentValue(t *testing.T) {

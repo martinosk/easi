@@ -122,5 +122,6 @@ func TestStrategyPillar_Equals_IncludesFitType(t *testing.T) {
 	pillar1WithFunc := pillar1.WithFitType(functionalFit)
 
 	assert.False(t, pillar1WithTech.Equals(pillar1WithFunc))
-	assert.True(t, pillar1WithTech.Equals(pillar1WithTech))
+	pillar1WithTechCopy := pillar1.WithFitType(technicalFit)
+	assert.True(t, pillar1WithTech.Equals(pillar1WithTechCopy))
 }

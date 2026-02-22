@@ -3,9 +3,9 @@ package handlers
 import (
 	"context"
 
+	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/valuestreams/application/commands"
 	"easi/backend/internal/valuestreams/domain/aggregates"
-	"easi/backend/internal/shared/cqrs"
 )
 
 type DeleteValueStreamRepository interface {

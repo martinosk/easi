@@ -11,7 +11,7 @@ import (
 type ImportSaga struct {
 	components   ports.ComponentGateway
 	capabilities ports.CapabilityGateway
-	valueStreams  ports.ValueStreamGateway
+	valueStreams ports.ValueStreamGateway
 }
 
 func New(
@@ -22,7 +22,7 @@ func New(
 	return &ImportSaga{
 		components:   comp,
 		capabilities: cap,
-		valueStreams:  vs,
+		valueStreams: vs,
 	}
 }
 

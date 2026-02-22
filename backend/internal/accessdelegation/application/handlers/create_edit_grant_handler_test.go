@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"sync"
 	"testing"
-	"time"
 
 	"easi/backend/internal/accessdelegation/application/commands"
 	"easi/backend/internal/accessdelegation/domain/aggregates"
@@ -179,12 +178,3 @@ func TestCreateEditGrantHandler_MultipleCreates_ProduceUniqueIDs(t *testing.T) {
 
 	assert.NotEqual(t, result1.CreatedID, result2.CreatedID)
 }
-
-type mockDomainEvent struct {
-	aggregateID string
-}
-
-func (e mockDomainEvent) AggregateID() string                { return e.aggregateID }
-func (e mockDomainEvent) EventType() string                  { return "MockEvent" }
-func (e mockDomainEvent) OccurredAt() time.Time              { return time.Now() }
-func (e mockDomainEvent) EventData() map[string]interface{} { return nil }

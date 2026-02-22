@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	pl "easi/backend/internal/archassistant/publishedlanguage"
 	"easi/backend/internal/archassistant/infrastructure/toolimpls"
-	authPL "easi/backend/internal/auth/publishedlanguage"
+	pl "easi/backend/internal/archassistant/publishedlanguage"
 	architectureAPI "easi/backend/internal/architecturemodeling/infrastructure/api"
+	authPL "easi/backend/internal/auth/publishedlanguage"
 	capabilityAPI "easi/backend/internal/capabilitymapping/infrastructure/api"
 	enterpriseArchAPI "easi/backend/internal/enterprisearchitecture/infrastructure/api"
 	metamodelAPI "easi/backend/internal/metamodel/infrastructure/api"
@@ -39,12 +39,6 @@ type noopAuthMiddleware struct{}
 
 func (n *noopAuthMiddleware) RequirePermission(_ authPL.Permission) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler { return next }
-}
-
-type noopSessionProvider struct{}
-
-func (n *noopSessionProvider) GetCurrentUserID(context.Context) (string, error) {
-	return "", nil
 }
 
 func buildToolCatalogTestRouter(t *testing.T) chi.Router {
@@ -199,56 +193,56 @@ func TestToolCatalog_MethodMatchesAccessClass(t *testing.T) {
 }
 
 var excludedRoutes = map[string]string{
-	"POST /capabilities/*/experts":                 "expert management — operational, not architecture exploration",
-	"DELETE /capabilities/*/experts":               "expert management — operational, not architecture exploration",
-	"POST /capabilities/*/tags":                    "tag management — operational, not architecture exploration",
-	"PATCH /capabilities/*/parent":                 "hierarchy reparenting — complex operation, not suitable for agent",
-	"GET /capabilities/*/dependencies/incoming":    "per-capability view — use list_capability_dependencies instead",
-	"GET /capabilities/*/dependencies/outgoing":    "per-capability view — use list_capability_dependencies instead",
-	"GET /capability-realizations/by-component/*":  "realizations by component — available in get_application_details",
-	"PUT /capability-realizations/*":               "update realization level — fine-grained, use realize_capability",
-	"DELETE /business-domains/*":                   "delete domain — high-impact, reserved for UI",
-	"GET /business-domains/*/capabilities":         "capabilities in domain — available in get_business_domain_details",
-	"GET /business-domains/*/capability-realizations": "domain realizations — composite view, reserved for UI",
-	"GET /business-domains/*/capabilities/*/importance":           "per-domain-capability importance — use get_strategy_importance",
-	"PUT /business-domains/*/capabilities/*/importance/*":         "update importance — fine-grained, use set_strategy_importance",
-	"DELETE /business-domains/*/capabilities/*/importance/*":      "remove importance — fine-grained, reserved for UI",
-	"GET /components/expert-roles":                 "reference data for UI dropdowns",
-	"POST /components/*/experts":                   "expert management — operational, not architecture exploration",
-	"DELETE /components/*/experts":                 "expert management — operational, not architecture exploration",
-	"GET /components/*/fit-comparisons":            "fit comparison view — composite UI visualization",
-	"DELETE /components/*/fit-scores/*":            "remove fit score — fine-grained, reserved for UI",
-	"GET /components/*/origin/acquired-via":        "specific origin type — use get_component_origin for all origins",
-	"GET /components/*/origin/built-by":            "specific origin type — use get_component_origin for all origins",
-	"GET /components/*/origin/purchased-from":      "specific origin type — use get_component_origin for all origins",
-	"GET /origin-relationships":                    "all origin relationships — use get_component_origin per component",
-	"GET /relations":                               "all relations — covered by composite list_application_relations tool",
-	"GET /relations/*":                             "single relation — covered by composite list_application_relations tool",
-	"GET /relations/from/*":                        "outgoing relations — covered by composite list_application_relations tool",
-	"GET /relations/to/*":                          "incoming relations — covered by composite list_application_relations tool",
-	"PUT /relations/*":                             "update relation — fine-grained, use create/delete instead",
-	"DELETE /acquired-entities/*":                  "origin entity delete — high-impact cascading operation, reserved for UI",
-	"DELETE /vendors/*":                            "origin entity delete — high-impact cascading operation, reserved for UI",
-	"DELETE /internal-teams/*":                     "origin entity delete — high-impact cascading operation, reserved for UI",
-	"GET /enterprise-capabilities/*/links":                 "linked capabilities — available in get_enterprise_capability_details",
-	"PUT /enterprise-capabilities/*/target-maturity":       "set target maturity — fine-grained, reserved for UI",
+	"POST /capabilities/*/experts":                             "expert management — operational, not architecture exploration",
+	"DELETE /capabilities/*/experts":                           "expert management — operational, not architecture exploration",
+	"POST /capabilities/*/tags":                                "tag management — operational, not architecture exploration",
+	"PATCH /capabilities/*/parent":                             "hierarchy reparenting — complex operation, not suitable for agent",
+	"GET /capabilities/*/dependencies/incoming":                "per-capability view — use list_capability_dependencies instead",
+	"GET /capabilities/*/dependencies/outgoing":                "per-capability view — use list_capability_dependencies instead",
+	"GET /capability-realizations/by-component/*":              "realizations by component — available in get_application_details",
+	"PUT /capability-realizations/*":                           "update realization level — fine-grained, use realize_capability",
+	"DELETE /business-domains/*":                               "delete domain — high-impact, reserved for UI",
+	"GET /business-domains/*/capabilities":                     "capabilities in domain — available in get_business_domain_details",
+	"GET /business-domains/*/capability-realizations":          "domain realizations — composite view, reserved for UI",
+	"GET /business-domains/*/capabilities/*/importance":        "per-domain-capability importance — use get_strategy_importance",
+	"PUT /business-domains/*/capabilities/*/importance/*":      "update importance — fine-grained, use set_strategy_importance",
+	"DELETE /business-domains/*/capabilities/*/importance/*":   "remove importance — fine-grained, reserved for UI",
+	"GET /components/expert-roles":                             "reference data for UI dropdowns",
+	"POST /components/*/experts":                               "expert management — operational, not architecture exploration",
+	"DELETE /components/*/experts":                             "expert management — operational, not architecture exploration",
+	"GET /components/*/fit-comparisons":                        "fit comparison view — composite UI visualization",
+	"DELETE /components/*/fit-scores/*":                        "remove fit score — fine-grained, reserved for UI",
+	"GET /components/*/origin/acquired-via":                    "specific origin type — use get_component_origin for all origins",
+	"GET /components/*/origin/built-by":                        "specific origin type — use get_component_origin for all origins",
+	"GET /components/*/origin/purchased-from":                  "specific origin type — use get_component_origin for all origins",
+	"GET /origin-relationships":                                "all origin relationships — use get_component_origin per component",
+	"GET /relations":                                           "all relations — covered by composite list_application_relations tool",
+	"GET /relations/*":                                         "single relation — covered by composite list_application_relations tool",
+	"GET /relations/from/*":                                    "outgoing relations — covered by composite list_application_relations tool",
+	"GET /relations/to/*":                                      "incoming relations — covered by composite list_application_relations tool",
+	"PUT /relations/*":                                         "update relation — fine-grained, use create/delete instead",
+	"DELETE /acquired-entities/*":                              "origin entity delete — high-impact cascading operation, reserved for UI",
+	"DELETE /vendors/*":                                        "origin entity delete — high-impact cascading operation, reserved for UI",
+	"DELETE /internal-teams/*":                                 "origin entity delete — high-impact cascading operation, reserved for UI",
+	"GET /enterprise-capabilities/*/links":                     "linked capabilities — available in get_enterprise_capability_details",
+	"PUT /enterprise-capabilities/*/target-maturity":           "set target maturity — fine-grained, reserved for UI",
 	"PUT /enterprise-capabilities/*/strategic-importance/*":    "update importance — fine-grained, use set_enterprise_strategic_importance",
 	"DELETE /enterprise-capabilities/*/strategic-importance/*": "remove importance — fine-grained, reserved for UI",
-	"GET /domain-capabilities/enterprise-link-status":         "batch link status — UI helper for enterprise capability mapping screen",
-	"GET /domain-capabilities/*/enterprise-capability":        "reverse lookup — UI helper for capability mapping screen",
-	"GET /domain-capabilities/*/enterprise-link-status":       "single link status — UI helper for capability mapping screen",
-	"GET /meta-model/configurations/*":             "metamodel config by ID — use get_maturity_scale instead",
-	"GET /meta-model/strategy-pillars/*":           "single pillar detail — use get_strategy_pillars for all",
-	"PUT /meta-model/maturity-scale":               "metamodel write — blocked by permission ceiling",
-	"POST /meta-model/maturity-scale/reset":        "metamodel write — blocked by permission ceiling",
-	"PATCH /meta-model/strategy-pillars":           "metamodel write — blocked by permission ceiling",
-	"POST /meta-model/strategy-pillars":            "metamodel write — blocked by permission ceiling",
-	"PUT /meta-model/strategy-pillars/*":           "metamodel write — blocked by permission ceiling",
-	"DELETE /meta-model/strategy-pillars/*":        "metamodel write — blocked by permission ceiling",
-	"PUT /meta-model/strategy-pillars/*/fit-configuration": "metamodel write — blocked by permission ceiling",
-	"DELETE /value-streams/*":                      "value stream delete — high-impact, reserved for UI",
-	"DELETE /value-streams/*/stages/*":             "stage delete — reserved for UI",
-	"DELETE /value-streams/*/stages/*/capabilities/*": "stage-capability unmapping — reserved for UI",
+	"GET /domain-capabilities/enterprise-link-status":          "batch link status — UI helper for enterprise capability mapping screen",
+	"GET /domain-capabilities/*/enterprise-capability":         "reverse lookup — UI helper for capability mapping screen",
+	"GET /domain-capabilities/*/enterprise-link-status":        "single link status — UI helper for capability mapping screen",
+	"GET /meta-model/configurations/*":                         "metamodel config by ID — use get_maturity_scale instead",
+	"GET /meta-model/strategy-pillars/*":                       "single pillar detail — use get_strategy_pillars for all",
+	"PUT /meta-model/maturity-scale":                           "metamodel write — blocked by permission ceiling",
+	"POST /meta-model/maturity-scale/reset":                    "metamodel write — blocked by permission ceiling",
+	"PATCH /meta-model/strategy-pillars":                       "metamodel write — blocked by permission ceiling",
+	"POST /meta-model/strategy-pillars":                        "metamodel write — blocked by permission ceiling",
+	"PUT /meta-model/strategy-pillars/*":                       "metamodel write — blocked by permission ceiling",
+	"DELETE /meta-model/strategy-pillars/*":                    "metamodel write — blocked by permission ceiling",
+	"PUT /meta-model/strategy-pillars/*/fit-configuration":     "metamodel write — blocked by permission ceiling",
+	"DELETE /value-streams/*":                                  "value stream delete — high-impact, reserved for UI",
+	"DELETE /value-streams/*/stages/*":                         "stage delete — reserved for UI",
+	"DELETE /value-streams/*/stages/*/capabilities/*":          "stage-capability unmapping — reserved for UI",
 }
 
 func TestToolCatalog_AllRoutesAccountedFor(t *testing.T) {

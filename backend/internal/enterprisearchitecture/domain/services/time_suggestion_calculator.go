@@ -3,10 +3,10 @@ package services
 const DefaultGapThreshold = 1.5
 
 type TimeSuggestionResult struct {
-	SuggestedTime  string
-	TechnicalGap   float64
-	FunctionalGap  float64
-	Confidence     string
+	SuggestedTime string
+	TechnicalGap  float64
+	FunctionalGap float64
+	Confidence    string
 }
 
 type TimeSuggestionCalculator struct {

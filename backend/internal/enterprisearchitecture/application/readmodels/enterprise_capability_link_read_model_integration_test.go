@@ -282,7 +282,9 @@ func (f *testFixture) createCapabilityMetadata(capabilityID, capabilityName stri
 			VALUES ('default', $1, $2, 'L1', $1) ON CONFLICT DO NOTHING`, capabilityID, capabilityName)
 	}
 	require.NoError(f.t, err)
-	f.t.Cleanup(func() { f.db.Exec("DELETE FROM enterprisearchitecture.domain_capability_metadata WHERE capability_id = $1", capabilityID) })
+	f.t.Cleanup(func() {
+		f.db.Exec("DELETE FROM enterprisearchitecture.domain_capability_metadata WHERE capability_id = $1", capabilityID)
+	})
 }
 
 func TestLinkCount_IncrementAndDecrement(t *testing.T) {

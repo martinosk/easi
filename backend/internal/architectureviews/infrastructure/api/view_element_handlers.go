@@ -189,7 +189,9 @@ func (h *ViewElementHandlers) AddCapabilityToView(w http.ResponseWriter, r *http
 // @Router /views/{id}/capabilities/{capabilityId}/position [patch]
 func (h *ViewElementHandlers) UpdateCapabilityPosition(w http.ResponseWriter, r *http.Request) {
 	withViewElement(h, w, r, elementOp{pathParam: "capabilityId", errorMsg: "Failed to update capability position"},
-		func() (ElementPositionRequest, bool) { return sharedAPI.DecodeRequestOrFail[ElementPositionRequest](w, r) },
+		func() (ElementPositionRequest, bool) {
+			return sharedAPI.DecodeRequestOrFail[ElementPositionRequest](w, r)
+		},
 		func(ctx context.Context, viewID, elementID string, req ElementPositionRequest) error {
 			return h.layoutRepo.UpdateCapabilityPosition(ctx, viewID, elementID, req.X, req.Y)
 		})
@@ -252,7 +254,9 @@ func (h *ViewElementHandlers) AddOriginEntityToView(w http.ResponseWriter, r *ht
 // @Router /views/{id}/origin-entities/{originEntityId}/position [patch]
 func (h *ViewElementHandlers) UpdateOriginEntityPosition(w http.ResponseWriter, r *http.Request) {
 	withViewElement(h, w, r, elementOp{pathParam: "originEntityId", errorMsg: "Failed to update origin entity position"},
-		func() (ElementPositionRequest, bool) { return sharedAPI.DecodeRequestOrFail[ElementPositionRequest](w, r) },
+		func() (ElementPositionRequest, bool) {
+			return sharedAPI.DecodeRequestOrFail[ElementPositionRequest](w, r)
+		},
 		func(ctx context.Context, viewID, elementID string, req ElementPositionRequest) error {
 			return h.layoutRepo.UpdateOriginEntityPosition(ctx, viewID, elementID, req.X, req.Y)
 		})

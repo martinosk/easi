@@ -15,10 +15,10 @@ import (
 )
 
 type mockEditGrantReadModel struct {
-	insertedDTOs   []readmodels.EditGrantDTO
-	statusUpdates  []readmodels.EditGrantStatusUpdate
-	insertErr      error
-	updateErr      error
+	insertedDTOs  []readmodels.EditGrantDTO
+	statusUpdates []readmodels.EditGrantStatusUpdate
+	insertErr     error
+	updateErr     error
 }
 
 func (m *mockEditGrantReadModel) Insert(_ context.Context, dto readmodels.EditGrantDTO) error {

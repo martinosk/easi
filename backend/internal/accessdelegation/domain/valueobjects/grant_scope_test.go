@@ -30,7 +30,8 @@ func TestGrantScope_String(t *testing.T) {
 }
 
 func TestGrantScope_Equals_SameValue(t *testing.T) {
-	assert.True(t, GrantScopeWrite.Equals(GrantScopeWrite))
+	a, b := GrantScopeWrite, GrantScopeWrite
+	assert.True(t, a.Equals(b))
 }
 
 func TestGrantScope_Equals_DifferentValueObjectType(t *testing.T) {

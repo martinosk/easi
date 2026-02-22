@@ -101,10 +101,10 @@ func TestGenericExecutor_Validation(t *testing.T) {
 
 func TestGenericExecutor_PathParamSubstitution(t *testing.T) {
 	tests := []struct {
-		name       string
-		spec       toolimpls.AgentToolSpec
-		args       map[string]interface{}
-		wantPath   string
+		name     string
+		spec     toolimpls.AgentToolSpec
+		args     map[string]interface{}
+		wantPath string
 	}{
 		{
 			name: "single path param",
@@ -238,9 +238,9 @@ func TestGenericExecutor_POSTBody(t *testing.T) {
 
 func TestGenericExecutor_PUTAndDELETE(t *testing.T) {
 	tests := []struct {
-		name       string
-		method     string
-		status     int
+		name   string
+		method string
+		status int
 	}{
 		{"PUT dispatches correctly", "PUT", http.StatusOK},
 		{"DELETE dispatches correctly", "DELETE", http.StatusNoContent},

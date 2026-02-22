@@ -44,9 +44,9 @@ type testDomainEvent struct {
 	data        map[string]interface{}
 }
 
-func (e testDomainEvent) AggregateID() string                { return e.aggregateID }
-func (e testDomainEvent) EventType() string                  { return e.eventType }
-func (e testDomainEvent) OccurredAt() time.Time              { return time.Now() }
+func (e testDomainEvent) AggregateID() string               { return e.aggregateID }
+func (e testDomainEvent) EventType() string                 { return e.eventType }
+func (e testDomainEvent) OccurredAt() time.Time             { return time.Now() }
 func (e testDomainEvent) EventData() map[string]interface{} { return e.data }
 
 func deletionEvent(aggregateID, eventType string, data map[string]interface{}) testDomainEvent {

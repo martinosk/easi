@@ -36,7 +36,7 @@ func TestDomainCapabilityMetadata_ChildInheritsFromParent(t *testing.T) {
 	}()
 
 	// Test scenario: Create parent L1, then child L2, then assign parent to domain
-	
+
 	// Step 1: Create L1 parent
 	parentDTO := DomainCapabilityMetadataDTO{
 		CapabilityID:    "parent-l1-id",
@@ -53,14 +53,14 @@ func TestDomainCapabilityMetadata_ChildInheritsFromParent(t *testing.T) {
 	parentMeta, err := readModel.GetByID(ctx, "parent-l1-id")
 	require.NoError(t, err)
 	require.NotNil(t, parentMeta)
-	
+
 	childDTO := DomainCapabilityMetadataDTO{
 		CapabilityID:       "child-l2-id",
 		CapabilityName:     "Child L2",
 		CapabilityLevel:    "L2",
 		ParentID:           "parent-l1-id",
-		L1CapabilityID:     parentMeta.L1CapabilityID,  // Should inherit from parent
-		BusinessDomainID:   parentMeta.BusinessDomainID, // Should be empty
+		L1CapabilityID:     parentMeta.L1CapabilityID,     // Should inherit from parent
+		BusinessDomainID:   parentMeta.BusinessDomainID,   // Should be empty
 		BusinessDomainName: parentMeta.BusinessDomainName, // Should be empty
 	}
 	err = readModel.Insert(ctx, childDTO)

@@ -7,15 +7,15 @@ import (
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
+	sharedAPI "easi/backend/internal/shared/api"
+	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/shared/events"
 	"easi/backend/internal/valuestreams/application/handlers"
 	"easi/backend/internal/valuestreams/application/projectors"
 	"easi/backend/internal/valuestreams/application/readmodels"
 	"easi/backend/internal/valuestreams/infrastructure/gateways"
 	"easi/backend/internal/valuestreams/infrastructure/repositories"
 	"easi/backend/internal/valuestreams/publishedlanguage"
-	sharedAPI "easi/backend/internal/shared/api"
-	"easi/backend/internal/shared/cqrs"
-	"easi/backend/internal/shared/events"
 
 	"github.com/go-chi/chi/v5"
 )

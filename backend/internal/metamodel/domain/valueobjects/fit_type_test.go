@@ -93,7 +93,8 @@ func TestFitType_Equals(t *testing.T) {
 	assert.True(t, tech1.Equals(tech2))
 	assert.False(t, tech1.Equals(func1))
 	assert.False(t, tech1.Equals(empty))
-	assert.True(t, empty.Equals(empty))
+	emptyA, emptyB := empty, empty
+	assert.True(t, emptyA.Equals(emptyB))
 }
 
 func TestFitType_String(t *testing.T) {

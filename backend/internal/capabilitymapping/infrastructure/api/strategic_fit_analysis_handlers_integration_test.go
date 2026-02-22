@@ -192,17 +192,17 @@ type effectiveImportanceData struct {
 }
 
 type testDataBuilder struct {
-	ctx                       *strategicFitTestContext
-	t                         *testing.T
-	capabilities              []capabilityData
-	domains                   []domainData
-	components                []componentData
-	realizations              []realizationData
-	domainAssignments         []domainAssignmentData
-	strategyImportances       []strategyImportanceData
-	applicationFitScores      []applicationFitScoreData
+	ctx                        *strategicFitTestContext
+	t                          *testing.T
+	capabilities               []capabilityData
+	domains                    []domainData
+	components                 []componentData
+	realizations               []realizationData
+	domainAssignments          []domainAssignmentData
+	strategyImportances        []strategyImportanceData
+	applicationFitScores       []applicationFitScoreData
 	cmEffectiveBusinessDomains []cmEffectiveBusinessDomainData
-	effectiveImportances      []effectiveImportanceData
+	effectiveImportances       []effectiveImportanceData
 }
 
 func newTestDataBuilder(ctx *strategicFitTestContext, t *testing.T) *testDataBuilder {

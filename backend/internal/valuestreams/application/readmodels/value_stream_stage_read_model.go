@@ -38,14 +38,18 @@ func (rm *ValueStreamReadModel) InsertStage(ctx context.Context, dto ValueStream
 		"DELETE FROM valuestreams.value_stream_stages WHERE tenant_id = $1 AND id = $2",
 		"INSERT INTO valuestreams.value_stream_stages (id, tenant_id, value_stream_id, name, description, position) VALUES ($1, $2, $3, $4, $5, $6)",
 		func(tid string) []interface{} { return []interface{}{tid, dto.ID} },
-		func(tid string) []interface{} { return []interface{}{dto.ID, tid, dto.ValueStreamID, dto.Name, dto.Description, dto.Position} },
+		func(tid string) []interface{} {
+			return []interface{}{dto.ID, tid, dto.ValueStreamID, dto.Name, dto.Description, dto.Position}
+		},
 	)
 }
 
 func (rm *ValueStreamReadModel) UpdateStage(ctx context.Context, update StageUpdate) error {
 	return rm.execTenantQuery(ctx,
 		"UPDATE valuestreams.value_stream_stages SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = $3 AND id = $4",
-		func(tid string) []interface{} { return []interface{}{update.Name, update.Description, tid, update.StageID} },
+		func(tid string) []interface{} {
+			return []interface{}{update.Name, update.Description, tid, update.StageID}
+		},
 	)
 }
 

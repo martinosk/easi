@@ -41,9 +41,9 @@ type AIConfigStatusChecker interface {
 }
 
 type SessionHandlers struct {
-	sessionManager       *session.SessionManager
-	userRepo             UserRepository
-	tenantRepo           TenantRepository
+	sessionManager        *session.SessionManager
+	userRepo              UserRepository
+	tenantRepo            TenantRepository
 	aiConfigStatusChecker AIConfigStatusChecker
 }
 

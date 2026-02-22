@@ -88,10 +88,10 @@ type scanner interface {
 func scanConfig(s scanner) (*aggregates.AIConfiguration, error) {
 	var (
 		id, tenantID, providerStr, endpointStr, apiKeyEnc, modelStr, statusStr string
-		maxTokens                                                               int
-		temperature                                                             float64
-		systemPromptOverride                                                    *string
-		updatedAt                                                               time.Time
+		maxTokens                                                              int
+		temperature                                                            float64
+		systemPromptOverride                                                   *string
+		updatedAt                                                              time.Time
 	)
 
 	err := s.Scan(&id, &tenantID, &providerStr, &endpointStr, &apiKeyEnc, &modelStr,

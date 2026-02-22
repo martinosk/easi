@@ -176,7 +176,9 @@ func TestViewSettings_Integration(t *testing.T) {
 			fieldName:   "edgeType",
 			validValues: []string{"default", "step", "smoothstep", "straight"},
 			readField:   func(v readmodels.ArchitectureViewDTO) string { return v.EdgeType },
-			handler:     func(h *viewTestHarness) func(http.ResponseWriter, *http.Request) { return h.viewHandlers.UpdateEdgeType },
+			handler: func(h *viewTestHarness) func(http.ResponseWriter, *http.Request) {
+				return h.viewHandlers.UpdateEdgeType
+			},
 		},
 		{
 			name:        "LayoutDirection",
@@ -184,7 +186,9 @@ func TestViewSettings_Integration(t *testing.T) {
 			fieldName:   "layoutDirection",
 			validValues: []string{"TB", "LR", "BT", "RL"},
 			readField:   func(v readmodels.ArchitectureViewDTO) string { return v.LayoutDirection },
-			handler:     func(h *viewTestHarness) func(http.ResponseWriter, *http.Request) { return h.viewHandlers.UpdateLayoutDirection },
+			handler: func(h *viewTestHarness) func(http.ResponseWriter, *http.Request) {
+				return h.viewHandlers.UpdateLayoutDirection
+			},
 		},
 	}
 
@@ -217,8 +221,12 @@ func TestViewSettings_InvalidValue_Integration(t *testing.T) {
 		value     string
 		handler   func(*viewTestHarness) func(http.ResponseWriter, *http.Request)
 	}{
-		{"InvalidEdgeType", "/edge-type", "edgeType", "invalid", func(h *viewTestHarness) func(http.ResponseWriter, *http.Request) { return h.viewHandlers.UpdateEdgeType }},
-		{"InvalidLayoutDirection", "/layout-direction", "layoutDirection", "INVALID", func(h *viewTestHarness) func(http.ResponseWriter, *http.Request) { return h.viewHandlers.UpdateLayoutDirection }},
+		{"InvalidEdgeType", "/edge-type", "edgeType", "invalid", func(h *viewTestHarness) func(http.ResponseWriter, *http.Request) {
+			return h.viewHandlers.UpdateEdgeType
+		}},
+		{"InvalidLayoutDirection", "/layout-direction", "layoutDirection", "INVALID", func(h *viewTestHarness) func(http.ResponseWriter, *http.Request) {
+			return h.viewHandlers.UpdateLayoutDirection
+		}},
 	}
 
 	for _, tc := range testCases {

@@ -28,14 +28,14 @@ func NewOpenAIClient(endpoint, apiKey string) *OpenAIClient {
 }
 
 type openAIRequest struct {
-	Model         string              `json:"model"`
-	Messages      []openAIMessage     `json:"messages"`
-	MaxTokens     int                 `json:"max_tokens"`
-	Temperature   float64             `json:"temperature"`
-	Stream        bool                `json:"stream"`
+	Model         string               `json:"model"`
+	Messages      []openAIMessage      `json:"messages"`
+	MaxTokens     int                  `json:"max_tokens"`
+	Temperature   float64              `json:"temperature"`
+	Stream        bool                 `json:"stream"`
 	StreamOptions *openAIStreamOptions `json:"stream_options,omitempty"`
-	Tools         []ToolDef           `json:"tools,omitempty"`
-	ToolChoice    string              `json:"tool_choice,omitempty"`
+	Tools         []ToolDef            `json:"tools,omitempty"`
+	ToolChoice    string               `json:"tool_choice,omitempty"`
 }
 
 type openAIStreamOptions struct {
@@ -73,14 +73,14 @@ type openAIStreamChoice struct {
 }
 
 type openAIStreamDelta struct {
-	Content   string                    `json:"content"`
+	Content   string                      `json:"content"`
 	ToolCalls []openAIStreamToolCallDelta `json:"tool_calls"`
 }
 
 type openAIStreamToolCallDelta struct {
-	Index    int     `json:"index"`
-	ID       string  `json:"id,omitempty"`
-	Type     string  `json:"type,omitempty"`
+	Index    int    `json:"index"`
+	ID       string `json:"id,omitempty"`
+	Type     string `json:"type,omitempty"`
 	Function *struct {
 		Name      string `json:"name,omitempty"`
 		Arguments string `json:"arguments,omitempty"`
@@ -148,6 +148,7 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, messages []Message, opts 
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 

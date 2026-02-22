@@ -168,4 +168,3 @@ func (h *MaturityLevelHandlers) GetOwnershipModels(w http.ResponseWriter, r *htt
 
 	sharedAPI.RespondCollection(w, http.StatusOK, models, links)
 }
-

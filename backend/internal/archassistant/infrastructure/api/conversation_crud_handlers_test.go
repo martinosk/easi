@@ -206,10 +206,10 @@ func TestGetConversation_ReturnsConversationWithMessages(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 
 	var resp struct {
-		ID            string      `json:"id"`
-		Title         string      `json:"title"`
-		CreatedAt     time.Time   `json:"createdAt"`
-		LastMessageAt time.Time   `json:"lastMessageAt"`
+		ID            string    `json:"id"`
+		Title         string    `json:"title"`
+		CreatedAt     time.Time `json:"createdAt"`
+		LastMessageAt time.Time `json:"lastMessageAt"`
 		Messages      []struct {
 			ID        string    `json:"id"`
 			Role      string    `json:"role"`

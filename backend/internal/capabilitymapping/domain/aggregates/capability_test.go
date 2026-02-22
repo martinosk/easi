@@ -175,11 +175,11 @@ func TestChangeParent_L1ToL2_WhenAssignedParent(t *testing.T) {
 
 func TestChangeParent_LevelTransitions(t *testing.T) {
 	tests := []struct {
-		name         string
-		fromLevel    string
-		toLevel      string
-		capName      string
-		orphan       bool
+		name      string
+		fromLevel string
+		toLevel   string
+		capName   string
+		orphan    bool
 	}{
 		{"L2ToL1_WhenOrphaned", "L2", "L1", "Digital Experience", true},
 		{"L2ToL3_WhenMovedDeeperInHierarchy", "L2", "L3", "Digital Experience", false},

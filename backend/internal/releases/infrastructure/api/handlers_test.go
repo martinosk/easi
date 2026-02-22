@@ -302,7 +302,6 @@ func TestGetAll_ReturnsEmptyArrayWhenNoReleases(t *testing.T) {
 	}
 }
 
-
 func TestReleaseResponse_FormatsDateAsRFC3339(t *testing.T) {
 	releaseDate := time.Date(2024, 6, 15, 14, 30, 0, 0, time.UTC)
 	release := createTestRelease(t, "1.0.0", releaseDate, "Notes")

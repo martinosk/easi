@@ -9,9 +9,9 @@ const (
 )
 
 const (
-	LiabilityGapThreshold      = 2
-	ConcernGapThreshold        = 1
-	HighImportanceThreshold    = 4
+	LiabilityGapThreshold   = 2
+	ConcernGapThreshold     = 1
+	HighImportanceThreshold = 4
 )
 
 func CategorizeGap(gap, importance int) GapCategory {

@@ -55,9 +55,9 @@ func runSpecToolTests(t *testing.T, cases []specToolTestCase) {
 }
 
 type requestCapture struct {
-	server                  *httptest.Server
-	method, path            string
-	body                    map[string]interface{}
+	server       *httptest.Server
+	method, path string
+	body         map[string]interface{}
 }
 
 func newRequestCapture(t *testing.T, tc specToolTestCase) *requestCapture {

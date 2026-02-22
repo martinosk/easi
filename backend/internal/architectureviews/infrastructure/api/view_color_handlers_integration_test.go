@@ -29,20 +29,40 @@ type elementColorConfig struct {
 
 var elementTypes = []elementColorConfig{
 	{
-		name:     "component",
-		prefix:   "comp",
-		addFn:    func(ctx *viewTestContext, t *testing.T, h *viewTestHarness, viewID, id string, pos position) { ctx.addComponentViaAPI(t, h, viewID, id, pos) },
-		colorsFn: func(v readmodels.ArchitectureViewDTO) map[string]*string { m := map[string]*string{}; for _, c := range v.Components { m[c.ComponentID] = c.CustomColor }; return m },
-		clearFn:  func(h *viewTestHarness) func(http.ResponseWriter, *http.Request) { return h.colorHandlers.ClearComponentColor },
+		name:   "component",
+		prefix: "comp",
+		addFn: func(ctx *viewTestContext, t *testing.T, h *viewTestHarness, viewID, id string, pos position) {
+			ctx.addComponentViaAPI(t, h, viewID, id, pos)
+		},
+		colorsFn: func(v readmodels.ArchitectureViewDTO) map[string]*string {
+			m := map[string]*string{}
+			for _, c := range v.Components {
+				m[c.ComponentID] = c.CustomColor
+			}
+			return m
+		},
+		clearFn: func(h *viewTestHarness) func(http.ResponseWriter, *http.Request) {
+			return h.colorHandlers.ClearComponentColor
+		},
 		urlPath:  "components",
 		urlParam: "componentId",
 	},
 	{
-		name:     "capability",
-		prefix:   "cap",
-		addFn:    func(ctx *viewTestContext, t *testing.T, h *viewTestHarness, viewID, id string, pos position) { ctx.addCapabilityViaAPI(t, h, viewID, id, pos) },
-		colorsFn: func(v readmodels.ArchitectureViewDTO) map[string]*string { m := map[string]*string{}; for _, c := range v.Capabilities { m[c.CapabilityID] = c.CustomColor }; return m },
-		clearFn:  func(h *viewTestHarness) func(http.ResponseWriter, *http.Request) { return h.colorHandlers.ClearCapabilityColor },
+		name:   "capability",
+		prefix: "cap",
+		addFn: func(ctx *viewTestContext, t *testing.T, h *viewTestHarness, viewID, id string, pos position) {
+			ctx.addCapabilityViaAPI(t, h, viewID, id, pos)
+		},
+		colorsFn: func(v readmodels.ArchitectureViewDTO) map[string]*string {
+			m := map[string]*string{}
+			for _, c := range v.Capabilities {
+				m[c.CapabilityID] = c.CustomColor
+			}
+			return m
+		},
+		clearFn: func(h *viewTestHarness) func(http.ResponseWriter, *http.Request) {
+			return h.colorHandlers.ClearCapabilityColor
+		},
 		urlPath:  "capabilities",
 		urlParam: "capabilityId",
 	},
@@ -175,7 +195,7 @@ func TestClearElementColor_Integration(t *testing.T) {
 			testCtx.setElementColorViaAPI(t, h, viewID, elementID, et.name, "#FF5733")
 
 			w, req := testCtx.makeRequest(t, http.MethodDelete, "/api/v1/views/"+viewID+"/"+et.urlPath+"/"+elementID+"/color", nil, map[string]string{
-				"id":       viewID,
+				"id":        viewID,
 				et.urlParam: elementID,
 			})
 			et.clearFn(h)(w, req)

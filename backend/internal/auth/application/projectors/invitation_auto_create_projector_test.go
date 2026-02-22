@@ -34,9 +34,9 @@ type autoInviteTestEvent struct {
 	data map[string]interface{}
 }
 
-func (e *autoInviteTestEvent) AggregateID() string                { return "" }
-func (e *autoInviteTestEvent) EventType() string                  { return "EditGrantForNonUserCreated" }
-func (e *autoInviteTestEvent) OccurredAt() time.Time              { return time.Now() }
+func (e *autoInviteTestEvent) AggregateID() string               { return "" }
+func (e *autoInviteTestEvent) EventType() string                 { return "EditGrantForNonUserCreated" }
+func (e *autoInviteTestEvent) OccurredAt() time.Time             { return time.Now() }
 func (e *autoInviteTestEvent) EventData() map[string]interface{} { return e.data }
 
 func TestInvitationAutoCreateProjector_DispatchesCreateInvitationCommand(t *testing.T) {

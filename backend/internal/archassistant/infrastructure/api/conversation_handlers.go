@@ -56,9 +56,9 @@ func NewConversationHandlers(deps ConversationHandlersDeps) *ConversationHandler
 }
 
 type CreateConversationResponse struct {
-	ID        string     `json:"id"`
-	Title     string     `json:"title"`
-	CreatedAt time.Time  `json:"createdAt"`
+	ID        string      `json:"id"`
+	Title     string      `json:"title"`
+	CreatedAt time.Time   `json:"createdAt"`
 	Links     types.Links `json:"_links"`
 }
 

@@ -3,8 +3,8 @@ package metamodel
 import (
 	"context"
 
-	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	"easi/backend/internal/enterprisearchitecture/application/readmodels"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 )
 
 type localStrategyPillarsGateway struct {

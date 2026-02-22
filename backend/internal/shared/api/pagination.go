@@ -41,9 +41,9 @@ type PaginationInfo struct {
 
 // PaginatedResponse wraps data with pagination info and HATEOAS links
 type PaginatedResponse struct {
-	Data       interface{}      `json:"data"`
-	Pagination PaginationInfo   `json:"pagination"`
-	Links      types.Links      `json:"_links"`
+	Data       interface{}    `json:"data"`
+	Pagination PaginationInfo `json:"pagination"`
+	Links      types.Links    `json:"_links"`
 }
 
 // ParsePaginationParams extracts pagination parameters from the request

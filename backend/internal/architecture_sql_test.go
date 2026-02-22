@@ -37,7 +37,7 @@ import (
 )
 
 var allowedSchemaAccess = map[string]string{
-	"auth -> platform":            "tenant domain checking for authentication",
+	"auth -> platform":               "tenant domain checking for authentication",
 	"capabilitymapping -> metamodel": "strategy pillar configuration gateway",
 }
 

@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	ErrDomainCapabilityAlreadyLinked  = errors.New("domain capability is already linked to an enterprise capability")
-	ErrAncestorLinkedToDifferent      = errors.New("ancestor capability is linked to a different enterprise capability")
-	ErrDescendantLinkedToDifferent    = errors.New("descendant capability is linked to a different enterprise capability")
+	ErrDomainCapabilityAlreadyLinked = errors.New("domain capability is already linked to an enterprise capability")
+	ErrAncestorLinkedToDifferent     = errors.New("ancestor capability is linked to a different enterprise capability")
+	ErrDescendantLinkedToDifferent   = errors.New("descendant capability is linked to a different enterprise capability")
 )
 
 type LinkRepository interface {

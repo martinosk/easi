@@ -3,11 +3,11 @@ package api
 import (
 	"net/http"
 
-	"easi/backend/internal/valuestreams/application/commands"
-	"easi/backend/internal/valuestreams/application/readmodels"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 	"easi/backend/internal/shared/cqrs"
+	"easi/backend/internal/valuestreams/application/commands"
+	"easi/backend/internal/valuestreams/application/readmodels"
 )
 
 type StageHandlers struct {

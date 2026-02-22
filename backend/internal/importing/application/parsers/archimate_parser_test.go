@@ -58,6 +58,7 @@ func TestArchiMateParser_Parse(t *testing.T) {
 	cap1 := findElement(result.Capabilities, "cap-1")
 	if cap1 == nil {
 		t.Fatal("expected to find cap-1")
+		return
 	}
 	if cap1.Name != "Customer Management" {
 		t.Errorf("expected name 'Customer Management', got %q", cap1.Name)
@@ -69,6 +70,7 @@ func TestArchiMateParser_Parse(t *testing.T) {
 	comp1 := findElement(result.Components, "comp-1")
 	if comp1 == nil {
 		t.Fatal("expected to find comp-1")
+		return
 	}
 	if comp1.Name != "CRM System" {
 		t.Errorf("expected name 'CRM System', got %q", comp1.Name)

@@ -18,11 +18,11 @@ type AuthMiddleware interface {
 }
 
 type ArchAssistantRoutesDeps struct {
-	Router           chi.Router
-	DB               *database.TenantAwareDB
-	AuthMiddleware   AuthMiddleware
-	RateLimiter      *ratelimit.Limiter
-	LoopbackBaseURL  string
+	Router          chi.Router
+	DB              *database.TenantAwareDB
+	AuthMiddleware  AuthMiddleware
+	RateLimiter     *ratelimit.Limiter
+	LoopbackBaseURL string
 }
 
 func SetupArchAssistantRoutes(deps ArchAssistantRoutesDeps) error {

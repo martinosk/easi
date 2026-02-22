@@ -10,13 +10,13 @@ import (
 )
 
 var (
-	ErrL1CannotHaveParent            = errors.New("L1 capabilities cannot have a parent")
-	ErrNonL1MustHaveParent           = errors.New("L2-L4 capabilities must have a parent")
-	ErrParentMustBeOneLevelAbove     = errors.New("parent must be exactly one level above")
-	ErrCapabilityCannotBeOwnParent   = errors.New("capability cannot be its own parent")
-	ErrWouldCreateCircularReference  = errors.New("operation would create circular reference")
-	ErrWouldExceedMaximumDepth       = errors.New("operation would create L5+ hierarchy")
-	ErrOnlyL1CanBeAssignedToDomain   = errors.New("only L1 capabilities can be assigned to business domains")
+	ErrL1CannotHaveParent           = errors.New("L1 capabilities cannot have a parent")
+	ErrNonL1MustHaveParent          = errors.New("L2-L4 capabilities must have a parent")
+	ErrParentMustBeOneLevelAbove    = errors.New("parent must be exactly one level above")
+	ErrCapabilityCannotBeOwnParent  = errors.New("capability cannot be its own parent")
+	ErrWouldCreateCircularReference = errors.New("operation would create circular reference")
+	ErrWouldExceedMaximumDepth      = errors.New("operation would create L5+ hierarchy")
+	ErrOnlyL1CanBeAssignedToDomain  = errors.New("only L1 capabilities can be assigned to business domains")
 )
 
 type Capability struct {

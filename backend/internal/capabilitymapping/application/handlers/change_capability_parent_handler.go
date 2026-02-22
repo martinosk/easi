@@ -33,10 +33,10 @@ type ChangeCapabilityParentRealizationReadModel interface {
 }
 
 type ChangeCapabilityParentHandler struct {
-	repository        ChangeCapabilityParentRepository
-	capabilityReadModel ChangeCapabilityParentReadModel
+	repository           ChangeCapabilityParentRepository
+	capabilityReadModel  ChangeCapabilityParentReadModel
 	realizationReadModel ChangeCapabilityParentRealizationReadModel
-	reparentingService services.CapabilityReparentingService
+	reparentingService   services.CapabilityReparentingService
 }
 
 func NewChangeCapabilityParentHandler(

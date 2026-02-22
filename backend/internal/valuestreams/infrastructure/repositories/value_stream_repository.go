@@ -3,11 +3,11 @@ package repositories
 import (
 	"errors"
 
+	"easi/backend/internal/infrastructure/eventstore"
+	"easi/backend/internal/shared/infrastructure/repository"
 	"easi/backend/internal/valuestreams/domain/aggregates"
 	"easi/backend/internal/valuestreams/domain/events"
 	"easi/backend/internal/valuestreams/publishedlanguage"
-	"easi/backend/internal/infrastructure/eventstore"
-	"easi/backend/internal/shared/infrastructure/repository"
 )
 
 var ErrValueStreamNotFound = errors.New("value stream not found")

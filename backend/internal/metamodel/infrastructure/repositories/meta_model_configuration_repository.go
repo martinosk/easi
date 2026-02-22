@@ -28,12 +28,12 @@ func NewMetaModelConfigurationRepository(eventStore eventstore.EventStore) *Meta
 
 var metaModelEventDeserializers = repository.NewEventDeserializers(
 	map[string]repository.EventDeserializerFunc{
-		"MetaModelConfigurationCreated":   repository.JSONDeserializer[events.MetaModelConfigurationCreated],
-		"MaturityScaleConfigUpdated":      repository.JSONDeserializer[events.MaturityScaleConfigUpdated],
-		"MaturityScaleConfigReset":        repository.JSONDeserializer[events.MaturityScaleConfigReset],
-		"StrategyPillarAdded":             repository.JSONDeserializer[events.StrategyPillarAdded],
-		"StrategyPillarUpdated":           repository.JSONDeserializer[events.StrategyPillarUpdated],
-		"StrategyPillarRemoved":           repository.JSONDeserializer[events.StrategyPillarRemoved],
-		"PillarFitConfigurationUpdated":   repository.JSONDeserializer[events.PillarFitConfigurationUpdated],
+		"MetaModelConfigurationCreated": repository.JSONDeserializer[events.MetaModelConfigurationCreated],
+		"MaturityScaleConfigUpdated":    repository.JSONDeserializer[events.MaturityScaleConfigUpdated],
+		"MaturityScaleConfigReset":      repository.JSONDeserializer[events.MaturityScaleConfigReset],
+		"StrategyPillarAdded":           repository.JSONDeserializer[events.StrategyPillarAdded],
+		"StrategyPillarUpdated":         repository.JSONDeserializer[events.StrategyPillarUpdated],
+		"StrategyPillarRemoved":         repository.JSONDeserializer[events.StrategyPillarRemoved],
+		"PillarFitConfigurationUpdated": repository.JSONDeserializer[events.PillarFitConfigurationUpdated],
 	},
 )

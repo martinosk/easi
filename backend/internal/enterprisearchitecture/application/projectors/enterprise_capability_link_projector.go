@@ -125,10 +125,10 @@ func (p *EnterpriseCapabilityLinkProjector) recomputeBlockingForSubtree(ctx cont
 }
 
 type blockingContext struct {
-	domainCapabilityID   string
+	domainCapabilityID     string
 	enterpriseCapabilityID string
-	capabilityName       string
-	enterpriseName       string
+	capabilityName         string
+	enterpriseName         string
 }
 
 func (p *EnterpriseCapabilityLinkProjector) computeBlocking(ctx context.Context, domainCapabilityID, enterpriseCapabilityID string) error {

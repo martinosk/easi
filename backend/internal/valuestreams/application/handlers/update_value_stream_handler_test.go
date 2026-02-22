@@ -5,11 +5,11 @@ import (
 	"errors"
 	"testing"
 
+	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/valuestreams/application/commands"
 	"easi/backend/internal/valuestreams/domain/aggregates"
 	"easi/backend/internal/valuestreams/domain/valueobjects"
 	"easi/backend/internal/valuestreams/infrastructure/repositories"
-	"easi/backend/internal/shared/cqrs"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -89,10 +89,10 @@ func TestUpdateValueStreamHandler_UpdatesValueStream(t *testing.T) {
 
 func TestUpdateValueStreamHandler_ErrorCases(t *testing.T) {
 	tests := []struct {
-		name      string
-		setup     func(t *testing.T) (*mockUpdateValueStreamRepository, *mockUpdateValueStreamReadModel, cqrs.Command)
-		wantErr   error
-		notSaved  bool
+		name     string
+		setup    func(t *testing.T) (*mockUpdateValueStreamRepository, *mockUpdateValueStreamReadModel, cqrs.Command)
+		wantErr  error
+		notSaved bool
 	}{
 		{
 			name: "name exists for other stream",

@@ -39,9 +39,9 @@ func (p *EARealizationCacheProjector) Handle(ctx context.Context, event domain.D
 
 func (p *EARealizationCacheProjector) ProjectEvent(ctx context.Context, eventType string, eventData []byte) error {
 	handlers := map[string]func(context.Context, []byte) error{
-		cmPL.SystemLinkedToCapability:   p.handleSystemLinkedToCapability,
-		cmPL.SystemRealizationDeleted:   p.handleSystemRealizationDeleted,
-		cmPL.CapabilityDeleted:          p.handleCapabilityDeleted,
+		cmPL.SystemLinkedToCapability:    p.handleSystemLinkedToCapability,
+		cmPL.SystemRealizationDeleted:    p.handleSystemRealizationDeleted,
+		cmPL.CapabilityDeleted:           p.handleCapabilityDeleted,
 		amPL.ApplicationComponentUpdated: p.handleApplicationComponentUpdated,
 	}
 

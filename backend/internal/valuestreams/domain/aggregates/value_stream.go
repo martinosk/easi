@@ -4,18 +4,18 @@ import (
 	"errors"
 	"time"
 
+	domain "easi/backend/internal/shared/eventsourcing"
 	"easi/backend/internal/valuestreams/domain/entities"
 	"easi/backend/internal/valuestreams/domain/events"
 	"easi/backend/internal/valuestreams/domain/valueobjects"
-	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 var (
-	ErrStageNameExists        = errors.New("stage with this name already exists in this value stream")
-	ErrStageNotFound          = errors.New("stage not found")
+	ErrStageNameExists         = errors.New("stage with this name already exists in this value stream")
+	ErrStageNotFound           = errors.New("stage not found")
 	ErrCapabilityAlreadyMapped = errors.New("capability is already mapped to this stage")
-	ErrCapabilityNotMapped    = errors.New("capability is not mapped to this stage")
-	ErrInvalidStagePositions  = errors.New("invalid stage positions: must include all stages with contiguous positions starting at 1")
+	ErrCapabilityNotMapped     = errors.New("capability is not mapped to this stage")
+	ErrInvalidStagePositions   = errors.New("invalid stage positions: must include all stages with contiguous positions starting at 1")
 )
 
 type StagePositionUpdate struct {

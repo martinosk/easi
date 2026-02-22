@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"easi/backend/internal/shared/cqrs"
 	"easi/backend/internal/valuestreams/application/commands"
 	"easi/backend/internal/valuestreams/domain/aggregates"
 	"easi/backend/internal/valuestreams/domain/valueobjects"
-	"easi/backend/internal/shared/cqrs"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,10 +25,10 @@ func newTestValueStream(t *testing.T) *aggregates.ValueStream {
 }
 
 type mockStageRepository struct {
-	stream   *aggregates.ValueStream
-	getErr   error
-	saveErr  error
-	saved    []*aggregates.ValueStream
+	stream  *aggregates.ValueStream
+	getErr  error
+	saveErr error
+	saved   []*aggregates.ValueStream
 }
 
 func (m *mockStageRepository) GetByID(ctx context.Context, id string) (*aggregates.ValueStream, error) {

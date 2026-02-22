@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 
-	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	"easi/backend/internal/enterprisearchitecture/domain/services"
 	"easi/backend/internal/infrastructure/database"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	sharedctx "easi/backend/internal/shared/context"
 )
 

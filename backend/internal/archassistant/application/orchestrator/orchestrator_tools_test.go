@@ -15,8 +15,8 @@ import (
 	"easi/backend/internal/archassistant/application/orchestrator"
 	"easi/backend/internal/archassistant/application/tools"
 	"easi/backend/internal/archassistant/domain/aggregates"
-	"easi/backend/internal/archassistant/infrastructure/adapters"
 	vo "easi/backend/internal/archassistant/domain/valueobjects"
+	"easi/backend/internal/archassistant/infrastructure/adapters"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

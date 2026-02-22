@@ -20,17 +20,17 @@ type InheritedRealization struct {
 
 type CapabilityRealizationsInherited struct {
 	domain.BaseEvent
-	CapabilityID           string               `json:"capabilityId"`
-	InheritedRealizations  []InheritedRealization `json:"inheritedRealizations"`
-	Timestamp              time.Time            `json:"timestamp"`
+	CapabilityID          string                 `json:"capabilityId"`
+	InheritedRealizations []InheritedRealization `json:"inheritedRealizations"`
+	Timestamp             time.Time              `json:"timestamp"`
 }
 
 func NewCapabilityRealizationsInherited(capabilityID string, realizations []InheritedRealization) CapabilityRealizationsInherited {
 	return CapabilityRealizationsInherited{
-		BaseEvent:           domain.NewBaseEvent(capabilityID),
-		CapabilityID:        capabilityID,
+		BaseEvent:             domain.NewBaseEvent(capabilityID),
+		CapabilityID:          capabilityID,
 		InheritedRealizations: realizations,
-		Timestamp:           time.Now().UTC(),
+		Timestamp:             time.Now().UTC(),
 	}
 }
 

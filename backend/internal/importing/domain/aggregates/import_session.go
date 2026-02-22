@@ -17,11 +17,11 @@ var (
 )
 
 type ImportSessionConfig struct {
-	SourceFormat         valueobjects.SourceFormat
-	BusinessDomainID    string
-	CapabilityEAOwner   string
-	Preview             valueobjects.ImportPreview
-	ParsedData          ParsedData
+	SourceFormat      valueobjects.SourceFormat
+	BusinessDomainID  string
+	CapabilityEAOwner string
+	Preview           valueobjects.ImportPreview
+	ParsedData        ParsedData
 }
 
 type ParsedElement struct {

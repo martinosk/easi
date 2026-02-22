@@ -226,11 +226,12 @@ func classifyElements(elements []archiMateElement, result *ParseResult) {
 			Description: elem.Documentation,
 		}
 
-		if elem.Type == "Capability" {
+		switch elem.Type {
+		case "Capability":
 			result.Capabilities = append(result.Capabilities, parsed)
-		} else if elem.Type == "ValueStream" {
+		case "ValueStream":
 			result.ValueStreams = append(result.ValueStreams, parsed)
-		} else {
+		default:
 			result.Components = append(result.Components, parsed)
 		}
 	}

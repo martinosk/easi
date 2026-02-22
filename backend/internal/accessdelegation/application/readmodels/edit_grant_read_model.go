@@ -11,21 +11,21 @@ import (
 )
 
 type EditGrantDTO struct {
-	ID                string            `json:"id"`
-	GrantorID         string            `json:"grantorId"`
-	GrantorEmail      string            `json:"grantorEmail"`
-	GranteeEmail      string            `json:"granteeEmail"`
-	ArtifactType      string            `json:"artifactType"`
-	ArtifactID        string            `json:"artifactId"`
-	ArtifactName      string            `json:"artifactName,omitempty"`
-	Scope             string            `json:"scope"`
-	Status            string            `json:"status"`
-	Reason            *string           `json:"reason,omitempty"`
-	InvitationCreated bool              `json:"invitationCreated,omitempty"`
-	CreatedAt         time.Time         `json:"createdAt"`
-	ExpiresAt         time.Time         `json:"expiresAt"`
-	RevokedAt         *time.Time        `json:"revokedAt,omitempty"`
-	Links             types.Links       `json:"_links,omitempty"`
+	ID                string      `json:"id"`
+	GrantorID         string      `json:"grantorId"`
+	GrantorEmail      string      `json:"grantorEmail"`
+	GranteeEmail      string      `json:"granteeEmail"`
+	ArtifactType      string      `json:"artifactType"`
+	ArtifactID        string      `json:"artifactId"`
+	ArtifactName      string      `json:"artifactName,omitempty"`
+	Scope             string      `json:"scope"`
+	Status            string      `json:"status"`
+	Reason            *string     `json:"reason,omitempty"`
+	InvitationCreated bool        `json:"invitationCreated,omitempty"`
+	CreatedAt         time.Time   `json:"createdAt"`
+	ExpiresAt         time.Time   `json:"expiresAt"`
+	RevokedAt         *time.Time  `json:"revokedAt,omitempty"`
+	Links             types.Links `json:"_links,omitempty"`
 }
 
 type EditGrantStatusUpdate struct {

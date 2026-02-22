@@ -9,8 +9,8 @@ import (
 	"easi/backend/internal/architectureviews/domain/aggregates"
 	"easi/backend/internal/architectureviews/domain/valueobjects"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
-	"easi/backend/internal/shared/cqrs"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/cqrs"
 )
 
 var ErrActorNotFound = errors.New("actor not found in context")

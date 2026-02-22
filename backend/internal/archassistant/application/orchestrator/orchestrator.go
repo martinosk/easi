@@ -285,25 +285,6 @@ func consumeAgentStreamBuffered(ctx context.Context, stream <-chan ChatEvent) (a
 	}, nil
 }
 
-func consumeAgentStream(ctx context.Context, writer StreamWriter, stream <-chan ChatEvent) (agentStreamResult, error) {
-	var acc streamAccumulator
-	var toolCalls []ChatToolCall
-	for event := range stream {
-		switch event.Type {
-		case ChatEventToolCall:
-			toolCalls = append(toolCalls, event.ToolCalls...)
-		default:
-			if err := acc.processEvent(ctx, event, writer); err != nil {
-				return agentStreamResult{}, err
-			}
-		}
-	}
-	return agentStreamResult{
-		streamResult: streamResult{content: acc.content.String(), tokensUsed: acc.tokensUsed},
-		toolCalls:    toolCalls,
-	}, nil
-}
-
 func flushTokens(writer StreamWriter, tokens []string) {
 	for _, t := range tokens {
 		_ = writer.WriteToken(t)

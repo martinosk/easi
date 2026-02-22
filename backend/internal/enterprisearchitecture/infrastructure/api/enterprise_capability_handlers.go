@@ -73,9 +73,9 @@ type SetTargetMaturityRequest struct {
 }
 
 type MaturityAnalysisResponse struct {
-	Summary readmodels.MaturityAnalysisSummaryDTO   `json:"summary"`
+	Summary readmodels.MaturityAnalysisSummaryDTO     `json:"summary"`
 	Data    []readmodels.MaturityAnalysisCandidateDTO `json:"data"`
-	Links   types.Links                             `json:"_links,omitempty"`
+	Links   types.Links                               `json:"_links,omitempty"`
 }
 
 type DomainCapabilityEnterpriseResponse struct {
@@ -760,4 +760,3 @@ func (h *EnterpriseCapabilityHandlers) GetMaturityGapDetail(w http.ResponseWrite
 
 	sharedAPI.RespondJSON(w, http.StatusOK, detail)
 }
-

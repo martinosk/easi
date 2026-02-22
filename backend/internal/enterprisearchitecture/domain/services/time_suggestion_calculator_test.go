@@ -8,38 +8,38 @@ import (
 
 func TestCalculateTimeSuggestion_AllQuadrants(t *testing.T) {
 	testCases := []struct {
-		name             string
-		technicalGaps    []float64
-		functionalGaps   []float64
-		expectedTime     string
+		name               string
+		technicalGaps      []float64
+		functionalGaps     []float64
+		expectedTime       string
 		expectedConfidence string
 	}{
 		{
-			name:             "INVEST - low tech gap, low func gap",
-			technicalGaps:    []float64{0.5, 1.0, 0.8},
-			functionalGaps:   []float64{0.3, 0.7, 1.2},
-			expectedTime:     "INVEST",
+			name:               "INVEST - low tech gap, low func gap",
+			technicalGaps:      []float64{0.5, 1.0, 0.8},
+			functionalGaps:     []float64{0.3, 0.7, 1.2},
+			expectedTime:       "INVEST",
 			expectedConfidence: "HIGH",
 		},
 		{
-			name:             "TOLERATE - low tech gap, high func gap",
-			technicalGaps:    []float64{0.5, 1.0},
-			functionalGaps:   []float64{2.0, 1.8},
-			expectedTime:     "TOLERATE",
+			name:               "TOLERATE - low tech gap, high func gap",
+			technicalGaps:      []float64{0.5, 1.0},
+			functionalGaps:     []float64{2.0, 1.8},
+			expectedTime:       "TOLERATE",
 			expectedConfidence: "HIGH",
 		},
 		{
-			name:             "MIGRATE - high tech gap, low func gap",
-			technicalGaps:    []float64{2.5, 1.8},
-			functionalGaps:   []float64{0.5, 0.8},
-			expectedTime:     "MIGRATE",
+			name:               "MIGRATE - high tech gap, low func gap",
+			technicalGaps:      []float64{2.5, 1.8},
+			functionalGaps:     []float64{0.5, 0.8},
+			expectedTime:       "MIGRATE",
 			expectedConfidence: "HIGH",
 		},
 		{
-			name:             "ELIMINATE - high tech gap, high func gap",
-			technicalGaps:    []float64{2.0, 2.5},
-			functionalGaps:   []float64{1.8, 2.2},
-			expectedTime:     "ELIMINATE",
+			name:               "ELIMINATE - high tech gap, high func gap",
+			technicalGaps:      []float64{2.0, 2.5},
+			functionalGaps:     []float64{1.8, 2.2},
+			expectedTime:       "ELIMINATE",
 			expectedConfidence: "HIGH",
 		},
 	}

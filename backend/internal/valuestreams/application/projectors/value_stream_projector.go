@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"log"
 
+	domain "easi/backend/internal/shared/eventsourcing"
 	"easi/backend/internal/valuestreams/application/readmodels"
 	"easi/backend/internal/valuestreams/domain/events"
 	"easi/backend/internal/valuestreams/publishedlanguage"
-	domain "easi/backend/internal/shared/eventsourcing"
 )
 
 type ValueStreamProjector struct {

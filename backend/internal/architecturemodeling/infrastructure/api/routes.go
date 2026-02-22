@@ -23,33 +23,33 @@ type AuthMiddleware interface {
 }
 
 type RouteConfig struct {
-	Router           chi.Router
-	CommandBus       *cqrs.InMemoryCommandBus
-	EventStore       eventstore.EventStore
-	EventBus         events.EventBus
-	DB               *database.TenantAwareDB
-	HATEOAS          *sharedAPI.HATEOASLinks
-	AuthMiddleware   AuthMiddleware
+	Router         chi.Router
+	CommandBus     *cqrs.InMemoryCommandBus
+	EventStore     eventstore.EventStore
+	EventBus       events.EventBus
+	DB             *database.TenantAwareDB
+	HATEOAS        *sharedAPI.HATEOASLinks
+	AuthMiddleware AuthMiddleware
 }
 
 type repositorySet struct {
-	component        *repositories.ApplicationComponentRepository
-	relation         *repositories.ComponentRelationRepository
-	acquiredEntity   *repositories.AcquiredEntityRepository
-	vendor           *repositories.VendorRepository
-	internalTeam     *repositories.InternalTeamRepository
+	component           *repositories.ApplicationComponentRepository
+	relation            *repositories.ComponentRelationRepository
+	acquiredEntity      *repositories.AcquiredEntityRepository
+	vendor              *repositories.VendorRepository
+	internalTeam        *repositories.InternalTeamRepository
 	componentOriginLink *repositories.ComponentOriginLinkRepository
 }
 
 type readModelSet struct {
-	component     *readmodels.ApplicationComponentReadModel
-	relation      *readmodels.ComponentRelationReadModel
+	component      *readmodels.ApplicationComponentReadModel
+	relation       *readmodels.ComponentRelationReadModel
 	acquiredEntity *readmodels.AcquiredEntityReadModel
-	vendor        *readmodels.VendorReadModel
-	internalTeam  *readmodels.InternalTeamReadModel
-	acquiredVia   *readmodels.AcquiredViaRelationshipReadModel
-	purchasedFrom *readmodels.PurchasedFromRelationshipReadModel
-	builtBy       *readmodels.BuiltByRelationshipReadModel
+	vendor         *readmodels.VendorReadModel
+	internalTeam   *readmodels.InternalTeamReadModel
+	acquiredVia    *readmodels.AcquiredViaRelationshipReadModel
+	purchasedFrom  *readmodels.PurchasedFromRelationshipReadModel
+	builtBy        *readmodels.BuiltByRelationshipReadModel
 }
 
 type httpHandlerSet struct {
@@ -64,25 +64,25 @@ type httpHandlerSet struct {
 
 func newRepositorySet(eventStore eventstore.EventStore) *repositorySet {
 	return &repositorySet{
-		component:        repositories.NewApplicationComponentRepository(eventStore),
-		relation:         repositories.NewComponentRelationRepository(eventStore),
-		acquiredEntity:   repositories.NewAcquiredEntityRepository(eventStore),
-		vendor:           repositories.NewVendorRepository(eventStore),
-		internalTeam:     repositories.NewInternalTeamRepository(eventStore),
+		component:           repositories.NewApplicationComponentRepository(eventStore),
+		relation:            repositories.NewComponentRelationRepository(eventStore),
+		acquiredEntity:      repositories.NewAcquiredEntityRepository(eventStore),
+		vendor:              repositories.NewVendorRepository(eventStore),
+		internalTeam:        repositories.NewInternalTeamRepository(eventStore),
 		componentOriginLink: repositories.NewComponentOriginLinkRepository(eventStore),
 	}
 }
 
 func newReadModelSet(db *database.TenantAwareDB) *readModelSet {
 	return &readModelSet{
-		component:     readmodels.NewApplicationComponentReadModel(db),
-		relation:      readmodels.NewComponentRelationReadModel(db),
+		component:      readmodels.NewApplicationComponentReadModel(db),
+		relation:       readmodels.NewComponentRelationReadModel(db),
 		acquiredEntity: readmodels.NewAcquiredEntityReadModel(db),
-		vendor:        readmodels.NewVendorReadModel(db),
-		internalTeam:  readmodels.NewInternalTeamReadModel(db),
-		acquiredVia:   readmodels.NewAcquiredViaRelationshipReadModel(db),
-		purchasedFrom: readmodels.NewPurchasedFromRelationshipReadModel(db),
-		builtBy:       readmodels.NewBuiltByRelationshipReadModel(db),
+		vendor:         readmodels.NewVendorReadModel(db),
+		internalTeam:   readmodels.NewInternalTeamReadModel(db),
+		acquiredVia:    readmodels.NewAcquiredViaRelationshipReadModel(db),
+		purchasedFrom:  readmodels.NewPurchasedFromRelationshipReadModel(db),
+		builtBy:        readmodels.NewBuiltByRelationshipReadModel(db),
 	}
 }
 
@@ -159,7 +159,7 @@ func registerOriginEntityCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *re
 	bus.Register("DeleteInternalTeam", handlers.NewDeleteInternalTeamHandler(repos.internalTeam, rm.builtBy, bus))
 }
 
-func registerOriginRelationshipCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *repositorySet, rm *readModelSet) {
+func registerOriginRelationshipCommandHandlers(bus *cqrs.InMemoryCommandBus, repos *repositorySet, _ *readModelSet) {
 	bus.Register("SetOriginLink", handlers.NewSetOriginLinkHandler(repos.componentOriginLink))
 	bus.Register("ClearOriginLink", handlers.NewClearOriginLinkHandler(repos.componentOriginLink))
 }
@@ -167,12 +167,12 @@ func registerOriginRelationshipCommandHandlers(bus *cqrs.InMemoryCommandBus, rep
 func newHTTPHandlerSet(bus *cqrs.InMemoryCommandBus, rm *readModelSet, hateoas *sharedAPI.HATEOASLinks) *httpHandlerSet {
 	links := NewArchitectureModelingLinks(hateoas)
 	return &httpHandlerSet{
-		component:          NewComponentHandlers(bus, rm.component, links),
-		expert:             NewComponentExpertHandlers(bus, rm.component),
-		relation:           NewRelationHandlers(bus, rm.relation, links),
-		acquiredEntity:     NewAcquiredEntityHandlers(bus, rm.acquiredEntity, links),
-		vendor:             NewVendorHandlers(bus, rm.vendor, links),
-		internalTeam:       NewInternalTeamHandlers(bus, rm.internalTeam, links),
+		component:      NewComponentHandlers(bus, rm.component, links),
+		expert:         NewComponentExpertHandlers(bus, rm.component),
+		relation:       NewRelationHandlers(bus, rm.relation, links),
+		acquiredEntity: NewAcquiredEntityHandlers(bus, rm.acquiredEntity, links),
+		vendor:         NewVendorHandlers(bus, rm.vendor, links),
+		internalTeam:   NewInternalTeamHandlers(bus, rm.internalTeam, links),
 		originRelationship: NewOriginRelationshipHandlersFromConfig(OriginRelationshipHandlersConfig{
 			CommandBus: bus,
 			ReadModels: OriginReadModels{

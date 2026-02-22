@@ -1,11 +1,11 @@
 package api
 
 import (
+	sharedAPI "easi/backend/internal/shared/api"
 	"easi/backend/internal/valuestreams/application/handlers"
 	"easi/backend/internal/valuestreams/domain/aggregates"
 	"easi/backend/internal/valuestreams/domain/valueobjects"
 	"easi/backend/internal/valuestreams/infrastructure/repositories"
-	sharedAPI "easi/backend/internal/shared/api"
 )
 
 func init() {

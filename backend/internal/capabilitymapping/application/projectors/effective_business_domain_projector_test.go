@@ -66,7 +66,7 @@ func (m *mockEffectiveBDStore) UpdateBusinessDomainForL1Subtree(ctx context.Cont
 
 type mockBDNameProvider struct {
 	domains map[string]*readmodels.BusinessDomainDTO
-	err    error
+	err     error
 }
 
 func (m *mockBDNameProvider) GetByID(ctx context.Context, id string) (*readmodels.BusinessDomainDTO, error) {
@@ -101,14 +101,13 @@ func (m *mockCapabilityChildProvider) GetChildren(ctx context.Context, parentID 
 func TestEffectiveBusinessDomainProjector_CapabilityCreated_ParentLookupError_ReturnsError(t *testing.T) {
 	store := &mockEffectiveBDStore{}
 	store.rows = map[string]*readmodels.CMEffectiveBusinessDomainDTO{}
-	projector := NewEffectiveBusinessDomainProjector(store, nil, nil)
 
 	eventData, err := json.Marshal(events.NewCapabilityCreated("child-l2", "Sub-Payments", "", "parent-l1", "L2"))
 	require.NoError(t, err)
 
 	storeGetErr := errors.New("db read failed")
 	storeWithErr := &mockEffectiveBDStoreWithGetErr{mockEffectiveBDStore: *store, getErr: storeGetErr}
-	projector = NewEffectiveBusinessDomainProjector(storeWithErr, nil, nil)
+	projector := NewEffectiveBusinessDomainProjector(storeWithErr, nil, nil)
 
 	err = projector.ProjectEvent(context.Background(), "CapabilityCreated", eventData)
 	assert.Error(t, err)

@@ -336,21 +336,21 @@ func (h *TenantHandlers) CreateTenantInvitation(w http.ResponseWriter, r *http.R
 }
 
 var tenantErrorStatusMap = map[error]int{
-	repositories.ErrTenantAlreadyExists:            http.StatusConflict,
-	repositories.ErrDomainAlreadyExists:            http.StatusConflict,
-	aggregates.ErrFirstAdminEmailRequired:          http.StatusBadRequest,
-	aggregates.ErrFirstAdminEmailDomainMismatch:    http.StatusBadRequest,
-	sharedvo.ErrInvalidTenantIDFormat:              http.StatusBadRequest,
-	sharedvo.ErrReservedTenantID:                   http.StatusBadRequest,
-	valueobjects.ErrTenantNameEmpty:                http.StatusBadRequest,
-	valueobjects.ErrEmailDomainListEmpty:           http.StatusBadRequest,
-	valueobjects.ErrInvalidEmailDomain:             http.StatusBadRequest,
-	valueobjects.ErrDuplicateEmailDomain:           http.StatusBadRequest,
-	valueobjects.ErrOIDCDiscoveryURLEmpty:          http.StatusBadRequest,
-	valueobjects.ErrOIDCDiscoveryURLInvalid:        http.StatusBadRequest,
-	valueobjects.ErrOIDCDiscoveryURLNotHTTPS:       http.StatusBadRequest,
-	valueobjects.ErrOIDCClientIDEmpty:              http.StatusBadRequest,
-	valueobjects.ErrOIDCAuthMethodInvalid:          http.StatusBadRequest,
+	repositories.ErrTenantAlreadyExists:         http.StatusConflict,
+	repositories.ErrDomainAlreadyExists:         http.StatusConflict,
+	aggregates.ErrFirstAdminEmailRequired:       http.StatusBadRequest,
+	aggregates.ErrFirstAdminEmailDomainMismatch: http.StatusBadRequest,
+	sharedvo.ErrInvalidTenantIDFormat:           http.StatusBadRequest,
+	sharedvo.ErrReservedTenantID:                http.StatusBadRequest,
+	valueobjects.ErrTenantNameEmpty:             http.StatusBadRequest,
+	valueobjects.ErrEmailDomainListEmpty:        http.StatusBadRequest,
+	valueobjects.ErrInvalidEmailDomain:          http.StatusBadRequest,
+	valueobjects.ErrDuplicateEmailDomain:        http.StatusBadRequest,
+	valueobjects.ErrOIDCDiscoveryURLEmpty:       http.StatusBadRequest,
+	valueobjects.ErrOIDCDiscoveryURLInvalid:     http.StatusBadRequest,
+	valueobjects.ErrOIDCDiscoveryURLNotHTTPS:    http.StatusBadRequest,
+	valueobjects.ErrOIDCClientIDEmpty:           http.StatusBadRequest,
+	valueobjects.ErrOIDCAuthMethodInvalid:       http.StatusBadRequest,
 }
 
 func mapTenantErrorToStatusCode(err error) int {

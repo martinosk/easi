@@ -11,8 +11,8 @@ import (
 )
 
 type mockAssignmentLookup struct {
-	assignments     map[string][]AssignmentInfo
-	existingPairs   map[string]bool
+	assignments   map[string][]AssignmentInfo
+	existingPairs map[string]bool
 }
 
 func newMockAssignmentLookup() *mockAssignmentLookup {

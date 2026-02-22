@@ -4,6 +4,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type AuditEntry struct {
@@ -37,5 +40,5 @@ func FormatEventTypeDisplayName(eventType string) string {
 
 	spaced := camelCaseRegex.ReplaceAllString(action, "${1} ${2}")
 
-	return strings.Title(strings.ToLower(spaced))
+	return cases.Title(language.Und).String(strings.ToLower(spaced))
 }

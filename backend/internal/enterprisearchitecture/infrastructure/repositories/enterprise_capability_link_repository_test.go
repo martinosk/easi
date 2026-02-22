@@ -1,13 +1,10 @@
 package repositories
 
 import (
-	"encoding/json"
 	"testing"
-	"time"
 
 	"easi/backend/internal/enterprisearchitecture/domain/aggregates"
 	"easi/backend/internal/enterprisearchitecture/domain/valueobjects"
-	domain "easi/backend/internal/shared/eventsourcing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -84,36 +81,4 @@ func TestEnterpriseCapabilityLinkDeserializers_AllEventsCanBeDeserialized(t *tes
 		assert.Equal(t, original.EventType(), deserializedEvents[i].EventType(),
 			"Event type mismatch at index %d", i)
 	}
-}
-
-type linkStoredEventWrapper struct {
-	eventType string
-	eventData map[string]interface{}
-}
-
-func (e *linkStoredEventWrapper) EventType() string                 { return e.eventType }
-func (e *linkStoredEventWrapper) EventData() map[string]interface{} { return e.eventData }
-func (e *linkStoredEventWrapper) AggregateID() string               { return "" }
-func (e *linkStoredEventWrapper) OccurredAt() time.Time             { return time.Time{} }
-
-func simulateLinkEventStoreRoundTrip(t *testing.T, events []domain.DomainEvent) []domain.DomainEvent {
-	t.Helper()
-
-	result := make([]domain.DomainEvent, len(events))
-
-	for i, event := range events {
-		jsonBytes, err := json.Marshal(event.EventData())
-		require.NoError(t, err, "Failed to serialize event: %s", event.EventType())
-
-		var data map[string]interface{}
-		err = json.Unmarshal(jsonBytes, &data)
-		require.NoError(t, err, "Failed to unmarshal JSON for event: %s", event.EventType())
-
-		result[i] = &linkStoredEventWrapper{
-			eventType: event.EventType(),
-			eventData: data,
-		}
-	}
-
-	return result
 }

@@ -3,13 +3,13 @@ package toolimpls_test
 import (
 	"testing"
 
+	"easi/backend/internal/archassistant/infrastructure/toolimpls"
 	pl "easi/backend/internal/archassistant/publishedlanguage"
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	eaPL "easi/backend/internal/enterprisearchitecture/publishedlanguage"
 	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	vsPL "easi/backend/internal/valuestreams/publishedlanguage"
-	"easi/backend/internal/archassistant/infrastructure/toolimpls"
 
 	"github.com/stretchr/testify/assert"
 )

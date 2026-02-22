@@ -37,7 +37,7 @@ func DefaultTitle() ConversationTitle {
 	return ConversationTitle{value: "New conversation"}
 }
 
-func (t ConversationTitle) Value() string  { return t.value }
+func (t ConversationTitle) Value() string   { return t.value }
 func (t ConversationTitle) IsDefault() bool { return t.value == "New conversation" }
 
 func sanitizeTitle(s string) string {

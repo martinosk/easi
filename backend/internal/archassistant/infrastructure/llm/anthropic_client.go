@@ -47,10 +47,10 @@ type anthropicStreamEvent struct {
 	Type         string `json:"type"`
 	Index        int    `json:"index"`
 	ContentBlock *struct {
-		Type  string `json:"type"`
-		ID    string `json:"id,omitempty"`
-		Name  string `json:"name,omitempty"`
-		Text  string `json:"text,omitempty"`
+		Type string `json:"type"`
+		ID   string `json:"id,omitempty"`
+		Name string `json:"name,omitempty"`
+		Text string `json:"text,omitempty"`
 	} `json:"content_block,omitempty"`
 	Delta *struct {
 		Type        string `json:"type"`
@@ -143,6 +143,7 @@ func (c *AnthropicClient) StreamChat(ctx context.Context, messages []Message, op
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 

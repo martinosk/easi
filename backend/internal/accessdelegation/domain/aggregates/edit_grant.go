@@ -13,7 +13,7 @@ import (
 const DefaultEditGrantTTL = 30 * 24 * time.Hour
 
 var (
-	ErrCannotGrantToSelf  = errors.New("cannot grant edit access to yourself")
+	ErrCannotGrantToSelf   = errors.New("cannot grant edit access to yourself")
 	ErrGrantAlreadyRevoked = errors.New("edit grant has already been revoked")
 	ErrGrantAlreadyExpired = errors.New("edit grant has already expired")
 	ErrGrantNotActive      = errors.New("edit grant is not active")

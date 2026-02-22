@@ -31,10 +31,10 @@ func (m *mockLinkSystemRealizationRepository) Save(ctx context.Context, realizat
 }
 
 type mockLinkSystemCapabilityRepository struct {
-	capability         *aggregates.Capability
-	getByIDErr         error
-	savedCapabilities  []*aggregates.Capability
-	saveErr            error
+	capability        *aggregates.Capability
+	getByIDErr        error
+	savedCapabilities []*aggregates.Capability
+	saveErr           error
 }
 
 func (m *mockLinkSystemCapabilityRepository) GetByID(ctx context.Context, id string) (*aggregates.Capability, error) {
@@ -105,11 +105,11 @@ func createTestCapabilityForLink(t *testing.T, level string, parentID string) *a
 }
 
 type linkTestFixture struct {
-	capRepo      *mockLinkSystemCapabilityRepository
-	realRepo     *mockLinkSystemRealizationRepository
-	capReadModel *mockLinkSystemCapabilityReadModel
+	capRepo       *mockLinkSystemCapabilityRepository
+	realRepo      *mockLinkSystemRealizationRepository
+	capReadModel  *mockLinkSystemCapabilityReadModel
 	compReadModel *mockLinkSystemComponentReadModel
-	handler      *LinkSystemToCapabilityHandler
+	handler       *LinkSystemToCapabilityHandler
 }
 
 func setupLinkTest(t *testing.T, capability *aggregates.Capability, component *architecturemodeling.ComponentDTO) *linkTestFixture {

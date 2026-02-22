@@ -12,9 +12,9 @@ import (
 )
 
 type DeleteAcquiredEntityHandler struct {
-	repository         *repositories.AcquiredEntityRepository
-	relationReadModel  *readmodels.AcquiredViaRelationshipReadModel
-	commandBus         cqrs.CommandBus
+	repository        *repositories.AcquiredEntityRepository
+	relationReadModel *readmodels.AcquiredViaRelationshipReadModel
+	commandBus        cqrs.CommandBus
 }
 
 func NewDeleteAcquiredEntityHandler(

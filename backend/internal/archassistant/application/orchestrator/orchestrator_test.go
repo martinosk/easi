@@ -10,8 +10,8 @@ import (
 	"easi/backend/internal/archassistant/application/orchestrator"
 	"easi/backend/internal/archassistant/domain"
 	"easi/backend/internal/archassistant/domain/aggregates"
-	"easi/backend/internal/archassistant/infrastructure/adapters"
 	vo "easi/backend/internal/archassistant/domain/valueobjects"
+	"easi/backend/internal/archassistant/infrastructure/adapters"
 	"easi/backend/internal/archassistant/infrastructure/sse"
 	"easi/backend/internal/archassistant/publishedlanguage"
 

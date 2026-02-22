@@ -17,12 +17,12 @@ type Message struct {
 	createdAt      time.Time
 }
 
-func (m *Message) ID() string              { return m.id }
-func (m *Message) ConversationID() string   { return m.conversationID }
-func (m *Message) Role() vo.MessageRole     { return m.role }
-func (m *Message) Content() string          { return m.content.Value() }
-func (m *Message) TokensUsed() *int         { return m.tokensUsed }
-func (m *Message) CreatedAt() time.Time     { return m.createdAt }
+func (m *Message) ID() string             { return m.id }
+func (m *Message) ConversationID() string { return m.conversationID }
+func (m *Message) Role() vo.MessageRole   { return m.role }
+func (m *Message) Content() string        { return m.content.Value() }
+func (m *Message) TokensUsed() *int       { return m.tokensUsed }
+func (m *Message) CreatedAt() time.Time   { return m.createdAt }
 
 type ReconstructMessageParams struct {
 	ID             string
@@ -85,7 +85,7 @@ func ReconstructConversation(p ReconstructConversationParams) *Conversation {
 	}
 }
 
-func (c *Conversation) ID() string              { return c.id }
+func (c *Conversation) ID() string               { return c.id }
 func (c *Conversation) TenantID() string         { return c.tenantID }
 func (c *Conversation) UserID() string           { return c.userID }
 func (c *Conversation) Title() string            { return c.title.Value() }

@@ -57,14 +57,14 @@ type InvestmentPrioritiesDTO struct {
 }
 
 type MaturityGapDetailDTO struct {
-	EnterpriseCapabilityID   string                  `json:"enterpriseCapabilityId"`
-	EnterpriseCapabilityName string                  `json:"enterpriseCapabilityName"`
-	Category                 string                  `json:"category,omitempty"`
-	TargetMaturity           *int                    `json:"targetMaturity,omitempty"`
-	TargetMaturitySection    string                  `json:"targetMaturitySection,omitempty"`
+	EnterpriseCapabilityID   string                    `json:"enterpriseCapabilityId"`
+	EnterpriseCapabilityName string                    `json:"enterpriseCapabilityName"`
+	Category                 string                    `json:"category,omitempty"`
+	TargetMaturity           *int                      `json:"targetMaturity,omitempty"`
+	TargetMaturitySection    string                    `json:"targetMaturitySection,omitempty"`
 	Implementations          []ImplementationDetailDTO `json:"implementations"`
-	InvestmentPriorities     InvestmentPrioritiesDTO `json:"investmentPriorities"`
-	Links                    types.Links             `json:"_links,omitempty"`
+	InvestmentPriorities     InvestmentPrioritiesDTO   `json:"investmentPriorities"`
+	Links                    types.Links               `json:"_links,omitempty"`
 }
 
 type MaturityAnalysisReadModel struct {

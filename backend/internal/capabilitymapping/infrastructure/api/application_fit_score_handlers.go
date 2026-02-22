@@ -290,7 +290,7 @@ func (h *ApplicationFitScoreHandlers) buildFitScoreResponsesForActor(dtos []read
 }
 
 func (h *ApplicationFitScoreHandlers) fetchAndRespondFitScores(
-	w http.ResponseWriter, r *http.Request,
+	w http.ResponseWriter, _ *http.Request,
 	actor sharedctx.Actor, links sharedAPI.Links,
 	query func() ([]readmodels.ApplicationFitScoreDTO, error),
 ) {
@@ -314,4 +314,3 @@ func validateUUIDs(w http.ResponseWriter, componentID, pillarID string) bool {
 	}
 	return true
 }
-

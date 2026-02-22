@@ -79,7 +79,9 @@ func TestGetLinkStatus_DirectlyLinked(t *testing.T) {
 	f.exec("INSERT INTO capabilitymapping.capabilities (id, tenant_id, name, level, created_at) VALUES ($1, $2, $3, $4, $5)", dcID, "default", "Order Processing", "L2", time.Now().UTC())
 	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", dcID) })
 	f.exec("INSERT INTO enterprisearchitecture.enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at) VALUES ($1, $2, $3, $4, $5, $6)", linkID, "default", ecID, dcID, "user-123", time.Now().UTC())
-	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE id = $1", linkID) })
+	t.Cleanup(func() {
+		f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE id = $1", linkID)
+	})
 
 	status, err := f.linkRM.GetLinkStatus(f.ctx(), dcID)
 	require.NoError(t, err)
@@ -137,13 +139,17 @@ func setupBlockingScenario(f *linkTestFixture, s int64, sc blockingScenario) blo
 	linkID := fmt.Sprintf("lnk-%d", s)
 	f.exec("INSERT INTO enterprisearchitecture.enterprise_capability_links (id, tenant_id, enterprise_capability_id, domain_capability_id, linked_by, linked_at) VALUES ($1, 'default', $2, $3, 'user-123', $4)",
 		linkID, ecID, capIDs[sc.linkedCapIdx], time.Now().UTC())
-	f.t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE id = $1", linkID) })
+	f.t.Cleanup(func() {
+		f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE id = $1", linkID)
+	})
 
 	blockedID, blockerID := capIDs[sc.blockedCapIdx], capIDs[sc.linkedCapIdx]
 	blockerName := capNames[sc.linkedCapIdx]
 	f.exec("INSERT INTO enterprisearchitecture.capability_link_blocking (tenant_id, domain_capability_id, blocked_by_capability_id, blocked_by_enterprise_id, blocked_by_capability_name, blocked_by_enterprise_name, is_ancestor) VALUES ('default', $1, $2, $3, $4, $5, $6)",
 		blockedID, blockerID, ecID, blockerName, ecName, sc.isAncestor)
-	f.t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprisearchitecture.capability_link_blocking WHERE tenant_id = 'default' AND domain_capability_id = $1", blockedID) })
+	f.t.Cleanup(func() {
+		f.rawDB.Exec("DELETE FROM enterprisearchitecture.capability_link_blocking WHERE tenant_id = 'default' AND domain_capability_id = $1", blockedID)
+	})
 
 	return blockingTestResult{blockedID, sc.expectedStatus, blockerID, blockerName, ecID}
 }
@@ -191,7 +197,9 @@ func TestEnterpriseCapabilityLinkReadModel_Insert_IdempotentReplay(t *testing.T)
 		LinkedBy: "user-123", LinkedAt: time.Now().UTC(),
 	}
 	require.NoError(t, f.linkRM.Insert(f.ctx(), dto))
-	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE id = $1", linkID) })
+	t.Cleanup(func() {
+		f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_capability_links WHERE id = $1", linkID)
+	})
 	require.NoError(t, f.linkRM.Insert(f.ctx(), dto))
 
 	var count int
@@ -256,7 +264,9 @@ func TestEnterpriseStrategicImportanceReadModel_Insert_IdempotentReplay(t *testi
 		SetAt: time.Now().UTC(),
 	}
 	require.NoError(t, f.siRM.Insert(f.ctx(), dto))
-	t.Cleanup(func() { f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_strategic_importance WHERE id = $1", id) })
+	t.Cleanup(func() {
+		f.rawDB.Exec("DELETE FROM enterprisearchitecture.enterprise_strategic_importance WHERE id = $1", id)
+	})
 	require.NoError(t, f.siRM.Insert(f.ctx(), dto))
 
 	var count int

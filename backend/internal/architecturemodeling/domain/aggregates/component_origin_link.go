@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	ErrNoOriginLink        = errors.New("no origin link exists")
-	ErrOriginLinkDeleted   = errors.New("origin link has been deleted")
+	ErrNoOriginLink      = errors.New("no origin link exists")
+	ErrOriginLinkDeleted = errors.New("origin link has been deleted")
 )
 
 type ComponentOriginLink struct {

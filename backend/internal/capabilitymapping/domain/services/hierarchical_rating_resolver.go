@@ -18,9 +18,9 @@ type RatingLookup interface {
 }
 
 type ResolvedRating struct {
-	EffectiveImportance    valueobjects.EffectiveImportance
-	SourceCapabilityName   string
-	Rationale              string
+	EffectiveImportance  valueobjects.EffectiveImportance
+	SourceCapabilityName string
+	Rationale            string
 }
 
 type HierarchicalRatingResolver interface {

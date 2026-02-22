@@ -27,7 +27,7 @@ type ValueStreamUpdate struct {
 
 type ValueStreamDetailDTO struct {
 	ValueStreamDTO
-	Stages            []ValueStreamStageDTO      `json:"stages"`
+	Stages            []ValueStreamStageDTO       `json:"stages"`
 	StageCapabilities []StageCapabilityMappingDTO `json:"stageCapabilities"`
 }
 
@@ -44,7 +44,9 @@ func (rm *ValueStreamReadModel) Insert(ctx context.Context, dto ValueStreamDTO) 
 		"DELETE FROM valuestreams.value_streams WHERE tenant_id = $1 AND id = $2",
 		"INSERT INTO valuestreams.value_streams (id, tenant_id, name, description, stage_count, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
 		func(tid string) []interface{} { return []interface{}{tid, dto.ID} },
-		func(tid string) []interface{} { return []interface{}{dto.ID, tid, dto.Name, dto.Description, 0, dto.CreatedAt} },
+		func(tid string) []interface{} {
+			return []interface{}{dto.ID, tid, dto.Name, dto.Description, 0, dto.CreatedAt}
+		},
 	)
 }
 

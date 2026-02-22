@@ -8,8 +8,8 @@ import (
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/aggregates"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
-	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
+	mmPL "easi/backend/internal/metamodel/publishedlanguage"
 	"easi/backend/internal/shared/cqrs"
 )
 

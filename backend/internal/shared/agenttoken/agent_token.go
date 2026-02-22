@@ -14,10 +14,10 @@ import (
 const DefaultTTL = 5 * time.Minute
 
 var (
-	ErrMissingSecret  = errors.New("AGENT_TOKEN_SECRET environment variable is not set")
-	ErrInvalidToken   = errors.New("invalid agent token format")
-	ErrTokenExpired   = errors.New("agent token has expired")
-	ErrInvalidSig     = errors.New("agent token signature is invalid")
+	ErrMissingSecret = errors.New("AGENT_TOKEN_SECRET environment variable is not set")
+	ErrInvalidToken  = errors.New("invalid agent token format")
+	ErrTokenExpired  = errors.New("agent token has expired")
+	ErrInvalidSig    = errors.New("agent token signature is invalid")
 )
 
 type AgentClaims struct {

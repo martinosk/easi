@@ -14,14 +14,14 @@ import (
 )
 
 type StrategicAnalysisFixtures struct {
-	tc                      *TestContext
-	realizationReadModel    *readmodels.RealizationReadModel
-	importanceReadModel     *readmodels.StrategyImportanceReadModel
-	fitScoreReadModel       *readmodels.ApplicationFitScoreReadModel
-	effectiveImportanceRM   *readmodels.EffectiveCapabilityImportanceReadModel
-	capabilityReadModel     *readmodels.CapabilityReadModel
-	domainAssignmentRM      *readmodels.DomainCapabilityAssignmentReadModel
-	componentCacheRM        *readmodels.ComponentCacheReadModel
+	tc                    *TestContext
+	realizationReadModel  *readmodels.RealizationReadModel
+	importanceReadModel   *readmodels.StrategyImportanceReadModel
+	fitScoreReadModel     *readmodels.ApplicationFitScoreReadModel
+	effectiveImportanceRM *readmodels.EffectiveCapabilityImportanceReadModel
+	capabilityReadModel   *readmodels.CapabilityReadModel
+	domainAssignmentRM    *readmodels.DomainCapabilityAssignmentReadModel
+	componentCacheRM      *readmodels.ComponentCacheReadModel
 }
 
 func NewStrategicAnalysisFixtures(tc *TestContext) *StrategicAnalysisFixtures {
@@ -104,14 +104,14 @@ func NewStrategicAnalysisFixtures(tc *TestContext) *StrategicAnalysisFixtures {
 	tc.CommandBus.Register("RemoveApplicationFitScore", capHandlers.NewRemoveApplicationFitScoreHandler(fitScoreRepo))
 
 	return &StrategicAnalysisFixtures{
-		tc:                      tc,
-		realizationReadModel:    realizationRM,
-		importanceReadModel:     importanceRM,
-		fitScoreReadModel:       fitScoreRM,
-		effectiveImportanceRM:   effectiveImportanceRM,
-		capabilityReadModel:     capabilityRM,
-		domainAssignmentRM:      domainAssignmentRM,
-		componentCacheRM:        componentCacheRM,
+		tc:                    tc,
+		realizationReadModel:  realizationRM,
+		importanceReadModel:   importanceRM,
+		fitScoreReadModel:     fitScoreRM,
+		effectiveImportanceRM: effectiveImportanceRM,
+		capabilityReadModel:   capabilityRM,
+		domainAssignmentRM:    domainAssignmentRM,
+		componentCacheRM:      componentCacheRM,
 	}
 }
 

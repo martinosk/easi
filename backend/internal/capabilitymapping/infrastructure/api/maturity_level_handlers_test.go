@@ -37,7 +37,7 @@ func TestGetMaturityLevels_ReturnsAllLevels(t *testing.T) {
 
 	var response struct {
 		Data  []MaturityLevelDTO `json:"data"`
-		Links types.Links  `json:"_links"`
+		Links types.Links        `json:"_links"`
 	}
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
@@ -55,7 +55,7 @@ func TestGetMaturityLevels_HasCorrectValues(t *testing.T) {
 
 	var response struct {
 		Data  []MaturityLevelDTO `json:"data"`
-		Links types.Links  `json:"_links"`
+		Links types.Links        `json:"_links"`
 	}
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
@@ -90,7 +90,7 @@ func TestGetMaturityLevels_IncludesLinks(t *testing.T) {
 
 	var response struct {
 		Data  []MaturityLevelDTO `json:"data"`
-		Links types.Links  `json:"_links"`
+		Links types.Links        `json:"_links"`
 	}
 	err := json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)

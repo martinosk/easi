@@ -30,8 +30,8 @@ const (
 	StrategyImportanceUpdated = "StrategyImportanceUpdated"
 	StrategyImportanceRemoved = "StrategyImportanceRemoved"
 
-	ApplicationFitScoreSet              = "ApplicationFitScoreSet"
-	ApplicationFitScoreUpdated          = "ApplicationFitScoreUpdated"
-	ApplicationFitScoreRemoved          = "ApplicationFitScoreRemoved"
-	EffectiveImportanceRecalculated     = "EffectiveImportanceRecalculated"
+	ApplicationFitScoreSet          = "ApplicationFitScoreSet"
+	ApplicationFitScoreUpdated      = "ApplicationFitScoreUpdated"
+	ApplicationFitScoreRemoved      = "ApplicationFitScoreRemoved"
+	EffectiveImportanceRecalculated = "EffectiveImportanceRecalculated"
 )

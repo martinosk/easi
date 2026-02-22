@@ -24,13 +24,13 @@ type AuthMiddleware interface {
 }
 
 type MetaModelRoutesDeps struct {
-	Router         chi.Router
-	CommandBus     *cqrs.InMemoryCommandBus
-	EventStore     eventstore.EventStore
-	EventBus       events.EventBus
-	DB             *database.TenantAwareDB
-	Hateoas        *sharedAPI.HATEOASLinks
-	AuthMiddleware AuthMiddleware
+	Router          chi.Router
+	CommandBus      *cqrs.InMemoryCommandBus
+	EventStore      eventstore.EventStore
+	EventBus        events.EventBus
+	DB              *database.TenantAwareDB
+	Hateoas         *sharedAPI.HATEOASLinks
+	AuthMiddleware  AuthMiddleware
 	SessionProvider authPL.SessionProvider
 }
 

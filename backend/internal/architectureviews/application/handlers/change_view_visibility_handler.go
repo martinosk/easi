@@ -9,15 +9,15 @@ import (
 	"easi/backend/internal/architectureviews/domain/aggregates"
 	"easi/backend/internal/architectureviews/domain/valueobjects"
 	"easi/backend/internal/architectureviews/infrastructure/repositories"
-	"easi/backend/internal/shared/cqrs"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/cqrs"
 )
 
 var ErrNotAuthorizedToChangeVisibility = errors.New("not authorized to change view visibility")
 
 type ChangeViewVisibilityHandler struct {
-	viewRepository   *repositories.ArchitectureViewRepository
-	userRoleChecker  ports.UserRoleChecker
+	viewRepository  *repositories.ArchitectureViewRepository
+	userRoleChecker ports.UserRoleChecker
 }
 
 func NewChangeViewVisibilityHandler(

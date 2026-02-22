@@ -3,8 +3,8 @@ package services
 import (
 	"context"
 
-	appservices "easi/backend/internal/accessdelegation/application/services"
 	"easi/backend/internal/accessdelegation/application/ports"
+	appservices "easi/backend/internal/accessdelegation/application/services"
 )
 
 type artifactNameResolver struct {

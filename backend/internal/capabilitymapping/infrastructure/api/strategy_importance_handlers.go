@@ -75,7 +75,9 @@ func (h *StrategyImportanceHandlers) GetImportanceByDomainAndCapability(w http.R
 	collectionLinks := h.hateoas.StrategyImportanceCollectionLinksForActor(domainID, capabilityID, actor)
 
 	h.respondWithImportanceCollection(w, r, importanceCollectionQuery{
-		fetcher:  func() ([]readmodels.StrategyImportanceDTO, error) { return h.importanceRM.GetByDomainAndCapability(r.Context(), domainID, capabilityID) },
+		fetcher: func() ([]readmodels.StrategyImportanceDTO, error) {
+			return h.importanceRM.GetByDomainAndCapability(r.Context(), domainID, capabilityID)
+		},
 		domainID: domainID,
 		links:    collectionLinks,
 	})
@@ -222,7 +224,9 @@ func (h *StrategyImportanceHandlers) GetImportanceByDomain(w http.ResponseWriter
 	domainID := chi.URLParam(r, "id")
 
 	h.respondWithImportanceCollection(w, r, importanceCollectionQuery{
-		fetcher:  func() ([]readmodels.StrategyImportanceDTO, error) { return h.importanceRM.GetByDomain(r.Context(), domainID) },
+		fetcher: func() ([]readmodels.StrategyImportanceDTO, error) {
+			return h.importanceRM.GetByDomain(r.Context(), domainID)
+		},
 		domainID: domainID,
 		links:    selfOnlyLinks("/api/v1/business-domains/" + domainID + "/importance"),
 	})
@@ -242,8 +246,10 @@ func (h *StrategyImportanceHandlers) GetImportanceByCapability(w http.ResponseWr
 	capabilityID := chi.URLParam(r, "id")
 
 	h.respondWithImportanceCollection(w, r, importanceCollectionQuery{
-		fetcher: func() ([]readmodels.StrategyImportanceDTO, error) { return h.importanceRM.GetByCapability(r.Context(), capabilityID) },
-		links:   selfOnlyLinks("/api/v1/capabilities/" + capabilityID + "/importance"),
+		fetcher: func() ([]readmodels.StrategyImportanceDTO, error) {
+			return h.importanceRM.GetByCapability(r.Context(), capabilityID)
+		},
+		links: selfOnlyLinks("/api/v1/capabilities/" + capabilityID + "/importance"),
 	})
 }
 

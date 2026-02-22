@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"easi/backend/internal/shared/cqrs"
-	"easi/backend/internal/valuestreams/application/commands"
 	domain "easi/backend/internal/shared/eventsourcing"
+	"easi/backend/internal/valuestreams/application/commands"
 )
 
 type CapabilityDeletedHandler struct {

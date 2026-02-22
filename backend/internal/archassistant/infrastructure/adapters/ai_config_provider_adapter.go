@@ -6,8 +6,8 @@ import (
 
 	"easi/backend/internal/archassistant/domain"
 	"easi/backend/internal/archassistant/publishedlanguage"
-	"easi/backend/internal/shared/crypto"
 	sharedctx "easi/backend/internal/shared/context"
+	"easi/backend/internal/shared/crypto"
 )
 
 type AIConfigProviderAdapter struct {

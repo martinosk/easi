@@ -99,7 +99,7 @@ func TestChangeCapabilityParentHandler_EmitsInheritanceEvents(t *testing.T) {
 
 	repo := &mockChangeParentRepository{
 		capabilities: map[string]*aggregates.Capability{
-			capability.ID(): capability,
+			capability.ID():     capability,
 			newParentID.Value(): parent,
 		},
 	}
@@ -128,16 +128,16 @@ func TestChangeCapabilityParentHandler_EmitsInheritanceEvents(t *testing.T) {
 					LinkedAt:         time.Now().UTC(),
 				},
 				{
-					ID:                  "real-inherited",
-					CapabilityID:        capability.ID(),
-					ComponentID:         "comp-2",
-					ComponentName:       "Component 2",
-					RealizationLevel:    "Full",
-					Origin:              "Inherited",
-					SourceRealizationID: "real-source",
-					SourceCapabilityID:  "cap-source",
-					SourceCapabilityName:"Source Cap",
-					LinkedAt:            time.Now().UTC(),
+					ID:                   "real-inherited",
+					CapabilityID:         capability.ID(),
+					ComponentID:          "comp-2",
+					ComponentName:        "Component 2",
+					RealizationLevel:     "Full",
+					Origin:               "Inherited",
+					SourceRealizationID:  "real-source",
+					SourceCapabilityID:   "cap-source",
+					SourceCapabilityName: "Source Cap",
+					LinkedAt:             time.Now().UTC(),
 				},
 			},
 		},

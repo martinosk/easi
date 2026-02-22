@@ -132,13 +132,13 @@ func TestMetaModelConfigurationDeserializers_AllEventsCanBeDeserialized(t *testi
 	events := config.GetUncommittedChanges()
 
 	expectedEventTypes := map[string]bool{
-		"MetaModelConfigurationCreated":   false,
-		"MaturityScaleConfigUpdated":      false,
-		"MaturityScaleConfigReset":        false,
-		"StrategyPillarAdded":             false,
-		"StrategyPillarUpdated":           false,
-		"PillarFitConfigurationUpdated":   false,
-		"StrategyPillarRemoved":           false,
+		"MetaModelConfigurationCreated": false,
+		"MaturityScaleConfigUpdated":    false,
+		"MaturityScaleConfigReset":      false,
+		"StrategyPillarAdded":           false,
+		"StrategyPillarUpdated":         false,
+		"PillarFitConfigurationUpdated": false,
+		"StrategyPillarRemoved":         false,
 	}
 
 	for _, e := range events {

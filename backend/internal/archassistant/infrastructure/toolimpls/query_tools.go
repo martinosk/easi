@@ -39,7 +39,9 @@ func parseDataArray(body []byte) []map[string]interface{} {
 	var wrapper struct {
 		Data []map[string]interface{} `json:"data"`
 	}
-	json.Unmarshal(body, &wrapper)
+	if err := json.Unmarshal(body, &wrapper); err != nil {
+		return nil
+	}
 	return wrapper.Data
 }
 

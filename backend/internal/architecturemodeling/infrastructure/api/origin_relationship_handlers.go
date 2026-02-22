@@ -380,7 +380,7 @@ func (h *OriginRelationshipHandlers) dispatchSetAndRespond(
 	r *http.Request,
 	cmd cqrs.Command,
 	componentID string,
-	originType string,
+	_ string,
 	fetchFn func(componentID string) (interface{}, error),
 	enrichFn func(interface{}),
 ) {
@@ -449,8 +449,8 @@ type originLinkParams struct {
 func buildOriginLinks(actor sharedctx.Actor, p originLinkParams) types.Links {
 	baseURL := sharedAPI.BuildSubResourceLink("/components", sharedAPI.ResourceID(p.componentID), sharedAPI.ResourcePath("/origin/"+p.originType))
 	links := types.Links{
-		"self":          {Href: baseURL, Method: "GET"},
-		"component":     {Href: sharedAPI.BuildResourceLink("/components", sharedAPI.ResourceID(p.componentID)), Method: "GET"},
+		"self":           {Href: baseURL, Method: "GET"},
+		"component":      {Href: sharedAPI.BuildResourceLink("/components", sharedAPI.ResourceID(p.componentID)), Method: "GET"},
 		p.entityLinkName: {Href: sharedAPI.BuildResourceLink(sharedAPI.ResourcePath(p.entityResource), sharedAPI.ResourceID(p.entityID)), Method: "GET"},
 	}
 	if actor.CanWrite("components") {
@@ -515,4 +515,3 @@ func (h *OriginRelationshipHandlers) enrichPurchasedFromWithLinks(actor sharedct
 func (h *OriginRelationshipHandlers) enrichBuiltByWithLinks(actor sharedctx.Actor, rel *readmodels.BuiltByRelationshipDTO) {
 	rel.Links = buildOriginLinks(actor, originLinkParams{rel.ComponentID, "built-by", "internalTeam", "/internal-teams", rel.InternalTeamID})
 }
-

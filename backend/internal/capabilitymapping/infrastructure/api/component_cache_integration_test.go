@@ -23,11 +23,11 @@ import (
 )
 
 type componentCacheTestContext struct {
-	db                   *sql.DB
-	testID               string
-	createdComponentIDs  []string
-	componentCacheRM     *readmodels.ComponentCacheReadModel
-	eventBus             events.EventBus
+	db                  *sql.DB
+	testID              string
+	createdComponentIDs []string
+	componentCacheRM    *readmodels.ComponentCacheReadModel
+	eventBus            events.EventBus
 }
 
 func setupComponentCacheTestDB(t *testing.T) (*componentCacheTestContext, func()) {
