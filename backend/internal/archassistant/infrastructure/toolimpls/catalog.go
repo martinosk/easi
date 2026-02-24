@@ -2,6 +2,7 @@ package toolimpls
 
 import (
 	amPL "easi/backend/internal/architecturemodeling/publishedlanguage"
+	avPL "easi/backend/internal/architectureviews/publishedlanguage"
 	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	eaPL "easi/backend/internal/enterprisearchitecture/publishedlanguage"
 	mmPL "easi/backend/internal/metamodel/publishedlanguage"
@@ -10,6 +11,7 @@ import (
 
 var allowedContexts = []func() []AgentToolSpec{
 	amPL.AgentTools,
+	avPL.AgentTools,
 	cmPL.AgentTools,
 	eaPL.AgentTools,
 	vsPL.AgentTools,
