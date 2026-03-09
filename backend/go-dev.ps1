@@ -59,7 +59,7 @@ foreach ($varName in $integrationEnvVars) {
     }
 }
 
-$containerArgs += "golang:1.25.6-alpine"
+$containerArgs += "golang:1.26.1-alpine"
 
 # If no command provided, show usage
 if ($null -eq $Command -or $Command.Length -eq 0) {
@@ -90,7 +90,7 @@ if ($Command[0] -eq "shell") {
         -v "easi-go-build-cache:/root/.cache/go-build" `
         -w /app `
         -e CGO_ENABLED=0 `
-        golang:1.25.6-alpine sh
+        golang:1.26.1-alpine sh
     exit $LASTEXITCODE
 }
 

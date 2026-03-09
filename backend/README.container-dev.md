@@ -62,7 +62,7 @@ Add to `docker-compose.yml` for persistent dev environment:
 
 ```yaml
   go-dev:
-    image: golang:1.24-alpine
+    image: golang:1.26.1-alpine
     container_name: easi-go-dev
     volumes:
       - ./backend:/app
@@ -178,7 +178,7 @@ podman run --rm \
   -v "easi-go-cache:/go/pkg/mod" \
   --network easi_easi-network \
   -w /app \
-  golang:1.24-alpine \
+  golang:1.26.1-alpine \
   go test -v ./...
 ```
 
@@ -232,7 +232,7 @@ Install the Go extension and configure it to use the container:
 Use the "Go on Docker" configuration:
 1. Settings → Go → GOROOT
 2. Add Docker/Podman-based Go SDK
-3. Configure container image: `golang:1.24-alpine`
+3. Configure container image: `golang:1.26.1-alpine`
 
 ## Switching Between Local and Container
 

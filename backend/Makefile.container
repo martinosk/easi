@@ -3,7 +3,7 @@
 # Or set an alias: Set-Alias make-container "make -f Makefile.container"
 
 CONTAINER_RUNTIME ?= podman
-GO_IMAGE := golang:1.24-alpine
+GO_IMAGE := golang:1.26.1-alpine
 BACKEND_DIR := $(shell pwd)
 WORKSPACE_ROOT := $(shell dirname $(BACKEND_DIR))
 
