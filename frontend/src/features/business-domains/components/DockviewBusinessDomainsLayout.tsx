@@ -1,4 +1,4 @@
-import { DockviewReact } from 'dockview';
+import { DockviewReact, themeLight } from 'dockview';
 import type { IDockviewPanelProps } from 'dockview';
 import { DomainsSidebar } from './DomainsSidebar';
 import { CapabilityExplorerSidebar } from './CapabilityExplorerSidebar';
@@ -133,11 +133,11 @@ export function DockviewBusinessDomainsLayout({ hookData }: DockviewBusinessDoma
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }} data-testid="business-domains-page">
       <DockviewToolbar panelVisibility={panelVisibility} onTogglePanel={togglePanel} showExplorer={showExplorer} />
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+        <div className="dockview-theme-light" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
           <DockviewReact
             onReady={onReady}
             components={components}
-            className="dockview-theme-light"
+            theme={themeLight}
           />
         </div>
       </div>

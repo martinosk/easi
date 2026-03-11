@@ -58,7 +58,7 @@ services:
         condition: service_completed_successfully
 
   dex:
-    image: ghcr.io/dexidp/dex:v2.45.1
+    image: dexidp/dex:v2.45.1
     container_name: easi-dex
     command: ["dex", "serve", "/etc/dex/config.docker.yaml"]
     volumes:

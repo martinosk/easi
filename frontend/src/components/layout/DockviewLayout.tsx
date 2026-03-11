@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { DockviewReact, DockviewDefaultTab } from 'dockview';
+import { DockviewReact, DockviewDefaultTab, themeLight } from 'dockview';
 import type { DockviewReadyEvent, IDockviewPanelProps, IDockviewPanelHeaderProps } from 'dockview';
 import { Toolbar } from './Toolbar';
 import { NavigationTree } from '../../features/navigation';
@@ -301,12 +301,12 @@ export const DockviewLayout: React.FC<DockviewLayoutProps> = (props) => {
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <Toolbar panelVisibility={panelVisibility} onTogglePanel={togglePanel} />
         <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <div className="dockview-theme-light" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
             <DockviewReact
               onReady={onReady}
               components={components}
               tabComponents={tabComponents}
-              className="dockview-theme-light"
+              theme={themeLight}
             />
           </div>
         </div>
