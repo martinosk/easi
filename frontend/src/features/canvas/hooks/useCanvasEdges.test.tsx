@@ -19,7 +19,7 @@ const createWrapper = () => {
 
 vi.mock('../../capabilities/hooks/useCapabilities', () => ({
   useCapabilities: () => ({ data: [] }),
-  useRealizationsForComponents: () => ({ data: [] }),
+  useRealizations: () => ({ data: [] }),
 }));
 
 vi.mock('../../relations/hooks/useRelations', () => ({

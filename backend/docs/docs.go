@@ -2899,6 +2899,47 @@ const docTemplate = `{
                 }
             }
         },
+        "/capability-realizations": {
+            "get": {
+                "description": "Retrieves all capability realizations across all components",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capability-realizations"
+                ],
+                "summary": "List all capability realizations",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/easi_backend_internal_shared_api.CollectionResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/capability-realizations/by-component/{componentId}": {
             "get": {
                 "description": "Retrieves all capabilities that are realized by a specific application component",

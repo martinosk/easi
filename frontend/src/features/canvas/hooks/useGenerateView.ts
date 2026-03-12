@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { useRelations } from '../../relations/hooks/useRelations';
-import { useCapabilities, useRealizationsForComponents } from '../../capabilities/hooks/useCapabilities';
+import { useCapabilities, useRealizations } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useOriginRelationshipsQuery } from '../../origin-entities/hooks/useOriginRelationships';
 import { useCreateView, useAddComponentToView, useAddCapabilityToView, useAddOriginEntityToView } from '../../views/hooks/useViews';
@@ -48,8 +48,7 @@ export function useGenerateView() {
   const { data: relations = [] } = useRelations();
   const { data: capabilities = [] } = useCapabilities();
   const { data: components = [] } = useComponents();
-  const componentIds = components.map((c) => c.id);
-  const { data: realizations = [] } = useRealizationsForComponents(componentIds);
+  const { data: realizations = [] } = useRealizations();
   const { data: originRelationships = [] } = useOriginRelationshipsQuery();
 
   const createViewMutation = useCreateView();

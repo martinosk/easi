@@ -12,9 +12,6 @@ export const capabilitiesQueryKeys = {
   realizations: (id: string) => [...capabilitiesQueryKeys.detail(id), 'realizations'] as const,
   byComponent: (componentId: string) =>
     [...capabilitiesQueryKeys.all, 'byComponent', componentId] as const,
-  realizationsByComponents: (componentIds?: string[]) =>
-    componentIds
-      ? (['realizations', 'byComponents', componentIds.sort().join(',')] as const)
-      : (['realizations', 'byComponents'] as const),
+  realizationsByComponents: () => ['realizations', 'byComponents'] as const,
   expertRoles: () => [...capabilitiesQueryKeys.all, 'expert-roles'] as const,
 };

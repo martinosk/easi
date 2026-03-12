@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -98,7 +99,7 @@ func (h *RealizationHandlers) LinkSystemToCapability(w http.ResponseWriter, r *h
 	}
 
 	if realization == nil {
-		location := fmt.Sprintf("/api/capability-realizations/%s", result.CreatedID)
+		location := fmt.Sprintf("/api/v1/capability-realizations/%s", result.CreatedID)
 		w.Header().Set("Location", location)
 		sharedAPI.RespondJSON(w, http.StatusCreated, map[string]string{
 			"id":      result.CreatedID,
@@ -109,7 +110,7 @@ func (h *RealizationHandlers) LinkSystemToCapability(w http.ResponseWriter, r *h
 
 	realization.Links = h.hateoas.RealizationLinks(realization.ID, realization.CapabilityID, realization.ComponentID)
 
-	location := fmt.Sprintf("/api/capability-realizations/%s", realization.ID)
+	location := fmt.Sprintf("/api/v1/capability-realizations/%s", realization.ID)
 	w.Header().Set("Location", location)
 	sharedAPI.RespondJSON(w, http.StatusCreated, realization)
 }
@@ -125,23 +126,10 @@ func (h *RealizationHandlers) LinkSystemToCapability(w http.ResponseWriter, r *h
 // @Router /capabilities/{id}/systems [get]
 func (h *RealizationHandlers) GetSystemsByCapability(w http.ResponseWriter, r *http.Request) {
 	capabilityID := chi.URLParam(r, "id")
-
-	realizations, err := h.readModel.GetByCapabilityID(r.Context(), capabilityID)
-	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve systems")
-		return
-	}
-
-	for i := range realizations {
-		realizations[i].Links = h.hateoas.RealizationLinks(realizations[i].ID, realizations[i].CapabilityID, realizations[i].ComponentID)
-	}
-
-	links := sharedAPI.Links{
+	h.respondRealizations(w, r, h.readModel.GetByCapabilityID, capabilityID, sharedAPI.Links{
 		"self": sharedAPI.NewLink("/api/v1/capabilities/"+capabilityID+"/systems", "GET"),
 		"up":   sharedAPI.NewLink("/api/v1/capabilities/"+capabilityID, "GET"),
-	}
-
-	sharedAPI.RespondCollection(w, http.StatusOK, realizations, links)
+	})
 }
 
 // GetCapabilitiesByComponent godoc
@@ -155,22 +143,51 @@ func (h *RealizationHandlers) GetSystemsByCapability(w http.ResponseWriter, r *h
 // @Router /capability-realizations/by-component/{componentId} [get]
 func (h *RealizationHandlers) GetCapabilitiesByComponent(w http.ResponseWriter, r *http.Request) {
 	componentID := chi.URLParam(r, "componentId")
+	h.respondRealizations(w, r, h.readModel.GetByComponentID, componentID, sharedAPI.Links{
+		"self": sharedAPI.NewLink("/api/v1/capability-realizations/by-component/"+componentID, "GET"),
+		"up":   sharedAPI.NewLink("/api/v1/components/"+componentID, "GET"),
+	})
+}
 
-	realizations, err := h.readModel.GetByComponentID(r.Context(), componentID)
+func (h *RealizationHandlers) respondRealizations(
+	w http.ResponseWriter, r *http.Request,
+	fetch func(ctx context.Context, id string) ([]readmodels.RealizationDTO, error),
+	id string, links sharedAPI.Links,
+) {
+	realizations, err := fetch(r.Context(), id)
 	if err != nil {
-		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve capabilities")
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve realizations")
 		return
 	}
+	h.enrichRealizationLinks(realizations)
+	sharedAPI.RespondCollection(w, http.StatusOK, realizations, links)
+}
 
+func (h *RealizationHandlers) enrichRealizationLinks(realizations []readmodels.RealizationDTO) {
 	for i := range realizations {
 		realizations[i].Links = h.hateoas.RealizationLinks(realizations[i].ID, realizations[i].CapabilityID, realizations[i].ComponentID)
 	}
+}
 
-	links := sharedAPI.Links{
-		"self": sharedAPI.NewLink("/api/v1/capability-realizations/by-component/"+componentID, "GET"),
-		"up":   sharedAPI.NewLink("/api/v1/components/"+componentID, "GET"),
+// GetAllRealizations godoc
+// @Summary List all capability realizations
+// @Description Retrieves all capability realizations across all components
+// @Tags capability-realizations
+// @Produce json
+// @Success 200 {object} easi_backend_internal_shared_api.CollectionResponse{data=[]easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO}
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /capability-realizations [get]
+func (h *RealizationHandlers) GetAllRealizations(w http.ResponseWriter, r *http.Request) {
+	realizations, err := h.readModel.GetAll(r.Context())
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve realizations")
+		return
 	}
 
+	h.enrichRealizationLinks(realizations)
+	links := sharedAPI.Links{
+		"self": sharedAPI.NewLink("/api/v1/capability-realizations", "GET"),
+	}
 	sharedAPI.RespondCollection(w, http.StatusOK, realizations, links)
 }
 

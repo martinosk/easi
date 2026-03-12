@@ -168,6 +168,7 @@ export function createMockCapabilitiesApi(
     deleteDependency: vi.fn().mockResolvedValue(undefined),
     getSystemsByCapability: vi.fn().mockResolvedValue([]),
     getCapabilitiesByComponent: vi.fn().mockResolvedValue([]),
+    getAllRealizations: vi.fn().mockResolvedValue([]),
     linkSystem: vi.fn().mockResolvedValue({ id: 'real-1' }),
     updateRealization: vi.fn().mockResolvedValue({ id: 'real-1' }),
     deleteRealization: vi.fn().mockResolvedValue(undefined),

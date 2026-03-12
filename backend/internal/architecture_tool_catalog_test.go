@@ -203,6 +203,7 @@ var excludedRoutes = map[string]string{
 	"PATCH /capabilities/*/parent":                             "hierarchy reparenting — complex operation, not suitable for agent",
 	"GET /capabilities/*/dependencies/incoming":                "per-capability view — use list_capability_dependencies instead",
 	"GET /capabilities/*/dependencies/outgoing":                "per-capability view — use list_capability_dependencies instead",
+	"GET /capability-realizations":                             "all realizations collection — used by canvas for relationship data",
 	"GET /capability-realizations/by-component/*":              "realizations by component — available in get_application_details",
 	"PUT /capability-realizations/*":                           "update realization level — fine-grained, use realize_capability",
 	"DELETE /business-domains/*":                               "delete domain — high-impact, reserved for UI",

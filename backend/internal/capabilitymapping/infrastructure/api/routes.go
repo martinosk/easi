@@ -455,6 +455,7 @@ func registerRealizationRoutes(r chi.Router, h *routeHTTPHandlers, authMiddlewar
 	r.Route("/capability-realizations", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermCapabilitiesRead))
+			r.Get("/", h.realization.GetAllRealizations)
 			r.Get("/by-component/{componentId}", h.realization.GetCapabilitiesByComponent)
 		})
 		r.Group(func(r chi.Router) {

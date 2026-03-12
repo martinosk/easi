@@ -136,7 +136,12 @@ func (rm *RealizationReadModel) GetByComponentID(ctx context.Context, componentI
 	return rm.queryRealizations(ctx, query, componentID)
 }
 
-func (rm *RealizationReadModel) queryRealizations(ctx context.Context, query, param string) ([]RealizationDTO, error) {
+func (rm *RealizationReadModel) GetAll(ctx context.Context) ([]RealizationDTO, error) {
+	query := `SELECT ` + realizationSelectColumns + ` FROM capabilitymapping.capability_realizations WHERE tenant_id = $1 ORDER BY linked_at DESC`
+	return rm.queryRealizations(ctx, query)
+}
+
+func (rm *RealizationReadModel) queryRealizations(ctx context.Context, query string, params ...string) ([]RealizationDTO, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, err
@@ -144,7 +149,11 @@ func (rm *RealizationReadModel) queryRealizations(ctx context.Context, query, pa
 
 	var realizations []RealizationDTO
 	err = rm.db.WithReadOnlyTx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx, query, tenantID.Value(), param)
+		args := []interface{}{tenantID.Value()}
+		for _, p := range params {
+			args = append(args, p)
+		}
+		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
 			return err
 		}
@@ -157,7 +166,6 @@ func (rm *RealizationReadModel) queryRealizations(ctx context.Context, query, pa
 			}
 			realizations = append(realizations, dto)
 		}
-
 		return rows.Err()
 	})
 

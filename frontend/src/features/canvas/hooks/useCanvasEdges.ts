@@ -1,13 +1,12 @@
 import { useMemo } from 'react';
 import type { Edge, Node } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
-import { useCapabilities, useRealizationsForComponents } from '../../capabilities/hooks/useCapabilities';
+import { useCapabilities, useRealizations } from '../../capabilities/hooks/useCapabilities';
 import { useRelations } from '../../relations/hooks/useRelations';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useOriginRelationshipsQuery } from '../../origin-entities/hooks/useOriginRelationships';
 import { createRelationEdges, createParentEdges, createRealizationEdges, createOriginRelationshipEdges } from '../utils/edgeCreators';
 import { ORIGIN_ENTITY_PREFIXES } from '../utils/nodeFactory';
-import type { ViewComponent } from '../../../api/types';
 
 export const useCanvasEdges = (nodes: Node[]): Edge[] => {
   const { data: relations = [] } = useRelations();
@@ -16,11 +15,7 @@ export const useCanvasEdges = (nodes: Node[]): Edge[] => {
   const { data: capabilities = [] } = useCapabilities();
   const { data: originRelationships = [] } = useOriginRelationshipsQuery();
 
-  const componentIdsInView = useMemo(
-    () => (currentView?.components ?? []).map((vc: ViewComponent) => vc.componentId),
-    [currentView?.components]
-  );
-  const { data: capabilityRealizations = [] } = useRealizationsForComponents(componentIdsInView);
+  const { data: capabilityRealizations = [] } = useRealizations();
 
   return useMemo(() => {
     const viewCapabilities = currentView?.capabilities ?? [];

@@ -125,6 +125,13 @@ export const capabilitiesApi = {
     return response.data.data || [];
   },
 
+  async getAllRealizations(): Promise<CapabilityRealization[]> {
+    const response = await httpClient.get<CollectionResponse<CapabilityRealization>>(
+      '/api/v1/capability-realizations'
+    );
+    return response.data.data || [];
+  },
+
   async linkSystem(capabilityId: CapabilityId, request: LinkSystemToCapabilityRequest): Promise<CapabilityRealization> {
     const response = await httpClient.post<CapabilityRealization>(
       `/api/v1/capabilities/${capabilityId}/systems`,

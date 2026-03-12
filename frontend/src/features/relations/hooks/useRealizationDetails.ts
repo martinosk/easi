@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { useAppStore } from '../../../store/appStore';
-import { useCapabilities, useRealizationsForComponents } from '../../capabilities/hooks/useCapabilities';
+import { useCapabilities, useRealizations } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
 import type { CapabilityRealization, Capability, Component } from '../../../api/types';
 
 const REALIZATION_PREFIX = 'realization-';
@@ -48,15 +47,10 @@ const getRealizationData = (
 
 export const useRealizationDetails = (): RealizationData | null => {
   const selectedEdgeId = useAppStore((state) => state.selectedEdgeId);
-  const { currentView } = useCurrentView();
   const { data: components = [] } = useComponents();
   const { data: capabilities = [] } = useCapabilities();
 
-  const componentIdsInView = useMemo(
-    () => currentView?.components.map((vc) => vc.componentId) || [],
-    [currentView?.components]
-  );
-  const { data: capabilityRealizations = [] } = useRealizationsForComponents(componentIdsInView);
+  const { data: capabilityRealizations = [] } = useRealizations();
 
   return useMemo(
     () => getRealizationData(selectedEdgeId, capabilityRealizations, capabilities, components),

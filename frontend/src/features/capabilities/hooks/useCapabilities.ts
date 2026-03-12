@@ -269,15 +269,9 @@ export function useDeleteRealization() {
   });
 }
 
-export function useRealizationsForComponents(componentIds: ComponentId[]) {
+export function useRealizations() {
   return useQuery({
-    queryKey: capabilitiesQueryKeys.realizationsByComponents(componentIds),
-    queryFn: async () => {
-      const results = await Promise.all(
-        componentIds.map((id) => capabilitiesApi.getCapabilitiesByComponent(id))
-      );
-      return results.flat();
-    },
-    enabled: componentIds.length > 0,
+    queryKey: capabilitiesQueryKeys.realizationsByComponents(),
+    queryFn: () => capabilitiesApi.getAllRealizations(),
   });
 }
