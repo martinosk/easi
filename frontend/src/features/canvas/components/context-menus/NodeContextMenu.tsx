@@ -20,11 +20,18 @@ export type InviteTarget = {
   artifactType: ArtifactType;
 };
 
+export type GenerateViewTarget = {
+  entityRef: { id: string; type: 'component' | 'capability' | 'originEntity' };
+  entityName: string;
+};
+
 interface NodeContextMenuProps {
   menu: NodeContextMenuType | null;
   onClose: () => void;
   onRequestDelete: (target: NodeDeleteTarget) => void;
   onRequestInviteToEdit?: (target: InviteTarget) => void;
+  onRequestGenerateView?: (target: GenerateViewTarget) => void;
+  canCreateView?: boolean;
 }
 
 interface MenuItemBuilderContext {
@@ -32,9 +39,11 @@ interface MenuItemBuilderContext {
   canRemoveFromView: boolean;
   canDeleteFromModel: boolean;
   canInviteToEdit: boolean;
+  canCreateView: boolean;
   currentViewId: ViewId | null;
   onRequestDelete: (target: NodeDeleteTarget) => void;
   onRequestInviteToEdit?: (target: InviteTarget) => void;
+  onRequestGenerateView?: (target: GenerateViewTarget) => void;
   onClose: () => void;
   removeFromView: (id: string) => void;
 }
@@ -81,43 +90,32 @@ function buildInviteToEditItem(ctx: MenuItemBuilderContext): ContextMenuItem | n
   };
 }
 
-function buildViewElementItems(ctx: MenuItemBuilderContext, config: ViewElementConfig): ContextMenuItem[] {
-  const items: ContextMenuItem[] = [];
+const MENU_LABEL_MAX_NAME_LENGTH = 30;
 
-  const inviteItem = buildInviteToEditItem(ctx);
-  if (inviteItem) items.push(inviteItem);
-
-  if (ctx.canRemoveFromView) {
-    items.push({
-      label: 'Remove from View',
-      onClick: () => {
-        ctx.removeFromView(ctx.menu.nodeId);
-        ctx.onClose();
-      },
-    });
-  }
-
-  if (ctx.canDeleteFromModel) {
-    items.push({
-      label: 'Delete from Model',
-      onClick: () => {
-        ctx.onRequestDelete({
-          type: config.deleteTargetType,
-          id: ctx.menu.nodeId,
-          name: ctx.menu.nodeName,
-        });
-        ctx.onClose();
-      },
-      isDanger: true,
-      ariaLabel: `Delete ${config.entityLabel} from entire model`,
-    });
-  }
-
-  return items;
+function truncateName(name: string, maxLength: number): string {
+  return name.length > maxLength ? name.slice(0, maxLength - 1) + '\u2026' : name;
 }
 
-function buildOriginEntityItems(ctx: MenuItemBuilderContext, config: ViewElementConfig): ContextMenuItem[] {
+function buildGenerateViewItem(ctx: MenuItemBuilderContext): ContextMenuItem | null {
+  if (!ctx.canCreateView || !ctx.onRequestGenerateView) return null;
+  const displayName = truncateName(ctx.menu.nodeName, MENU_LABEL_MAX_NAME_LENGTH);
+  return {
+    label: `Generate View for ${displayName}`,
+    onClick: () => {
+      ctx.onRequestGenerateView!({
+        entityRef: { id: ctx.menu.nodeId, type: ctx.menu.nodeType },
+        entityName: ctx.menu.nodeName,
+      });
+      ctx.onClose();
+    },
+  };
+}
+
+function buildMenuItems(ctx: MenuItemBuilderContext, config: ViewElementConfig): ContextMenuItem[] {
   const items: ContextMenuItem[] = [];
+
+  const generateViewItem = buildGenerateViewItem(ctx);
+  if (generateViewItem) items.push(generateViewItem);
 
   const inviteItem = buildInviteToEditItem(ctx);
   if (inviteItem) items.push(inviteItem);
@@ -152,7 +150,7 @@ function buildOriginEntityItems(ctx: MenuItemBuilderContext, config: ViewElement
   return items;
 }
 
-export const NodeContextMenu = ({ menu, onClose, onRequestDelete, onRequestInviteToEdit }: NodeContextMenuProps) => {
+export const NodeContextMenu = ({ menu, onClose, onRequestDelete, onRequestInviteToEdit, onRequestGenerateView, canCreateView = false }: NodeContextMenuProps) => {
   const { currentViewId } = useCurrentView();
   const removeComponentFromViewMutation = useRemoveComponentFromView();
   const removeCapabilityFromViewMutation = useRemoveCapabilityFromView();
@@ -184,17 +182,17 @@ export const NodeContextMenu = ({ menu, onClose, onRequestDelete, onRequestInvit
     canRemoveFromView,
     canDeleteFromModel,
     canInviteToEdit,
+    canCreateView,
     currentViewId,
     onRequestDelete,
     onRequestInviteToEdit,
+    onRequestGenerateView,
     onClose,
     removeFromView: removeFromViewHandlers[menu.nodeType],
   };
 
   const viewElementConfig = viewElementConfigs[menu.nodeType];
-  const items = menu.nodeType === 'originEntity'
-    ? buildOriginEntityItems(ctx, viewElementConfig)
-    : buildViewElementItems(ctx, viewElementConfig);
+  const items = buildMenuItems(ctx, viewElementConfig);
   if (items.length === 0) return null;
 
   return (

@@ -14,6 +14,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useAppStore } from '../../../store/appStore';
+import { useUserStore } from '../../../store/userStore';
 import { CapabilityNode } from '../../../components/canvas/CapabilityNode';
 import { ComponentNode } from '../../../components/canvas/ComponentNode';
 import { OriginEntityNode } from '../../../components/canvas/OriginEntityNode';
@@ -27,7 +28,8 @@ import { useContextMenu } from '../hooks/useContextMenu';
 import { useDeleteConfirmation } from '../hooks/useDeleteConfirmation';
 import { useBulkOperations } from '../hooks/useBulkOperations';
 import { AutoLayoutButton } from './AutoLayoutButton';
-import { NodeContextMenu, type InviteTarget } from './context-menus/NodeContextMenu';
+import { NodeContextMenu, type InviteTarget, type GenerateViewTarget } from './context-menus/NodeContextMenu';
+import { useGenerateView } from '../hooks/useGenerateView';
 import { InviteToEditDialog } from '../../edit-grants/components/InviteToEditDialog';
 import { useCreateEditGrant } from '../../edit-grants/hooks/useEditGrants';
 import { EdgeContextMenu } from './context-menus/EdgeContextMenu';
@@ -57,6 +59,9 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
   const reactFlowInstance = useReactFlow();
   const selectedNodeId = useAppStore((state) => state.selectedNodeId);
   const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
+  const hasPermission = useUserStore((state) => state.hasPermission);
+  const canCreateView = hasPermission('views:write');
+  const { generateView } = useGenerateView();
 
   const nodes = useCanvasNodes();
   const edges = useCanvasEdges(nodes);
@@ -97,6 +102,10 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
     handleDeleteCancel,
   } = useDeleteConfirmation();
   const [inviteTarget, setInviteTarget] = useState<InviteTarget | null>(null);
+
+  const handleGenerateView = useCallback((target: GenerateViewTarget) => {
+    generateView(target.entityRef, target.entityName);
+  }, [generateView]);
   const createGrant = useCreateEditGrant();
   const {
     bulkOperation,
@@ -191,6 +200,8 @@ const ComponentCanvasInner = forwardRef<ComponentCanvasRef, ComponentCanvasProps
         onClose={closeMenus}
         onRequestDelete={setDeleteTarget}
         onRequestInviteToEdit={setInviteTarget}
+        onRequestGenerateView={handleGenerateView}
+        canCreateView={canCreateView}
       />
 
       <EdgeContextMenu

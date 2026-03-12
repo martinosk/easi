@@ -1,45 +1,13 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAppStore } from '../../../store/appStore';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { useNavigationTreeState } from '../hooks/useNavigationTreeState';
-import { useTreeContextMenus } from '../hooks/useTreeContextMenus';
-import { useTreeMultiSelect } from '../hooks/useTreeMultiSelect';
-import type { TreeSelectedItem } from '../hooks/useTreeMultiSelect';
-import { useTreeMultiSelectMenu } from '../hooks/useTreeMultiSelectMenu';
-import { useTreeBulkDelete } from '../hooks/useTreeBulkDelete';
-import { useFilteredTreeData } from '../hooks/useFilteredTreeData';
+import { useNavigationTree } from '../hooks/useNavigationTree';
 import { NavigationTreeContent } from './NavigationTreeContent';
 import { NavigationTreeDialogs } from './NavigationTreeDialogs';
 import type { NavigationTreeProps } from '../types';
+import type { TreeSelectedItem } from '../hooks/useTreeMultiSelect';
 import type { ComponentId } from '../../../api/types';
 
 type OriginEntityDialogType = 'acquired' | 'vendor' | 'team' | null;
-
-interface SelectedEntityIds {
-  acquiredEntityId: string | null;
-  vendorId: string | null;
-  teamId: string | null;
-}
-
-const EMPTY_ENTITY_IDS: SelectedEntityIds = { acquiredEntityId: null, vendorId: null, teamId: null };
-
-const ENTITY_PREFIXES: { prefix: string; key: keyof SelectedEntityIds }[] = [
-  { prefix: 'acq-', key: 'acquiredEntityId' },
-  { prefix: 'vendor-', key: 'vendorId' },
-  { prefix: 'team-', key: 'teamId' },
-];
-
-function extractSelectedEntityIds(nodeId: string | null): SelectedEntityIds {
-  if (!nodeId) return EMPTY_ENTITY_IDS;
-  const result = { ...EMPTY_ENTITY_IDS };
-  for (const { prefix, key } of ENTITY_PREFIXES) {
-    if (nodeId.startsWith(prefix)) {
-      result[key] = nodeId.slice(prefix.length);
-      break;
-    }
-  }
-  return result;
-}
 
 function useEscapeToClearSelection(selectionCount: number, clearFn: () => void) {
   useEffect(() => {
@@ -87,7 +55,7 @@ function useOriginEntityDialog(canCreateOriginEntity: boolean) {
 }
 
 function useMultiContextMenu(
-  handleMultiSelectContextMenu: ReturnType<typeof useTreeMultiSelectMenu>['handleMultiSelectContextMenu'],
+  handleMultiSelectContextMenu: (event: React.MouseEvent, itemId: string, selectedItems: TreeSelectedItem[]) => boolean,
   clearMultiSelection: () => void
 ) {
   return useCallback(
@@ -106,8 +74,8 @@ function useMultiContextMenu(
 }
 
 function useBulkOperations(
-  requestBulkDelete: ReturnType<typeof useTreeBulkDelete>['requestBulkDelete'],
-  confirmBulkDelete: ReturnType<typeof useTreeBulkDelete>['handleConfirm'],
+  requestBulkDelete: (items: TreeSelectedItem[]) => void,
+  confirmBulkDelete: () => Promise<void>,
   clearMultiSelection: () => void
 ) {
   const handleBulkOperation = useCallback(
@@ -125,109 +93,83 @@ function useBulkOperations(
   return { handleBulkOperation, handleBulkDeleteConfirm };
 }
 
-export const NavigationTree: React.FC<NavigationTreeProps> = ({
-  onComponentSelect,
-  onViewSelect,
-  onAddComponent,
-  onCapabilitySelect,
-  onAddCapability,
-  onEditCapability,
-  onEditComponent,
-  onOriginEntitySelect,
-  canCreateView = true,
-  canCreateOriginEntity = false,
-}) => {
+export const NavigationTree: React.FC<NavigationTreeProps> = (props) => {
   const {
-    components, views, filtered, artifactCreators, activeUsers,
-    selectedCreatorIds, setSelectedCreatorIds,
-    domains, selectedDomainIds, setSelectedDomainIds,
-    hasActiveFilters, clearAllFilters,
-  } = useFilteredTreeData();
-  const { currentView } = useCurrentView();
-  const selectedNodeId = useAppStore((state) => state.selectedNodeId);
+    onComponentSelect, onViewSelect, onAddComponent,
+    onCapabilitySelect, onAddCapability, onOriginEntitySelect,
+  } = props;
+
+  const tree = useNavigationTree(props);
   const selectNode = useAppStore((state) => state.selectNode);
 
-  const [selectedCapabilityId, setSelectedCapabilityId] = useState<string | null>(null);
+  useClearSingleSelectionOnMulti(tree.multiSelect.selectionCount, selectNode, tree.setSelectedCapabilityId);
+  useEscapeToClearSelection(tree.multiSelect.selectionCount, tree.multiSelect.clearMultiSelection);
 
-  const treeState = useNavigationTreeState();
-  const contextMenus = useTreeContextMenus({ components, onEditCapability, onEditComponent });
-
-  const multiSelect = useTreeMultiSelect();
-  const multiSelectMenu = useTreeMultiSelectMenu();
-  const bulkDelete = useTreeBulkDelete();
-
-  useClearSingleSelectionOnMulti(multiSelect.selectionCount, selectNode, setSelectedCapabilityId);
-  useEscapeToClearSelection(multiSelect.selectionCount, multiSelect.clearMultiSelection);
-
-  const { handleBulkOperation, handleBulkDeleteConfirm } = useBulkOperations(bulkDelete.requestBulkDelete, bulkDelete.handleConfirm, multiSelect.clearMultiSelection);
-
-  const selectedEntityIds = useMemo(
-    () => extractSelectedEntityIds(selectedNodeId),
-    [selectedNodeId]
+  const { handleBulkOperation, handleBulkDeleteConfirm } = useBulkOperations(
+    tree.bulkDelete.requestBulkDelete, tree.bulkDelete.handleConfirm, tree.multiSelect.clearMultiSelection,
   );
 
-  const handleMultiContextMenu = useMultiContextMenu(multiSelectMenu.handleMultiSelectContextMenu, multiSelect.clearMultiSelection);
-
-  const multiSelectProps = useMemo(
-    () => ({
-      isMultiSelected: multiSelect.isMultiSelected,
-      handleItemClick: multiSelect.handleItemClick,
-      handleContextMenu: handleMultiContextMenu,
-      handleDragStart: multiSelect.handleDragStart,
-      selectedItems: multiSelect.selectedItems,
-    }),
-    [multiSelect.isMultiSelected, multiSelect.handleItemClick, multiSelect.handleDragStart, multiSelect.selectedItems, handleMultiContextMenu]
+  const handleMultiContextMenu = useMultiContextMenu(
+    tree.multiSelectMenu.handleMultiSelectContextMenu, tree.multiSelect.clearMultiSelection,
   );
 
-  const originEntity = useOriginEntityDialog(canCreateOriginEntity);
+  const multiSelectProps = useMemo(() => ({
+    isMultiSelected: tree.multiSelect.isMultiSelected,
+    handleItemClick: tree.multiSelect.handleItemClick,
+    handleContextMenu: handleMultiContextMenu,
+    handleDragStart: tree.multiSelect.handleDragStart,
+    selectedItems: tree.multiSelect.selectedItems,
+  }), [tree.multiSelect.isMultiSelected, tree.multiSelect.handleItemClick, tree.multiSelect.handleDragStart, tree.multiSelect.selectedItems, handleMultiContextMenu]);
+
+  const originEntity = useOriginEntityDialog(tree.canCreateOriginEntity);
 
   return (
     <>
-      <div className={`navigation-tree ${treeState.isOpen ? 'open' : 'closed'}`}>
-        {treeState.isOpen && (
+      <div className={`navigation-tree ${tree.treeState.isOpen ? 'open' : 'closed'}`}>
+        {tree.treeState.isOpen && (
           <NavigationTreeContent
-            components={filtered.components}
-            currentView={currentView}
-            selectedNodeId={selectedNodeId}
-            capabilities={filtered.capabilities}
-            views={views}
-            acquiredEntities={filtered.acquiredEntities}
-            vendors={filtered.vendors}
-            internalTeams={filtered.internalTeams}
-            selectedCapabilityId={selectedCapabilityId}
-            setSelectedCapabilityId={setSelectedCapabilityId}
-            selectedEntityIds={selectedEntityIds}
-            treeState={treeState}
-            contextMenus={contextMenus}
+            components={tree.filtered.components}
+            currentView={tree.currentView}
+            selectedNodeId={tree.selectedNodeId}
+            capabilities={tree.filtered.capabilities}
+            views={tree.views}
+            acquiredEntities={tree.filtered.acquiredEntities}
+            vendors={tree.filtered.vendors}
+            internalTeams={tree.filtered.internalTeams}
+            selectedCapabilityId={tree.selectedCapabilityId}
+            setSelectedCapabilityId={tree.setSelectedCapabilityId}
+            selectedEntityIds={tree.selectedEntityIds}
+            treeState={tree.treeState}
+            contextMenus={tree.contextMenus}
             multiSelect={multiSelectProps}
-            selectionCount={multiSelect.selectionCount}
+            selectionCount={tree.multiSelect.selectionCount}
             onComponentSelect={onComponentSelect}
             onViewSelect={onViewSelect}
             onAddComponent={onAddComponent}
             onCapabilitySelect={onCapabilitySelect}
             onAddCapability={onAddCapability}
             onOriginEntitySelect={onOriginEntitySelect}
-            canCreateView={canCreateView}
+            canCreateView={tree.canCreateView}
             onAddAcquiredEntity={originEntity.onAddAcquired}
             onAddVendor={originEntity.onAddVendor}
             onAddTeam={originEntity.onAddTeam}
-            artifactCreators={artifactCreators}
-            users={activeUsers}
-            selectedCreatorIds={selectedCreatorIds}
-            onCreatorSelectionChange={setSelectedCreatorIds}
-            domains={domains}
-            selectedDomainIds={selectedDomainIds}
-            onDomainSelectionChange={setSelectedDomainIds}
-            hasActiveFilters={hasActiveFilters}
-            onClearAllFilters={clearAllFilters}
+            artifactCreators={tree.filteredData.artifactCreators}
+            users={tree.filteredData.activeUsers}
+            selectedCreatorIds={tree.filteredData.selectedCreatorIds}
+            onCreatorSelectionChange={tree.filteredData.setSelectedCreatorIds}
+            domains={tree.filteredData.domains}
+            selectedDomainIds={tree.filteredData.selectedDomainIds}
+            onDomainSelectionChange={tree.filteredData.setSelectedDomainIds}
+            hasActiveFilters={tree.filteredData.hasActiveFilters}
+            onClearAllFilters={tree.filteredData.clearAllFilters}
           />
         )}
       </div>
 
-      {!treeState.isOpen && (
+      {!tree.treeState.isOpen && (
         <button
           className="tree-toggle-btn-collapsed"
-          onClick={() => treeState.setIsOpen(true)}
+          onClick={() => tree.treeState.setIsOpen(true)}
           aria-label="Open navigation"
         >
           ›
@@ -235,13 +177,13 @@ export const NavigationTree: React.FC<NavigationTreeProps> = ({
       )}
 
       <NavigationTreeDialogs
-        contextMenus={contextMenus}
+        contextMenus={tree.contextMenus}
         openOriginDialog={originEntity.openOriginDialog}
         onCloseOriginDialog={originEntity.closeDialog}
-        multiSelectMenu={multiSelectMenu.menu}
-        onCloseMultiSelectMenu={multiSelectMenu.closeMenu}
+        multiSelectMenu={tree.multiSelectMenu.menu}
+        onCloseMultiSelectMenu={tree.multiSelectMenu.closeMenu}
         onRequestBulkOperation={handleBulkOperation}
-        bulkDelete={bulkDelete}
+        bulkDelete={tree.bulkDelete}
         onBulkDeleteConfirm={handleBulkDeleteConfirm}
       />
     </>

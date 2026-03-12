@@ -25,21 +25,29 @@ export interface OriginEntityContextMenuState {
   entityType: 'acquired' | 'vendor' | 'team';
 }
 
+export interface GenerateViewTarget {
+  entityRef: { id: string; type: 'component' | 'capability' | 'originEntity' };
+  entityName: string;
+}
+
 interface EntityMenuConfig {
   links?: HATEOASLinks;
   onEdit?: () => void;
   onDelete: () => void;
   onInviteToEdit?: () => void;
+  onGenerateView?: () => void;
   deleteLabel: string;
   deleteAriaLabel: string;
 }
 
 function buildEntityMenuItems(config: EntityMenuConfig): ContextMenuItem[] {
+  const hasGenerate = config.onGenerateView !== undefined;
   const hasInvite = config.links?.['x-edit-grants'] !== undefined && config.onInviteToEdit !== undefined;
   const hasEdit = config.links?.edit !== undefined && config.onEdit !== undefined;
   const hasDelete = config.links?.delete !== undefined;
 
   return filterNullItems([
+    createConditionalMenuItem(hasGenerate, { label: 'Generate View...', onClick: config.onGenerateView! }),
     createConditionalMenuItem(hasInvite, { label: 'Invite to Edit...', onClick: config.onInviteToEdit! }),
     createConditionalMenuItem(hasEdit, { label: 'Edit', onClick: config.onEdit! }),
     createConditionalMenuItem(hasDelete, {
@@ -69,6 +77,8 @@ interface UseTreeContextMenusProps {
   onEditAcquiredEntity?: (entity: AcquiredEntity) => void;
   onEditVendor?: (vendor: Vendor) => void;
   onEditInternalTeam?: (team: InternalTeam) => void;
+  onGenerateView?: (target: GenerateViewTarget) => void;
+  canCreateView?: boolean;
 }
 
 export function useTreeContextMenus({
@@ -78,6 +88,8 @@ export function useTreeContextMenus({
   onEditAcquiredEntity,
   onEditVendor,
   onEditInternalTeam,
+  onGenerateView,
+  canCreateView = false,
 }: UseTreeContextMenusProps) {
   const [viewContextMenu, setViewContextMenu] = useState<ViewContextMenuState | null>(null);
   const [componentContextMenu, setComponentContextMenu] = useState<ComponentContextMenuState | null>(null);
@@ -252,28 +264,28 @@ export function useTreeContextMenus({
     ]);
   };
 
-  const getComponentContextMenuItems = (menu: ComponentContextMenuState): ContextMenuItem[] => {
-    const { component } = menu;
-    return buildEntityMenuItems({
-      links: component._links,
-      onEdit: onEditComponent ? () => onEditComponent(component.id) : undefined,
-      onInviteToEdit: () => setInviteTarget({ id: component.id, artifactType: 'component' }),
-      onDelete: () => setDeleteTarget({ type: 'component', component }),
-      deleteLabel: 'Delete from Model',
-      deleteAriaLabel: 'Delete application from model',
-    });
-  };
+  const makeGenerateViewHandler = (id: string, type: GenerateViewTarget['entityRef']['type'], name: string) =>
+    canCreateView && onGenerateView ? () => onGenerateView({ entityRef: { id, type }, entityName: name }) : undefined;
 
-  const getCapabilityContextMenuItems = (menu: CapabilityContextMenuState): ContextMenuItem[] => {
-    return buildEntityMenuItems({
-      links: menu.capability._links,
-      onEdit: onEditCapability ? () => onEditCapability(menu.capability) : undefined,
-      onInviteToEdit: () => setInviteTarget({ id: menu.capability.id, artifactType: 'capability' }),
-      onDelete: () => setDeleteCapability(menu.capability),
-      deleteLabel: 'Delete from Model',
-      deleteAriaLabel: 'Delete capability from model',
-    });
-  };
+  const getComponentContextMenuItems = (menu: ComponentContextMenuState): ContextMenuItem[] => buildEntityMenuItems({
+    links: menu.component._links,
+    onEdit: onEditComponent ? () => onEditComponent(menu.component.id) : undefined,
+    onInviteToEdit: () => setInviteTarget({ id: menu.component.id, artifactType: 'component' }),
+    onGenerateView: makeGenerateViewHandler(menu.component.id, 'component', menu.component.name),
+    onDelete: () => setDeleteTarget({ type: 'component', component: menu.component }),
+    deleteLabel: 'Delete from Model',
+    deleteAriaLabel: 'Delete application from model',
+  });
+
+  const getCapabilityContextMenuItems = (menu: CapabilityContextMenuState): ContextMenuItem[] => buildEntityMenuItems({
+    links: menu.capability._links,
+    onEdit: onEditCapability ? () => onEditCapability(menu.capability) : undefined,
+    onInviteToEdit: () => setInviteTarget({ id: menu.capability.id, artifactType: 'capability' }),
+    onGenerateView: makeGenerateViewHandler(menu.capability.id, 'capability', menu.capability.name),
+    onDelete: () => setDeleteCapability(menu.capability),
+    deleteLabel: 'Delete from Model',
+    deleteAriaLabel: 'Delete capability from model',
+  });
 
   const getOriginEntityContextMenuItems = (menu: OriginEntityContextMenuState): ContextMenuItem[] => {
     const entityTypeLabels: Record<OriginEntityContextMenuState['entityType'], string> = {
@@ -304,6 +316,7 @@ export function useTreeContextMenus({
       links: menu.entity._links,
       onEdit: editHandlers[menu.entityType],
       onInviteToEdit: () => setInviteTarget({ id: menu.entity.id, artifactType: originEntityArtifactTypes[menu.entityType] }),
+      onGenerateView: makeGenerateViewHandler(menu.entity.id, 'originEntity', menu.entity.name),
       onDelete: () => setDeleteTarget(deleteTargetFactories[menu.entityType]()),
       deleteLabel: 'Delete from Model',
       deleteAriaLabel: `Delete ${entityTypeLabels[menu.entityType]} from model`,
