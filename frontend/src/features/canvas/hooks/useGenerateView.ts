@@ -30,18 +30,18 @@ interface AddMutations {
   addOriginEntity: { mutateAsync: (args: { viewId: ViewId; request: { originEntityId: string; x: number; y: number } }) => Promise<void> };
 }
 
-function addEntitiesToView(viewId: ViewId, collected: CollectedEntities, mutations: AddMutations): Promise<void[]> {
-  const ops: Promise<void>[] = [];
+async function addEntitiesToView(viewId: ViewId, collected: CollectedEntities, mutations: AddMutations): Promise<void> {
   for (const id of collected.componentIds) {
-    ops.push(mutations.addComponent.mutateAsync({ viewId, request: { componentId: id as ComponentId, x: 0, y: 0 } }));
+    await mutations.addComponent.mutateAsync({ viewId, request: { componentId: id as ComponentId, x: 0, y: 0 } });
   }
+  const layoutOps: Promise<void>[] = [];
   for (const id of collected.capabilityIds) {
-    ops.push(mutations.addCapability.mutateAsync({ viewId, request: { capabilityId: id as CapabilityId, x: 0, y: 0 } }));
+    layoutOps.push(mutations.addCapability.mutateAsync({ viewId, request: { capabilityId: id as CapabilityId, x: 0, y: 0 } }));
   }
   for (const id of collected.originEntityIds) {
-    ops.push(mutations.addOriginEntity.mutateAsync({ viewId, request: { originEntityId: id, x: 0, y: 0 } }));
+    layoutOps.push(mutations.addOriginEntity.mutateAsync({ viewId, request: { originEntityId: id, x: 0, y: 0 } }));
   }
-  return Promise.all(ops);
+  await Promise.all(layoutOps);
 }
 
 export function useGenerateView() {
