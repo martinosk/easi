@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { useRelations } from '../../relations/hooks/useRelations';
 import { useCapabilities, useRealizations } from '../../capabilities/hooks/useCapabilities';
-import { useComponents } from '../../components/hooks/useComponents';
 import { useOriginRelationshipsQuery } from '../../origin-entities/hooks/useOriginRelationships';
 import { useCreateView, useAddComponentToView, useAddCapabilityToView, useAddOriginEntityToView } from '../../views/hooks/useViews';
 import { useAppStore } from '../../../store/appStore';
@@ -47,7 +46,6 @@ async function addEntitiesToView(viewId: ViewId, collected: CollectedEntities, m
 export function useGenerateView() {
   const { data: relations = [] } = useRelations();
   const { data: capabilities = [] } = useCapabilities();
-  const { data: components = [] } = useComponents();
   const { data: realizations = [] } = useRealizations();
   const { data: originRelationships = [] } = useOriginRelationshipsQuery();
 

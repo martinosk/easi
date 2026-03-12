@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { Edge } from '@xyflow/react';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { useCapabilities, useRealizations } from '../../capabilities/hooks/useCapabilities';
 import { useComponents } from '../../components/hooks/useComponents';
 import { useRelations } from '../../relations/hooks/useRelations';
@@ -149,8 +148,6 @@ export const useEdgeContextMenu = () => {
   const { data: capabilities = [] } = useCapabilities();
   const { data: relations = [] } = useRelations();
   const { data: originRelationships = [] } = useOriginRelationshipsQuery();
-  const { currentView } = useCurrentView();
-
   const { data: capabilityRealizations = [] } = useRealizations();
 
   const [edgeContextMenu, setEdgeContextMenu] = useState<EdgeContextMenu | null>(null);

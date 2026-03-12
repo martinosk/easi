@@ -57,6 +57,7 @@ export interface MockCapabilitiesApi {
   deleteDependency: Mock;
   getSystemsByCapability: Mock;
   getCapabilitiesByComponent: Mock;
+  getAllRealizations: Mock;
   linkSystem: Mock;
   updateRealization: Mock;
   deleteRealization: Mock;
