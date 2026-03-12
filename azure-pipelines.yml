@@ -171,7 +171,7 @@ stages:
       name: ReplaceTokens
       displayName: 'Replace tokens in k8s manifests'
       inputs:
-        targetFiles: '$(Build.SourcesDirectory)/k8s/*.yaml'
+        targetFiles: '$(Build.SourcesDirectory)/k8s/**/*.yaml'
         encoding: 'auto'
         tokenPattern: 'azpipelines'
         writeBOM: true
@@ -184,141 +184,14 @@ stages:
         enableTelemetry: false
 
     - task: Kubernetes@1
-      name: DeleteDbCredentialsSecret
-      displayName: 'Delete easi-db-credentials secret if exists'
-      continueOnError: true
+      name: ApplyExternalSecrets
+      displayName: 'Apply external secrets manifests'
       inputs:
         connectionType: Kubernetes Service Connection
         kubernetesServiceEndpoint: '$(k8s-service-connection)'
         namespace: '$(kubernetes-namespace)'
-        command: delete
-        arguments: 'secret easi-db-credentials'
-        versionSpec: 1.22.9
-
-    - task: Kubernetes@1
-      name: CreateDbCredentialsSecret
-      displayName: 'Create easi-db-credentials secret'
-      inputs:
-        connectionType: Kubernetes Service Connection
-        kubernetesServiceEndpoint: '$(k8s-service-connection)'
-        namespace: '$(kubernetes-namespace)'
-        command: create
-        arguments: 'secret generic easi-db-credentials --from-literal=admin-conn-string="$(DB_ADMIN_CONN_STRING)" --from-literal=easi-app-password="$(EASI_APP_PASSWORD)" --from-literal=easi-admin-password="$(EASI_ADMIN_PASSWORD)"'
-        versionSpec: 1.22.9
-
-    - task: Kubernetes@1
-      name: DeleteAppDbSecret
-      displayName: 'Delete easi-prod-postgres secret if exists'
-      continueOnError: true
-      inputs:
-        connectionType: Kubernetes Service Connection
-        kubernetesServiceEndpoint: '$(k8s-service-connection)'
-        namespace: '$(kubernetes-namespace)'
-        command: delete
-        arguments: 'secret easi-prod-postgres'
-        versionSpec: 1.22.9
-
-    - task: Kubernetes@1
-      name: CreateAppDbSecret
-      displayName: 'Create easi-prod-postgres secret'
-      inputs:
-        connectionType: Kubernetes Service Connection
-        kubernetesServiceEndpoint: '$(k8s-service-connection)'
-        namespace: '$(kubernetes-namespace)'
-        command: create
-        arguments: 'secret generic easi-prod-postgres --from-literal=DB_CONN_STRING="$(DB_CONN_STRING)"'
-        versionSpec: 1.22.9
-
-    - task: Kubernetes@1
-      name: DeleteOidcSecret
-      displayName: 'Delete easi-oidc-credentials secret if exists'
-      continueOnError: true
-      inputs:
-        connectionType: Kubernetes Service Connection
-        kubernetesServiceEndpoint: '$(k8s-service-connection)'
-        namespace: '$(kubernetes-namespace)'
-        command: delete
-        arguments: 'secret easi-oidc-credentials'
-        versionSpec: 1.22.9
-
-    - task: Kubernetes@1
-      name: CreateOidcSecret
-      displayName: 'Create easi-oidc-credentials secret'
-      inputs:
-        connectionType: Kubernetes Service Connection
-        kubernetesServiceEndpoint: '$(k8s-service-connection)'
-        namespace: '$(kubernetes-namespace)'
-        command: create
-        arguments: 'secret generic easi-oidc-credentials --from-literal=client-secret="$(OIDC_CLIENT_SECRET)"'
-        versionSpec: 1.22.9
-
-    - task: Kubernetes@1
-      name: DeletePlatformSecret
-      displayName: 'Delete easi-platform-credentials secret if exists'
-      continueOnError: true
-      inputs:
-        connectionType: Kubernetes Service Connection
-        kubernetesServiceEndpoint: '$(k8s-service-connection)'
-        namespace: '$(kubernetes-namespace)'
-        command: delete
-        arguments: 'secret easi-platform-credentials'
-        versionSpec: 1.22.9
-
-    - task: Kubernetes@1
-      name: CreatePlatformSecret
-      displayName: 'Create easi-platform-credentials secret'
-      inputs:
-        connectionType: Kubernetes Service Connection
-        kubernetesServiceEndpoint: '$(k8s-service-connection)'
-        namespace: '$(kubernetes-namespace)'
-        command: create
-        arguments: 'secret generic easi-platform-credentials --from-literal=admin-api-key="$(PLATFORM_ADMIN_API_KEY)"'
-        versionSpec: 1.22.9
-
-    - task: Kubernetes@1
-      name: DeleteEncryptionKeySecret
-      displayName: 'Delete easi-encryption-key secret if exists'
-      continueOnError: true
-      inputs:
-        connectionType: Kubernetes Service Connection
-        kubernetesServiceEndpoint: '$(k8s-service-connection)'
-        namespace: '$(kubernetes-namespace)'
-        command: delete
-        arguments: 'secret easi-encryption-key'
-        versionSpec: 1.22.9
-
-    - task: Kubernetes@1
-      name: CreateEncryptionKeySecret
-      displayName: 'Create easi-encryption-key secret'
-      inputs:
-        connectionType: Kubernetes Service Connection
-        kubernetesServiceEndpoint: '$(k8s-service-connection)'
-        namespace: '$(kubernetes-namespace)'
-        command: create
-        arguments: 'secret generic easi-encryption-key --from-literal=encryption-key="$(ENCRYPTION_KEY)"'
-        versionSpec: 1.22.9
-
-    - task: Kubernetes@1
-      name: DeleteAgentTokenSecret
-      displayName: 'Delete easi-agent-token-secret secret if exists'
-      continueOnError: true
-      inputs:
-        connectionType: Kubernetes Service Connection
-        kubernetesServiceEndpoint: '$(k8s-service-connection)'
-        namespace: '$(kubernetes-namespace)'
-        command: delete
-        arguments: 'secret easi-agent-token-secret'
-        versionSpec: 1.22.9
-
-    - task: Kubernetes@1
-      name: CreateAgentTokenSecret
-      displayName: 'Create easi-agent-token-secret secret'
-      inputs:
-        connectionType: Kubernetes Service Connection
-        kubernetesServiceEndpoint: '$(k8s-service-connection)'
-        namespace: '$(kubernetes-namespace)'
-        command: create
-        arguments: 'secret generic easi-agent-token-secret --from-literal=agent-token-secret="$(AGENT_TOKEN_SECRET)"'
+        command: apply
+        arguments: '-f $(Build.SourcesDirectory)/k8s/external-secrets/'
         versionSpec: 1.22.9
 
     - task: Kubernetes@1

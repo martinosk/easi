@@ -72,7 +72,7 @@ spec:
         - name: DB_CONN_STRING
           valueFrom:
             secretKeyRef:
-              name: easi-prod-postgres
+              name: easi-db-credentials
               key: DB_CONN_STRING
         - name: OIDC_CLIENT_SECRET
           valueFrom:

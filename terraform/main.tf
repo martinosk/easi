@@ -83,6 +83,57 @@ module "db_instance" {
   #     Valid Values: .
   #     Notes: .
   vpc_id = "vpc-0d92929a043ac2dc1"
+
+  # existing VPC default security group
+  additional_rds_security_groups = ["sg-01acfaac31076b2aa"]
+}
+
+locals {
+  aws_region          = "eu-west-1"
+  secretsmanager_arns = formatlist("arn:aws:secretsmanager:${local.aws_region}:${var.account_id}:secret:%s", var.secretsmanager_secret_names)
+  kms_keys_arns       = formatlist("arn:aws:kms:${local.aws_region}:${var.account_id}:key/%s", var.kms_keys)
+}
+
+data "aws_iam_policy_document" "secrets_manager_trust" {
+  dynamic "statement" {
+    for_each = var.eks_oidc_provider_ids
+    content {
+      sid     = "AssumeRoleWithWebIdentity${statement.key}"
+      effect  = "Allow"
+      actions = ["sts:AssumeRoleWithWebIdentity"]
+
+      principals {
+        type        = "Federated"
+        identifiers = ["arn:aws:iam::${var.account_id}:oidc-provider/oidc.eks.${local.aws_region}.amazonaws.com/id/${statement.value}"]
+      }
+
+      condition {
+        test     = "StringEquals"
+        variable = "oidc.eks.${local.aws_region}.amazonaws.com/id/${statement.value}:sub"
+        values   = ["system:serviceaccount:${var.kubernetes_namespace}:secrets-manager-sa"]
+      }
+    }
+  }
+}
+
+resource "aws_iam_role" "secrets_manager" {
+  name               = "secrets-manager-for-kubernetes"
+  assume_role_policy = data.aws_iam_policy_document.secrets_manager_trust.json
+}
+
+resource "aws_iam_policy" "secretsmanager_access_policy" {
+  name        = "easi-secretsmanager-access-policy"
+  description = "Policy to allow Secrets Manager access for EASI external secrets"
+  policy = templatefile("${path.module}/iam/policies/secretsmanager-access.json", {
+    secretsmanager_arns = local.secretsmanager_arns
+    kms_keys_arns       = local.kms_keys_arns
+    aws_region          = local.aws_region
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "secretsmanager_access" {
+  role       = aws_iam_role.secrets_manager.name
+  policy_arn = aws_iam_policy.secretsmanager_access_policy.arn
 }
 
 output "iam_instance_profile_for_ec2" {
