@@ -59,7 +59,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
         <div className="dialog-actions">
           <button
             onClick={onCancel}
-            className="btn-secondary"
+            className="btn btn-secondary"
             disabled={isLoading}
           >
             {cancelText}
