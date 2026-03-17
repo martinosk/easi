@@ -2087,11 +2087,14 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Deletes a business capability. Cannot delete capabilities that have children.",
+                "description": "Deletes a business capability. If the capability has descendants, cascade:true must be set in the request body. Optionally deletes realizations by setting deleteRealisingApplications:true.",
+                "consumes": [
+                    "application/json"
+                ],
                 "tags": [
                     "capabilities"
                 ],
-                "summary": "Delete a capability",
+                "summary": "Delete a capability with optional cascade",
                 "parameters": [
                     {
                         "type": "string",
@@ -2099,11 +2102,25 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Cascade options",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.DeleteCapabilityRequest"
+                        }
                     }
                 ],
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
                     },
                     "404": {
                         "description": "Not Found",
@@ -2221,6 +2238,59 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/capabilities/{id}/delete-impact": {
+            "get": {
+                "description": "Returns all capabilities and realizations that would be affected by deleting this capability and all descendants.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "capabilities"
+                ],
+                "summary": "Get delete impact analysis for a capability",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Capability ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.DeleteImpactResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/easi_backend_internal_shared_api.ErrorResponse"
                         }
                     },
                     "404": {
@@ -12442,6 +12512,26 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_capabilitymapping_infrastructure_api.AffectedCapabilityDTO": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_api.Links"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parentId": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_capabilitymapping_infrastructure_api.ApplicationFitScoreResponse": {
             "type": "object",
             "properties": {
@@ -12601,6 +12691,52 @@ const docTemplate = `{
                 },
                 "targetCapabilityId": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.DeleteCapabilityRequest": {
+            "type": "object",
+            "properties": {
+                "cascade": {
+                    "type": "boolean"
+                },
+                "deleteRealisingApplications": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_capabilitymapping_infrastructure_api.DeleteImpactResponse": {
+            "type": "object",
+            "properties": {
+                "_links": {
+                    "$ref": "#/definitions/easi_backend_internal_shared_api.Links"
+                },
+                "affectedCapabilities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_capabilitymapping_infrastructure_api.AffectedCapabilityDTO"
+                    }
+                },
+                "capabilityId": {
+                    "type": "string"
+                },
+                "capabilityName": {
+                    "type": "string"
+                },
+                "hasDescendants": {
+                    "type": "boolean"
+                },
+                "realizationsOnDeletedCapabilities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO"
+                    }
+                },
+                "realizationsOnRetainedCapabilities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/easi_backend_internal_capabilitymapping_application_readmodels.RealizationDTO"
+                    }
                 }
             }
         },

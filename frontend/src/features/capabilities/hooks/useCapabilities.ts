@@ -7,6 +7,7 @@ import type {
   Capability,
   CapabilityId,
   CapabilityDependency,
+  CapabilityDeleteImpact,
   CapabilityRealization,
   ComponentId,
   CreateCapabilityRequest,
@@ -266,6 +267,39 @@ export function useDeleteRealization() {
       capabilitiesMutationEffects.deleteRealization(realization),
     successMessage: 'Realization deleted',
     errorMessage: 'Failed to delete realization',
+  });
+}
+
+export function useDeleteImpact(capabilityId: CapabilityId | undefined) {
+  return useQuery<CapabilityDeleteImpact>({
+    queryKey: capabilitiesQueryKeys.deleteImpact(capabilityId!),
+    queryFn: () => capabilitiesApi.getDeleteImpact(capabilityId!),
+    enabled: !!capabilityId,
+  });
+}
+
+export function useCascadeDeleteCapability() {
+  return useCapabilityMutation({
+    mutationFn: (context: {
+      capability: Capability;
+      cascade: boolean;
+      deleteRealisingApplications: boolean;
+      parentId?: string;
+      domainId?: string;
+    }) =>
+      capabilitiesApi.cascadeDelete(context.capability, {
+        cascade: context.cascade,
+        deleteRealisingApplications: context.deleteRealisingApplications,
+      }),
+    getEffects: (_, context) =>
+      capabilitiesMutationEffects.cascadeDelete({
+        id: context.capability.id,
+        parentId: context.parentId,
+        domainId: context.domainId,
+        deleteApplications: context.deleteRealisingApplications,
+      }),
+    successMessage: 'Capability and descendants deleted',
+    errorMessage: 'Failed to delete capability',
   });
 }
 

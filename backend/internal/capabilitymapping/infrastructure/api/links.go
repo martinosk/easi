@@ -38,6 +38,7 @@ func (h *CapabilityMappingLinks) capabilityBaseForActor(id string, actor sharedc
 	})
 	if actor.CanDelete("capabilities") {
 		links["delete"] = h.Del(p)
+		links["x-delete-impact"] = h.Get(p + "/delete-impact")
 	}
 	h.AddEditGrantsLink(links, actor, "capabilities")
 	return links

@@ -4,6 +4,7 @@ import { maturityAnalysisQueryKeys } from '../enterprise-architecture/queryKeys'
 import { auditQueryKeys } from '../audit/queryKeys';
 import { artifactCreatorsQueryKeys } from '../navigation/hooks/useArtifactCreators';
 import { valueStreamsQueryKeys } from '../value-streams/queryKeys';
+import { componentsQueryKeys } from '../components/queryKeys';
 
 export const capabilitiesMutationEffects = {
   create: (context: { parentId?: string; businessDomainId?: string }) => [
@@ -31,6 +32,25 @@ export const capabilitiesMutationEffects = {
     businessDomainsQueryKeys.lists(),
     maturityAnalysisQueryKeys.unlinked(),
     valueStreamsQueryKeys.all,
+  ],
+
+  cascadeDelete: (context: { id: string; parentId?: string; domainId?: string; deleteApplications: boolean }) => [
+    capabilitiesQueryKeys.lists(),
+    capabilitiesQueryKeys.details(),
+    ...(context.parentId ? [capabilitiesQueryKeys.children(context.parentId)] : []),
+    capabilitiesQueryKeys.realizationsByComponents(),
+    capabilitiesQueryKeys.dependencies(),
+    businessDomainsQueryKeys.lists(),
+    businessDomainsQueryKeys.details(),
+    ...(context.domainId ? [businessDomainsQueryKeys.capabilities(context.domainId)] : []),
+    maturityAnalysisQueryKeys.unlinked(),
+    valueStreamsQueryKeys.all,
+    artifactCreatorsQueryKeys.all,
+    auditQueryKeys.history(context.id),
+    ...(context.deleteApplications ? [
+      componentsQueryKeys.lists(),
+      componentsQueryKeys.details(),
+    ] : []),
   ],
 
   assignToDomain: (context: { capabilityId: string; domainId: string }) => [

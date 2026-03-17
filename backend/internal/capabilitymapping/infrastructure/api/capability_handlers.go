@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"encoding/json"
+	"io"
+
 	"easi/backend/internal/capabilitymapping/application/commands"
+	"easi/backend/internal/capabilitymapping/application/handlers"
 	"easi/backend/internal/capabilitymapping/application/readmodels"
 	"easi/backend/internal/capabilitymapping/domain/services"
 	"easi/backend/internal/capabilitymapping/domain/valueobjects"
@@ -15,20 +19,23 @@ import (
 )
 
 type CapabilityHandlers struct {
-	commandBus cqrs.CommandBus
-	readModel  *readmodels.CapabilityReadModel
-	hateoas    *CapabilityMappingLinks
+	commandBus   cqrs.CommandBus
+	readModel    *readmodels.CapabilityReadModel
+	hateoas      *CapabilityMappingLinks
+	impactQuery  *handlers.DeleteImpactQuery
 }
 
 func NewCapabilityHandlers(
 	commandBus cqrs.CommandBus,
 	readModel *readmodels.CapabilityReadModel,
 	hateoas *CapabilityMappingLinks,
+	impactQuery *handlers.DeleteImpactQuery,
 ) *CapabilityHandlers {
 	return &CapabilityHandlers{
-		commandBus: commandBus,
-		readModel:  readModel,
-		hateoas:    hateoas,
+		commandBus:   commandBus,
+		readModel:    readModel,
+		hateoas:      hateoas,
+		impactQuery:  impactQuery,
 	}
 }
 
@@ -286,12 +293,20 @@ func (h *CapabilityHandlers) UpdateCapability(w http.ResponseWriter, r *http.Req
 	sharedAPI.RespondJSON(w, http.StatusOK, capability)
 }
 
+type DeleteCapabilityRequest struct {
+	Cascade                     bool `json:"cascade"`
+	DeleteRealisingApplications bool `json:"deleteRealisingApplications"`
+}
+
 // DeleteCapability godoc
-// @Summary Delete a capability
-// @Description Deletes a business capability. Cannot delete capabilities that have children.
+// @Summary Delete a capability with optional cascade
+// @Description Deletes a business capability. If the capability has descendants, cascade:true must be set in the request body. Optionally deletes realizations by setting deleteRealisingApplications:true.
 // @Tags capabilities
+// @Accept json
 // @Param id path string true "Capability ID"
+// @Param body body DeleteCapabilityRequest false "Cascade options"
 // @Success 204 "No Content"
+// @Failure 400 {object} sharedAPI.ErrorResponse
 // @Failure 404 {object} sharedAPI.ErrorResponse
 // @Failure 409 {object} sharedAPI.ErrorResponse
 // @Failure 500 {object} sharedAPI.ErrorResponse
@@ -310,13 +325,24 @@ func (h *CapabilityHandlers) DeleteCapability(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	cmd := &commands.DeleteCapability{
-		ID: id,
+	req := h.parseDeleteBody(r)
+
+	cmd := &commands.CascadeDeleteCapability{
+		ID:                          id,
+		Cascade:                     req.Cascade,
+		DeleteRealisingApplications: req.DeleteRealisingApplications,
 	}
 
 	if _, err := h.commandBus.Dispatch(r.Context(), cmd); err != nil {
-		if errors.Is(err, services.ErrCapabilityHasChildren) {
-			sharedAPI.RespondError(w, http.StatusConflict, err, "Cannot delete capability with children. Delete child capabilities first.")
+		if errors.Is(err, services.ErrCascadeRequiredForChildCapabilities) {
+			sharedAPI.RespondErrorWithLinks(w, sharedAPI.ErrorWithLinksParams{
+				StatusCode: http.StatusConflict,
+				Err:        err,
+				Message:    "Capability has descendants. Set cascade:true to confirm cascade deletion.",
+				Links: map[string]sharedAPI.Link{
+					"x-delete-impact": sharedAPI.NewLink(sharedAPI.BuildLink(sharedAPI.ResourcePath("/capabilities/"+id+"/delete-impact")), "GET"),
+				},
+			})
 			return
 		}
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to delete capability")
@@ -324,4 +350,106 @@ func (h *CapabilityHandlers) DeleteCapability(w http.ResponseWriter, r *http.Req
 	}
 
 	sharedAPI.RespondDeleted(w)
+}
+
+func (h *CapabilityHandlers) parseDeleteBody(r *http.Request) DeleteCapabilityRequest {
+	var req DeleteCapabilityRequest
+	if r.Body == nil {
+		return req
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil || len(body) == 0 {
+		return req
+	}
+	_ = json.Unmarshal(body, &req)
+	return req
+}
+
+// GetDeleteImpact godoc
+// @Summary Get delete impact analysis for a capability
+// @Description Returns all capabilities and realizations that would be affected by deleting this capability and all descendants.
+// @Tags capabilities
+// @Produce json
+// @Param id path string true "Capability ID"
+// @Success 200 {object} DeleteImpactResponse
+// @Failure 401 {object} sharedAPI.ErrorResponse
+// @Failure 403 {object} sharedAPI.ErrorResponse
+// @Failure 404 {object} sharedAPI.ErrorResponse
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /capabilities/{id}/delete-impact [get]
+func (h *CapabilityHandlers) GetDeleteImpact(w http.ResponseWriter, r *http.Request) {
+	id := sharedAPI.GetPathParam(r, "id")
+
+	capability, err := h.readModel.GetByID(r.Context(), id)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve capability")
+		return
+	}
+
+	if capability == nil {
+		sharedAPI.RespondError(w, http.StatusNotFound, nil, "Capability not found")
+		return
+	}
+
+	impact, err := h.impactQuery.Execute(r.Context(), id)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to compute delete impact")
+		return
+	}
+
+	actor, _ := sharedctx.GetActor(r.Context())
+
+	affectedCaps := make([]AffectedCapabilityDTO, 0, len(impact.AffectedCapabilities))
+	for _, capID := range impact.AffectedCapabilities {
+		dto := AffectedCapabilityDTO{
+			ID: capID,
+			Links: sharedAPI.Links{
+				"self": h.hateoas.Get("/capabilities/" + capID),
+			},
+		}
+		if cap, err := h.readModel.GetByID(r.Context(), capID); err == nil && cap != nil {
+			dto.Name = cap.Name
+			dto.Level = cap.Level
+			dto.ParentID = cap.ParentID
+		}
+		affectedCaps = append(affectedCaps, dto)
+	}
+
+	links := sharedAPI.Links{
+		"self":         sharedAPI.NewLink(sharedAPI.BuildLink(sharedAPI.ResourcePath("/capabilities/"+id+"/delete-impact")), "GET"),
+		"x-capability": sharedAPI.NewLink(sharedAPI.BuildLink(sharedAPI.ResourcePath("/capabilities/"+id)), "GET"),
+	}
+	if actor.CanDelete("capabilities") {
+		links["x-confirm-delete"] = sharedAPI.NewLink(sharedAPI.BuildLink(sharedAPI.ResourcePath("/capabilities/"+id)), "DELETE")
+	}
+
+	response := DeleteImpactResponse{
+		CapabilityID:                       capability.ID,
+		CapabilityName:                     capability.Name,
+		HasDescendants:                     impact.HasDescendants,
+		AffectedCapabilities:               affectedCaps,
+		RealizationsOnDeletedCapabilities:  impact.RealizationsOnDeletedCapabilities,
+		RealizationsOnRetainedCapabilities: impact.RealizationsOnRetainedCapabilities,
+		Links:                              links,
+	}
+
+	sharedAPI.RespondJSON(w, http.StatusOK, response)
+}
+
+type AffectedCapabilityDTO struct {
+	ID       string          `json:"id"`
+	Name     string          `json:"name,omitempty"`
+	Level    string          `json:"level,omitempty"`
+	ParentID string          `json:"parentId,omitempty"`
+	Links    sharedAPI.Links `json:"_links,omitempty"`
+}
+
+type DeleteImpactResponse struct {
+	CapabilityID                       string                      `json:"capabilityId"`
+	CapabilityName                     string                      `json:"capabilityName"`
+	HasDescendants                     bool                        `json:"hasDescendants"`
+	AffectedCapabilities               []AffectedCapabilityDTO     `json:"affectedCapabilities"`
+	RealizationsOnDeletedCapabilities  []readmodels.RealizationDTO `json:"realizationsOnDeletedCapabilities"`
+	RealizationsOnRetainedCapabilities []readmodels.RealizationDTO `json:"realizationsOnRetainedCapabilities"`
+	Links                              sharedAPI.Links             `json:"_links,omitempty"`
 }

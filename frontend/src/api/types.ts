@@ -309,6 +309,38 @@ export interface Capability {
   _links: HATEOASLinks;
 }
 
+export interface AffectedCapability {
+  id: CapabilityId;
+  name: string;
+  level: CapabilityLevel;
+  parentId?: CapabilityId;
+}
+
+export interface ImpactRealization {
+  id: string;
+  componentId: ComponentId;
+  componentName: string;
+  capabilityId: CapabilityId;
+  capabilityName?: string;
+  realizationLevel: string;
+  origin: string;
+}
+
+export interface CapabilityDeleteImpact {
+  capabilityId: CapabilityId;
+  capabilityName: string;
+  hasDescendants: boolean;
+  affectedCapabilities: AffectedCapability[];
+  realizationsOnDeletedCapabilities: ImpactRealization[];
+  realizationsOnRetainedCapabilities: ImpactRealization[];
+  _links: HATEOASLinks;
+}
+
+export interface CascadeDeleteRequest {
+  cascade: boolean;
+  deleteRealisingApplications: boolean;
+}
+
 export interface CapabilityDependency {
   id: CapabilityDependencyId;
   sourceCapabilityId: CapabilityId;

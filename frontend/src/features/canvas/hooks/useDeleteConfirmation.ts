@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { useDeleteCapability, useChangeCapabilityParent, useDeleteRealization } from '../../capabilities/hooks/useCapabilities';
+import { useDeleteCapability, useCascadeDeleteCapability, useChangeCapabilityParent, useDeleteRealization } from '../../capabilities/hooks/useCapabilities';
 import { useDeleteComponent } from '../../components/hooks/useComponents';
 import { useDeleteRelation } from '../../relations/hooks/useRelations';
 import { useRemoveComponentFromView, useRemoveCapabilityFromView } from '../../views/hooks/useViews';
@@ -105,6 +105,7 @@ function useDeleteHandlers() {
   const deleteComponentMutation = useDeleteComponent();
   const deleteRelationMutation = useDeleteRelation();
   const deleteCapabilityMutation = useDeleteCapability();
+  const cascadeDeleteCapabilityMutation = useCascadeDeleteCapability();
   const changeCapabilityParentMutation = useChangeCapabilityParent();
   const deleteRealizationMutation = useDeleteRealization();
   const deleteAcquiredEntityMutation = useDeleteAcquiredEntity();
@@ -154,7 +155,12 @@ function useDeleteHandlers() {
     'capability-from-model': async (target, _viewId, lookups) => {
       const capability = lookups.capabilities.find(c => c.id === target.id);
       if (!capability) return;
-      await deleteCapabilityMutation.mutateAsync({ capability });
+      await cascadeDeleteCapabilityMutation.mutateAsync({
+        capability,
+        cascade: false,
+        deleteRealisingApplications: false,
+        parentId: capability.parentId ?? undefined,
+      });
     },
     'parent-relation': async (target) => {
       if (!target.childId) return;
@@ -194,6 +200,7 @@ function useDeleteHandlers() {
     deleteComponentMutation,
     deleteRelationMutation,
     deleteCapabilityMutation,
+    cascadeDeleteCapabilityMutation,
     changeCapabilityParentMutation,
     deleteRealizationMutation,
     originEntityDeleteMutations,

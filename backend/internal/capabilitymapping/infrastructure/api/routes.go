@@ -62,8 +62,11 @@ func SetupCapabilityMappingRoutes(config *RouteConfig) error {
 	}
 
 	links := NewCapabilityMappingLinks(config.HATEOAS)
+	capabilityLookupAdapter := adapters.NewCapabilityLookupAdapter(rm.capability)
+	hierarchyService := services.NewCapabilityHierarchyService(capabilityLookupAdapter)
+	impactQuery := handlers.NewDeleteImpactQuery(hierarchyService, rm.realization)
 	httpHandlers := &routeHTTPHandlers{
-		capability:           NewCapabilityHandlers(config.CommandBus, rm.capability, links),
+		capability:           NewCapabilityHandlers(config.CommandBus, rm.capability, links, impactQuery),
 		dependency:           NewDependencyHandlers(config.CommandBus, rm.dependency, links),
 		realization:          NewRealizationHandlers(config.CommandBus, rm.realization, links),
 		maturityLevel:        NewMaturityLevelHandlers(config.MaturityScaleGateway),
@@ -328,7 +331,11 @@ func setupCascadingDeleteHandlers(eventBus events.EventBus, commandBus *cqrs.InM
 }
 
 func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepositories, rm *routeReadModels, pillarsGateway metamodel.StrategyPillarsGateway) {
-	registerCapabilityCommands(commandBus, repos.capability, rm.capability, rm.realization)
+	registerCapabilityCommands(commandBus, repos.capability, capabilityCommandReadModels{
+		capability:  rm.capability,
+		realization: rm.realization,
+		dependency:  rm.dependency,
+	})
 	registerDependencyCommands(commandBus, repos.dependency, repos.capability)
 	registerRealizationCommands(commandBus, repos, rm)
 	registerBusinessDomainCommands(commandBus, repos.businessDomain, rm.businessDomain, rm.domainAssignment)
@@ -348,10 +355,21 @@ func setupCommandHandlers(commandBus *cqrs.InMemoryCommandBus, repos *routeRepos
 	})
 }
 
-func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repositories.CapabilityRepository, capabilityRM *readmodels.CapabilityReadModel, realizationRM *readmodels.RealizationReadModel) {
+type capabilityCommandReadModels struct {
+	capability  *readmodels.CapabilityReadModel
+	realization *readmodels.RealizationReadModel
+	dependency  *readmodels.DependencyReadModel
+}
+
+func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repositories.CapabilityRepository, rm capabilityCommandReadModels) {
+	capabilityRM := rm.capability
+	realizationRM := rm.realization
+	dependencyRM := rm.dependency
 	childrenChecker := adapters.NewCapabilityChildrenCheckerAdapter(capabilityRM)
 	deletionService := services.NewCapabilityDeletionService(childrenChecker)
 	reparentingService := services.NewCapabilityReparentingService(adapters.NewCapabilityLookupAdapter(capabilityRM))
+	capabilityLookupAdapter := adapters.NewCapabilityLookupAdapter(capabilityRM)
+	hierarchyService := services.NewCapabilityHierarchyService(capabilityLookupAdapter)
 
 	commandBus.Register("CreateCapability", handlers.NewCreateCapabilityHandler(repo))
 	commandBus.Register("UpdateCapability", handlers.NewUpdateCapabilityHandler(repo))
@@ -361,6 +379,15 @@ func registerCapabilityCommands(commandBus *cqrs.InMemoryCommandBus, repo *repos
 	commandBus.Register("AddCapabilityTag", handlers.NewAddCapabilityTagHandler(repo))
 	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(repo, capabilityRM, realizationRM, reparentingService))
 	commandBus.Register("DeleteCapability", handlers.NewDeleteCapabilityHandler(repo, deletionService, realizationRM, capabilityRM))
+	commandBus.Register("CascadeDeleteCapability", handlers.NewCascadeDeleteCapabilityHandler(handlers.CascadeDeleteDeps{
+		Repository:       repo,
+		HierarchyService: hierarchyService,
+		RealizationRM:    realizationRM,
+		DependencyRM:     dependencyRM,
+		CommandBus:       commandBus,
+		CapabilityLookup: capabilityRM,
+		ComponentDeleter: adapters.NewNoOpComponentDeleter(),
+	}))
 }
 
 func registerDependencyCommands(commandBus *cqrs.InMemoryCommandBus, depRepo *repositories.DependencyRepository, capRepo *repositories.CapabilityRepository) {
@@ -412,6 +439,7 @@ func registerCapabilityRoutes(r chi.Router, h *routeHTTPHandlers, authMiddleware
 			r.Get("/{id}/dependencies/incoming", h.dependency.GetIncomingDependencies)
 			r.Get("/{id}/business-domains", h.businessDomain.GetDomainsForCapability)
 			r.Get("/{id}/importance", h.strategyImportance.GetImportanceByCapability)
+			r.Get("/{id}/delete-impact", h.capability.GetDeleteImpact)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RequirePermission(authPL.PermCapabilitiesWrite))

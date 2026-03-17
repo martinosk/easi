@@ -201,6 +201,7 @@ var excludedRoutes = map[string]string{
 	"DELETE /capabilities/*/experts":                           "expert management — operational, not architecture exploration",
 	"POST /capabilities/*/tags":                                "tag management — operational, not architecture exploration",
 	"PATCH /capabilities/*/parent":                             "hierarchy reparenting — complex operation, not suitable for agent",
+	"GET /capabilities/*/delete-impact":                        "delete impact analysis — UI pre-deletion preview, reserved for UI",
 	"GET /capabilities/*/dependencies/incoming":                "per-capability view — use list_capability_dependencies instead",
 	"GET /capabilities/*/dependencies/outgoing":                "per-capability view — use list_capability_dependencies instead",
 	"GET /capability-realizations":                             "all realizations collection — used by canvas for relationship data",

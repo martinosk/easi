@@ -5,6 +5,8 @@ import type {
   CapabilityId,
   CapabilityDependency,
   CapabilityRealization,
+  CapabilityDeleteImpact,
+  CascadeDeleteRequest,
   ComponentId,
   CreateCapabilityRequest,
   UpdateCapabilityRequest,
@@ -75,6 +77,20 @@ export const capabilitiesApi = {
 
   async delete(capability: Capability): Promise<void> {
     await httpClient.delete(followLink(capability, 'delete'));
+  },
+
+  async getDeleteImpact(capabilityId: CapabilityId): Promise<CapabilityDeleteImpact> {
+    const response = await httpClient.get<CapabilityDeleteImpact>(
+      `/api/v1/capabilities/${capabilityId}/delete-impact`
+    );
+    return response.data;
+  },
+
+  async cascadeDelete(
+    capability: Capability,
+    options: CascadeDeleteRequest
+  ): Promise<void> {
+    await httpClient.delete(followLink(capability, 'delete'), { data: options });
   },
 
   async changeParent(id: CapabilityId, parentId: CapabilityId | null): Promise<void> {

@@ -121,6 +121,26 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 });
   }),
 
+  http.get(`${BASE_URL}/api/v1/capabilities/:id/delete-impact`, ({ params }) => {
+    const capability = getCapability(toCapabilityId(params.id as string));
+    if (!capability) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json({
+      capabilityId: capability.id,
+      capabilityName: capability.name,
+      hasDescendants: false,
+      affectedCapabilities: [],
+      realizationsOnDeletedCapabilities: [],
+      realizationsOnRetainedCapabilities: [],
+      _links: {
+        self: { href: `/api/v1/capabilities/${params.id}/delete-impact`, method: 'GET' },
+        'x-capability': { href: `/api/v1/capabilities/${params.id}`, method: 'GET' },
+        'x-confirm-delete': { href: `/api/v1/capabilities/${params.id}`, method: 'DELETE' },
+      },
+    });
+  }),
+
   http.get(`${BASE_URL}/api/v1/capabilities/:id/systems`, ({ params }) => {
     const realizations = getRealizationsByCapability(toCapabilityId(params.id as string));
     return HttpResponse.json({

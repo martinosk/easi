@@ -35,6 +35,7 @@ func init() {
 	registry.RegisterConflict(handlers.ErrBusinessDomainNameExists, "Business domain with this name already exists")
 	registry.RegisterConflict(services.ErrBusinessDomainHasAssignments, "Cannot delete domain with assigned capabilities")
 	registry.RegisterConflict(services.ErrCapabilityHasChildren, "Cannot delete capability with children")
+	registry.RegisterConflict(services.ErrCascadeRequiredForChildCapabilities, "Capability has descendants. Set cascade:true to confirm cascade deletion.")
 
 	registry.RegisterConflict(aggregates.ErrL1CannotHaveParent, "L1 capabilities cannot have a parent")
 	registry.RegisterConflict(aggregates.ErrNonL1MustHaveParent, "L2-L4 capabilities must have a parent")
