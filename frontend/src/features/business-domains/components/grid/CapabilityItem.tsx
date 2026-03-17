@@ -126,7 +126,9 @@ export function CapabilityItem({
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    onContextMenu?.(capability, e);
+    if (capability.level === 'L1') {
+      onContextMenu?.(capability, e);
+    }
   };
 
   const canShowRealizations = realizations.length > 0 && onApplicationClick;
