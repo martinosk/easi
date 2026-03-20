@@ -339,7 +339,7 @@ cascadeDelete: (context) => [
 - [x] Backend: HATEOAS links (`x-delete-impact`, `x-confirm-delete`)
 - [x] Backend: Error registration for cascade-required
 - [x] Backend: Unit tests for cascade handler
-- [ ] Backend: Integration tests for cascade delete
+- [x] Backend: Integration tests for cascade delete
 - [x] Frontend: API types and API layer
 - [x] Frontend: Query keys and hooks
 - [x] Frontend: Impact-aware DeleteCapabilityDialog
@@ -347,6 +347,6 @@ cascadeDelete: (context) => [
 - [x] Frontend: Canvas delete confirmation routing
 - [x] Frontend: Mutation effects for cache invalidation
 - [x] Frontend: MSW handlers
-- [ ] Frontend: Component tests
+- [x] Frontend: Component tests
 - [x] Frontend: Build passes (`npm run build`)
-- [ ] User sign-off
+- [x] User sign-off

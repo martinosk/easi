@@ -77,7 +77,7 @@ func setupParentHandlers(db *sql.DB) *CapabilityHandlers {
 	commandBus.Register("AddCapabilityTag", handlers.NewAddCapabilityTagHandler(capabilityRepo))
 	commandBus.Register("ChangeCapabilityParent", handlers.NewChangeCapabilityParentHandler(capabilityRepo, readModel, realizationReadModel, reparentingService))
 
-	return NewCapabilityHandlers(commandBus, readModel, links)
+	return NewCapabilityHandlers(commandBus, readModel, links, nil)
 }
 
 func (f *parentTestFixture) createCapability(capReq CreateCapabilityRequest) string {

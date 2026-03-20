@@ -135,7 +135,7 @@ func setupHandlers(db *sql.DB) *CapabilityHandlers {
 	commandBus.Register("AddCapabilityTag", addTagHandler)
 	commandBus.Register("DeleteCapability", deleteHandler)
 
-	return NewCapabilityHandlers(commandBus, readModel, links)
+	return NewCapabilityHandlers(commandBus, readModel, links, nil)
 }
 
 func TestCreateCapability_Integration(t *testing.T) {
