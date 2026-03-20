@@ -336,10 +336,11 @@ func TestGetAllBusinessDomains_Integration(t *testing.T) {
 
 	handler := setupBusinessDomainHandlers(testCtx.db)
 
-	id1 := fmt.Sprintf("test-domain-1-%d", time.Now().UnixNano())
-	id2 := fmt.Sprintf("test-domain-2-%d", time.Now().UnixNano())
-	testCtx.createTestDomain(t, id1, "Sales", "Sales capabilities")
-	testCtx.createTestDomain(t, id2, "Marketing", "Marketing capabilities")
+	ts := time.Now().UnixNano()
+	id1 := fmt.Sprintf("test-domain-1-%d", ts)
+	id2 := fmt.Sprintf("test-domain-2-%d", ts)
+	testCtx.createTestDomain(t, id1, fmt.Sprintf("Sales-%d", ts), "Sales capabilities")
+	testCtx.createTestDomain(t, id2, fmt.Sprintf("Marketing-%d", ts), "Marketing capabilities")
 
 	w, req := makeRequest(t, http.MethodGet, "/api/v1/business-domains", nil, nil)
 

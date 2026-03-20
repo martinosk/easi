@@ -20,6 +20,7 @@ import (
 	"easi/backend/internal/capabilitymapping/domain/services"
 	"easi/backend/internal/capabilitymapping/infrastructure/adapters"
 	"easi/backend/internal/capabilitymapping/infrastructure/repositories"
+	cmPL "easi/backend/internal/capabilitymapping/publishedlanguage"
 	"easi/backend/internal/infrastructure/database"
 	"easi/backend/internal/infrastructure/eventstore"
 	sharedAPI "easi/backend/internal/shared/api"
@@ -116,8 +117,22 @@ func setupHandlers(db *sql.DB) *CapabilityHandlers {
 	eventBus.Subscribe("CapabilityDeleted", projector)
 
 	realizationReadModel := readmodels.NewRealizationReadModel(tenantDB)
+	dependencyReadModel := readmodels.NewDependencyReadModel(tenantDB)
+
+	dependencyProjector := projectors.NewDependencyProjector(dependencyReadModel)
+	eventBus.Subscribe(cmPL.CapabilityDependencyCreated, dependencyProjector)
+	eventBus.Subscribe(cmPL.CapabilityDependencyDeleted, dependencyProjector)
+
+	realizationProjector := projectors.NewRealizationProjector(realizationReadModel, &noOpComponentGateway{})
+	eventBus.Subscribe(cmPL.SystemLinkedToCapability, realizationProjector)
+	eventBus.Subscribe(cmPL.SystemRealizationDeleted, realizationProjector)
 
 	capabilityRepo := repositories.NewCapabilityRepository(eventStore)
+	realizationRepo := repositories.NewRealizationRepository(eventStore)
+	dependencyRepo := repositories.NewDependencyRepository(eventStore)
+
+	lookupAdapter := adapters.NewCapabilityLookupAdapter(readModel)
+	hierarchyService := services.NewCapabilityHierarchyService(lookupAdapter)
 	childrenChecker := adapters.NewCapabilityChildrenCheckerAdapter(readModel)
 	deletionService := services.NewCapabilityDeletionService(childrenChecker)
 
@@ -134,8 +149,21 @@ func setupHandlers(db *sql.DB) *CapabilityHandlers {
 	commandBus.Register("AddCapabilityExpert", addExpertHandler)
 	commandBus.Register("AddCapabilityTag", addTagHandler)
 	commandBus.Register("DeleteCapability", deleteHandler)
+	commandBus.Register("DeleteSystemRealization", handlers.NewDeleteSystemRealizationHandler(realizationRepo))
+	commandBus.Register("DeleteCapabilityDependency", handlers.NewDeleteCapabilityDependencyHandler(dependencyRepo))
+	commandBus.Register("CascadeDeleteCapability", handlers.NewCascadeDeleteCapabilityHandler(handlers.CascadeDeleteDeps{
+		Repository:       capabilityRepo,
+		HierarchyService: hierarchyService,
+		RealizationRM:    realizationReadModel,
+		DependencyRM:     dependencyReadModel,
+		CommandBus:       commandBus,
+		CapabilityLookup: readModel,
+		ComponentDeleter: adapters.NewNoOpComponentDeleter(),
+	}))
 
-	return NewCapabilityHandlers(commandBus, readModel, links, nil)
+	impactQuery := handlers.NewDeleteImpactQuery(hierarchyService, realizationReadModel)
+
+	return NewCapabilityHandlers(commandBus, readModel, links, impactQuery)
 }
 
 func TestCreateCapability_Integration(t *testing.T) {
@@ -519,6 +547,7 @@ func TestDeleteCapability_HasChildren_Integration(t *testing.T) {
 	childID := uuid.New().String()
 
 	testCtx.createTestCapability(t, parentID, "Parent Capability", "L1")
+	testCtx.insertCapabilityCreatedEvent(t, parentID, "Parent Capability", "L1", "")
 
 	testCtx.setTenantContext(t)
 	_, err := testCtx.db.Exec(
@@ -548,7 +577,7 @@ func TestDeleteCapability_HasChildren_Integration(t *testing.T) {
 	}
 	err = json.NewDecoder(deleteW.Body).Decode(&response)
 	require.NoError(t, err)
-	assert.Contains(t, response.Message, "Cannot delete capability with children")
+	assert.Contains(t, response.Message, "descendants")
 
 	parentCapability, err := handlers.readModel.GetByID(tenantContext(), parentID)
 	require.NoError(t, err)

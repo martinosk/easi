@@ -142,7 +142,7 @@ func (ctx *testContext) createTestCapabilityWithParent(t *testing.T, id, name, l
 
 func (ctx *testContext) insertCapabilityCreatedEvent(t *testing.T, id, name, level, parentID string) {
 	ctx.setTenantContext(t)
-	eventData := fmt.Sprintf(`{"capabilityId":"%s","name":"%s","description":"","level":"%s","parentId":"%s"}`, id, name, level, parentID)
+	eventData := fmt.Sprintf(`{"id":"%s","name":"%s","description":"","level":"%s","parentId":"%s"}`, id, name, level, parentID)
 	_, err := ctx.db.Exec(
 		`INSERT INTO infrastructure.events (tenant_id, aggregate_id, event_type, event_data, version, occurred_at, actor_id, actor_email)
 		 VALUES ($1, $2, 'CapabilityCreated', $3, 1, NOW(), 'test-user', 'test@example.com')`,
@@ -154,8 +154,8 @@ func (ctx *testContext) insertCapabilityCreatedEvent(t *testing.T, id, name, lev
 func (ctx *testContext) createTestRealization(t *testing.T, id, componentID, capabilityID string) {
 	ctx.setTenantContext(t)
 	_, err := ctx.db.Exec(
-		`INSERT INTO capabilitymapping.capability_realizations (id, component_id, capability_id, component_name, realization_level, origin, tenant_id, linked_at)
-		 VALUES ($1, $2, $3, 'Test Component', 'Full', 'Direct', $4, NOW())`,
+		`INSERT INTO capabilitymapping.capability_realizations (id, component_id, capability_id, component_name, realization_level, origin, notes, tenant_id, linked_at)
+		 VALUES ($1, $2, $3, 'Test Component', 'Full', 'Direct', '', $4, NOW())`,
 		id, componentID, capabilityID, testTenantID(),
 	)
 	require.NoError(t, err)
