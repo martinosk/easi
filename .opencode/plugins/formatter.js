@@ -24,11 +24,9 @@ export const FormatterPlugin = async ({ $ }) => {
       }
 
       // Go — gofmt
-      // NOTE: gofmt was not detected in the current environment.
-      // Install Go toolchain to enable auto-formatting.
-      // if (file.endsWith(".go")) {
-      //   await $`gofmt -w ${file}`;
-      // }
+      if (file.endsWith(".go")) {
+        await $`gofmt -w ${file}`;
+      }
     },
   };
 };
