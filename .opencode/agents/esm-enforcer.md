@@ -1,7 +1,7 @@
 ---
 name: esm-enforcer
 description: ES Modules enforcement — import/export only, no require/module.exports, no __dirname/__filename
-model: copilot/claude-haiku-4-5
+model: github-copilot/claude-haiku-4.5
 permission:
   edit: deny
   bash: deny

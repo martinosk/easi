@@ -77,6 +77,13 @@ func SetupValueStreamsRoutes(config *RouteConfig) error {
 	httpHandlers := NewValueStreamHandlers(config.CommandBus, rm, links)
 	stageHttpHandlers := NewStageHandlers(config.CommandBus, rm, links)
 
+	config.Router.Route("/capabilities", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(config.AuthMiddleware.RequirePermission(authPL.PermValueStreamsRead))
+			r.Get("/{capabilityId}/value-streams", stageHttpHandlers.GetValueStreamsByCapabilityID)
+		})
+	})
+
 	config.Router.Route("/value-streams", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(config.AuthMiddleware.RequirePermission(authPL.PermValueStreamsRead))

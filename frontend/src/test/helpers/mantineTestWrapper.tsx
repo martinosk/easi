@@ -1,8 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
-import type { ReactNode } from 'react';
-import { MantineProvider } from '@mantine/core';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { theme } from '../../theme/mantine';
+import type { ReactNode } from "react";
+import { MemoryRouter } from "react-router-dom";
+import { MantineProvider } from "@mantine/core";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { theme } from "../../theme/mantine";
 
 function createTestQueryClient(): QueryClient {
   return new QueryClient({
@@ -24,7 +25,9 @@ const testQueryClient = createTestQueryClient();
 export function MantineTestWrapper({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={testQueryClient}>
-      <MantineProvider theme={theme}>{children}</MantineProvider>
+      <MantineProvider theme={theme}>
+        <MemoryRouter>{children}</MemoryRouter>
+      </MantineProvider>
     </QueryClientProvider>
   );
 }
@@ -34,7 +37,9 @@ export function createMantineTestWrapper() {
 
   const Wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <MantineProvider theme={theme}>{children}</MantineProvider>
+      <MantineProvider theme={theme}>
+        <MemoryRouter>{children}</MemoryRouter>
+      </MantineProvider>
     </QueryClientProvider>
   );
 

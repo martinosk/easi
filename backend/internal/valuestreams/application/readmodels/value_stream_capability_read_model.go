@@ -91,6 +91,30 @@ func (rm *ValueStreamReadModel) GetStagesByCapabilityID(ctx context.Context, cap
 	)
 }
 
+type CapabilityValueStreamDTO struct {
+	ValueStreamID   string `json:"valueStreamId"`
+	ValueStreamName string `json:"valueStreamName"`
+	StageID         string `json:"stageId"`
+	StageName       string `json:"stageName"`
+}
+
+func (rm *ValueStreamReadModel) GetValueStreamsByCapabilityID(ctx context.Context, capabilityID string) ([]CapabilityValueStreamDTO, error) {
+	return queryList(rm, ctx,
+		`SELECT vs.id, vs.name, s.id, s.name
+		 FROM valuestreams.value_stream_stage_capabilities sc
+		 INNER JOIN valuestreams.value_stream_stages s ON sc.tenant_id = s.tenant_id AND sc.stage_id = s.id
+		 INNER JOIN valuestreams.value_streams vs ON sc.tenant_id = vs.tenant_id AND s.value_stream_id = vs.id
+		 WHERE sc.tenant_id = $1 AND sc.capability_id = $2
+		 ORDER BY vs.name, s.position`,
+		capabilityID,
+		func(rows scanner) (CapabilityValueStreamDTO, error) {
+			var dto CapabilityValueStreamDTO
+			err := rows.Scan(&dto.ValueStreamID, &dto.ValueStreamName, &dto.StageID, &dto.StageName)
+			return dto, err
+		},
+	)
+}
+
 func (rm *ValueStreamReadModel) UpdateStageCapabilityName(ctx context.Context, capabilityID, name string) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {

@@ -1,7 +1,7 @@
 ---
 name: front-end-testing
 description: Behavior-driven UI testing — query priority, browser-mode preference, HTTP interceptors, framework-agnostic
-model: copilot/claude-sonnet-4-6
+model: github-copilot/claude-sonnet-4.6
 permission:
   edit: deny
   bash: deny

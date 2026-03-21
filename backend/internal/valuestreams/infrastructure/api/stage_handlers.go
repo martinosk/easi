@@ -198,6 +198,31 @@ func (h *StageHandlers) RemoveStageCapability(w http.ResponseWriter, r *http.Req
 	})
 }
 
+// GetValueStreamsByCapabilityID godoc
+// @Summary Get value streams for a capability
+// @Description Returns all value streams and stages where a capability is mapped
+// @Tags capabilities
+// @Produce json
+// @Param capabilityId path string true "Capability ID"
+// @Success 200 {object} sharedAPI.CollectionResponse{data=[]readmodels.CapabilityValueStreamDTO}
+// @Failure 500 {object} sharedAPI.ErrorResponse
+// @Router /capabilities/{capabilityId}/value-streams [get]
+func (h *StageHandlers) GetValueStreamsByCapabilityID(w http.ResponseWriter, r *http.Request) {
+	capabilityID := sharedAPI.GetPathParam(r, "capabilityId")
+
+	results, err := h.readModel.GetValueStreamsByCapabilityID(r.Context(), capabilityID)
+	if err != nil {
+		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve value streams for capability")
+		return
+	}
+
+	if results == nil {
+		results = []readmodels.CapabilityValueStreamDTO{}
+	}
+
+	sharedAPI.RespondCollection(w, http.StatusOK, results, nil)
+}
+
 // GetValueStreamCapabilities godoc
 // @Summary Get all capabilities mapped to a value stream
 // @Description Returns all capability mappings across all stages

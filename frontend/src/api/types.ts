@@ -2,34 +2,42 @@ declare const __brand: unique symbol;
 type Brand<B> = { [__brand]: B };
 type Branded<T, B> = T & Brand<B>;
 
-export type ComponentId = Branded<string, 'ComponentId'>;
-export type RelationId = Branded<string, 'RelationId'>;
-export type ViewId = Branded<string, 'ViewId'>;
-export type CapabilityId = Branded<string, 'CapabilityId'>;
-export type CapabilityDependencyId = Branded<string, 'CapabilityDependencyId'>;
-export type RealizationId = Branded<string, 'RealizationId'>;
-export type ReleaseVersion = Branded<string, 'ReleaseVersion'>;
-export type BusinessDomainId = Branded<string, 'BusinessDomainId'>;
-export type EnterpriseCapabilityId = Branded<string, 'EnterpriseCapabilityId'>;
-export type EnterpriseCapabilityLinkId = Branded<string, 'EnterpriseCapabilityLinkId'>;
-export type EnterpriseStrategicImportanceId = Branded<string, 'EnterpriseStrategicImportanceId'>;
-export type LayoutContainerId = Branded<string, 'LayoutContainerId'>;
-export type StrategyImportanceId = Branded<string, 'StrategyImportanceId'>;
-export type AcquiredEntityId = Branded<string, 'AcquiredEntityId'>;
-export type VendorId = Branded<string, 'VendorId'>;
-export type InternalTeamId = Branded<string, 'InternalTeamId'>;
-export type OriginRelationshipId = Branded<string, 'OriginRelationshipId'>;
-export type ValueStreamId = Branded<string, 'ValueStreamId'>;
-export type StageId = Branded<string, 'StageId'>;
+export type ComponentId = Branded<string, "ComponentId">;
+export type RelationId = Branded<string, "RelationId">;
+export type ViewId = Branded<string, "ViewId">;
+export type CapabilityId = Branded<string, "CapabilityId">;
+export type CapabilityDependencyId = Branded<string, "CapabilityDependencyId">;
+export type RealizationId = Branded<string, "RealizationId">;
+export type ReleaseVersion = Branded<string, "ReleaseVersion">;
+export type BusinessDomainId = Branded<string, "BusinessDomainId">;
+export type EnterpriseCapabilityId = Branded<string, "EnterpriseCapabilityId">;
+export type EnterpriseCapabilityLinkId = Branded<
+  string,
+  "EnterpriseCapabilityLinkId"
+>;
+export type EnterpriseStrategicImportanceId = Branded<
+  string,
+  "EnterpriseStrategicImportanceId"
+>;
+export type LayoutContainerId = Branded<string, "LayoutContainerId">;
+export type StrategyImportanceId = Branded<string, "StrategyImportanceId">;
+export type AcquiredEntityId = Branded<string, "AcquiredEntityId">;
+export type VendorId = Branded<string, "VendorId">;
+export type InternalTeamId = Branded<string, "InternalTeamId">;
+export type OriginRelationshipId = Branded<string, "OriginRelationshipId">;
+export type ValueStreamId = Branded<string, "ValueStreamId">;
+export type StageId = Branded<string, "StageId">;
 
 function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0;
+  return typeof value === "string" && value.length > 0;
 }
 
 function createBrandedFactory<T extends string>(typeName: string) {
   return (value: unknown): T => {
     if (!isNonEmptyString(value)) {
-      throw new Error(`Invalid ${typeName}: expected non-empty string, got ${typeof value}`);
+      throw new Error(
+        `Invalid ${typeName}: expected non-empty string, got ${typeof value}`,
+      );
     }
     return value as T;
   };
@@ -39,43 +47,67 @@ function createBrandedTypeGuard<T extends string>() {
   return (value: unknown): value is T => isNonEmptyString(value);
 }
 
-export const toComponentId = createBrandedFactory<ComponentId>('ComponentId');
-export const toRelationId = createBrandedFactory<RelationId>('RelationId');
-export const toViewId = createBrandedFactory<ViewId>('ViewId');
-export const toCapabilityId = createBrandedFactory<CapabilityId>('CapabilityId');
-export const toCapabilityDependencyId = createBrandedFactory<CapabilityDependencyId>('CapabilityDependencyId');
-export const toRealizationId = createBrandedFactory<RealizationId>('RealizationId');
-export const toReleaseVersion = createBrandedFactory<ReleaseVersion>('ReleaseVersion');
-export const toBusinessDomainId = createBrandedFactory<BusinessDomainId>('BusinessDomainId');
-export const toEnterpriseCapabilityId = createBrandedFactory<EnterpriseCapabilityId>('EnterpriseCapabilityId');
-export const toEnterpriseCapabilityLinkId = createBrandedFactory<EnterpriseCapabilityLinkId>('EnterpriseCapabilityLinkId');
-export const toEnterpriseStrategicImportanceId = createBrandedFactory<EnterpriseStrategicImportanceId>('EnterpriseStrategicImportanceId');
-export const toLayoutContainerId = createBrandedFactory<LayoutContainerId>('LayoutContainerId');
-export const toStrategyImportanceId = createBrandedFactory<StrategyImportanceId>('StrategyImportanceId');
-export const toAcquiredEntityId = createBrandedFactory<AcquiredEntityId>('AcquiredEntityId');
-export const toVendorId = createBrandedFactory<VendorId>('VendorId');
-export const toInternalTeamId = createBrandedFactory<InternalTeamId>('InternalTeamId');
-export const toOriginRelationshipId = createBrandedFactory<OriginRelationshipId>('OriginRelationshipId');
-export const toValueStreamId = createBrandedFactory<ValueStreamId>('ValueStreamId');
-export const toStageId = createBrandedFactory<StageId>('StageId');
+export const toComponentId = createBrandedFactory<ComponentId>("ComponentId");
+export const toRelationId = createBrandedFactory<RelationId>("RelationId");
+export const toViewId = createBrandedFactory<ViewId>("ViewId");
+export const toCapabilityId =
+  createBrandedFactory<CapabilityId>("CapabilityId");
+export const toCapabilityDependencyId =
+  createBrandedFactory<CapabilityDependencyId>("CapabilityDependencyId");
+export const toRealizationId =
+  createBrandedFactory<RealizationId>("RealizationId");
+export const toReleaseVersion =
+  createBrandedFactory<ReleaseVersion>("ReleaseVersion");
+export const toBusinessDomainId =
+  createBrandedFactory<BusinessDomainId>("BusinessDomainId");
+export const toEnterpriseCapabilityId =
+  createBrandedFactory<EnterpriseCapabilityId>("EnterpriseCapabilityId");
+export const toEnterpriseCapabilityLinkId =
+  createBrandedFactory<EnterpriseCapabilityLinkId>(
+    "EnterpriseCapabilityLinkId",
+  );
+export const toEnterpriseStrategicImportanceId =
+  createBrandedFactory<EnterpriseStrategicImportanceId>(
+    "EnterpriseStrategicImportanceId",
+  );
+export const toLayoutContainerId =
+  createBrandedFactory<LayoutContainerId>("LayoutContainerId");
+export const toStrategyImportanceId =
+  createBrandedFactory<StrategyImportanceId>("StrategyImportanceId");
+export const toAcquiredEntityId =
+  createBrandedFactory<AcquiredEntityId>("AcquiredEntityId");
+export const toVendorId = createBrandedFactory<VendorId>("VendorId");
+export const toInternalTeamId =
+  createBrandedFactory<InternalTeamId>("InternalTeamId");
+export const toOriginRelationshipId =
+  createBrandedFactory<OriginRelationshipId>("OriginRelationshipId");
+export const toValueStreamId =
+  createBrandedFactory<ValueStreamId>("ValueStreamId");
+export const toStageId = createBrandedFactory<StageId>("StageId");
 
 export const isComponentId = createBrandedTypeGuard<ComponentId>();
 export const isRelationId = createBrandedTypeGuard<RelationId>();
 export const isViewId = createBrandedTypeGuard<ViewId>();
 export const isCapabilityId = createBrandedTypeGuard<CapabilityId>();
-export const isCapabilityDependencyId = createBrandedTypeGuard<CapabilityDependencyId>();
+export const isCapabilityDependencyId =
+  createBrandedTypeGuard<CapabilityDependencyId>();
 export const isRealizationId = createBrandedTypeGuard<RealizationId>();
 export const isReleaseVersion = createBrandedTypeGuard<ReleaseVersion>();
 export const isBusinessDomainId = createBrandedTypeGuard<BusinessDomainId>();
-export const isEnterpriseCapabilityId = createBrandedTypeGuard<EnterpriseCapabilityId>();
-export const isEnterpriseCapabilityLinkId = createBrandedTypeGuard<EnterpriseCapabilityLinkId>();
-export const isEnterpriseStrategicImportanceId = createBrandedTypeGuard<EnterpriseStrategicImportanceId>();
+export const isEnterpriseCapabilityId =
+  createBrandedTypeGuard<EnterpriseCapabilityId>();
+export const isEnterpriseCapabilityLinkId =
+  createBrandedTypeGuard<EnterpriseCapabilityLinkId>();
+export const isEnterpriseStrategicImportanceId =
+  createBrandedTypeGuard<EnterpriseStrategicImportanceId>();
 export const isLayoutContainerId = createBrandedTypeGuard<LayoutContainerId>();
-export const isStrategyImportanceId = createBrandedTypeGuard<StrategyImportanceId>();
+export const isStrategyImportanceId =
+  createBrandedTypeGuard<StrategyImportanceId>();
 export const isAcquiredEntityId = createBrandedTypeGuard<AcquiredEntityId>();
 export const isVendorId = createBrandedTypeGuard<VendorId>();
 export const isInternalTeamId = createBrandedTypeGuard<InternalTeamId>();
-export const isOriginRelationshipId = createBrandedTypeGuard<OriginRelationshipId>();
+export const isOriginRelationshipId =
+  createBrandedTypeGuard<OriginRelationshipId>();
 export const isValueStreamId = createBrandedTypeGuard<ValueStreamId>();
 export const isStageId = createBrandedTypeGuard<StageId>();
 
@@ -84,7 +116,7 @@ export interface Position {
   y: number;
 }
 
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export interface HATEOASLink {
   href: string;
@@ -116,7 +148,7 @@ export interface Relation {
   id: RelationId;
   sourceComponentId: ComponentId;
   targetComponentId: ComponentId;
-  relationType: 'Triggers' | 'Serves';
+  relationType: "Triggers" | "Serves";
   name?: string;
   description?: string;
   createdAt: string;
@@ -189,7 +221,7 @@ export interface AddComponentExpertRequest {
 export interface CreateRelationRequest {
   sourceComponentId: ComponentId;
   targetComponentId: ComponentId;
-  relationType: 'Triggers' | 'Serves';
+  relationType: "Triggers" | "Serves";
   name?: string;
   description?: string;
 }
@@ -265,15 +297,15 @@ export class ApiError extends Error {
 
   constructor(message: string, statusCode: number, response?: unknown) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
     this.statusCode = statusCode;
     this.response = response;
   }
 }
 
-export type CapabilityLevel = 'L1' | 'L2' | 'L3' | 'L4';
-export type DependencyType = 'Requires' | 'Enables' | 'Supports';
-export type RealizationLevel = 'Full' | 'Partial' | 'Planned';
+export type CapabilityLevel = "L1" | "L2" | "L3" | "L4";
+export type DependencyType = "Requires" | "Enables" | "Supports";
+export type RealizationLevel = "Full" | "Partial" | "Planned";
 
 export interface Expert {
   name: string;
@@ -358,7 +390,7 @@ export interface CapabilityRealization {
   componentName?: string;
   realizationLevel: RealizationLevel;
   notes?: string;
-  origin: 'Direct' | 'Inherited';
+  origin: "Direct" | "Inherited";
   sourceRealizationId?: RealizationId;
   sourceCapabilityId?: CapabilityId;
   sourceCapabilityName?: string;
@@ -430,7 +462,6 @@ export interface OwnershipModelOption {
   value: string;
   displayName: string;
 }
-
 
 export interface MaturityScaleSection {
   name: string;
@@ -566,7 +597,17 @@ export interface AddStageCapabilityRequest {
   capabilityId: string;
 }
 
-export type LayoutContextType = 'architecture-canvas' | 'business-domain-grid';
+export interface CapabilityValueStreamParticipation {
+  valueStreamId: ValueStreamId;
+  valueStreamName: string;
+  stageId: StageId;
+  stageName: string;
+}
+
+export type CapabilityValueStreamsResponse =
+  CollectionResponse<CapabilityValueStreamParticipation>;
+
+export type LayoutContextType = "architecture-canvas" | "business-domain-grid";
 
 export interface LayoutLink {
   href: string;
@@ -665,7 +706,7 @@ export interface CapabilityRealizationsGroup {
   realizations: CapabilityRealization[];
 }
 
-export type FitType = 'TECHNICAL' | 'FUNCTIONAL' | '';
+export type FitType = "TECHNICAL" | "FUNCTIONAL" | "";
 
 export interface StrategyPillar {
   id: string;
@@ -742,7 +783,7 @@ export interface SetApplicationFitScoreRequest {
   rationale?: string;
 }
 
-export type FitCategory = 'liability' | 'concern' | 'aligned';
+export type FitCategory = "liability" | "concern" | "aligned";
 
 export interface FitComparison {
   pillarId: string;
@@ -802,8 +843,8 @@ export interface StrategicFitAnalysis {
 }
 
 export type InheritanceAuditEventType =
-  | 'CapabilityRealizationsInherited'
-  | 'CapabilityRealizationsUninherited';
+  | "CapabilityRealizationsInherited"
+  | "CapabilityRealizationsUninherited";
 
 export interface AuditEntry {
   eventId: number;
@@ -828,8 +869,11 @@ export interface AuditHistoryResponse {
   _links: HATEOASLinks;
 }
 
-export type IntegrationStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
-export type OriginRelationshipType = 'AcquiredVia' | 'PurchasedFrom' | 'BuiltBy';
+export type IntegrationStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+export type OriginRelationshipType =
+  | "AcquiredVia"
+  | "PurchasedFrom"
+  | "BuiltBy";
 
 export interface AcquiredEntity {
   id: AcquiredEntityId;
@@ -926,7 +970,8 @@ export interface CreateOriginRelationshipRequest {
 export type AcquiredEntitiesResponse = CollectionResponse<AcquiredEntity>;
 export type VendorsResponse = CollectionResponse<Vendor>;
 export type InternalTeamsResponse = CollectionResponse<InternalTeam>;
-export type OriginRelationshipsResponse = CollectionResponse<OriginRelationship>;
+export type OriginRelationshipsResponse =
+  CollectionResponse<OriginRelationship>;
 
 export interface AcquiredViaRelationshipDTO {
   id: string;

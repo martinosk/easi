@@ -1,7 +1,7 @@
 ---
 name: react-testing
 description: React component testing with Testing Library — anti-patterns, hook testing, behavior-first assertions
-model: copilot/claude-sonnet-4-6
+model: github-copilot/claude-sonnet-4.6
 permission:
   edit: deny
   bash: deny

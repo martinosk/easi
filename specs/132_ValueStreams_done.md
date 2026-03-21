@@ -1,7 +1,7 @@
 # Value Streams
 
 ## Status
-**ongoing** — Slice 1 & 2 complete, Slices 3–4 pending
+**done** — All slices complete
 
 ---
 
@@ -143,12 +143,12 @@ The flow diagram is the primary modeling surface for value streams. It combines 
 **User Need:** As an enterprise architect, I want to see value streams in the sidebar explorer so I can quickly navigate between value streams alongside other artifacts.
 
 **Acceptance Criteria:**
-- [ ] The navigation tree sidebar includes a "Value Streams" section (collapsible, like Capabilities, Views, etc.)
-- [ ] Value streams are listed by name, sorted alphabetically
-- [ ] Clicking a value stream in the sidebar navigates to its detail page
-- [ ] The count of value streams is shown in the section header
-- [ ] Right-click context menu provides "Edit" and "Delete" actions
-- [ ] A "+" button in the section header allows creating a new value stream
+- [x] The navigation tree sidebar includes a "Value Streams" section (collapsible, like Capabilities, Views, etc.)
+- [x] Value streams are listed by name, sorted alphabetically
+- [x] Clicking a value stream in the sidebar navigates to its detail page
+- [x] The count of value streams is shown in the section header
+- [x] Right-click context menu provides "Edit" and "Delete" actions
+- [x] A "+" button in the section header allows creating a new value stream
 
 **Edge Cases:**
 - If value streams feature is empty, the section shows "No value streams" empty state
@@ -161,10 +161,10 @@ The flow diagram is the primary modeling surface for value streams. It combines 
 **User Need:** As an enterprise architect, I need to see which value streams a given capability participates in, so I can assess the impact of changing or retiring a capability.
 
 **Acceptance Criteria:**
-- [ ] The capability detail panel (existing) shows a "Value Streams" section listing all value streams and stages where this capability is mapped
-- [ ] Each entry shows: value stream name, stage name
-- [ ] Clicking a value stream name navigates to the value stream detail page
-- [ ] If a capability is not mapped to any value stream, the section shows "Not part of any value stream"
+- [x] The capability detail panel (existing) shows a "Value Streams" section listing all value streams and stages where this capability is mapped
+- [x] Each entry shows: value stream name, stage name
+- [x] Clicking a value stream name navigates to the value stream detail page
+- [x] If a capability is not mapped to any value stream, the section shows "Not part of any value stream"
 
 **Edge Cases:**
 - A capability mapped to multiple stages in the same value stream appears once per stage
@@ -436,7 +436,7 @@ Three read model tables, no foreign keys, RLS on all three. `value_stream_id` de
 
 ## Checklist
 - [x] Specification ready
-- [ ] Implementation done *(Slice 1 & 2 complete; Slices 3–4 pending)*
+- [x] Implementation done
 - [x] Unit tests implemented and passing *(73+ tests: 56+ backend, 17+ frontend)*
 - [ ] Integration tests implemented if relevant
 - [ ] API Documentation updated in OpenAPI specification
@@ -522,3 +522,31 @@ Three read model tables, no foreign keys, RLS on all three. `value_stream_id` de
 **Tests:**
 - Backend: value object tests (StageID, StageName, StagePosition, CapabilityRef), aggregate stage tests (20 tests), handler tests (6 files with success/error cases)
 - Frontend: hook tests (existing 7 tests updated), 975 total tests passing
+
+## Slice 3 Implementation Notes
+
+**Frontend** — extended navigation sidebar:
+
+- New `ValueStreamsSection.tsx` in `frontend/src/features/navigation/components/sections/` — flat list pattern following `VendorsSection.tsx`; search, alphabetical sort, click-to-navigate, right-click context menu, empty state "No value streams"
+- `useNavigationTreeState.ts` — added `isValueStreamsExpanded` / `setIsValueStreamsExpanded` persisted boolean (default `false` = collapsed)
+- `NavigationTreeContent.tsx` — added `ValueStreamsSection` after `OriginEntitySections`; extended props with `valueStreams`, `onAddValueStream`, `onValueStreamContextMenu`, tree state entries
+- `NavigationTree.tsx` — fetches `useValueStreams()`, handles context menu state and delete mutation, passes all props through
+
+## Slice 4 Implementation Notes
+
+**Backend** — new endpoint in `valuestreams` bounded context:
+
+- `value_stream_capability_read_model.go` — added `CapabilityValueStreamDTO` struct and `GetValueStreamsByCapabilityID()` query joining `value_stream_stage_capabilities` → `value_stream_stages` → `value_streams` to return enriched data (value stream id/name, stage id/name), ordered by value stream name then stage position
+- `stage_handlers.go` — added `GetValueStreamsByCapabilityID` HTTP handler with Swagger annotations tagged under `capabilities`
+- `routes.go` — registered `GET /capabilities/{capabilityId}/value-streams` under `PermValueStreamsRead` at router top level
+
+**Frontend** — extended capability detail panel:
+
+- `api/types.ts` — added `CapabilityValueStreamParticipation` and `CapabilityValueStreamsResponse` types
+- `valueStreamsApi.ts` — added `getByCapabilityId()` calling `GET /api/v1/capabilities/{capabilityId}/value-streams`
+- `queryKeys.ts` — added `byCapability(id)` key factory
+- `useValueStreams.ts` — added `useCapabilityValueStreams(capabilityId)` hook
+- New `CapabilityValueStreamsSection.tsx` in `frontend/src/features/capabilities/components/` — groups participations by value stream, clickable value stream name navigates to detail page, no section rendered when capability has no mappings
+- `CapabilityDetails.tsx` — added `CapabilityValueStreamsSection` between `RealizationsField` and `AuditHistorySection`
+
+**Tests:** 1,200 frontend tests passing; backend `go build ./...` and `go test ./internal/valuestreams/...` passing

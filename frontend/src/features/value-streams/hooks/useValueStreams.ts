@@ -1,9 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
-import { valueStreamsApi } from '../api';
-import { valueStreamsQueryKeys } from '../queryKeys';
-import { valueStreamsMutationEffects } from '../mutationEffects';
-import { invalidateFor } from '../../../lib/invalidateFor';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { valueStreamsApi } from "../api";
+import { valueStreamsQueryKeys } from "../queryKeys";
+import { valueStreamsMutationEffects } from "../mutationEffects";
+import { invalidateFor } from "../../../lib/invalidateFor";
 import type {
   ValueStream,
   ValueStreamId,
@@ -11,9 +11,10 @@ import type {
   CreateValueStreamRequest,
   UpdateValueStreamRequest,
   ValueStreamsResponse,
+  CapabilityValueStreamsResponse,
   HATEOASLinks,
-} from '../../../api/types';
-import toast from 'react-hot-toast';
+} from "../../../api/types";
+import toast from "react-hot-toast";
 
 export interface UseValueStreamsResult {
   valueStreams: ValueStream[];
@@ -21,8 +22,15 @@ export interface UseValueStreamsResult {
   isLoading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
-  createValueStream: (name: string, description?: string) => Promise<ValueStream>;
-  updateValueStream: (valueStream: ValueStream, name: string, description?: string) => Promise<ValueStream>;
+  createValueStream: (
+    name: string,
+    description?: string,
+  ) => Promise<ValueStream>;
+  updateValueStream: (
+    valueStream: ValueStream,
+    name: string,
+    description?: string,
+  ) => Promise<ValueStream>;
   deleteValueStream: (valueStream: ValueStream) => Promise<void>;
 }
 
@@ -36,21 +44,28 @@ export function useValueStreams(): UseValueStreamsResult {
     async (name: string, description?: string): Promise<ValueStream> => {
       return createMutation.mutateAsync({ name, description });
     },
-    [createMutation]
+    [createMutation],
   );
 
   const updateValueStream = useCallback(
-    async (valueStream: ValueStream, name: string, description?: string): Promise<ValueStream> => {
-      return updateMutation.mutateAsync({ valueStream, request: { name, description } });
+    async (
+      valueStream: ValueStream,
+      name: string,
+      description?: string,
+    ): Promise<ValueStream> => {
+      return updateMutation.mutateAsync({
+        valueStream,
+        request: { name, description },
+      });
     },
-    [updateMutation]
+    [updateMutation],
   );
 
   const deleteValueStream = useCallback(
     async (valueStream: ValueStream): Promise<void> => {
       await deleteMutation.mutateAsync(valueStream);
     },
-    [deleteMutation]
+    [deleteMutation],
   );
 
   const refetch = useCallback(async () => {
@@ -84,10 +99,22 @@ export function useValueStream(id: ValueStreamId | undefined) {
   });
 }
 
+export function useCapabilityValueStreams(capabilityId: string | undefined) {
+  return useQuery<CapabilityValueStreamsResponse>({
+    queryKey: valueStreamsQueryKeys.byCapability(capabilityId!),
+    queryFn: () => valueStreamsApi.getByCapabilityId(capabilityId!),
+    enabled: !!capabilityId,
+  });
+}
+
 function useValueStreamMutation<TArgs, TResult>(
   mutationFn: (args: TArgs) => Promise<TResult>,
-  onMutationSuccess: (queryClient: ReturnType<typeof useQueryClient>, result: TResult, args: TArgs) => void,
-  errorMessage: string
+  onMutationSuccess: (
+    queryClient: ReturnType<typeof useQueryClient>,
+    result: TResult,
+    args: TArgs,
+  ) => void,
+  errorMessage: string,
 ) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -104,19 +131,27 @@ export function useCreateValueStream() {
       invalidateFor(qc, valueStreamsMutationEffects.create());
       toast.success(`Value stream "${newValueStream.name}" created`);
     },
-    'Failed to create value stream'
+    "Failed to create value stream",
   );
 }
 
 export function useUpdateValueStream() {
   return useValueStreamMutation(
-    ({ valueStream, request }: { valueStream: ValueStream; request: UpdateValueStreamRequest }) =>
-      valueStreamsApi.update(valueStream, request),
+    ({
+      valueStream,
+      request,
+    }: {
+      valueStream: ValueStream;
+      request: UpdateValueStreamRequest;
+    }) => valueStreamsApi.update(valueStream, request),
     (qc, updatedValueStream) => {
-      invalidateFor(qc, valueStreamsMutationEffects.update(updatedValueStream.id));
+      invalidateFor(
+        qc,
+        valueStreamsMutationEffects.update(updatedValueStream.id),
+      );
       toast.success(`Value stream "${updatedValueStream.name}" updated`);
     },
-    'Failed to update value stream'
+    "Failed to update value stream",
   );
 }
 
@@ -124,9 +159,12 @@ export function useDeleteValueStream() {
   return useValueStreamMutation(
     (valueStream: ValueStream) => valueStreamsApi.delete(valueStream),
     (qc, _, deletedValueStream) => {
-      invalidateFor(qc, valueStreamsMutationEffects.delete(deletedValueStream.id));
-      toast.success('Value stream deleted');
+      invalidateFor(
+        qc,
+        valueStreamsMutationEffects.delete(deletedValueStream.id),
+      );
+      toast.success("Value stream deleted");
     },
-    'Failed to delete value stream'
+    "Failed to delete value stream",
   );
 }

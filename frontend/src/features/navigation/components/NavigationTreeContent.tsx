@@ -1,14 +1,23 @@
-import React from 'react';
-import type { Component, Capability, View, AcquiredEntity, Vendor, InternalTeam } from '../../../api/types';
-import { ApplicationsSection } from './sections/ApplicationsSection';
-import { ViewsSection } from './sections/ViewsSection';
-import { CapabilitiesSection } from './sections/CapabilitiesSection';
-import { AcquiredEntitiesSection } from './sections/AcquiredEntitiesSection';
-import { VendorsSection } from './sections/VendorsSection';
-import { InternalTeamsSection } from './sections/InternalTeamsSection';
-import { FilterPopover } from './FilterPopover';
-import type { EditingState, TreeMultiSelectProps } from '../types';
-import type { ArtifactCreator } from '../utils/filterByCreator';
+import React from "react";
+import type {
+  Component,
+  Capability,
+  View,
+  AcquiredEntity,
+  Vendor,
+  InternalTeam,
+  ValueStream,
+} from "../../../api/types";
+import { ApplicationsSection } from "./sections/ApplicationsSection";
+import { ViewsSection } from "./sections/ViewsSection";
+import { CapabilitiesSection } from "./sections/CapabilitiesSection";
+import { AcquiredEntitiesSection } from "./sections/AcquiredEntitiesSection";
+import { VendorsSection } from "./sections/VendorsSection";
+import { InternalTeamsSection } from "./sections/InternalTeamsSection";
+import { ValueStreamsSection } from "./sections/ValueStreamsSection";
+import { FilterPopover } from "./FilterPopover";
+import type { EditingState, TreeMultiSelectProps } from "../types";
+import type { ArtifactCreator } from "../utils/filterByCreator";
 
 interface SelectedEntityIds {
   acquiredEntityId: string | null;
@@ -25,6 +34,7 @@ interface NavigationTreeContentProps {
   acquiredEntities: AcquiredEntity[];
   vendors: Vendor[];
   internalTeams: InternalTeam[];
+  valueStreams: ValueStream[];
   selectedCapabilityId: string | null;
   setSelectedCapabilityId: (id: string | null) => void;
   selectedEntityIds: SelectedEntityIds;
@@ -41,17 +51,31 @@ interface NavigationTreeContentProps {
     setIsVendorsExpanded: (v: boolean) => void;
     isInternalTeamsExpanded: boolean;
     setIsInternalTeamsExpanded: (v: boolean) => void;
+    isValueStreamsExpanded: boolean;
+    setIsValueStreamsExpanded: (v: boolean) => void;
     expandedCapabilities: Set<string>;
     toggleCapabilityExpanded: (id: string) => void;
     setIsOpen: (v: boolean) => void;
   };
   contextMenus: {
-    handleComponentContextMenu: (e: React.MouseEvent, component: Component) => void;
+    handleComponentContextMenu: (
+      e: React.MouseEvent,
+      component: Component,
+    ) => void;
     handleViewContextMenu: (e: React.MouseEvent, view: View) => void;
-    handleCapabilityContextMenu: (e: React.MouseEvent, capability: Capability) => void;
-    handleAcquiredEntityContextMenu: (e: React.MouseEvent, entity: AcquiredEntity) => void;
+    handleCapabilityContextMenu: (
+      e: React.MouseEvent,
+      capability: Capability,
+    ) => void;
+    handleAcquiredEntityContextMenu: (
+      e: React.MouseEvent,
+      entity: AcquiredEntity,
+    ) => void;
     handleVendorContextMenu: (e: React.MouseEvent, vendor: Vendor) => void;
-    handleInternalTeamContextMenu: (e: React.MouseEvent, team: InternalTeam) => void;
+    handleInternalTeamContextMenu: (
+      e: React.MouseEvent,
+      team: InternalTeam,
+    ) => void;
     editingState: EditingState | null;
     setEditingState: (state: EditingState | null) => void;
     handleRenameSubmit: () => void;
@@ -70,6 +94,11 @@ interface NavigationTreeContentProps {
   onAddAcquiredEntity?: () => void;
   onAddVendor?: () => void;
   onAddTeam?: () => void;
+  onAddValueStream?: () => void;
+  onValueStreamContextMenu: (
+    e: React.MouseEvent,
+    valueStream: ValueStream,
+  ) => void;
   artifactCreators?: ArtifactCreator[];
   users?: Array<{ id: string; name?: string; email: string }>;
   selectedCreatorIds?: string[];
@@ -87,8 +116,8 @@ interface OriginEntitySectionsProps {
   internalTeams: InternalTeam[];
   currentView: View | null;
   selectedEntityIds: SelectedEntityIds;
-  treeState: NavigationTreeContentProps['treeState'];
-  contextMenus: NavigationTreeContentProps['contextMenus'];
+  treeState: NavigationTreeContentProps["treeState"];
+  contextMenus: NavigationTreeContentProps["contextMenus"];
   multiSelect: TreeMultiSelectProps;
   onOriginEntitySelect?: (nodeId: string) => void;
   onAddAcquiredEntity?: () => void;
@@ -97,9 +126,18 @@ interface OriginEntitySectionsProps {
 }
 
 const OriginEntitySections: React.FC<OriginEntitySectionsProps> = ({
-  acquiredEntities, vendors, internalTeams, currentView, selectedEntityIds,
-  treeState, contextMenus, multiSelect, onOriginEntitySelect,
-  onAddAcquiredEntity, onAddVendor, onAddTeam,
+  acquiredEntities,
+  vendors,
+  internalTeams,
+  currentView,
+  selectedEntityIds,
+  treeState,
+  contextMenus,
+  multiSelect,
+  onOriginEntitySelect,
+  onAddAcquiredEntity,
+  onAddVendor,
+  onAddTeam,
 }) => (
   <>
     <AcquiredEntitiesSection
@@ -107,7 +145,11 @@ const OriginEntitySections: React.FC<OriginEntitySectionsProps> = ({
       currentView={currentView}
       selectedEntityId={selectedEntityIds.acquiredEntityId}
       isExpanded={treeState.isAcquiredEntitiesExpanded}
-      onToggle={() => treeState.setIsAcquiredEntitiesExpanded(!treeState.isAcquiredEntitiesExpanded)}
+      onToggle={() =>
+        treeState.setIsAcquiredEntitiesExpanded(
+          !treeState.isAcquiredEntitiesExpanded,
+        )
+      }
       onAddEntity={onAddAcquiredEntity}
       onEntitySelect={(entityId) => onOriginEntitySelect?.(`acq-${entityId}`)}
       onEntityContextMenu={contextMenus.handleAcquiredEntityContextMenu}
@@ -118,9 +160,13 @@ const OriginEntitySections: React.FC<OriginEntitySectionsProps> = ({
       currentView={currentView}
       selectedVendorId={selectedEntityIds.vendorId}
       isExpanded={treeState.isVendorsExpanded}
-      onToggle={() => treeState.setIsVendorsExpanded(!treeState.isVendorsExpanded)}
+      onToggle={() =>
+        treeState.setIsVendorsExpanded(!treeState.isVendorsExpanded)
+      }
       onAddVendor={onAddVendor}
-      onVendorSelect={(vendorId) => onOriginEntitySelect?.(`vendor-${vendorId}`)}
+      onVendorSelect={(vendorId) =>
+        onOriginEntitySelect?.(`vendor-${vendorId}`)
+      }
       onVendorContextMenu={contextMenus.handleVendorContextMenu}
       multiSelect={multiSelect}
     />
@@ -129,7 +175,9 @@ const OriginEntitySections: React.FC<OriginEntitySectionsProps> = ({
       currentView={currentView}
       selectedTeamId={selectedEntityIds.teamId}
       isExpanded={treeState.isInternalTeamsExpanded}
-      onToggle={() => treeState.setIsInternalTeamsExpanded(!treeState.isInternalTeamsExpanded)}
+      onToggle={() =>
+        treeState.setIsInternalTeamsExpanded(!treeState.isInternalTeamsExpanded)
+      }
       onAddTeam={onAddTeam}
       onTeamSelect={(teamId) => onOriginEntitySelect?.(`team-${teamId}`)}
       onTeamContextMenu={contextMenus.handleInternalTeamContextMenu}
@@ -141,7 +189,11 @@ const OriginEntitySections: React.FC<OriginEntitySectionsProps> = ({
 const TreeHeader: React.FC<{ onClose: () => void }> = ({ onClose }) => (
   <div className="navigation-tree-header">
     <h3>Explorer</h3>
-    <button className="tree-toggle-btn" onClick={onClose} aria-label="Close navigation">
+    <button
+      className="tree-toggle-btn"
+      onClick={onClose}
+      aria-label="Close navigation"
+    >
       ‹
     </button>
   </div>
@@ -156,6 +208,7 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
   acquiredEntities,
   vendors,
   internalTeams,
+  valueStreams,
   selectedCapabilityId,
   setSelectedCapabilityId,
   selectedEntityIds,
@@ -173,6 +226,8 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
   onAddAcquiredEntity,
   onAddVendor,
   onAddTeam,
+  onAddValueStream,
+  onValueStreamContextMenu,
   artifactCreators = [],
   users = [],
   selectedCreatorIds = [],
@@ -206,7 +261,9 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
         currentView={currentView}
         selectedNodeId={selectedNodeId}
         isExpanded={treeState.isModelsExpanded}
-        onToggle={() => treeState.setIsModelsExpanded(!treeState.isModelsExpanded)}
+        onToggle={() =>
+          treeState.setIsModelsExpanded(!treeState.isModelsExpanded)
+        }
         onAddComponent={onAddComponent}
         onComponentSelect={onComponentSelect}
         onComponentContextMenu={contextMenus.handleComponentContextMenu}
@@ -221,7 +278,9 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
         views={views}
         currentView={currentView}
         isExpanded={treeState.isViewsExpanded}
-        onToggle={() => treeState.setIsViewsExpanded(!treeState.isViewsExpanded)}
+        onToggle={() =>
+          treeState.setIsViewsExpanded(!treeState.isViewsExpanded)
+        }
         canCreateView={canCreateView}
         onCreateView={() => contextMenus.setShowCreateDialog(true)}
         onViewSelect={onViewSelect}
@@ -236,7 +295,9 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
         capabilities={capabilities}
         currentView={currentView}
         isExpanded={treeState.isCapabilitiesExpanded}
-        onToggle={() => treeState.setIsCapabilitiesExpanded(!treeState.isCapabilitiesExpanded)}
+        onToggle={() =>
+          treeState.setIsCapabilitiesExpanded(!treeState.isCapabilitiesExpanded)
+        }
         onAddCapability={onAddCapability}
         onCapabilitySelect={onCapabilitySelect}
         onCapabilityContextMenu={contextMenus.handleCapabilityContextMenu}
@@ -260,6 +321,16 @@ export const NavigationTreeContent: React.FC<NavigationTreeContentProps> = ({
         onAddAcquiredEntity={onAddAcquiredEntity}
         onAddVendor={onAddVendor}
         onAddTeam={onAddTeam}
+      />
+
+      <ValueStreamsSection
+        valueStreams={valueStreams}
+        isExpanded={treeState.isValueStreamsExpanded}
+        onToggle={() =>
+          treeState.setIsValueStreamsExpanded(!treeState.isValueStreamsExpanded)
+        }
+        onAddValueStream={onAddValueStream}
+        onValueStreamContextMenu={onValueStreamContextMenu}
       />
 
       {selectionCount >= 2 && (

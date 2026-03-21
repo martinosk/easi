@@ -1,22 +1,37 @@
-import React, { useState, useMemo } from 'react';
-import { useAppStore } from '../../../store/appStore';
-import { EditCapabilityDialog } from './EditCapabilityDialog';
-import { AddExpertDialog } from './AddExpertDialog';
-import { CapabilityExpertsList } from './CapabilityExpertsList';
-import { DetailField } from '../../../components/shared/DetailField';
-import { ColorPicker } from '../../../components/shared/ColorPicker';
-import { RealizationFitContext } from './RealizationFitContext';
-import { AuditHistorySection } from '../../audit';
-import { useCapabilities, useCapabilityRealizations } from '../hooks/useCapabilities';
-import { useComponents } from '../../components/hooks/useComponents';
-import { useUpdateCapabilityColor } from '../../views/hooks/useViews';
-import { useCurrentView } from '../../views/hooks/useCurrentView';
-import { useMaturityScale } from '../../../hooks/useMaturityScale';
-import { useStrategyImportanceByCapability } from '../../business-domains/hooks/useStrategyImportance';
-import { deriveLegacyMaturityValue, getDefaultSections } from '../../../utils/maturity';
-import { hasLink } from '../../../utils/hateoas';
-import type { Capability, Component, CapabilityRealization, View, ViewCapability, CapabilityId, StrategyImportance } from '../../../api/types';
-import toast from 'react-hot-toast';
+import React, { useState, useMemo } from "react";
+import { useAppStore } from "../../../store/appStore";
+import { EditCapabilityDialog } from "./EditCapabilityDialog";
+import { AddExpertDialog } from "./AddExpertDialog";
+import { CapabilityExpertsList } from "./CapabilityExpertsList";
+import { DetailField } from "../../../components/shared/DetailField";
+import { ColorPicker } from "../../../components/shared/ColorPicker";
+import { RealizationFitContext } from "./RealizationFitContext";
+import { CapabilityValueStreamsSection } from "./CapabilityValueStreamsSection";
+import { AuditHistorySection } from "../../audit";
+import {
+  useCapabilities,
+  useCapabilityRealizations,
+} from "../hooks/useCapabilities";
+import { useComponents } from "../../components/hooks/useComponents";
+import { useUpdateCapabilityColor } from "../../views/hooks/useViews";
+import { useCurrentView } from "../../views/hooks/useCurrentView";
+import { useMaturityScale } from "../../../hooks/useMaturityScale";
+import { useStrategyImportanceByCapability } from "../../business-domains/hooks/useStrategyImportance";
+import {
+  deriveLegacyMaturityValue,
+  getDefaultSections,
+} from "../../../utils/maturity";
+import { hasLink } from "../../../utils/hateoas";
+import type {
+  Capability,
+  Component,
+  CapabilityRealization,
+  View,
+  ViewCapability,
+  CapabilityId,
+  StrategyImportance,
+} from "../../../api/types";
+import toast from "react-hot-toast";
 
 interface CapabilityDetailsProps {
   onRemoveFromView: () => void;
@@ -25,32 +40,39 @@ interface CapabilityDetailsProps {
 const getMaturityBadgeClass = (maturityLevel?: string): string => {
   const level = maturityLevel?.toLowerCase();
   const maturityClasses: Record<string, string> = {
-    'genesis': 'badge-genesis',
-    'custom build': 'badge-custom-build',
-    'custom built': 'badge-custom-build',
-    'product': 'badge-product',
-    'commodity': 'badge-commodity',
+    genesis: "badge-genesis",
+    "custom build": "badge-custom-build",
+    "custom built": "badge-custom-build",
+    product: "badge-product",
+    commodity: "badge-commodity",
   };
-  return maturityClasses[level || ''] || 'badge-default';
+  return maturityClasses[level || ""] || "badge-default";
 };
 
 const getLevelBadge = (level: string): string => {
   const badges: Record<string, string> = {
-    Full: '100%',
-    Partial: 'Partial',
-    Planned: 'Planned',
+    Full: "100%",
+    Partial: "Partial",
+    Planned: "Planned",
   };
   return badges[level] || level;
 };
 
-const getComponentName = (components: Component[], componentId: string): string => {
+const getComponentName = (
+  components: Component[],
+  componentId: string,
+): string => {
   const comp = components.find((c) => c.id === componentId);
-  return comp?.name || 'Unknown';
+  return comp?.name || "Unknown";
 };
 
 const TagList: React.FC<{ tags: string[] }> = ({ tags }) => (
   <div className="tag-list">
-    {tags.map((tag, idx) => <span key={idx} className="tag-badge">{tag}</span>)}
+    {tags.map((tag, idx) => (
+      <span key={idx} className="tag-badge">
+        {tag}
+      </span>
+    ))}
   </div>
 );
 
@@ -78,8 +100,12 @@ const RealizingComponentsList: React.FC<RealizingComponentsProps> = ({
         {realizations.map((r) => (
           <li key={r.id} className="realization-item-with-fit">
             <div className="realization-header">
-              <span className="realization-name">{getComponentName(components, r.componentId)}</span>
-              <span className="realization-level">{getLevelBadge(r.realizationLevel)}</span>
+              <span className="realization-name">
+                {getComponentName(components, r.componentId)}
+              </span>
+              <span className="realization-level">
+                {getLevelBadge(r.realizationLevel)}
+              </span>
             </div>
           </li>
         ))}
@@ -92,8 +118,12 @@ const RealizingComponentsList: React.FC<RealizingComponentsProps> = ({
       {realizations.map((r) => (
         <li key={r.id} className="realization-item-with-fit">
           <div className="realization-header">
-            <span className="realization-name">{getComponentName(components, r.componentId)}</span>
-            <span className="realization-level">{getLevelBadge(r.realizationLevel)}</span>
+            <span className="realization-name">
+              {getComponentName(components, r.componentId)}
+            </span>
+            <span className="realization-level">
+              {getLevelBadge(r.realizationLevel)}
+            </span>
           </div>
           {uniqueDomainIds.map((domainId) => (
             <RealizationFitContext
@@ -115,7 +145,11 @@ interface OptionalFieldProps<T> {
   render: (value: T) => React.ReactNode;
 }
 
-function OptionalField<T>({ value, label, render }: OptionalFieldProps<T>): React.ReactElement | null {
+function OptionalField<T>({
+  value,
+  label,
+  render,
+}: OptionalFieldProps<T>): React.ReactElement | null {
   if (value === undefined || value === null) return null;
   if (Array.isArray(value) && value.length === 0) return null;
   return <DetailField label={label}>{render(value)}</DetailField>;
@@ -125,7 +159,9 @@ interface CapabilityFieldsProps {
   capability: Capability;
 }
 
-const CapabilityOptionalFields: React.FC<CapabilityFieldsProps> = ({ capability }) => (
+const CapabilityOptionalFields: React.FC<CapabilityFieldsProps> = ({
+  capability,
+}) => (
   <>
     <OptionalField
       value={capability.description}
@@ -166,9 +202,13 @@ interface ColorPickerFieldProps {
   onColorChange: (color: string) => void;
 }
 
-const ColorPickerField: React.FC<ColorPickerFieldProps> = ({ capabilityInView, currentView, onColorChange }) => {
+const ColorPickerField: React.FC<ColorPickerFieldProps> = ({
+  capabilityInView,
+  currentView,
+  onColorChange,
+}) => {
   const currentColor = capabilityInView.customColor || null;
-  const isColorPickerEnabled = currentView.colorScheme === 'custom';
+  const isColorPickerEnabled = currentView.colorScheme === "custom";
 
   return (
     <DetailField label="Custom Color">
@@ -239,36 +279,66 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
   const { data: maturityScale } = useMaturityScale();
   const sections = maturityScale?.sections ?? getDefaultSections();
 
-  const effectiveMaturityValue = capability.maturityValue ??
-    (capability.maturityLevel ? deriveLegacyMaturityValue(capability.maturityLevel, sections) : 12);
-  const sectionName = sections.find(s => effectiveMaturityValue >= s.minValue && effectiveMaturityValue <= s.maxValue)?.name ||
-    'Unknown';
+  const effectiveMaturityValue =
+    capability.maturityValue ??
+    (capability.maturityLevel
+      ? deriveLegacyMaturityValue(capability.maturityLevel, sections)
+      : 12);
+  const sectionName =
+    sections.find(
+      (s) =>
+        effectiveMaturityValue >= s.minValue &&
+        effectiveMaturityValue <= s.maxValue,
+    )?.name || "Unknown";
   const maturityDisplay = `${sectionName} (${effectiveMaturityValue})`;
 
   const canEdit = capability._links?.edit !== undefined;
-  const canRemoveFromView = capabilityInView?._links?.['x-remove'] !== undefined;
-  const canAddExpert = hasLink(capability, 'x-add-expert');
+  const canRemoveFromView =
+    capabilityInView?._links?.["x-remove"] !== undefined;
+  const canAddExpert = hasLink(capability, "x-add-expert");
   const showActionButtons = canEdit || canRemoveFromView;
 
   return (
     <div className="detail-content">
       {showActionButtons && (
         <div className="detail-actions">
-          {canEdit && <button className="btn btn-secondary btn-small" onClick={onEdit}>Edit</button>}
-          {canRemoveFromView && <button className="btn btn-secondary btn-small" onClick={onRemoveFromView}>Remove from View</button>}
+          {canEdit && (
+            <button
+              className="btn btn-secondary btn-small"
+              onClick={onEdit}
+            >
+              Edit
+            </button>
+          )}
+          {canRemoveFromView && (
+            <button
+              className="btn btn-secondary btn-small"
+              onClick={onRemoveFromView}
+            >
+              Remove from View
+            </button>
+          )}
         </div>
       )}
 
       <DetailField label="Name">{capability.name}</DetailField>
-      <DetailField label="Level"><span className="level-badge">{capability.level}</span></DetailField>
+      <DetailField label="Level">
+        <span className="level-badge">{capability.level}</span>
+      </DetailField>
       <CapabilityOptionalFields capability={capability} />
       <DetailField label="Maturity Level">
-        <span className={`maturity-badge ${getMaturityBadgeClass(sectionName)}`}>
+        <span
+          className={`maturity-badge ${getMaturityBadgeClass(sectionName)}`}
+        >
           {maturityDisplay}
         </span>
       </DetailField>
-      <DetailField label="Created"><span className="detail-date">{formattedDate}</span></DetailField>
-      <DetailField label="ID"><span className="detail-id">{capability.id}</span></DetailField>
+      <DetailField label="Created">
+        <span className="detail-date">{formattedDate}</span>
+      </DetailField>
+      <DetailField label="ID">
+        <span className="detail-id">{capability.id}</span>
+      </DetailField>
 
       <CapabilityExpertsList
         capabilityId={capability.id}
@@ -292,18 +362,27 @@ const CapabilityContent: React.FC<CapabilityContentProps> = ({
         importanceRatings={importanceRatings}
       />
 
+      <CapabilityValueStreamsSection capabilityId={capability.id} />
+
       <AuditHistorySection aggregateId={capability.id} />
     </div>
   );
 };
 
-export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFromView }) => {
-  const selectedCapabilityId = useAppStore((state) => state.selectedCapabilityId);
+export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({
+  onRemoveFromView,
+}) => {
+  const selectedCapabilityId = useAppStore(
+    (state) => state.selectedCapabilityId,
+  );
   const { data: capabilities = [] } = useCapabilities();
   const { data: components = [] } = useComponents();
   const { currentView } = useCurrentView();
-  const { data: capabilityRealizationsForThis = [] } = useCapabilityRealizations(selectedCapabilityId ?? undefined);
-  const { data: importanceRatings = [] } = useStrategyImportanceByCapability(selectedCapabilityId ?? undefined);
+  const { data: capabilityRealizationsForThis = [] } =
+    useCapabilityRealizations(selectedCapabilityId ?? undefined);
+  const { data: importanceRatings = [] } = useStrategyImportanceByCapability(
+    selectedCapabilityId ?? undefined,
+  );
   const updateCapabilityColorMutation = useUpdateCapabilityColor();
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showAddExpertDialog, setShowAddExpertDialog] = useState(false);
@@ -312,7 +391,7 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
   if (!selectedCapabilityId || !capability) return null;
 
   const capabilityInView = currentView?.capabilities.find(
-    (vc) => vc.capabilityId === selectedCapabilityId
+    (vc) => vc.capabilityId === selectedCapabilityId,
   );
 
   const handleColorChange = async (color: string) => {
@@ -322,10 +401,10 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
       await updateCapabilityColorMutation.mutateAsync({
         viewId: currentView.id,
         capabilityId: selectedCapabilityId,
-        color
+        color,
       });
     } catch {
-      toast.error('Failed to update color');
+      toast.error("Failed to update color");
     }
   };
 
@@ -348,8 +427,16 @@ export const CapabilityDetails: React.FC<CapabilityDetailsProps> = ({ onRemoveFr
         onAddExpert={() => setShowAddExpertDialog(true)}
       />
 
-      <EditCapabilityDialog isOpen={showEditDialog} onClose={() => setShowEditDialog(false)} capability={capability} />
-      <AddExpertDialog isOpen={showAddExpertDialog} onClose={() => setShowAddExpertDialog(false)} capabilityId={capability.id} />
+      <EditCapabilityDialog
+        isOpen={showEditDialog}
+        onClose={() => setShowEditDialog(false)}
+        capability={capability}
+      />
+      <AddExpertDialog
+        isOpen={showAddExpertDialog}
+        onClose={() => setShowAddExpertDialog(false)}
+        capabilityId={capability.id}
+      />
     </div>
   );
 };
