@@ -5,7 +5,7 @@
 | Layer | Technology |
 |-------|-----------|
 | Frontend | TypeScript, React 19, Vite, Vitest, Playwright |
-| Backend | Go 1.26, chi router, PostgreSQL, Swagger/swag |
+| Backend | Go 1.26.1, chi router, PostgreSQL, Swagger/swag |
 | Container | Docker, docker-compose |
 | Package manager | npm (frontend) |
 
