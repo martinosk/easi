@@ -7,7 +7,9 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
-var ErrFitRationaleTooLong = errors.New("fit rationale cannot exceed 500 characters")
+const MaxFitRationaleLength = 2000
+
+var ErrFitRationaleTooLong = errors.New("fit rationale cannot exceed 2000 characters")
 
 type FitRationale struct {
 	value string
@@ -15,7 +17,7 @@ type FitRationale struct {
 
 func NewFitRationale(value string) (FitRationale, error) {
 	trimmed := strings.TrimSpace(value)
-	if len(trimmed) > 500 {
+	if len(trimmed) > MaxFitRationaleLength {
 		return FitRationale{}, ErrFitRationaleTooLong
 	}
 	return FitRationale{value: trimmed}, nil

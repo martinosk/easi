@@ -1,9 +1,17 @@
-import React, { useState, useMemo } from 'react';
-import { useComponentFitScores, useSetFitScore, useDeleteFitScore } from '../hooks/useFitScores';
-import { useStrategyPillarsConfig } from '../../../hooks/useStrategyPillarsSettings';
-import { canEdit, canDelete, canCreate } from '../../../utils/hateoas';
-import type { ComponentId, StrategyPillar, ApplicationFitScore } from '../../../api/types';
-import './ComponentFitScores.css';
+import React, { useState, useMemo } from "react";
+import {
+  useComponentFitScores,
+  useSetFitScore,
+  useDeleteFitScore,
+} from "../hooks/useFitScores";
+import { useStrategyPillarsConfig } from "../../../hooks/useStrategyPillarsSettings";
+import { canEdit, canDelete, canCreate } from "../../../utils/hateoas";
+import type {
+  ComponentId,
+  StrategyPillar,
+  ApplicationFitScore,
+} from "../../../api/types";
+import "./ComponentFitScores.css";
 
 interface ComponentFitScoresProps {
   componentId: ComponentId;
@@ -12,11 +20,11 @@ interface ComponentFitScoresProps {
 const SCORE_RANGE = [1, 2, 3, 4, 5] as const;
 
 const SCORE_LABELS: Record<number, string> = {
-  1: 'Critical',
-  2: 'Poor',
-  3: 'Adequate',
-  4: 'Good',
-  5: 'Excellent',
+  1: "Critical",
+  2: "Poor",
+  3: "Adequate",
+  4: "Good",
+  5: "Excellent",
 };
 // Note: Labels must match backend FitScore.GetLabel() for consistency.
 // Used only during editing; API response scoreLabel is authoritative for display.
@@ -64,7 +72,7 @@ const FitScoreEditForm: React.FC<FitScoreEditFormProps> = ({
         <button
           key={s}
           type="button"
-          className={`fit-score-btn ${editScore === s ? 'selected' : ''}`}
+          className={`fit-score-btn ${editScore === s ? "selected" : ""}`}
           onClick={() => onScoreChange(s)}
           disabled={isSaving}
           data-testid={`fit-score-btn-${s}`}
@@ -73,13 +81,15 @@ const FitScoreEditForm: React.FC<FitScoreEditFormProps> = ({
         </button>
       ))}
     </div>
-    <span className="fit-score-label">{editScore ? SCORE_LABELS[editScore] : 'Select score'}</span>
+    <span className="fit-score-label">
+      {editScore ? SCORE_LABELS[editScore] : "Select score"}
+    </span>
     <textarea
       className="fit-score-rationale-input"
       placeholder="Rationale (optional)"
       value={editRationale}
       onChange={(e) => onRationaleChange(e.target.value)}
-      maxLength={500}
+      maxLength={2000}
       disabled={isSaving}
       data-testid="fit-score-rationale-input"
     />
@@ -98,7 +108,7 @@ const FitScoreEditForm: React.FC<FitScoreEditFormProps> = ({
         onClick={onSave}
         disabled={!editScore || isSaving}
       >
-        {isSaving ? 'Saving...' : 'Save'}
+        {isSaving ? "Saving..." : "Save"}
       </button>
     </div>
   </div>
@@ -131,7 +141,7 @@ const FitScoreDisplay: React.FC<FitScoreDisplayProps> = ({
             {SCORE_RANGE.map((s) => (
               <span
                 key={s}
-                className={`fit-score-dot ${s <= score.score ? 'filled' : ''}`}
+                className={`fit-score-dot ${s <= score.score ? "filled" : ""}`}
               />
             ))}
           </span>
@@ -225,7 +235,9 @@ const FitScoreRow: React.FC<FitScoreRowProps> = ({
   </div>
 );
 
-export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({ componentId }) => {
+export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({
+  componentId,
+}) => {
   const { data: pillarsConfig } = useStrategyPillarsConfig();
   const { data: fitScoresResponse } = useComponentFitScores(componentId);
   const setFitScoreMutation = useSetFitScore();
@@ -233,7 +245,7 @@ export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({ componen
 
   const [editingPillarId, setEditingPillarId] = useState<string | null>(null);
   const [editScore, setEditScore] = useState<number | null>(null);
-  const [editRationale, setEditRationale] = useState('');
+  const [editRationale, setEditRationale] = useState("");
 
   const collectionLinks = fitScoresResponse?._links;
 
@@ -247,7 +259,9 @@ export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({ componen
     return new Map(fitScores.map((s) => [s.pillarId, s]));
   }, [fitScoresResponse?.data]);
 
-  const getScoreForPillar = (pillarId: string): ApplicationFitScore | undefined => {
+  const getScoreForPillar = (
+    pillarId: string,
+  ): ApplicationFitScore | undefined => {
     return scoresByPillar.get(pillarId);
   };
 
@@ -255,13 +269,13 @@ export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({ componen
     const existingScore = getScoreForPillar(pillar.id);
     setEditingPillarId(pillar.id);
     setEditScore(existingScore?.score ?? null);
-    setEditRationale(existingScore?.rationale ?? '');
+    setEditRationale(existingScore?.rationale ?? "");
   };
 
   const handleCancel = () => {
     setEditingPillarId(null);
     setEditScore(null);
-    setEditRationale('');
+    setEditRationale("");
   };
 
   const handleSave = async (pillarId: string) => {
@@ -281,7 +295,7 @@ export const ComponentFitScores: React.FC<ComponentFitScoresProps> = ({ componen
   const handleDelete = async (pillarId: string) => {
     const pillar = enabledPillars.find((p) => p.id === pillarId);
     const confirmed = window.confirm(
-      `Are you sure you want to remove the fit score for "${pillar?.name || 'this pillar'}"?`
+      `Are you sure you want to remove the fit score for "${pillar?.name || "this pillar"}"?`,
     );
     if (!confirmed) return;
 
