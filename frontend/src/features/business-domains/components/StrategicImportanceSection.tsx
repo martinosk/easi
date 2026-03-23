@@ -1,14 +1,18 @@
-import React, { useState, useMemo } from 'react';
-import type { BusinessDomain, CapabilityId, StrategyImportance } from '../../../api/types';
+import React, { useState, useMemo } from "react";
+import type {
+  BusinessDomain,
+  CapabilityId,
+  StrategyImportance,
+} from "../../../api/types";
 import {
   useStrategyImportanceByDomainAndCapability,
   useSetStrategyImportance,
   useUpdateStrategyImportance,
   useRemoveStrategyImportance,
-} from '../hooks/useStrategyImportance';
-import { useStrategyPillarsConfig } from '../../../hooks/useStrategyPillarsSettings';
-import { canCreate } from '../../../utils/hateoas';
-import '../../../features/components/components/ComponentFitScores.css';
+} from "../hooks/useStrategyImportance";
+import { useStrategyPillarsConfig } from "../../../hooks/useStrategyPillarsSettings";
+import { canCreate } from "../../../utils/hateoas";
+import "../../../features/components/components/ComponentFitScores.css";
 
 interface StrategicImportanceSectionProps {
   domain: BusinessDomain;
@@ -18,11 +22,11 @@ interface StrategicImportanceSectionProps {
 const SCORE_RANGE = [1, 2, 3, 4, 5] as const;
 
 const IMPORTANCE_LABELS: Record<number, string> = {
-  1: 'Low',
-  2: 'Below Average',
-  3: 'Average',
-  4: 'Above Average',
-  5: 'Critical',
+  1: "Low",
+  2: "Below Average",
+  3: "Average",
+  4: "Above Average",
+  5: "Critical",
 };
 
 interface StrategyPillar {
@@ -42,7 +46,15 @@ interface ImportanceEditFormProps {
   isSaving: boolean;
 }
 
-function ImportanceEditForm({ editScore, editRationale, onScoreChange, onRationaleChange, onCancel, onSave, isSaving }: ImportanceEditFormProps) {
+function ImportanceEditForm({
+  editScore,
+  editRationale,
+  onScoreChange,
+  onRationaleChange,
+  onCancel,
+  onSave,
+  isSaving,
+}: ImportanceEditFormProps) {
   return (
     <div className="fit-score-edit">
       <div className="fit-score-selector">
@@ -50,7 +62,7 @@ function ImportanceEditForm({ editScore, editRationale, onScoreChange, onRationa
           <button
             key={s}
             type="button"
-            className={`fit-score-btn ${editScore === s ? 'selected' : ''}`}
+            className={`fit-score-btn ${editScore === s ? "selected" : ""}`}
             onClick={() => onScoreChange(s)}
             disabled={isSaving}
             data-testid={`importance-btn-${s}`}
@@ -59,13 +71,15 @@ function ImportanceEditForm({ editScore, editRationale, onScoreChange, onRationa
           </button>
         ))}
       </div>
-      <span className="fit-score-label">{editScore ? IMPORTANCE_LABELS[editScore] : 'Select importance'}</span>
+      <span className="fit-score-label">
+        {editScore ? IMPORTANCE_LABELS[editScore] : "Select importance"}
+      </span>
       <textarea
         className="fit-score-rationale-input"
         placeholder="Rationale (optional)"
         value={editRationale}
         onChange={(e) => onRationaleChange(e.target.value)}
-        maxLength={500}
+        maxLength={2000}
         disabled={isSaving}
         data-testid="importance-rationale-input"
       />
@@ -84,7 +98,7 @@ function ImportanceEditForm({ editScore, editRationale, onScoreChange, onRationa
           onClick={onSave}
           disabled={!editScore || isSaving}
         >
-          {isSaving ? 'Saving...' : 'Save'}
+          {isSaving ? "Saving..." : "Save"}
         </button>
       </div>
     </div>
@@ -100,7 +114,14 @@ interface ImportanceDisplayProps {
   onDelete: () => void;
 }
 
-function ImportanceDisplay({ pillarId, pillarName, importance, canAddImportance, onEdit, onDelete }: ImportanceDisplayProps) {
+function ImportanceDisplay({
+  pillarId,
+  pillarName,
+  importance,
+  canAddImportance,
+  onEdit,
+  onDelete,
+}: ImportanceDisplayProps) {
   if (importance) {
     return (
       <div className="fit-score-display">
@@ -109,7 +130,7 @@ function ImportanceDisplay({ pillarId, pillarName, importance, canAddImportance,
             {SCORE_RANGE.map((s) => (
               <span
                 key={s}
-                className={`fit-score-dot ${s <= importance.importance ? 'filled' : ''}`}
+                className={`fit-score-dot ${s <= importance.importance ? "filled" : ""}`}
               />
             ))}
           </span>
@@ -226,11 +247,12 @@ const ImportanceRow: React.FC<ImportanceRowProps> = ({
   );
 };
 
-export function StrategicImportanceSection({ domain, capabilityId }: StrategicImportanceSectionProps) {
-  const { data: importanceResponse, isLoading } = useStrategyImportanceByDomainAndCapability(
-    domain.id,
-    capabilityId
-  );
+export function StrategicImportanceSection({
+  domain,
+  capabilityId,
+}: StrategicImportanceSectionProps) {
+  const { data: importanceResponse, isLoading } =
+    useStrategyImportanceByDomainAndCapability(domain.id, capabilityId);
   const { data: pillarsConfig } = useStrategyPillarsConfig();
   const setImportanceMutation = useSetStrategyImportance();
   const updateImportanceMutation = useUpdateStrategyImportance();
@@ -238,24 +260,29 @@ export function StrategicImportanceSection({ domain, capabilityId }: StrategicIm
 
   const [editingPillarId, setEditingPillarId] = useState<string | null>(null);
   const [editScore, setEditScore] = useState<number | null>(null);
-  const [editRationale, setEditRationale] = useState('');
+  const [editRationale, setEditRationale] = useState("");
 
   const activePillars = useMemo(() => {
     if (!pillarsConfig?.data) return [];
     return pillarsConfig.data.filter((p) => p.active);
   }, [pillarsConfig]);
 
-  const importanceRatings = useMemo(() => importanceResponse?.data ?? [], [importanceResponse?.data]);
+  const importanceRatings = useMemo(
+    () => importanceResponse?.data ?? [],
+    [importanceResponse?.data],
+  );
   const canAddImportance = useMemo(
     () => canCreate({ _links: importanceResponse?._links }),
-    [importanceResponse?._links]
+    [importanceResponse?._links],
   );
 
   const importanceByPillar = useMemo(() => {
     return new Map(importanceRatings.map((r) => [r.pillarId, r]));
   }, [importanceRatings]);
 
-  const getImportanceForPillar = (pillarId: string): StrategyImportance | undefined => {
+  const getImportanceForPillar = (
+    pillarId: string,
+  ): StrategyImportance | undefined => {
     return importanceByPillar.get(pillarId);
   };
 
@@ -263,13 +290,13 @@ export function StrategicImportanceSection({ domain, capabilityId }: StrategicIm
     const existing = getImportanceForPillar(pillar.id);
     setEditingPillarId(pillar.id);
     setEditScore(existing?.importance ?? null);
-    setEditRationale(existing?.rationale ?? '');
+    setEditRationale(existing?.rationale ?? "");
   };
 
   const handleCancel = () => {
     setEditingPillarId(null);
     setEditScore(null);
-    setEditRationale('');
+    setEditRationale("");
   };
 
   const handleSave = async (pillarId: string) => {
@@ -307,7 +334,7 @@ export function StrategicImportanceSection({ domain, capabilityId }: StrategicIm
 
     const pillar = activePillars.find((p) => p.id === pillarId);
     const confirmed = window.confirm(
-      `Are you sure you want to remove the importance rating for "${pillar?.name || 'this pillar'}"?`
+      `Are you sure you want to remove the importance rating for "${pillar?.name || "this pillar"}"?`,
     );
     if (!confirmed) return;
 
@@ -322,7 +349,8 @@ export function StrategicImportanceSection({ domain, capabilityId }: StrategicIm
     return null;
   }
 
-  const isSaving = setImportanceMutation.isPending || updateImportanceMutation.isPending;
+  const isSaving =
+    setImportanceMutation.isPending || updateImportanceMutation.isPending;
 
   return (
     <div className="component-fit-scores">
@@ -331,7 +359,9 @@ export function StrategicImportanceSection({ domain, capabilityId }: StrategicIm
         Rate how important this capability is for {domain.name}
       </p>
       {isLoading ? (
-        <div style={{ color: 'var(--color-gray-500)', fontSize: '0.875rem' }}>Loading...</div>
+        <div style={{ color: "var(--color-gray-500)", fontSize: "0.875rem" }}>
+          Loading...
+        </div>
       ) : (
         <div className="fit-scores-list">
           {activePillars.map((pillar) => (

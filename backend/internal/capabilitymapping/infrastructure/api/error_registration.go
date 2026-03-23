@@ -52,7 +52,7 @@ func init() {
 	registry.RegisterValidation(handlers.ErrInvalidFitScoreValue, "Fit score must be between 1 and 5")
 	registry.RegisterValidation(handlers.ErrPillarFitScoringDisabled, "Fit scoring is not enabled for this pillar")
 	registry.RegisterValidation(valueobjects.ErrFitScoreOutOfRange, "Fit score must be between 1 and 5")
-	registry.RegisterValidation(valueobjects.ErrFitRationaleTooLong, "Fit rationale cannot exceed 500 characters")
+	registry.RegisterValidation(valueobjects.ErrFitRationaleTooLong, "Fit rationale cannot exceed 2000 characters")
 
 	registry.RegisterConflict(handlers.ErrFitScoreAlreadyExists, "Fit score already exists for this component and pillar")
 
@@ -61,7 +61,7 @@ func init() {
 
 	registry.RegisterValidation(handlers.ErrInvalidImportanceValue, "Importance must be between 1 and 5")
 	registry.RegisterValidation(valueobjects.ErrImportanceOutOfRange, "Importance must be between 1 and 5")
-	registry.RegisterValidation(valueobjects.ErrRationaleTooLong, "Rationale cannot exceed 500 characters")
+	registry.RegisterValidation(valueobjects.ErrRationaleTooLong, "Rationale cannot exceed 2000 characters")
 
 	registry.RegisterConflict(handlers.ErrImportanceAlreadyExists, "Importance rating already exists for this combination")
 }

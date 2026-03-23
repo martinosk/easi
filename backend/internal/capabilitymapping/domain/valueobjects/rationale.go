@@ -7,9 +7,9 @@ import (
 	domain "easi/backend/internal/shared/eventsourcing"
 )
 
-const MaxRationaleLength = 500
+const MaxRationaleLength = 2000
 
-var ErrRationaleTooLong = errors.New("rationale cannot exceed 500 characters")
+var ErrRationaleTooLong = errors.New("rationale cannot exceed 2000 characters")
 
 type Rationale struct {
 	value string

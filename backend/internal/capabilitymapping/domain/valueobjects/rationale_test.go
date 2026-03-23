@@ -35,14 +35,14 @@ func TestNewRationale_TrimsWhitespace(t *testing.T) {
 }
 
 func TestNewRationale_MaxLength(t *testing.T) {
-	text := strings.Repeat("a", 500)
+	text := strings.Repeat("a", 2000)
 	rationale, err := NewRationale(text)
 	assert.NoError(t, err)
-	assert.Equal(t, 500, len(rationale.Value()))
+	assert.Equal(t, 2000, len(rationale.Value()))
 }
 
 func TestNewRationale_ExceedsMaxLength(t *testing.T) {
-	text := strings.Repeat("a", 501)
+	text := strings.Repeat("a", 2001)
 	_, err := NewRationale(text)
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, ErrRationaleTooLong)
