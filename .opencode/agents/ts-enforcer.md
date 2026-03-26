@@ -1,7 +1,7 @@
 ---
 name: ts-enforcer
 description: TypeScript strict mode enforcement — no any types, schema-first at trust boundaries, type vs interface discipline, strict tsconfig audit
-model: copilot/claude-haiku-4-5
+model: github-copilot/claude-haiku-4.5
 permission:
   edit: deny
   bash: deny

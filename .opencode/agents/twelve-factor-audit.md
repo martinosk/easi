@@ -1,7 +1,7 @@
 ---
 name: twelve-factor-audit
 description: Twelve-factor app methodology audit — checks all 12 factors with language-appropriate examples
-model: copilot/claude-sonnet-4-6
+model: github-copilot/claude-sonnet-4.6
 permission:
   edit: deny
   bash: deny

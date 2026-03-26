@@ -1,7 +1,7 @@
 ---
 name: go-quality
 description: Go code quality — error handling discipline, interface segregation, no naked returns, struct embedding patterns
-model: copilot/claude-haiku-4-5
+model: github-copilot/claude-haiku-4.5
 permission:
   edit: deny
   bash: deny
