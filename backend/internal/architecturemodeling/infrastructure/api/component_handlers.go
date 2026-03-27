@@ -94,16 +94,18 @@ func (h *ComponentHandlers) CreateApplicationComponent(w http.ResponseWriter, r 
 
 // GetAllComponents godoc
 // @Summary Get all application components
-// @Description Retrieves all application components with cursor-based pagination
+// @Description Retrieves all application components with cursor-based pagination. Optionally filter by name substring (case-insensitive).
 // @Tags components
 // @Produce json
 // @Param limit query int false "Number of items per page (max 100)" default(50)
 // @Param after query string false "Cursor for pagination (opaque token)"
+// @Param name query string false "Filter by name (case-insensitive substring match)"
 // @Success 200 {object} easi_backend_internal_shared_api.PaginatedResponse{data=[]readmodels.ApplicationComponentDTO}
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /components [get]
 func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Request) {
 	params := sharedAPI.ParsePaginationParams(r)
+	nameFilter := r.URL.Query().Get("name")
 
 	afterID, afterName, err := h.paginationHelper.ProcessNameCursor(params.After)
 	if err != nil {
@@ -111,7 +113,12 @@ func (h *ComponentHandlers) GetAllComponents(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	components, hasMore, err := h.readModel.GetAllPaginated(r.Context(), params.Limit, afterID, afterName)
+	components, hasMore, err := h.readModel.GetAllPaginated(r.Context(), readmodels.ComponentQuery{
+		Limit:       params.Limit,
+		AfterCursor: afterID,
+		AfterName:   afterName,
+		NameFilter:  nameFilter,
+	})
 	if err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, "Failed to retrieve components")
 		return

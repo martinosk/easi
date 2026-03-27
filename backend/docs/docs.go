@@ -3154,7 +3154,7 @@ const docTemplate = `{
         },
         "/components": {
             "get": {
-                "description": "Retrieves all application components with cursor-based pagination",
+                "description": "Retrieves all application components with cursor-based pagination. Optionally filter by name substring (case-insensitive).",
                 "produces": [
                     "application/json"
                 ],
@@ -3174,6 +3174,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Cursor for pagination (opaque token)",
                         "name": "after",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by name (case-insensitive substring match)",
+                        "name": "name",
                         "in": "query"
                     }
                 ],

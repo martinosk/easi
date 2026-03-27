@@ -176,24 +176,33 @@ func (rm *ApplicationComponentReadModel) GetAll(ctx context.Context) ([]Applicat
 	return components, err
 }
 
-type paginationQuery struct {
+type ComponentQuery struct {
+	Limit       int
+	AfterCursor string
+	AfterName   string
+	NameFilter  string
+}
+
+type resolvedQuery struct {
 	tenantID    string
 	afterCursor string
 	afterName   string
+	nameFilter  string
 	limit       int
 }
 
-func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, limit int, afterCursor string, afterName string) ([]ApplicationComponentDTO, bool, error) {
+func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, q ComponentQuery) ([]ApplicationComponentDTO, bool, error) {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return nil, false, err
 	}
 
-	query := paginationQuery{
+	query := resolvedQuery{
 		tenantID:    tenantID.Value(),
-		afterCursor: afterCursor,
-		afterName:   afterName,
-		limit:       limit + 1,
+		afterCursor: q.AfterCursor,
+		afterName:   q.AfterName,
+		nameFilter:  q.NameFilter,
+		limit:       q.Limit + 1,
 	}
 
 	var components []ApplicationComponentDTO
@@ -216,10 +225,22 @@ func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, li
 		return nil, false, err
 	}
 
-	return rm.trimAndCheckMore(components, limit)
+	return rm.trimAndCheckMore(components, q.Limit)
 }
 
-func (rm *ApplicationComponentReadModel) queryPaginatedComponents(ctx context.Context, tx *sql.Tx, query paginationQuery) (*sql.Rows, error) {
+func (rm *ApplicationComponentReadModel) queryPaginatedComponents(ctx context.Context, tx *sql.Tx, query resolvedQuery) (*sql.Rows, error) {
+	if query.nameFilter != "" && query.afterCursor != "" {
+		return tx.QueryContext(ctx,
+			"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND is_deleted = FALSE AND LOWER(name) LIKE '%' || LOWER($2) || '%' AND (LOWER(name) > LOWER($3) OR (LOWER(name) = LOWER($3) AND id > $4)) ORDER BY LOWER(name) ASC, id ASC LIMIT $5",
+			query.tenantID, query.nameFilter, query.afterName, query.afterCursor, query.limit,
+		)
+	}
+	if query.nameFilter != "" {
+		return tx.QueryContext(ctx,
+			"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND is_deleted = FALSE AND LOWER(name) LIKE '%' || LOWER($2) || '%' ORDER BY LOWER(name) ASC, id ASC LIMIT $3",
+			query.tenantID, query.nameFilter, query.limit,
+		)
+	}
 	if query.afterCursor == "" {
 		return tx.QueryContext(ctx,
 			"SELECT id, name, description, created_at FROM architecturemodeling.application_components WHERE tenant_id = $1 AND is_deleted = FALSE ORDER BY LOWER(name) ASC, id ASC LIMIT $2",

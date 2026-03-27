@@ -106,7 +106,7 @@ func (t *searchArchitectureTool) Execute(ctx context.Context, args map[string]in
 
 	var sections []string
 	sections = appendSearchSection(sections, "Applications", q, "/components?name="+encoded+"&limit=10", nil)
-	sections = appendSearchSection(sections, "Capabilities", q, "/capabilities?name="+encoded+"&limit=10", nil)
+	sections = appendSearchSection(sections, "Capabilities", q, "/capabilities", nameFilter(searchQuery))
 	sections = appendSearchSection(sections, "Business Domains", q, "/business-domains", nameFilter(searchQuery))
 
 	if len(sections) == 0 {
