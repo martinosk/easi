@@ -10,7 +10,7 @@ import (
 )
 
 type ElementColorClearer interface {
-	ClearElementColor(ctx context.Context, viewID, elementID string, elementType repositories.ElementType) error
+	ClearElementColor(ctx context.Context, ref repositories.ElementRef) error
 }
 
 type ClearElementColorHandler struct {
@@ -39,7 +39,7 @@ func (h *ClearElementColorHandler) Handle(ctx context.Context, cmd cqrs.Command)
 		return cqrs.EmptyResult(), errors.New("invalid element type: must be 'component' or 'capability'")
 	}
 
-	if err := h.layoutRepository.ClearElementColor(ctx, command.ViewID, command.ElementID, elementType); err != nil {
+	if err := h.layoutRepository.ClearElementColor(ctx, repositories.ElementRef{ViewID: command.ViewID, ElementID: command.ElementID, ElementType: elementType}); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 

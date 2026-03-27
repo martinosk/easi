@@ -44,6 +44,11 @@ func (h *ChangeUserRoleHandler) Handle(ctx context.Context, cmd cqrs.Command) (c
 		return cqrs.EmptyResult(), err
 	}
 
+	changedBy, err := valueobjects.UserIDFromString(command.ChangedByID)
+	if err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
 	isLastAdmin, err := h.userReadModel.IsLastActiveAdmin(ctx, command.UserID)
 	if err != nil {
 		return cqrs.EmptyResult(), err
@@ -54,7 +59,7 @@ func (h *ChangeUserRoleHandler) Handle(ctx context.Context, cmd cqrs.Command) (c
 		return cqrs.EmptyResult(), err
 	}
 
-	if err := user.ChangeRole(newRole, command.ChangedByID, isLastAdmin); err != nil {
+	if err := user.ChangeRole(newRole, changedBy, isLastAdmin); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 

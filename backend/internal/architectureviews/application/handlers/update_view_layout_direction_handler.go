@@ -30,7 +30,7 @@ func (h *UpdateViewLayoutDirectionHandler) Handle(ctx context.Context, cmd cqrs.
 		return cqrs.EmptyResult(), err
 	}
 
-	if err := h.layoutRepository.UpdateLayoutDirection(ctx, command.ViewID, command.LayoutDirection); err != nil {
+	if err := h.layoutRepository.UpdatePreference(ctx, command.ViewID, repositories.PreferenceKeyLayoutDirection, command.LayoutDirection); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 

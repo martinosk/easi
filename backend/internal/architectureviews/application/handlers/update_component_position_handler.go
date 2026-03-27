@@ -24,7 +24,8 @@ func (h *UpdateComponentPositionHandler) Handle(ctx context.Context, cmd cqrs.Co
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
-	if err := h.layoutRepository.UpdateComponentPosition(ctx, command.ViewID, command.ComponentID, command.X, command.Y); err != nil {
+	ref := repositories.ElementRef{ViewID: command.ViewID, ElementID: command.ComponentID, ElementType: repositories.ElementTypeComponent}
+	if err := h.layoutRepository.UpsertElementPosition(ctx, ref, repositories.Position{X: command.X, Y: command.Y}); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 

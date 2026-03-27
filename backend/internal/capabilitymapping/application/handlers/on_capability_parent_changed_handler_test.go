@@ -58,200 +58,203 @@ func (m *mockCapabilityReader) GetByID(ctx context.Context, id string) (*readmod
 	return m.capabilities[id], nil
 }
 
-func TestOnCapabilityParentChangedHandler_L1ToL2_UnassignsAndReassignsToParent(t *testing.T) {
-	commandBus := &mockCommandBus{}
-	assignmentRM := newMockAssignmentChecker()
-	capabilityRM := newMockCapabilityReader()
+type parentChangedFixture struct {
+	commandBus   *mockCommandBus
+	assignmentRM *mockAssignmentChecker
+	capabilityRM *mockCapabilityReader
+}
 
-	assignmentRM.assignmentsByCapability["cap-child"] = []readmodels.AssignmentDTO{
-		{AssignmentID: "assign-1", CapabilityID: "cap-child", BusinessDomainID: "bd-1"},
+func newParentChangedFixture() *parentChangedFixture {
+	return &parentChangedFixture{
+		commandBus:   &mockCommandBus{},
+		assignmentRM: newMockAssignmentChecker(),
+		capabilityRM: newMockCapabilityReader(),
 	}
-	capabilityRM.capabilities["cap-parent"] = &readmodels.CapabilityDTO{ID: "cap-parent", Level: "L1"}
-
-	handler := NewOnCapabilityParentChangedHandler(commandBus, assignmentRM, capabilityRM)
-	event := events.NewCapabilityParentChanged("cap-child", "", "cap-parent", "L1", "L2")
-
-	err := handler.Handle(context.Background(), event)
-
-	assert.NoError(t, err)
-	assert.Len(t, commandBus.dispatchedCommands, 2)
-
-	unassignCmd, ok := commandBus.dispatchedCommands[0].(*commands.UnassignCapabilityFromDomain)
-	assert.True(t, ok)
-	assert.Equal(t, "assign-1", unassignCmd.AssignmentID)
-
-	assignCmd, ok := commandBus.dispatchedCommands[1].(*commands.AssignCapabilityToDomain)
-	assert.True(t, ok)
-	assert.Equal(t, "bd-1", assignCmd.BusinessDomainID)
-	assert.Equal(t, "cap-parent", assignCmd.CapabilityID)
 }
 
-func TestOnCapabilityParentChangedHandler_L1ToL3_FindsL1Ancestor(t *testing.T) {
-	commandBus := &mockCommandBus{}
-	assignmentRM := newMockAssignmentChecker()
-	capabilityRM := newMockCapabilityReader()
+func (f *parentChangedFixture) handle(event events.CapabilityParentChanged) error {
+	handler := NewOnCapabilityParentChangedHandler(f.commandBus, f.assignmentRM, f.capabilityRM)
+	return handler.Handle(context.Background(), event)
+}
 
-	assignmentRM.assignmentsByCapability["cap-grandchild"] = []readmodels.AssignmentDTO{
-		{AssignmentID: "assign-1", CapabilityID: "cap-grandchild", BusinessDomainID: "bd-1"},
+func TestOnCapabilityParentChangedHandler_NoLevelChange(t *testing.T) {
+	tests := []struct {
+		name  string
+		event events.CapabilityParentChanged
+	}{
+		{
+			name:  "L2 to L3 takes no action",
+			event: events.NewCapabilityParentChanged("cap-child", "old-parent", "new-parent", "L2", "L3"),
+		},
+		{
+			name:  "L1 to L1 takes no action",
+			event: events.NewCapabilityParentChanged("cap-child", "", "", "L1", "L1"),
+		},
 	}
-	capabilityRM.capabilities["cap-parent"] = &readmodels.CapabilityDTO{ID: "cap-parent", Level: "L2", ParentID: "cap-grandparent"}
-	capabilityRM.capabilities["cap-grandparent"] = &readmodels.CapabilityDTO{ID: "cap-grandparent", Level: "L1"}
 
-	handler := NewOnCapabilityParentChangedHandler(commandBus, assignmentRM, capabilityRM)
-	event := events.NewCapabilityParentChanged("cap-grandchild", "", "cap-parent", "L1", "L3")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newParentChangedFixture()
 
-	err := handler.Handle(context.Background(), event)
+			err := f.handle(tt.event)
 
-	assert.NoError(t, err)
-	assert.Len(t, commandBus.dispatchedCommands, 2)
-
-	assignCmd, ok := commandBus.dispatchedCommands[1].(*commands.AssignCapabilityToDomain)
-	assert.True(t, ok)
-	assert.Equal(t, "cap-grandparent", assignCmd.CapabilityID)
-}
-
-func TestOnCapabilityParentChangedHandler_L1ToL4_FindsL1Ancestor(t *testing.T) {
-	commandBus := &mockCommandBus{}
-	assignmentRM := newMockAssignmentChecker()
-	capabilityRM := newMockCapabilityReader()
-
-	assignmentRM.assignmentsByCapability["cap-child"] = []readmodels.AssignmentDTO{
-		{AssignmentID: "assign-1", CapabilityID: "cap-child", BusinessDomainID: "bd-1"},
+			assert.NoError(t, err)
+			assert.Empty(t, f.commandBus.dispatchedCommands)
+		})
 	}
-	capabilityRM.capabilities["cap-l3"] = &readmodels.CapabilityDTO{ID: "cap-l3", Level: "L3", ParentID: "cap-l2"}
-	capabilityRM.capabilities["cap-l2"] = &readmodels.CapabilityDTO{ID: "cap-l2", Level: "L2", ParentID: "cap-l1"}
-	capabilityRM.capabilities["cap-l1"] = &readmodels.CapabilityDTO{ID: "cap-l1", Level: "L1"}
-
-	handler := NewOnCapabilityParentChangedHandler(commandBus, assignmentRM, capabilityRM)
-	event := events.NewCapabilityParentChanged("cap-child", "", "cap-l3", "L1", "L4")
-
-	err := handler.Handle(context.Background(), event)
-
-	assert.NoError(t, err)
-	assert.Len(t, commandBus.dispatchedCommands, 2)
-
-	assignCmd, ok := commandBus.dispatchedCommands[1].(*commands.AssignCapabilityToDomain)
-	assert.True(t, ok)
-	assert.Equal(t, "cap-l1", assignCmd.CapabilityID)
-}
-
-func TestOnCapabilityParentChangedHandler_L2ToL3_NoAction(t *testing.T) {
-	commandBus := &mockCommandBus{}
-	assignmentRM := newMockAssignmentChecker()
-	capabilityRM := newMockCapabilityReader()
-
-	handler := NewOnCapabilityParentChangedHandler(commandBus, assignmentRM, capabilityRM)
-	event := events.NewCapabilityParentChanged("cap-child", "old-parent", "new-parent", "L2", "L3")
-
-	err := handler.Handle(context.Background(), event)
-
-	assert.NoError(t, err)
-	assert.Empty(t, commandBus.dispatchedCommands)
-}
-
-func TestOnCapabilityParentChangedHandler_L1ToL1_NoAction(t *testing.T) {
-	commandBus := &mockCommandBus{}
-	assignmentRM := newMockAssignmentChecker()
-	capabilityRM := newMockCapabilityReader()
-
-	handler := NewOnCapabilityParentChangedHandler(commandBus, assignmentRM, capabilityRM)
-	event := events.NewCapabilityParentChanged("cap-child", "", "", "L1", "L1")
-
-	err := handler.Handle(context.Background(), event)
-
-	assert.NoError(t, err)
-	assert.Empty(t, commandBus.dispatchedCommands)
 }
 
 func TestOnCapabilityParentChangedHandler_NoAssignments_NoCommands(t *testing.T) {
-	commandBus := &mockCommandBus{}
-	assignmentRM := newMockAssignmentChecker()
-	capabilityRM := newMockCapabilityReader()
+	f := newParentChangedFixture()
 
-	handler := NewOnCapabilityParentChangedHandler(commandBus, assignmentRM, capabilityRM)
-	event := events.NewCapabilityParentChanged("cap-child", "", "cap-parent", "L1", "L2")
-
-	err := handler.Handle(context.Background(), event)
+	err := f.handle(events.NewCapabilityParentChanged("cap-child", "", "cap-parent", "L1", "L2"))
 
 	assert.NoError(t, err)
-	assert.Empty(t, commandBus.dispatchedCommands)
+	assert.Empty(t, f.commandBus.dispatchedCommands)
 }
 
-func TestOnCapabilityParentChangedHandler_ParentAlreadyAssigned_OnlyUnassigns(t *testing.T) {
-	commandBus := &mockCommandBus{}
-	assignmentRM := newMockAssignmentChecker()
-	capabilityRM := newMockCapabilityReader()
-
-	assignmentRM.assignmentsByCapability["cap-child"] = []readmodels.AssignmentDTO{
-		{AssignmentID: "assign-1", CapabilityID: "cap-child", BusinessDomainID: "bd-1"},
+func TestOnCapabilityParentChangedHandler_FindsL1Ancestor(t *testing.T) {
+	tests := []struct {
+		name                 string
+		childID              string
+		parentID             string
+		newLevel             string
+		capabilities         map[string]*readmodels.CapabilityDTO
+		expectedAncestorInID string
+	}{
+		{
+			name:     "L1 to L2 reassigns to direct parent",
+			childID:  "cap-child",
+			parentID: "cap-parent",
+			newLevel: "L2",
+			capabilities: map[string]*readmodels.CapabilityDTO{
+				"cap-parent": {ID: "cap-parent", Level: "L1"},
+			},
+			expectedAncestorInID: "cap-parent",
+		},
+		{
+			name:     "L1 to L3 traverses to L1 grandparent",
+			childID:  "cap-grandchild",
+			parentID: "cap-parent",
+			newLevel: "L3",
+			capabilities: map[string]*readmodels.CapabilityDTO{
+				"cap-parent":      {ID: "cap-parent", Level: "L2", ParentID: "cap-grandparent"},
+				"cap-grandparent": {ID: "cap-grandparent", Level: "L1"},
+			},
+			expectedAncestorInID: "cap-grandparent",
+		},
+		{
+			name:     "L1 to L4 traverses to L1 great-grandparent",
+			childID:  "cap-child",
+			parentID: "cap-l3",
+			newLevel: "L4",
+			capabilities: map[string]*readmodels.CapabilityDTO{
+				"cap-l3": {ID: "cap-l3", Level: "L3", ParentID: "cap-l2"},
+				"cap-l2": {ID: "cap-l2", Level: "L2", ParentID: "cap-l1"},
+				"cap-l1": {ID: "cap-l1", Level: "L1"},
+			},
+			expectedAncestorInID: "cap-l1",
+		},
 	}
-	assignmentRM.existingAssignments["bd-1:cap-parent"] = true
-	capabilityRM.capabilities["cap-parent"] = &readmodels.CapabilityDTO{ID: "cap-parent", Level: "L1"}
 
-	handler := NewOnCapabilityParentChangedHandler(commandBus, assignmentRM, capabilityRM)
-	event := events.NewCapabilityParentChanged("cap-child", "", "cap-parent", "L1", "L2")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newParentChangedFixture()
+			f.assignmentRM.assignmentsByCapability[tt.childID] = []readmodels.AssignmentDTO{
+				{AssignmentID: "assign-1", CapabilityID: tt.childID, BusinessDomainID: "bd-1"},
+			}
+			f.capabilityRM.capabilities = tt.capabilities
 
-	err := handler.Handle(context.Background(), event)
+			err := f.handle(events.NewCapabilityParentChanged(tt.childID, "", tt.parentID, "L1", tt.newLevel))
 
-	assert.NoError(t, err)
-	assert.Len(t, commandBus.dispatchedCommands, 1)
+			assert.NoError(t, err)
+			assert.Len(t, f.commandBus.dispatchedCommands, 2)
 
-	unassignCmd, ok := commandBus.dispatchedCommands[0].(*commands.UnassignCapabilityFromDomain)
-	assert.True(t, ok)
-	assert.Equal(t, "assign-1", unassignCmd.AssignmentID)
+			unassignCmd, ok := f.commandBus.dispatchedCommands[0].(*commands.UnassignCapabilityFromDomain)
+			assert.True(t, ok)
+			assert.Equal(t, "assign-1", unassignCmd.AssignmentID)
+
+			assignCmd, ok := f.commandBus.dispatchedCommands[1].(*commands.AssignCapabilityToDomain)
+			assert.True(t, ok)
+			assert.Equal(t, "bd-1", assignCmd.BusinessDomainID)
+			assert.Equal(t, tt.expectedAncestorInID, assignCmd.CapabilityID)
+		})
+	}
 }
 
-func TestOnCapabilityParentChangedHandler_L1AncestorAlreadyAssigned_OnlyUnassigns(t *testing.T) {
-	commandBus := &mockCommandBus{}
-	assignmentRM := newMockAssignmentChecker()
-	capabilityRM := newMockCapabilityReader()
-
-	assignmentRM.assignmentsByCapability["cap-child"] = []readmodels.AssignmentDTO{
-		{AssignmentID: "assign-1", CapabilityID: "cap-child", BusinessDomainID: "bd-1"},
+func TestOnCapabilityParentChangedHandler_AncestorAlreadyAssigned_OnlyUnassigns(t *testing.T) {
+	tests := []struct {
+		name                string
+		childID             string
+		parentID            string
+		newLevel            string
+		capabilities        map[string]*readmodels.CapabilityDTO
+		existingAssignments map[string]bool
+	}{
+		{
+			name:     "direct parent already assigned",
+			childID:  "cap-child",
+			parentID: "cap-parent",
+			newLevel: "L2",
+			capabilities: map[string]*readmodels.CapabilityDTO{
+				"cap-parent": {ID: "cap-parent", Level: "L1"},
+			},
+			existingAssignments: map[string]bool{"bd-1:cap-parent": true},
+		},
+		{
+			name:     "L1 ancestor already assigned",
+			childID:  "cap-child",
+			parentID: "cap-l2",
+			newLevel: "L3",
+			capabilities: map[string]*readmodels.CapabilityDTO{
+				"cap-l2": {ID: "cap-l2", Level: "L2", ParentID: "cap-l1"},
+				"cap-l1": {ID: "cap-l1", Level: "L1"},
+			},
+			existingAssignments: map[string]bool{"bd-1:cap-l1": true},
+		},
 	}
-	assignmentRM.existingAssignments["bd-1:cap-l1"] = true
-	capabilityRM.capabilities["cap-l2"] = &readmodels.CapabilityDTO{ID: "cap-l2", Level: "L2", ParentID: "cap-l1"}
-	capabilityRM.capabilities["cap-l1"] = &readmodels.CapabilityDTO{ID: "cap-l1", Level: "L1"}
 
-	handler := NewOnCapabilityParentChangedHandler(commandBus, assignmentRM, capabilityRM)
-	event := events.NewCapabilityParentChanged("cap-child", "", "cap-l2", "L1", "L3")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newParentChangedFixture()
+			f.assignmentRM.assignmentsByCapability[tt.childID] = []readmodels.AssignmentDTO{
+				{AssignmentID: "assign-1", CapabilityID: tt.childID, BusinessDomainID: "bd-1"},
+			}
+			f.assignmentRM.existingAssignments = tt.existingAssignments
+			f.capabilityRM.capabilities = tt.capabilities
 
-	err := handler.Handle(context.Background(), event)
+			err := f.handle(events.NewCapabilityParentChanged(tt.childID, "", tt.parentID, "L1", tt.newLevel))
 
-	assert.NoError(t, err)
-	assert.Len(t, commandBus.dispatchedCommands, 1)
+			assert.NoError(t, err)
+			assert.Len(t, f.commandBus.dispatchedCommands, 1)
 
-	unassignCmd, ok := commandBus.dispatchedCommands[0].(*commands.UnassignCapabilityFromDomain)
-	assert.True(t, ok)
-	assert.Equal(t, "assign-1", unassignCmd.AssignmentID)
+			unassignCmd, ok := f.commandBus.dispatchedCommands[0].(*commands.UnassignCapabilityFromDomain)
+			assert.True(t, ok)
+			assert.Equal(t, "assign-1", unassignCmd.AssignmentID)
+		})
+	}
 }
 
 func TestOnCapabilityParentChangedHandler_MultipleDomains_HandlesAll(t *testing.T) {
-	commandBus := &mockCommandBus{}
-	assignmentRM := newMockAssignmentChecker()
-	capabilityRM := newMockCapabilityReader()
-
-	assignmentRM.assignmentsByCapability["cap-child"] = []readmodels.AssignmentDTO{
+	f := newParentChangedFixture()
+	f.assignmentRM.assignmentsByCapability["cap-child"] = []readmodels.AssignmentDTO{
 		{AssignmentID: "assign-1", CapabilityID: "cap-child", BusinessDomainID: "bd-1"},
 		{AssignmentID: "assign-2", CapabilityID: "cap-child", BusinessDomainID: "bd-2"},
 		{AssignmentID: "assign-3", CapabilityID: "cap-child", BusinessDomainID: "bd-3"},
 	}
-	assignmentRM.existingAssignments["bd-2:cap-parent"] = true
-	capabilityRM.capabilities["cap-parent"] = &readmodels.CapabilityDTO{ID: "cap-parent", Level: "L1"}
+	f.assignmentRM.existingAssignments["bd-2:cap-parent"] = true
+	f.capabilityRM.capabilities["cap-parent"] = &readmodels.CapabilityDTO{ID: "cap-parent", Level: "L1"}
 
-	handler := NewOnCapabilityParentChangedHandler(commandBus, assignmentRM, capabilityRM)
-	event := events.NewCapabilityParentChanged("cap-child", "", "cap-parent", "L1", "L2")
-
-	err := handler.Handle(context.Background(), event)
+	err := f.handle(events.NewCapabilityParentChanged("cap-child", "", "cap-parent", "L1", "L2"))
 
 	assert.NoError(t, err)
-	assert.Len(t, commandBus.dispatchedCommands, 5)
+	assert.Len(t, f.commandBus.dispatchedCommands, 5)
 
 	unassignCount := 0
 	assignCount := 0
 	assignedDomains := []string{}
 
-	for _, cmd := range commandBus.dispatchedCommands {
+	for _, cmd := range f.commandBus.dispatchedCommands {
 		switch c := cmd.(type) {
 		case *commands.UnassignCapabilityFromDomain:
 			unassignCount++
@@ -269,15 +272,10 @@ func TestOnCapabilityParentChangedHandler_MultipleDomains_HandlesAll(t *testing.
 }
 
 func TestOnCapabilityParentChangedHandler_ReadModelError_ReturnsError(t *testing.T) {
-	commandBus := &mockCommandBus{}
-	assignmentRM := newMockAssignmentChecker()
-	capabilityRM := newMockCapabilityReader()
-	assignmentRM.queryError = errors.New("database error")
+	f := newParentChangedFixture()
+	f.assignmentRM.queryError = errors.New("database error")
 
-	handler := NewOnCapabilityParentChangedHandler(commandBus, assignmentRM, capabilityRM)
-	event := events.NewCapabilityParentChanged("cap-child", "", "cap-parent", "L1", "L2")
-
-	err := handler.Handle(context.Background(), event)
+	err := f.handle(events.NewCapabilityParentChanged("cap-child", "", "cap-parent", "L1", "L2"))
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "database error")

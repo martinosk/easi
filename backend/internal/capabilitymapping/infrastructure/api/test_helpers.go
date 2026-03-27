@@ -12,6 +12,7 @@ import (
 	"os"
 	"testing"
 
+	"easi/backend/internal/capabilitymapping/infrastructure/architecturemodeling"
 	sharedcontext "easi/backend/internal/shared/context"
 	sharedvo "easi/backend/internal/shared/eventsourcing/valueobjects"
 
@@ -42,6 +43,7 @@ func tenantContext() context.Context {
 }
 
 func makeRequest(t *testing.T, method, url string, body []byte, urlParams map[string]string) (*httptest.ResponseRecorder, *http.Request) {
+	t.Helper()
 	var bodyReader io.Reader
 	if body != nil {
 		bodyReader = bytes.NewReader(body)
@@ -62,4 +64,10 @@ func makeRequest(t *testing.T, method, url string, body []byte, urlParams map[st
 	}
 
 	return httptest.NewRecorder(), req
+}
+
+type noOpComponentGateway struct{}
+
+func (g *noOpComponentGateway) GetByID(_ context.Context, _ string) (*architecturemodeling.ComponentDTO, error) {
+	return nil, nil
 }

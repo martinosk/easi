@@ -165,7 +165,7 @@ func TestCascadeDelete_CapabilityNotFound_ReturnsError(t *testing.T) {
 }
 
 func TestCascadeDelete_HasDescendants_CascadeFalse_ReturnsCascadeRequiredError(t *testing.T) {
-	root := createL1Capability(t)
+	root := createCapability(t, "L1")
 	child := cascadeCapabilityWithParent(t, "L2", root.ID())
 
 	repo := newMockCascadeRepo()
@@ -185,7 +185,7 @@ func TestCascadeDelete_HasDescendants_CascadeFalse_ReturnsCascadeRequiredError(t
 }
 
 func TestCascadeDelete_LeafCapability_CascadeFalse_DeletesSuccessfully(t *testing.T) {
-	root := createL1Capability(t)
+	root := createCapability(t, "L1")
 
 	repo := newMockCascadeRepo()
 	repo.capabilities[root.ID()] = root
@@ -203,7 +203,7 @@ func TestCascadeDelete_LeafCapability_CascadeFalse_DeletesSuccessfully(t *testin
 }
 
 func TestCascadeDelete_WithDescendants_CascadeTrue_DeletesBottomUp(t *testing.T) {
-	root := createL1Capability(t)
+	root := createCapability(t, "L1")
 	child := cascadeCapabilityWithParent(t, "L2", root.ID())
 	grandchild := cascadeCapabilityWithParent(t, "L3", child.ID())
 
@@ -242,7 +242,7 @@ func TestCascadeDelete_WithDescendants_CascadeTrue_DeletesBottomUp(t *testing.T)
 }
 
 func TestCascadeDelete_DispatchesRealizationDeleteCommands(t *testing.T) {
-	root := createL1Capability(t)
+	root := createCapability(t, "L1")
 
 	repo := newMockCascadeRepo()
 	repo.capabilities[root.ID()] = root
@@ -268,7 +268,7 @@ func TestCascadeDelete_DispatchesRealizationDeleteCommands(t *testing.T) {
 }
 
 func TestCascadeDelete_DispatchesDependencyDeleteCommands(t *testing.T) {
-	root := createL1Capability(t)
+	root := createCapability(t, "L1")
 
 	repo := newMockCascadeRepo()
 	repo.capabilities[root.ID()] = root
@@ -295,7 +295,7 @@ func TestCascadeDelete_DispatchesDependencyDeleteCommands(t *testing.T) {
 }
 
 func TestCascadeDelete_DeduplicatesDependencies(t *testing.T) {
-	root := createL1Capability(t)
+	root := createCapability(t, "L1")
 
 	repo := newMockCascadeRepo()
 	repo.capabilities[root.ID()] = root
@@ -321,7 +321,7 @@ func TestCascadeDelete_DeduplicatesDependencies(t *testing.T) {
 }
 
 func TestCascadeDelete_DeleteRealisingApplications_DeletesExclusiveComponents(t *testing.T) {
-	root := createL1Capability(t)
+	root := createCapability(t, "L1")
 
 	repo := newMockCascadeRepo()
 	repo.capabilities[root.ID()] = root
@@ -356,7 +356,7 @@ func TestCascadeDelete_DeleteRealisingApplications_DeletesExclusiveComponents(t 
 }
 
 func TestCascadeDelete_DeleteRealisingApplications_False_SkipsComponentDeletion(t *testing.T) {
-	root := createL1Capability(t)
+	root := createCapability(t, "L1")
 
 	repo := newMockCascadeRepo()
 	repo.capabilities[root.ID()] = root

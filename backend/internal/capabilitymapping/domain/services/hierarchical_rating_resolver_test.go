@@ -48,14 +48,6 @@ func (m *mockRatingLookup) addRating(r testRating) {
 	}
 }
 
-func newTestPillarID() valueobjects.PillarID {
-	return valueobjects.NewPillarID()
-}
-
-func newTestDomainID() valueobjects.BusinessDomainID {
-	return valueobjects.NewBusinessDomainID()
-}
-
 type resolverTestFixture struct {
 	lookup       *mockCapabilityLookup
 	ratingLookup *mockRatingLookup
@@ -70,287 +62,265 @@ func newResolverTestFixture() *resolverTestFixture {
 	return &resolverTestFixture{lookup: lookup, ratingLookup: ratingLookup, resolver: resolver}
 }
 
-func TestHierarchicalRatingResolver_Scenario1_ChildCapabilityHasRating_UseChildsRating(t *testing.T) {
-	f := newResolverTestFixture()
+type capDef struct {
+	id       valueobjects.CapabilityID
+	level    valueobjects.CapabilityLevel
+	parentID valueobjects.CapabilityID
+}
 
-	l1ID := valueobjects.NewCapabilityID()
-	l2ID := valueobjects.NewCapabilityID()
-	pillarID := newTestPillarID()
-	domainID := newTestDomainID()
+func (f *resolverTestFixture) addHierarchy(caps []capDef) {
+	for _, c := range caps {
+		f.lookup.addCapability(c.id, c.level, c.parentID)
+	}
+}
 
-	f.lookup.addCapability(l1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	f.lookup.addCapability(l2ID, valueobjects.LevelL2, l1ID)
+func (f *resolverTestFixture) addRatings(ratings []testRating) {
+	for _, r := range ratings {
+		f.ratingLookup.addRating(r)
+	}
+}
 
-	f.ratingLookup.addRating(testRating{l1ID, pillarID, domainID, 3, "Payment Processing"})
-	f.ratingLookup.addRating(testRating{l2ID, pillarID, domainID, 5, "Card Payments"})
-
-	result, err := f.resolver.ResolveEffectiveImportance(context.Background(), l2ID, pillarID, domainID)
+func (f *resolverTestFixture) resolve(t *testing.T, capID valueobjects.CapabilityID, pillarID valueobjects.PillarID, domainID valueobjects.BusinessDomainID) *ResolvedRating {
+	t.Helper()
+	result, err := f.resolver.ResolveEffectiveImportance(context.Background(), capID, pillarID, domainID)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	assert.Equal(t, 5, result.EffectiveImportance.Importance().Value())
-	assert.Equal(t, l2ID.Value(), result.EffectiveImportance.SourceCapabilityID().Value())
-	assert.False(t, result.EffectiveImportance.IsInherited())
-	assert.Equal(t, "Card Payments", result.SourceCapabilityName)
+	return result
 }
 
-func TestHierarchicalRatingResolver_Scenario2_ChildHasNoRating_UseParentsRating(t *testing.T) {
-	f := newResolverTestFixture()
-
-	l1ID := valueobjects.NewCapabilityID()
-	l2ID := valueobjects.NewCapabilityID()
-	pillarID := newTestPillarID()
-	domainID := newTestDomainID()
-
-	f.lookup.addCapability(l1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	f.lookup.addCapability(l2ID, valueobjects.LevelL2, l1ID)
-
-	f.ratingLookup.addRating(testRating{l1ID, pillarID, domainID, 4, "Payment Processing"})
-
-	result, err := f.resolver.ResolveEffectiveImportance(context.Background(), l2ID, pillarID, domainID)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.Equal(t, 4, result.EffectiveImportance.Importance().Value())
-	assert.Equal(t, l1ID.Value(), result.EffectiveImportance.SourceCapabilityID().Value())
-	assert.True(t, result.EffectiveImportance.IsInherited())
-	assert.Equal(t, "Payment Processing", result.SourceCapabilityName)
+type expectedRating struct {
+	importance  int
+	sourceCapID valueobjects.CapabilityID
+	isInherited bool
+	sourceName  string
 }
 
-func TestHierarchicalRatingResolver_Scenario3_DeepHierarchyRatingInheritance(t *testing.T) {
-	f := newResolverTestFixture()
-
-	l1ID := valueobjects.NewCapabilityID()
-	l2ID := valueobjects.NewCapabilityID()
-	l3ID := valueobjects.NewCapabilityID()
-	pillarID := newTestPillarID()
-	domainID := newTestDomainID()
-
-	f.lookup.addCapability(l1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	f.lookup.addCapability(l2ID, valueobjects.LevelL2, l1ID)
-	f.lookup.addCapability(l3ID, valueobjects.LevelL3, l2ID)
-
-	f.ratingLookup.addRating(testRating{l1ID, pillarID, domainID, 5, "Customer Management"})
-
-	result, err := f.resolver.ResolveEffectiveImportance(context.Background(), l3ID, pillarID, domainID)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.Equal(t, 5, result.EffectiveImportance.Importance().Value())
-	assert.Equal(t, l1ID.Value(), result.EffectiveImportance.SourceCapabilityID().Value())
-	assert.True(t, result.EffectiveImportance.IsInherited())
-	assert.Equal(t, "Customer Management", result.SourceCapabilityName)
+func assertRating(t *testing.T, result *ResolvedRating, expected expectedRating) {
+	t.Helper()
+	assert.Equal(t, expected.importance, result.EffectiveImportance.Importance().Value())
+	assert.Equal(t, expected.sourceCapID.Value(), result.EffectiveImportance.SourceCapabilityID().Value())
+	assert.Equal(t, expected.isInherited, result.EffectiveImportance.IsInherited())
+	assert.Equal(t, expected.sourceName, result.SourceCapabilityName)
 }
 
-func TestHierarchicalRatingResolver_Scenario4_MidHierarchyRatingTakesPrecedenceOverParent(t *testing.T) {
-	f := newResolverTestFixture()
+func TestHierarchicalRatingResolver_DirectRatings(t *testing.T) {
+	l1 := valueobjects.NewCapabilityID()
+	l2 := valueobjects.NewCapabilityID()
+	pillar := valueobjects.NewPillarID()
+	domain := valueobjects.NewBusinessDomainID()
+	noParent := valueobjects.CapabilityID{}
 
-	l1ID := valueobjects.NewCapabilityID()
-	l2ID := valueobjects.NewCapabilityID()
-	l3ID := valueobjects.NewCapabilityID()
-	pillarID := newTestPillarID()
-	domainID := newTestDomainID()
+	tests := []struct {
+		name        string
+		caps        []capDef
+		ratings     []testRating
+		queryCapID  valueobjects.CapabilityID
+		importance  int
+		sourceCapID valueobjects.CapabilityID
+		sourceName  string
+	}{
+		{
+			name:        "child uses own rating over parent",
+			caps:        []capDef{{l1, valueobjects.LevelL1, noParent}, {l2, valueobjects.LevelL2, l1}},
+			ratings:     []testRating{{l1, pillar, domain, 3, "Payment Processing"}, {l2, pillar, domain, 5, "Card Payments"}},
+			queryCapID:  l2,
+			importance:  5,
+			sourceCapID: l2,
+			sourceName:  "Card Payments",
+		},
+		{
+			name:        "root capability uses own rating",
+			caps:        []capDef{{l1, valueobjects.LevelL1, noParent}},
+			ratings:     []testRating{{l1, pillar, domain, 3, "Root Capability"}},
+			queryCapID:  l1,
+			importance:  3,
+			sourceCapID: l1,
+			sourceName:  "Root Capability",
+		},
+	}
 
-	f.lookup.addCapability(l1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	f.lookup.addCapability(l2ID, valueobjects.LevelL2, l1ID)
-	f.lookup.addCapability(l3ID, valueobjects.LevelL3, l2ID)
-
-	f.ratingLookup.addRating(testRating{l1ID, pillarID, domainID, 3, "Customer Management"})
-	f.ratingLookup.addRating(testRating{l2ID, pillarID, domainID, 5, "Customer Onboarding"})
-
-	result, err := f.resolver.ResolveEffectiveImportance(context.Background(), l3ID, pillarID, domainID)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.Equal(t, 5, result.EffectiveImportance.Importance().Value())
-	assert.Equal(t, l2ID.Value(), result.EffectiveImportance.SourceCapabilityID().Value())
-	assert.True(t, result.EffectiveImportance.IsInherited())
-	assert.Equal(t, "Customer Onboarding", result.SourceCapabilityName)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newResolverTestFixture()
+			f.addHierarchy(tt.caps)
+			f.addRatings(tt.ratings)
+			result := f.resolve(t, tt.queryCapID, pillar, domain)
+			assertRating(t, result, expectedRating{tt.importance, tt.sourceCapID, false, tt.sourceName})
+		})
+	}
 }
 
-func TestHierarchicalRatingResolver_Scenario5_ApplicationRealizesMultipleCapabilitiesInSameChain_ShowAllGaps(t *testing.T) {
-	f := newResolverTestFixture()
+func TestHierarchicalRatingResolver_InheritedRatings(t *testing.T) {
+	l1 := valueobjects.NewCapabilityID()
+	l2 := valueobjects.NewCapabilityID()
+	l3 := valueobjects.NewCapabilityID()
+	pillar := valueobjects.NewPillarID()
+	domain := valueobjects.NewBusinessDomainID()
+	noParent := valueobjects.CapabilityID{}
 
-	l1ID := valueobjects.NewCapabilityID()
-	l2ID := valueobjects.NewCapabilityID()
-	pillarID := newTestPillarID()
-	domainID := newTestDomainID()
+	tests := []struct {
+		name        string
+		caps        []capDef
+		ratings     []testRating
+		queryCapID  valueobjects.CapabilityID
+		importance  int
+		sourceCapID valueobjects.CapabilityID
+		sourceName  string
+	}{
+		{
+			name:        "child inherits from parent",
+			caps:        []capDef{{l1, valueobjects.LevelL1, noParent}, {l2, valueobjects.LevelL2, l1}},
+			ratings:     []testRating{{l1, pillar, domain, 4, "Payment Processing"}},
+			queryCapID:  l2,
+			importance:  4,
+			sourceCapID: l1,
+			sourceName:  "Payment Processing",
+		},
+		{
+			name:        "L3 inherits from L1 ancestor",
+			caps:        []capDef{{l1, valueobjects.LevelL1, noParent}, {l2, valueobjects.LevelL2, l1}, {l3, valueobjects.LevelL3, l2}},
+			ratings:     []testRating{{l1, pillar, domain, 5, "Customer Management"}},
+			queryCapID:  l3,
+			importance:  5,
+			sourceCapID: l1,
+			sourceName:  "Customer Management",
+		},
+		{
+			name:        "mid hierarchy takes precedence over root",
+			caps:        []capDef{{l1, valueobjects.LevelL1, noParent}, {l2, valueobjects.LevelL2, l1}, {l3, valueobjects.LevelL3, l2}},
+			ratings:     []testRating{{l1, pillar, domain, 3, "Customer Management"}, {l2, pillar, domain, 5, "Customer Onboarding"}},
+			queryCapID:  l3,
+			importance:  5,
+			sourceCapID: l2,
+			sourceName:  "Customer Onboarding",
+		},
+	}
 
-	f.lookup.addCapability(l1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	f.lookup.addCapability(l2ID, valueobjects.LevelL2, l1ID)
-
-	f.ratingLookup.addRating(testRating{l1ID, pillarID, domainID, 4, "Payment Processing"})
-	f.ratingLookup.addRating(testRating{l2ID, pillarID, domainID, 5, "Card Payments"})
-
-	resultL1, err := f.resolver.ResolveEffectiveImportance(context.Background(), l1ID, pillarID, domainID)
-	require.NoError(t, err)
-	require.NotNil(t, resultL1)
-	assert.Equal(t, 4, resultL1.EffectiveImportance.Importance().Value())
-	assert.False(t, resultL1.EffectiveImportance.IsInherited())
-
-	resultL2, err := f.resolver.ResolveEffectiveImportance(context.Background(), l2ID, pillarID, domainID)
-	require.NoError(t, err)
-	require.NotNil(t, resultL2)
-	assert.Equal(t, 5, resultL2.EffectiveImportance.Importance().Value())
-	assert.False(t, resultL2.EffectiveImportance.IsInherited())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newResolverTestFixture()
+			f.addHierarchy(tt.caps)
+			f.addRatings(tt.ratings)
+			result := f.resolve(t, tt.queryCapID, pillar, domain)
+			assertRating(t, result, expectedRating{tt.importance, tt.sourceCapID, true, tt.sourceName})
+		})
+	}
 }
 
-func TestHierarchicalRatingResolver_Scenario6_ApplicationRealizesMultipleCapabilities_MixedRatedAndUnrated(t *testing.T) {
-	f := newResolverTestFixture()
+func TestHierarchicalRatingResolver_EdgeCases(t *testing.T) {
+	t.Run("no ratings anywhere returns nil", func(t *testing.T) {
+		f := newResolverTestFixture()
+		l1 := valueobjects.NewCapabilityID()
+		l2 := valueobjects.NewCapabilityID()
+		pillar := valueobjects.NewPillarID()
+		domain := valueobjects.NewBusinessDomainID()
 
-	l1ID := valueobjects.NewCapabilityID()
-	l2ID := valueobjects.NewCapabilityID()
-	l3ID := valueobjects.NewCapabilityID()
-	pillarID := newTestPillarID()
-	domainID := newTestDomainID()
+		f.addHierarchy([]capDef{
+			{l1, valueobjects.LevelL1, valueobjects.CapabilityID{}},
+			{l2, valueobjects.LevelL2, l1},
+		})
 
-	f.lookup.addCapability(l1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	f.lookup.addCapability(l2ID, valueobjects.LevelL2, l1ID)
-	f.lookup.addCapability(l3ID, valueobjects.LevelL3, l2ID)
+		result, err := f.resolver.ResolveEffectiveImportance(context.Background(), l2, pillar, domain)
+		require.NoError(t, err)
+		assert.Nil(t, result)
+	})
 
-	f.ratingLookup.addRating(testRating{l1ID, pillarID, domainID, 4, "Customer Management"})
-	f.ratingLookup.addRating(testRating{l2ID, pillarID, domainID, 5, "Customer Onboarding"})
-
-	resultL2, err := f.resolver.ResolveEffectiveImportance(context.Background(), l2ID, pillarID, domainID)
-	require.NoError(t, err)
-	require.NotNil(t, resultL2)
-	assert.Equal(t, 5, resultL2.EffectiveImportance.Importance().Value())
-	assert.False(t, resultL2.EffectiveImportance.IsInherited())
-	assert.Equal(t, "Customer Onboarding", resultL2.SourceCapabilityName)
-
-	resultL3, err := f.resolver.ResolveEffectiveImportance(context.Background(), l3ID, pillarID, domainID)
-	require.NoError(t, err)
-	require.NotNil(t, resultL3)
-	assert.Equal(t, 5, resultL3.EffectiveImportance.Importance().Value())
-	assert.True(t, resultL3.EffectiveImportance.IsInherited())
-	assert.Equal(t, "Customer Onboarding", resultL3.SourceCapabilityName)
+	t.Run("unknown capability returns error", func(t *testing.T) {
+		f := newResolverTestFixture()
+		_, err := f.resolver.ResolveEffectiveImportance(
+			context.Background(), valueobjects.NewCapabilityID(), valueobjects.NewPillarID(), valueobjects.NewBusinessDomainID(),
+		)
+		assert.Equal(t, ErrCapabilityNotFound, err)
+	})
 }
 
-func TestHierarchicalRatingResolver_Scenario7_CapabilityChainWithNoRatingsAnywhere(t *testing.T) {
-	f := newResolverTestFixture()
+func TestHierarchicalRatingResolver_MultipleResolves(t *testing.T) {
+	t.Run("both capabilities rated independently", func(t *testing.T) {
+		f := newResolverTestFixture()
+		l1 := valueobjects.NewCapabilityID()
+		l2 := valueobjects.NewCapabilityID()
+		pillar := valueobjects.NewPillarID()
+		domain := valueobjects.NewBusinessDomainID()
 
-	l1ID := valueobjects.NewCapabilityID()
-	l2ID := valueobjects.NewCapabilityID()
-	pillarID := newTestPillarID()
-	domainID := newTestDomainID()
+		f.addHierarchy([]capDef{
+			{l1, valueobjects.LevelL1, valueobjects.CapabilityID{}},
+			{l2, valueobjects.LevelL2, l1},
+		})
+		f.addRatings([]testRating{
+			{l1, pillar, domain, 4, "Payment Processing"},
+			{l2, pillar, domain, 5, "Card Payments"},
+		})
 
-	f.lookup.addCapability(l1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	f.lookup.addCapability(l2ID, valueobjects.LevelL2, l1ID)
+		assertRating(t, f.resolve(t, l1, pillar, domain), expectedRating{4, l1, false, "Payment Processing"})
+		assertRating(t, f.resolve(t, l2, pillar, domain), expectedRating{5, l2, false, "Card Payments"})
+	})
 
-	result, err := f.resolver.ResolveEffectiveImportance(context.Background(), l2ID, pillarID, domainID)
-	require.NoError(t, err)
-	assert.Nil(t, result)
+	t.Run("rated L2 uses own and unrated L3 inherits", func(t *testing.T) {
+		f := newResolverTestFixture()
+		l1 := valueobjects.NewCapabilityID()
+		l2 := valueobjects.NewCapabilityID()
+		l3 := valueobjects.NewCapabilityID()
+		pillar := valueobjects.NewPillarID()
+		domain := valueobjects.NewBusinessDomainID()
+
+		f.addHierarchy([]capDef{
+			{l1, valueobjects.LevelL1, valueobjects.CapabilityID{}},
+			{l2, valueobjects.LevelL2, l1},
+			{l3, valueobjects.LevelL3, l2},
+		})
+		f.addRatings([]testRating{
+			{l1, pillar, domain, 4, "Customer Management"},
+			{l2, pillar, domain, 5, "Customer Onboarding"},
+		})
+
+		assertRating(t, f.resolve(t, l2, pillar, domain), expectedRating{5, l2, false, "Customer Onboarding"})
+		assertRating(t, f.resolve(t, l3, pillar, domain), expectedRating{5, l2, true, "Customer Onboarding"})
+	})
 }
 
-func TestHierarchicalRatingResolver_Scenario8_ApplicationRealizesCapabilitiesInDifferentBranches(t *testing.T) {
+func TestHierarchicalRatingResolver_DifferentBranches(t *testing.T) {
 	f := newResolverTestFixture()
+	salesL1 := valueobjects.NewCapabilityID()
+	leadL2 := valueobjects.NewCapabilityID()
+	marketingL1 := valueobjects.NewCapabilityID()
+	campaignL2 := valueobjects.NewCapabilityID()
+	pillar := valueobjects.NewPillarID()
+	domain := valueobjects.NewBusinessDomainID()
 
-	salesL1ID := valueobjects.NewCapabilityID()
-	leadManagementL2ID := valueobjects.NewCapabilityID()
-	marketingL1ID := valueobjects.NewCapabilityID()
-	campaignManagementL2ID := valueobjects.NewCapabilityID()
-	pillarID := newTestPillarID()
-	domainID := newTestDomainID()
+	f.addHierarchy([]capDef{
+		{salesL1, valueobjects.LevelL1, valueobjects.CapabilityID{}},
+		{leadL2, valueobjects.LevelL2, salesL1},
+		{marketingL1, valueobjects.LevelL1, valueobjects.CapabilityID{}},
+		{campaignL2, valueobjects.LevelL2, marketingL1},
+	})
+	f.addRatings([]testRating{
+		{salesL1, pillar, domain, 4, "Sales"},
+		{leadL2, pillar, domain, 3, "Lead Management"},
+		{marketingL1, pillar, domain, 5, "Marketing"},
+	})
 
-	f.lookup.addCapability(salesL1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	f.lookup.addCapability(leadManagementL2ID, valueobjects.LevelL2, salesL1ID)
-	f.lookup.addCapability(marketingL1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	f.lookup.addCapability(campaignManagementL2ID, valueobjects.LevelL2, marketingL1ID)
-
-	f.ratingLookup.addRating(testRating{salesL1ID, pillarID, domainID, 4, "Sales"})
-	f.ratingLookup.addRating(testRating{leadManagementL2ID, pillarID, domainID, 3, "Lead Management"})
-	f.ratingLookup.addRating(testRating{marketingL1ID, pillarID, domainID, 5, "Marketing"})
-
-	resultLeadManagement, err := f.resolver.ResolveEffectiveImportance(context.Background(), leadManagementL2ID, pillarID, domainID)
-	require.NoError(t, err)
-	require.NotNil(t, resultLeadManagement)
-	assert.Equal(t, 3, resultLeadManagement.EffectiveImportance.Importance().Value())
-	assert.False(t, resultLeadManagement.EffectiveImportance.IsInherited())
-	assert.Equal(t, "Lead Management", resultLeadManagement.SourceCapabilityName)
-
-	resultCampaignManagement, err := f.resolver.ResolveEffectiveImportance(context.Background(), campaignManagementL2ID, pillarID, domainID)
-	require.NoError(t, err)
-	require.NotNil(t, resultCampaignManagement)
-	assert.Equal(t, 5, resultCampaignManagement.EffectiveImportance.Importance().Value())
-	assert.True(t, resultCampaignManagement.EffectiveImportance.IsInherited())
-	assert.Equal(t, "Marketing", resultCampaignManagement.SourceCapabilityName)
+	assertRating(t, f.resolve(t, leadL2, pillar, domain), expectedRating{3, leadL2, false, "Lead Management"})
+	assertRating(t, f.resolve(t, campaignL2, pillar, domain), expectedRating{5, marketingL1, true, "Marketing"})
 }
 
-func TestHierarchicalRatingResolver_Scenario9_OnlyParentRated_ChildRealized_ShowsUnderChildName(t *testing.T) {
+func TestHierarchicalRatingResolver_PillarSpecificInheritance(t *testing.T) {
 	f := newResolverTestFixture()
+	hr := valueobjects.NewCapabilityID()
+	recruitment := valueobjects.NewCapabilityID()
+	alwaysOn := valueobjects.NewPillarID()
+	transform := valueobjects.NewPillarID()
+	domain := valueobjects.NewBusinessDomainID()
 
-	financeL1ID := valueobjects.NewCapabilityID()
-	accountsPayableL2ID := valueobjects.NewCapabilityID()
-	pillarID := newTestPillarID()
-	domainID := newTestDomainID()
+	f.addHierarchy([]capDef{
+		{hr, valueobjects.LevelL1, valueobjects.CapabilityID{}},
+		{recruitment, valueobjects.LevelL2, hr},
+	})
+	f.addRatings([]testRating{
+		{hr, alwaysOn, domain, 5, "HR"},
+		{hr, transform, domain, 2, "HR"},
+		{recruitment, transform, domain, 4, "Recruitment"},
+	})
 
-	f.lookup.addCapability(financeL1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	f.lookup.addCapability(accountsPayableL2ID, valueobjects.LevelL2, financeL1ID)
-
-	f.ratingLookup.addRating(testRating{financeL1ID, pillarID, domainID, 5, "Finance"})
-
-	result, err := f.resolver.ResolveEffectiveImportance(context.Background(), accountsPayableL2ID, pillarID, domainID)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.Equal(t, 5, result.EffectiveImportance.Importance().Value())
-	assert.Equal(t, financeL1ID.Value(), result.EffectiveImportance.SourceCapabilityID().Value())
-	assert.True(t, result.EffectiveImportance.IsInherited())
-	assert.Equal(t, "Finance", result.SourceCapabilityName)
-}
-
-func TestHierarchicalRatingResolver_Scenario10_PillarSpecificRatingInheritance(t *testing.T) {
-	f := newResolverTestFixture()
-
-	hrL1ID := valueobjects.NewCapabilityID()
-	recruitmentL2ID := valueobjects.NewCapabilityID()
-	alwaysOnPillarID := newTestPillarID()
-	transformPillarID := newTestPillarID()
-	domainID := newTestDomainID()
-
-	f.lookup.addCapability(hrL1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	f.lookup.addCapability(recruitmentL2ID, valueobjects.LevelL2, hrL1ID)
-
-	f.ratingLookup.addRating(testRating{hrL1ID, alwaysOnPillarID, domainID, 5, "HR"})
-	f.ratingLookup.addRating(testRating{hrL1ID, transformPillarID, domainID, 2, "HR"})
-	f.ratingLookup.addRating(testRating{recruitmentL2ID, transformPillarID, domainID, 4, "Recruitment"})
-
-	resultAlwaysOn, err := f.resolver.ResolveEffectiveImportance(context.Background(), recruitmentL2ID, alwaysOnPillarID, domainID)
-	require.NoError(t, err)
-	require.NotNil(t, resultAlwaysOn)
-	assert.Equal(t, 5, resultAlwaysOn.EffectiveImportance.Importance().Value())
-	assert.True(t, resultAlwaysOn.EffectiveImportance.IsInherited())
-	assert.Equal(t, "HR", resultAlwaysOn.SourceCapabilityName)
-
-	resultTransform, err := f.resolver.ResolveEffectiveImportance(context.Background(), recruitmentL2ID, transformPillarID, domainID)
-	require.NoError(t, err)
-	require.NotNil(t, resultTransform)
-	assert.Equal(t, 4, resultTransform.EffectiveImportance.Importance().Value())
-	assert.False(t, resultTransform.EffectiveImportance.IsInherited())
-	assert.Equal(t, "Recruitment", resultTransform.SourceCapabilityName)
-}
-
-func TestHierarchicalRatingResolver_CapabilityNotFound_ReturnsError(t *testing.T) {
-	f := newResolverTestFixture()
-
-	unknownID := valueobjects.NewCapabilityID()
-	pillarID := newTestPillarID()
-	domainID := newTestDomainID()
-
-	_, err := f.resolver.ResolveEffectiveImportance(context.Background(), unknownID, pillarID, domainID)
-	assert.Error(t, err)
-	assert.Equal(t, ErrCapabilityNotFound, err)
-}
-
-func TestHierarchicalRatingResolver_DirectRatingOnRootCapability_NotInherited(t *testing.T) {
-	f := newResolverTestFixture()
-
-	l1ID := valueobjects.NewCapabilityID()
-	pillarID := newTestPillarID()
-	domainID := newTestDomainID()
-
-	f.lookup.addCapability(l1ID, valueobjects.LevelL1, valueobjects.CapabilityID{})
-	f.ratingLookup.addRating(testRating{l1ID, pillarID, domainID, 3, "Root Capability"})
-
-	result, err := f.resolver.ResolveEffectiveImportance(context.Background(), l1ID, pillarID, domainID)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.Equal(t, 3, result.EffectiveImportance.Importance().Value())
-	assert.Equal(t, l1ID.Value(), result.EffectiveImportance.SourceCapabilityID().Value())
-	assert.False(t, result.EffectiveImportance.IsInherited())
+	assertRating(t, f.resolve(t, recruitment, alwaysOn, domain), expectedRating{5, hr, true, "HR"})
+	assertRating(t, f.resolve(t, recruitment, transform, domain), expectedRating{4, recruitment, false, "Recruitment"})
 }

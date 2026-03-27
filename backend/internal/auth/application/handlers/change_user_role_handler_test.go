@@ -10,6 +10,7 @@ import (
 	"easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -51,122 +52,93 @@ func (m *mockChangeUserRoleReadModel) IsLastActiveAdmin(ctx context.Context, use
 func TestChangeUserRoleHandler_ChangesRoleSuccessfully(t *testing.T) {
 	user := createUserForTest(t, "admin")
 	mockRepo := &mockChangeUserRoleRepository{userToLoad: user}
-	mockReadModel := &mockChangeUserRoleReadModel{isLastAdmin: false}
+	handler := NewChangeUserRoleHandler(mockRepo, &mockChangeUserRoleReadModel{})
 
-	handler := NewChangeUserRoleHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.ChangeUserRole{
+	_, err := handler.Handle(context.Background(), &commands.ChangeUserRole{
 		UserID:      user.ID(),
 		NewRole:     "architect",
-		ChangedByID: "changer-123",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
+		ChangedByID: uuid.New().String(),
+	})
 	require.NoError(t, err)
 
 	require.Len(t, mockRepo.savedUsers, 1)
-	savedUser := mockRepo.savedUsers[0]
-	assert.Equal(t, "architect", savedUser.Role().String())
+	assert.Equal(t, "architect", mockRepo.savedUsers[0].Role().String())
 }
 
-func TestChangeUserRoleHandler_InvalidRole_ReturnsError(t *testing.T) {
-	user := createUserForTest(t, "admin")
-	mockRepo := &mockChangeUserRoleRepository{userToLoad: user}
-	mockReadModel := &mockChangeUserRoleReadModel{isLastAdmin: false}
-
-	handler := NewChangeUserRoleHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.ChangeUserRole{
-		UserID:      user.ID(),
-		NewRole:     "superadmin",
-		ChangedByID: "changer-456",
+func TestChangeUserRoleHandler_ReturnsError(t *testing.T) {
+	tests := []struct {
+		name        string
+		role        string
+		newRole     string
+		isLastAdmin bool
+		getErr      error
+		readErr     error
+		wantErr     error
+	}{
+		{
+			name:    "invalid role",
+			role:    "admin",
+			newRole: "superadmin",
+			wantErr: valueobjects.ErrInvalidRole,
+		},
+		{
+			name:        "cannot demote last admin",
+			role:        "admin",
+			newRole:     "architect",
+			isLastAdmin: true,
+			wantErr:     aggregates.ErrCannotDemoteLastAdmin,
+		},
+		{
+			name:    "same role",
+			role:    "architect",
+			newRole: "architect",
+			wantErr: aggregates.ErrSameRole,
+		},
+		{
+			name:   "user not found",
+			role:   "admin",
+			getErr: errors.New("not found"),
+		},
+		{
+			name:    "read model error",
+			role:    "admin",
+			newRole: "architect",
+			readErr: errors.New("database error"),
+		},
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Empty(t, mockRepo.savedUsers)
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			user := createUserForTest(t, tt.role)
+			mockRepo := &mockChangeUserRoleRepository{userToLoad: user, getErr: tt.getErr}
+			mockReadModel := &mockChangeUserRoleReadModel{isLastAdmin: tt.isLastAdmin, checkErr: tt.readErr}
+			handler := NewChangeUserRoleHandler(mockRepo, mockReadModel)
 
-func TestChangeUserRoleHandler_CannotDemoteLastAdmin(t *testing.T) {
-	user := createUserForTest(t, "admin")
-	mockRepo := &mockChangeUserRoleRepository{userToLoad: user}
-	mockReadModel := &mockChangeUserRoleReadModel{isLastAdmin: true}
+			newRole := tt.newRole
+			if newRole == "" {
+				newRole = "architect"
+			}
 
-	handler := NewChangeUserRoleHandler(mockRepo, mockReadModel)
+			_, err := handler.Handle(context.Background(), &commands.ChangeUserRole{
+				UserID:      user.ID(),
+				NewRole:     newRole,
+				ChangedByID: uuid.New().String(),
+			})
 
-	cmd := &commands.ChangeUserRole{
-		UserID:      user.ID(),
-		NewRole:     "architect",
-		ChangedByID: "changer-789",
+			assert.Error(t, err)
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+			}
+			assert.Empty(t, mockRepo.savedUsers)
+		})
 	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, aggregates.ErrCannotDemoteLastAdmin)
-	assert.Empty(t, mockRepo.savedUsers)
-}
-
-func TestChangeUserRoleHandler_UserNotFound_ReturnsError(t *testing.T) {
-	mockRepo := &mockChangeUserRoleRepository{getErr: errors.New("not found")}
-	mockReadModel := &mockChangeUserRoleReadModel{isLastAdmin: false}
-
-	handler := NewChangeUserRoleHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.ChangeUserRole{
-		UserID:      "nonexistent-id",
-		NewRole:     "architect",
-		ChangedByID: "changer-999",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
 }
 
 func TestChangeUserRoleHandler_InvalidCommand_ReturnsError(t *testing.T) {
-	mockRepo := &mockChangeUserRoleRepository{}
-	mockReadModel := &mockChangeUserRoleReadModel{}
+	handler := NewChangeUserRoleHandler(&mockChangeUserRoleRepository{}, &mockChangeUserRoleReadModel{})
 
-	handler := NewChangeUserRoleHandler(mockRepo, mockReadModel)
-
-	invalidCmd := &commands.DisableUser{}
-
-	_, err := handler.Handle(context.Background(), invalidCmd)
+	_, err := handler.Handle(context.Background(), &commands.DisableUser{})
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
-}
-
-func TestChangeUserRoleHandler_ReadModelError_ReturnsError(t *testing.T) {
-	user := createUserForTest(t, "admin")
-	mockRepo := &mockChangeUserRoleRepository{userToLoad: user}
-	mockReadModel := &mockChangeUserRoleReadModel{checkErr: errors.New("database error")}
-
-	handler := NewChangeUserRoleHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.ChangeUserRole{
-		UserID:      user.ID(),
-		NewRole:     "architect",
-		ChangedByID: "changer-err",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Empty(t, mockRepo.savedUsers)
-}
-
-func TestChangeUserRoleHandler_SameRole_ReturnsError(t *testing.T) {
-	user := createUserForTest(t, "architect")
-	mockRepo := &mockChangeUserRoleRepository{userToLoad: user}
-	mockReadModel := &mockChangeUserRoleReadModel{isLastAdmin: false}
-
-	handler := NewChangeUserRoleHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.ChangeUserRole{
-		UserID:      user.ID(),
-		NewRole:     "architect",
-		ChangedByID: "changer-same",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, aggregates.ErrSameRole)
-	assert.Empty(t, mockRepo.savedUsers)
 }
 
 func createUserForTest(t *testing.T, roleName string) *aggregates.User {
@@ -178,7 +150,8 @@ func createUserForTest(t *testing.T, roleName string) *aggregates.User {
 	role, err := valueobjects.RoleFromString(roleName)
 	require.NoError(t, err)
 
-	user, err := aggregates.NewUser(email, "Test User", role, "ext-test", "inv-test")
+	profile := valueobjects.NewExternalProfile("Test User", "ext-test")
+	user, err := aggregates.NewUser(email, profile, role, "inv-test")
 	require.NoError(t, err)
 
 	user.MarkChangesAsCommitted()

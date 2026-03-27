@@ -90,6 +90,10 @@ func (r Role) Permissions() []Permission {
 	return []Permission{}
 }
 
+func (r Role) IsAdmin() bool {
+	return r.value == "admin"
+}
+
 func (r Role) HasPermission(p Permission) bool {
 	for _, perm := range r.Permissions() {
 		if perm.Equals(p) {

@@ -30,7 +30,7 @@ func (h *UpdateViewEdgeTypeHandler) Handle(ctx context.Context, cmd cqrs.Command
 		return cqrs.EmptyResult(), err
 	}
 
-	if err := h.layoutRepository.UpdateEdgeType(ctx, command.ViewID, command.EdgeType); err != nil {
+	if err := h.layoutRepository.UpdatePreference(ctx, command.ViewID, repositories.PreferenceKeyEdgeType, command.EdgeType); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 

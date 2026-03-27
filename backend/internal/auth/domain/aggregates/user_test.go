@@ -16,7 +16,8 @@ func TestNewUser_CreatesUserWithValidData(t *testing.T) {
 	role, err := valueobjects.RoleFromString("architect")
 	require.NoError(t, err)
 
-	user, err := NewUser(email, "Jane Doe", role, "ext-123", "inv-456")
+	profile := valueobjects.NewExternalProfile("Jane Doe", "ext-123")
+	user, err := NewUser(email, profile, role, "inv-456")
 
 	require.NoError(t, err)
 	assert.NotNil(t, user)
@@ -33,7 +34,8 @@ func TestNewUser_RaisesUserCreatedEvent(t *testing.T) {
 	email, _ := valueobjects.NewEmail("test@example.com")
 	role, _ := valueobjects.RoleFromString("admin")
 
-	user, err := NewUser(email, "Test User", role, "ext-789", "inv-101")
+	profile := valueobjects.NewExternalProfile("Test User", "ext-789")
+	user, err := NewUser(email, profile, role, "inv-101")
 	require.NoError(t, err)
 
 	uncommittedEvents := user.GetUncommittedChanges()
@@ -54,7 +56,8 @@ func TestNewUser_WithEmptyName(t *testing.T) {
 	email, _ := valueobjects.NewEmail("user@example.com")
 	role, _ := valueobjects.RoleFromString("stakeholder")
 
-	user, err := NewUser(email, "", role, "ext-111", "inv-222")
+	profile := valueobjects.NewExternalProfile("", "ext-111")
+	user, err := NewUser(email, profile, role, "inv-222")
 	require.NoError(t, err)
 	assert.Nil(t, user.Name())
 }
@@ -63,7 +66,8 @@ func TestNewUser_WithEmptyExternalID(t *testing.T) {
 	email, _ := valueobjects.NewEmail("user@example.com")
 	role, _ := valueobjects.RoleFromString("stakeholder")
 
-	user, err := NewUser(email, "User Name", role, "", "inv-333")
+	profile := valueobjects.NewExternalProfile("User Name", "")
+	user, err := NewUser(email, profile, role, "inv-333")
 	require.NoError(t, err)
 	assert.Nil(t, user.ExternalID())
 }
@@ -75,7 +79,8 @@ func TestUser_ChangeRole_Success(t *testing.T) {
 	newRole, err := valueobjects.RoleFromString("architect")
 	require.NoError(t, err)
 
-	err = user.ChangeRole(newRole, "changer-123", false)
+	changedBy := valueobjects.NewUserID()
+	err = user.ChangeRole(newRole, changedBy, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, "architect", user.Role().String())
@@ -87,7 +92,7 @@ func TestUser_ChangeRole_Success(t *testing.T) {
 	eventData := uncommittedEvents[0].EventData()
 	assert.Equal(t, "admin", eventData["oldRole"])
 	assert.Equal(t, "architect", eventData["newRole"])
-	assert.Equal(t, "changer-123", eventData["changedById"])
+	assert.Equal(t, changedBy.Value(), eventData["changedById"])
 }
 
 func TestUser_ChangeRole_SameRole_ReturnsError(t *testing.T) {
@@ -96,7 +101,7 @@ func TestUser_ChangeRole_SameRole_ReturnsError(t *testing.T) {
 
 	role, _ := valueobjects.RoleFromString("architect")
 
-	err := user.ChangeRole(role, "changer-456", false)
+	err := user.ChangeRole(role, valueobjects.NewUserID(), false)
 	assert.ErrorIs(t, err, ErrSameRole)
 	assert.Empty(t, user.GetUncommittedChanges())
 }
@@ -107,7 +112,7 @@ func TestUser_ChangeRole_DemoteLastAdmin_ReturnsError(t *testing.T) {
 
 	newRole, _ := valueobjects.RoleFromString("architect")
 
-	err := user.ChangeRole(newRole, "changer-789", true)
+	err := user.ChangeRole(newRole, valueobjects.NewUserID(), true)
 	assert.ErrorIs(t, err, ErrCannotDemoteLastAdmin)
 	assert.Equal(t, "admin", user.Role().String())
 	assert.Empty(t, user.GetUncommittedChanges())
@@ -119,7 +124,7 @@ func TestUser_ChangeRole_DemoteNonLastAdmin_Success(t *testing.T) {
 
 	newRole, _ := valueobjects.RoleFromString("stakeholder")
 
-	err := user.ChangeRole(newRole, "changer-999", false)
+	err := user.ChangeRole(newRole, valueobjects.NewUserID(), false)
 	require.NoError(t, err)
 	assert.Equal(t, "stakeholder", user.Role().String())
 }
@@ -128,7 +133,8 @@ func TestUser_Disable_Success(t *testing.T) {
 	user := createTestUser(t, "architect")
 	user.MarkChangesAsCommitted()
 
-	err := user.Disable("disabler-123", false, false)
+	disabledBy := valueobjects.NewUserID()
+	err := user.Disable(disabledBy, false, false)
 	require.NoError(t, err)
 
 	assert.False(t, user.Status().IsActive())
@@ -139,14 +145,14 @@ func TestUser_Disable_Success(t *testing.T) {
 
 	eventData := uncommittedEvents[0].EventData()
 	assert.Equal(t, user.ID(), eventData["id"])
-	assert.Equal(t, "disabler-123", eventData["disabledBy"])
+	assert.Equal(t, disabledBy.Value(), eventData["disabledBy"])
 }
 
 func TestUser_Disable_CurrentUser_ReturnsError(t *testing.T) {
 	user := createTestUser(t, "admin")
 	user.MarkChangesAsCommitted()
 
-	err := user.Disable("disabler-456", true, false)
+	err := user.Disable(valueobjects.NewUserID(), true, false)
 	assert.ErrorIs(t, err, ErrCannotDisableSelf)
 	assert.True(t, user.Status().IsActive())
 	assert.Empty(t, user.GetUncommittedChanges())
@@ -154,10 +160,10 @@ func TestUser_Disable_CurrentUser_ReturnsError(t *testing.T) {
 
 func TestUser_Disable_AlreadyDisabled_ReturnsError(t *testing.T) {
 	user := createTestUser(t, "architect")
-	user.Disable("disabler-111", false, false)
+	user.Disable(valueobjects.NewUserID(), false, false)
 	user.MarkChangesAsCommitted()
 
-	err := user.Disable("disabler-222", false, false)
+	err := user.Disable(valueobjects.NewUserID(), false, false)
 	assert.ErrorIs(t, err, ErrUserAlreadyDisabled)
 	assert.Empty(t, user.GetUncommittedChanges())
 }
@@ -166,7 +172,7 @@ func TestUser_Disable_LastAdmin_ReturnsError(t *testing.T) {
 	user := createTestUser(t, "admin")
 	user.MarkChangesAsCommitted()
 
-	err := user.Disable("disabler-333", false, true)
+	err := user.Disable(valueobjects.NewUserID(), false, true)
 	assert.ErrorIs(t, err, ErrCannotDisableLastAdmin)
 	assert.True(t, user.Status().IsActive())
 	assert.Empty(t, user.GetUncommittedChanges())
@@ -176,17 +182,18 @@ func TestUser_Disable_NonLastAdmin_Success(t *testing.T) {
 	user := createTestUser(t, "admin")
 	user.MarkChangesAsCommitted()
 
-	err := user.Disable("disabler-444", false, false)
+	err := user.Disable(valueobjects.NewUserID(), false, false)
 	require.NoError(t, err)
 	assert.False(t, user.Status().IsActive())
 }
 
 func TestUser_Enable_Success(t *testing.T) {
 	user := createTestUser(t, "stakeholder")
-	user.Disable("disabler-555", false, false)
+	user.Disable(valueobjects.NewUserID(), false, false)
 	user.MarkChangesAsCommitted()
 
-	err := user.Enable("enabler-666")
+	enabledBy := valueobjects.NewUserID()
+	err := user.Enable(enabledBy)
 	require.NoError(t, err)
 
 	assert.True(t, user.Status().IsActive())
@@ -197,14 +204,14 @@ func TestUser_Enable_Success(t *testing.T) {
 
 	eventData := uncommittedEvents[0].EventData()
 	assert.Equal(t, user.ID(), eventData["id"])
-	assert.Equal(t, "enabler-666", eventData["enabledBy"])
+	assert.Equal(t, enabledBy.Value(), eventData["enabledBy"])
 }
 
 func TestUser_Enable_AlreadyActive_ReturnsError(t *testing.T) {
 	user := createTestUser(t, "architect")
 	user.MarkChangesAsCommitted()
 
-	err := user.Enable("enabler-777")
+	err := user.Enable(valueobjects.NewUserID())
 	assert.ErrorIs(t, err, ErrUserAlreadyActive)
 	assert.Empty(t, user.GetUncommittedChanges())
 }
@@ -213,11 +220,12 @@ func TestUser_LoadFromHistory_PreservesState(t *testing.T) {
 	email, _ := valueobjects.NewEmail("history@example.com")
 	role, _ := valueobjects.RoleFromString("admin")
 
-	user, _ := NewUser(email, "History User", role, "ext-history", "inv-history")
+	profile := valueobjects.NewExternalProfile("History User", "ext-history")
+	user, _ := NewUser(email, profile, role, "inv-history")
 
 	newRole, _ := valueobjects.RoleFromString("architect")
-	user.ChangeRole(newRole, "changer-hist", false)
-	user.Disable("disabler-hist", false, false)
+	user.ChangeRole(newRole, valueobjects.NewUserID(), false)
+	user.Disable(valueobjects.NewUserID(), false, false)
 
 	allEvents := user.GetUncommittedChanges()
 
@@ -236,13 +244,14 @@ func TestUser_LoadFromHistory_MultipleRoleChanges(t *testing.T) {
 	email, _ := valueobjects.NewEmail("multi@example.com")
 	role, _ := valueobjects.RoleFromString("stakeholder")
 
-	user, _ := NewUser(email, "Multi User", role, "", "")
+	profile := valueobjects.NewExternalProfile("Multi User", "")
+	user, _ := NewUser(email, profile, role, "")
 
 	role2, _ := valueobjects.RoleFromString("architect")
-	user.ChangeRole(role2, "changer-1", false)
+	user.ChangeRole(role2, valueobjects.NewUserID(), false)
 
 	role3, _ := valueobjects.RoleFromString("admin")
-	user.ChangeRole(role3, "changer-2", false)
+	user.ChangeRole(role3, valueobjects.NewUserID(), false)
 
 	allEvents := user.GetUncommittedChanges()
 
@@ -256,9 +265,10 @@ func TestUser_LoadFromHistory_EnableAfterDisable(t *testing.T) {
 	email, _ := valueobjects.NewEmail("toggle@example.com")
 	role, _ := valueobjects.RoleFromString("architect")
 
-	user, _ := NewUser(email, "Toggle User", role, "", "")
-	user.Disable("disabler", false, false)
-	user.Enable("enabler")
+	profile := valueobjects.NewExternalProfile("Toggle User", "")
+	user, _ := NewUser(email, profile, role, "")
+	user.Disable(valueobjects.NewUserID(), false, false)
+	user.Enable(valueobjects.NewUserID())
 
 	allEvents := user.GetUncommittedChanges()
 
@@ -272,13 +282,14 @@ func TestUser_ApplyEvents_PreservesOtherState(t *testing.T) {
 	email, _ := valueobjects.NewEmail("preserve@example.com")
 	role, _ := valueobjects.RoleFromString("admin")
 
-	user, _ := NewUser(email, "Preserve User", role, "ext-pres", "inv-pres")
+	profile := valueobjects.NewExternalProfile("Preserve User", "ext-pres")
+	user, _ := NewUser(email, profile, role, "inv-pres")
 	originalID := user.ID()
 	originalCreatedAt := user.CreatedAt()
 	user.MarkChangesAsCommitted()
 
 	newRole, _ := valueobjects.RoleFromString("architect")
-	user.ChangeRole(newRole, "changer", false)
+	user.ChangeRole(newRole, valueobjects.NewUserID(), false)
 
 	assert.Equal(t, originalID, user.ID())
 	assert.Equal(t, email.Value(), user.Email().Value())
@@ -296,7 +307,8 @@ func createTestUser(t *testing.T, roleName string) *User {
 	role, err := valueobjects.RoleFromString(roleName)
 	require.NoError(t, err)
 
-	user, err := NewUser(email, "Test User", role, "ext-test", "inv-test")
+	profile := valueobjects.NewExternalProfile("Test User", "ext-test")
+	user, err := NewUser(email, profile, role, "inv-test")
 	require.NoError(t, err)
 
 	return user

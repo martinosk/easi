@@ -20,6 +20,12 @@ type ComponentPositionData struct {
 	Y           float64
 }
 
+type ElementRef struct {
+	ViewID      string
+	ElementID   string
+	ElementType ElementType
+}
+
 type ElementType string
 
 const (
@@ -36,11 +42,7 @@ func NewViewLayoutRepository(db *database.TenantAwareDB) *ViewLayoutRepository {
 	return &ViewLayoutRepository{db: db}
 }
 
-func (r *ViewLayoutRepository) UpdateComponentPosition(ctx context.Context, viewID, componentID string, x, y float64) error {
-	return r.upsertElementPosition(ctx, viewID, componentID, ElementTypeComponent, Position{X: x, Y: y})
-}
-
-func (r *ViewLayoutRepository) upsertElementPosition(ctx context.Context, viewID, elementID string, elementType ElementType, pos Position) error {
+func (r *ViewLayoutRepository) UpsertElementPosition(ctx context.Context, ref ElementRef, pos Position) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -51,7 +53,7 @@ func (r *ViewLayoutRepository) upsertElementPosition(ctx context.Context, viewID
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
 		ON CONFLICT (tenant_id, view_id, element_id, element_type)
 		DO UPDATE SET x = $5, y = $6, updated_at = $7`,
-		viewID, tenantID.Value(), elementID, string(elementType), pos.X, pos.Y, time.Now().UTC(),
+		ref.ViewID, tenantID.Value(), ref.ElementID, string(ref.ElementType), pos.X, pos.Y, time.Now().UTC(),
 	)
 	return err
 }
@@ -121,24 +123,7 @@ func (r *ViewLayoutRepository) GetLayout(ctx context.Context, viewID string) ([]
 	return positions, err
 }
 
-func (r *ViewLayoutRepository) DeleteComponentPosition(ctx context.Context, viewID, componentID string) error {
-	return r.deleteElementPosition(ctx, viewID, componentID, ElementTypeComponent)
-}
-
-func (r *ViewLayoutRepository) DeleteLayout(ctx context.Context, viewID string) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = r.db.ExecContext(ctx,
-		"DELETE FROM architectureviews.view_element_positions WHERE tenant_id = $1 AND view_id = $2",
-		tenantID.Value(), viewID,
-	)
-	return err
-}
-
-func (r *ViewLayoutRepository) deleteElementPosition(ctx context.Context, viewID, elementID string, elementType ElementType) error {
+func (r *ViewLayoutRepository) DeleteElementPosition(ctx context.Context, ref ElementRef) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -146,29 +131,26 @@ func (r *ViewLayoutRepository) deleteElementPosition(ctx context.Context, viewID
 
 	_, err = r.db.ExecContext(ctx,
 		"DELETE FROM architectureviews.view_element_positions WHERE tenant_id = $1 AND view_id = $2 AND element_id = $3 AND element_type = $4",
-		tenantID.Value(), viewID, elementID, string(elementType),
+		tenantID.Value(), ref.ViewID, ref.ElementID, string(ref.ElementType),
 	)
 	return err
 }
 
-func (r *ViewLayoutRepository) UpdateEdgeType(ctx context.Context, viewID, edgeType string) error {
-	return r.updateViewPreference(ctx, viewID, "edge_type", edgeType)
-}
+type PreferenceKey string
 
-func (r *ViewLayoutRepository) UpdateLayoutDirection(ctx context.Context, viewID, layoutDirection string) error {
-	return r.updateViewPreference(ctx, viewID, "layout_direction", layoutDirection)
-}
+const (
+	PreferenceKeyEdgeType        PreferenceKey = "edge_type"
+	PreferenceKeyLayoutDirection PreferenceKey = "layout_direction"
+	PreferenceKeyColorScheme     PreferenceKey = "color_scheme"
+)
 
-func (r *ViewLayoutRepository) UpdateColorScheme(ctx context.Context, viewID, colorScheme string) error {
-	return r.updateViewPreference(ctx, viewID, "color_scheme", colorScheme)
-}
-
-func (r *ViewLayoutRepository) updateViewPreference(ctx context.Context, viewID, column, value string) error {
+func (r *ViewLayoutRepository) UpdatePreference(ctx context.Context, viewID string, key PreferenceKey, value string) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
 	}
 
+	column := string(key)
 	query := `INSERT INTO architectureviews.view_preferences (tenant_id, view_id, ` + column + `, updated_at)
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (tenant_id, view_id)
@@ -177,7 +159,15 @@ func (r *ViewLayoutRepository) updateViewPreference(ctx context.Context, viewID,
 	return err
 }
 
-func (r *ViewLayoutRepository) UpdateElementColor(ctx context.Context, viewID, elementID string, elementType ElementType, color string) error {
+func (r *ViewLayoutRepository) UpdateElementColor(ctx context.Context, ref ElementRef, color string) error {
+	return r.setElementColor(ctx, ref, &color)
+}
+
+func (r *ViewLayoutRepository) ClearElementColor(ctx context.Context, ref ElementRef) error {
+	return r.setElementColor(ctx, ref, nil)
+}
+
+func (r *ViewLayoutRepository) setElementColor(ctx context.Context, ref ElementRef, color *string) error {
 	tenantID, err := sharedctx.GetTenant(ctx)
 	if err != nil {
 		return err
@@ -186,20 +176,7 @@ func (r *ViewLayoutRepository) UpdateElementColor(ctx context.Context, viewID, e
 	query := `UPDATE architectureviews.view_element_positions
 		SET custom_color = $1, updated_at = $2
 		WHERE tenant_id = $3 AND view_id = $4 AND element_id = $5 AND element_type = $6`
-	_, err = r.db.ExecContext(ctx, query, color, time.Now().UTC(), tenantID.Value(), viewID, elementID, string(elementType))
-	return err
-}
-
-func (r *ViewLayoutRepository) ClearElementColor(ctx context.Context, viewID, elementID string, elementType ElementType) error {
-	tenantID, err := sharedctx.GetTenant(ctx)
-	if err != nil {
-		return err
-	}
-
-	query := `UPDATE architectureviews.view_element_positions
-		SET custom_color = NULL, updated_at = $1
-		WHERE tenant_id = $2 AND view_id = $3 AND element_id = $4 AND element_type = $5`
-	_, err = r.db.ExecContext(ctx, query, time.Now().UTC(), tenantID.Value(), viewID, elementID, string(elementType))
+	_, err = r.db.ExecContext(ctx, query, color, time.Now().UTC(), tenantID.Value(), ref.ViewID, ref.ElementID, string(ref.ElementType))
 	return err
 }
 
@@ -232,40 +209,4 @@ func (r *ViewLayoutRepository) GetPreferences(ctx context.Context, viewID string
 	}
 
 	return edgeType, layoutDirection, nil
-}
-
-type CapabilityPositionData struct {
-	CapabilityID string
-	X            float64
-	Y            float64
-}
-
-func (r *ViewLayoutRepository) AddCapabilityToView(ctx context.Context, viewID, capabilityID string, x, y float64) error {
-	return r.upsertElementPosition(ctx, viewID, capabilityID, ElementTypeCapability, Position{X: x, Y: y})
-}
-
-func (r *ViewLayoutRepository) UpdateCapabilityPosition(ctx context.Context, viewID, capabilityID string, x, y float64) error {
-	return r.upsertElementPosition(ctx, viewID, capabilityID, ElementTypeCapability, Position{X: x, Y: y})
-}
-
-func (r *ViewLayoutRepository) RemoveCapabilityFromView(ctx context.Context, viewID, capabilityID string) error {
-	return r.deleteElementPosition(ctx, viewID, capabilityID, ElementTypeCapability)
-}
-
-type OriginEntityPositionData struct {
-	OriginEntityID string
-	X              float64
-	Y              float64
-}
-
-func (r *ViewLayoutRepository) AddOriginEntityToView(ctx context.Context, viewID, originEntityID string, x, y float64) error {
-	return r.upsertElementPosition(ctx, viewID, originEntityID, ElementTypeOriginEntity, Position{X: x, Y: y})
-}
-
-func (r *ViewLayoutRepository) UpdateOriginEntityPosition(ctx context.Context, viewID, originEntityID string, x, y float64) error {
-	return r.upsertElementPosition(ctx, viewID, originEntityID, ElementTypeOriginEntity, Position{X: x, Y: y})
-}
-
-func (r *ViewLayoutRepository) RemoveOriginEntityFromView(ctx context.Context, viewID, originEntityID string) error {
-	return r.deleteElementPosition(ctx, viewID, originEntityID, ElementTypeOriginEntity)
 }

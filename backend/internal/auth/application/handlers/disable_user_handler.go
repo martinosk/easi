@@ -5,6 +5,7 @@ import (
 
 	"easi/backend/internal/auth/application/commands"
 	"easi/backend/internal/auth/domain/aggregates"
+	"easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
 )
 
@@ -38,6 +39,11 @@ func (h *DisableUserHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
+	disabledBy, err := valueobjects.UserIDFromString(command.DisabledByID)
+	if err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
 	isCurrentUser := command.UserID == command.DisabledByID
 
 	isLastAdmin, err := h.userReadModel.IsLastActiveAdmin(ctx, command.UserID)
@@ -50,7 +56,7 @@ func (h *DisableUserHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs
 		return cqrs.EmptyResult(), err
 	}
 
-	if err := user.Disable(command.DisabledByID, isCurrentUser, isLastAdmin); err != nil {
+	if err := user.Disable(disabledBy, isCurrentUser, isLastAdmin); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 

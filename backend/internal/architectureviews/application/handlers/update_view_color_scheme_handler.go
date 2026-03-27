@@ -5,11 +5,12 @@ import (
 
 	"easi/backend/internal/architectureviews/application/commands"
 	"easi/backend/internal/architectureviews/domain/valueobjects"
+	"easi/backend/internal/architectureviews/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 )
 
 type ColorSchemeUpdater interface {
-	UpdateColorScheme(ctx context.Context, viewID, colorScheme string) error
+	UpdatePreference(ctx context.Context, viewID string, key repositories.PreferenceKey, value string) error
 }
 
 type UpdateViewColorSchemeHandler struct {
@@ -33,7 +34,7 @@ func (h *UpdateViewColorSchemeHandler) Handle(ctx context.Context, cmd cqrs.Comm
 		return cqrs.EmptyResult(), err
 	}
 
-	if err := h.layoutRepository.UpdateColorScheme(ctx, command.ViewID, command.ColorScheme); err != nil {
+	if err := h.layoutRepository.UpdatePreference(ctx, command.ViewID, repositories.PreferenceKeyColorScheme, command.ColorScheme); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 

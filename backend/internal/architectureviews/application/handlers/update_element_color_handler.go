@@ -11,7 +11,7 @@ import (
 )
 
 type ElementColorUpdater interface {
-	UpdateElementColor(ctx context.Context, viewID, elementID string, elementType repositories.ElementType, color string) error
+	UpdateElementColor(ctx context.Context, ref repositories.ElementRef, color string) error
 }
 
 type UpdateElementColorHandler struct {
@@ -45,7 +45,7 @@ func (h *UpdateElementColorHandler) Handle(ctx context.Context, cmd cqrs.Command
 		return cqrs.EmptyResult(), errors.New("invalid element type: must be 'component' or 'capability'")
 	}
 
-	if err := h.layoutRepository.UpdateElementColor(ctx, command.ViewID, command.ElementID, elementType, command.Color); err != nil {
+	if err := h.layoutRepository.UpdateElementColor(ctx, repositories.ElementRef{ViewID: command.ViewID, ElementID: command.ElementID, ElementType: elementType}, command.Color); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 

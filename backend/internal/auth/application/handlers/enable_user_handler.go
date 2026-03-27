@@ -5,6 +5,7 @@ import (
 
 	"easi/backend/internal/auth/application/commands"
 	"easi/backend/internal/auth/domain/aggregates"
+	"easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
 )
 
@@ -29,12 +30,17 @@ func (h *EnableUserHandler) Handle(ctx context.Context, cmd cqrs.Command) (cqrs.
 		return cqrs.EmptyResult(), cqrs.ErrInvalidCommand
 	}
 
+	enabledBy, err := valueobjects.UserIDFromString(command.EnabledByID)
+	if err != nil {
+		return cqrs.EmptyResult(), err
+	}
+
 	user, err := h.repository.GetByID(ctx, command.UserID)
 	if err != nil {
 		return cqrs.EmptyResult(), err
 	}
 
-	if err := user.Enable(command.EnabledByID); err != nil {
+	if err := user.Enable(enabledBy); err != nil {
 		return cqrs.EmptyResult(), err
 	}
 

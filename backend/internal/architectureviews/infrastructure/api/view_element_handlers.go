@@ -5,17 +5,14 @@ import (
 	"net/http"
 
 	"easi/backend/internal/architectureviews/application/readmodels"
+	"easi/backend/internal/architectureviews/infrastructure/repositories"
 	sharedAPI "easi/backend/internal/shared/api"
 	sharedctx "easi/backend/internal/shared/context"
 )
 
 type LayoutRepository interface {
-	AddCapabilityToView(ctx context.Context, viewID, capabilityID string, x, y float64) error
-	UpdateCapabilityPosition(ctx context.Context, viewID, capabilityID string, x, y float64) error
-	RemoveCapabilityFromView(ctx context.Context, viewID, capabilityID string) error
-	AddOriginEntityToView(ctx context.Context, viewID, originEntityID string, x, y float64) error
-	UpdateOriginEntityPosition(ctx context.Context, viewID, originEntityID string, x, y float64) error
-	RemoveOriginEntityFromView(ctx context.Context, viewID, originEntityID string) error
+	UpsertElementPosition(ctx context.Context, ref repositories.ElementRef, pos repositories.Position) error
+	DeleteElementPosition(ctx context.Context, ref repositories.ElementRef) error
 }
 
 type ViewElementHandlers struct {
@@ -95,16 +92,35 @@ func withViewElement[T any](h *ViewElementHandlers, w http.ResponseWriter, r *ht
 	sharedAPI.RespondNoContent(w)
 }
 
+func (h *ViewElementHandlers) updateElementPosition(w http.ResponseWriter, r *http.Request, op elementOp, elementType repositories.ElementType) {
+	withViewElement(h, w, r, op,
+		func() (ElementPositionRequest, bool) {
+			return sharedAPI.DecodeRequestOrFail[ElementPositionRequest](w, r)
+		},
+		func(ctx context.Context, viewID, elementID string, req ElementPositionRequest) error {
+			ref := repositories.ElementRef{ViewID: viewID, ElementID: elementID, ElementType: elementType}
+			return h.layoutRepo.UpsertElementPosition(ctx, ref, repositories.Position{X: req.X, Y: req.Y})
+		})
+}
+
+func (h *ViewElementHandlers) removeElement(w http.ResponseWriter, r *http.Request, op elementOp, elementType repositories.ElementType) {
+	withViewElement(h, w, r, op,
+		func() (struct{}, bool) { return struct{}{}, true },
+		func(ctx context.Context, viewID, elementID string, _ struct{}) error {
+			return h.layoutRepo.DeleteElementPosition(ctx, repositories.ElementRef{ViewID: viewID, ElementID: elementID, ElementType: elementType})
+		})
+}
+
 type addElementConfig struct {
-	fieldName string
-	subPath   string
-	errorMsg  string
-	addFn     func(ctx context.Context, viewID, entityID string, x, y float64) error
+	fieldName   string
+	subPath     string
+	errorMsg    string
+	elementType repositories.ElementType
 }
 
 type addElementRequest interface {
 	entityID() string
-	position() (x, y float64)
+	position() repositories.Position
 }
 
 type AddCapabilityRequest struct {
@@ -113,8 +129,8 @@ type AddCapabilityRequest struct {
 	Y            float64 `json:"y"`
 }
 
-func (r AddCapabilityRequest) entityID() string             { return r.CapabilityID }
-func (r AddCapabilityRequest) position() (float64, float64) { return r.X, r.Y }
+func (r AddCapabilityRequest) entityID() string                  { return r.CapabilityID }
+func (r AddCapabilityRequest) position() repositories.Position { return repositories.Position{X: r.X, Y: r.Y} }
 
 type AddOriginEntityRequest struct {
 	OriginEntityID string  `json:"originEntityId"`
@@ -122,8 +138,8 @@ type AddOriginEntityRequest struct {
 	Y              float64 `json:"y"`
 }
 
-func (r AddOriginEntityRequest) entityID() string             { return r.OriginEntityID }
-func (r AddOriginEntityRequest) position() (float64, float64) { return r.X, r.Y }
+func (r AddOriginEntityRequest) entityID() string                  { return r.OriginEntityID }
+func (r AddOriginEntityRequest) position() repositories.Position { return repositories.Position{X: r.X, Y: r.Y} }
 
 func handleAddElement[T addElementRequest](h *ViewElementHandlers, w http.ResponseWriter, r *http.Request, cfg addElementConfig) {
 	viewID := sharedAPI.GetPathParam(r, "id")
@@ -141,8 +157,8 @@ func handleAddElement[T addElementRequest](h *ViewElementHandlers, w http.Respon
 		return
 	}
 
-	x, y := req.position()
-	if err := cfg.addFn(r.Context(), viewID, req.entityID(), x, y); err != nil {
+	ref := repositories.ElementRef{ViewID: viewID, ElementID: req.entityID(), ElementType: cfg.elementType}
+	if err := h.layoutRepo.UpsertElementPosition(r.Context(), ref, req.position()); err != nil {
 		sharedAPI.RespondError(w, http.StatusInternalServerError, err, cfg.errorMsg)
 		return
 	}
@@ -166,10 +182,10 @@ func handleAddElement[T addElementRequest](h *ViewElementHandlers, w http.Respon
 // @Router /views/{id}/capabilities [post]
 func (h *ViewElementHandlers) AddCapabilityToView(w http.ResponseWriter, r *http.Request) {
 	handleAddElement[AddCapabilityRequest](h, w, r, addElementConfig{
-		fieldName: "capabilityId",
-		subPath:   "/capabilities",
-		errorMsg:  "Failed to add capability to view",
-		addFn:     h.layoutRepo.AddCapabilityToView,
+		fieldName:   "capabilityId",
+		subPath:     "/capabilities",
+		errorMsg:    "Failed to add capability to view",
+		elementType: repositories.ElementTypeCapability,
 	})
 }
 
@@ -188,13 +204,7 @@ func (h *ViewElementHandlers) AddCapabilityToView(w http.ResponseWriter, r *http
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/capabilities/{capabilityId}/position [patch]
 func (h *ViewElementHandlers) UpdateCapabilityPosition(w http.ResponseWriter, r *http.Request) {
-	withViewElement(h, w, r, elementOp{pathParam: "capabilityId", errorMsg: "Failed to update capability position"},
-		func() (ElementPositionRequest, bool) {
-			return sharedAPI.DecodeRequestOrFail[ElementPositionRequest](w, r)
-		},
-		func(ctx context.Context, viewID, elementID string, req ElementPositionRequest) error {
-			return h.layoutRepo.UpdateCapabilityPosition(ctx, viewID, elementID, req.X, req.Y)
-		})
+	h.updateElementPosition(w, r, elementOp{pathParam: "capabilityId", errorMsg: "Failed to update capability position"}, repositories.ElementTypeCapability)
 }
 
 // RemoveCapabilityFromView godoc
@@ -209,11 +219,7 @@ func (h *ViewElementHandlers) UpdateCapabilityPosition(w http.ResponseWriter, r 
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/capabilities/{capabilityId} [delete]
 func (h *ViewElementHandlers) RemoveCapabilityFromView(w http.ResponseWriter, r *http.Request) {
-	withViewElement(h, w, r, elementOp{pathParam: "capabilityId", errorMsg: "Failed to remove capability from view"},
-		func() (struct{}, bool) { return struct{}{}, true },
-		func(ctx context.Context, viewID, elementID string, _ struct{}) error {
-			return h.layoutRepo.RemoveCapabilityFromView(ctx, viewID, elementID)
-		})
+	h.removeElement(w, r, elementOp{pathParam: "capabilityId", errorMsg: "Failed to remove capability from view"}, repositories.ElementTypeCapability)
 }
 
 // AddOriginEntityToView godoc
@@ -231,10 +237,10 @@ func (h *ViewElementHandlers) RemoveCapabilityFromView(w http.ResponseWriter, r 
 // @Router /views/{id}/origin-entities [post]
 func (h *ViewElementHandlers) AddOriginEntityToView(w http.ResponseWriter, r *http.Request) {
 	handleAddElement[AddOriginEntityRequest](h, w, r, addElementConfig{
-		fieldName: "originEntityId",
-		subPath:   "/origin-entities",
-		errorMsg:  "Failed to add origin entity to view",
-		addFn:     h.layoutRepo.AddOriginEntityToView,
+		fieldName:   "originEntityId",
+		subPath:     "/origin-entities",
+		errorMsg:    "Failed to add origin entity to view",
+		elementType: repositories.ElementTypeOriginEntity,
 	})
 }
 
@@ -253,13 +259,7 @@ func (h *ViewElementHandlers) AddOriginEntityToView(w http.ResponseWriter, r *ht
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/origin-entities/{originEntityId}/position [patch]
 func (h *ViewElementHandlers) UpdateOriginEntityPosition(w http.ResponseWriter, r *http.Request) {
-	withViewElement(h, w, r, elementOp{pathParam: "originEntityId", errorMsg: "Failed to update origin entity position"},
-		func() (ElementPositionRequest, bool) {
-			return sharedAPI.DecodeRequestOrFail[ElementPositionRequest](w, r)
-		},
-		func(ctx context.Context, viewID, elementID string, req ElementPositionRequest) error {
-			return h.layoutRepo.UpdateOriginEntityPosition(ctx, viewID, elementID, req.X, req.Y)
-		})
+	h.updateElementPosition(w, r, elementOp{pathParam: "originEntityId", errorMsg: "Failed to update origin entity position"}, repositories.ElementTypeOriginEntity)
 }
 
 // RemoveOriginEntityFromView godoc
@@ -274,9 +274,5 @@ func (h *ViewElementHandlers) UpdateOriginEntityPosition(w http.ResponseWriter, 
 // @Failure 500 {object} sharedAPI.ErrorResponse
 // @Router /views/{id}/origin-entities/{originEntityId} [delete]
 func (h *ViewElementHandlers) RemoveOriginEntityFromView(w http.ResponseWriter, r *http.Request) {
-	withViewElement(h, w, r, elementOp{pathParam: "originEntityId", errorMsg: "Failed to remove origin entity from view"},
-		func() (struct{}, bool) { return struct{}{}, true },
-		func(ctx context.Context, viewID, elementID string, _ struct{}) error {
-			return h.layoutRepo.RemoveOriginEntityFromView(ctx, viewID, elementID)
-		})
+	h.removeElement(w, r, elementOp{pathParam: "originEntityId", errorMsg: "Failed to remove origin entity from view"}, repositories.ElementTypeOriginEntity)
 }

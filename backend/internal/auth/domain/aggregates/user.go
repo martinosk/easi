@@ -20,49 +20,34 @@ var (
 
 type User struct {
 	domain.AggregateRoot
-	email      valueobjects.Email
-	name       *string
-	role       valueobjects.Role
-	status     valueobjects.UserStatus
-	externalID *string
-	createdAt  time.Time
+	email    valueobjects.Email
+	profile  valueobjects.ExternalProfile
+	role     valueobjects.Role
+	status   valueobjects.UserStatus
+	createdAt time.Time
 }
 
 func NewUser(
 	email valueobjects.Email,
-	name string,
+	profile valueobjects.ExternalProfile,
 	role valueobjects.Role,
-	externalID string,
 	invitationID string,
 ) (*User, error) {
 	user := &User{
 		AggregateRoot: domain.NewAggregateRoot(),
 	}
 
-	var namePtr *string
-	if name != "" {
-		namePtr = &name
-	}
-
-	var extIDPtr *string
-	if externalID != "" {
-		extIDPtr = &externalID
-	}
-
 	event := events.NewUserCreated(
 		user.ID(),
 		email.Value(),
-		name,
+		profile.Name(),
 		role.String(),
-		externalID,
+		profile.ExternalID(),
 		invitationID,
 	)
 
 	user.apply(event)
 	user.RaiseEvent(event)
-
-	user.name = namePtr
-	user.externalID = extIDPtr
 
 	return user, nil
 }
@@ -79,24 +64,24 @@ func LoadUserFromHistory(evts []domain.DomainEvent) (*User, error) {
 	return user, nil
 }
 
-func (u *User) ChangeRole(newRole valueobjects.Role, changedByID string, isLastAdmin bool) error {
+func (u *User) ChangeRole(newRole valueobjects.Role, changedBy valueobjects.UserID, isLastAdmin bool) error {
 	if u.role.Equals(newRole) {
 		return ErrSameRole
 	}
 
-	if u.role.String() == "admin" && newRole.String() != "admin" && isLastAdmin {
+	if u.isDemotionOfLastAdmin(newRole, isLastAdmin) {
 		return ErrCannotDemoteLastAdmin
 	}
 
 	oldRole := u.role.String()
-	event := events.NewUserRoleChanged(u.ID(), oldRole, newRole.String(), changedByID)
+	event := events.NewUserRoleChanged(u.ID(), oldRole, newRole.String(), changedBy.Value())
 	u.apply(event)
 	u.RaiseEvent(event)
 
 	return nil
 }
 
-func (u *User) Disable(disabledByID string, isCurrentUser bool, isLastAdmin bool) error {
+func (u *User) Disable(disabledBy valueobjects.UserID, isCurrentUser bool, isLastAdmin bool) error {
 	if isCurrentUser {
 		return ErrCannotDisableSelf
 	}
@@ -105,27 +90,31 @@ func (u *User) Disable(disabledByID string, isCurrentUser bool, isLastAdmin bool
 		return ErrUserAlreadyDisabled
 	}
 
-	if u.role.String() == "admin" && isLastAdmin {
+	if u.role.IsAdmin() && isLastAdmin {
 		return ErrCannotDisableLastAdmin
 	}
 
-	event := events.NewUserDisabled(u.ID(), disabledByID)
+	event := events.NewUserDisabled(u.ID(), disabledBy.Value())
 	u.apply(event)
 	u.RaiseEvent(event)
 
 	return nil
 }
 
-func (u *User) Enable(enabledByID string) error {
+func (u *User) Enable(enabledBy valueobjects.UserID) error {
 	if u.status.IsActive() {
 		return ErrUserAlreadyActive
 	}
 
-	event := events.NewUserEnabled(u.ID(), enabledByID)
+	event := events.NewUserEnabled(u.ID(), enabledBy.Value())
 	u.apply(event)
 	u.RaiseEvent(event)
 
 	return nil
+}
+
+func (u *User) isDemotionOfLastAdmin(newRole valueobjects.Role, isLastAdmin bool) bool {
+	return u.role.IsAdmin() && !newRole.IsAdmin() && isLastAdmin
 }
 
 func (u *User) apply(event domain.DomainEvent) {
@@ -133,14 +122,9 @@ func (u *User) apply(event domain.DomainEvent) {
 	case events.UserCreated:
 		u.AggregateRoot = domain.NewAggregateRootWithID(e.ID)
 		u.email, _ = valueobjects.NewEmail(e.Email)
+		u.profile = valueobjects.NewExternalProfile(e.Name, e.ExternalID)
 		u.role, _ = valueobjects.RoleFromString(e.Role)
 		u.status = valueobjects.UserStatusActive
-		if e.Name != "" {
-			u.name = &e.Name
-		}
-		if e.ExternalID != "" {
-			u.externalID = &e.ExternalID
-		}
 		u.createdAt = e.CreatedAt
 	case events.UserRoleChanged:
 		u.role, _ = valueobjects.RoleFromString(e.NewRole)
@@ -156,7 +140,15 @@ func (u *User) Email() valueobjects.Email {
 }
 
 func (u *User) Name() *string {
-	return u.name
+	if u.profile.HasName() {
+		name := u.profile.Name()
+		return &name
+	}
+	return nil
+}
+
+func (u *User) Profile() valueobjects.ExternalProfile {
+	return u.profile
 }
 
 func (u *User) Role() valueobjects.Role {
@@ -168,7 +160,11 @@ func (u *User) Status() valueobjects.UserStatus {
 }
 
 func (u *User) ExternalID() *string {
-	return u.externalID
+	if u.profile.HasExternalID() {
+		id := u.profile.ExternalID()
+		return &id
+	}
+	return nil
 }
 
 func (u *User) CreatedAt() time.Time {

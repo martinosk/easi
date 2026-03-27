@@ -103,7 +103,8 @@ func (s *LoginService) ProcessLogin(ctx context.Context, email, name string) (*L
 		return nil, err
 	}
 
-	user, err := aggregates.NewUser(emailVO, name, role, "", invitation.ID)
+	profile := valueobjects.NewExternalProfile(name, "")
+	user, err := aggregates.NewUser(emailVO, profile, role, invitation.ID)
 	if err != nil {
 		return nil, err
 	}

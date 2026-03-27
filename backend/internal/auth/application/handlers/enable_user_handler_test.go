@@ -10,6 +10,7 @@ import (
 	"easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -36,111 +37,96 @@ func (m *mockEnableUserRepository) GetByID(ctx context.Context, id string) (*agg
 	return m.userToLoad, nil
 }
 
-func TestEnableUserHandler_EnablesUserSuccessfully(t *testing.T) {
-	user := createUserForTestEnable(t, "architect")
-	user.Disable("disabler-111", false, false)
-	user.MarkChangesAsCommitted()
-
-	mockRepo := &mockEnableUserRepository{userToLoad: user}
-
-	handler := NewEnableUserHandler(mockRepo)
-
-	cmd := &commands.EnableUser{
-		UserID:      user.ID(),
-		EnabledByID: "enabler-123",
+func TestEnableUserHandler_EnablesSuccessfully(t *testing.T) {
+	tests := []struct {
+		name string
+		role string
+	}{
+		{name: "architect", role: "architect"},
+		{name: "admin", role: "admin"},
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			user := createUserForTestEnable(t, tt.role)
+			user.Disable(valueobjects.NewUserID(), false, false)
+			user.MarkChangesAsCommitted()
 
-	require.Len(t, mockRepo.savedUsers, 1)
-	savedUser := mockRepo.savedUsers[0]
-	assert.True(t, savedUser.Status().IsActive())
+			mockRepo := &mockEnableUserRepository{userToLoad: user}
+			handler := NewEnableUserHandler(mockRepo)
+
+			_, err := handler.Handle(context.Background(), &commands.EnableUser{
+				UserID:      user.ID(),
+				EnabledByID: uuid.New().String(),
+			})
+			require.NoError(t, err)
+
+			require.Len(t, mockRepo.savedUsers, 1)
+			assert.True(t, mockRepo.savedUsers[0].Status().IsActive())
+		})
+	}
 }
 
-func TestEnableUserHandler_UserAlreadyActive_ReturnsError(t *testing.T) {
-	user := createUserForTestEnable(t, "architect")
-	mockRepo := &mockEnableUserRepository{userToLoad: user}
-
-	handler := NewEnableUserHandler(mockRepo)
-
-	cmd := &commands.EnableUser{
-		UserID:      user.ID(),
-		EnabledByID: "enabler-456",
+func TestEnableUserHandler_ReturnsError(t *testing.T) {
+	tests := []struct {
+		name    string
+		role    string
+		disable bool
+		getErr  error
+		saveErr error
+		wantErr error
+	}{
+		{
+			name:    "already active",
+			role:    "architect",
+			wantErr: aggregates.ErrUserAlreadyActive,
+		},
+		{
+			name:   "user not found",
+			role:   "architect",
+			getErr: errors.New("not found"),
+		},
+		{
+			name:    "save error",
+			role:    "architect",
+			disable: true,
+			saveErr: errors.New("save failed"),
+		},
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, aggregates.ErrUserAlreadyActive)
-	assert.Empty(t, mockRepo.savedUsers)
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			user := createUserForTestEnable(t, tt.role)
+			if tt.disable {
+				user.Disable(valueobjects.NewUserID(), false, false)
+			}
+			user.MarkChangesAsCommitted()
 
-func TestEnableUserHandler_UserNotFound_ReturnsError(t *testing.T) {
-	mockRepo := &mockEnableUserRepository{getErr: errors.New("not found")}
+			mockRepo := &mockEnableUserRepository{
+				userToLoad: user,
+				getErr:     tt.getErr,
+				saveErr:    tt.saveErr,
+			}
+			handler := NewEnableUserHandler(mockRepo)
 
-	handler := NewEnableUserHandler(mockRepo)
+			_, err := handler.Handle(context.Background(), &commands.EnableUser{
+				UserID:      user.ID(),
+				EnabledByID: uuid.New().String(),
+			})
 
-	cmd := &commands.EnableUser{
-		UserID:      "nonexistent-id",
-		EnabledByID: "enabler-789",
+			assert.Error(t, err)
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+			}
+		})
 	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
 }
 
 func TestEnableUserHandler_InvalidCommand_ReturnsError(t *testing.T) {
-	mockRepo := &mockEnableUserRepository{}
+	handler := NewEnableUserHandler(&mockEnableUserRepository{})
 
-	handler := NewEnableUserHandler(mockRepo)
-
-	invalidCmd := &commands.DisableUser{}
-
-	_, err := handler.Handle(context.Background(), invalidCmd)
+	_, err := handler.Handle(context.Background(), &commands.DisableUser{})
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
-}
-
-func TestEnableUserHandler_SaveError_ReturnsError(t *testing.T) {
-	user := createUserForTestEnable(t, "architect")
-	user.Disable("disabler-222", false, false)
-	user.MarkChangesAsCommitted()
-
-	mockRepo := &mockEnableUserRepository{
-		userToLoad: user,
-		saveErr:    errors.New("save failed"),
-	}
-
-	handler := NewEnableUserHandler(mockRepo)
-
-	cmd := &commands.EnableUser{
-		UserID:      user.ID(),
-		EnabledByID: "enabler-err",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-}
-
-func TestEnableUserHandler_EnableDisabledAdmin(t *testing.T) {
-	user := createUserForTestEnable(t, "admin")
-	user.Disable("disabler-333", false, false)
-	user.MarkChangesAsCommitted()
-
-	mockRepo := &mockEnableUserRepository{userToLoad: user}
-
-	handler := NewEnableUserHandler(mockRepo)
-
-	cmd := &commands.EnableUser{
-		UserID:      user.ID(),
-		EnabledByID: "enabler-999",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	require.NoError(t, err)
-
-	require.Len(t, mockRepo.savedUsers, 1)
-	savedUser := mockRepo.savedUsers[0]
-	assert.True(t, savedUser.Status().IsActive())
-	assert.Equal(t, "admin", savedUser.Role().String())
 }
 
 func createUserForTestEnable(t *testing.T, roleName string) *aggregates.User {
@@ -152,7 +138,8 @@ func createUserForTestEnable(t *testing.T, roleName string) *aggregates.User {
 	role, err := valueobjects.RoleFromString(roleName)
 	require.NoError(t, err)
 
-	user, err := aggregates.NewUser(email, "Test User", role, "ext-test", "inv-test")
+	profile := valueobjects.NewExternalProfile("Test User", "ext-test")
+	user, err := aggregates.NewUser(email, profile, role, "inv-test")
 	require.NoError(t, err)
 
 	user.MarkChangesAsCommitted()

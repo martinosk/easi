@@ -16,17 +16,13 @@ import (
 type mockElementColorUpdater struct {
 	updateElementColorErr    error
 	updateElementColorCalled bool
-	viewID                   string
-	elementID                string
-	elementType              repositories.ElementType
+	ref                      repositories.ElementRef
 	color                    string
 }
 
-func (m *mockElementColorUpdater) UpdateElementColor(ctx context.Context, viewID, elementID string, elementType repositories.ElementType, color string) error {
+func (m *mockElementColorUpdater) UpdateElementColor(ctx context.Context, ref repositories.ElementRef, color string) error {
 	m.updateElementColorCalled = true
-	m.viewID = viewID
-	m.elementID = elementID
-	m.elementType = elementType
+	m.ref = ref
 	m.color = color
 	return m.updateElementColorErr
 }
@@ -62,9 +58,9 @@ func TestUpdateElementColorHandler_ValidInputs(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.True(t, mockRepo.updateElementColorCalled)
-			assert.Equal(t, tt.viewID, mockRepo.viewID)
-			assert.Equal(t, tt.elementID, mockRepo.elementID)
-			assert.Equal(t, tt.expectedRepoType, mockRepo.elementType)
+			assert.Equal(t, tt.viewID, mockRepo.ref.ViewID)
+			assert.Equal(t, tt.elementID, mockRepo.ref.ElementID)
+			assert.Equal(t, tt.expectedRepoType, mockRepo.ref.ElementType)
 			assert.Equal(t, tt.color, mockRepo.color)
 		})
 	}

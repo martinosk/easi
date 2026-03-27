@@ -7,74 +7,58 @@ import (
 
 	"easi/backend/internal/architectureviews/application/commands"
 	"easi/backend/internal/architectureviews/domain/valueobjects"
+	"easi/backend/internal/architectureviews/infrastructure/repositories"
 	"easi/backend/internal/shared/cqrs"
 
 	"github.com/stretchr/testify/assert"
 )
 
 type mockColorSchemeUpdater struct {
-	updateColorSchemeErr    error
-	updateColorSchemeCalled bool
-	viewID                  string
-	colorScheme             string
+	updatePreferenceErr    error
+	updatePreferenceCalled bool
+	viewID                 string
+	key                    repositories.PreferenceKey
+	value                  string
 }
 
-func (m *mockColorSchemeUpdater) UpdateColorScheme(ctx context.Context, viewID, colorScheme string) error {
-	m.updateColorSchemeCalled = true
+func (m *mockColorSchemeUpdater) UpdatePreference(ctx context.Context, viewID string, key repositories.PreferenceKey, value string) error {
+	m.updatePreferenceCalled = true
 	m.viewID = viewID
-	m.colorScheme = colorScheme
-	return m.updateColorSchemeErr
+	m.key = key
+	m.value = value
+	return m.updatePreferenceErr
 }
 
-func TestUpdateViewColorSchemeHandler_ValidMaturity(t *testing.T) {
-	mockRepo := &mockColorSchemeUpdater{}
-	handler := NewUpdateViewColorSchemeHandler(mockRepo)
-
-	cmd := &commands.UpdateViewColorScheme{
-		ViewID:      "view-123",
-		ColorScheme: "maturity",
+func TestUpdateViewColorSchemeHandler_ValidSchemes(t *testing.T) {
+	tests := []struct {
+		name        string
+		viewID      string
+		colorScheme string
+	}{
+		{"maturity", "view-123", "maturity"},
+		{"classic", "view-456", "classic"},
+		{"custom", "view-abc", "custom"},
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &mockColorSchemeUpdater{}
+			handler := NewUpdateViewColorSchemeHandler(mockRepo)
 
-	assert.NoError(t, err)
-	assert.True(t, mockRepo.updateColorSchemeCalled)
-	assert.Equal(t, "view-123", mockRepo.viewID)
-	assert.Equal(t, "maturity", mockRepo.colorScheme)
-}
+			cmd := &commands.UpdateViewColorScheme{
+				ViewID:      tt.viewID,
+				ColorScheme: tt.colorScheme,
+			}
 
-func TestUpdateViewColorSchemeHandler_ValidClassic(t *testing.T) {
-	mockRepo := &mockColorSchemeUpdater{}
-	handler := NewUpdateViewColorSchemeHandler(mockRepo)
+			_, err := handler.Handle(context.Background(), cmd)
 
-	cmd := &commands.UpdateViewColorScheme{
-		ViewID:      "view-456",
-		ColorScheme: "classic",
+			assert.NoError(t, err)
+			assert.True(t, mockRepo.updatePreferenceCalled)
+			assert.Equal(t, tt.viewID, mockRepo.viewID)
+			assert.Equal(t, repositories.PreferenceKeyColorScheme, mockRepo.key)
+			assert.Equal(t, tt.colorScheme, mockRepo.value)
+		})
 	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-
-	assert.NoError(t, err)
-	assert.True(t, mockRepo.updateColorSchemeCalled)
-	assert.Equal(t, "view-456", mockRepo.viewID)
-	assert.Equal(t, "classic", mockRepo.colorScheme)
-}
-
-func TestUpdateViewColorSchemeHandler_ValidCustom(t *testing.T) {
-	mockRepo := &mockColorSchemeUpdater{}
-	handler := NewUpdateViewColorSchemeHandler(mockRepo)
-
-	cmd := &commands.UpdateViewColorScheme{
-		ViewID:      "view-abc",
-		ColorScheme: "custom",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-
-	assert.NoError(t, err)
-	assert.True(t, mockRepo.updateColorSchemeCalled)
-	assert.Equal(t, "view-abc", mockRepo.viewID)
-	assert.Equal(t, "custom", mockRepo.colorScheme)
 }
 
 func TestUpdateViewColorSchemeHandler_InvalidColorScheme(t *testing.T) {
@@ -90,13 +74,13 @@ func TestUpdateViewColorSchemeHandler_InvalidColorScheme(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Equal(t, valueobjects.ErrInvalidColorScheme, err)
-	assert.False(t, mockRepo.updateColorSchemeCalled)
+	assert.False(t, mockRepo.updatePreferenceCalled)
 }
 
 func TestUpdateViewColorSchemeHandler_RepositoryError(t *testing.T) {
 	repositoryErr := errors.New("database connection failed")
 	mockRepo := &mockColorSchemeUpdater{
-		updateColorSchemeErr: repositoryErr,
+		updatePreferenceErr: repositoryErr,
 	}
 	handler := NewUpdateViewColorSchemeHandler(mockRepo)
 
@@ -109,7 +93,7 @@ func TestUpdateViewColorSchemeHandler_RepositoryError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Equal(t, repositoryErr, err)
-	assert.True(t, mockRepo.updateColorSchemeCalled)
+	assert.True(t, mockRepo.updatePreferenceCalled)
 }
 
 func TestUpdateViewColorSchemeHandler_InvalidCommand(t *testing.T) {
@@ -124,5 +108,5 @@ func TestUpdateViewColorSchemeHandler_InvalidCommand(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Equal(t, cqrs.ErrInvalidCommand, err)
-	assert.False(t, mockRepo.updateColorSchemeCalled)
+	assert.False(t, mockRepo.updatePreferenceCalled)
 }

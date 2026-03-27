@@ -10,6 +10,7 @@ import (
 	"easi/backend/internal/auth/domain/valueobjects"
 	"easi/backend/internal/shared/cqrs"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,141 +50,109 @@ func (m *mockDisableUserReadModel) IsLastActiveAdmin(ctx context.Context, userID
 }
 
 func TestDisableUserHandler_DisablesUserSuccessfully(t *testing.T) {
-	user := createUserForTestDisable(t, "architect")
-	mockRepo := &mockDisableUserRepository{userToLoad: user}
-	mockReadModel := &mockDisableUserReadModel{isLastAdmin: false}
-
-	handler := NewDisableUserHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.DisableUser{
-		UserID:       user.ID(),
-		DisabledByID: "disabler-123",
+	tests := []struct {
+		name string
+		role string
+	}{
+		{name: "architect", role: "architect"},
+		{name: "stakeholder", role: "stakeholder"},
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			user := createUserForTestDisable(t, tt.role)
+			mockRepo := &mockDisableUserRepository{userToLoad: user}
+			handler := NewDisableUserHandler(mockRepo, &mockDisableUserReadModel{})
 
-	require.Len(t, mockRepo.savedUsers, 1)
-	savedUser := mockRepo.savedUsers[0]
-	assert.False(t, savedUser.Status().IsActive())
+			_, err := handler.Handle(context.Background(), &commands.DisableUser{
+				UserID:       user.ID(),
+				DisabledByID: uuid.New().String(),
+			})
+			require.NoError(t, err)
+
+			require.Len(t, mockRepo.savedUsers, 1)
+			assert.False(t, mockRepo.savedUsers[0].Status().IsActive())
+		})
+	}
 }
 
-func TestDisableUserHandler_CannotDisableSelf(t *testing.T) {
-	user := createUserForTestDisable(t, "admin")
-	mockRepo := &mockDisableUserRepository{userToLoad: user}
-	mockReadModel := &mockDisableUserReadModel{isLastAdmin: false}
-
-	handler := NewDisableUserHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.DisableUser{
-		UserID:       user.ID(),
-		DisabledByID: user.ID(),
+func TestDisableUserHandler_ReturnsError(t *testing.T) {
+	tests := []struct {
+		name        string
+		role        string
+		selfDisable bool
+		preDisable  bool
+		isLastAdmin bool
+		getErr      error
+		readErr     error
+		wantErr     error
+	}{
+		{
+			name:        "cannot disable self",
+			role:        "admin",
+			selfDisable: true,
+			wantErr:     aggregates.ErrCannotDisableSelf,
+		},
+		{
+			name:        "cannot disable last admin",
+			role:        "admin",
+			isLastAdmin: true,
+			wantErr:     aggregates.ErrCannotDisableLastAdmin,
+		},
+		{
+			name:       "already disabled",
+			role:       "architect",
+			preDisable: true,
+			wantErr:    aggregates.ErrUserAlreadyDisabled,
+		},
+		{
+			name:   "user not found",
+			role:   "admin",
+			getErr: errors.New("not found"),
+		},
+		{
+			name:    "read model error",
+			role:    "admin",
+			readErr: errors.New("database error"),
+		},
 	}
 
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, aggregates.ErrCannotDisableSelf)
-	assert.Empty(t, mockRepo.savedUsers)
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			user := createUserForTestDisable(t, tt.role)
+			if tt.preDisable {
+				user.Disable(valueobjects.NewUserID(), false, false)
+			}
+			user.MarkChangesAsCommitted()
 
-func TestDisableUserHandler_CannotDisableLastAdmin(t *testing.T) {
-	user := createUserForTestDisable(t, "admin")
-	mockRepo := &mockDisableUserRepository{userToLoad: user}
-	mockReadModel := &mockDisableUserReadModel{isLastAdmin: true}
+			mockRepo := &mockDisableUserRepository{userToLoad: user, getErr: tt.getErr}
+			mockReadModel := &mockDisableUserReadModel{isLastAdmin: tt.isLastAdmin, checkErr: tt.readErr}
+			handler := NewDisableUserHandler(mockRepo, mockReadModel)
 
-	handler := NewDisableUserHandler(mockRepo, mockReadModel)
+			disabledByID := uuid.New().String()
+			if tt.selfDisable {
+				disabledByID = user.ID()
+			}
 
-	cmd := &commands.DisableUser{
-		UserID:       user.ID(),
-		DisabledByID: "other-admin-456",
+			_, err := handler.Handle(context.Background(), &commands.DisableUser{
+				UserID:       user.ID(),
+				DisabledByID: disabledByID,
+			})
+
+			assert.Error(t, err)
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+			}
+			assert.Empty(t, mockRepo.savedUsers)
+		})
 	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, aggregates.ErrCannotDisableLastAdmin)
-	assert.Empty(t, mockRepo.savedUsers)
-}
-
-func TestDisableUserHandler_UserAlreadyDisabled_ReturnsError(t *testing.T) {
-	user := createUserForTestDisable(t, "architect")
-	user.Disable("previous-disabler", false, false)
-	user.MarkChangesAsCommitted()
-
-	mockRepo := &mockDisableUserRepository{userToLoad: user}
-	mockReadModel := &mockDisableUserReadModel{isLastAdmin: false}
-
-	handler := NewDisableUserHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.DisableUser{
-		UserID:       user.ID(),
-		DisabledByID: "disabler-789",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.ErrorIs(t, err, aggregates.ErrUserAlreadyDisabled)
-	assert.Empty(t, mockRepo.savedUsers)
-}
-
-func TestDisableUserHandler_UserNotFound_ReturnsError(t *testing.T) {
-	mockRepo := &mockDisableUserRepository{getErr: errors.New("not found")}
-	mockReadModel := &mockDisableUserReadModel{isLastAdmin: false}
-
-	handler := NewDisableUserHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.DisableUser{
-		UserID:       "nonexistent-id",
-		DisabledByID: "disabler-999",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
 }
 
 func TestDisableUserHandler_InvalidCommand_ReturnsError(t *testing.T) {
-	mockRepo := &mockDisableUserRepository{}
-	mockReadModel := &mockDisableUserReadModel{}
+	handler := NewDisableUserHandler(&mockDisableUserRepository{}, &mockDisableUserReadModel{})
 
-	handler := NewDisableUserHandler(mockRepo, mockReadModel)
-
-	invalidCmd := &commands.EnableUser{}
-
-	_, err := handler.Handle(context.Background(), invalidCmd)
+	_, err := handler.Handle(context.Background(), &commands.EnableUser{})
 	assert.ErrorIs(t, err, cqrs.ErrInvalidCommand)
-}
-
-func TestDisableUserHandler_ReadModelError_ReturnsError(t *testing.T) {
-	user := createUserForTestDisable(t, "admin")
-	mockRepo := &mockDisableUserRepository{userToLoad: user}
-	mockReadModel := &mockDisableUserReadModel{checkErr: errors.New("database error")}
-
-	handler := NewDisableUserHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.DisableUser{
-		UserID:       user.ID(),
-		DisabledByID: "disabler-err",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	assert.Error(t, err)
-	assert.Empty(t, mockRepo.savedUsers)
-}
-
-func TestDisableUserHandler_NonAdminUser_Success(t *testing.T) {
-	user := createUserForTestDisable(t, "stakeholder")
-	mockRepo := &mockDisableUserRepository{userToLoad: user}
-	mockReadModel := &mockDisableUserReadModel{isLastAdmin: false}
-
-	handler := NewDisableUserHandler(mockRepo, mockReadModel)
-
-	cmd := &commands.DisableUser{
-		UserID:       user.ID(),
-		DisabledByID: "admin-disabler",
-	}
-
-	_, err := handler.Handle(context.Background(), cmd)
-	require.NoError(t, err)
-
-	require.Len(t, mockRepo.savedUsers, 1)
-	savedUser := mockRepo.savedUsers[0]
-	assert.False(t, savedUser.Status().IsActive())
 }
 
 func createUserForTestDisable(t *testing.T, roleName string) *aggregates.User {
@@ -195,7 +164,8 @@ func createUserForTestDisable(t *testing.T, roleName string) *aggregates.User {
 	role, err := valueobjects.RoleFromString(roleName)
 	require.NoError(t, err)
 
-	user, err := aggregates.NewUser(email, "Test User", role, "ext-test", "inv-test")
+	profile := valueobjects.NewExternalProfile("Test User", "ext-test")
+	user, err := aggregates.NewUser(email, profile, role, "inv-test")
 	require.NoError(t, err)
 
 	user.MarkChangesAsCommitted()

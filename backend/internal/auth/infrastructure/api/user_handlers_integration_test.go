@@ -208,7 +208,8 @@ func (ctx *userTestContext) createUser(t *testing.T, email, role string) string 
 	emailVO, err := valueobjects.NewEmail(email)
 	require.NoError(t, err)
 
-	user, err := aggregates.NewUser(emailVO, "Test User", roleVO, "", "")
+	profile := valueobjects.NewExternalProfile("Test User", "")
+	user, err := aggregates.NewUser(emailVO, profile, roleVO, "")
 	require.NoError(t, err)
 
 	tCtx := tenantContext()

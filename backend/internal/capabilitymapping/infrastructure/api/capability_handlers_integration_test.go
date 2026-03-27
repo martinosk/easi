@@ -71,6 +71,8 @@ func setupTestDB(t *testing.T) (*testContext, func()) {
 
 	cleanup := func() {
 		for _, id := range ctx.createdIDs {
+			db.Exec("DELETE FROM capabilitymapping.capability_realizations WHERE id = $1", id)
+			db.Exec("DELETE FROM capabilitymapping.capability_dependencies WHERE id = $1", id)
 			db.Exec("DELETE FROM capabilitymapping.capabilities WHERE id = $1", id)
 			db.Exec("DELETE FROM infrastructure.events WHERE aggregate_id = $1", id)
 		}
@@ -84,11 +86,15 @@ func (ctx *testContext) trackID(id string) {
 	ctx.createdIDs = append(ctx.createdIDs, id)
 }
 
-func (ctx *testContext) createTestCapability(t *testing.T, id, name, level string) {
+func (ctx *testContext) createTestCapability(t *testing.T, id, name, level string, parentID ...string) {
 	ctx.setTenantContext(t)
+	parent := ""
+	if len(parentID) > 0 {
+		parent = parentID[0]
+	}
 	_, err := ctx.db.Exec(
-		"INSERT INTO capabilitymapping.capabilities (id, name, description, level, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
-		id, name, "", level, testTenantID(), "Genesis", "Active",
+		"INSERT INTO capabilitymapping.capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+		id, name, "", level, parent, testTenantID(), "Genesis", "Active",
 	)
 	require.NoError(t, err)
 	ctx.trackID(id)
@@ -546,16 +552,8 @@ func TestDeleteCapability_HasChildren_Integration(t *testing.T) {
 	parentID := uuid.New().String()
 	childID := uuid.New().String()
 
-	testCtx.createTestCapability(t, parentID, "Parent Capability", "L1")
-	testCtx.insertCapabilityCreatedEvent(t, parentID, "Parent Capability", "L1", "")
-
-	testCtx.setTenantContext(t)
-	_, err := testCtx.db.Exec(
-		"INSERT INTO capabilitymapping.capabilities (id, name, description, level, parent_id, tenant_id, maturity_level, status, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
-		childID, "Child Capability", "", "L2", parentID, testTenantID(), "Genesis", "Active",
-	)
-	require.NoError(t, err)
-	testCtx.trackID(childID)
+	testCtx.createCapabilityWithEvent(t, parentID, "Parent Capability", "L1")
+	testCtx.createTestCapability(t, childID, "Child Capability", "L2", parentID)
 
 	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/capabilities/"+parentID, nil)
 	deleteReq = withTestTenant(deleteReq)
@@ -575,7 +573,7 @@ func TestDeleteCapability_HasChildren_Integration(t *testing.T) {
 		Error   string `json:"error"`
 		Message string `json:"message"`
 	}
-	err = json.NewDecoder(deleteW.Body).Decode(&response)
+	err := json.NewDecoder(deleteW.Body).Decode(&response)
 	require.NoError(t, err)
 	assert.Contains(t, response.Message, "descendants")
 
