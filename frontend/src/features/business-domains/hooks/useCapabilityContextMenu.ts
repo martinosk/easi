@@ -51,6 +51,45 @@ function getTargetL1Capabilities(
   return Array.from(new Map(l1Ancestors.map(c => [c.id, c])).values());
 }
 
+function useCapabilityPermissions(
+  contextMenu: CapabilityContextMenuState | null,
+  targetL1s: Capability[],
+  domainCapabilities: Capability[]
+) {
+  const canRemoveFromDomain = useMemo(() => {
+    if (!contextMenu || targetL1s.length === 0) return false;
+    return targetL1s.every(l1 => {
+      const domainCap = domainCapabilities.find(c => c.id === l1.id);
+      return domainCap && hasLink(domainCap, 'x-remove-from-domain');
+    });
+  }, [contextMenu, targetL1s, domainCapabilities]);
+
+  const canDeleteFromModel = useMemo(() => {
+    if (!contextMenu || targetL1s.length === 0) return false;
+    return targetL1s.every(l1 => hasLink(l1, 'delete'));
+  }, [contextMenu, targetL1s]);
+
+  return { canRemoveFromDomain, canDeleteFromModel };
+}
+
+function buildMenuItems(
+  contextMenu: CapabilityContextMenuState | null,
+  permissions: { canRemoveFromDomain: boolean; canDeleteFromModel: boolean },
+  actions: { handleRemoveFromDomain: () => void; handleDeleteFromModel: () => void; handleInviteToEdit: () => void }
+): ContextMenuItem[] {
+  const items: ContextMenuItem[] = [];
+  if (permissions.canRemoveFromDomain) {
+    items.push({ label: 'Remove from Business Domain', onClick: actions.handleRemoveFromDomain });
+  }
+  if (permissions.canDeleteFromModel) {
+    items.push({ label: 'Delete from Model', onClick: actions.handleDeleteFromModel, isDanger: true });
+  }
+  if (contextMenu?.capability && hasLink(contextMenu.capability, 'x-edit-grants')) {
+    items.unshift({ label: 'Invite to Edit...', onClick: actions.handleInviteToEdit });
+  }
+  return items;
+}
+
 export function useCapabilityContextMenu({
   capabilities,
   domainCapabilities,
@@ -78,15 +117,10 @@ export function useCapabilityContextMenu({
   }, [contextMenu, selectedCapabilities, capabilities]);
 
   const handleRemoveFromDomain = useCallback(async () => {
-    if (targetL1s.length === 0) {
-      closeContextMenu();
-      return;
-    }
-
+    if (targetL1s.length === 0) { closeContextMenu(); return; }
     const domainL1s = targetL1s
       .map(l1 => domainCapabilities.find(c => c.id === l1.id))
       .filter((c): c is Capability => c !== undefined);
-
     await Promise.all(domainL1s.map(l1 => dissociateCapability(l1)));
     await refetch();
     clearSelection();
@@ -114,24 +148,10 @@ export function useCapabilityContextMenu({
     closeContextMenu();
   }, [contextMenu, closeContextMenu]);
 
-  const canRemoveFromDomain = useMemo(() => {
-    if (!contextMenu || targetL1s.length === 0) return false;
-    const domainL1s = targetL1s.map(l1 => domainCapabilities.find(c => c.id === l1.id));
-    return domainL1s.every(domainCap => domainCap && hasLink(domainCap, 'x-remove-from-domain'));
-  }, [contextMenu, targetL1s, domainCapabilities]);
-
-  const canDeleteFromModel = useMemo(() => {
-    if (!contextMenu || targetL1s.length === 0) return false;
-    return targetL1s.every(l1 => hasLink(l1, 'delete'));
-  }, [contextMenu, targetL1s]);
-
-  const contextMenuItems = useContextMenuItems(
-    contextMenu,
-    canRemoveFromDomain,
-    canDeleteFromModel,
-    handleRemoveFromDomain,
-    handleDeleteFromModel,
-    handleInviteToEdit
+  const { canRemoveFromDomain, canDeleteFromModel } = useCapabilityPermissions(contextMenu, targetL1s, domainCapabilities);
+  const contextMenuItems = useMemo(
+    () => buildMenuItems(contextMenu, { canRemoveFromDomain, canDeleteFromModel }, { handleRemoveFromDomain, handleDeleteFromModel, handleInviteToEdit }),
+    [contextMenu, canRemoveFromDomain, canDeleteFromModel, handleRemoveFromDomain, handleDeleteFromModel, handleInviteToEdit]
   );
 
   return {
@@ -139,27 +159,4 @@ export function useCapabilityContextMenu({
     handleCapabilityContextMenu, closeContextMenu, contextMenuItems,
     handleDeleteConfirm, setCapabilityToDelete, setCapabilityToInvite,
   };
-}
-
-function useContextMenuItems(
-  contextMenu: CapabilityContextMenuState | null,
-  canRemoveFromDomain: boolean,
-  canDeleteFromModel: boolean,
-  handleRemoveFromDomain: () => void,
-  handleDeleteFromModel: () => void,
-  handleInviteToEdit: () => void,
-): ContextMenuItem[] {
-  return useMemo(() => {
-    const items: ContextMenuItem[] = [];
-    if (canRemoveFromDomain) {
-      items.push({ label: 'Remove from Business Domain', onClick: handleRemoveFromDomain });
-    }
-    if (canDeleteFromModel) {
-      items.push({ label: 'Delete from Model', onClick: handleDeleteFromModel, isDanger: true });
-    }
-    if (contextMenu?.capability && hasLink(contextMenu.capability, 'x-edit-grants')) {
-      items.unshift({ label: 'Invite to Edit...', onClick: handleInviteToEdit });
-    }
-    return items;
-  }, [canRemoveFromDomain, canDeleteFromModel, handleRemoveFromDomain, handleDeleteFromModel, handleInviteToEdit, contextMenu]);
 }

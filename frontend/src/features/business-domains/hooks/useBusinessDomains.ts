@@ -32,23 +32,19 @@ export function useBusinessDomains(): UseBusinessDomainsResult {
   const deleteMutation = useDeleteBusinessDomain();
 
   const createDomain = useCallback(
-    async (name: string, description?: string, domainArchitectId?: string): Promise<BusinessDomain> => {
-      return createMutation.mutateAsync({ name, description, domainArchitectId });
-    },
+    (name: string, description?: string, domainArchitectId?: string) =>
+      createMutation.mutateAsync({ name, description, domainArchitectId }),
     [createMutation]
   );
 
   const updateDomain = useCallback(
-    async (domain: BusinessDomain, name: string, description?: string, domainArchitectId?: string): Promise<BusinessDomain> => {
-      return updateMutation.mutateAsync({ domain, request: { name, description, domainArchitectId } });
-    },
+    (domain: BusinessDomain, name: string, description?: string, domainArchitectId?: string) =>
+      updateMutation.mutateAsync({ domain, request: { name, description, domainArchitectId } }),
     [updateMutation]
   );
 
   const deleteDomain = useCallback(
-    async (domain: BusinessDomain): Promise<void> => {
-      await deleteMutation.mutateAsync(domain);
-    },
+    async (domain: BusinessDomain) => { await deleteMutation.mutateAsync(domain); },
     [deleteMutation]
   );
 
@@ -102,50 +98,50 @@ export function useCapabilityRealizationsByDomain(
   });
 }
 
-function useDomainMutation<TArgs, TResult>(
-  mutationFn: (args: TArgs) => Promise<TResult>,
-  onMutationSuccess: (queryClient: ReturnType<typeof useQueryClient>, result: TResult, args: TArgs) => void,
-  errorMessage: string
-) {
+interface MutationConfig<TArgs, TResult> {
+  mutationFn: (args: TArgs) => Promise<TResult>;
+  effects: (result: TResult, args: TArgs) => ReadonlyArray<readonly unknown[]>;
+  successMessage: (result: TResult, args: TArgs) => string;
+  errorMessage: string;
+}
+
+function useDomainMutation<TArgs, TResult>(config: MutationConfig<TArgs, TResult>) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn,
-    onSuccess: (result, args) => onMutationSuccess(queryClient, result, args),
-    onError: (error: Error) => toast.error(error.message || errorMessage),
+    mutationFn: config.mutationFn,
+    onSuccess: (result, args) => {
+      invalidateFor(queryClient, config.effects(result, args));
+      toast.success(config.successMessage(result, args));
+    },
+    onError: (error: Error) => toast.error(error.message || config.errorMessage),
   });
 }
 
 export function useCreateBusinessDomain() {
-  return useDomainMutation(
-    (request: CreateBusinessDomainRequest) => businessDomainsApi.create(request),
-    (qc, newDomain) => {
-      invalidateFor(qc, businessDomainsMutationEffects.create());
-      toast.success(`Business domain "${newDomain.name}" created`);
-    },
-    'Failed to create business domain'
-  );
+  return useDomainMutation({
+    mutationFn: (request: CreateBusinessDomainRequest) => businessDomainsApi.create(request),
+    effects: () => businessDomainsMutationEffects.create(),
+    successMessage: (domain) => `Business domain "${domain.name}" created`,
+    errorMessage: 'Failed to create business domain',
+  });
 }
 
 export function useUpdateBusinessDomain() {
-  return useDomainMutation(
-    ({ domain, request }: { domain: BusinessDomain; request: UpdateBusinessDomainRequest }) =>
+  return useDomainMutation({
+    mutationFn: ({ domain, request }: { domain: BusinessDomain; request: UpdateBusinessDomainRequest }) =>
       businessDomainsApi.update(domain, request),
-    (qc, updatedDomain) => {
-      invalidateFor(qc, businessDomainsMutationEffects.update(updatedDomain.id));
-      toast.success(`Business domain "${updatedDomain.name}" updated`);
-    },
-    'Failed to update business domain'
-  );
+    effects: (updatedDomain) => businessDomainsMutationEffects.update(updatedDomain.id),
+    successMessage: (domain) => `Business domain "${domain.name}" updated`,
+    errorMessage: 'Failed to update business domain',
+  });
 }
 
 export function useDeleteBusinessDomain() {
-  return useDomainMutation(
-    (domain: BusinessDomain) => businessDomainsApi.delete(domain),
-    (qc, _, deletedDomain) => {
-      invalidateFor(qc, businessDomainsMutationEffects.delete(deletedDomain.id));
-      toast.success('Business domain deleted');
-    },
-    'Failed to delete business domain'
-  );
+  return useDomainMutation({
+    mutationFn: (domain: BusinessDomain) => businessDomainsApi.delete(domain),
+    effects: (_, domain) => businessDomainsMutationEffects.delete(domain.id),
+    successMessage: () => 'Business domain deleted',
+    errorMessage: 'Failed to delete business domain',
+  });
 }
 

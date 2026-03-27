@@ -67,9 +67,13 @@ function setDragImage(event: React.DragEvent, count: number): void {
   requestAnimationFrame(() => document.body.removeChild(dragLabel));
 }
 
+function shouldRestoreAnchor(selectionSize: number, anchor: Anchor | null, itemId: string): anchor is Anchor {
+  return selectionSize === 0 && anchor !== null && anchor.id !== itemId;
+}
+
 function toggleItem(prev: Map<string, TreeSelectedItem>, item: TreeSelectedItem, anchor: Anchor | null): Map<string, TreeSelectedItem> {
   const next = new Map(prev);
-  if (next.size === 0 && anchor && anchor.id !== item.id) {
+  if (shouldRestoreAnchor(next.size, anchor, item.id)) {
     next.set(anchor.item.id, anchor.item);
   }
   if (next.has(item.id)) {
@@ -105,52 +109,7 @@ function mergeShiftSelection(params: ShiftSelectionParams, item: TreeSelectedIte
   return merged;
 }
 
-export function useTreeMultiSelect() {
-  const [selectedItems, setSelectedItems] = useState<Map<string, TreeSelectedItem>>(new Map());
-  const [anchor, setAnchor] = useState<Anchor | null>(null);
-
-  const handleItemClick = useCallback(
-    (
-      item: TreeSelectedItem,
-      sectionId: string,
-      visibleItems: TreeSelectedItem[],
-      event: React.MouseEvent
-    ): 'multi' | 'single' => {
-      if (isModifierClick(event)) {
-        setSelectedItems((prev) => toggleItem(prev, item, anchor));
-        setAnchor({ id: item.id, sectionId, item });
-        return 'multi';
-      }
-
-      if (isShiftClick(event)) {
-        setSelectedItems((prev) => mergeShiftSelection({ prev, visibleItems, anchor, sectionId }, item));
-        return 'multi';
-      }
-
-      setSelectedItems(new Map());
-      setAnchor({ id: item.id, sectionId, item });
-      return 'single';
-    },
-    [anchor]
-  );
-
-  const isMultiSelected = useCallback(
-    (id: string): boolean => selectedItems.has(id),
-    [selectedItems]
-  );
-
-  const clearMultiSelection = useCallback(() => {
-    setSelectedItems(new Map());
-    setAnchor(null);
-  }, []);
-
-  const selectionCount = selectedItems.size;
-
-  const getSelectedItems = useCallback(
-    (): TreeSelectedItem[] => Array.from(selectedItems.values()),
-    [selectedItems]
-  );
-
+function useMultiDrag(selectedItems: Map<string, TreeSelectedItem>) {
   const buildMultiDragPayload = useCallback((): string => {
     const items = Array.from(selectedItems.values()).map((item) => ({
       type: item.type,
@@ -163,16 +122,43 @@ export function useTreeMultiSelect() {
   const handleDragStart = useCallback(
     (event: React.DragEvent, itemId: string): boolean => {
       if (selectedItems.size < 2 || !selectedItems.has(itemId)) return false;
-
       event.dataTransfer.setData('multiDragItems', buildMultiDragPayload());
       event.dataTransfer.effectAllowed = 'copy';
       setDragImage(event, selectedItems.size);
-
       return true;
     },
     [selectedItems, buildMultiDragPayload]
   );
 
+  return { buildMultiDragPayload, handleDragStart };
+}
+
+export function useTreeMultiSelect() {
+  const [selectedItems, setSelectedItems] = useState<Map<string, TreeSelectedItem>>(new Map());
+  const [anchor, setAnchor] = useState<Anchor | null>(null);
+  const { buildMultiDragPayload, handleDragStart } = useMultiDrag(selectedItems);
+
+  const handleItemClick = useCallback(
+    (item: TreeSelectedItem, sectionId: string, visibleItems: TreeSelectedItem[], event: React.MouseEvent): 'multi' | 'single' => {
+      if (isModifierClick(event)) {
+        setSelectedItems((prev) => toggleItem(prev, item, anchor));
+        setAnchor({ id: item.id, sectionId, item });
+        return 'multi';
+      }
+      if (isShiftClick(event)) {
+        setSelectedItems((prev) => mergeShiftSelection({ prev, visibleItems, anchor, sectionId }, item));
+        return 'multi';
+      }
+      setSelectedItems(new Map());
+      setAnchor({ id: item.id, sectionId, item });
+      return 'single';
+    },
+    [anchor]
+  );
+
+  const isMultiSelected = useCallback((id: string): boolean => selectedItems.has(id), [selectedItems]);
+  const clearMultiSelection = useCallback(() => { setSelectedItems(new Map()); setAnchor(null); }, []);
+  const getSelectedItems = useCallback((): TreeSelectedItem[] => Array.from(selectedItems.values()), [selectedItems]);
   const selectedItemsList = useMemo(() => Array.from(selectedItems.values()), [selectedItems]);
 
   return {
@@ -180,7 +166,7 @@ export function useTreeMultiSelect() {
     handleItemClick,
     isMultiSelected,
     clearMultiSelection,
-    selectionCount,
+    selectionCount: selectedItems.size,
     getSelectedItems,
     buildMultiDragPayload,
     handleDragStart,

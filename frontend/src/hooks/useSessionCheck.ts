@@ -2,6 +2,10 @@ import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserStore } from '../store/userStore';
 
+function shouldRedirectToLogin(isLoading: boolean, isAuthenticated: boolean, pathname: string): boolean {
+  return !isLoading && !isAuthenticated && !pathname.endsWith('/login');
+}
+
 export function useSessionCheck() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -14,7 +18,7 @@ export function useSessionCheck() {
   }, [loadSession]);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && !location.pathname.endsWith('/login')) {
+    if (shouldRedirectToLogin(isLoading, isAuthenticated, location.pathname)) {
       const returnUrl = encodeURIComponent(location.pathname + location.search);
       navigate(`/login?returnUrl=${returnUrl}`, { replace: true });
     }

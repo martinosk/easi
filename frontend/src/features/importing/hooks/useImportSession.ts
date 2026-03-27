@@ -17,12 +17,43 @@ interface UseImportSessionReturn {
 
 const POLL_INTERVAL = 2000;
 
-export function useImportSession(): UseImportSessionReturn {
-  const queryClient = useQueryClient();
-  const [session, setSession] = useState<ImportSession | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+function toErrorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback;
+}
 
+function buildFormData(request: CreateImportSessionRequest): FormData {
+  const formData = new FormData();
+  formData.append('file', request.file);
+  formData.append('sourceFormat', request.sourceFormat);
+  if (request.businessDomainId) formData.append('businessDomainId', request.businessDomainId);
+  if (request.capabilityEAOwner) formData.append('capabilityEAOwner', request.capabilityEAOwner);
+  return formData;
+}
+
+function isStillImporting(session: ImportSession): boolean {
+  return session.status === 'importing';
+}
+
+interface PollHandlers {
+  onImporting: () => void;
+  onCompleted: () => void;
+  onFinished: () => void;
+}
+
+function processPollResult(data: ImportSession, handlers: PollHandlers): void {
+  if (isStillImporting(data)) {
+    handlers.onImporting();
+  } else {
+    handlers.onFinished();
+    if (data.status === 'completed') handlers.onCompleted();
+  }
+}
+
+function useSessionPolling(
+  setSession: React.Dispatch<React.SetStateAction<ImportSession | null>>,
+  setError: React.Dispatch<React.SetStateAction<string | null>>
+) {
+  const queryClient = useQueryClient();
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
 
@@ -35,102 +66,87 @@ export function useImportSession(): UseImportSessionReturn {
 
   const pollSession = useCallback(async (sessionId: ImportSessionId) => {
     if (!isMountedRef.current) return;
-
     try {
-      const response = await httpClient.get<ImportSession>(`/api/v1/imports/${sessionId}`);
+      const { data } = await httpClient.get<ImportSession>(`/api/v1/imports/${sessionId}`);
       if (!isMountedRef.current) return;
-
-      setSession(response.data);
-
-      if (response.data.status === 'importing') {
-        pollTimerRef.current = setTimeout(() => pollSession(sessionId), POLL_INTERVAL);
-      } else {
-        stopPolling();
-        if (response.data.status === 'completed') {
-          invalidateFor(queryClient, importsMutationEffects.completed());
-        }
-      }
+      setSession(data);
+      processPollResult(data, {
+        onImporting: () => { pollTimerRef.current = setTimeout(() => pollSession(sessionId), POLL_INTERVAL); },
+        onCompleted: () => invalidateFor(queryClient, importsMutationEffects.completed()),
+        onFinished: stopPolling,
+      });
     } catch (err) {
       if (!isMountedRef.current) return;
-      setError(err instanceof Error ? err.message : 'Failed to fetch session status');
+      setError(toErrorMessage(err, 'Failed to fetch session status'));
       stopPolling();
     }
-  }, [stopPolling, queryClient]);
+  }, [setSession, setError, stopPolling, queryClient]);
 
-  const createSession = async (request: CreateImportSessionRequest): Promise<void> => {
+  const startPollingIfImporting = useCallback((data: ImportSession) => {
+    if (isStillImporting(data)) {
+      pollTimerRef.current = setTimeout(() => pollSession(data.id), POLL_INTERVAL);
+    }
+  }, [pollSession]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; stopPolling(); };
+  }, [stopPolling]);
+
+  return { stopPolling, startPollingIfImporting };
+}
+
+export function useImportSession(): UseImportSessionReturn {
+  const [session, setSession] = useState<ImportSession | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { stopPolling, startPollingIfImporting } = useSessionPolling(setSession, setError);
+
+  const withLoading = useCallback(async (fn: () => Promise<void>, fallbackError: string) => {
     setIsLoading(true);
     setError(null);
-
     try {
-      const formData = new FormData();
-      formData.append('file', request.file);
-      formData.append('sourceFormat', request.sourceFormat);
-      if (request.businessDomainId) {
-        formData.append('businessDomainId', request.businessDomainId);
-      }
-      if (request.capabilityEAOwner) {
-        formData.append('capabilityEAOwner', request.capabilityEAOwner);
-      }
+      await fn();
+    } catch (err) {
+      setError(toErrorMessage(err, fallbackError));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-      const response = await httpClient.post<ImportSession>('/api/v1/imports', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+  const createSession = (request: CreateImportSessionRequest): Promise<void> =>
+    withLoading(async () => {
+      const response = await httpClient.post<ImportSession>('/api/v1/imports', buildFormData(request), {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-
       setSession(response.data);
+      startPollingIfImporting(response.data);
+    }, 'Failed to create import session');
 
-      if (response.data.status === 'importing') {
-        pollTimerRef.current = setTimeout(() => pollSession(response.data.id), POLL_INTERVAL);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create import session');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const confirmSession = async (): Promise<void> => {
-    if (!session || !session._links.confirm) {
+  const confirmSession = (): Promise<void> => {
+    const confirmHref = session?._links.confirm?.href;
+    if (!confirmHref) {
       setError('Cannot confirm: session not found or already started');
-      return;
+      return Promise.resolve();
     }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await httpClient.post<ImportSession>(session._links.confirm.href);
+    return withLoading(async () => {
+      const response = await httpClient.post<ImportSession>(confirmHref);
       setSession(response.data);
-
-      if (response.data.status === 'importing') {
-        pollTimerRef.current = setTimeout(() => pollSession(response.data.id), POLL_INTERVAL);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to confirm import');
-    } finally {
-      setIsLoading(false);
-    }
+      startPollingIfImporting(response.data);
+    }, 'Failed to confirm import');
   };
 
-  const cancelSession = async (): Promise<void> => {
-    if (!session || !session._links.delete) {
+  const cancelSession = (): Promise<void> => {
+    const deleteHref = session?._links.delete?.href;
+    if (!deleteHref) {
       setError('Cannot cancel: session not found');
-      return;
+      return Promise.resolve();
     }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      await httpClient.delete(session._links.delete.href);
+    return withLoading(async () => {
+      await httpClient.delete(deleteHref);
       setSession(null);
       stopPolling();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to cancel import');
-    } finally {
-      setIsLoading(false);
-    }
+    }, 'Failed to cancel import');
   };
 
   const reset = () => {
@@ -140,21 +156,5 @@ export function useImportSession(): UseImportSessionReturn {
     setIsLoading(false);
   };
 
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-      stopPolling();
-    };
-  }, [stopPolling]);
-
-  return {
-    session,
-    isLoading,
-    error,
-    createSession,
-    confirmSession,
-    cancelSession,
-    reset,
-  };
+  return { session, isLoading, error, createSession, confirmSession, cancelSession, reset };
 }

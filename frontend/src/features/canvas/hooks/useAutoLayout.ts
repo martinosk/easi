@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import type { Node } from '@xyflow/react';
 import { useReactFlow } from '@xyflow/react';
 import toast from 'react-hot-toast';
 import { calculateAutoLayout } from '../../../utils/autoLayout';
@@ -6,6 +7,23 @@ import { useCanvasLayoutContext } from '../context/CanvasLayoutContext';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
 import { canEdit } from '../../../utils/hateoas';
 import { useUpdateOriginEntityPosition } from '../../views/hooks/useViews';
+
+function toLayoutUpdate(node: Node) {
+  return {
+    elementId: node.type === 'capability' ? node.id.replace('cap-', '') : node.id,
+    x: node.position.x,
+    y: node.position.y,
+  };
+}
+
+function partitionByType(nodes: Node[]) {
+  const layout: Node[] = [];
+  const origin: Node[] = [];
+  for (const node of nodes) {
+    (node.type === 'originEntity' ? origin : layout).push(node);
+  }
+  return { layout, origin };
+}
 
 export function useAutoLayout() {
   const reactFlowInstance = useReactFlow();
@@ -15,11 +33,10 @@ export function useAutoLayout() {
   const [isLayouting, setIsLayouting] = useState(false);
 
   const applyAutoLayout = useCallback(async () => {
-    if (!reactFlowInstance || !currentViewId || !canEdit(currentView)) return;
+    const isEditable = reactFlowInstance && currentViewId && canEdit(currentView);
+    if (!isEditable) return;
 
     const nodes = reactFlowInstance.getNodes();
-    const edges = reactFlowInstance.getEdges();
-
     if (nodes.length === 0) {
       toast.error('No entities to layout');
       return;
@@ -28,30 +45,21 @@ export function useAutoLayout() {
     setIsLayouting(true);
 
     try {
-      const layoutedNodes = calculateAutoLayout(nodes, edges);
+      const layoutedNodes = calculateAutoLayout(nodes, reactFlowInstance.getEdges());
+      const { layout, origin } = partitionByType(layoutedNodes);
 
-      const layoutUpdates = layoutedNodes
-        .filter((node) => node.type !== 'originEntity')
-        .map((node) => ({
-          elementId: node.type === 'capability' ? node.id.replace('cap-', '') : node.id,
-          x: node.position.x,
-          y: node.position.y,
-        }));
-
-      if (layoutUpdates.length > 0) {
-        await batchUpdatePositions(layoutUpdates);
+      if (layout.length > 0) {
+        await batchUpdatePositions(layout.map(toLayoutUpdate));
       }
 
-      const originUpdates = layoutedNodes
-        .filter((node) => node.type === 'originEntity')
-        .map((node) => updateOriginEntityPositionMutation.mutateAsync({
-          viewId: currentViewId,
-          originEntityId: node.id,
-          position: { x: node.position.x, y: node.position.y },
-        }));
-
-      if (originUpdates.length > 0) {
-        await Promise.all(originUpdates);
+      if (origin.length > 0) {
+        await Promise.all(origin.map((node) =>
+          updateOriginEntityPositionMutation.mutateAsync({
+            viewId: currentViewId,
+            originEntityId: node.id,
+            position: { x: node.position.x, y: node.position.y },
+          })
+        ));
       }
 
       const { zoom } = reactFlowInstance.getViewport();

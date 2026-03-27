@@ -16,30 +16,41 @@ export interface UseDomainCapabilityLinkingResult {
   linkCapability: (enterpriseCapabilityId: EnterpriseCapabilityId, domainCapability: Capability) => Promise<void>;
 }
 
-export function useDomainCapabilityLinking(enabled: boolean): UseDomainCapabilityLinkingResult {
-  const queryClient = useQueryClient();
-
-  const domainQuery = useQuery({
+function useDomainCapabilitiesQuery(enabled: boolean) {
+  return useQuery({
     queryKey: capabilitiesQueryKeys.lists(),
     queryFn: () => capabilitiesApi.getAll(),
     enabled,
   });
+}
 
-  const domainCapabilityIds = useMemo(
-    () => domainQuery.data?.map((c) => c.id) ?? [],
-    [domainQuery.data]
-  );
-
-  const linkStatusQuery = useQuery({
-    queryKey: [...enterpriseCapabilitiesQueryKeys.linkStatuses(), domainCapabilityIds] as const,
-    queryFn: () => enterpriseArchApi.getBatchLinkStatus(domainCapabilityIds),
-    enabled: enabled && domainCapabilityIds.length > 0,
+function useLinkStatusQuery(enabled: boolean, capabilityIds: string[]) {
+  return useQuery({
+    queryKey: [...enterpriseCapabilitiesQueryKeys.linkStatuses(), capabilityIds] as const,
+    queryFn: () => enterpriseArchApi.getBatchLinkStatus(capabilityIds),
+    enabled: enabled && capabilityIds.length > 0,
   });
+}
 
-  const linkStatuses = useMemo(() => {
-    if (!linkStatusQuery.data) return new Map<string, CapabilityLinkStatusResponse>();
-    return new Map(linkStatusQuery.data.map((s) => [s.capabilityId, s]));
-  }, [linkStatusQuery.data]);
+function toLinkStatusMap(data: CapabilityLinkStatusResponse[] | undefined): Map<string, CapabilityLinkStatusResponse> {
+  if (!data) return new Map();
+  return new Map(data.map((s) => [s.capabilityId, s]));
+}
+
+function getFirstError(...queries: { error: Error | null }[]): string | null {
+  for (const q of queries) {
+    if (q.error) return q.error.message;
+  }
+  return null;
+}
+
+export function useDomainCapabilityLinking(enabled: boolean): UseDomainCapabilityLinkingResult {
+  const queryClient = useQueryClient();
+  const domainQuery = useDomainCapabilitiesQuery(enabled);
+
+  const capabilityIds = useMemo(() => domainQuery.data?.map((c) => c.id) ?? [], [domainQuery.data]);
+  const linkStatusQuery = useLinkStatusQuery(enabled, capabilityIds);
+  const linkStatuses = useMemo(() => toLinkStatusMap(linkStatusQuery.data), [linkStatusQuery.data]);
 
   const linkMutation = useLinkDomainCapability();
 
@@ -58,7 +69,7 @@ export function useDomainCapabilityLinking(enabled: boolean): UseDomainCapabilit
     domainCapabilities: domainQuery.data ?? [],
     linkStatuses,
     isLoading: domainQuery.isLoading || linkStatusQuery.isLoading,
-    error: domainQuery.error?.message || linkStatusQuery.error?.message || null,
+    error: getFirstError(domainQuery, linkStatusQuery),
     linkCapability,
   };
 }

@@ -29,18 +29,33 @@ export interface UseLayoutResult {
   refetch: () => Promise<void>;
 }
 
-export function useLayout(
-  contextType: LayoutContextType,
-  contextRef: string | null
-): UseLayoutResult {
+function toPositionMap(elements: { elementId: string; x: number; y: number }[]): PositionMap {
+  const map: PositionMap = {};
+  for (const elem of elements) {
+    map[elem.elementId] = { x: elem.x, y: elem.y };
+  }
+  return map;
+}
+
+function rollbackPosition(prev: PositionMap, elementId: string, previous: Position | undefined): PositionMap {
+  if (previous) return { ...prev, [elementId]: previous };
+  const { [elementId]: _, ...rest } = prev;
+  return rest;
+}
+
+function applyBatch(prev: PositionMap, updates: BatchUpdateItem[]): PositionMap {
+  const next = { ...prev };
+  for (const u of updates) {
+    next[u.elementId] = { x: u.x, y: u.y };
+  }
+  return next;
+}
+
+function useLayoutInitializer(contextType: LayoutContextType, contextRef: string | null) {
   const [layout, setLayout] = useState<LayoutContainer | null>(null);
   const [positions, setPositions] = useState<PositionMap>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-
-  const preferences = useMemo(() => {
-    return layout?.preferences ?? {};
-  }, [layout?.preferences]);
 
   const initializeLayout = useCallback(async () => {
     if (!contextRef) {
@@ -48,24 +63,14 @@ export function useLayout(
       setPositions({});
       return;
     }
-
     setIsLoading(true);
     setError(null);
-
     try {
-      let container = await apiClient.getLayout(contextType, contextRef);
-
-      if (!container) {
-        container = await apiClient.upsertLayout(contextType, contextRef, {});
-      }
-
+      const container =
+        (await apiClient.getLayout(contextType, contextRef)) ??
+        (await apiClient.upsertLayout(contextType, contextRef, {}));
       setLayout(container);
-
-      const posMap: PositionMap = {};
-      for (const elem of container.elements || []) {
-        posMap[elem.elementId] = { x: elem.x, y: elem.y };
-      }
-      setPositions(posMap);
+      setPositions(toPositionMap(container.elements || []));
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to initialize layout'));
     } finally {
@@ -78,120 +83,89 @@ export function useLayout(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contextType, contextRef]);
 
-  const updateElementPosition = useCallback(
-    async (
-      elementId: string,
-      x: number,
-      y: number,
-      options?: Partial<ElementPositionInput>
-    ) => {
-      if (!contextRef || !layout) return;
+  return { layout, setLayout, positions, setPositions, isLoading, error, initializeLayout };
+}
 
+function useElementPositionUpdater(
+  contextType: LayoutContextType, contextRef: string | null,
+  layout: LayoutContainer | null, setPositions: React.Dispatch<React.SetStateAction<PositionMap>>
+) {
+  return useCallback(
+    async (elementId: string, x: number, y: number, options?: Partial<ElementPositionInput>) => {
+      if (!contextRef || !layout) return;
       let previousPosition: Position | undefined;
       setPositions((prev) => {
         previousPosition = prev[elementId];
-        return {
-          ...prev,
-          [elementId]: { x, y },
-        };
+        return { ...prev, [elementId]: { x, y } };
       });
-
       try {
-        await apiClient.upsertElementPosition(contextType, contextRef, elementId, {
-          x,
-          y,
-          ...options,
-        });
+        await apiClient.upsertElementPosition(contextType, contextRef, elementId, { x, y, ...options });
       } catch (err) {
-        setPositions((prev) => {
-          if (previousPosition) {
-            return { ...prev, [elementId]: previousPosition };
-          }
-          const rest = Object.fromEntries(Object.entries(prev).filter(([key]) => key !== elementId));
-          return rest;
-        });
+        setPositions((prev) => rollbackPosition(prev, elementId, previousPosition));
         throw err;
       }
     },
-    [contextType, contextRef, layout]
+    [contextType, contextRef, layout, setPositions]
   );
+}
 
-  const batchUpdatePositions = useCallback(
+function useBatchPositionUpdater(
+  contextType: LayoutContextType, contextRef: string | null,
+  layout: LayoutContainer | null, setPositions: React.Dispatch<React.SetStateAction<PositionMap>>
+) {
+  return useCallback(
     async (updates: BatchUpdateItem[]) => {
       if (!contextRef || !layout) return;
-
-      let previousPositions: PositionMap = {};
+      let snapshot: PositionMap = {};
       setPositions((prev) => {
-        previousPositions = { ...prev };
-        const next = { ...prev };
-        for (const update of updates) {
-          next[update.elementId] = { x: update.x, y: update.y };
-        }
-        return next;
+        snapshot = { ...prev };
+        return applyBatch(prev, updates);
       });
-
       try {
         await apiClient.batchUpdateElements(contextType, contextRef, updates);
       } catch (err) {
-        setPositions(previousPositions);
+        setPositions(snapshot);
         throw err;
       }
     },
-    [contextType, contextRef, layout]
+    [contextType, contextRef, layout, setPositions]
   );
+}
+
+export function useLayout(
+  contextType: LayoutContextType,
+  contextRef: string | null
+): UseLayoutResult {
+  const { layout, setLayout, positions, setPositions, isLoading, error, initializeLayout } =
+    useLayoutInitializer(contextType, contextRef);
+  const preferences = useMemo(() => layout?.preferences ?? {}, [layout?.preferences]);
+  const updateElementPosition = useElementPositionUpdater(contextType, contextRef, layout, setPositions);
+  const batchUpdatePositions = useBatchPositionUpdater(contextType, contextRef, layout, setPositions);
 
   const updatePreferences = useCallback(
     async (newPreferences: Record<string, unknown>) => {
       if (!contextRef || !layout) return;
-
       const previousLayout = layout;
-
       setLayout((prev) =>
-        prev
-          ? {
-              ...prev,
-              preferences: { ...prev.preferences, ...newPreferences },
-            }
-          : prev
+        prev ? { ...prev, preferences: { ...prev.preferences, ...newPreferences } } : prev
       );
-
       try {
-        await apiClient.updateLayoutPreferences(
-          contextType,
-          contextRef,
-          newPreferences,
-          layout.version
-        );
+        await apiClient.updateLayoutPreferences(contextType, contextRef, newPreferences, layout.version);
       } catch (err) {
         setLayout(previousLayout);
         throw err;
       }
     },
-    [contextType, contextRef, layout]
+    [contextType, contextRef, layout, setLayout]
   );
 
   return useMemo(
     () => ({
-      layout,
-      positions,
-      preferences,
-      isLoading,
-      error,
-      updateElementPosition,
-      batchUpdatePositions,
-      updatePreferences,
+      layout, positions, preferences, isLoading, error,
+      updateElementPosition, batchUpdatePositions, updatePreferences,
       refetch: initializeLayout,
     }),
-    [
-      layout,
-      positions,
-      preferences,
-      isLoading,
-      error,
-      updateElementPosition,
-      batchUpdatePositions,
-      updatePreferences,
-      initializeLayout,
-    ]
+    [layout, positions, preferences, isLoading, error,
+     updateElementPosition, batchUpdatePositions, updatePreferences, initializeLayout]
   );
 }
