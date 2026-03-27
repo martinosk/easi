@@ -45,11 +45,36 @@ describe('CapabilitiesSection', () => {
     multiSelect: mockMultiSelect,
   };
 
+  const searchPlaceholder = 'Search capabilities...';
+
+  function renderWithCapabilities(capabilities: Capability[], expandedCapabilities?: Set<string>) {
+    return render(
+      <CapabilitiesSection
+        {...defaultProps}
+        capabilities={capabilities}
+        expandedCapabilities={expandedCapabilities ?? defaultProps.expandedCapabilities}
+      />
+    );
+  }
+
+  function typeSearch(query: string) {
+    fireEvent.change(screen.getByPlaceholderText(searchPlaceholder), {
+      target: { value: query },
+    });
+  }
+
+  function parentChildPair() {
+    return [
+      createCapability({ id: 'cap-parent' as CapabilityId, name: 'Parent', level: 'L1' }),
+      createCapability({ id: 'cap-child' as CapabilityId, name: 'Child', level: 'L2', parentId: 'cap-parent' as CapabilityId }),
+    ];
+  }
+
   describe('search functionality', () => {
     it('should render search input', () => {
       render(<CapabilitiesSection {...defaultProps} />);
 
-      expect(screen.getByPlaceholderText('Search capabilities...')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(searchPlaceholder)).toBeInTheDocument();
     });
 
     it('should filter capabilities by name', () => {
@@ -58,11 +83,9 @@ describe('CapabilitiesSection', () => {
         createCapability({ id: 'cap-2' as CapabilityId, name: 'Order Management' }),
         createCapability({ id: 'cap-3' as CapabilityId, name: 'Customer Support' }),
       ];
-      render(<CapabilitiesSection {...defaultProps} capabilities={capabilities} />);
+      renderWithCapabilities(capabilities);
 
-      fireEvent.change(screen.getByPlaceholderText('Search capabilities...'), {
-        target: { value: 'payment' },
-      });
+      typeSearch('payment');
 
       expect(screen.getByText('Payment Processing')).toBeInTheDocument();
       expect(screen.queryByText('Order Management')).not.toBeInTheDocument();
@@ -70,74 +93,47 @@ describe('CapabilitiesSection', () => {
     });
 
     it('should filter capabilities by description', () => {
-      const capabilities = [
+      renderWithCapabilities([
         createCapability({ id: 'cap-1' as CapabilityId, name: 'Alpha', description: 'Handles invoicing' }),
         createCapability({ id: 'cap-2' as CapabilityId, name: 'Beta', description: 'Manages orders' }),
-      ];
-      render(<CapabilitiesSection {...defaultProps} capabilities={capabilities} />);
+      ]);
 
-      fireEvent.change(screen.getByPlaceholderText('Search capabilities...'), {
-        target: { value: 'invoicing' },
-      });
+      typeSearch('invoicing');
 
       expect(screen.getByText('Alpha')).toBeInTheDocument();
       expect(screen.queryByText('Beta')).not.toBeInTheDocument();
     });
 
     it('should show nested child when child matches search', () => {
-      const capabilities = [
+      renderWithCapabilities([
         createCapability({ id: 'cap-parent' as CapabilityId, name: 'Business', level: 'L1' }),
         createCapability({ id: 'cap-child' as CapabilityId, name: 'Invoicing', level: 'L2', parentId: 'cap-parent' as CapabilityId }),
-      ];
-      render(<CapabilitiesSection {...defaultProps} capabilities={capabilities} />);
+      ]);
 
-      fireEvent.change(screen.getByPlaceholderText('Search capabilities...'), {
-        target: { value: 'invoicing' },
-      });
+      typeSearch('invoicing');
 
       expect(screen.getByText('Business')).toBeInTheDocument();
       expect(screen.getByText('Invoicing')).toBeInTheDocument();
     });
 
     it('should auto-expand parents when nested child matches search', () => {
-      const capabilities = [
-        createCapability({ id: 'cap-parent' as CapabilityId, name: 'Business', level: 'L1' }),
-        createCapability({ id: 'cap-child' as CapabilityId, name: 'Invoicing', level: 'L2', parentId: 'cap-parent' as CapabilityId }),
-      ];
-      render(
-        <CapabilitiesSection
-          {...defaultProps}
-          capabilities={capabilities}
-          expandedCapabilities={new Set()}
-        />
-      );
+      renderWithCapabilities(parentChildPair(), new Set());
 
-      expect(screen.queryByText('Invoicing')).not.toBeInTheDocument();
+      expect(screen.queryByText('Child')).not.toBeInTheDocument();
 
-      fireEvent.change(screen.getByPlaceholderText('Search capabilities...'), {
-        target: { value: 'invoicing' },
-      });
+      typeSearch('child');
 
-      expect(screen.getByText('Invoicing')).toBeInTheDocument();
+      expect(screen.getByText('Child')).toBeInTheDocument();
     });
 
     it('should show deeply nested child when it matches search', () => {
-      const capabilities = [
+      renderWithCapabilities([
         createCapability({ id: 'cap-l1' as CapabilityId, name: 'Enterprise', level: 'L1' }),
         createCapability({ id: 'cap-l2' as CapabilityId, name: 'Finance', level: 'L2', parentId: 'cap-l1' as CapabilityId }),
         createCapability({ id: 'cap-l3' as CapabilityId, name: 'Tax Reporting', level: 'L3', parentId: 'cap-l2' as CapabilityId }),
-      ];
-      render(
-        <CapabilitiesSection
-          {...defaultProps}
-          capabilities={capabilities}
-          expandedCapabilities={new Set()}
-        />
-      );
+      ], new Set());
 
-      fireEvent.change(screen.getByPlaceholderText('Search capabilities...'), {
-        target: { value: 'tax' },
-      });
+      typeSearch('tax');
 
       expect(screen.getByText('Enterprise')).toBeInTheDocument();
       expect(screen.getByText('Finance')).toBeInTheDocument();
@@ -145,17 +141,14 @@ describe('CapabilitiesSection', () => {
     });
 
     it('should hide non-matching branches entirely', () => {
-      const capabilities = [
+      renderWithCapabilities([
         createCapability({ id: 'cap-a' as CapabilityId, name: 'Branch A', level: 'L1' }),
         createCapability({ id: 'cap-a1' as CapabilityId, name: 'Match Here', level: 'L2', parentId: 'cap-a' as CapabilityId }),
         createCapability({ id: 'cap-b' as CapabilityId, name: 'Branch B', level: 'L1' }),
         createCapability({ id: 'cap-b1' as CapabilityId, name: 'No Match', level: 'L2', parentId: 'cap-b' as CapabilityId }),
-      ];
-      render(<CapabilitiesSection {...defaultProps} capabilities={capabilities} />);
+      ]);
 
-      fireEvent.change(screen.getByPlaceholderText('Search capabilities...'), {
-        target: { value: 'match here' },
-      });
+      typeSearch('match here');
 
       expect(screen.getByText('Branch A')).toBeInTheDocument();
       expect(screen.getByText('Match Here')).toBeInTheDocument();
@@ -164,39 +157,30 @@ describe('CapabilitiesSection', () => {
     });
 
     it('should show parent match without requiring children to match', () => {
-      const capabilities = [
+      renderWithCapabilities([
         createCapability({ id: 'cap-parent' as CapabilityId, name: 'Matching Parent', level: 'L1' }),
         createCapability({ id: 'cap-child' as CapabilityId, name: 'Unrelated Child', level: 'L2', parentId: 'cap-parent' as CapabilityId }),
-      ];
-      render(<CapabilitiesSection {...defaultProps} capabilities={capabilities} />);
+      ]);
 
-      fireEvent.change(screen.getByPlaceholderText('Search capabilities...'), {
-        target: { value: 'matching parent' },
-      });
+      typeSearch('matching parent');
 
       expect(screen.getByText('Matching Parent')).toBeInTheDocument();
     });
 
     it('should be case-insensitive', () => {
-      const capabilities = [
+      renderWithCapabilities([
         createCapability({ id: 'cap-1' as CapabilityId, name: 'Payment Processing' }),
-      ];
-      render(<CapabilitiesSection {...defaultProps} capabilities={capabilities} />);
+      ]);
 
-      fireEvent.change(screen.getByPlaceholderText('Search capabilities...'), {
-        target: { value: 'PAYMENT' },
-      });
+      typeSearch('PAYMENT');
 
       expect(screen.getByText('Payment Processing')).toBeInTheDocument();
     });
 
     it('should show no matches message when search yields no results', () => {
-      const capabilities = [createCapability({ name: 'Something' })];
-      render(<CapabilitiesSection {...defaultProps} capabilities={capabilities} />);
+      renderWithCapabilities([createCapability({ name: 'Something' })]);
 
-      fireEvent.change(screen.getByPlaceholderText('Search capabilities...'), {
-        target: { value: 'nonexistent' },
-      });
+      typeSearch('nonexistent');
 
       expect(screen.getByText('No matches')).toBeInTheDocument();
     });
@@ -208,10 +192,9 @@ describe('CapabilitiesSection', () => {
     });
 
     it('should clear search when clear button is clicked', () => {
-      const capabilities = [createCapability()];
-      render(<CapabilitiesSection {...defaultProps} capabilities={capabilities} />);
+      renderWithCapabilities([createCapability()]);
 
-      const searchInput = screen.getByPlaceholderText('Search capabilities...');
+      const searchInput = screen.getByPlaceholderText(searchPlaceholder);
       fireEvent.change(searchInput, { target: { value: 'test' } });
       fireEvent.click(screen.getByLabelText('Clear search'));
 
@@ -219,21 +202,11 @@ describe('CapabilitiesSection', () => {
     });
 
     it('should restore manual expand state when search is cleared', () => {
-      const capabilities = [
-        createCapability({ id: 'cap-parent' as CapabilityId, name: 'Parent', level: 'L1' }),
-        createCapability({ id: 'cap-child' as CapabilityId, name: 'Child', level: 'L2', parentId: 'cap-parent' as CapabilityId }),
-      ];
-      render(
-        <CapabilitiesSection
-          {...defaultProps}
-          capabilities={capabilities}
-          expandedCapabilities={new Set()}
-        />
-      );
+      renderWithCapabilities(parentChildPair(), new Set());
 
       expect(screen.queryByText('Child')).not.toBeInTheDocument();
 
-      const searchInput = screen.getByPlaceholderText('Search capabilities...');
+      const searchInput = screen.getByPlaceholderText(searchPlaceholder);
       fireEvent.change(searchInput, { target: { value: 'child' } });
       expect(screen.getByText('Child')).toBeInTheDocument();
 
@@ -242,15 +215,12 @@ describe('CapabilitiesSection', () => {
     });
 
     it('should show all capabilities when search is whitespace only', () => {
-      const capabilities = [
+      renderWithCapabilities([
         createCapability({ id: 'cap-1' as CapabilityId, name: 'Alpha' }),
         createCapability({ id: 'cap-2' as CapabilityId, name: 'Beta' }),
-      ];
-      render(<CapabilitiesSection {...defaultProps} capabilities={capabilities} />);
+      ]);
 
-      fireEvent.change(screen.getByPlaceholderText('Search capabilities...'), {
-        target: { value: '   ' },
-      });
+      typeSearch('   ');
 
       expect(screen.getByText('Alpha')).toBeInTheDocument();
       expect(screen.getByText('Beta')).toBeInTheDocument();
