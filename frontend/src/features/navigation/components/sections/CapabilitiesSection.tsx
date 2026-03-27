@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Capability, View, ViewCapability } from '../../../../api/types';
 import { TreeSection } from '../TreeSection';
+import { TreeSearchInput } from '../shared/TreeSearchInput';
 import { buildCapabilityTree, getLevelNumber, hasCustomColor } from '../../utils/treeUtils';
 import { deriveMaturityValue } from '../../../../constants/maturityColors';
 import { useMaturityColorScale } from '../../../../hooks/useMaturityColorScale';
@@ -65,6 +66,48 @@ function flattenVisibleCapabilities(
   return result;
 }
 
+function capabilityMatchesSearch(capability: Capability, searchLower: string): boolean {
+  return (
+    capability.name.toLowerCase().includes(searchLower) ||
+    (capability.description?.toLowerCase().includes(searchLower) ?? false)
+  );
+}
+
+function filterCapabilityTree(
+  tree: CapabilityTreeNode[],
+  search: string
+): CapabilityTreeNode[] {
+  if (!search.trim()) return tree;
+  const searchLower = search.toLowerCase();
+
+  const filterNodes = (nodes: CapabilityTreeNode[]): CapabilityTreeNode[] => {
+    const result: CapabilityTreeNode[] = [];
+    for (const node of nodes) {
+      const filteredChildren = filterNodes(node.children);
+      if (capabilityMatchesSearch(node.capability, searchLower) || filteredChildren.length > 0) {
+        result.push({ ...node, children: filteredChildren });
+      }
+    }
+    return result;
+  };
+
+  return filterNodes(tree);
+}
+
+function collectExpandedIdsFromFilteredTree(tree: CapabilityTreeNode[]): Set<string> {
+  const ids = new Set<string>();
+  const walk = (nodes: CapabilityTreeNode[]) => {
+    for (const node of nodes) {
+      if (node.children.length > 0) {
+        ids.add(node.capability.id);
+        walk(node.children);
+      }
+    }
+  };
+  walk(tree);
+  return ids;
+}
+
 interface CapabilitiesSectionProps {
   capabilities: Capability[];
   currentView: View | null;
@@ -94,12 +137,25 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
   setSelectedCapabilityId,
   multiSelect,
 }) => {
+  const [search, setSearch] = useState('');
   const { getColorForValue, getSectionNameForValue } = useMaturityColorScale();
   const capabilityTree = useMemo(() => buildCapabilityTree(capabilities), [capabilities]);
 
+  const filteredTree = useMemo(
+    () => filterCapabilityTree(capabilityTree, search),
+    [capabilityTree, search]
+  );
+
+  const searchExpandedIds = useMemo(
+    () => (search.trim() ? collectExpandedIdsFromFilteredTree(filteredTree) : null),
+    [filteredTree, search]
+  );
+
+  const effectiveExpanded = searchExpandedIds ?? expandedCapabilities;
+
   const visibleItems = useMemo(
-    () => flattenVisibleCapabilities(capabilityTree, expandedCapabilities),
-    [capabilityTree, expandedCapabilities]
+    () => flattenVisibleCapabilities(filteredTree, effectiveExpanded),
+    [filteredTree, effectiveExpanded]
   );
 
   const handleCapabilityClick = (capability: Capability, event: React.MouseEvent) => {
@@ -141,7 +197,7 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
 
     return {
       hasChildNodes: node.children.length > 0,
-      isExpanded: expandedCapabilities.has(capability.id),
+      isExpanded: effectiveExpanded.has(capability.id),
       levelNum: getLevelNumber(capability.level),
       isSelected: selectedCapabilityId === capability.id || multiSelect.isMultiSelected(capability.id),
       isOnCanvas,
@@ -218,11 +274,18 @@ export const CapabilitiesSection: React.FC<CapabilitiesSectionProps> = ({
       addTitle="Create new capability"
       addTestId="create-capability-button"
     >
+      <TreeSearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder="Search capabilities..."
+      />
       <div className="tree-items">
-        {capabilityTree.length === 0 ? (
-          <div className="tree-item-empty">No capabilities</div>
+        {filteredTree.length === 0 ? (
+          <div className="tree-item-empty">
+            {capabilities.length === 0 ? 'No capabilities' : 'No matches'}
+          </div>
         ) : (
-          capabilityTree.map(renderCapabilityNode)
+          filteredTree.map(renderCapabilityNode)
         )}
       </div>
     </TreeSection>
