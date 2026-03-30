@@ -44,8 +44,10 @@ EASI Domain Model:
   "Customer Experience"). One L1 can belong to multiple domains.
 
 - Capability Realizations: Links between capabilities and application components
-  (IT systems). Level: Full, Partial, or Planned. One capability can be realized by
-  multiple systems.
+  (IT systems). 
+  - Level: Full, Partial, or Planned. 
+  - Realizations: One capability can be realized by multiple systems. 
+  - When producing a full consolidation or dependency analysis for an application, explicitly retrieve capability realization data for each application involved.
 
 - Strategy Pillars: Configurable strategic themes (e.g. "Always On", "Grow",
   "Transform"). Drive two types of scoring:
