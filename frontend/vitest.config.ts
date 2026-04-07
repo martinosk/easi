@@ -1,5 +1,5 @@
-import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [react()],
@@ -26,7 +26,7 @@ export default defineConfig({
       '**/node_modules/**',
       '**/dist/**',
       '**/e2e/**',
-      '**/ComponentCanvas*.test.tsx',  // Moved to E2E in Phase 3 (spec 011)
+      '**/ComponentCanvas*.test.tsx', // Moved to E2E in Phase 3 (spec 011)
     ],
 
     // Test reporters for CI/CD

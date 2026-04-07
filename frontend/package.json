@@ -7,7 +7,9 @@
     "dev": "vite",
     "dev:e2e": "vite --mode e2e",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check --write .",
     "preview": "vite preview",
     "test": "vitest",
     "test:no-isolate": "vitest --no-isolate",
@@ -43,7 +45,7 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
+    "@biomejs/biome": "^2.0.0",
     "@playwright/test": "^1.58.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -52,15 +54,10 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
-    "eslint": "^9.39.4",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.4.0",
     "happy-dom": "^20.8.3",
     "msw": "^2.12.10",
     "rollup-plugin-visualizer": "^7.0.1",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1",
     "vitest": "^4.0.18"
   }

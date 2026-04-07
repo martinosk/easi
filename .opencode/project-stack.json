@@ -5,9 +5,9 @@
   "packageManager": "npm",
   "format": [
     {
-      "extensions": [".ts", ".tsx", ".js", ".jsx"],
+      "extensions": [".ts", ".tsx", ".js", ".jsx", ".json"],
       "cwd": "frontend",
-      "command": ["eslint", "--fix"]
+      "command": ["node_modules/.bin/biome", "format", "--write"]
     },
     {
       "extensions": [".go"],
@@ -17,9 +17,9 @@
   ],
   "lint": [
     {
-      "extensions": [".ts", ".tsx", ".js", ".jsx"],
+      "extensions": [".ts", ".tsx", ".js", ".jsx", ".json"],
       "cwd": "frontend",
-      "command": ["eslint"]
+      "command": ["node_modules/.bin/biome", "check", "--write"]
     },
     {
       "extensions": [".go"],
