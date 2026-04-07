@@ -64,7 +64,7 @@ function useSessionPolling(
     }
   }, []);
 
-  const pollSessionRef = useRef<(sessionId: ImportSessionId) => Promise<void>>();
+  const pollSessionRef = useRef<((sessionId: ImportSessionId) => Promise<void>) | undefined>(undefined);
 
   const pollSession = useCallback(
     async (sessionId: ImportSessionId) => {
