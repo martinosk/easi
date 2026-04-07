@@ -1,0 +1,31 @@
+{
+  "detected": "2026-04-07",
+  "stacks": ["typescript", "go"],
+  "frameworks": ["react", "vite", "vitest", "playwright", "chi"],
+  "packageManager": "npm",
+  "format": [
+    {
+      "extensions": [".ts", ".tsx", ".js", ".jsx"],
+      "cwd": "frontend",
+      "command": ["eslint", "--fix"]
+    },
+    {
+      "extensions": [".go"],
+      "cwd": "backend",
+      "command": ["gofmt", "-w"]
+    }
+  ],
+  "lint": [
+    {
+      "extensions": [".ts", ".tsx", ".js", ".jsx"],
+      "cwd": "frontend",
+      "command": ["eslint"]
+    },
+    {
+      "extensions": [".go"],
+      "cwd": "backend",
+      "command": ["golangci-lint", "run", "--fix"],
+      "argMode": "dir"
+    }
+  ]
+}
