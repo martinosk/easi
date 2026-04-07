@@ -27,7 +27,7 @@ func MustNewCapabilityRef(value string) CapabilityRef {
 
 func (c CapabilityRef) Equals(other domain.ValueObject) bool {
 	if otherRef, ok := other.(CapabilityRef); ok {
-		return c.UUIDValue.EqualsValue(otherRef.UUIDValue)
+		return c.EqualsValue(otherRef.UUIDValue)
 	}
 	return false
 }

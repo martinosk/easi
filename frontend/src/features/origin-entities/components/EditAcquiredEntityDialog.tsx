@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { Modal, TextInput, Textarea, Button, Group, Stack, Alert, Select } from '@mantine/core';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -49,7 +49,7 @@ export const EditAcquiredEntityDialog: React.FC<EditAcquiredEntityDialogProps> =
     mode: 'onChange',
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isOpen && entity) {
       const formStatus = entity.integrationStatus ? integrationStatusFromApi[entity.integrationStatus] : undefined;
       reset({
@@ -58,9 +58,9 @@ export const EditAcquiredEntityDialog: React.FC<EditAcquiredEntityDialogProps> =
         integrationStatus: formStatus as EditAcquiredEntityFormData['integrationStatus'],
         notes: entity.notes || '',
       });
-      setBackendError(null);
+      if (backendError !== null) queueMicrotask(() => setBackendError(null));
     }
-  }, [isOpen, entity, reset]);
+  }, [isOpen, entity, reset, backendError]);
 
   const handleClose = () => {
     onClose();

@@ -241,6 +241,7 @@ const CanvasPanel = (props: IDockviewPanelProps<{
   onConnect: (source: string, target: string) => void;
   onComponentDrop: (componentId: string, x: number, y: number) => Promise<void>;
 }>) => {
+  const { canvasRef, onConnect, onComponentDrop } = props.params;
   return (
     <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <ViewSelector />
@@ -251,9 +252,9 @@ const CanvasPanel = (props: IDockviewPanelProps<{
           )}
         >
           <ComponentCanvas
-            ref={props.params.canvasRef}
-            onConnect={props.params.onConnect}
-            onComponentDrop={props.params.onComponentDrop}
+            ref={canvasRef}
+            onConnect={onConnect}
+            onComponentDrop={onComponentDrop}
           />
         </ErrorBoundary>
       </div>

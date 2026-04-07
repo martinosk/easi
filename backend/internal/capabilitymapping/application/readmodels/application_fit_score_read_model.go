@@ -189,7 +189,7 @@ func (rm *ApplicationFitScoreReadModel) queryFitScoreList(ctx context.Context, q
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			dto, scanErr := rm.scanFitScoreRow(rows)

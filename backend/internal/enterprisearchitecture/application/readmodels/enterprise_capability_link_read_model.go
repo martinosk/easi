@@ -186,7 +186,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetByEnterpriseCapabilityID(ctx con
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto EnterpriseCapabilityLinkDTO
@@ -239,7 +239,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) GetLinksForCapabilities(ctx context
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto EnterpriseCapabilityLinkDTO

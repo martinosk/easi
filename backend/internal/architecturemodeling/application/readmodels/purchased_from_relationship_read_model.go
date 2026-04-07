@@ -158,7 +158,7 @@ func (rm *PurchasedFromRelationshipReadModel) queryList(ctx context.Context, whe
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto PurchasedFromRelationshipDTO

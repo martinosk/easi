@@ -49,7 +49,7 @@ func TestEnableUserHandler_EnablesSuccessfully(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			user := createUserForTestEnable(t, tt.role)
-			user.Disable(valueobjects.NewUserID(), false, false)
+			_ = user.Disable(valueobjects.NewUserID(), false, false)
 			user.MarkChangesAsCommitted()
 
 			mockRepo := &mockEnableUserRepository{userToLoad: user}
@@ -98,7 +98,7 @@ func TestEnableUserHandler_ReturnsError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			user := createUserForTestEnable(t, tt.role)
 			if tt.disable {
-				user.Disable(valueobjects.NewUserID(), false, false)
+				_ = user.Disable(valueobjects.NewUserID(), false, false)
 			}
 			user.MarkChangesAsCommitted()
 

@@ -56,7 +56,7 @@ func (rm *ArtifactCreatorReadModel) GetArtifactCreators(ctx context.Context) ([]
 		if err != nil {
 			return fmt.Errorf("failed to query artifact creators: %w", err)
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var creator ArtifactCreator

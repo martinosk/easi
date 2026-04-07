@@ -19,10 +19,10 @@ import (
 )
 
 type CapabilityHandlers struct {
-	commandBus   cqrs.CommandBus
-	readModel    *readmodels.CapabilityReadModel
-	hateoas      *CapabilityMappingLinks
-	impactQuery  *handlers.DeleteImpactQuery
+	commandBus  cqrs.CommandBus
+	readModel   *readmodels.CapabilityReadModel
+	hateoas     *CapabilityMappingLinks
+	impactQuery *handlers.DeleteImpactQuery
 }
 
 func NewCapabilityHandlers(
@@ -32,10 +32,10 @@ func NewCapabilityHandlers(
 	impactQuery *handlers.DeleteImpactQuery,
 ) *CapabilityHandlers {
 	return &CapabilityHandlers{
-		commandBus:   commandBus,
-		readModel:    readModel,
-		hateoas:      hateoas,
-		impactQuery:  impactQuery,
+		commandBus:  commandBus,
+		readModel:   readModel,
+		hateoas:     hateoas,
+		impactQuery: impactQuery,
 	}
 }
 

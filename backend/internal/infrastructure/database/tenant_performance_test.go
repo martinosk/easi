@@ -151,7 +151,7 @@ func BenchmarkRLSQuery(b *testing.B) {
 		b.Skip("Database not available")
 		return
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Ping(); err != nil {
 		b.Skip("Database not available")
@@ -193,7 +193,7 @@ func BenchmarkRLSInsert(b *testing.B) {
 		b.Skip("Database not available")
 		return
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Ping(); err != nil {
 		b.Skip("Database not available")

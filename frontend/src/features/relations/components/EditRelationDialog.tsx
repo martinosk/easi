@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -33,15 +33,15 @@ export const EditRelationDialog: React.FC<EditRelationDialogProps> = ({
     mode: 'onChange',
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isOpen && relation) {
       reset({
         name: relation.name || '',
         description: relation.description || '',
       });
-      setBackendError(null);
+      if (backendError !== null) queueMicrotask(() => setBackendError(null));
     }
-  }, [isOpen, relation, reset]);
+  }, [isOpen, relation, reset, backendError]);
 
   const handleClose = () => {
     onClose();

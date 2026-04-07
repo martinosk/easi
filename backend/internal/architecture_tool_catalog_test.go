@@ -100,7 +100,7 @@ func normalizeChiPath(path string) string {
 
 func collectRegisteredRoutes(r chi.Router) map[string]bool {
 	routes := make(map[string]bool)
-	chi.Walk(r, func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
+	_ = chi.Walk(r, func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
 		route = strings.TrimSuffix(route, "/")
 		key := method + " " + normalizeChiPath(route)
 		routes[key] = true
@@ -249,28 +249,28 @@ var excludedRoutes = map[string]string{
 	"DELETE /value-streams/*":                                  "value stream delete — high-impact, reserved for UI",
 	"DELETE /value-streams/*/stages/*":                         "stage delete — reserved for UI",
 	"DELETE /value-streams/*/stages/*/capabilities/*":          "stage-capability unmapping — reserved for UI",
-	"POST /views":                                             "view creation — reserved for UI",
-	"POST /views/*/components":                                "visual layout operation — reserved for UI",
-	"POST /views/*/capabilities":                              "visual layout operation — reserved for UI",
-	"POST /views/*/origin-entities":                           "visual layout operation — reserved for UI",
-	"PATCH /views/*/name":                                     "view rename — reserved for UI",
-	"PUT /views/*/default":                                    "default view setting — reserved for UI",
-	"PATCH /views/*/edge-type":                                "visual layout setting — reserved for UI",
-	"PATCH /views/*/layout-direction":                         "visual layout setting — reserved for UI",
-	"PATCH /views/*/color-scheme":                             "visual layout setting — reserved for UI",
-	"PATCH /views/*/components/*/position":                    "visual layout operation — reserved for UI",
-	"PATCH /views/*/components/*/color":                       "visual layout operation — reserved for UI",
-	"PATCH /views/*/layout":                                   "visual layout operation — reserved for UI",
-	"PATCH /views/*/capabilities/*/position":                  "visual layout operation — reserved for UI",
-	"PATCH /views/*/capabilities/*/color":                     "visual layout operation — reserved for UI",
-	"PATCH /views/*/origin-entities/*/position":               "visual layout operation — reserved for UI",
-	"PATCH /views/*/visibility":                               "visibility change — reserved for UI",
-	"DELETE /views/*":                                         "view deletion — reserved for UI",
-	"DELETE /views/*/components/*":                            "visual layout operation — reserved for UI",
-	"DELETE /views/*/components/*/color":                      "visual layout operation — reserved for UI",
-	"DELETE /views/*/capabilities/*":                          "visual layout operation — reserved for UI",
-	"DELETE /views/*/capabilities/*/color":                    "visual layout operation — reserved for UI",
-	"DELETE /views/*/origin-entities/*":                       "visual layout operation — reserved for UI",
+	"POST /views":                               "view creation — reserved for UI",
+	"POST /views/*/components":                  "visual layout operation — reserved for UI",
+	"POST /views/*/capabilities":                "visual layout operation — reserved for UI",
+	"POST /views/*/origin-entities":             "visual layout operation — reserved for UI",
+	"PATCH /views/*/name":                       "view rename — reserved for UI",
+	"PUT /views/*/default":                      "default view setting — reserved for UI",
+	"PATCH /views/*/edge-type":                  "visual layout setting — reserved for UI",
+	"PATCH /views/*/layout-direction":           "visual layout setting — reserved for UI",
+	"PATCH /views/*/color-scheme":               "visual layout setting — reserved for UI",
+	"PATCH /views/*/components/*/position":      "visual layout operation — reserved for UI",
+	"PATCH /views/*/components/*/color":         "visual layout operation — reserved for UI",
+	"PATCH /views/*/layout":                     "visual layout operation — reserved for UI",
+	"PATCH /views/*/capabilities/*/position":    "visual layout operation — reserved for UI",
+	"PATCH /views/*/capabilities/*/color":       "visual layout operation — reserved for UI",
+	"PATCH /views/*/origin-entities/*/position": "visual layout operation — reserved for UI",
+	"PATCH /views/*/visibility":                 "visibility change — reserved for UI",
+	"DELETE /views/*":                           "view deletion — reserved for UI",
+	"DELETE /views/*/components/*":              "visual layout operation — reserved for UI",
+	"DELETE /views/*/components/*/color":        "visual layout operation — reserved for UI",
+	"DELETE /views/*/capabilities/*":            "visual layout operation — reserved for UI",
+	"DELETE /views/*/capabilities/*/color":      "visual layout operation — reserved for UI",
+	"DELETE /views/*/origin-entities/*":         "visual layout operation — reserved for UI",
 }
 
 func TestToolCatalog_AllRoutesAccountedFor(t *testing.T) {
@@ -283,7 +283,7 @@ func TestToolCatalog_AllRoutesAccountedFor(t *testing.T) {
 	}
 
 	var uncovered []string
-	chi.Walk(router, func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
+	_ = chi.Walk(router, func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
 		route = strings.TrimSuffix(route, "/")
 		key := method + " " + normalizeChiPath(route)
 		if toolRoutes[key] {

@@ -81,7 +81,7 @@ func TestAddStageCapabilityHandler_AlreadyMapped(t *testing.T) {
 	stageID, _ := vs.AddStage(name, desc, nil)
 
 	capRef, _ := valueobjects.NewCapabilityRef("00000000-0000-0000-0000-000000000123")
-	vs.AddCapabilityToStage(stageID, capRef, "Test Cap")
+	_ = vs.AddCapabilityToStage(stageID, capRef, "Test Cap")
 	vs.MarkChangesAsCommitted()
 
 	repo := &mockStageRepository{stream: vs}

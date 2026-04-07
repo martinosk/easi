@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useLayoutEffect, useCallback, useState } from 'react';
 import type { ReactFlowInstance, Node } from '@xyflow/react';
 import { useAppStore } from '../../../store/appStore';
 import { useCurrentView } from '../../views/hooks/useCurrentView';
@@ -12,13 +12,13 @@ export const useCanvasViewport = (
   const getViewportState = useAppStore((state) => state.getViewportState);
   const [isFirstLoad, setIsFirstLoad] = useState(true);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!currentView || !reactFlowInstance) return;
 
     const savedViewport = getViewportState(currentView.id);
     if (savedViewport) {
       reactFlowInstance.setViewport(savedViewport, { duration: 300 });
-      setIsFirstLoad(false);
+      if (isFirstLoad) queueMicrotask(() => setIsFirstLoad(false));
       return;
     }
 

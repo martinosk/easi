@@ -23,7 +23,7 @@ func NewDependencyIDFromString(value string) (DependencyID, error) {
 
 func (d DependencyID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(DependencyID); ok {
-		return d.UUIDValue.EqualsValue(otherID.UUIDValue)
+		return d.EqualsValue(otherID.UUIDValue)
 	}
 	return false
 }

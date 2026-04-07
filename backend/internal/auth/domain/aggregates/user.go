@@ -20,10 +20,10 @@ var (
 
 type User struct {
 	domain.AggregateRoot
-	email    valueobjects.Email
-	profile  valueobjects.ExternalProfile
-	role     valueobjects.Role
-	status   valueobjects.UserStatus
+	email     valueobjects.Email
+	profile   valueobjects.ExternalProfile
+	role      valueobjects.Role
+	status    valueobjects.UserStatus
 	createdAt time.Time
 }
 

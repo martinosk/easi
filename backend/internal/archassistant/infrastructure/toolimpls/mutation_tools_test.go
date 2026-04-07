@@ -72,7 +72,7 @@ func newRequestCapture(t *testing.T, tc specToolTestCase) *requestCapture {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(tc.responseStatus)
 		if tc.responseBody != "" {
-			w.Write([]byte(tc.responseBody))
+			_, _ = w.Write([]byte(tc.responseBody))
 		}
 	}))
 	t.Cleanup(c.server.Close)
@@ -375,7 +375,7 @@ func TestMutationTools_APIUnreachable(t *testing.T) {
 func jsonResponse(w http.ResponseWriter, status int, body map[string]interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(body)
+	_ = json.NewEncoder(w).Encode(body)
 }
 
 func jsonError(w http.ResponseWriter, status int, message string) {

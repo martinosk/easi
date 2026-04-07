@@ -257,7 +257,7 @@ func (rm *UserReadModel) GetAllPaginated(ctx context.Context, filter UserPaginat
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto UserDTO

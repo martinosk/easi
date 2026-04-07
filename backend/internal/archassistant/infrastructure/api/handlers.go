@@ -293,7 +293,7 @@ func executeLLMRequest(req *http.Request) TestConnectionResponse {
 	if err != nil {
 		return TestConnectionResponse{Success: false, Error: fmt.Sprintf("Connection failed: %v", err)}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 512))

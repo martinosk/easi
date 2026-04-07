@@ -42,7 +42,7 @@ func TestReorderStagesHandler_InvalidPositions(t *testing.T) {
 	name2, _ := valueobjects.NewStageName("Second")
 	desc := valueobjects.MustNewDescription("")
 	id1, _ := vs.AddStage(name1, desc, nil)
-	vs.AddStage(name2, desc, nil)
+	_, _ = vs.AddStage(name2, desc, nil)
 	vs.MarkChangesAsCommitted()
 
 	repo := &mockStageRepository{stream: vs}

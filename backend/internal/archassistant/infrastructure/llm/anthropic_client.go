@@ -148,7 +148,7 @@ func (c *AnthropicClient) StreamChat(ctx context.Context, messages []Message, op
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		cancel()
 		return nil, fmt.Errorf("LLM returned status %d", resp.StatusCode)
 	}
@@ -254,7 +254,7 @@ func buildAnthropicToolResultMessage(m Message) json.RawMessage {
 
 func (c *AnthropicClient) readStream(ctx context.Context, resp *http.Response, ch chan<- StreamEvent) {
 	defer close(ch)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	scanner := bufio.NewScanner(resp.Body)
 	totalTokens := 0

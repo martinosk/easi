@@ -158,7 +158,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) populateLinkedStatus(ctx context.Co
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var domainCapID, enterpriseCapID, enterpriseCapName string
@@ -184,7 +184,7 @@ func (rm *EnterpriseCapabilityLinkReadModel) populateBlockingStatus(ctx context.
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var domainCapID, blockingCapID, blockingCapName, enterpriseCapID string

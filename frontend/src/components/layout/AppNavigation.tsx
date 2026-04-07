@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.svg';
 import { UserMenu } from './UserMenu';
-import { ROUTES } from '../../routes/routes';
+import { ROUTES } from '../../routes/routePaths';
 import { useUserStore } from '../../store/userStore';
 
 type AppView = 'canvas' | 'business-domains' | 'value-streams' | 'invitations' | 'users' | 'settings' | 'enterprise-architecture' | 'my-edit-access';

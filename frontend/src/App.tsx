@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useLayoutEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useUserStore } from './store/userStore';
 import { AppLayout } from './components/layout/AppLayout';
@@ -57,13 +57,13 @@ type AppView = 'canvas' | 'business-domains' | 'value-streams' | 'invitations' |
 function useAuthErrorHandler() {
   const [authError, setAuthError] = useState<string | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const errorCode = params.get('auth_error');
     const errorMessage = params.get('auth_error_message');
 
     if (errorCode && errorMessage) {
-      setAuthError(errorMessage);
+      if (authError !== errorMessage) queueMicrotask(() => setAuthError(errorMessage));
       toast.error(errorMessage, { duration: 10000 });
 
       const url = new URL(window.location.href);
@@ -71,7 +71,7 @@ function useAuthErrorHandler() {
       url.searchParams.delete('auth_error_message');
       window.history.replaceState({}, '', url.toString());
     }
-  }, []);
+  }, [authError]);
 
   return { authError, clearAuthError: () => setAuthError(null) };
 }

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useCapabilityTree } from '../../business-domains/hooks/useCapabilityTree';
 import type { CapabilityTreeNode } from '../../business-domains/hooks/useCapabilityTree';
 import type { Capability } from '../../../api/types';
@@ -12,11 +12,14 @@ export function CapabilitySidebar({ mappedCapabilityIds, onDragCapability }: Cap
   const { tree, isLoading } = useCapabilityTree();
   const [filter, setFilter] = useState('');
 
-  const matchesFilter = useCallback((node: CapabilityTreeNode): boolean => {
-    if (!filter) return true;
-    const lower = filter.toLowerCase();
-    if (node.capability.name.toLowerCase().includes(lower)) return true;
-    return node.children.some(child => matchesFilter(child));
+  const matchesFilter = useMemo(() => {
+    const check = (node: CapabilityTreeNode): boolean => {
+      if (!filter) return true;
+      const lower = filter.toLowerCase();
+      if (node.capability.name.toLowerCase().includes(lower)) return true;
+      return node.children.some(child => check(child));
+    };
+    return check;
   }, [filter]);
 
   const filteredTree = filter ? tree.filter(node => matchesFilter(node)) : tree;

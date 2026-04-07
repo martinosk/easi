@@ -54,7 +54,7 @@ func (r *PostgresReleaseRepository) FindAll(ctx context.Context) ([]*aggregates.
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var releases []*aggregates.Release
 	for rows.Next() {

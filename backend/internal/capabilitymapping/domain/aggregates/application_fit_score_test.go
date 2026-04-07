@@ -165,7 +165,7 @@ func TestLoadApplicationFitScoreFromHistory_WithUpdate(t *testing.T) {
 	newScore, _ := valueobjects.NewFitScore(5)
 	newRationale, _ := valueobjects.NewFitRationale("Updated")
 	updatedBy, _ := valueobjects.NewUserIdentifier("admin@example.com")
-	aggregate.Update(newScore, newRationale, updatedBy)
+	_ = aggregate.Update(newScore, newRationale, updatedBy)
 
 	events := aggregate.GetUncommittedChanges()
 

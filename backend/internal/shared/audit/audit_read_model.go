@@ -59,7 +59,7 @@ func (rm *AuditHistoryReadModel) GetHistoryByAggregateID(ctx context.Context, ag
 		if err != nil {
 			return fmt.Errorf("failed to query events: %w", err)
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var entry AuditEntry

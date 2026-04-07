@@ -13,7 +13,7 @@ func TestPlatformAdminMiddleware_ValidAPIKey(t *testing.T) {
 
 	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("success"))
+		_, _ = w.Write([]byte("success"))
 	}))
 
 	req := httptest.NewRequest("POST", "/api/platform/v1/tenants", nil)

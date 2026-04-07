@@ -54,7 +54,7 @@ func TestUpdateStageHandler_DuplicateName(t *testing.T) {
 	name1, _ := valueobjects.NewStageName("First")
 	name2, _ := valueobjects.NewStageName("Second")
 	desc := valueobjects.MustNewDescription("")
-	vs.AddStage(name1, desc, nil)
+	_, _ = vs.AddStage(name1, desc, nil)
 	stageID2, _ := vs.AddStage(name2, desc, nil)
 	vs.MarkChangesAsCommitted()
 

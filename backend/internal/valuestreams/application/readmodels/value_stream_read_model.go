@@ -79,7 +79,7 @@ func (rm *ValueStreamReadModel) GetAll(ctx context.Context) ([]ValueStreamDTO, e
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			dto, err := scanValueStream(rows)

@@ -235,7 +235,7 @@ func TestComponentOriginLink_AllEventsContainCorrectAggregateID(t *testing.T) {
 			entityID := tc.newID()
 			notes, _ := valueobjects.NewNotes("Test")
 
-			link.Set(entityID, notes)
+			_ = link.Set(entityID, notes)
 
 			evts := link.GetUncommittedChanges()
 			for _, event := range evts {

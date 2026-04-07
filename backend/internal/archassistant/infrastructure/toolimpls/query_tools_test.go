@@ -58,7 +58,7 @@ func executeTool(t *testing.T, registry *tools.Registry, name string, args map[s
 func jsonCollectionHandler(data ...map[string]interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(testCollectionJSON(data...))
+		_, _ = w.Write(testCollectionJSON(data...))
 	}
 }
 

@@ -37,7 +37,7 @@ func NewEnterpriseStrategicImportanceIDFromString(value string) (EnterpriseStrat
 
 func (e EnterpriseStrategicImportanceID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(EnterpriseStrategicImportanceID); ok {
-		return e.UUIDValue.EqualsValue(otherID.UUIDValue)
+		return e.EqualsValue(otherID.UUIDValue)
 	}
 	return false
 }

@@ -133,7 +133,7 @@ func (rm *InternalTeamReadModel) GetAll(ctx context.Context) ([]InternalTeamDTO,
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto InternalTeamDTO
@@ -164,7 +164,7 @@ func (rm *InternalTeamReadModel) GetAllPaginated(ctx context.Context, limit int,
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto InternalTeamDTO

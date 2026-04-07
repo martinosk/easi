@@ -68,7 +68,7 @@ func (t *TenantAwareDB) WithTenantContext(ctx context.Context, fn func(*sql.Conn
 	if err != nil {
 		return fmt.Errorf("failed to acquire connection: %w", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// Set tenant context for RLS
 	if err := t.setTenantContext(ctx, conn); err != nil {

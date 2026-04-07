@@ -44,11 +44,11 @@ func TestNewOIDCProvider_Discovery(t *testing.T) {
 			"jwks_uri":               server.URL + "/jwks",
 			"userinfo_endpoint":      server.URL + "/userinfo",
 		}
-		json.NewEncoder(w).Encode(config)
+		_ = json.NewEncoder(w).Encode(config)
 	})
 
 	mux.HandleFunc("/jwks", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(jwks)
+		_ = json.NewEncoder(w).Encode(jwks)
 	})
 
 	provider, err := NewOIDCProviderFromConfig(context.Background(), ProviderConfig{
@@ -87,11 +87,11 @@ func TestOIDCProvider_AuthCodeURL(t *testing.T) {
 			"token_endpoint":         server.URL + "/token",
 			"jwks_uri":               server.URL + "/jwks",
 		}
-		json.NewEncoder(w).Encode(config)
+		_ = json.NewEncoder(w).Encode(config)
 	})
 
 	mux.HandleFunc("/jwks", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(jwks)
+		_ = json.NewEncoder(w).Encode(jwks)
 	})
 
 	provider, err := NewOIDCProviderFromConfig(context.Background(), ProviderConfig{
@@ -143,15 +143,15 @@ func TestOIDCProvider_ExchangeCode(t *testing.T) {
 			"token_endpoint":         server.URL + "/token",
 			"jwks_uri":               server.URL + "/jwks",
 		}
-		json.NewEncoder(w).Encode(config)
+		_ = json.NewEncoder(w).Encode(config)
 	})
 
 	mux.HandleFunc("/jwks", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(jwks)
+		_ = json.NewEncoder(w).Encode(jwks)
 	})
 
 	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
-		r.ParseForm()
+		_ = r.ParseForm()
 		assert.Equal(t, "authorization_code", r.Form.Get("grant_type"))
 		assert.NotEmpty(t, r.Form.Get("code_verifier"))
 
@@ -185,7 +185,7 @@ func TestOIDCProvider_ExchangeCode(t *testing.T) {
 			"expires_in":    3600,
 			"id_token":      idToken,
 		}
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	})
 
 	provider, err := NewOIDCProviderFromConfig(context.Background(), ProviderConfig{

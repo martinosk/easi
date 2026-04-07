@@ -130,7 +130,7 @@ func (g *httpMaturityScaleGateway) fetchFromAPI(ctx context.Context, tenantID st
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch maturity scale config: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, nil

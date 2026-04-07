@@ -212,7 +212,7 @@ func (r *LayoutContainerRepository) loadElements(ctx context.Context, tx *sql.Tx
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var elements []valueobjects.ElementPosition
 	for rows.Next() {

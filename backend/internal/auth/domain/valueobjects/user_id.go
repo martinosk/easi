@@ -30,5 +30,5 @@ func (id UserID) Equals(other domain.ValueObject) bool {
 	if !ok {
 		return false
 	}
-	return id.UUIDValue.EqualsValue(otherID.UUIDValue)
+	return id.EqualsValue(otherID.UUIDValue)
 }

@@ -182,7 +182,7 @@ export function useDockviewLayout(hookData: BusinessDomainsHookReturn) {
   const showExplorer = userRole !== 'stakeholder';
   const dockviewApiRef = useRef<DockviewApi | null>(null);
   const hookDataRef = useRef(hookData);
-  hookDataRef.current = hookData;
+  useEffect(() => { hookDataRef.current = hookData; });
   const [panelVisibility, setPanelVisibility] = useState({ domains: true, explorer: showExplorer, details: true });
   const panelSizesRef = useRef<PanelSizes>({ domains: 320, explorer: 320, details: 300 });
   const explorerSyncDeps: ExplorerSyncDeps = { dockviewApiRef, panelSizesRef, setPanelVisibility };

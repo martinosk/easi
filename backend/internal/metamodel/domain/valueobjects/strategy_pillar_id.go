@@ -23,7 +23,7 @@ func NewStrategyPillarIDFromString(value string) (StrategyPillarID, error) {
 
 func (s StrategyPillarID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(StrategyPillarID); ok {
-		return s.UUIDValue.EqualsValue(otherID.UUIDValue)
+		return s.EqualsValue(otherID.UUIDValue)
 	}
 	return false
 }

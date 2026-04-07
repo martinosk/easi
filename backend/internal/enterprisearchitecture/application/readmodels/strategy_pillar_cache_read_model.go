@@ -71,7 +71,7 @@ func (rm *StrategyPillarCacheReadModel) GetAll(ctx context.Context) ([]StrategyP
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto StrategyPillarCacheDTO

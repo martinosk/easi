@@ -31,7 +31,7 @@ func TestValueStream_AddStage(t *testing.T) {
 }
 
 func TestValueStream_AddStage_DuplicateName(t *testing.T) {
-	vs := createValueStreamWithStage(t, "Test VS", "Discovery")
+	vs := createValueStreamWithStage(t)
 
 	name, _ := valueobjects.NewStageName("Discovery")
 	desc := valueobjects.MustNewDescription("")
@@ -49,8 +49,8 @@ func TestValueStream_AddStage_WithInsertPosition(t *testing.T) {
 	name3, _ := valueobjects.NewStageName("Inserted")
 	desc := valueobjects.MustNewDescription("")
 
-	vs.AddStage(name1, desc, nil)
-	vs.AddStage(name2, desc, nil)
+	_, _ = vs.AddStage(name1, desc, nil)
+	_, _ = vs.AddStage(name2, desc, nil)
 	vs.MarkChangesAsCommitted()
 
 	insertPos, _ := valueobjects.NewStagePosition(1)
@@ -70,7 +70,7 @@ func TestValueStream_AddStage_WithInsertPosition(t *testing.T) {
 }
 
 func TestValueStream_UpdateStage(t *testing.T) {
-	vs := createValueStreamWithStage(t, "Test VS", "Discovery")
+	vs := createValueStreamWithStage(t)
 	stageID := vs.Stages()[0].ID()
 	vs.MarkChangesAsCommitted()
 
@@ -119,9 +119,9 @@ func TestValueStream_RemoveStage(t *testing.T) {
 	name3, _ := valueobjects.NewStageName("Third")
 	desc := valueobjects.MustNewDescription("")
 
-	vs.AddStage(name1, desc, nil)
-	vs.AddStage(name2, desc, nil)
-	vs.AddStage(name3, desc, nil)
+	_, _ = vs.AddStage(name1, desc, nil)
+	_, _ = vs.AddStage(name2, desc, nil)
+	_, _ = vs.AddStage(name3, desc, nil)
 	vs.MarkChangesAsCommitted()
 
 	secondID := findStageByName(vs, "Second")
@@ -160,9 +160,9 @@ func TestValueStream_ReorderStages(t *testing.T) {
 	name3, _ := valueobjects.NewStageName("Third")
 	desc := valueobjects.MustNewDescription("")
 
-	vs.AddStage(name1, desc, nil)
-	vs.AddStage(name2, desc, nil)
-	vs.AddStage(name3, desc, nil)
+	_, _ = vs.AddStage(name1, desc, nil)
+	_, _ = vs.AddStage(name2, desc, nil)
+	_, _ = vs.AddStage(name3, desc, nil)
 	vs.MarkChangesAsCommitted()
 
 	firstID := findStageByName(vs, "First")
@@ -214,7 +214,7 @@ func TestValueStream_ReorderStages_MissingStage(t *testing.T) {
 }
 
 func TestValueStream_AddCapabilityToStage(t *testing.T) {
-	vs := createValueStreamWithStage(t, "Test VS", "Discovery")
+	vs := createValueStreamWithStage(t)
 	stageID := vs.Stages()[0].ID()
 	vs.MarkChangesAsCommitted()
 
@@ -232,11 +232,11 @@ func TestValueStream_AddCapabilityToStage(t *testing.T) {
 }
 
 func TestValueStream_AddCapabilityToStage_AlreadyMapped(t *testing.T) {
-	vs := createValueStreamWithStage(t, "Test VS", "Discovery")
+	vs := createValueStreamWithStage(t)
 	stageID := vs.Stages()[0].ID()
 
 	capRef, _ := valueobjects.NewCapabilityRef("00000000-0000-0000-0000-000000000123")
-	vs.AddCapabilityToStage(stageID, capRef, "Test Capability")
+	_ = vs.AddCapabilityToStage(stageID, capRef, "Test Capability")
 	vs.MarkChangesAsCommitted()
 
 	err := vs.AddCapabilityToStage(stageID, capRef, "Test Capability")
@@ -255,11 +255,11 @@ func TestValueStream_AddCapabilityToStage_StageNotFound(t *testing.T) {
 }
 
 func TestValueStream_RemoveCapabilityFromStage(t *testing.T) {
-	vs := createValueStreamWithStage(t, "Test VS", "Discovery")
+	vs := createValueStreamWithStage(t)
 	stageID := vs.Stages()[0].ID()
 
 	capRef, _ := valueobjects.NewCapabilityRef("00000000-0000-0000-0000-000000000123")
-	vs.AddCapabilityToStage(stageID, capRef, "Test Capability")
+	_ = vs.AddCapabilityToStage(stageID, capRef, "Test Capability")
 	vs.MarkChangesAsCommitted()
 
 	err := vs.RemoveCapabilityFromStage(stageID, capRef)
@@ -273,7 +273,7 @@ func TestValueStream_RemoveCapabilityFromStage(t *testing.T) {
 }
 
 func TestValueStream_RemoveCapabilityFromStage_NotMapped(t *testing.T) {
-	vs := createValueStreamWithStage(t, "Test VS", "Discovery")
+	vs := createValueStreamWithStage(t)
 	stageID := vs.Stages()[0].ID()
 	vs.MarkChangesAsCommitted()
 
@@ -287,14 +287,14 @@ func TestValueStream_LoadFromHistory_WithStageEvents(t *testing.T) {
 
 	name1, _ := valueobjects.NewStageName("Discovery")
 	desc := valueobjects.MustNewDescription("Phase 1")
-	vs.AddStage(name1, desc, nil)
+	_, _ = vs.AddStage(name1, desc, nil)
 
 	name2, _ := valueobjects.NewStageName("Design")
-	vs.AddStage(name2, desc, nil)
+	_, _ = vs.AddStage(name2, desc, nil)
 
 	stageID := vs.Stages()[0].ID()
 	capRef, _ := valueobjects.NewCapabilityRef("00000000-0000-0000-0000-000000000001")
-	vs.AddCapabilityToStage(stageID, capRef, "Test Capability")
+	_ = vs.AddCapabilityToStage(stageID, capRef, "Test Capability")
 
 	allEvents := vs.GetUncommittedChanges()
 
@@ -321,12 +321,12 @@ func createValueStreamWithStages(t *testing.T, vsName string, stageNames ...stri
 	return vs
 }
 
-func createValueStreamWithStage(t *testing.T, vsName, stageName string) *ValueStream {
+func createValueStreamWithStage(t *testing.T) *ValueStream {
 	t.Helper()
-	vs := createValueStream(t, vsName)
+	vs := createValueStream(t, "Test VS")
 	vs.MarkChangesAsCommitted()
 
-	name, err := valueobjects.NewStageName(stageName)
+	name, err := valueobjects.NewStageName("Discovery")
 	require.NoError(t, err)
 	desc := valueobjects.MustNewDescription("")
 

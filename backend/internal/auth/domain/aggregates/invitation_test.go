@@ -127,9 +127,9 @@ func TestInvitation_Accept_RejectsTerminalStates(t *testing.T) {
 		transition func(*Invitation)
 		wantErr    error
 	}{
-		{"WhenAlreadyAccepted", func(inv *Invitation) { inv.Accept() }, ErrInvitationAlreadyAccepted},
-		{"WhenRevoked", func(inv *Invitation) { inv.Revoke() }, ErrInvitationAlreadyRevoked},
-		{"WhenExpired", func(inv *Invitation) { inv.MarkExpired() }, ErrInvitationAlreadyExpired},
+		{"WhenAlreadyAccepted", func(inv *Invitation) { _ = inv.Accept() }, ErrInvitationAlreadyAccepted},
+		{"WhenRevoked", func(inv *Invitation) { _ = inv.Revoke() }, ErrInvitationAlreadyRevoked},
+		{"WhenExpired", func(inv *Invitation) { _ = inv.MarkExpired() }, ErrInvitationAlreadyExpired},
 	}
 
 	for _, tt := range tests {
@@ -167,8 +167,8 @@ func TestInvitation_Revoke_RejectsTerminalStates(t *testing.T) {
 		transition func(*Invitation)
 		wantErr    error
 	}{
-		{"WhenAlreadyRevoked", func(inv *Invitation) { inv.Revoke() }, ErrInvitationAlreadyRevoked},
-		{"WhenAccepted", func(inv *Invitation) { inv.Accept() }, ErrInvitationNotPending},
+		{"WhenAlreadyRevoked", func(inv *Invitation) { _ = inv.Revoke() }, ErrInvitationAlreadyRevoked},
+		{"WhenAccepted", func(inv *Invitation) { _ = inv.Accept() }, ErrInvitationNotPending},
 	}
 
 	for _, tt := range tests {
@@ -205,8 +205,8 @@ func TestInvitation_MarkExpired_RejectsTerminalStates(t *testing.T) {
 		transition func(*Invitation)
 		wantErr    error
 	}{
-		{"WhenAlreadyExpired", func(inv *Invitation) { inv.MarkExpired() }, ErrInvitationAlreadyExpired},
-		{"WhenAccepted", func(inv *Invitation) { inv.Accept() }, ErrInvitationNotPending},
+		{"WhenAlreadyExpired", func(inv *Invitation) { _ = inv.MarkExpired() }, ErrInvitationAlreadyExpired},
+		{"WhenAccepted", func(inv *Invitation) { _ = inv.Accept() }, ErrInvitationNotPending},
 	}
 
 	for _, tt := range tests {

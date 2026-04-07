@@ -114,7 +114,7 @@ func (rm *TimeSuggestionReadModel) queryRealizationGaps(ctx context.Context, cap
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var capID, capName, compID, compName, pillarID string

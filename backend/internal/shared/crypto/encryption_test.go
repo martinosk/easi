@@ -76,7 +76,7 @@ func TestEncryptProducesDifferentCiphertexts(t *testing.T) {
 
 func TestMissingEncryptionKey(t *testing.T) {
 	t.Setenv("ENCRYPTION_KEY", "")
-	os.Unsetenv("ENCRYPTION_KEY")
+	_ = os.Unsetenv("ENCRYPTION_KEY")
 
 	_, err := Encrypt("test", "tenant")
 	if err != ErrMissingEncryptionKey {

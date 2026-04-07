@@ -86,9 +86,9 @@ func withCRUDActorAndTenant(r *http.Request) *http.Request {
 	return r.WithContext(ctx)
 }
 
-func withRouteParam(r *http.Request, name, value string) *http.Request {
+func withRouteParam(r *http.Request, value string) *http.Request {
 	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add(name, value)
+	rctx.URLParams.Add("id", value)
 	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 }
 
@@ -198,7 +198,7 @@ func TestGetConversation_ReturnsConversationWithMessages(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/assistant/conversations/"+convID, nil)
 	req = withCRUDActorAndTenant(req)
-	req = withRouteParam(req, "id", convID)
+	req = withRouteParam(req, convID)
 	rec := httptest.NewRecorder()
 
 	handlers.GetConversation(rec, req)
@@ -241,7 +241,7 @@ func TestGetConversation_NotFound(t *testing.T) {
 	convID := "00000000-0000-0000-0000-000000000001"
 	req := httptest.NewRequest("GET", "/assistant/conversations/"+convID, nil)
 	req = withCRUDActorAndTenant(req)
-	req = withRouteParam(req, "id", convID)
+	req = withRouteParam(req, convID)
 	rec := httptest.NewRecorder()
 
 	handlers.GetConversation(rec, req)
@@ -254,7 +254,7 @@ func TestGetConversation_InvalidUUID(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/assistant/conversations/not-a-uuid", nil)
 	req = withCRUDActorAndTenant(req)
-	req = withRouteParam(req, "id", "not-a-uuid")
+	req = withRouteParam(req, "not-a-uuid")
 	rec := httptest.NewRecorder()
 
 	handlers.GetConversation(rec, req)
@@ -269,7 +269,7 @@ func TestDeleteConversation_Success(t *testing.T) {
 
 	req := httptest.NewRequest("DELETE", "/assistant/conversations/"+convID, nil)
 	req = withCRUDActorAndTenant(req)
-	req = withRouteParam(req, "id", convID)
+	req = withRouteParam(req, convID)
 	rec := httptest.NewRecorder()
 
 	handlers.DeleteConversation(rec, req)
@@ -286,7 +286,7 @@ func TestDeleteConversation_NotFound(t *testing.T) {
 
 	req := httptest.NewRequest("DELETE", "/assistant/conversations/"+convID, nil)
 	req = withCRUDActorAndTenant(req)
-	req = withRouteParam(req, "id", convID)
+	req = withRouteParam(req, convID)
 	rec := httptest.NewRecorder()
 
 	handlers.DeleteConversation(rec, req)
@@ -299,7 +299,7 @@ func TestDeleteConversation_InvalidUUID(t *testing.T) {
 
 	req := httptest.NewRequest("DELETE", "/assistant/conversations/not-a-uuid", nil)
 	req = withCRUDActorAndTenant(req)
-	req = withRouteParam(req, "id", "not-a-uuid")
+	req = withRouteParam(req, "not-a-uuid")
 	rec := httptest.NewRecorder()
 
 	handlers.DeleteConversation(rec, req)

@@ -91,7 +91,7 @@ func TestTenantResponse_NoSecretsInResponse(t *testing.T) {
 
 	body, _ := json.Marshal(response)
 	var decoded map[string]interface{}
-	json.Unmarshal(body, &decoded)
+	_ = json.Unmarshal(body, &decoded)
 
 	oidc := decoded["oidcConfig"].(map[string]interface{})
 	_, hasSecret := oidc["clientSecret"]
@@ -152,7 +152,7 @@ func TestOIDCConfigResponse_IncludesSecretProvisioned(t *testing.T) {
 
 	body, _ := json.Marshal(response)
 	var decoded map[string]interface{}
-	json.Unmarshal(body, &decoded)
+	_ = json.Unmarshal(body, &decoded)
 
 	assert.Equal(t, true, decoded["secretProvisioned"])
 }
@@ -174,7 +174,7 @@ func TestTenantResponse_IncludesWarnings(t *testing.T) {
 
 	body, _ := json.Marshal(response)
 	var decoded map[string]interface{}
-	json.Unmarshal(body, &decoded)
+	_ = json.Unmarshal(body, &decoded)
 
 	warnings := decoded["_warnings"].([]interface{})
 	assert.Len(t, warnings, 1)

@@ -23,7 +23,7 @@ func NewEnterpriseCapabilityIDFromString(value string) (EnterpriseCapabilityID, 
 
 func (e EnterpriseCapabilityID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(EnterpriseCapabilityID); ok {
-		return e.UUIDValue.EqualsValue(otherID.UUIDValue)
+		return e.EqualsValue(otherID.UUIDValue)
 	}
 	return false
 }

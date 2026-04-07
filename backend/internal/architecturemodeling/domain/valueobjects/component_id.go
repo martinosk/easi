@@ -23,7 +23,7 @@ func NewComponentIDFromString(value string) (ComponentID, error) {
 
 func (c ComponentID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(ComponentID); ok {
-		return c.UUIDValue.EqualsValue(otherID.UUIDValue)
+		return c.EqualsValue(otherID.UUIDValue)
 	}
 	return false
 }

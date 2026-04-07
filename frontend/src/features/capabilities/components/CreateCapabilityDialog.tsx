@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useLayoutEffect, useState, useMemo } from 'react';
 import { Modal, TextInput, Textarea, Select, Button, Group, Stack, Alert } from '@mantine/core';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -54,12 +54,12 @@ function useCreateCapabilityForm(isOpen: boolean, onClose: () => void) {
     mode: 'onChange',
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isOpen) {
       reset(DEFAULT_VALUES);
-      setBackendError(null);
+      if (backendError !== null) queueMicrotask(() => setBackendError(null));
     }
-  }, [isOpen, reset]);
+  }, [isOpen, reset, backendError]);
 
   const statusOptions = [...statuses]
     .sort((a, b) => a.sortOrder - b.sortOrder)

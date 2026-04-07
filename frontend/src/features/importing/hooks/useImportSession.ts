@@ -64,6 +64,8 @@ function useSessionPolling(
     }
   }, []);
 
+  const pollSessionRef = useRef<(sessionId: ImportSessionId) => Promise<void>>();
+
   const pollSession = useCallback(async (sessionId: ImportSessionId) => {
     if (!isMountedRef.current) return;
     try {
@@ -71,7 +73,7 @@ function useSessionPolling(
       if (!isMountedRef.current) return;
       setSession(data);
       processPollResult(data, {
-        onImporting: () => { pollTimerRef.current = setTimeout(() => pollSession(sessionId), POLL_INTERVAL); },
+        onImporting: () => { pollTimerRef.current = setTimeout(() => pollSessionRef.current?.(sessionId), POLL_INTERVAL); },
         onCompleted: () => invalidateFor(queryClient, importsMutationEffects.completed()),
         onFinished: stopPolling,
       });
@@ -81,6 +83,8 @@ function useSessionPolling(
       stopPolling();
     }
   }, [setSession, setError, stopPolling, queryClient]);
+
+  useEffect(() => { pollSessionRef.current = pollSession; });
 
   const startPollingIfImporting = useCallback((data: ImportSession) => {
     if (isStillImporting(data)) {

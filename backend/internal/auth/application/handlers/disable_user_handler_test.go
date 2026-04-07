@@ -121,7 +121,7 @@ func TestDisableUserHandler_ReturnsError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			user := createUserForTestDisable(t, tt.role)
 			if tt.preDisable {
-				user.Disable(valueobjects.NewUserID(), false, false)
+				_ = user.Disable(valueobjects.NewUserID(), false, false)
 			}
 			user.MarkChangesAsCommitted()
 

@@ -401,7 +401,7 @@ func (h *testableEnterpriseCapabilityHandlers) handleGetByID(w http.ResponseWrit
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(cap)
+	_ = json.NewEncoder(w).Encode(cap)
 }
 
 func (h *testableEnterpriseCapabilityHandlers) handleDelete(w http.ResponseWriter, r *http.Request) {
@@ -467,7 +467,7 @@ func (h *testableEnterpriseCapabilityHandlers) handleLinkCapability(w http.Respo
 	w.Header().Set("Location", location)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(link)
+	_ = json.NewEncoder(w).Encode(link)
 }
 
 func TestLinkCapability_ConflictErrors_Return409(t *testing.T) {

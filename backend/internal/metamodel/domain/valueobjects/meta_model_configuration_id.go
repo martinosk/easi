@@ -23,7 +23,7 @@ func NewMetaModelConfigurationIDFromString(value string) (MetaModelConfiguration
 
 func (m MetaModelConfigurationID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(MetaModelConfigurationID); ok {
-		return m.UUIDValue.EqualsValue(otherID.UUIDValue)
+		return m.EqualsValue(otherID.UUIDValue)
 	}
 	return false
 }

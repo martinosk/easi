@@ -257,11 +257,11 @@ func (h *AuthHandlers) extractCallbackParams(r *http.Request) (callbackParams, e
 func (h *AuthHandlers) validateCallbackState(ctx context.Context, state string) (session.AuthSession, error) {
 	preAuth, err := h.sessionManager.LoadPreAuthSession(ctx)
 	if err != nil {
-		return session.AuthSession{}, errors.New("Invalid session")
+		return session.AuthSession{}, errors.New("invalid session")
 	}
 
 	if subtle.ConstantTimeCompare([]byte(preAuth.State()), []byte(state)) != 1 {
-		return session.AuthSession{}, errors.New("Invalid state parameter")
+		return session.AuthSession{}, errors.New("invalid state parameter")
 	}
 	return preAuth, nil
 }

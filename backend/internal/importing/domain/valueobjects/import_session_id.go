@@ -27,7 +27,7 @@ func NewImportSessionIDFromString(value string) (ImportSessionID, error) {
 
 func (id ImportSessionID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(ImportSessionID); ok {
-		return id.UUIDValue.EqualsValue(otherID.UUIDValue)
+		return id.EqualsValue(otherID.UUIDValue)
 	}
 	return false
 }

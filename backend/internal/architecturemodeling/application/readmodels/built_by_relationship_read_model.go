@@ -158,7 +158,7 @@ func (rm *BuiltByRelationshipReadModel) queryList(ctx context.Context, whereClau
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto BuiltByRelationshipDTO

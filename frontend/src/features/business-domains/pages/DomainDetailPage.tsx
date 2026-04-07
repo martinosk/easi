@@ -5,7 +5,7 @@ import { DomainForm } from '../components/DomainForm';
 import { CapabilityAssociationManager } from '../components/CapabilityAssociationManager';
 import { AuditHistorySection } from '../../audit';
 import { apiClient } from '../../../api/client';
-import { ROUTES } from '../../../routes/routes';
+import { ROUTES } from '../../../routes/routePaths';
 import type { BusinessDomain, BusinessDomainId } from '../../../api/types';
 
 interface DomainDetailPageProps {

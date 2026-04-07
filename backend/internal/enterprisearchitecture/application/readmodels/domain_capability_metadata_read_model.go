@@ -189,7 +189,7 @@ func (rm *DomainCapabilityMetadataReadModel) queryHierarchy(ctx context.Context,
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var id string
@@ -292,7 +292,7 @@ func (rm *DomainCapabilityMetadataReadModel) GetEnterpriseCapabilitiesLinkedToCa
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var id string

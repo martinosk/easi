@@ -159,7 +159,7 @@ func (rm *CapabilityReadModel) GetDistinctExpertRoles(ctx context.Context) ([]st
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var role string
@@ -311,7 +311,7 @@ func (rm *CapabilityReadModel) fetchExperts(ctx context.Context, tx *sql.Tx, ten
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var experts []ExpertDTO
 	for rows.Next() {
@@ -332,7 +332,7 @@ func (rm *CapabilityReadModel) fetchTags(ctx context.Context, tx *sql.Tx, tenant
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var tags []string
 	for rows.Next() {
@@ -444,7 +444,7 @@ func (rm *CapabilityReadModel) scanCapabilityRows(ctx context.Context, tx *sql.T
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var capabilities []CapabilityDTO
 	for rows.Next() {
@@ -485,7 +485,7 @@ func (rm *CapabilityReadModel) fetchRelatedBatch(ctx context.Context, tx *sql.Tx
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		if err := processor(rows, capabilityMap); err != nil {

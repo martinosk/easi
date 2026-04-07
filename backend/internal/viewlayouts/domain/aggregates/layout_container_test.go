@@ -70,8 +70,8 @@ func TestLayoutContainer_UpsertElement_Update(t *testing.T) {
 	pos1, _ := valueobjects.NewElementPosition(elementID, 100, 200)
 	pos2, _ := valueobjects.NewElementPosition(elementID, 300, 400)
 
-	container.UpsertElement(pos1)
-	container.UpsertElement(pos2)
+	_ = container.UpsertElement(pos1)
+	_ = container.UpsertElement(pos2)
 
 	elements := container.Elements()
 	assert.Len(t, elements, 1)
@@ -86,7 +86,7 @@ func TestLayoutContainer_RemoveElement(t *testing.T) {
 
 	elementID, _ := valueobjects.NewElementID("cap-123")
 	pos, _ := valueobjects.NewElementPosition(elementID, 100, 200)
-	container.UpsertElement(pos)
+	_ = container.UpsertElement(pos)
 
 	err := container.RemoveElement(elementID)
 	require.NoError(t, err)
@@ -129,7 +129,7 @@ func TestLayoutContainer_GetElement(t *testing.T) {
 
 	elementID, _ := valueobjects.NewElementID("cap-123")
 	pos, _ := valueobjects.NewElementPosition(elementID, 100, 200)
-	container.UpsertElement(pos)
+	_ = container.UpsertElement(pos)
 
 	found := container.GetElement(elementID)
 	require.NotNil(t, found)

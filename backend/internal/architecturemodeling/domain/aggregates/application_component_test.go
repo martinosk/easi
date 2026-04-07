@@ -142,7 +142,7 @@ func TestLoadApplicationComponentFromHistory_WithUpdateEvents(t *testing.T) {
 
 	updatedDescription := valueobjects.MustNewDescription("Sends notifications via email and SMS")
 
-	component.Update(updatedName, updatedDescription)
+	_ = component.Update(updatedName, updatedDescription)
 
 	allEvents := component.GetUncommittedChanges()
 
@@ -210,7 +210,7 @@ func TestApplicationComponent_RemoveExpert(t *testing.T) {
 	expert, err := valueobjects.NewExpert("Alice Smith", "Product Owner", "alice@example.com", time.Now().UTC())
 	require.NoError(t, err)
 
-	component.AddExpert(expert)
+	_ = component.AddExpert(expert)
 	component.MarkChangesAsCommitted()
 
 	assert.Len(t, component.Experts(), 1)
@@ -235,8 +235,8 @@ func TestApplicationComponent_AddMultipleExperts(t *testing.T) {
 	expert1, _ := valueobjects.NewExpert("Alice Smith", "Product Owner", "alice@example.com", time.Now().UTC())
 	expert2, _ := valueobjects.NewExpert("Bob Johnson", "Tech Lead", "bob@example.com", time.Now().UTC())
 
-	component.AddExpert(expert1)
-	component.AddExpert(expert2)
+	_ = component.AddExpert(expert1)
+	_ = component.AddExpert(expert2)
 
 	experts := component.Experts()
 	assert.Len(t, experts, 2)
@@ -250,7 +250,7 @@ func TestLoadApplicationComponentFromHistory_WithExpertEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	expert, _ := valueobjects.NewExpert("Alice Smith", "Product Owner", "alice@example.com", time.Now().UTC())
-	component.AddExpert(expert)
+	_ = component.AddExpert(expert)
 
 	allEvents := component.GetUncommittedChanges()
 

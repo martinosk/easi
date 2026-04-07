@@ -31,7 +31,7 @@ func MustNewStageIDFromString(value string) StageID {
 
 func (v StageID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(StageID); ok {
-		return v.UUIDValue.EqualsValue(otherID.UUIDValue)
+		return v.EqualsValue(otherID.UUIDValue)
 	}
 	return false
 }

@@ -23,7 +23,7 @@ func NewVendorIDFromString(value string) (VendorID, error) {
 
 func (v VendorID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(VendorID); ok {
-		return v.UUIDValue.EqualsValue(otherID.UUIDValue)
+		return v.EqualsValue(otherID.UUIDValue)
 	}
 	return false
 }

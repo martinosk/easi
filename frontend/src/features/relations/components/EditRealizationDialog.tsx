@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { Modal, Select, Textarea, Button, Group, Stack, Alert, Text, Box } from '@mantine/core';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -54,15 +54,15 @@ export const EditRealizationDialog: React.FC<EditRealizationDialogProps> = ({
     mode: 'onChange',
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isOpen && realization) {
       reset({
         realizationLevel: realization.realizationLevel,
         notes: realization.notes || '',
       });
-      setBackendError(null);
+      if (backendError !== null) queueMicrotask(() => setBackendError(null));
     }
-  }, [isOpen, realization, reset]);
+  }, [isOpen, realization, reset, backendError]);
 
   const handleClose = () => {
     onClose();

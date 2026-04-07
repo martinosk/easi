@@ -19,7 +19,7 @@ func queryList[T any](rm *ValueStreamReadModel, ctx context.Context, query strin
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			item, err := scan(rows)

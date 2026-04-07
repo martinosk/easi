@@ -157,7 +157,7 @@ func TestLoadStrategyImportanceFromHistory_WithUpdate(t *testing.T) {
 
 	newImportance, _ := valueobjects.NewImportance(5)
 	newRationale, _ := valueobjects.NewRationale("Updated")
-	aggregate.Update(newImportance, newRationale)
+	_ = aggregate.Update(newImportance, newRationale)
 
 	events := aggregate.GetUncommittedChanges()
 

@@ -23,7 +23,7 @@ func NewApplicationFitScoreIDFromString(id string) (ApplicationFitScoreID, error
 
 func (a ApplicationFitScoreID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(ApplicationFitScoreID); ok {
-		return a.UUIDValue.EqualsValue(otherID.UUIDValue)
+		return a.EqualsValue(otherID.UUIDValue)
 	}
 	return false
 }

@@ -9,13 +9,15 @@ export function useComponentDetails(componentId: ComponentId | null) {
 
   useEffect(() => {
     if (!componentId) {
-      setComponent(null);
+      queueMicrotask(() => setComponent(null));
       return;
     }
 
     let cancelled = false;
-    setIsLoading(true);
-    setError(null);
+    queueMicrotask(() => {
+      setIsLoading(true);
+      setError(null);
+    });
 
     apiClient
       .getComponentById(componentId)

@@ -123,7 +123,7 @@ func (h *ImportHandlers) parseUploadedFile(w http.ResponseWriter, r *http.Reques
 		sharedAPI.RespondError(w, http.StatusBadRequest, err, "file is required")
 		return nil, false
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	if !hasXMLExtension(header.Filename) {
 		sharedAPI.RespondError(w, http.StatusUnsupportedMediaType, nil, "File must be an XML file")

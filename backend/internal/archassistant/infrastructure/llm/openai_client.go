@@ -153,7 +153,7 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, messages []Message, opts 
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		cancel()
 		return nil, fmt.Errorf("LLM returned status %d", resp.StatusCode)
 	}
@@ -205,7 +205,7 @@ func (c *OpenAIClient) buildRequest(messages []Message, opts Options) openAIRequ
 
 func (c *OpenAIClient) readStream(ctx context.Context, resp *http.Response, ch chan<- StreamEvent) {
 	defer close(ch)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	scanner := bufio.NewScanner(resp.Body)
 	totalTokens := 0

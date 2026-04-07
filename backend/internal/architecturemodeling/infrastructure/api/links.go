@@ -57,9 +57,10 @@ func (h *ArchitectureModelingLinks) RelationLinks(id string) sharedAPI.Links {
 
 func (h *ArchitectureModelingLinks) RelationTypeLinks(relationType valueobjects.RelationType) sharedAPI.Links {
 	doc := "relations/generic"
-	if relationType == valueobjects.RelationTypeTriggers {
+	switch relationType {
+	case valueobjects.RelationTypeTriggers:
 		doc = "relations/triggering"
-	} else if relationType == valueobjects.RelationTypeServes {
+	case valueobjects.RelationTypeServes:
 		doc = "relations/serving"
 	}
 	return sharedAPI.Links{"describedby": h.Get("/reference/" + doc)}

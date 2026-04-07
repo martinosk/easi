@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useLayoutEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -106,18 +106,19 @@ export function useEditCapabilityForm(
     mode: 'onChange',
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (capability) {
-      setCurrentCapability(capabilities.find((c) => c.id === capability.id) || capability);
+      const found = capabilities.find((c) => c.id === capability.id) || capability;
+      if (currentCapability !== found) queueMicrotask(() => setCurrentCapability(found));
     }
-  }, [capability, capabilities]);
+  }, [capability, capabilities, currentCapability]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isOpen && capability) {
       form.reset(createDefaultValues(capability, sections));
-      setBackendError(null);
+      if (backendError !== null) queueMicrotask(() => setBackendError(null));
     }
-  }, [isOpen, capability, sections, form]);
+  }, [isOpen, capability, sections, form, backendError]);
 
   const statusOptions = useMemo(
     () =>

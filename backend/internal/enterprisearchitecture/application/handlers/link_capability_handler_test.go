@@ -148,7 +148,7 @@ func (tc errorTestCase) run(t *testing.T) {
 func TestLinkCapabilityHandler_ValidationErrors(t *testing.T) {
 	activeCapability := createTestEnterpriseCapability(t, "Active Capability")
 	inactiveCapability := createTestEnterpriseCapability(t, "Inactive Capability")
-	inactiveCapability.Delete()
+	_ = inactiveCapability.Delete()
 	inactiveCapability.MarkChangesAsCommitted()
 
 	t.Run("inactive capability", func(t *testing.T) {

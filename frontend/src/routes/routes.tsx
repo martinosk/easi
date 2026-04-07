@@ -17,19 +17,3 @@ export function ProtectedRoute() {
 
   return <Outlet />;
 }
-
-export const ROUTES = {
-  HOME: '/',
-  CANVAS: '/canvas',
-  BUSINESS_DOMAINS: '/business-domains',
-  BUSINESS_DOMAIN_DETAIL: '/business-domains/:domainId',
-  VALUE_STREAMS: '/value-streams',
-  VALUE_STREAM_DETAIL: '/value-streams/:valueStreamId',
-  ENTERPRISE_ARCHITECTURE: '/enterprise-architecture',
-  USERS: '/users',
-  INVITATIONS: '/invitations',
-  SETTINGS: '/settings',
-  SETTINGS_MATURITY_SCALE: '/settings/maturity-scale',
-  MY_EDIT_ACCESS: '/my-edit-access',
-  LOGIN: '/login',
-} as const;

@@ -160,7 +160,7 @@ func (rm *ApplicationComponentReadModel) GetAll(ctx context.Context) ([]Applicat
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto ApplicationComponentDTO
@@ -211,7 +211,7 @@ func (rm *ApplicationComponentReadModel) GetAllPaginated(ctx context.Context, q 
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		components, err = rm.scanComponents(rows)
 		if err != nil {
@@ -328,7 +328,7 @@ func (rm *ApplicationComponentReadModel) GetDistinctExpertRoles(ctx context.Cont
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var role string
@@ -350,7 +350,7 @@ func (rm *ApplicationComponentReadModel) fetchExperts(ctx context.Context, tx *s
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var experts []ExpertDTO
 	for rows.Next() {
@@ -382,7 +382,7 @@ func (rm *ApplicationComponentReadModel) loadExpertsForComponents(ctx context.Co
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var componentID string

@@ -43,7 +43,7 @@ func (m *mockTenantRepository) GetByID(ctx context.Context, tenantID string) (*T
 	return m.tenant, nil
 }
 
-func setupSessionTestHandler(t *testing.T, userRepo UserRepository, tenantRepo TenantRepository) (*SessionHandlers, *scs.SessionManager, *session.SessionManager) {
+func setupSessionTestHandler(userRepo UserRepository, tenantRepo TenantRepository) (*SessionHandlers, *scs.SessionManager, *session.SessionManager) {
 	scsManager := scs.New()
 	scsManager.Store = memstore.New()
 	scsManager.Lifetime = time.Hour
@@ -107,7 +107,7 @@ func TestGetCurrentSession_Authenticated(t *testing.T) {
 		Name: "Acme Corporation",
 	}
 
-	handlers, scsManager, sessionManager := setupSessionTestHandler(t,
+	handlers, scsManager, sessionManager := setupSessionTestHandler(
 		&mockUserRepository{user: mockUser},
 		&mockTenantRepository{tenant: mockTenant},
 	)
@@ -165,7 +165,7 @@ func (ur unauthenticatedRequest) execute(t *testing.T) *httptest.ResponseRecorde
 }
 
 func TestNoSession_ReturnsExpectedStatus(t *testing.T) {
-	handlers, scsManager, _ := setupSessionTestHandler(t,
+	handlers, scsManager, _ := setupSessionTestHandler(
 		&mockUserRepository{},
 		&mockTenantRepository{},
 	)
@@ -207,7 +207,7 @@ func TestGetCurrentSession_AdminPermissions(t *testing.T) {
 		Name: "Acme Corporation",
 	}
 
-	handlers, scsManager, sessionManager := setupSessionTestHandler(t,
+	handlers, scsManager, sessionManager := setupSessionTestHandler(
 		&mockUserRepository{user: mockUser},
 		&mockTenantRepository{tenant: mockTenant},
 	)
@@ -228,7 +228,7 @@ func TestGetCurrentSession_AdminPermissions(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 
 	var response CurrentSessionResponse
-	json.NewDecoder(rec.Body).Decode(&response)
+	_ = json.NewDecoder(rec.Body).Decode(&response)
 
 	assert.Contains(t, response.User.Permissions, "users:manage")
 	assert.Contains(t, response.User.Permissions, "components:delete")
@@ -236,7 +236,7 @@ func TestGetCurrentSession_AdminPermissions(t *testing.T) {
 }
 
 func TestDeleteCurrentSession_Success(t *testing.T) {
-	handlers, scsManager, sessionManager := setupSessionTestHandler(t,
+	handlers, scsManager, sessionManager := setupSessionTestHandler(
 		&mockUserRepository{},
 		&mockTenantRepository{},
 	)

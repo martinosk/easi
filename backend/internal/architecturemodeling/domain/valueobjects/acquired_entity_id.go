@@ -23,7 +23,7 @@ func NewAcquiredEntityIDFromString(value string) (AcquiredEntityID, error) {
 
 func (a AcquiredEntityID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(AcquiredEntityID); ok {
-		return a.UUIDValue.EqualsValue(otherID.UUIDValue)
+		return a.EqualsValue(otherID.UUIDValue)
 	}
 	return false
 }

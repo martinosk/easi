@@ -268,13 +268,13 @@ func createMockIdPWithTokenRefresh(t *testing.T, refreshShouldSucceed bool) *htt
 			"jwks_uri":               server.URL + "/jwks",
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(config)
+		_ = json.NewEncoder(w).Encode(config)
 	})
 
 	mux.HandleFunc("/jwks", func(w http.ResponseWriter, r *http.Request) {
 		jwks := map[string]interface{}{"keys": []interface{}{}}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(jwks)
+		_ = json.NewEncoder(w).Encode(jwks)
 	})
 
 	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
@@ -287,7 +287,7 @@ func createMockIdPWithTokenRefresh(t *testing.T, refreshShouldSucceed bool) *htt
 				"error":             "invalid_grant",
 				"error_description": "refresh token is expired or revoked",
 			}
-			json.NewEncoder(w).Encode(errorResp)
+			_ = json.NewEncoder(w).Encode(errorResp)
 			return
 		}
 
@@ -297,7 +297,7 @@ func createMockIdPWithTokenRefresh(t *testing.T, refreshShouldSucceed bool) *htt
 			"refresh_token": "new-refresh-token",
 			"expires_in":    3600,
 		}
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	})
 
 	return server

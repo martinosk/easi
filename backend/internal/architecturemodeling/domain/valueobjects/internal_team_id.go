@@ -23,7 +23,7 @@ func NewInternalTeamIDFromString(value string) (InternalTeamID, error) {
 
 func (i InternalTeamID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(InternalTeamID); ok {
-		return i.UUIDValue.EqualsValue(otherID.UUIDValue)
+		return i.EqualsValue(otherID.UUIDValue)
 	}
 	return false
 }

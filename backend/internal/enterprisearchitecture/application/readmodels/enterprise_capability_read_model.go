@@ -132,7 +132,7 @@ func (rm *EnterpriseCapabilityReadModel) GetAll(ctx context.Context) ([]Enterpri
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			dto, scanErr := scanEnterpriseCapability(rows)

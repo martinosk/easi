@@ -23,7 +23,7 @@ func NewValueStreamIDFromString(value string) (ValueStreamID, error) {
 
 func (v ValueStreamID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(ValueStreamID); ok {
-		return v.UUIDValue.EqualsValue(otherID.UUIDValue)
+		return v.EqualsValue(otherID.UUIDValue)
 	}
 	return false
 }

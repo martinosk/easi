@@ -44,7 +44,7 @@ func (r *TenantRepository) GetDomains(ctx context.Context, tenantID string) ([]s
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var domains []string
 	for rows.Next() {

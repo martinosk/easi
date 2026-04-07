@@ -23,7 +23,7 @@ func NewRealizationIDFromString(value string) (RealizationID, error) {
 
 func (r RealizationID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(RealizationID); ok {
-		return r.UUIDValue.EqualsValue(otherID.UUIDValue)
+		return r.EqualsValue(otherID.UUIDValue)
 	}
 	return false
 }

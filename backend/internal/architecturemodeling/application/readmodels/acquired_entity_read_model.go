@@ -133,7 +133,7 @@ func (rm *AcquiredEntityReadModel) GetAll(ctx context.Context) ([]AcquiredEntity
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto AcquiredEntityDTO
@@ -164,7 +164,7 @@ func (rm *AcquiredEntityReadModel) GetAllPaginated(ctx context.Context, limit in
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto AcquiredEntityDTO

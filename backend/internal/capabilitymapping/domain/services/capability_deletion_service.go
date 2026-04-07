@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	ErrCapabilityHasChildren                  = errors.New("cannot delete capability with children")
-	ErrCascadeRequiredForChildCapabilities    = errors.New("cascade deletion required for capability with descendants")
+	ErrCapabilityHasChildren               = errors.New("cannot delete capability with children")
+	ErrCascadeRequiredForChildCapabilities = errors.New("cascade deletion required for capability with descendants")
 )
 
 type CapabilityChildrenChecker interface {

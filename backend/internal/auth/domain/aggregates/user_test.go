@@ -160,7 +160,7 @@ func TestUser_Disable_CurrentUser_ReturnsError(t *testing.T) {
 
 func TestUser_Disable_AlreadyDisabled_ReturnsError(t *testing.T) {
 	user := createTestUser(t, "architect")
-	user.Disable(valueobjects.NewUserID(), false, false)
+	_ = user.Disable(valueobjects.NewUserID(), false, false)
 	user.MarkChangesAsCommitted()
 
 	err := user.Disable(valueobjects.NewUserID(), false, false)
@@ -189,7 +189,7 @@ func TestUser_Disable_NonLastAdmin_Success(t *testing.T) {
 
 func TestUser_Enable_Success(t *testing.T) {
 	user := createTestUser(t, "stakeholder")
-	user.Disable(valueobjects.NewUserID(), false, false)
+	_ = user.Disable(valueobjects.NewUserID(), false, false)
 	user.MarkChangesAsCommitted()
 
 	enabledBy := valueobjects.NewUserID()
@@ -224,8 +224,8 @@ func TestUser_LoadFromHistory_PreservesState(t *testing.T) {
 	user, _ := NewUser(email, profile, role, "inv-history")
 
 	newRole, _ := valueobjects.RoleFromString("architect")
-	user.ChangeRole(newRole, valueobjects.NewUserID(), false)
-	user.Disable(valueobjects.NewUserID(), false, false)
+	_ = user.ChangeRole(newRole, valueobjects.NewUserID(), false)
+	_ = user.Disable(valueobjects.NewUserID(), false, false)
 
 	allEvents := user.GetUncommittedChanges()
 
@@ -248,10 +248,10 @@ func TestUser_LoadFromHistory_MultipleRoleChanges(t *testing.T) {
 	user, _ := NewUser(email, profile, role, "")
 
 	role2, _ := valueobjects.RoleFromString("architect")
-	user.ChangeRole(role2, valueobjects.NewUserID(), false)
+	_ = user.ChangeRole(role2, valueobjects.NewUserID(), false)
 
 	role3, _ := valueobjects.RoleFromString("admin")
-	user.ChangeRole(role3, valueobjects.NewUserID(), false)
+	_ = user.ChangeRole(role3, valueobjects.NewUserID(), false)
 
 	allEvents := user.GetUncommittedChanges()
 
@@ -267,8 +267,8 @@ func TestUser_LoadFromHistory_EnableAfterDisable(t *testing.T) {
 
 	profile := valueobjects.NewExternalProfile("Toggle User", "")
 	user, _ := NewUser(email, profile, role, "")
-	user.Disable(valueobjects.NewUserID(), false, false)
-	user.Enable(valueobjects.NewUserID())
+	_ = user.Disable(valueobjects.NewUserID(), false, false)
+	_ = user.Enable(valueobjects.NewUserID())
 
 	allEvents := user.GetUncommittedChanges()
 
@@ -289,7 +289,7 @@ func TestUser_ApplyEvents_PreservesOtherState(t *testing.T) {
 	user.MarkChangesAsCommitted()
 
 	newRole, _ := valueobjects.RoleFromString("architect")
-	user.ChangeRole(newRole, valueobjects.NewUserID(), false)
+	_ = user.ChangeRole(newRole, valueobjects.NewUserID(), false)
 
 	assert.Equal(t, originalID, user.ID())
 	assert.Equal(t, email.Value(), user.Email().Value())

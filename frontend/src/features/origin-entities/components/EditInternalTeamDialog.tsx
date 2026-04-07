@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -30,7 +30,7 @@ export const EditInternalTeamDialog: React.FC<EditInternalTeamDialogProps> = ({
     mode: 'onChange',
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isOpen && team) {
       reset({
         name: team.name,
@@ -38,9 +38,9 @@ export const EditInternalTeamDialog: React.FC<EditInternalTeamDialogProps> = ({
         contactPerson: team.contactPerson || '',
         notes: team.notes || '',
       });
-      setBackendError(null);
+      if (backendError !== null) queueMicrotask(() => setBackendError(null));
     }
-  }, [isOpen, team, reset]);
+  }, [isOpen, team, reset, backendError]);
 
   const handleClose = () => {
     onClose();

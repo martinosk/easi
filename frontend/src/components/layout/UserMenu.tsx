@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useUserStore } from '../../store/userStore';
 import { useMyEditGrants } from '../../features/edit-grants/hooks/useEditGrants';
-import { ROUTES } from '../../routes/routes';
+import { ROUTES } from '../../routes/routePaths';
 
 function useClickOutside(ref: React.RefObject<HTMLDivElement | null>, isOpen: boolean, onClose: () => void) {
   useEffect(() => {

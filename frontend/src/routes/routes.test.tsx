@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ROUTES } from './routes';
+import { ROUTES } from './routePaths';
 
 describe('Route configuration', () => {
   it('should define VALUE_STREAMS route at /value-streams', () => {

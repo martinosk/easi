@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func setupTestRouter(artifactType sharedctx.ResourceName, idParam string) *chi.Mux {
+func setupTestRouter() *chi.Mux {
 	r := chi.NewRouter()
 	r.Route("/test/{id}", func(r chi.Router) {
-		r.Use(RequireWriteOrEditGrant(artifactType, idParam))
+		r.Use(RequireWriteOrEditGrant("capabilities", "id"))
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		})
@@ -29,7 +29,7 @@ func requestWithActor(actor sharedctx.Actor) *http.Request {
 }
 
 func TestRequireWriteOrEditGrant_NativeWritePermission_PassesThrough(t *testing.T) {
-	r := setupTestRouter("capabilities", "id")
+	r := setupTestRouter()
 	actor := sharedctx.NewActor("user-1", "user@test.com", sharedctx.RoleArchitect)
 
 	req := requestWithActor(actor)
@@ -53,7 +53,7 @@ func TestRequireWriteOrEditGrant_StakeholderWithEditGrants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := setupTestRouter("capabilities", "id")
+			r := setupTestRouter()
 			actor := sharedctx.NewActor("user-1", "user@test.com", sharedctx.RoleStakeholder)
 			if tt.grants != nil {
 				actor = actor.WithEditGrants(tt.grants)
@@ -85,7 +85,7 @@ func TestRequireWriteOrEditGrant_NonexistentURLParam_Returns403(t *testing.T) {
 }
 
 func TestRequireWriteOrEditGrant_MissingActor_Returns401(t *testing.T) {
-	r := setupTestRouter("capabilities", "id")
+	r := setupTestRouter()
 
 	req := httptest.NewRequest(http.MethodGet, "/test/artifact-123", nil)
 	rr := httptest.NewRecorder()
@@ -95,7 +95,7 @@ func TestRequireWriteOrEditGrant_MissingActor_Returns401(t *testing.T) {
 }
 
 func TestRequireWriteOrEditGrant_AdminRole_PassesThrough(t *testing.T) {
-	r := setupTestRouter("capabilities", "id")
+	r := setupTestRouter()
 	actor := sharedctx.NewActor("user-1", "admin@test.com", sharedctx.RoleAdmin)
 
 	req := requestWithActor(actor)

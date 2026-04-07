@@ -129,8 +129,10 @@ type AddCapabilityRequest struct {
 	Y            float64 `json:"y"`
 }
 
-func (r AddCapabilityRequest) entityID() string                  { return r.CapabilityID }
-func (r AddCapabilityRequest) position() repositories.Position { return repositories.Position{X: r.X, Y: r.Y} }
+func (r AddCapabilityRequest) entityID() string { return r.CapabilityID }
+func (r AddCapabilityRequest) position() repositories.Position {
+	return repositories.Position{X: r.X, Y: r.Y}
+}
 
 type AddOriginEntityRequest struct {
 	OriginEntityID string  `json:"originEntityId"`
@@ -138,8 +140,10 @@ type AddOriginEntityRequest struct {
 	Y              float64 `json:"y"`
 }
 
-func (r AddOriginEntityRequest) entityID() string                  { return r.OriginEntityID }
-func (r AddOriginEntityRequest) position() repositories.Position { return repositories.Position{X: r.X, Y: r.Y} }
+func (r AddOriginEntityRequest) entityID() string { return r.OriginEntityID }
+func (r AddOriginEntityRequest) position() repositories.Position {
+	return repositories.Position{X: r.X, Y: r.Y}
+}
 
 func handleAddElement[T addElementRequest](h *ViewElementHandlers, w http.ResponseWriter, r *http.Request, cfg addElementConfig) {
 	viewID := sharedAPI.GetPathParam(r, "id")

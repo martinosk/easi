@@ -66,7 +66,7 @@ func (rm *ComponentFitComparisonReadModel) GetByComponentAndCapability(
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto FitComparisonDTO

@@ -255,7 +255,7 @@ func TestTenantIsolation_MultipleTablesConsistency(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var name string
@@ -279,7 +279,7 @@ func TestTenantIsolation_MultipleTablesConsistency(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var name string

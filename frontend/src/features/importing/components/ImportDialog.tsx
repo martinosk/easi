@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { ImportUploadStep } from './ImportUploadStep';
 import { ImportPreviewStep } from './ImportPreviewStep';
 import { ImportProgressStep } from './ImportProgressStep';
@@ -39,7 +39,7 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({
     if (!session?.capabilityEAOwner) return undefined;
     const user = eaOwnerCandidates.find((u) => u.id === session.capabilityEAOwner);
     return user?.name || user?.email;
-  }, [session?.capabilityEAOwner, eaOwnerCandidates]);
+  }, [session, eaOwnerCandidates]);
 
   const handleBackdropClick = useCallback((e: React.MouseEvent<HTMLDialogElement>) => {
     if (e.target === dialogRef.current) {
@@ -59,27 +59,27 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({
     }
   }, [isOpen]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!session) {
-      setCurrentStep('upload');
+      if (currentStep !== 'upload') queueMicrotask(() => setCurrentStep('upload'));
       return;
     }
 
     switch (session.status) {
       case 'pending':
         if (session.preview) {
-          setCurrentStep('preview');
+          queueMicrotask(() => setCurrentStep('preview'));
         }
         break;
       case 'importing':
-        setCurrentStep('progress');
+        queueMicrotask(() => setCurrentStep('progress'));
         break;
       case 'completed':
       case 'failed':
-        setCurrentStep('results');
+        queueMicrotask(() => setCurrentStep('results'));
         break;
     }
-  }, [session]);
+  }, [session, currentStep]);
 
   const handleUpload = async (file: File, businessDomainId?: string, capabilityEAOwner?: string) => {
     await createSession({

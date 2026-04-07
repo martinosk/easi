@@ -404,7 +404,7 @@ func (rm *ArchitectureViewReadModel) queryViews(ctx context.Context, tx *sql.Tx,
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var views []ArchitectureViewDTO
 	for rows.Next() {
@@ -495,7 +495,7 @@ func getElementsForViewTx[T any](ctx context.Context, tx *sql.Tx, tenantID, view
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	elements := make([]T, 0)
 	for rows.Next() {
@@ -563,7 +563,7 @@ func (rm *ArchitectureViewReadModel) GetViewsContainingComponent(ctx context.Con
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var viewID string

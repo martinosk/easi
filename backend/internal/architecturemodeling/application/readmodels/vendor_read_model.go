@@ -131,7 +131,7 @@ func (rm *VendorReadModel) GetAll(ctx context.Context) ([]VendorDTO, error) {
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto VendorDTO
@@ -162,7 +162,7 @@ func (rm *VendorReadModel) GetAllPaginated(ctx context.Context, limit int, after
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto VendorDTO

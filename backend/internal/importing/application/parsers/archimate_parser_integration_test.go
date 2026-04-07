@@ -14,7 +14,7 @@ var (
 	sampleSkipMsg    string
 )
 
-func parseSampleModel() (*ParseResult, error, string) {
+func parseSampleModel() (*ParseResult, string, error) {
 	sampleResultOnce.Do(func() {
 		sampleFile := filepath.Join("..", "..", "..", "..", "..", "docs", "sample-model.xml")
 		file, err := os.Open(sampleFile)
@@ -22,7 +22,7 @@ func parseSampleModel() (*ParseResult, error, string) {
 			sampleSkipMsg = "Sample file not found at " + sampleFile + ": " + err.Error()
 			return
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		parser := NewArchiMateParser()
 		result, err := parser.Parse(file)
@@ -32,12 +32,12 @@ func parseSampleModel() (*ParseResult, error, string) {
 		}
 		sampleResult = result
 	})
-	return sampleResult, sampleResultErr, sampleSkipMsg
+	return sampleResult, sampleSkipMsg, sampleResultErr
 }
 
 func loadSampleResult(t *testing.T) *ParseResult {
 	t.Helper()
-	result, err, skipMsg := parseSampleModel()
+	result, skipMsg, err := parseSampleModel()
 	if skipMsg != "" {
 		t.Fatalf("Test setup failed: %s", skipMsg)
 	}

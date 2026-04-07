@@ -114,7 +114,7 @@ func (s *PostgresEventStore) insertEvents(ctx context.Context, tx *sql.Tx, tenan
 	if err != nil {
 		return fmt.Errorf("failed to prepare statement: %w", err)
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	for i, event := range events {
 		eventData, err := json.Marshal(event.EventData())
@@ -179,7 +179,7 @@ func (s *PostgresEventStore) GetEvents(ctx context.Context, aggregateID string) 
 		if err != nil {
 			return fmt.Errorf("failed to query events: %w", err)
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var se StoredEvent

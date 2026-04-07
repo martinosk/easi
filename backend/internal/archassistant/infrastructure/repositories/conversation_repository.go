@@ -73,7 +73,7 @@ func (r *ConversationRepository) GetMessages(ctx context.Context, conversationID
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			msg, err := scanMessage(rows)
@@ -120,7 +120,7 @@ func (r *ConversationRepository) ListByUser(ctx context.Context, params domain.L
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			conv, err := scanConversation(rows)

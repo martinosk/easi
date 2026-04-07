@@ -125,7 +125,7 @@ func (rm *MaturityAnalysisReadModel) fetchCandidates(ctx context.Context, query 
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			dto, err := rm.scanCandidate(rows)
@@ -311,7 +311,7 @@ func (rm *MaturityAnalysisReadModel) getImplementations(ctx context.Context, ent
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			impl, err := rm.scanImplementation(rows, target)

@@ -33,7 +33,7 @@ func TestMaturityScaleGateway_GetMaturityScaleConfig_FetchesFromAPI(t *testing.T
 				{"order": 4, "name": "Commodity", "minValue": 75, "maxValue": 99},
 			},
 		}
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -62,7 +62,7 @@ func TestMaturityScaleGateway_GetMaturityScaleConfig_CachesResult(t *testing.T) 
 				{"order": 4, "name": "Commodity", "minValue": 75, "maxValue": 99},
 			},
 		}
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -90,7 +90,7 @@ func TestMaturityScaleGateway_GetMaturityScaleConfig_CacheExpires(t *testing.T) 
 				{"order": 4, "name": "Commodity", "minValue": 75, "maxValue": 99},
 			},
 		}
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -120,7 +120,7 @@ func TestMaturityScaleGateway_InvalidateCache_RemovesCachedEntry(t *testing.T) {
 				{"order": 4, "name": "Commodity", "minValue": 75, "maxValue": 99},
 			},
 		}
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 
@@ -156,7 +156,7 @@ func TestMaturityScaleGateway_GetMaturityScaleConfig_ReturnsNilOnNotFound(t *tes
 func TestMaturityScaleGateway_GetMaturityScaleConfig_ReturnsErrorOnServerError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal Server Error"))
+		_, _ = w.Write([]byte("Internal Server Error"))
 	}))
 	defer server.Close()
 
@@ -180,7 +180,7 @@ func TestMaturityScaleGateway_GetMaturityScaleConfig_SeparatesCachePerTenant(t *
 				{"order": 4, "name": "Commodity", "minValue": 75, "maxValue": 99},
 			},
 		}
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 

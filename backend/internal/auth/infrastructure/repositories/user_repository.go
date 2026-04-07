@@ -33,7 +33,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, tenantID, email string)
 	if err != nil {
 		return nil, fmt.Errorf("failed to acquire connection: %w", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	escapedTenantID := strings.ReplaceAll(tenantID, "'", "''")
 	_, err = conn.ExecContext(ctx, fmt.Sprintf("SET app.current_tenant = '%s'", escapedTenantID))

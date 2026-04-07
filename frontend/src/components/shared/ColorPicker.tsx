@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { HexColorPicker } from 'react-colorful';
 
 interface ColorPickerProps {
@@ -15,9 +15,10 @@ export function ColorPicker({ color, onChange, disabled, disabledTooltip }: Colo
   const commitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setTempColor(color || '#E0E0E0');
-  }, [color]);
+  useLayoutEffect(() => {
+    const normalized = color || '#E0E0E0';
+    if (tempColor !== normalized) queueMicrotask(() => setTempColor(normalized));
+  }, [color, tempColor]);
 
   useEffect(() => {
     return () => {

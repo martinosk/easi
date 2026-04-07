@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { useDialogContext } from '../../../contexts/dialogs';
 import { useAppStore } from '../../../store/appStore';
 import { toComponentId } from '../../../api/types';
@@ -23,7 +23,7 @@ export function useCanvasDialogs(
   const selectNode = useAppStore((state) => state.selectNode);
 
   const componentsRef = useRef(components);
-  componentsRef.current = components;
+  useEffect(() => { componentsRef.current = components; });
 
   const openComponentDialog = useCallback(() => {
     openDialog('create-component');

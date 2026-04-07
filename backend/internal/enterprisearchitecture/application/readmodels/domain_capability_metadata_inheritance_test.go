@@ -25,7 +25,7 @@ func TestDomainCapabilityMetadata_ChildInheritsFromParent(t *testing.T) {
 
 	db, err := sql.Open("postgres", "host=localhost port=5432 user=easi password=easi dbname=easi sslmode=disable")
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tenantDB := database.NewTenantAwareDB(db)
 	readModel := NewDomainCapabilityMetadataReadModel(tenantDB)

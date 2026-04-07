@@ -13,7 +13,7 @@ type OriginLinkCreated struct {
 }
 
 func (e OriginLinkCreated) AggregateID() string {
-	if baseID := e.OriginLinkBase.aggregateID(); baseID != "" {
+	if baseID := e.aggregateID(); baseID != "" {
 		return baseID
 	}
 	return e.AggregateIDValue
@@ -29,7 +29,7 @@ func NewOriginLinkCreatedEvent(base OriginLinkBase, createdAt time.Time) OriginL
 func (e OriginLinkCreated) EventType() string { return "OriginLinkCreated" }
 
 func (e OriginLinkCreated) EventData() map[string]interface{} {
-	data := e.OriginLinkBase.eventData()
+	data := e.eventData()
 	data["aggregateId"] = e.AggregateID()
 	data["createdAt"] = e.CreatedAt
 	return data
@@ -50,7 +50,7 @@ func NewOriginLinkBase(aggregateID, componentID, originType string) OriginLinkBa
 }
 
 func (b OriginLinkBase) aggregateID() string {
-	return b.BaseEvent.AggregateID()
+	return b.AggregateID()
 }
 
 func (b OriginLinkBase) eventData() map[string]interface{} {
@@ -67,7 +67,7 @@ type OriginLinkSet struct {
 	LinkedAt time.Time `json:"linkedAt"`
 }
 
-func (e OriginLinkSet) AggregateID() string { return e.OriginLinkBase.aggregateID() }
+func (e OriginLinkSet) AggregateID() string { return e.aggregateID() }
 
 func NewOriginLinkSetEvent(base OriginLinkBase, entityID, notes string, linkedAt time.Time) OriginLinkSet {
 	return OriginLinkSet{
@@ -81,7 +81,7 @@ func NewOriginLinkSetEvent(base OriginLinkBase, entityID, notes string, linkedAt
 func (e OriginLinkSet) EventType() string { return "OriginLinkSet" }
 
 func (e OriginLinkSet) EventData() map[string]interface{} {
-	data := e.OriginLinkBase.eventData()
+	data := e.eventData()
 	data["entityId"] = e.EntityID
 	data["notes"] = e.Notes
 	data["linkedAt"] = e.LinkedAt
@@ -100,7 +100,7 @@ type OriginLinkReplaced struct {
 	OriginLinkReplacement
 }
 
-func (e OriginLinkReplaced) AggregateID() string { return e.OriginLinkBase.aggregateID() }
+func (e OriginLinkReplaced) AggregateID() string { return e.aggregateID() }
 
 func NewOriginLinkReplacedEvent(base OriginLinkBase, replacement OriginLinkReplacement) OriginLinkReplaced {
 	return OriginLinkReplaced{
@@ -112,7 +112,7 @@ func NewOriginLinkReplacedEvent(base OriginLinkBase, replacement OriginLinkRepla
 func (e OriginLinkReplaced) EventType() string { return "OriginLinkReplaced" }
 
 func (e OriginLinkReplaced) EventData() map[string]interface{} {
-	data := e.OriginLinkBase.eventData()
+	data := e.eventData()
 	data["oldEntityId"] = e.OldEntityID
 	data["newEntityId"] = e.NewEntityID
 	data["notes"] = e.Notes
@@ -127,7 +127,7 @@ type OriginLinkNotesUpdated struct {
 	NewNotes string `json:"newNotes"`
 }
 
-func (e OriginLinkNotesUpdated) AggregateID() string { return e.OriginLinkBase.aggregateID() }
+func (e OriginLinkNotesUpdated) AggregateID() string { return e.aggregateID() }
 
 func NewOriginLinkNotesUpdatedEvent(base OriginLinkBase, entityID, oldNotes, newNotes string) OriginLinkNotesUpdated {
 	return OriginLinkNotesUpdated{
@@ -141,7 +141,7 @@ func NewOriginLinkNotesUpdatedEvent(base OriginLinkBase, entityID, oldNotes, new
 func (e OriginLinkNotesUpdated) EventType() string { return "OriginLinkNotesUpdated" }
 
 func (e OriginLinkNotesUpdated) EventData() map[string]interface{} {
-	data := e.OriginLinkBase.eventData()
+	data := e.eventData()
 	data["entityId"] = e.EntityID
 	data["oldNotes"] = e.OldNotes
 	data["newNotes"] = e.NewNotes
@@ -153,7 +153,7 @@ type OriginLinkCleared struct {
 	EntityID string `json:"entityId"`
 }
 
-func (e OriginLinkCleared) AggregateID() string { return e.OriginLinkBase.aggregateID() }
+func (e OriginLinkCleared) AggregateID() string { return e.aggregateID() }
 
 func NewOriginLinkClearedEvent(base OriginLinkBase, entityID string) OriginLinkCleared {
 	return OriginLinkCleared{
@@ -165,7 +165,7 @@ func NewOriginLinkClearedEvent(base OriginLinkBase, entityID string) OriginLinkC
 func (e OriginLinkCleared) EventType() string { return "OriginLinkCleared" }
 
 func (e OriginLinkCleared) EventData() map[string]interface{} {
-	data := e.OriginLinkBase.eventData()
+	data := e.eventData()
 	data["entityId"] = e.EntityID
 	return data
 }
@@ -175,7 +175,7 @@ type OriginLinkDeleted struct {
 	DeletedAt time.Time `json:"deletedAt"`
 }
 
-func (e OriginLinkDeleted) AggregateID() string { return e.OriginLinkBase.aggregateID() }
+func (e OriginLinkDeleted) AggregateID() string { return e.aggregateID() }
 
 func NewOriginLinkDeletedEvent(base OriginLinkBase, deletedAt time.Time) OriginLinkDeleted {
 	return OriginLinkDeleted{
@@ -187,7 +187,7 @@ func NewOriginLinkDeletedEvent(base OriginLinkBase, deletedAt time.Time) OriginL
 func (e OriginLinkDeleted) EventType() string { return "OriginLinkDeleted" }
 
 func (e OriginLinkDeleted) EventData() map[string]interface{} {
-	data := e.OriginLinkBase.eventData()
+	data := e.eventData()
 	data["deletedAt"] = e.DeletedAt
 	return data
 }

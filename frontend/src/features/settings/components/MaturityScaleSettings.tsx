@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useLayoutEffect } from 'react';
 import { Button } from '@mantine/core';
 import { ConfirmationDialog } from '../../../components/shared/ConfirmationDialog';
 import { HelpTooltip } from '../../../components/shared/HelpTooltip';
@@ -26,11 +26,14 @@ export function MaturityScaleSettings() {
   const [showRefreshDialog, setShowRefreshDialog] = useState(false);
   const [conflictError, setConflictError] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (config) {
-      setEditedSections([...config.sections]);
+      const next = [...config.sections];
+      if (JSON.stringify(editedSections) !== JSON.stringify(next)) {
+        queueMicrotask(() => setEditedSections(next));
+      }
     }
-  }, [config]);
+  }, [config, editedSections]);
 
   const validateSections = (sections: MaturityScaleSection[]): ValidationErrors => {
     const errors: ValidationErrors = {};

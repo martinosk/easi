@@ -99,7 +99,7 @@ func (rm *EnterpriseStrategicImportanceReadModel) GetByEnterpriseCapabilityID(ct
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto EnterpriseStrategicImportanceDTO

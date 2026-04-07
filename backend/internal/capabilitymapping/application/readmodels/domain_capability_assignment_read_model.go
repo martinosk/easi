@@ -121,7 +121,7 @@ func (rm *DomainCapabilityAssignmentReadModel) queryAssignments(ctx context.Cont
 		if err != nil {
 			return fmt.Errorf("query assignments for tenant %s parameter %s: %w", tenantID.Value(), param, err)
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto AssignmentDTO

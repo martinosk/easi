@@ -203,7 +203,7 @@ func (rm *InvitationReadModel) queryMany(ctx context.Context, query string, args
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto InvitationDTO

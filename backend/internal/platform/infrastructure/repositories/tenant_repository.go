@@ -125,7 +125,7 @@ func (r *TenantRepository) GetByID(ctx context.Context, id string) (*TenantRecor
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var domain string
@@ -170,7 +170,7 @@ func (r *TenantRepository) List(ctx context.Context, status string, domain strin
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var records []*TenantRecord
 	for rows.Next() {
@@ -190,12 +190,12 @@ func (r *TenantRepository) List(ctx context.Context, status string, domain strin
 		for domainRows.Next() {
 			var d string
 			if err := domainRows.Scan(&d); err != nil {
-				domainRows.Close()
+				_ = domainRows.Close()
 				return nil, err
 			}
 			record.Domains = append(record.Domains, d)
 		}
-		domainRows.Close()
+		_ = domainRows.Close()
 
 		records = append(records, record)
 	}

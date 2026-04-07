@@ -158,7 +158,7 @@ func (rm *ComponentRelationReadModel) GetAllPaginated(ctx context.Context, limit
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		relations, err = rm.collectRelations(rows)
 		return err
@@ -227,7 +227,7 @@ func (rm *ComponentRelationReadModel) executeRelationQuery(ctx context.Context, 
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		relations, err = rm.collectRelations(rows)
 		return err

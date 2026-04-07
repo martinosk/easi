@@ -39,7 +39,8 @@ function toPositionMap(elements: { elementId: string; x: number; y: number }[]):
 
 function rollbackPosition(prev: PositionMap, elementId: string, previous: Position | undefined): PositionMap {
   if (previous) return { ...prev, [elementId]: previous };
-  const { [elementId]: _, ...rest } = prev;
+  const rest = { ...prev };
+  delete rest[elementId];
   return rest;
 }
 

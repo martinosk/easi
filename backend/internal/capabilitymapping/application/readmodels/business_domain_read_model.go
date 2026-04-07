@@ -127,7 +127,7 @@ func (rm *BusinessDomainReadModel) GetAll(ctx context.Context) ([]BusinessDomain
 		if err != nil {
 			return fmt.Errorf("query business domains for tenant %s: %w", tenantID.Value(), err)
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			dto, err := scanBusinessDomain(rows)

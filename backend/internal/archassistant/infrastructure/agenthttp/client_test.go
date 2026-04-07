@@ -26,7 +26,7 @@ func jsonErrorHandler(statusCode int, errorText, message string) http.HandlerFun
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(statusCode)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error":   errorText,
 			"message": message,
 		})
@@ -54,7 +54,7 @@ func (e bodyExpectation) handler() http.HandlerFunc {
 		assert.Equal(e.t, e.bodyVal, body[e.bodyKey])
 
 		w.WriteHeader(e.responseStatus)
-		json.NewEncoder(w).Encode(body)
+		_ = json.NewEncoder(w).Encode(body)
 	}
 }
 
@@ -63,7 +63,7 @@ func TestClient_Get_Success(t *testing.T) {
 		assert.Equal(t, http.MethodGet, r.Method)
 		assert.Equal(t, "/api/v1/components", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"name": "test"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"name": "test"})
 	})
 	defer server.Close()
 

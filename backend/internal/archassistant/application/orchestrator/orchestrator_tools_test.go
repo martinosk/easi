@@ -186,10 +186,10 @@ func toolThenTextHandler(tc toolCallSpec, finalText string) http.Handler {
 		w.WriteHeader(http.StatusOK)
 
 		if callCount.Add(1) == 1 && !hasToolCallMessages(body) {
-			w.Write([]byte(toolCallResponse(tc)))
+			_, _ = w.Write([]byte(toolCallResponse(tc)))
 			return
 		}
-		w.Write([]byte(textResponse(finalText)))
+		_, _ = w.Write([]byte(textResponse(finalText)))
 	})
 }
 
@@ -200,10 +200,10 @@ func repeatingToolHandler(callsBeforeText int32) http.Handler {
 		w.WriteHeader(http.StatusOK)
 		n := callCount.Add(1)
 		if n <= callsBeforeText {
-			w.Write([]byte(toolCallResponse(toolCallSpec{fmt.Sprintf("call-%d", n), "list_apps", "{}"})))
+			_, _ = w.Write([]byte(toolCallResponse(toolCallSpec{fmt.Sprintf("call-%d", n), "list_apps", "{}"})))
 			return
 		}
-		w.Write([]byte(textResponse("Final answer")))
+		_, _ = w.Write([]byte(textResponse("Final answer")))
 	})
 }
 
@@ -260,7 +260,7 @@ func TestOrchestrator_SendMessage_MaxIterations(t *testing.T) {
 	alwaysToolCall := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(toolCallResponse(toolCallSpec{"call-1", "list_apps", "{}"})))
+		_, _ = w.Write([]byte(toolCallResponse(toolCallSpec{"call-1", "list_apps", "{}"})))
 	})
 
 	registry := newTestRegistry(map[string]tools.ToolResult{
@@ -281,7 +281,7 @@ func TestOrchestrator_SendMessage_NoToolsWhenRegistryNil(t *testing.T) {
 		requestBody, _ = io.ReadAll(r.Body)
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(textResponse("Hello")))
+		_, _ = w.Write([]byte(textResponse("Hello")))
 	})
 
 	fix, server := setupToolTest(t, nil, handler)
@@ -338,10 +338,10 @@ func repeatingNamedToolHandler(toolName string, callsBeforeText int32) http.Hand
 		w.WriteHeader(http.StatusOK)
 		n := callCount.Add(1)
 		if n <= callsBeforeText {
-			w.Write([]byte(toolCallResponse(toolCallSpec{fmt.Sprintf("call-%d", n), toolName, "{}"})))
+			_, _ = w.Write([]byte(toolCallResponse(toolCallSpec{fmt.Sprintf("call-%d", n), toolName, "{}"})))
 			return
 		}
-		w.Write([]byte(textResponse("Final answer")))
+		_, _ = w.Write([]byte(textResponse("Final answer")))
 	})
 }
 
@@ -399,7 +399,7 @@ func TestOrchestrator_SendMessage_NoToolsWhenPartialConfig(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(textResponse("No tools response")))
+		_, _ = w.Write([]byte(textResponse("No tools response")))
 	})
 
 	tests := []struct {
@@ -482,14 +482,14 @@ func TestOrchestrator_SendMessage_TextToolCallFallback(t *testing.T) {
 
 		n := callCount.Add(1)
 		if n == 1 && !hasToolCallMessages(body) {
-			w.Write([]byte(textToolCallResponse(
+			_, _ = w.Write([]byte(textToolCallResponse(
 				"I'll look up the applications for you.",
 				"list_apps",
 				`{}`,
 			)))
 			return
 		}
-		w.Write([]byte(textResponse("You have 2 real applications: Word and Excel.")))
+		_, _ = w.Write([]byte(textResponse("You have 2 real applications: Word and Excel.")))
 	})
 
 	registry := newTestRegistry(map[string]tools.ToolResult{
@@ -546,14 +546,14 @@ func TestOrchestrator_SendMessage_FunctionCallsFallback(t *testing.T) {
 
 		n := callCount.Add(1)
 		if n == 1 && !hasToolCallMessages(body) {
-			w.Write([]byte(functionCallsResponse(
+			_, _ = w.Write([]byte(functionCallsResponse(
 				"I'll look up the applications in your enterprise right away.",
 				"get_applications",
 				map[string]string{"tenant": "acme"},
 			)))
 			return
 		}
-		w.Write([]byte(textResponse("You have 2 real applications: Word and Excel.")))
+		_, _ = w.Write([]byte(textResponse("You have 2 real applications: Word and Excel.")))
 	})
 
 	registry := newTestRegistry(map[string]tools.ToolResult{
@@ -584,7 +584,7 @@ func TestOrchestrator_SendMessage_TextToolCallFallback_NoToolCallsPassesThrough(
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(textResponse("Just a plain answer, no tools needed.")))
+		_, _ = w.Write([]byte(textResponse("Just a plain answer, no tools needed.")))
 	})
 
 	registry := newTestRegistry(map[string]tools.ToolResult{

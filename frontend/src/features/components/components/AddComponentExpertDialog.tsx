@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { Modal, TextInput, Button, Group, Stack, Alert, Autocomplete } from '@mantine/core';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -38,12 +38,12 @@ export const AddComponentExpertDialog: React.FC<AddComponentExpertDialogProps> =
     mode: 'onChange',
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isOpen) {
       reset(DEFAULT_VALUES);
-      setBackendError(null);
+      if (backendError !== null) queueMicrotask(() => setBackendError(null));
     }
-  }, [isOpen, reset]);
+  }, [isOpen, reset, backendError]);
 
   const onSubmit = async (data: AddComponentExpertFormData) => {
     setBackendError(null);

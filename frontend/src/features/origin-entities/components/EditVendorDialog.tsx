@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { Modal, TextInput, Textarea, Button, Group, Stack, Alert } from '@mantine/core';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -30,16 +30,16 @@ export const EditVendorDialog: React.FC<EditVendorDialogProps> = ({
     mode: 'onChange',
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isOpen && vendor) {
       reset({
         name: vendor.name,
         implementationPartner: vendor.implementationPartner || '',
         notes: vendor.notes || '',
       });
-      setBackendError(null);
+      if (backendError !== null) queueMicrotask(() => setBackendError(null));
     }
-  }, [isOpen, vendor, reset]);
+  }, [isOpen, vendor, reset, backendError]);
 
   const handleClose = () => {
     onClose();

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { ROUTES } from './routes';
+import { ROUTES } from './routePaths';
 
 vi.mock('../features/value-streams/pages/ValueStreamsPage', () => ({
   ValueStreamsPage: () => <div data-testid="value-streams-page">List</div>,

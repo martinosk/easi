@@ -68,7 +68,7 @@ func TestAddStageHandler_DuplicateName(t *testing.T) {
 	vs := newTestValueStream(t)
 	name, _ := valueobjects.NewStageName("Discovery")
 	desc := valueobjects.MustNewDescription("")
-	vs.AddStage(name, desc, nil)
+	_, _ = vs.AddStage(name, desc, nil)
 	vs.MarkChangesAsCommitted()
 
 	repo := &mockStageRepository{stream: vs}

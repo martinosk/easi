@@ -43,7 +43,7 @@ func (m *mockTenantOIDCRepository) GetByTenantID(ctx context.Context, tenantID s
 	return m.config, nil
 }
 
-func setupTestHandler(t *testing.T, idpServer *httptest.Server) (*AuthHandlers, *scs.SessionManager) {
+func setupTestHandler(idpServer *httptest.Server) (*AuthHandlers, *scs.SessionManager) {
 	scsManager := scs.New()
 	scsManager.Store = memstore.New()
 	scsManager.Lifetime = time.Hour
@@ -68,10 +68,10 @@ func setupTestHandler(t *testing.T, idpServer *httptest.Server) (*AuthHandlers, 
 	return handlers, scsManager
 }
 
-func createMockIdP(t *testing.T) (*httptest.Server, *rsa.PrivateKey) {
+func createMockIdP(t *testing.T) *httptest.Server {
 	t.Helper()
 	idp := createMockIdPWithTokenEndpoint(t)
-	return idp.server, idp.privateKey
+	return idp.server
 }
 
 func postSessionsWithEmail(t *testing.T, handlers *AuthHandlers, scsManager *scs.SessionManager, email string) (*httptest.ResponseRecorder, map[string]interface{}) {
@@ -90,15 +90,15 @@ func postSessionsWithEmail(t *testing.T, handlers *AuthHandlers, scsManager *scs
 	router.ServeHTTP(rec, req)
 
 	var response map[string]interface{}
-	json.NewDecoder(rec.Body).Decode(&response)
+	_ = json.NewDecoder(rec.Body).Decode(&response)
 	return rec, response
 }
 
 func TestPostSessions_ValidEmail(t *testing.T) {
-	idpServer, _ := createMockIdP(t)
+	idpServer := createMockIdP(t)
 	defer idpServer.Close()
 
-	handlers, scsManager := setupTestHandler(t, idpServer)
+	handlers, scsManager := setupTestHandler(idpServer)
 	rec, response := postSessionsWithEmail(t, handlers, scsManager, "user@acme.com")
 
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -111,10 +111,10 @@ func TestPostSessions_ValidEmail(t *testing.T) {
 }
 
 func TestPostSessions_InvalidEmail(t *testing.T) {
-	idpServer, _ := createMockIdP(t)
+	idpServer := createMockIdP(t)
 	defer idpServer.Close()
 
-	handlers, scsManager := setupTestHandler(t, idpServer)
+	handlers, scsManager := setupTestHandler(idpServer)
 
 	body := map[string]string{"email": "invalid-email"}
 	jsonBody, _ := json.Marshal(body)
@@ -132,7 +132,7 @@ func TestPostSessions_InvalidEmail(t *testing.T) {
 }
 
 func TestPostSessions_DomainNotFound(t *testing.T) {
-	idpServer, _ := createMockIdP(t)
+	idpServer := createMockIdP(t)
 	defer idpServer.Close()
 
 	scsManager := scs.New()
@@ -166,10 +166,10 @@ func TestPostSessions_DomainNotFound(t *testing.T) {
 }
 
 func TestPostSessions_AuthURLContainsPKCE(t *testing.T) {
-	idpServer, _ := createMockIdP(t)
+	idpServer := createMockIdP(t)
 	defer idpServer.Close()
 
-	handlers, scsManager := setupTestHandler(t, idpServer)
+	handlers, scsManager := setupTestHandler(idpServer)
 	_, response := postSessionsWithEmail(t, handlers, scsManager, "user@acme.com")
 
 	links := response["_links"].(map[string]interface{})
@@ -182,10 +182,10 @@ func TestPostSessions_AuthURLContainsPKCE(t *testing.T) {
 }
 
 func TestGetCallback_InvalidState(t *testing.T) {
-	idpServer, _ := createMockIdP(t)
+	idpServer := createMockIdP(t)
 	defer idpServer.Close()
 
-	handlers, scsManager := setupTestHandler(t, idpServer)
+	handlers, scsManager := setupTestHandler(idpServer)
 
 	router := chi.NewRouter()
 	router.Use(scsManager.LoadAndSave)
@@ -213,10 +213,10 @@ func TestGetCallback_InvalidState(t *testing.T) {
 }
 
 func TestGetCallback_MissingCode(t *testing.T) {
-	idpServer, _ := createMockIdP(t)
+	idpServer := createMockIdP(t)
 	defer idpServer.Close()
 
-	handlers, scsManager := setupTestHandler(t, idpServer)
+	handlers, scsManager := setupTestHandler(idpServer)
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state=some-state", nil)
 	rec := httptest.NewRecorder()
@@ -266,11 +266,11 @@ func createMockIdPWithTokenEndpoint(t *testing.T) *idpWithTokenEndpoint {
 			"token_endpoint":         server.URL + "/token",
 			"jwks_uri":               server.URL + "/jwks",
 		}
-		json.NewEncoder(w).Encode(config)
+		_ = json.NewEncoder(w).Encode(config)
 	})
 
 	mux.HandleFunc("/jwks", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(jwks)
+		_ = json.NewEncoder(w).Encode(jwks)
 	})
 
 	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
@@ -311,14 +311,14 @@ func (idp *idpWithTokenEndpoint) handleTokenRequest(w http.ResponseWriter) {
 		"expires_in":    3600,
 		"id_token":      idToken,
 	}
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func TestGetCallback_SuccessfulExchange(t *testing.T) {
 	idp := createMockIdPWithTokenEndpoint(t)
 	defer idp.server.Close()
 
-	handlers, scsManager := setupTestHandler(t, idp.server)
+	handlers, scsManager := setupTestHandler(idp.server)
 
 	router := chi.NewRouter()
 	router.Use(scsManager.LoadAndSave)

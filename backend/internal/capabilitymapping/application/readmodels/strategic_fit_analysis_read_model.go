@@ -116,7 +116,7 @@ func (rm *StrategicFitAnalysisReadModel) queryRealizationFits(ctx context.Contex
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var dto RealizationFitDTO

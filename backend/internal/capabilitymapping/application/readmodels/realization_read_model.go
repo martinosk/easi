@@ -43,7 +43,7 @@ func (rm *RealizationReadModel) GetInheritedCapabilityIDsBySourceRealizationID(c
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var capabilityID string
@@ -157,7 +157,7 @@ func (rm *RealizationReadModel) queryRealizations(ctx context.Context, query str
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			dto, err := rm.scanRealizationRow(rows)
@@ -204,7 +204,7 @@ func (rm *RealizationReadModel) GetByID(ctx context.Context, id string) (*Realiz
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		if rows.Next() {
 			dto, err := rm.scanRealizationRow(rows)
@@ -464,7 +464,7 @@ func (rm *RealizationReadModel) GetByBusinessDomainAndDepth(ctx context.Context,
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		for rows.Next() {
 			var row domainRealizationRow

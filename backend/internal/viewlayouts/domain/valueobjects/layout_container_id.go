@@ -23,7 +23,7 @@ func NewLayoutContainerIDFromString(value string) (LayoutContainerID, error) {
 
 func (l LayoutContainerID) Equals(other domain.ValueObject) bool {
 	if otherID, ok := other.(LayoutContainerID); ok {
-		return l.UUIDValue.EqualsValue(otherID.UUIDValue)
+		return l.EqualsValue(otherID.UUIDValue)
 	}
 	return false
 }

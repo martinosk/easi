@@ -27,7 +27,7 @@ func newCapturingServer(capturedMethod, capturedPath *string, status int, body s
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
 		if body != "" {
-			w.Write([]byte(body))
+			_, _ = w.Write([]byte(body))
 		}
 	}))
 }
@@ -145,7 +145,7 @@ func newQueryCapturingServer(capturedQuery *string) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		*capturedQuery = r.URL.RawQuery
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"data":[]}`))
+		_, _ = w.Write([]byte(`{"data":[]}`))
 	}))
 }
 
@@ -155,7 +155,7 @@ func newBodyCapturingServer(t *testing.T, capturedBody *map[string]interface{}, 
 		*capturedBody = readJSONBody(t, r)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
-		w.Write([]byte(responseBody))
+		_, _ = w.Write([]byte(responseBody))
 	}))
 }
 
@@ -200,7 +200,7 @@ func TestGenericExecutor_GETReturnsRawJSON(t *testing.T) {
 	expectedJSON := `{"data":[{"id":"abc","name":"Payment Gateway"}]}`
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(expectedJSON))
+		_, _ = w.Write([]byte(expectedJSON))
 	}))
 	defer server.Close()
 
@@ -271,7 +271,7 @@ func TestGenericExecutor_ErrorHandling(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(`{"message":"Component not found"}`))
+			_, _ = w.Write([]byte(`{"message":"Component not found"}`))
 		}))
 		defer server.Close()
 
